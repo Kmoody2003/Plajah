@@ -18,7 +18,11 @@
 
 import type { OlrSource } from './olr';
 import { geohashEncode } from './geohash';
-import type { TerraParcel, TerraCivicRecord, GeoJsonGeometry } from './terraTypes';
+import { addressKey, businessNameKey } from './normalize';
+import type {
+  TerraParcel, TerraCivicRecord, GeoJsonGeometry, TerraEnergyReading, TerraBuildingEnergy,
+  TerraBusinessLicense, TerraRentalCompliance, RentalComplianceState,
+} from './terraTypes';
 
 const ORG = 'https://services2.arcgis.com/qvkbeam7Wirps6zC/arcgis/rest/services';
 
@@ -31,6 +35,13 @@ export const DETROIT_LAYERS = {
   serviceRequests:  `${ORG}/improve_detroit/FeatureServer/0`,
   landBank:         `${ORG}/DLBA_Owned_Properties/FeatureServer/0`,
   demolitionQueue:  `${ORG}/city_demolition_pipeline/FeatureServer/0`,
+  // Building energy/water meter readings under the benchmarking ordinance.
+  // Keyed by `parcel_id`, so it joins the parcel spine by identity.
+  energyUsage:      `${ORG}/energy_water_benchmarking_usage/FeatureServer/0`,
+  // Active business licence register — carries parcel_id; business verification.
+  businessLicenses: `${ORG}/bseed_active_business_licenses/FeatureServer/0`,
+  // Rental compliance (registered vs certified) — the strongest civic metric.
+  rentalComplianceFull: `${ORG}/bseed_building_rental_compliance_public_view/FeatureServer/0`,
   // Street centrelines (39,233 named segments). This is Terra's basemap: the
   // city's OWN streets, under the same open-data posture as everything else
   // here — no third-party tile provider, no API key, nothing to licence.
@@ -353,6 +364,202 @@ export async function fetchDetroitCivic(feed: CivicFeed, opts: ArcGisQueryOption
   if (!spec) throw new Error(`Unknown civic feed: ${feed}`);
   const features = await queryArcGisGeoJson(DETROIT_LAYERS[spec.layer], { returnGeometry: true, ...opts });
   return features.map(spec.normalize).filter((r): r is TerraCivicRecord => r !== null);
+}
+
+// ─── Building energy & water (benchmarking ordinance) ────────────────────────
+
+/** Raw meter readings. ~52k rows city-wide across ~112 reporting parcels. */
+export async function fetchDetroitEnergyReadings(opts: ArcGisQueryOptions = {}): Promise<TerraEnergyReading[]> {
+  const features = await queryArcGisGeoJson(DETROIT_LAYERS.energyUsage, {
+    returnGeometry: false,
+    outFields: 'parcel_id,building_id,address,meter_type,units,total_usage,usage_start_date,usage_end_date',
+    ...opts,
+  });
+  const out: TerraEnergyReading[] = [];
+  for (const f of features) {
+    const p = f?.properties ?? {};
+    const parcelNumber = str(pick(p, 'parcel_id'));
+    const meterType = str(pick(p, 'meter_type'));
+    const totalUsage = num(pick(p, 'total_usage'));
+    // A reading without a parcel, a meter type or a number can't be aggregated
+    // or attributed — drop rather than guess.
+    if (!parcelNumber || !meterType || totalUsage === undefined) continue;
+    out.push({
+      parcelNumber,
+      buildingId: str(pick(p, 'building_id')),
+      address: str(pick(p, 'address')),
+      meterType,
+      units: str(pick(p, 'units')) ?? '',
+      totalUsage,
+      startDate: isoDate(pick(p, 'usage_start_date')),
+      endDate: isoDate(pick(p, 'usage_end_date')),
+    });
+  }
+  return out;
+}
+
+/**
+ * Roll readings up to one record per parcel: meter type → calendar year → total.
+ *
+ * Pure and exported so the aggregation is unit-testable without the network.
+ * Years are keyed off the reading's START date — a bill spanning a year boundary
+ * lands in the month it began, which is how the source itself reports periods.
+ */
+export function aggregateEnergyReadings(readings: TerraEnergyReading[]): TerraBuildingEnergy[] {
+  const byParcel = new Map<string, TerraEnergyReading[]>();
+  for (const r of readings) {
+    const list = byParcel.get(r.parcelNumber);
+    if (list) list.push(r); else byParcel.set(r.parcelNumber, [r]);
+  }
+
+  const out: TerraBuildingEnergy[] = [];
+  for (const [parcelNumber, rows] of byParcel) {
+    const meters = new Map<string, { units: string; years: Map<number, { total: number; readings: number }> }>();
+    const buildingIds = new Set<string>();
+    let address: string | undefined;
+    let first: string | undefined;
+    let last: string | undefined;
+
+    for (const r of rows) {
+      if (r.buildingId) buildingIds.add(r.buildingId);
+      if (!address && r.address) address = r.address;
+      if (r.startDate && (!first || r.startDate < first)) first = r.startDate;
+      const end = r.endDate ?? r.startDate;
+      if (end && (!last || end > last)) last = end;
+
+      let meter = meters.get(r.meterType);
+      // Units are the source's own string; keep the first non-empty one seen.
+      if (!meter) { meter = { units: r.units, years: new Map() }; meters.set(r.meterType, meter); }
+      else if (!meter.units && r.units) meter.units = r.units;
+
+      const year = r.startDate ? Number(r.startDate.slice(0, 4)) : NaN;
+      if (!Number.isFinite(year)) continue;
+      const bucket = meter.years.get(year);
+      if (bucket) { bucket.total += r.totalUsage; bucket.readings += 1; }
+      else meter.years.set(year, { total: r.totalUsage, readings: 1 });
+    }
+
+    out.push({
+      id: `detroit:${parcelNumber}`,
+      jurisdiction: 'detroit',
+      parcelNumber,
+      address,
+      buildingIds: [...buildingIds].sort(),
+      meters: [...meters.entries()]
+        .map(([meterType, m]) => ({
+          meterType,
+          units: m.units,
+          years: [...m.years.entries()]
+            .map(([year, v]) => ({ year, total: Math.round(v.total * 100) / 100, readings: v.readings }))
+            .sort((a, b) => a.year - b.year),
+        }))
+        .sort((a, b) => a.meterType.localeCompare(b.meterType)),
+      firstReading: first,
+      lastReading: last,
+      readingCount: rows.length,
+      sources: [source('energyUsage')],
+      updatedAt: Date.now(),
+    });
+  }
+  return out;
+}
+
+// ─── Business licences (city register) ───────────────────────────────────────
+
+export async function fetchDetroitBusinessLicenses(opts: ArcGisQueryOptions = {}): Promise<TerraBusinessLicense[]> {
+  const features = await queryArcGisGeoJson(DETROIT_LAYERS.businessLicenses, {
+    returnGeometry: false,
+    outFields: 'record_id,business_name,license_type,license_category,address,parcel_id,neighborhood,council_district,longitude,latitude,expiration_date',
+    ...opts,
+  });
+  const out: TerraBusinessLicense[] = [];
+  for (const f of features) {
+    const p = f?.properties ?? {};
+    const recordId = str(pick(p, 'record_id'));
+    const businessName = str(pick(p, 'business_name'));
+    if (!recordId || !businessName) continue;
+    const address = str(pick(p, 'address'));
+    out.push({
+      id: `detroit:${recordId}`,
+      jurisdiction: 'detroit',
+      recordId,
+      businessName,
+      nameKey: businessNameKey(businessName),
+      licenseType: str(pick(p, 'license_type')),
+      licenseCategory: str(pick(p, 'license_category')),
+      address,
+      addressKey: addressKey(address) || undefined,
+      parcelNumber: str(pick(p, 'parcel_id')),
+      neighborhood: str(pick(p, 'neighborhood')),
+      councilDistrict: str(pick(p, 'council_district')),
+      lat: num(pick(p, 'latitude')),
+      lng: num(pick(p, 'longitude')),
+      expirationDate: isoDate(pick(p, 'expiration_date')),
+      sources: [source('businessLicenses')],
+      updatedAt: Date.now(),
+    });
+  }
+  return out;
+}
+
+// ─── Rental compliance (registered vs certified) ─────────────────────────────
+
+export async function fetchDetroitRentalCompliance(opts: ArcGisQueryOptions = {}): Promise<TerraRentalCompliance[]> {
+  const features = await queryArcGisGeoJson(DETROIT_LAYERS.rentalComplianceFull, {
+    returnGeometry: false,
+    outFields: 'parcel_id,parcel_address,record_addresses,current_reg_issued_date,current_cofc_issued_date,current_cofc_expired_date',
+    ...opts,
+  });
+  // ⚠️ Dedupe by parcel. The source carries up to ~33 rows for one parcel (per
+  // building/unit), but our doc id is `detroit:<parcelNumber>` and Firestore's
+  // batchWrite REJECTS a batch containing two writes to the same document — so
+  // un-deduped, most chunks 400 and the write silently loses ~90% of records.
+  // One rollup per parcel is also the correct shape: keep the strongest state,
+  // and within a state the most recent dates.
+  const byParcel = new Map<string, TerraRentalCompliance>();
+  const rank = (s: RentalComplianceState) => (s === 'CERTIFIED' ? 2 : s === 'REGISTERED_UNCERTIFIED' ? 1 : 0);
+
+  for (const f of features) {
+    const p = f?.properties ?? {};
+    const parcelNumber = str(pick(p, 'parcel_id'));
+    if (!parcelNumber) continue;
+    const regIssued = isoDate(pick(p, 'current_reg_issued_date'));
+    const cofcIssued = isoDate(pick(p, 'current_cofc_issued_date'));
+    const registered = !!regIssued;
+    const certified = !!cofcIssued;
+    const state: RentalComplianceState = certified
+      ? 'CERTIFIED'
+      : registered ? 'REGISTERED_UNCERTIFIED' : 'UNKNOWN';
+    const parcelAddr = str(pick(p, 'parcel_address'));
+    const recordAddr = str(pick(p, 'record_addresses'));
+    const address = parcelAddr ?? recordAddr;
+    // Index BOTH address forms — they routinely differ in the street-type suffix
+    // ("8156 NORMILE" vs "8156 Normile St") and a tenant may type either.
+    const addressKeys = [...new Set([addressKey(parcelAddr), addressKey(recordAddr)].filter(Boolean))];
+    const rec: TerraRentalCompliance = {
+      id: `detroit:${parcelNumber}`,
+      jurisdiction: 'detroit',
+      parcelNumber,
+      address,
+      addressKeys: addressKeys.length ? addressKeys : undefined,
+      state,
+      registered,
+      certified,
+      regIssuedDate: regIssued,
+      cofcIssuedDate: cofcIssued,
+      cofcExpiredDate: isoDate(pick(p, 'current_cofc_expired_date')),
+      sources: [source('rentalComplianceFull')],
+      updatedAt: Date.now(),
+    };
+    const prev = byParcel.get(rec.id);
+    if (!prev) { byParcel.set(rec.id, rec); continue; }
+    // Keep the record that better represents the parcel's compliance.
+    const better = rank(rec.state) !== rank(prev.state)
+      ? rank(rec.state) > rank(prev.state)
+      : (rec.cofcIssuedDate ?? rec.regIssuedDate ?? '') > (prev.cofcIssuedDate ?? prev.regIssuedDate ?? '');
+    if (better) byParcel.set(rec.id, rec);
+  }
+  return [...byParcel.values()];
 }
 
 // ─── Streets (Terra's basemap) ───────────────────────────────────────────────

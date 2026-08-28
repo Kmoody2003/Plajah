@@ -3132,16 +3132,30 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
     : album.type === 'BOOK' ? 'Chapter'
     : 'Track';
   const finalTracks: Track[] = [];
+  // Movie/TV video files uploaded directly to Mux — polled for their playback id after transcode.
+  const pendingTrackMux: Array<{ trackId: string; uploadId: string }> = [];
+  const pendingEpisodeMux: Array<{ seasonId: string; episodeId: string; uploadId: string }> = [];
   for (let i = 0; i < album.tracks.length; i++) {
     const track = album.tracks[i];
     const trackProgressBase = 20 + (i / album.tracks.length) * 60;
+    const span = 60 / album.tracks.length;
 
-    if (track.file) {
+    if (track.file && album.type === 'VIDEO') {
+      // A film file (e.g. a MOVIE album's main track) — upload straight to Mux (resumable,
+      // chunked, no 25 GB Firebase cap; survives a crash via the ResumeUploadPrompt), exactly
+      // like music videos. The playback id arrives after transcode and is patched onto the album
+      // doc below; until then the player shows a "Processing…" state.
+      onProgress?.(`Uploading ${itemNoun} ${i + 1}/${album.tracks.length}`, Math.round(trackProgressBase));
+      const uploadId = await uploadVideoFileMux(track.file, (p) => {
+        onProgress?.(`Uploading ${itemNoun} ${i + 1}/${album.tracks.length} (${Math.round(p)}%)`, Math.round(trackProgressBase + (p / 100) * span));
+      });
+      pendingTrackMux.push({ trackId: track.id, uploadId });
+      finalTracks.push({ ...track, url: '', muxUploadId: uploadId, file: undefined });
+    } else if (track.file) {
       // Real per-file upload progress. uploadFile already emits 0–100 for THIS file via
       // uploadBytesResumable; fold it into this track's slice of the overall 20→80% band and
       // surface an MB counter so a big mix master (hundreds of MB) shows live movement instead
       // of a frozen bar. Throttled to whole-percent changes to avoid re-render spam.
-      const span = 60 / album.tracks.length;
       const sizeMb = (track.file.size || 0) / (1024 * 1024);
       onProgress?.(`Transferring ${itemNoun} ${i + 1}/${album.tracks.length}`, Math.round(trackProgressBase));
       const gcsPath = `albums/${album.id}/tracks/${track.id}_${track.file.name}`;
@@ -3166,7 +3180,7 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
   // draft so the uploaded video is never orphaned: the creator just reopens the draft and
   // finishes. The final write below upgrades this same doc to its true published state.
   try {
-    if (auth.currentUser && finalTracks.some(t => t.url)) {
+    if (auth.currentUser && finalTracks.some(t => t.url || t.muxUploadId)) {
       const draftDoc = removeUndefined({
         ...album,
         ownerId: auth.currentUser!.uid,
@@ -3237,11 +3251,16 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
       for (let e = 0; e < season.episodes.length; e++) {
         const ep = season.episodes[e];
         let epUrl = ep.url;
+        let epMuxUploadId: string | undefined;
         if (ep.file) {
           onProgress?.(`Uploading S${season.number} E${ep.episodeNumber || e + 1}`, 90);
-          epUrl = await uploadFile(`albums/${album.id}/seasons/${season.number}/ep_${ep.id}_${ep.file.name}`, ep.file);
+          // Episodes go to Mux too (resumable, no size cap) — the playback id is patched onto the
+          // album doc after transcode; the episode player already streams from muxPlaybackId.
+          epMuxUploadId = await uploadVideoFileMux(ep.file);
+          pendingEpisodeMux.push({ seasonId: season.id, episodeId: ep.id, uploadId: epMuxUploadId });
+          epUrl = '';
         }
-        finalEpisodes.push({ ...ep, url: epUrl, file: undefined });
+        finalEpisodes.push({ ...ep, url: epUrl, muxUploadId: epMuxUploadId, file: undefined });
       }
       finalSeasons.push({ ...season, episodes: finalEpisodes });
     }
@@ -3282,6 +3301,31 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
 
     // Canonical cross-service index record (media-library API Phase 1). Best-effort.
     import('./mediaAssets').then(m => m.upsertMediaAssetFromAlbum(cloudAlbum as any)).catch(() => {});
+
+    // ── Fill in Mux playback ids for movie tracks / TV episodes ──────────────────
+    // The film/episode bytes are in Mux; transcode runs in the background. As each asset
+    // becomes ready we patch its muxPlaybackId onto the album doc (and the Reello mirror
+    // doc if it exists) so Taleo streams it. Until then CinemaPlayer shows "Processing…".
+    if (pendingTrackMux.length || pendingEpisodeMux.length) {
+      const persistedTracks: any[] = Array.isArray((cloudAlbum as any).tracks) ? (cloudAlbum as any).tracks : [];
+      const persistedSeasons: any[] = Array.isArray((cloudAlbum as any).seasons) ? (cloudAlbum as any).seasons : [];
+      for (const { trackId, uploadId } of pendingTrackMux) {
+        pollMuxUploadUntilReady(uploadId, async (playbackId, assetId) => {
+          const t = persistedTracks.find(x => x.id === trackId);
+          if (t) { t.muxPlaybackId = playbackId; t.muxAssetId = assetId; t.muxUploadId = null; }
+          try { await updateDoc(doc(db, 'albums', album.id), removeUndefined({ tracks: persistedTracks })); } catch {}
+          try { await updateDoc(doc(db, 'videos', `sys_${album.id}_${trackId}`), { muxPlaybackId: playbackId, muxAssetId: assetId }); } catch {}
+        }, 450, 4000);
+      }
+      for (const { seasonId, episodeId, uploadId } of pendingEpisodeMux) {
+        pollMuxUploadUntilReady(uploadId, async (playbackId, assetId) => {
+          const ep = persistedSeasons.find(s => s.id === seasonId)?.episodes?.find((x: any) => x.id === episodeId);
+          if (ep) { ep.muxPlaybackId = playbackId; ep.muxAssetId = assetId; ep.muxUploadId = null; }
+          try { await updateDoc(doc(db, 'albums', album.id), removeUndefined({ seasons: persistedSeasons })); } catch {}
+          try { await updateDoc(doc(db, 'videos', `sys_${album.id}_${seasonId}_${episodeId}`), { muxPlaybackId: playbackId, muxAssetId: assetId }); } catch {}
+        }, 450, 4000);
+      }
+    }
 
     // Trigger Cora beat analysis for MUSIC albums (fire-and-forget — never blocks publish)
     if (cloudAlbum.type === 'MUSIC' && cloudAlbum.tracks?.length) {
@@ -6393,12 +6437,21 @@ export const deletePersonalTrack = async (trackId: string) => {
 
 // ── Personal VIDEO locker (Plex-style: movies/TV the user owns → Taleo) ──────────
 // Private to the owner (personal_videos, owner-only rules). Never shared.
-export const uploadPersonalVideo = async (video: Partial<Video>, file: File): Promise<Video | undefined> => {
+export const uploadPersonalVideo = async (video: Partial<Video>, file: File, onProgress?: (p: number) => void): Promise<Video | undefined> => {
   if (!auth.currentUser) return;
   const uid = auth.currentUser.uid;
-  const path = `personal/${uid}/videos/${Date.now()}_${file.name}`;
-  const url = await uploadFile(path, file);
   const id = `pvid_${Math.random().toString(36).substr(2, 9)}`;
+  // Upload the film to Mux — resumable, chunked, no 25 GB cap; a crash mid-upload resumes from
+  // the global ResumeUploadPrompt. Taleo streams the locker item from muxPlaybackId. Fall back to
+  // Firebase Storage only if the Mux endpoint is unreachable (no bytes were sent yet).
+  let url = '';
+  let muxUploadId: string | undefined;
+  try {
+    muxUploadId = await uploadVideoFileMux(file, onProgress);
+  } catch (e: any) {
+    if (e?.resumable) throw e; // mid-transfer drop → let the ResumeUploadPrompt continue, don't restart
+    url = await uploadFile(`personal/${uid}/videos/${Date.now()}_${file.name}`, file, onProgress);
+  }
   const newVideo: Video = removeUndefined({
     id,
     ownerId: uid,
@@ -6409,10 +6462,17 @@ export const uploadPersonalVideo = async (video: Partial<Video>, file: File): Pr
     rightsOwnerId: uid,
     timestamp: Date.now(),
     ...video,
-    url,               // uploaded URL wins over anything in `video`
+    url,               // '' when streaming from Mux; the tokenized Storage URL on the fallback path
+    muxUploadId,       // present while Mux transcodes; cleared once the playback id lands
   }) as Video;
   try {
     await setDoc(doc(db, 'personal_videos', id), removeUndefined({ ...newVideo, ownerId: uid }));
+    // Patch in the Mux playback id once transcode finishes so the locker can stream it.
+    if (muxUploadId) {
+      pollMuxUploadUntilReady(muxUploadId, async (playbackId, assetId) => {
+        try { await updateDoc(doc(db, 'personal_videos', id), { muxPlaybackId: playbackId, muxAssetId: assetId, muxUploadId: null }); } catch {}
+      }, 450, 4000);
+    }
     return newVideo;
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, `personal_videos/${id}`);
@@ -7198,7 +7258,17 @@ export const uploadVideoFileMux = async (
   onProgress?: (p: number) => void,
   existing?: { id: string; url: string },   // pass to RESUME an interrupted upload
 ): Promise<string> => {
-  const { id: uploadId, url: uploadUrl } = existing ?? await createMuxDirectUpload();
+  let uploadId: string;
+  let uploadUrl: string;
+  try {
+    ({ id: uploadId, url: uploadUrl } = existing ?? await createMuxDirectUpload());
+  } catch (e: any) {
+    // Couldn't even mint a Mux upload URL — the server/endpoint is unreachable and NO
+    // bytes have been sent. Flag this so uploadVideo() can safely fall back to Firebase
+    // Storage (a mid-transfer failure, by contrast, is resumable and must NOT restart).
+    if (e && typeof e === 'object') e.muxUnavailable = true;
+    throw e;
+  }
   // Persist so a tab close / crash / network drop mid-upload can be resumed. The
   // Mux url is a resumable GCS endpoint, so re-running UpChunk against it continues
   // from the last byte instead of restarting.
@@ -7225,7 +7295,15 @@ export const uploadVideoFileMux = async (
     });
     upload.on('progress', (e: any) => { const p = Math.round(e.detail); if (onProgress) onProgress(p); updateResumableProgress(p); updateTransfer(uploadId, { progress: p }); });
     upload.on('success', () => { removeTransfer(uploadId); resolve(); });
-    upload.on('error', (e: any) => { removeTransfer(uploadId); reject(new Error(e?.detail?.message || 'Mux upload failed')); });
+    upload.on('error', (e: any) => {
+      removeTransfer(uploadId);
+      // The upload session exists and the resumable entry is persisted — flag this error
+      // as resumable so callers surface it for the ResumeUploadPrompt instead of restarting
+      // a whole new (capped, non-crash-safe) Firebase upload from 0%.
+      const err = new Error(e?.detail?.message || 'Mux upload failed') as any;
+      err.resumable = true;
+      reject(err);
+    });
   });
   clearResumable();
   return uploadId;
@@ -7283,9 +7361,16 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
     try {
       // Preferred path: upload directly to Mux (browser → Mux, no Firebase Storage hop)
       muxUploadId = await uploadVideoFileMux(video.file, onProgress);
-    } catch {
-      // Server not available in production — fall back to Firebase Storage,
-      // then trigger Mux URL ingestion after the file is in Storage.
+    } catch (e: any) {
+      if (e?.resumable) {
+        // The upload started and its resumable entry is persisted — a mid-transfer drop.
+        // Surface the error so the global ResumeUploadPrompt can continue from the last
+        // byte against the SAME Mux url; do NOT restart a full Firebase upload from 0%
+        // (that path is capped and can't survive a crash).
+        throw e;
+      }
+      // Mux endpoint unreachable (no bytes sent) — fall back to Firebase Storage, then
+      // trigger Mux URL ingestion after the file is in Storage.
       videoUrl = await uploadFile(`videos/${id}/source.mp4`, video.file, onProgress);
     }
   }

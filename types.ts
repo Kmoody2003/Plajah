@@ -128,6 +128,12 @@ export interface Track {
   url: string;
   duration?: number;
   videoUrl?: string;
+  /** Mux streaming ids for video tracks (e.g. a MOVIE album's film). When set, the player
+   *  streams from Mux and `url` may be empty. `muxUploadId` is the in-flight direct-upload id
+   *  used to poll for the playback id after transcode. */
+  muxUploadId?: string;
+  muxPlaybackId?: string;
+  muxAssetId?: string;
   /** Whether this item is audio or video (video files can land in a track list). */
   mediaKind?: 'AUDIO' | 'VIDEO';
   /** Sounds — the Reello video this track was extracted from ("use this sound" links Chora ↔ Reello). */
@@ -1038,6 +1044,7 @@ export interface Video {
   adMarkers?: AdMarker[]; // Time codes for ad insertion
   muxPlaybackId?: string; // Mux streaming support
   muxAssetId?: string;
+  muxUploadId?: string; // in-flight Mux direct-upload id, polled for the playback id after transcode
   podcastMetadata?: PodcastMetadata;
   /** Saved recording of a finished live stream — shown in Reello's "Past Live Streams". */
   isLiveRecording?: boolean;

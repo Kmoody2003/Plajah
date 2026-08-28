@@ -1292,10 +1292,13 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               <label className="block p-8 bg-black/40 border-2 border-dashed border-white/10 rounded-3xl cursor-pointer hover:border-white/20 transition-all text-center group">
                 <Upload size={28} className="mx-auto mb-4 text-white/20 group-hover:text-white transition-colors" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Main Movie File</p>
-                <p className="text-[8px] font-bold text-white/20 mt-2">{tracks[0]?.url ? 'File Selected' : 'No file selected'}</p>
-                <input type="file" className="hidden" accept={VIDEO_ACCEPT} onChange={async (e) => {
+                <p className="text-[8px] font-bold text-white/20 mt-2">{tracks[0]?.file || tracks[0]?.url ? 'File Selected' : 'No file selected'}</p>
+                <input type="file" className="hidden" accept={VIDEO_ACCEPT} onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) { const url = await uploadFile(file, 'VIDEO'); setTracks([{ id: 'movie', title, artist, url, duration: 0 }]); }
+                  // Stash the film file — it uploads to Mux (resumable, no size cap) at publish time,
+                  // the same non-blocking path music videos use. No 25 GB Firebase Storage cap, and a
+                  // crash mid-upload can be resumed from the ResumeUploadPrompt.
+                  if (file) { setTracks([{ id: 'movie', title, artist, url: '', file, duration: 0 }]); }
                 }} />
               </label>
               <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 -mt-3">Optional — you can add or swap the film file anytime, even after release.</p>
@@ -1368,8 +1371,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                       <input type="text" value={ep.title} onChange={(e) => { const s = [...seasons]; s[sIdx].episodes[eIdx].title = e.target.value; setSeasons(s); }} className="w-full bg-transparent border-none text-xs font-black uppercase tracking-widest text-white outline-none" placeholder="Episode Title" />
                       <textarea value={ep.description || ''} onChange={(e) => { const s = [...seasons]; s[sIdx].episodes[eIdx].description = e.target.value; setSeasons(s); }} placeholder="Episode Description..." className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-medium text-white/60 outline-none resize-none h-16" />
                       <label className="block w-full py-3 bg-white/5 border border-dashed border-white/10 rounded-xl cursor-pointer hover:bg-white/10 text-center transition-all">
-                        <span className="text-[8px] font-black uppercase tracking-widest text-white/40">{ep.url ? 'Video Ready' : 'Upload Video'}</span>
-                        <input type="file" className="hidden" accept={VIDEO_ACCEPT} onChange={async (e) => { const file = e.target.files?.[0]; if (file) { const url = await uploadFile(file, 'VIDEO'); const s = [...seasons]; s[sIdx].episodes[eIdx].url = url; setSeasons(s); } }} />
+                        <span className="text-[8px] font-black uppercase tracking-widest text-white/40">{ep.file || ep.url ? 'Video Ready' : 'Upload Video'}</span>
+                        <input type="file" className="hidden" accept={VIDEO_ACCEPT} onChange={(e) => { const file = e.target.files?.[0]; if (file) { const s = [...seasons]; s[sIdx].episodes[eIdx] = { ...s[sIdx].episodes[eIdx], url: '', file }; setSeasons(s); } }} />
                       </label>
                     </div>
                   ))}

@@ -13,6 +13,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
+import { TerraLookup } from './TerraLookup';
 import {
   MapPin, Building2, FileText, Home, Ruler, Landmark, Rss, Film,
   Compass, ArrowRight, ShieldCheck, Layers, Search, Store, Sparkles,
@@ -196,6 +197,13 @@ export const TerraHub: React.FC<TerraHubProps> = ({ onNavigate }) => {
             </p>
           </div>
         </motion.div>
+
+        {/* Public-record lookup — the two answers a resident/business wants most,
+            surfaced before the tool directory so the map isn't the only door in. */}
+        <section>
+          <TerraLookup onOpenParcel={(parcelId) =>
+            onNavigate?.('TERRA_PASSPORT', { terraTarget: { parcelId } })} />
+        </section>
 
         {/* Directory */}
         <section>

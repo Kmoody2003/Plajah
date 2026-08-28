@@ -116,6 +116,134 @@ export function unpackParcel(stored: StoredTerraParcel | TerraParcel | null | un
   catch { return rest as TerraParcel; }
 }
 
+// ─── Building energy & water — measured, not modelled ────────────────────────
+//
+// Detroit's benchmarking ordinance publishes METER READINGS keyed by
+// `parcel_id`, which joins Terra's spine by identity (verified: benchmarking
+// `08000086-8` is parcel `08000086-8`, 1600 W LAFAYETTE). That makes Terra able
+// to show what a building actually costs to run.
+//
+// ⚠️ COVERAGE IS NARROW AND MUST BE STATED. Only buildings subject to the
+// ordinance report — 112 parcels of 377,940, i.e. large commercial and
+// institutional stock. Absence of data means "not a reporting building", NEVER
+// "efficient". The UI must not imply city-wide coverage.
+//
+// ⚠️ NO DOLLAR FIGURES. Converting usage to cost needs a tariff (rate class,
+// demand charges, seasonality) that the city does not publish and we do not
+// hold. Inventing a blended rate would manufacture a number a business might
+// budget against. Show measured units; let the reader price them.
+
+/** One calendar year of readings for a single meter type. */
+export interface TerraEnergyYear {
+  year: number;
+  /** Summed `total_usage` in the meter's own units. */
+  total: number;
+  /** How many readings rolled up — a year with 2 readings is not a full year. */
+  readings: number;
+}
+
+export interface TerraEnergyMeter {
+  /** The source's own meter label, unmapped (e.g. 'Electric', 'Natural Gas'). */
+  meterType: string;
+  /** The source's own units string, e.g. 'kWh (thousand Watt-hours)'. */
+  units: string;
+  /** Ascending by year. */
+  years: TerraEnergyYear[];
+}
+
+/** Aggregated benchmarking history for one parcel. Doc id `detroit:<parcelNumber>`. */
+export interface TerraBuildingEnergy {
+  id: string;
+  jurisdiction: TerraJurisdiction;
+  parcelNumber: string;
+  address?: string;
+  /** The ordinance's building ids seen on this parcel (a parcel can carry several). */
+  buildingIds: string[];
+  meters: TerraEnergyMeter[];
+  /** ISO dates bounding the readings — the vintage the UI must show. */
+  firstReading?: string;
+  lastReading?: string;
+  readingCount: number;
+  sources: OlrSource[];
+  updatedAt: number;
+}
+
+/** One raw reading, normalised from the city layer before aggregation. */
+export interface TerraEnergyReading {
+  parcelNumber: string;
+  buildingId?: string;
+  address?: string;
+  meterType: string;
+  units: string;
+  totalUsage: number;
+  /** ISO date (yyyy-mm-dd). */
+  startDate?: string;
+  endDate?: string;
+}
+
+// ─── Business licences (city register) ───────────────────────────────────────
+//
+// Detroit's active-licence register carries `parcel_id`, a business name, a
+// category and an expiry. It gives Plajah a business-verification primitive that
+// checks a claim against the CITY'S record — no dependence on Google Business
+// Profile. Doc id `detroit:<record_id>`; also stored under normalized name and
+// address keys for equality lookup (Firestore can't do fuzzy matching).
+
+export interface TerraBusinessLicense {
+  id: string;
+  jurisdiction: TerraJurisdiction;
+  recordId: string;
+  businessName: string;
+  /** businessNameKey(businessName) — the equality-lookup key. */
+  nameKey: string;
+  licenseType?: string;
+  licenseCategory?: string;
+  address?: string;
+  /** addressKey(address) — the equality-lookup key. */
+  addressKey?: string;
+  parcelNumber?: string;
+  neighborhood?: string;
+  councilDistrict?: string;
+  lat?: number;
+  lng?: number;
+  /** ISO date; a licence past this is expired, not active. */
+  expirationDate?: string;
+  sources: OlrSource[];
+  updatedAt: number;
+}
+
+// ─── Rental compliance (registered vs certified) ─────────────────────────────
+//
+// The gap between "registered" and "certified" is the strongest civic metric in
+// the dataset. This type is a per-BUILDING rollup keyed to the parcel and to a
+// normalized address, so a tenant can look up their own building. Verified
+// 2026-08-27: 22,406 registered vs 10,370 certified city-wide.
+
+export type RentalComplianceState = 'CERTIFIED' | 'REGISTERED_UNCERTIFIED' | 'UNKNOWN';
+
+export interface TerraRentalCompliance {
+  id: string;
+  jurisdiction: TerraJurisdiction;
+  parcelNumber: string;
+  address?: string;
+  /**
+   * Every normalized address variant the source gave for this building —
+   * `parcel_address` ("8156 NORMILE") AND `record_addresses` ("8156 Normile St")
+   * often differ in the street-type suffix, and a tenant may type either. Stored
+   * as an array so the lookup matches any of them (array-contains). Single
+   * `addressKey` alone missed suffix-mismatched inputs.
+   */
+  addressKeys?: string[];
+  state: RentalComplianceState;
+  registered: boolean;
+  certified: boolean;
+  regIssuedDate?: string;
+  cofcIssuedDate?: string;
+  cofcExpiredDate?: string;
+  sources: OlrSource[];
+  updatedAt: number;
+}
+
 // ─── Civic records ───────────────────────────────────────────────────────────
 
 export type CivicRecordKind =

@@ -16,11 +16,14 @@
  */
 
 import { fsBatchWrite, fsGet, fsSet } from '../firebaseAdminRest';
-import { packParcel, type TerraParcel, type TerraCivicRecord, type TerraIngestionSummary } from './terraTypes';
+import { packParcel, type TerraParcel, type TerraCivicRecord, type TerraIngestionSummary, type TerraBuildingEnergy, type TerraBusinessLicense, type TerraRentalCompliance } from './terraTypes';
 
 const PARCELS = 'terraParcels';
 const CIVIC = 'terraCivic';
 const RUNS = 'terraIngestionRuns';
+const ENERGY = 'terraEnergy';
+const BUSINESS = 'terraBusiness';
+const RENTAL = 'terraRental';
 
 /** Doc ids carry a colon (`detroit:16004044.`); encode so the REST path segment
  *  isn't parsed as a Google `:method` suffix. Firestore decodes it back, so the
@@ -46,6 +49,21 @@ export async function saveParcelsServer(parcels: TerraParcel[]): Promise<number>
 
 export async function saveCivicServer(records: TerraCivicRecord[]): Promise<number> {
   return fsBatchWrite(records.map(r => ({ path: `${CIVIC}/${r.id}`, data: envelope(r.id, r) })));
+}
+
+/** Benchmarking rollups — ~112 docs, one per reporting parcel. */
+export async function saveEnergyServer(records: TerraBuildingEnergy[]): Promise<number> {
+  return fsBatchWrite(records.map(r => ({ path: `${ENERGY}/${r.id}`, data: envelope(r.id, r) })));
+}
+
+/** Active business licences — ~1,900 docs, keyed by record id. */
+export async function saveBusinessServer(records: TerraBusinessLicense[]): Promise<number> {
+  return fsBatchWrite(records.map(r => ({ path: `${BUSINESS}/${r.id}`, data: envelope(r.id, r) })));
+}
+
+/** Rental compliance rollups — ~22,600 docs, one per building parcel. */
+export async function saveRentalServer(records: TerraRentalCompliance[]): Promise<number> {
+  return fsBatchWrite(records.map(r => ({ path: `${RENTAL}/${r.id}`, data: envelope(r.id, r) })));
 }
 
 export async function recordRunServer(summary: TerraIngestionSummary): Promise<boolean> {

@@ -22,13 +22,14 @@ import { motion } from 'motion/react';
 import {
   MapPin, ArrowLeft, Home, Ruler, Landmark, FileText, Hammer, AlertTriangle,
   Info, Fingerprint, Share2, CalendarClock, DollarSign, Building2, ClipboardList,
-  ExternalLink, ShieldCheck,
+  ExternalLink, ShieldCheck, Gauge, Store, BadgeCheck, ShieldAlert,
 } from 'lucide-react';
 import type { UserProfile } from '../../types';
-import type { TerraParcel, TerraCivicRecord, CivicRecordKind } from '../../services/terra/terraTypes';
+import type { TerraParcel, TerraCivicRecord, CivicRecordKind, TerraBuildingEnergy, TerraBusinessLicense, TerraRentalCompliance } from '../../services/terra/terraTypes';
 import type { OpenListingRecord, OlrSource } from '../../services/terra/olr';
 import {
-  fetchParcel, fetchListing, fetchCivicForParcel, fetchListingForParcel,
+  fetchParcel, fetchListing, fetchCivicForParcel, fetchListingForParcel, fetchEnergyForParcel,
+  fetchRentalForParcel, fetchBusinessesForParcel,
 } from '../../services/terra/terraService';
 
 const ACCENT = '#FF8C00';
@@ -95,6 +96,221 @@ const Row: React.FC<{ k: string; v: React.ReactNode }> = ({ k, v }) => (
     <span className="text-[12px] text-white/80 font-semibold tabular-nums text-right">{v}</span>
   </div>
 );
+
+// ─── Building energy & water ────────────────────────────────────────────────
+//
+// The differentiator: measured consumption, joined to the parcel by id. Two
+// honesty rules are enforced here rather than left to the copy —
+//   1. NO DOLLARS. We hold no tariff, so we show units and let the reader price
+//      them. A blended rate would be a number someone budgets against.
+//   2. The panel renders ONLY when the building reports. Absence is "not a
+//      reporting building", never "efficient", so there is no empty state.
+
+/** Compact unit label — the source's units string is far too long for a table. */
+function shortUnits(units: string): string {
+  const m = units.match(/^([^(]+)/);
+  return (m ? m[1] : units).trim();
+}
+
+/** kWh/ccf run to millions; full digits would swamp the row. */
+function compactUsage(n: number): string {
+  if (!Number.isFinite(n)) return '—';
+  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (Math.abs(n) >= 10_000) return `${Math.round(n / 1000).toLocaleString()}k`;
+  return Math.round(n).toLocaleString();
+}
+
+const METER_COLOR: Record<string, string> = {
+  Electric: '#E8B33D',
+  'Natural Gas': '#FF8C00',
+  'District Steam': '#C97BE8',
+};
+const meterColor = (t: string) =>
+  METER_COLOR[t] ?? (/water/i.test(t) ? MEASURE : '#6F7689');
+
+const EnergyPanel: React.FC<{ energy: TerraBuildingEnergy }> = ({ energy }) => {
+  // The reading window's final year is partial by definition — label it rather
+  // than letting it read as a low year against complete ones.
+  const latestYear = energy.lastReading ? Number(energy.lastReading.slice(0, 4)) : undefined;
+
+  const meters = energy.meters
+    .map(m => {
+      const years = m.years.filter(y => y.total > 0).slice(-6);
+      const complete = years.filter(y => y.year !== latestYear);
+      const headline = complete[complete.length - 1] ?? years[years.length - 1];
+      const prior = complete[complete.length - 2];
+      const change = headline && prior && prior.total > 0
+        ? ((headline.total - prior.total) / prior.total) * 100
+        : undefined;
+      // Scale each meter against ITS OWN peak — electric runs in millions of kWh
+      // and water in hundreds of ccf, so a shared maximum would flatten water to
+      // an invisible sliver.
+      const peak = Math.max(...years.map(y => y.total), 1);
+      return { ...m, years, headline, prior, change, peak };
+    })
+    .filter(m => m.headline);
+
+  if (!meters.length) return null;
+
+  return (
+    <div>
+      <p className={`${label} mb-3 flex items-center gap-1.5`}>
+        <Gauge size={11} /> What this building uses
+      </p>
+      <div className={`${card} p-4`}>
+        <div className="flex flex-col gap-4">
+          {meters.map(m => {
+            const color = meterColor(m.meterType);
+            return (
+              <div key={m.meterType}>
+                <div className="flex items-baseline justify-between gap-3 mb-1.5">
+                  <span className="text-[11px] font-bold text-white/75 truncate">{m.meterType}</span>
+                  <span className="text-[11px] font-black tabular-nums shrink-0" style={{ color }}>
+                    {compactUsage(m.headline!.total)}
+                    <span className="text-white/35 font-semibold ml-1">
+                      {shortUnits(m.units)}/yr
+                    </span>
+                  </span>
+                </div>
+                {/* Year bars — a shape for the trend, exact figures on hover. */}
+                <div className="flex items-end gap-1 h-9">
+                  {m.years.map(y => {
+                    const partial = y.year === latestYear;
+                    return (
+                      <div key={y.year} className="flex-1 flex flex-col justify-end h-full group relative"
+                           title={`${y.year}: ${Math.round(y.total).toLocaleString()} ${shortUnits(m.units)}${partial ? ' (year to date)' : ''} · ${y.readings} readings`}>
+                        <div className="rounded-sm transition-all"
+                             style={{
+                               height: `${Math.max(6, (y.total / m.peak) * 100)}%`,
+                               background: color,
+                               opacity: partial ? 0.35 : 0.8,
+                               border: partial ? `1px dashed ${color}` : 'none',
+                             }} />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-[9px] font-mono text-white/25 tabular-nums">
+                    {m.years[0]?.year}–{m.years[m.years.length - 1]?.year}
+                  </span>
+                  {m.change !== undefined && (
+                    <span className="text-[9px] font-mono tabular-nums"
+                          style={{ color: m.change > 0 ? '#FF3D80' : '#3DD68C' }}>
+                      {m.change > 0 ? '▲' : '▼'} {Math.abs(m.change).toFixed(0)}% vs {m.prior!.year}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-start gap-2">
+          <Info size={11} className="text-white/25 mt-0.5 shrink-0" />
+          <p className="text-[10px] text-white/35 leading-relaxed">
+            Measured meter readings filed under Detroit's benchmarking ordinance —
+            {' '}{energy.readingCount.toLocaleString()} readings, {fmtDate(energy.firstReading)} to {fmtDate(energy.lastReading)}.
+            Shown in the meters' own units: we hold no utility tariff, so converting
+            to dollars would be a guess.
+            {latestYear ? ` ${latestYear} is year-to-date.` : ''}
+          </p>
+        </div>
+      </div>
+      <Vintage sources={energy.sources} />
+    </div>
+  );
+};
+
+// ─── Rental compliance (registered vs certified) ────────────────────────────
+//
+// A tenant's right to know, made lookup-able. The three states are visually
+// distinct because the difference is the whole point: CERTIFIED (passed
+// inspection), REGISTERED_UNCERTIFIED (on the roll but never certified — the
+// gap), UNKNOWN (not a registered rental at all).
+
+const RentalPanel: React.FC<{ rental: TerraRentalCompliance }> = ({ rental }) => {
+  const certified = rental.state === 'CERTIFIED';
+  const gap = rental.state === 'REGISTERED_UNCERTIFIED';
+  const tone = certified ? '#3DD68C' : gap ? '#E8B33D' : '#6F7689';
+  const Icon = certified ? BadgeCheck : gap ? ShieldAlert : Info;
+
+  return (
+    <div>
+      <p className={`${label} mb-3 flex items-center gap-1.5`}>
+        <ShieldCheck size={11} /> Rental compliance
+      </p>
+      <div className={`${card} p-4`}>
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+               style={{ background: `${tone}1F`, color: tone }}>
+            <Icon size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[13px] font-black text-white leading-tight">
+              {certified ? 'Registered and certified' : gap ? 'Registered — not certified' : 'Not a registered rental'}
+            </p>
+            <p className="text-[11px] text-white/50 leading-relaxed mt-1">
+              {certified
+                ? 'The landlord holds a current certificate of compliance — the building passed its rental inspection.'
+                : gap
+                  ? 'On the rental registry, but with no current certificate of compliance on file. Under city ordinance a rental must be certified, not just registered.'
+                  : 'No rental registration is on file for this parcel.'}
+            </p>
+          </div>
+        </div>
+
+        {(rental.registered || rental.certified) && (
+          <div className="mt-3 pt-3 border-t border-white/[0.06] grid grid-cols-2 gap-x-4">
+            <Row k="Registered" v={rental.registered ? fmtDate(rental.regIssuedDate) || 'Yes' : 'No'} />
+            <Row k="Certified" v={rental.certified ? fmtDate(rental.cofcIssuedDate) || 'Yes' : 'No'} />
+          </div>
+        )}
+      </div>
+      <Vintage sources={rental.sources} />
+    </div>
+  );
+};
+
+// ─── Businesses at this address (licence register) ───────────────────────────
+
+const BusinessPanel: React.FC<{ businesses: TerraBusinessLicense[] }> = ({ businesses }) => {
+  const today = new Date().toISOString().slice(0, 10);
+  return (
+    <div>
+      <p className={`${label} mb-3 flex items-center gap-1.5`}>
+        <Store size={11} /> Licensed here
+      </p>
+      <div className={`${card} p-4`}>
+        <div className="flex flex-col gap-2.5">
+          {businesses.slice(0, 8).map(b => {
+            const active = !b.expirationDate || b.expirationDate >= today;
+            return (
+              <div key={b.id} className="flex items-start gap-2.5">
+                <BadgeCheck size={14} className="mt-0.5 shrink-0" style={{ color: active ? '#3DD68C' : '#6F7689' }} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12px] font-bold text-white/85 leading-tight truncate">{b.businessName}</p>
+                  <p className="text-[10px] text-white/40 leading-tight mt-0.5">
+                    {b.licenseType || 'Licensed'}
+                    {b.expirationDate ? ` · ${active ? 'expires' : 'expired'} ${fmtDate(b.expirationDate)}` : ''}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-start gap-2">
+          <Info size={11} className="text-white/25 mt-0.5 shrink-0" />
+          <p className="text-[10px] text-white/35 leading-relaxed">
+            Active licences the city holds for this parcel. This is the public record a
+            business can be verified against.
+          </p>
+        </div>
+      </div>
+      <Vintage sources={businesses[0]?.sources} />
+    </div>
+  );
+};
 
 // ─── The record timeline (history, not status) ──────────────────────────────
 
@@ -165,6 +381,9 @@ export const PropertyPassport: React.FC<PropertyPassportProps> = ({ parcelId, li
   const [parcel, setParcel] = useState<TerraParcel | null>(null);
   const [listing, setListing] = useState<OpenListingRecord | null>(null);
   const [civic, setCivic] = useState<TerraCivicRecord[]>([]);
+  const [energy, setEnergy] = useState<TerraBuildingEnergy | null>(null);
+  const [rental, setRental] = useState<TerraRentalCompliance | null>(null);
+  const [businesses, setBusinesses] = useState<TerraBusinessLicense[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
@@ -186,12 +405,22 @@ export const PropertyPassport: React.FC<PropertyPassportProps> = ({ parcelId, li
       }
 
       const pin = resolvedParcel?.parcelNumber || resolvedListing?.ParcelNumber;
-      const civicRecords = pin ? await fetchCivicForParcel(pin, 60) : [];
+      // Civic history and benchmarking both hang off the parcel number; fetch
+      // together so one slow read doesn't stage the page in twice.
+      const [civicRecords, energyRecord, rentalRecord, bizRecords] = await Promise.all([
+        pin ? fetchCivicForParcel(pin, 60) : Promise.resolve([]),
+        pin ? fetchEnergyForParcel(`detroit:${pin}`) : Promise.resolve(null),
+        pin ? fetchRentalForParcel(`detroit:${pin}`) : Promise.resolve(null),
+        pin ? fetchBusinessesForParcel(pin, 20) : Promise.resolve([]),
+      ]);
 
       if (cancelled) return;
       setParcel(resolvedParcel);
       setListing(resolvedListing);
       setCivic(civicRecords);
+      setEnergy(energyRecord);
+      setRental(rentalRecord);
+      setBusinesses(bizRecords);
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -327,6 +556,10 @@ export const PropertyPassport: React.FC<PropertyPassportProps> = ({ parcelId, li
                 </p>
               </div>
             )}
+
+            {/* Only for buildings that report — see the honesty note on EnergyPanel. */}
+            {rental && rental.state !== 'UNKNOWN' && <div className="mt-6"><RentalPanel rental={rental} /></div>}
+            {energy && <div className="mt-6"><EnergyPanel energy={energy} /></div>}
           </div>
 
           <div>
@@ -355,6 +588,8 @@ export const PropertyPassport: React.FC<PropertyPassportProps> = ({ parcelId, li
                 </div>
               )}
             </div>
+
+            {businesses.length > 0 && <div className="mt-6"><BusinessPanel businesses={businesses} /></div>}
           </div>
         </div>
 

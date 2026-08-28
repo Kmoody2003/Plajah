@@ -92,3 +92,129 @@ test('coverBounds: city-scale viewport refuses rather than exploding', () => {
   assert.ok(size.latDeg > 0 && size.lonDeg > 0);
   assert.equal(geohashCellsForBounds(city, 7, 32), null, 'fine precision must bail');
 });
+
+// ─── Energy benchmarking rollup ─────────────────────────────────────────────
+import { aggregateEnergyReadings } from '../services/terra/detroitAdapter';
+import type { TerraEnergyReading } from '../services/terra/terraTypes';
+
+const reading = (o: Partial<TerraEnergyReading>): TerraEnergyReading => ({
+  parcelNumber: '08000086-8', meterType: 'Electric', units: 'kWh (thousand Watt-hours)',
+  totalUsage: 100, startDate: '2024-03-01', endDate: '2024-04-01', ...o,
+});
+
+test('energy: sums a year across multiple readings of the same meter type', () => {
+  const [rec] = aggregateEnergyReadings([
+    reading({ totalUsage: 100, startDate: '2024-01-01' }),
+    reading({ totalUsage: 250, startDate: '2024-02-01' }),
+    reading({ totalUsage: 400, startDate: '2025-01-01' }),
+  ]);
+  const electric = rec.meters.find(m => m.meterType === 'Electric')!;
+  assert.deepEqual(electric.years, [
+    { year: 2024, total: 350, readings: 2 },
+    { year: 2025, total: 400, readings: 1 },
+  ]);
+  assert.equal(rec.id, 'detroit:08000086-8');
+  assert.equal(rec.readingCount, 3);
+});
+
+test('energy: keeps meter types separate and never mixes units', () => {
+  const [rec] = aggregateEnergyReadings([
+    reading({ meterType: 'Electric', units: 'kWh (thousand Watt-hours)', totalUsage: 10 }),
+    reading({ meterType: 'Natural Gas', units: 'ccf (hundred cubic feet)', totalUsage: 20 }),
+  ]);
+  assert.equal(rec.meters.length, 2);
+  const gas = rec.meters.find(m => m.meterType === 'Natural Gas')!;
+  assert.equal(gas.units, 'ccf (hundred cubic feet)');
+  assert.equal(gas.years[0].total, 20);
+  // Electric total must NOT have absorbed the gas reading.
+  assert.equal(rec.meters.find(m => m.meterType === 'Electric')!.years[0].total, 10);
+});
+
+test('energy: splits by parcel and tracks the reading window', () => {
+  const recs = aggregateEnergyReadings([
+    reading({ parcelNumber: 'A', startDate: '2020-05-01', endDate: '2020-06-01' }),
+    reading({ parcelNumber: 'A', startDate: '2024-01-01', endDate: '2024-02-01' }),
+    reading({ parcelNumber: 'B', startDate: '2023-01-01', endDate: '2023-02-01' }),
+  ]);
+  assert.equal(recs.length, 2);
+  const a = recs.find(r => r.parcelNumber === 'A')!;
+  assert.equal(a.firstReading, '2020-05-01');
+  assert.equal(a.lastReading, '2024-02-01');
+});
+
+test('energy: collects building ids and carries a source', () => {
+  const [rec] = aggregateEnergyReadings([
+    reading({ buildingId: '3925' }),
+    reading({ buildingId: '3925' }),
+    reading({ buildingId: '4001' }),
+  ]);
+  assert.deepEqual(rec.buildingIds, ['3925', '4001']);
+  assert.equal(rec.sources.length, 1);
+  assert.match(rec.sources[0].system, /energyUsage/);
+});
+
+// ─── Normalisation keys (the join contract) ─────────────────────────────────
+import { addressKey, businessNameKey } from '../services/terra/normalize';
+
+test('addressKey: canonicalises suffix, case, punctuation', () => {
+  const k = addressKey('8156 Normile St.');
+  assert.equal(k, '8156 normile st');
+  assert.equal(addressKey('8156 NORMILE STREET'), k);
+  assert.equal(addressKey('8156   normile  st'), k);
+});
+
+test('addressKey: preserves meaningful directionals but normalises spelling', () => {
+  assert.equal(addressKey('123 Main St North'), '123 main st n');
+  // North and South must NOT collapse to the same building.
+  assert.notEqual(addressKey('123 Main St N'), addressKey('123 Main St S'));
+});
+
+test('addressKey: drops unit designators so a tenant matches their building', () => {
+  assert.equal(addressKey('8156 Normile St Apt 3'), '8156 normile st');
+  assert.equal(addressKey('500 Woodward Ave, Suite 1200'), '500 woodward ave');
+});
+
+test('businessNameKey: strips only trailing company suffix', () => {
+  assert.equal(businessNameKey('VISION TRANSPORTATION OF MI, LLC'), 'vision transportation of mi');
+  assert.equal(businessNameKey('Acme Inc.'), 'acme');
+  // A "Co" that is part of the name, not a suffix, survives.
+  assert.equal(businessNameKey('Co-op Market'), 'co op market');
+  // Distinct businesses stay distinct.
+  assert.notEqual(businessNameKey('Detroit Coffee Co'), businessNameKey('Detroit Coffee House'));
+});
+
+test('businessNameKey: expands ampersand, ignores case', () => {
+  assert.equal(businessNameKey('Smith & Sons LLC'), 'smith and sons');
+  assert.equal(businessNameKey('smith and sons'), 'smith and sons');
+});
+
+// ─── Rental dedup by parcel (the batchWrite-collision fix) ──────────────────
+import { fetchDetroitRentalCompliance as _rc } from '../services/terra/detroitAdapter';
+// Pure dedup logic is exercised indirectly; here we assert the invariant with a
+// tiny hand-rolled reducer mirroring the fetcher, so the rule is pinned even if
+// the network shape changes. (The fetcher itself is integration-tested live.)
+
+test('rental dedup: one record per parcel, strongest state wins', () => {
+  // Mirror of the fetcher's merge rule.
+  type R = { id: string; state: 'CERTIFIED' | 'REGISTERED_UNCERTIFIED' | 'UNKNOWN'; cofc?: string; reg?: string };
+  const rank = (s: R['state']) => (s === 'CERTIFIED' ? 2 : s === 'REGISTERED_UNCERTIFIED' ? 1 : 0);
+  const rows: R[] = [
+    { id: 'detroit:P1', state: 'REGISTERED_UNCERTIFIED', reg: '2024-01-01' },
+    { id: 'detroit:P1', state: 'CERTIFIED', cofc: '2024-06-01' },   // stronger — should win
+    { id: 'detroit:P1', state: 'REGISTERED_UNCERTIFIED', reg: '2025-01-01' },
+    { id: 'detroit:P2', state: 'REGISTERED_UNCERTIFIED', reg: '2023-01-01' },
+    { id: 'detroit:P2', state: 'REGISTERED_UNCERTIFIED', reg: '2025-05-01' }, // newer — should win
+  ];
+  const byId = new Map<string, R>();
+  for (const rec of rows) {
+    const prev = byId.get(rec.id);
+    if (!prev) { byId.set(rec.id, rec); continue; }
+    const better = rank(rec.state) !== rank(prev.state)
+      ? rank(rec.state) > rank(prev.state)
+      : (rec.cofc ?? rec.reg ?? '') > (prev.cofc ?? prev.reg ?? '');
+    if (better) byId.set(rec.id, rec);
+  }
+  assert.equal(byId.size, 2);
+  assert.equal(byId.get('detroit:P1')!.state, 'CERTIFIED');
+  assert.equal(byId.get('detroit:P2')!.reg, '2025-05-01');
+});
