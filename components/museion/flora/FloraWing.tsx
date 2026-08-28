@@ -20,7 +20,7 @@ import { disposeFloraTextures } from './textures';
 import { SKY_ENVIRONMENTS, DEFAULT_SKY, skyById } from './skyEnvironments';
 import ForestBackdrop from './ForestBackdrop';
 import LightShafts from './LightShafts';
-import { BACKDROP_SETS, defaultBackdrop } from './backdrops';
+import { BACKDROP_SETS, defaultBackdrop, backdropById } from './backdrops';
 import { ForestAudio, roomForGallery } from './ForestAudio';
 import { FLORA, GALLERY_META, LINEAGE_LABEL, CONSERVATION_LABEL, populatedGalleries } from '../../../data/flora';
 import type { FloraSpecimen, Gallery } from '../../../data/flora';
@@ -89,7 +89,8 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
   const [audioOn, setAudioOn] = useState(false);
   const [skyId, setSkyId] = useState<string>(DEFAULT_SKY);
   const sky = useMemo(() => skyById(skyId), [skyId]);
-  const backdrop = useMemo(defaultBackdrop, []);
+  const [backdropId, setBackdropId] = useState<string>(() => defaultBackdrop().id);
+  const backdrop = useMemo(() => backdropById(backdropId), [backdropId]);
   const skyRef = useRef(sky);
   skyRef.current = sky;
   const audioRef = useRef<ForestAudio | null>(null);
@@ -262,6 +263,10 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
             title={audioOn ? 'Silence the forest' : 'Let the forest in'}>
             {audioOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
           </button>
+          <select className="fw-skysel" value={backdropId} onChange={(e) => setBackdropId(e.target.value)}
+            title="Backdrop — photographs standing at the treeline behind the specimens">
+            {BACKDROP_SETS.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
+          </select>
           <select className="fw-skysel" value={skyId} onChange={(e) => setSkyId(e.target.value)}
             title="Sky & lighting — the panorama is both the background and the light source">
             {SKY_ENVIRONMENTS.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}

@@ -39,16 +39,21 @@ export const BACKDROP_SETS: BackdropSet[] = [
     radius: 78, height: 62, yOffset: -6, intensity: 1,
   },
   {
-    // Drop three forest photographs in as forest-01/02/03.jpg and this lights up.
-    // Empty entries are skipped, so this is safe to ship before the files exist.
+    // Kenneth's three woodland photographs. They are SQUARE (2048²), so the panel
+    // count is chosen to match: at radius 70 and height 72, six 60° panels are
+    // 73 units wide — almost exactly 1:1, so nothing stretches. The three images
+    // repeat 1,2,3,1,2,3 so adjacent panels are never the same picture.
     id: 'summer-woodland',
     label: 'Summer woodland',
     images: [
       '/backdrops/forest-01.jpg',
       '/backdrops/forest-02.jpg',
       '/backdrops/forest-03.jpg',
+      '/backdrops/forest-01.jpg',
+      '/backdrops/forest-02.jpg',
+      '/backdrops/forest-03.jpg',
     ],
-    radius: 74, height: 58, yOffset: -5, intensity: 0.94,
+    radius: 70, height: 72, yOffset: -20, intensity: 0.95,
   },
   {
     // Videos work exactly the same way — .mp4 / .webm are detected automatically
@@ -70,12 +75,12 @@ export function availableBackdrops(): BackdropSet[] {
 }
 
 /**
- * What the hall shows by default. Ships as "none" — a backdrop pointing at
- * missing files would throw inside Suspense and blank the wing, so a set is
- * opt-in until its photos are known to exist.
+ * What the hall shows by default. A set must only be made default once its files
+ * actually exist — one pointing at a missing image throws inside Suspense and
+ * blanks the whole wing.
  */
 export function defaultBackdrop(): BackdropSet {
-  return BACKDROP_SETS[0];
+  return backdropById('summer-woodland');
 }
 
 export function backdropById(id: string): BackdropSet {
