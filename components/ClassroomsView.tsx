@@ -43,6 +43,9 @@ import ErrorBoundary from './ErrorBoundary';
 import TeacherStudentsPanel from './TeacherStudentsPanel';
 import { TYPE } from '../src/lib/designSystem';
 import { lazy } from 'react';
+// The Living Forest wing — lazy: it pulls three.js, and the museum should
+// cost nothing until a visitor walks in.
+const FloraWing = lazy(() => import('./museion/flora/FloraWing'));
 const SportExplainerModule = lazy(() => import('./sports/SportExplainerModule'));
 const LabsDisciplineView = lazy(() => import('./LabsDisciplineView'));
 const ArchitectureDisciplineView = lazy(() => import('./ArchitectureDisciplineView'));
@@ -435,6 +438,9 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
   useEffect(() => {
     if (initialModule) setSelectedModule(initialModule);
   }, [initialModule]);
+  // Which door of the Plant Biology wing is open: the forest, or the Study Room.
+  const [plantStudyRoom, setPlantStudyRoom] = useState(false);
+  useEffect(() => { if (selectedModule !== 'PLANT_BIOLOGY') setPlantStudyRoom(false); }, [selectedModule]);
 
   // Back out of a module: if it was opened directly from the Academia Hub, return to the Hub
   // (via onBack) rather than the classroom grid; otherwise fall back to the grid.
@@ -622,15 +628,31 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
   }
 
   if (selectedModule === 'PLANT_BIOLOGY') {
+    // The wing is the front door; the original herbarium module lives on behind
+    // it as the Study Room (cells, photosynthesis, microscopy).
+    if (plantStudyRoom) {
+      return (
+        <ErrorBoundary>
+          <Suspense fallback={
+            <div className="min-h-screen bg-[#FDFCF0] flex flex-col items-center justify-center p-6 text-center">
+              <div className="w-16 h-16 border-2 border-[#3E4A35]/20 border-t-[#3E4A35] rounded-full animate-spin mb-4" />
+              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#3E4A35] animate-pulse">Gathering Botanical Samples...</p>
+            </div>
+          }>
+            <PlantBiologyModule onBack={() => setPlantStudyRoom(false)} />
+          </Suspense>
+        </ErrorBoundary>
+      );
+    }
     return (
       <ErrorBoundary>
         <Suspense fallback={
-          <div className="min-h-screen bg-[#FDFCF0] flex flex-col items-center justify-center p-6 text-center">
-            <div className="w-16 h-16 border-2 border-[#3E4A35]/20 border-t-[#3E4A35] rounded-full animate-spin mb-4" />
-            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#3E4A35] animate-pulse">Gathering Botanical Samples...</p>
+          <div className="min-h-screen bg-[#0a120c] flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-16 h-16 border-2 border-[#57c26a]/20 border-t-[#57c26a] rounded-full animate-spin mb-4" />
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#8fd8a0] animate-pulse">Growing the forest...</p>
           </div>
         }>
-          <PlantBiologyModule onBack={closeModule} />
+          <FloraWing onBack={closeModule} onOpenStudyRoom={() => setPlantStudyRoom(true)} />
         </Suspense>
       </ErrorBoundary>
     );
