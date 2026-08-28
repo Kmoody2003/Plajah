@@ -128,13 +128,16 @@ export default function TreeMesh({
           args={[leafGeom, undefined as unknown as THREE.Material, leafData.count]}
           frustumCulled={false}
         >
+          {/* NO alphaMap: three.js reads its GREEN channel, so dark-leaved species
+              (oak 0x7d, pine 0x5d) fell under the cutoff and vanished while birch
+              (0xb6) survived — the bare-tree bug. The canvas texture carries a real
+              alpha channel, so map + alphaTest is both correct and cheaper. */}
           <meshStandardMaterial
             color={leafColor}
             map={leafMap ?? undefined}
-            alphaMap={leafMap ?? undefined}
             transparent
-            alphaTest={0.42}
-            roughness={0.72}
+            alphaTest={0.28}
+            roughness={0.65}
             metalness={0}
             side={THREE.DoubleSide}
           />

@@ -8,6 +8,7 @@
 // exposure, so the UI's job is to make it impossible to do by accident, not to catch it later.
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useAriaSurface } from '../../services/aria/useAriaSurface';
 import {
   BookOpen, Check, AlertTriangle, ExternalLink, Loader2, Save, Sparkles,
   Scale, Clock, Target, Layers, FolderOpen, Trash2, GitBranch,
@@ -318,6 +319,74 @@ const TemplateEditor: React.FC<{
   };
 
   const statusColor = status?.tone === 'ok' ? T.success : status?.tone === 'warn' ? T.warning : T.danger;
+
+  // ── Aria lesson-design wiring ────────────────────────────────────────────────
+  // Publishes the lesson body and exposes edits Aria can make. Fully controlled,
+  // so her edits render live. See services/aria/ariaContext.ts.
+  const aiStruct = template.structure;
+  const aiPatch = (p: Partial<typeof aiStruct>) => onChange({ ...template, structure: { ...template.structure, ...p } });
+  const aiLessonText = [
+    aiStruct.objective && `Objective: ${aiStruct.objective}`,
+    aiStruct.steps?.length ? `Steps:\n${aiStruct.steps.map((x, i) => `${i + 1}. ${x}`).join('\n')}` : '',
+    aiStruct.differentiation?.support && `Support: ${aiStruct.differentiation.support}`,
+    aiStruct.differentiation?.extension && `Extension: ${aiStruct.differentiation.extension}`,
+  ].filter(Boolean).join('\n\n');
+  const aiToSteps = (v: unknown): string[] =>
+    Array.isArray(v) ? v.map(x => String(x)).filter(Boolean)
+      : String(v ?? '').split(/\n{2,}|\n(?=\d+[.)]\s)/).map(s => s.replace(/^\s*\d+[.)]\s*/, '').trim()).filter(Boolean);
+
+  useAriaSurface({
+    surface: 'lesson-studio',
+    domain: 'learning',
+    title: `Designing lesson: ${aiStruct.title || 'Untitled'}`,
+    summary: `${template.subject || ''} ${template.gradeBand || ''}. ${aiStruct.steps?.length || 0} step(s). Help design the lesson: objective, steps, differentiation (support/extension), and rubric.`,
+    documentText: aiLessonText,
+    data: {
+      title: aiStruct.title,
+      subject: template.subject,
+      gradeBand: template.gradeBand,
+      objective: aiStruct.objective,
+      steps: aiStruct.steps,
+    },
+    actions: [
+      { id: 'setTitle', label: 'Set lesson title', description: 'Set or replace the lesson title.', params: { text: 'the title' } },
+      { id: 'setObjective', label: 'Set objective', description: 'Set the lesson objective / learning goal.', params: { text: 'the objective' } },
+      { id: 'appendStep', label: 'Add step(s)', description: 'Append one or more instructional steps. Separate multiple steps with a blank line.', params: { text: 'the step text (one or more)' } },
+      { id: 'rewriteStep', label: 'Rewrite a step', description: 'Replace the text of one step by its 1-based number.', params: { number: 'the step number (1-based)', text: 'the new step text' } },
+      { id: 'setSteps', label: 'Set all steps', description: 'Replace the entire list of steps with a new sequence (draft the whole lesson).', params: { steps: 'the full ordered list of steps (blank-line separated, or a JSON array)' } },
+      { id: 'setDifferentiation', label: 'Set differentiation', description: 'Set the support and/or extension differentiation notes.', params: { support: 'support note (optional)', extension: 'extension note (optional)' } },
+    ],
+    handlers: {
+      setTitle: ({ text }) => { aiPatch({ title: String(text ?? '') }); return { ok: true, message: 'Set the lesson title.' }; },
+      setObjective: ({ text }) => { aiPatch({ objective: String(text ?? '') }); return { ok: true, message: 'Set the objective.' }; },
+      appendStep: ({ text }) => {
+        const add = aiToSteps(text);
+        if (!add.length) return { ok: false, message: 'No step text.' };
+        aiPatch({ steps: [...(aiStruct.steps || []), ...add] });
+        return { ok: true, message: `Added ${add.length} step${add.length > 1 ? 's' : ''}.` };
+      },
+      rewriteStep: ({ number, text }) => {
+        const i = Math.round(Number(number)) - 1;
+        const steps = aiStruct.steps || [];
+        if (!(i >= 0 && i < steps.length)) return { ok: false, message: 'No step with that number.' };
+        aiPatch({ steps: steps.map((s, idx) => (idx === i ? String(text ?? '') : s)) });
+        return { ok: true, message: `Rewrote step ${i + 1}.` };
+      },
+      setSteps: ({ steps }) => {
+        const next = aiToSteps(steps);
+        if (!next.length) return { ok: false, message: 'No steps provided.' };
+        aiPatch({ steps: next });
+        return { ok: true, message: `Set ${next.length} steps.` };
+      },
+      setDifferentiation: ({ support, extension }) => {
+        const d = { ...(aiStruct.differentiation || { support: '', extension: '' }) };
+        if (support != null) d.support = String(support);
+        if (extension != null) d.extension = String(extension);
+        aiPatch({ differentiation: d });
+        return { ok: true, message: 'Updated differentiation.' };
+      },
+    },
+  }, [template]);
 
   return (
     <div style={{ fontFamily: T.font, color: T.ink }}>

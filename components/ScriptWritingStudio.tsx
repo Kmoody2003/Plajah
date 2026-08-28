@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useAriaSurface } from '../services/aria/useAriaSurface';
 import { useContextMenu, type MenuNode } from './ui/ContextMenu';
 import {
   ChevronLeft, Download, Sparkles, Plus, Trash2, Film,
@@ -465,6 +466,85 @@ export default function ScriptWritingStudio({
       return arr;
     });
   }, []);
+
+  // ── Aria screenwriting-partner wiring ────────────────────────────────────────
+  // Publishes the screenplay + exposes properly-typed editing actions. All edits
+  // flow through React state, so they render live. See services/aria/ariaContext.ts.
+  const AI_SCRIPT_TYPES = ['SCENE_HEADING','ACTION','CHARACTER','DIALOGUE','PARENTHETICAL','TRANSITION','SHOT','SECTION','NOTE'];
+  const aiNormType = (t: unknown): ScriptElementType => {
+    const u = String(t ?? '').toUpperCase().replace(/[\s-]+/g, '_');
+    return (AI_SCRIPT_TYPES.includes(u) ? u : 'ACTION') as ScriptElementType;
+  };
+  const aiLastId = () => elements[elements.length - 1]?.id ?? '';
+  const aiScriptText = elements.map(e => {
+    const t = (e.text || '').trim(); if (!t) return '';
+    if (e.type === 'SCENE_HEADING') return t.toUpperCase();
+    if (e.type === 'CHARACTER') return `\t\t\t${t.toUpperCase()}`;
+    if (e.type === 'PARENTHETICAL') return `\t\t(${t.replace(/^\(|\)$/g, '')})`;
+    if (e.type === 'DIALOGUE') return `\t\t${t}`;
+    if (e.type === 'TRANSITION') return `${t.toUpperCase()} >`;
+    return t;
+  }).filter(Boolean).join('\n');
+  const aiSceneCount = elements.filter(e => e.type === 'SCENE_HEADING').length;
+
+  useAriaSurface({
+    surface: 'script-studio',
+    domain: 'writing',
+    title: `Writing screenplay: ${titlePage?.title || 'Untitled'}`,
+    summary: `${format}. ${aiSceneCount} scene(s), ${elements.length} elements. You are a screenwriting partner — write scenes, action, and dialogue in correct screenplay form.`,
+    documentText: `${titlePage?.title ? titlePage.title + '\n\n' : ''}${aiScriptText}`,
+    selection: activeId ? (elements.find(e => e.id === activeId)?.text || undefined) : undefined,
+    data: {
+      format,
+      logline,
+      activeElementId: activeId,
+      elements: elements.slice(-60).map(e => ({ id: e.id, type: e.type, text: (e.text || '').slice(0, 80) })),
+    },
+    actions: [
+      { id: 'addSceneHeading', label: 'Add scene heading', description: 'Append a scene heading (slugline), e.g. "INT. KITCHEN - NIGHT".', params: { text: 'the slugline' } },
+      { id: 'addAction', label: 'Add action', description: 'Append an action/description line.', params: { text: 'the action text' } },
+      { id: 'addDialogue', label: 'Add dialogue', description: 'Append a character cue followed by their dialogue.', params: { character: 'the character name', text: 'what they say' } },
+      { id: 'addElements', label: 'Write a passage/scene', description: 'Append a batch of screenplay elements at once (write a full beat or scene). Provide an array of {type,text} where type is one of SCENE_HEADING, ACTION, CHARACTER, DIALOGUE, PARENTHETICAL, TRANSITION.', params: { elements: 'a JSON array of {type,text} in screenplay order' } },
+      { id: 'rewriteElement', label: 'Rewrite an element', description: 'Replace the text of one element by its id (from the elements list in the context).', params: { id: 'the element id', text: 'the new text' } },
+      { id: 'setTitle', label: 'Set the title', description: 'Set or replace the screenplay title.', params: { text: 'the title' } },
+    ],
+    handlers: {
+      addSceneHeading: ({ text }) => {
+        const t = String(text ?? '').trim(); if (!t) return { ok: false, message: 'No heading text.' };
+        insertAfter(aiLastId(), 'SCENE_HEADING', t);
+        return { ok: true, message: 'Added a scene heading.' };
+      },
+      addAction: ({ text }) => {
+        const t = String(text ?? '').trim(); if (!t) return { ok: false, message: 'No action text.' };
+        insertAfter(aiLastId(), 'ACTION', t);
+        return { ok: true, message: 'Added an action line.' };
+      },
+      addDialogue: ({ character, text }) => {
+        const c = String(character ?? '').trim(); const d = String(text ?? '').trim();
+        if (!c || !d) return { ok: false, message: 'Need both a character and a line.' };
+        const cid = insertAfter(aiLastId(), 'CHARACTER', c);
+        insertAfter(cid, 'DIALOGUE', d);
+        return { ok: true, message: `Added ${c}'s line.` };
+      },
+      addElements: ({ elements: rows }) => {
+        const arr = Array.isArray(rows) ? rows : [];
+        const made = arr
+          .map((r: any) => makeEl(aiNormType(r?.type), String(r?.text ?? '').trim()))
+          .filter(e => e.text || e.type === 'SCENE_HEADING');
+        if (!made.length) return { ok: false, message: 'No elements to add.' };
+        setElements(prev => [...prev, ...made]);
+        setActiveId(made[made.length - 1].id);
+        return { ok: true, message: `Wrote ${made.length} lines.` };
+      },
+      rewriteElement: ({ id, text }) => {
+        const eid = String(id ?? '');
+        if (!elements.some(e => e.id === eid)) return { ok: false, message: 'No element with that id.' };
+        updateEl(eid, String(text ?? ''));
+        return { ok: true, message: 'Rewrote the element.' };
+      },
+      setTitle: ({ text }) => { setTitlePage(p => ({ ...p, title: String(text ?? '') })); return { ok: true, message: 'Set the title.' }; },
+    },
+  }, [elements, titlePage, activeId, format]);
 
   // ── Keyboard handler ──────────────────────────────────────────────────────
   const handleKeyDown = useCallback((

@@ -975,6 +975,14 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // Marketing campaigns (services/marketing/campaignService) — the Local Reach
+      // Campaign Hub. Lives under the operating user's subtree even when scoped to
+      // a managed BUSINESS/ORG identity (scope.id / authorOrgId are logical partition
+      // fields, not a separate storage location) — owner-private, same as scheduledPosts.
+      match /campaigns/{campaignId} {
+        allow read, write: if isOwner(userId);
+      }
+
       // Research notebook (services/notebookService) — synced across devices.
       // Private to the owner; localStorage is the offline cache.
       match /notebook/{entryId} {

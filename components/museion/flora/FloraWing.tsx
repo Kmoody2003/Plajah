@@ -8,7 +8,9 @@
 
 import { useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment, Sky } from '@react-three/drei';
+import { OrbitControls, Environment, Sky, SoftShadows } from '@react-three/drei';
+import { EffectComposer, N8AO, Bloom, ToneMapping, SMAA, Vignette } from '@react-three/postprocessing';
+import { ToneMappingMode } from 'postprocessing';
 import * as THREE from 'three';
 import { ArrowLeft, Volume2, VolumeX, Sprout, BookOpen } from 'lucide-react';
 import TreeMesh from './TreeMesh';
@@ -23,13 +25,13 @@ const prefersReducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 /** Fire-TV contract: cap DPR and drop branch sides on small/weak devices. */
-function tierFor(): { dpr: [number, number]; radial: number; grass: number } {
-  if (typeof window === 'undefined') return { dpr: [1, 1.5], radial: 6, grass: 20000 };
+function tierFor(): { dpr: [number, number]; radial: number; grass: number; post: boolean } {
+  if (typeof window === 'undefined') return { dpr: [1, 1.5], radial: 6, grass: 20000, post: true };
   const tv = /TV|BRAVIA|AFT|SmartTV|Tizen/i.test(navigator.userAgent);
   const small = window.innerWidth < 700;
-  if (tv) return { dpr: [1, 1], radial: 5, grass: 9000 };
-  if (small) return { dpr: [1, 1.5], radial: 5, grass: 12000 };
-  return { dpr: [1, 1.75], radial: 7, grass: 32000 };
+  if (tv) return { dpr: [1, 1], radial: 5, grass: 9000, post: false };
+  if (small) return { dpr: [1, 1.5], radial: 5, grass: 12000, post: false };
+  return { dpr: [1, 1.75], radial: 7, grass: 32000, post: true };
 }
 
 /** Ground plane + a hint of mist, so trees stand in a place rather than a void. */
@@ -48,13 +50,15 @@ function ForestFloor() {
 function ForestLight() {
   return (
     <>
-      <hemisphereLight args={['#bfe3c8', '#1a2410', 0.7]} />
+      <hemisphereLight args={['#cfe8ff', '#20301a', 0.45]} />
       <directionalLight
-        position={[26, 34, 14]}
-        intensity={2.1}
-        color="#ffe9c2"
+        position={[30, 26, 16]}
+        intensity={3.2}
+        color="#ffe2b0"
         castShadow
-        shadow-mapSize={[1024, 1024]}
+        shadow-bias={-0.0006}
+        shadow-normalBias={0.035}
+        shadow-mapSize={[2048, 2048]}
         shadow-camera-far={60}
         shadow-camera-left={-24}
         shadow-camera-right={24}
@@ -122,14 +126,17 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
           dpr={tier.dpr}
           camera={{ position: [0, 4.2, 15], fov: 52 }}
           gl={{ antialias: true, powerPreference: 'high-performance' }}
-          onCreated={({ scene }) => {
-            scene.fog = new THREE.FogExp2('#9ec4a8', 0.012);
+          onCreated={({ scene, gl }) => {
+            gl.toneMappingExposure = 1.05;
+            gl.shadowMap.type = THREE.PCFSoftShadowMap;
+            scene.fog = new THREE.FogExp2('#a8c6b4', 0.0095);
           }}
         >
           {/* Preetham atmospheric sky — no asset, and it sets the horizon colour
               the whole hall is lit against. */}
           <Sky distance={4500} sunPosition={[26, 18, 14]} turbidity={7} rayleigh={2.2}
             mieCoefficient={0.006} mieDirectionalG={0.86} />
+          <SoftShadows size={26} samples={12} focus={0.7} />
           <ForestLight />
           <ForestFloor />
           <GrassField count={grassCount} outerRadius={26} season={season} wind={reduced ? 0 : 1} />
@@ -184,6 +191,20 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
               />
             );
           })}
+          {/* The realism pass. ACES filmic tone mapping is the single biggest
+              lever available without assets — it turns clipped, plasticky
+              highlights into film-like rolloff. N8AO grounds trunks in the grass
+              and darkens the crown interior; SMAA cleans the alpha-tested leaf
+              edges that otherwise shimmer. Tiered off on weak devices. */}
+          {tier.post && (
+            <EffectComposer enableNormalPass multisampling={0}>
+              <N8AO aoRadius={1.6} intensity={2.4} distanceFalloff={0.9} quality="performance" halfRes />
+              <Bloom intensity={0.42} luminanceThreshold={0.86} luminanceSmoothing={0.28} mipmapBlur />
+              <SMAA />
+              <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+              <Vignette offset={0.32} darkness={0.5} />
+            </EffectComposer>
+          )}
           <OrbitControls
             enablePan={false}
             minDistance={6}
@@ -244,6 +265,9 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
             )}
           </div>
           <p className="fw-story">{selected.story}</p>
+          {selected.model?.kind === 'glb' && (
+            <p className="fw-credit">Model: {selected.model.credit} · {selected.model.license}</p>
+          )}
           <dl className="fw-stats">
             {selected.stats.height && <><dt>Height</dt><dd>{selected.stats.height}</dd></>}
             {selected.stats.lifespan && <><dt>Lifespan</dt><dd>{selected.stats.lifespan}</dd></>}
@@ -331,6 +355,7 @@ const CSS = `
 .fw-chip.iucn.ok{background:rgba(87,194,106,.14);color:#8fd8a0}
 .fw-chip.iucn.warn{background:rgba(255,179,71,.15);color:#ffc077}
 .fw-story{font-size:13.5px;line-height:1.65;color:rgba(231,236,230,.72);margin:0}
+.fw-credit{font-size:10px;color:rgba(231,236,230,.4);margin:10px 0 0;line-height:1.45}
 .fw-stats{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:14px 0 0;font-size:12px}
 .fw-stats dt{color:rgba(231,236,230,.4);font-weight:600;font-size:9.5px;letter-spacing:.12em;
   text-transform:uppercase;align-self:center}

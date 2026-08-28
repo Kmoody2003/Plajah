@@ -11,10 +11,11 @@
 
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Megaphone, Sparkles, TrendingUp, ArrowLeft, User, Building2, Users } from 'lucide-react';
+import { Megaphone, Sparkles, TrendingUp, ArrowLeft, User, Building2, Users, MapPin } from 'lucide-react';
 import type { UserProfile } from '../types';
 import StudioView from './ManagerSuite/StudioView';
 import AdPackageManager from './AdPackageManager';
+import CampaignBuilder from './marketing/CampaignBuilder';
 
 export type MarketingScopeKind = 'CREATOR' | 'BUSINESS' | 'ORG';
 
@@ -42,6 +43,7 @@ const SCOPE_META: Record<MarketingScopeKind, { label: string; icon: React.Compon
 
 export default function MarketingKit({ scope, currentUser, onClose }: MarketingKitProps) {
   const [mode, setMode] = useState<Mode>('ORGANIC');
+  const [buildingCampaign, setBuildingCampaign] = useState(false);
   const meta = SCOPE_META[scope.kind];
   const ScopeIcon = meta.icon;
   const identityName = scope.name || currentUser.displayName || 'You';
@@ -121,11 +123,39 @@ export default function MarketingKit({ scope, currentUser, onClose }: MarketingK
           <StudioView scope={scope} />
         ) : (
           // AdPackageManager is a content block expecting outer padding — wrap it.
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-8">
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-8">
+            {/* Local Reach — the Campaign Hub entry point (docs/MARKETING_LOCAL_REACH_SPEC.md).
+                Sits above the flat-fee AD_PACKAGES cards: this is the geo-targeted, per-channel
+                campaign builder (billboards + EDDM direct mail today). */}
+            <button
+              onClick={() => setBuildingCampaign(true)}
+              className="w-full text-left flex items-center gap-4 p-5 rounded-3xl border border-[#FF8C00]/30 bg-[#FF8C00]/[0.06] hover:bg-[#FF8C00]/[0.1] transition-all group"
+            >
+              <span className="shrink-0 w-12 h-12 rounded-2xl grid place-items-center bg-[#FF8C00] text-black">
+                <MapPin size={20} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-black uppercase tracking-widest text-[#FF8C00]">Local Reach — new</p>
+                <p className="text-white font-bold mt-0.5">Buy billboards &amp; direct mail by map radius</p>
+                <p className="text-xs text-white/40 mt-1">Draw a radius around your storefront and reach every screen and mailbox inside it.</p>
+              </div>
+              <span className="shrink-0 text-xs font-black uppercase tracking-widest text-[#FF8C00] group-hover:translate-x-0.5 transition-transform">
+                Start →
+              </span>
+            </button>
+
             <AdPackageManager currentUser={currentUser} scope={scope} />
           </div>
         )}
       </div>
+
+      {buildingCampaign && (
+        <CampaignBuilder
+          scope={scope}
+          currentUser={currentUser}
+          onClose={() => setBuildingCampaign(false)}
+        />
+      )}
     </div>
   );
 }

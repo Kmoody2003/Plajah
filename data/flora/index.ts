@@ -3,10 +3,12 @@
 
 import type { FloraSpecimen, Gallery } from './types';
 import canopy from './canopy';
+import ancient from './ancient';
 
 /** Galleries ship in phases — the registry only lists what exists. */
 export const FLORA: FloraSpecimen[] = [
   ...canopy,
+  ...ancient,
 ];
 
 export function specimensIn(gallery: Gallery): FloraSpecimen[] {

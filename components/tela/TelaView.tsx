@@ -40,6 +40,7 @@ import { hydrateTelaDomainDoc, syncTelaBaseCellToDomain, syncTelaNotesToDomain, 
 import { consolidateTelaTraceObjects, traceBitmapToTela, type TelaTracePreset } from '../../services/telaImageTrace';
 import { isTelaDocumentModelInstalled, rebuildDocumentIntelligently, refineDocumentRegionMask, TELA_SEGMENT_MODEL, type TelaDetectedResponseField, type TelaModelProgress } from '../../services/telaDocumentIntelligence';
 import TelaWriter, { makeBlock, newBlockId, type TelaWriterSelection } from './TelaWriter';
+import { useAriaSurface } from '../../services/aria/useAriaSurface';
 import TelaGrid, { cellKey, type TelaBaseLite, type TelaFormulaContext } from './TelaGrid';
 import TelaBase from './TelaBase';
 import TelaForm from './TelaForm';
@@ -513,6 +514,82 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
     })).filter((x): x is { id: string; name: string } => !!x),
     [doc],
   );
+
+  // ── Aria document co-author wiring (Tela canvas) ─────────────────────────────
+  // Resolves the writer device the user is focused on (last selection → active
+  // frame's writer → first writer) and exposes edits. All edits flow through
+  // dispatchOp so domain-sync + autosave stay intact. Blocks hold inline HTML,
+  // so incoming text is escaped. See services/aria/ariaContext.ts.
+  const aiActiveWriterId = (() => {
+    if (writerSelection?.deviceId && doc?.devices[writerSelection.deviceId]?.type === 'WRITER') return writerSelection.deviceId;
+    if (activeFrameId) {
+      const f = doc?.frames.find(fr => fr.id === activeFrameId);
+      const wid = f?.deviceIds.find(id => doc?.devices[id]?.type === 'WRITER');
+      if (wid) return wid;
+    }
+    return writerList[0]?.id;
+  })();
+  const aiWriter = aiActiveWriterId ? doc?.devices[aiActiveWriterId] : undefined;
+  const aiWriterBlocks: TelaBlock[] = aiWriter?.type === 'WRITER' ? aiWriter.blocks : [];
+  const aiToHtml = (t: unknown) => escapeHtml(String(t ?? '')).replace(/\n/g, '<br/>');
+  const aiSetBlocks = (blocks: TelaBlock[]): boolean => {
+    if (!aiActiveWriterId) return false;
+    dispatchOp({ type: 'SET_WRITER_BLOCKS', deviceId: aiActiveWriterId, blocks });
+    return true;
+  };
+
+  useAriaSurface({
+    surface: 'tela-writer',
+    domain: 'writing',
+    title: `Writing on Tela${doc?.title ? `: ${doc.title}` : ''}`,
+    summary: aiActiveWriterId
+      ? `${aiWriterBlocks.length} block(s) in the focused document. Co-author it: continue, rewrite, and structure the text.`
+      : 'No writing frame is focused yet — ask the user to click into a text frame.',
+    documentText: aiActiveWriterId ? (writerTexts[aiActiveWriterId] || '') : '',
+    selection: writerSelection?.text || undefined,
+    data: aiActiveWriterId ? {
+      focusedWriterId: aiActiveWriterId,
+      selectedBlockId: writerSelection?.blockId,
+      blocks: aiWriterBlocks.map(b => ({ id: b.id, kind: b.kind, preview: blockPlainText(b).slice(0, 100) })),
+    } : {},
+    actions: aiActiveWriterId ? [
+      { id: 'appendParagraph', label: 'Add paragraph(s)', description: 'Append one or more paragraphs to the end of the focused document. Separate paragraphs with a blank line.', params: { text: 'the prose to add' } },
+      { id: 'insertHeading', label: 'Add a heading', description: 'Append a heading; level "h1" (default) or "h2".', params: { text: 'heading text', level: 'h1 or h2 (optional)' } },
+      { id: 'rewriteBlock', label: 'Rewrite a block', description: 'Replace the text of one block by its id (from the blocks list in the context).', params: { blockId: 'the block id', text: 'the new text' } },
+      { id: 'setDocTitle', label: 'Set the title', description: 'Set the document title as the leading h1 heading.', params: { text: 'the title' } },
+    ] : [],
+    handlers: {
+      appendParagraph: ({ text }) => {
+        const paras = String(text ?? '').split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
+        if (!paras.length) return { ok: false, message: 'No text to add.' };
+        const add = paras.map(p => makeBlock('p', aiToHtml(p)));
+        return aiSetBlocks([...aiWriterBlocks, ...add])
+          ? { ok: true, message: `Added ${add.length} paragraph${add.length > 1 ? 's' : ''}.` }
+          : { ok: false, message: 'No writing frame focused.' };
+      },
+      insertHeading: ({ text, level }) => {
+        const t = String(text ?? '').trim(); if (!t) return { ok: false, message: 'No heading text.' };
+        const kind: 'h1' | 'h2' = String(level).toLowerCase() === 'h2' ? 'h2' : 'h1';
+        return aiSetBlocks([...aiWriterBlocks, makeBlock(kind, aiToHtml(t))])
+          ? { ok: true, message: 'Added a heading.' } : { ok: false, message: 'No writing frame focused.' };
+      },
+      rewriteBlock: ({ blockId, text }) => {
+        const id = String(blockId ?? '');
+        if (!aiWriterBlocks.some(b => b.id === id)) return { ok: false, message: 'No block with that id.' };
+        return aiSetBlocks(aiWriterBlocks.map(b => (b.id === id ? { ...b, text: aiToHtml(text) } : b)))
+          ? { ok: true, message: 'Rewrote the block.' } : { ok: false, message: 'No writing frame focused.' };
+      },
+      setDocTitle: ({ text }) => {
+        const t = aiToHtml(String(text ?? '').trim());
+        if (!t) return { ok: false, message: 'No title text.' };
+        const first = aiWriterBlocks[0];
+        const next = first && first.kind === 'h1'
+          ? aiWriterBlocks.map((b, i) => (i === 0 ? { ...b, text: t } : b))
+          : [makeBlock('h1', t), ...aiWriterBlocks];
+        return aiSetBlocks(next) ? { ok: true, message: 'Set the title.' } : { ok: false, message: 'No writing frame focused.' };
+      },
+    },
+  }, [doc, activeFrameId, writerSelection, aiActiveWriterId]);
 
   /** Studio focus — the Vector/Image device the Studio posture operates on:
    *  the active frame's design device, else the first design frame in the doc. */
