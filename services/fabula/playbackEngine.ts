@@ -131,7 +131,13 @@ async function decodeUrl(url: string): Promise<AudioBuffer | null> {
     try {
       const ctx = getAudioCtx();
       if (!ctx) return null;
-      const res = await fetch(url, needsCors(url) ? { mode: 'cors' } : undefined);
+      // A hung fetch (cold cloud URL) must not leave a clip silently "pending" forever —
+      // time out and hand the clip to the element fallback, which streams progressively.
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), 20000);
+      let res;
+      try { res = await fetch(url, { ...(needsCors(url) ? { mode: 'cors' as RequestMode } : {}), signal: ac.signal }); }
+      finally { clearTimeout(timer); }
       if (!res.ok) throw new Error('http ' + res.status);
       const len = Number(res.headers.get('content-length') || 0);
       if (len > MAX_FETCH_BYTES) throw new Error('too large to decode');
@@ -244,7 +250,17 @@ const state = {
   sources: [] as LiveSource[],
   trackSettings: {} as Record<string, any>,
   lastStartTry: 0,
+  planned: 0, scheduled: 0, pending: 0,   // last-start diagnostics
 };
+
+/** Diagnostics for the current/last playback session — what got scheduled vs stuck. */
+export function engineStats() {
+  const soloed = Object.entries(state.trackSettings || {}).filter(([, t]: any) => t && t.solo).map(([k]) => k);
+  return {
+    running: state.running, planned: state.planned, scheduled: state.scheduled,
+    pending: state.pending, unplayable: [...unplayable], soloed,
+  };
+}
 
 export function engineRunning(): boolean { return state.running; }
 
@@ -316,12 +332,16 @@ export function startPlayback(opts: { clips: any[]; mediaPool: any[]; trackSetti
   state.trackSettings = opts.trackSettings || {};
   state.sources = [];
   const plan = planPlayback(opts.clips, opts.mediaPool, state.t0);
+  state.planned = plan.length; state.scheduled = 0; state.pending = 0;
   for (const e of plan) {
     const cached = bufCache.get(e.url);
-    if (cached) { cached.at = Date.now(); scheduleEntry(e, cached.buf); continue; }
+    if (cached) { cached.at = Date.now(); scheduleEntry(e, cached.buf); state.scheduled++; continue; }
+    state.pending++;
     // late-join: decode now, then splice in at the correct source offset for the CURRENT clock
     void decodeUrl(e.url).then((buf) => {
+      if (state.session === session) state.pending = Math.max(0, state.pending - 1);
       if (!buf || !state.running || state.session !== session) return;
+      if (state.session === session) state.scheduled++;
       const nowTl = engineClock();
       const startTl = state.t0 + e.when;
       if (nowTl < startTl - 0.05) { scheduleEntry(e, buf); return; }         // still ahead — schedule as planned
@@ -367,7 +387,10 @@ export function syncLiveVideos(clock: number, rate: number) {
   for (const [, v] of liveVideos) {
     const el = v.el;
     if (!el || el.readyState < 2) continue;
-    const srcDur = v.srcDur || el.duration || 0;
+    // The element's own duration is the ONLY truth. mediaPool durations are frequently
+    // placeholders (imports default to 5s) — clamping on those pause/seek-looped real
+    // clips at the fake end: the "few frames repeating like a jump cut" glitch.
+    const srcDur = (Number.isFinite(el.duration) && el.duration > 0.2) ? el.duration : 0;
     let expected = clock - v.clipStart + v.offset;
     if (srcDur > 0 && expected >= srcDur - 0.05) {     // past the source's end → freeze, never loop
       if (!el.paused) { try { el.pause(); } catch { /* */ } }

@@ -43,7 +43,7 @@ import { isWindowEnabled, WINDOW_DEFAULT } from "../../services/fabula/gradeWind
 import { rangeClips } from "../../services/fabula/rangeClips";
 import {
   startPlayback, stopPlayback, engineRunning, engineClock, setEngineTracks,
-  warmAudio, subscribePlayback, enginePlayable, registerLiveVideo, unregisterLiveVideo, syncLiveVideos,
+  warmAudio, subscribePlayback, enginePlayable, registerLiveVideo, unregisterLiveVideo, syncLiveVideos, engineStats,
 } from "../../services/fabula/playbackEngine";
 import { sampleParam as kfSample, isAnimated as kfIsAnimated, hasKeys as kfHasKeys, addKey as kfAddKey, removeKey as kfRemoveKey, keyAt as kfKeyAt, prevKeyTime as kfPrev, nextKeyTime as kfNext, KF_PARAMS, KF_ALL } from "../../services/fabula/keyframes";
 import { quickStems, separateStemsCloud } from "../../services/fabula/stemSeparation";
@@ -2762,6 +2762,21 @@ export default function Fabula() {
   const container = activeEdit || scene; // whichever timeline is open
   // ── playback-engine wiring (MUST sit below the `container` declaration — reading
   //    container?.timeline at render time above it was a TDZ crash on mount). ──
+  // Playback diagnostics: shortly after play starts, surface what the engine actually
+  // scheduled — silent tracks stop being a mystery ("3 pending", "2 undecodable", "solo on a1").
+  useEffect(() => {
+    if (!playing) return undefined;
+    const t = setTimeout(() => {
+      try {
+        const st = engineStats();
+        console.info("[fabula-playback]", st);
+        if (st.running && st.unplayable.length) ping(`${st.unplayable.length} audio source${st.unplayable.length === 1 ? "" : "s"} can't decode — playing via fallback. Check console for urls.`);
+        else if (st.running && st.pending > 0) ping(`${st.pending} audio clip${st.pending === 1 ? "" : "s"} still decoding — they join as they finish.`);
+        if (st.running && st.soloed.length) ping(`SOLO is on (${st.soloed.join(", ")}) — other tracks are muted.`);
+      } catch { /* diagnostics only */ }
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [playing]); // eslint-disable-line
   // Live mixer moves (fader/pan/mute/solo/EQ/comp/sends) reach the engine's buses mid-play.
   const engineTrackKey = JSON.stringify(container?.timeline?.trackSettings || {});
   useEffect(() => { setEngineTracks(container?.timeline?.trackSettings || {}); }, [engineTrackKey]); // eslint-disable-line
@@ -6778,7 +6793,7 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
     const t = seekRef.current;
     if (!Number.isFinite(t)) return;
     // Seek ~1 frame-tight when paused (accurate trim/in-out preview); loose while playing (no stutter).
-    if (Math.abs(v.currentTime - t) > (playing ? 0.25 : 0.034)) {
+    if (Math.abs(v.currentTime - t) > (playing ? 1.0 : 0.034)) {
       try { v.currentTime = Math.max(0, t); } catch { /* not seekable yet — onLoadedData/onSeeked retries */ }
     }
   };
@@ -6795,7 +6810,10 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
     if (active) {
       seekRef.current = Math.max(0, playhead - clip.start + offset);
       doSeek();
-      if (playing) { if (v.paused) v.play().catch(() => {}); }
+      // Never restart an element parked at its own end — the sync pass froze it there
+      // (clip longer than its source); replaying it caused a few-frame stutter at bounds.
+      const atEnd = Number.isFinite(v.duration) && v.duration > 0.2 && v.currentTime >= v.duration - 0.1;
+      if (playing) { if (v.paused && !atEnd) v.play().catch(() => {}); }
       else if (!v.paused) v.pause();
     } else {
       // Warm buffer: park decoded at the clip's in-point, paused. When the playhead reaches this
