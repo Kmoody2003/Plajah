@@ -11,6 +11,7 @@ const statNum = (v: any): number => {
 };
 import { fetchTeamSquad, type SquadPlayer } from './worldCupDepth';
 import { legendsForNation } from '../data/soccerLegends';
+import { slimScheduleEvent, slimNewsArticle, slimTeamCore } from './sportsSlim';
 import {
   makeSportsDocId,
   readSportsKnowledge,
@@ -1166,7 +1167,12 @@ export async function fetchLeagueScores(tab: string): Promise<any[]> {
 
   const sourceUrl = `${ESPN}/${cfg.sport}/${cfg.league}/scoreboard`;
   const data = await safeFetch(sourceUrl);
-  const events = data?.events ?? stored?.data ?? [];
+  // SLIM BEFORE ANYTHING ELSE. ESPN returns each game with full competitor,
+  // venue, broadcast, odds and leaders trees; 82 of those put an NBA schedule at
+  // ~1.24 MB, over Firestore's document limit, so the write failed and was
+  // silently swallowed. The projection keeps the same shape the view reads.
+  const raw = data?.events ?? stored?.data ?? [];
+  const events = Array.isArray(raw) ? raw.map(slimScheduleEvent) : [];
   toCache(key, events);
   if (events.length) {
     writeSportsKnowledge('sports_league_scores', makeSportsDocId(tab, 'current'), events, [
@@ -1248,11 +1254,16 @@ export async function fetchTeamPage(tab: string, teamId: string): Promise<TeamPa
   const rawAthletes: any[] = rosterData?.athletes ?? teamData?.team?.athletes ?? [];
   const roster = parseRosterAthletes(rawAthletes);
 
+  // The team object is fetched with `enable=roster,record,stats`, so it arrives
+  // carrying the whole roster and season statistics — both of which are already
+  // stored separately in sports_team_rosters and sports_team_stats. Keeping a
+  // third copy here is most of why this document blew past Firestore's limit at
+  // ~1.6 MB. News and recent games get the same treatment.
   const page: TeamPageData = {
-    team: teamData?.team ?? stored?.data?.team ?? null,
-    news: newsData?.articles ?? stored?.data?.news ?? [],
+    team: slimTeamCore(teamData?.team ?? stored?.data?.team ?? null),
+    news: (newsData?.articles ?? stored?.data?.news ?? []).slice(0, 15).map(slimNewsArticle),
     roster: roster.length ? roster : (stored?.data?.roster ?? []),
-    recentGames: scoresData?.events ?? stored?.data?.recentGames ?? [],
+    recentGames: (scoresData?.events ?? stored?.data?.recentGames ?? []).map(slimScheduleEvent),
   };
 
   if (page.team || page.news.length > 0 || page.roster.length > 0) {

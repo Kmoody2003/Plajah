@@ -1,5 +1,6 @@
 import { doc, getDoc, setDoc, collection, writeBatch } from 'firebase/firestore';
 import { db } from './firebase';
+import { approxDocBytes, SPORTS_MAX_DOC_BYTES } from './sportsSlim';
 
 export type SportsKnowledgeCollection =
   | 'sports_league_teams'
@@ -96,7 +97,28 @@ export async function writeSportsKnowledge<T>(
       updatedAt: now,
       version: (existing?.version || 0) + 1,
     };
-    await setDoc(doc(db, collectionName, id), removeUndefined(envelope), { merge: true });
+    const clean = removeUndefined(envelope);
+
+    // SIZE GUARD. Firestore rejects anything over 1,048,576 bytes, and that
+    // rejection used to land in the catch below as one more "write skipped"
+    // among hundreds of permission warnings — so entire NBA schedules silently
+    // never stored while the job reported success. Checking before the write
+    // makes it loud, names the document, and says how far over it is.
+    //
+    // This is a backstop, not the fix: a payload arriving here oversized means
+    // something upstream is storing a raw API response. Slim it at the source
+    // (see services/sportsSlim.ts) rather than raising this ceiling.
+    const bytes = approxDocBytes(clean);
+    if (bytes > SPORTS_MAX_DOC_BYTES) {
+      console.error(
+        `[sportsKnowledge] REFUSED oversized write: ${collectionName}/${id} is ~${(bytes / 1024).toFixed(0)} KB ` +
+        `(limit ${(SPORTS_MAX_DOC_BYTES / 1024).toFixed(0)} KB). Something upstream is storing a raw API payload — ` +
+        `project it down in services/sportsSlim.ts instead of storing it whole.`,
+      );
+      return;
+    }
+
+    await setDoc(doc(db, collectionName, id), clean, { merge: true });
   } catch (error) {
     console.warn('[sportsKnowledge] write skipped:', collectionName, id, error);
   }
@@ -115,10 +137,11 @@ export async function writeSportsKnowledgeBatch<T extends { id?: string }>(
     const now = Date.now();
     for (let start = 0; start < rows.length; start += 400) {
       const batch = writeBatch(db);
+      let queued = 0;
       rows.slice(start, start + 400).forEach((row, index) => {
         const id = idForRow(row, start + index);
         const ref = doc(collection(db, collectionName), id);
-        batch.set(ref, removeUndefined({
+        const payload = removeUndefined({
           id,
           data: row,
           sources: [...sources],
@@ -128,9 +151,21 @@ export async function writeSportsKnowledgeBatch<T extends { id?: string }>(
           lastVerifiedAt: now,
           updatedAt: now,
           version: 1,
-        }), { merge: true });
+        });
+        // One oversized row fails the ENTIRE batch, taking every good row in the
+        // chunk with it — so a single bloated team could wipe out a whole league.
+        const bytes = approxDocBytes(payload);
+        if (bytes > SPORTS_MAX_DOC_BYTES) {
+          console.error(
+            `[sportsKnowledge] REFUSED oversized row: ${collectionName}/${id} is ~${(bytes / 1024).toFixed(0)} KB — ` +
+            `dropping it so the rest of the batch still commits.`,
+          );
+          return;
+        }
+        batch.set(ref, payload, { merge: true });
+        queued += 1;
       });
-      await batch.commit();
+      if (queued > 0) await batch.commit();
     }
   } catch (error) {
     console.warn('[sportsKnowledge] batch write skipped:', collectionName, error);
