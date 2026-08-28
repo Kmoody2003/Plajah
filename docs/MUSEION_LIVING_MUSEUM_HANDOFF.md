@@ -61,7 +61,26 @@ Per `plajah-pixels-gpu-ceiling`, the browser cannot reach the discrete GPU. Budg
    Do all `.replace()` + `assert` first, single write last. Emoji via `"\U0001f387"`.
 4. **Backticks inside a JS template literal** (Fabula's `const CSS = \`...\``) terminate the string —
    including inside `/* comments */`.
-5. **PWA service worker serves stale bundles.** After deploying, hard-refresh (Ctrl+Shift+R) or the
+5. **`onBeforeCompile` must not read `uv`.** three.js only declares the `uv` attribute when the
+   material carries a map. An injected vertex shader that reads `uv.y` on an un-mapped material
+   **fails to link**, and the throw aborts the frame *part-way through the render list* — everything
+   already drawn survives, everything after it vanishes. This blanked the entire forest (ground,
+   grass, all 13 trees) while the backdrop, which draws at `renderOrder -1`, stayed put; the bare sky
+   showing through the hole looked like a lighting bug, not a shader bug. Use `position.y`, which is
+   always declared. **A partially-drawn scene means a shader failed — check the console first.**
+6. **`scene.clone()` SHARES geometries and materials with the cached original.** Disposing the clone
+   destroys the asset `useGLTF` has cached, so the model renders once and never again — and under
+   StrictMode the cleanup runs *before* the committed mount, so it never renders at all. This was the
+   permanently-empty Ancient Line. `useGLTF` owns that cache; never dispose what it handed you.
+7. **Additive geometry needs a near fade.** An additive, double-sided surface seen from very close —
+   or from inside — contributes full brightness across the whole frame. `LightShafts` placed cones the
+   camera stood inside, which washed the hall white. Any additive volume needs a soft-particle fade
+   (`smoothstep` on view-space distance) or it will eventually swallow the lens.
+8. **Never re-fog a photograph.** Backdrop panels sit at radius 70 against a fog starting at 38, so a
+   fifth of every pixel was being replaced with flat pale blue. A photo already carries the aerial
+   perspective of the day it was shot. Use `fog={false}` and get depth separation from the
+   `DepthOfField` pass, which blurs without touching colour.
+9. **PWA service worker serves stale bundles.** After deploying, hard-refresh (Ctrl+Shift+R) or the
    old UI persists. The Android APK is a **thin shell** (`capacitor.config.ts` →
    `server.url: 'https://plajah.com'`), so deploys reach it with **no APK rebuild** — force-stop and
    relaunch the app.
@@ -129,7 +148,29 @@ public/audio/forest/   // CC0 ambience layers
 
 ## Wing II — The Orrery
 
-Upgrade `components/SolarSystemModule.tsx` in place:
+**Status: the cinematic pass has shipped.** What landed, and where it lives:
+
+| Shipped | Where |
+|---|---|
+| Real Keplerian orbits — true eccentricity, inclination, node and perihelion, solved from Kepler's equation. Distances stay artistic (a to-scale system is unreadable); the *shape* is real. | `components/museion/orrery/orbits.ts`, covered by `tests/orbits.test.ts` (8 tests incl. Kepler's second law) |
+| Fresnel limb glow per body, sun-aware so only the lit limb glows. Airless worlds correctly get none. | `components/museion/orrery/Atmosphere.tsx` |
+| Milky Way panorama sky + twinkling near stars, replacing 30k procedural dots on black. | `components/museion/orrery/Starfield.tsx` |
+| Cinematic camera: eased flight to the selected body, framed by its radius, tracking it along its orbit, then handing control back. | `components/museion/orrery/CameraRig.tsx` |
+| Saturn's shadow falling across its own rings (cylinder test in ring space). | `SaturnRings` in `SolarSystemModule.tsx` |
+| Real axial tilts and sidereal rotation rates — Venus turns backwards, Uranus rolls. | `AXIAL_TILT` / `ROTATION_PERIOD` in `orbits.ts` |
+| Bloom + ACES + SMAA + vignette in the composer. | `SolarSystemModule.tsx` |
+| Every texture self-hosted, including the last Wikipedia hotlink for the Sun. | `public/textures/solar/` |
+
+**Still open on this wing:**
+- Time scrubber 1900–2100 with a "today" button showing the real arrangement (the mechanics for this
+  already exist — `orbitalPosition` takes years from J2000; only the UI is missing).
+- NASA sonifications. The module still autoplays a **hot-linked soundhelix.com MP3**, which is both a
+  placeholder and an external dependency that can vanish — replace it.
+- Kuiper objects, Pluto/Ceres, comet tails.
+- Moons other than Earth's; Titan deserves its own atmosphere.
+- TV D-pad stepping between bodies.
+
+Original plan for the rest, retained:
 - **Self-host** a 2K texture set at `public/textures/solar/` (NASA/USGS Astrogeology PD +
   Solar System Scope CC-BY), lazy-loaded per body — kills the three.js-repo hotlinks.
 - Sun with layered bloom + corona sprite; fresnel atmosphere shells (Earth, Venus, Titan); ring

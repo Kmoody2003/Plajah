@@ -1,14 +1,25 @@
 import React, { useState, useRef, Suspense, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Stars, useTexture } from '@react-three/drei';
+import { OrbitControls, useTexture } from '@react-three/drei';
+import { EffectComposer, Bloom, ToneMapping, SMAA, Vignette } from '@react-three/postprocessing';
+import { ToneMappingMode } from 'postprocessing';
+import { ELEMENTS, orbitalPosition, orbitPath, AXIAL_TILT, ROTATION_PERIOD } from './museion/orrery/orbits';
+import Atmosphere, { ATMOSPHERES } from './museion/orrery/Atmosphere';
+import Starfield from './museion/orrery/Starfield';
+import CameraRig from './museion/orrery/CameraRig';
 import * as THREE from 'three';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Info, Camera, Layers, Zap, Sparkles, Volume2, VolumeX, Brain, Newspaper } from 'lucide-react';
+import { ArrowLeft, Info, Camera, Layers, Zap, Sparkles, Volume2, VolumeX, Brain, Newspaper, Orbit } from 'lucide-react';
 import { generatePlanetInsight } from '../services/geminiService';
 
-// ─── Texture URLs (Three.js CDN — confirmed working) ─────────────────────────
+// ─── Textures ────────────────────────────────────────────────────────────────
+// ALL SELF-HOSTED. These were hot-linked to the three.js repo, which removed the
+// files, so most of the solar system silently rendered as untextured spheres in
+// production. Nothing here may point at another origin: an external host is free
+// to delete, rename or rate-limit at any time, and the failure is invisible
+// until someone opens the module.
 const TX = {
-  sun:          'https://upload.wikimedia.org/wikipedia/commons/9/99/Map_of_the_full_sun.jpg',
+  sun:          '/textures/solar/2k_sun.jpg',
   mercury:      '/textures/solar/2k_mercury.jpg',
   venus:        '/textures/solar/2k_venus_atmosphere.jpg',
   earthDay:     '/textures/solar/earth_atmos_2048.jpg',
@@ -157,6 +168,10 @@ const SPACE_NEWS = [
   { title: 'Record Solar Storm — G5 Class', source: 'NOAA', date: '2024', excerpt: 'Strongest geomagnetic storm in 20 years produced auroras visible at tropical latitudes.' },
 ];
 
+// One Earth year per this many seconds of wall clock. Slow enough that the inner
+// planets don't strobe, fast enough that Jupiter visibly moves while you watch.
+const YEARS_PER_SECOND = 1 / 26;
+
 // ─── 3D Components ────────────────────────────────────────────────────────────
 
 const SunBody = ({ onSelect }: { onSelect: () => void }) => {
@@ -226,30 +241,116 @@ const EarthBody = ({ onSelect }: { onSelect: () => void }) => {
   );
 };
 
-const SaturnBody = ({ onSelect }: { onSelect: () => void }) => {
+// Saturn's rings, with the planet's shadow falling across them.
+//
+// Rings lit evenly all the way round are the most obvious tell in an amateur
+// solar system: in every real image Saturn throws a hard dark band across the
+// far side of its own rings. The test is cheap — a ring point is shadowed when
+// it lies behind the planet along the sun direction and within a planet-radius
+// of that axis, which is just a cylinder test in ring space.
+const SaturnRings = ({ ringMap, planetRadius, sunDir }: {
+  ringMap: THREE.Texture | null; planetRadius: number; sunDir: THREE.Vector3;
+}) => {
+  const uniforms = useMemo(() => ({
+    uSun: { value: new THREE.Vector3(1, 0, 0) },
+    uPlanetR: { value: planetRadius },
+  }), [planetRadius]);
+
+  useFrame(() => { uniforms.uSun.value.copy(sunDir); });
+
+  const onBeforeCompile = useMemo(() => (shader: THREE.WebGLProgramParametersWithUniforms) => {
+    shader.uniforms.uSun = uniforms.uSun;
+    shader.uniforms.uPlanetR = uniforms.uPlanetR;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', ['#include <common>', 'varying vec3 vRingPos;'].join('\n'))
+      .replace('#include <begin_vertex>', ['#include <begin_vertex>', 'vRingPos = position;'].join('\n'));
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', [
+        '#include <common>',
+        'uniform vec3 uSun;',
+        'uniform float uPlanetR;',
+        'varying vec3 vRingPos;',
+      ].join('\n'))
+      .replace('#include <dithering_fragment>', [
+        '#include <dithering_fragment>',
+        '// Split the ring point into components along and across the sun',
+        '// direction. Behind the planet AND within a planet radius of that',
+        '// axis means the planet is between this point and the Sun.',
+        'float along = dot(vRingPos, uSun);',
+        'float across = length(vRingPos - uSun * along);',
+        'float shadow = (along < 0.0) ? smoothstep(uPlanetR, uPlanetR * 0.82, across) : 0.0;',
+        'gl_FragColor.rgb *= mix(1.0, 0.16, shadow);',
+      ].join('\n'));
+  }, [uniforms]);
+
+  return (
+    <group rotation={[Math.PI / 2, 0, 0]}>
+      <mesh receiveShadow>
+        <ringGeometry args={[2.05, 3.65, 192]} />
+        <meshBasicMaterial
+          map={ringMap ?? undefined}
+          color="#D4B896"
+          side={THREE.DoubleSide}
+          transparent
+          opacity={0.88}
+          depthWrite={false}
+          onBeforeCompile={onBeforeCompile}
+        />
+      </mesh>
+      <mesh>
+        <ringGeometry args={[3.65, 4.3, 192]} />
+        <meshBasicMaterial
+          color="#C4A060"
+          side={THREE.DoubleSide}
+          transparent
+          opacity={0.18}
+          depthWrite={false}
+          onBeforeCompile={onBeforeCompile}
+        />
+      </mesh>
+    </group>
+  );
+};
+
+const SaturnBody = ({ onSelect, worldPos }: { onSelect: () => void; worldPos: [number, number, number] }) => {
   const ref = useRef<THREE.Mesh>(null);
   const [saturnMap, ringMap] = useTexture([TX.saturn, TX.saturnRing]);
+  const air = ATMOSPHERES.Saturn;
 
   useEffect(() => {
     [saturnMap, ringMap].forEach(t => { if (t) { t.anisotropy = 16; t.needsUpdate = true; } });
   }, [saturnMap, ringMap]);
 
-  useFrame(() => { if (ref.current) ref.current.rotation.y += 0.007; });
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    ref.current.rotation.y =
+      (clock.getElapsedTime() * YEARS_PER_SECOND * 365.25 * Math.PI * 2) / ROTATION_PERIOD.Saturn;
+  });
+
+  // Direction from Saturn to the Sun in the planet's own frame. The Sun is at
+  // the origin, so this is simply the negated world position.
+  const sunDir = useMemo(() => new THREE.Vector3(1, 0, 0), []);
+  useFrame(() => {
+    sunDir.set(-worldPos[0], -worldPos[1], -worldPos[2]);
+    if (sunDir.lengthSq() < 1e-9) sunDir.set(1, 0, 0);
+    sunDir.normalize();
+  });
 
   return (
-    <group rotation={[0.47, 0, 0]}>
+    <group rotation={[0, 0, AXIAL_TILT.Saturn]}>
       <mesh ref={ref} onClick={(e) => { e.stopPropagation(); onSelect(); }} castShadow>
         <sphereGeometry args={[1.55, 64, 64]} />
         <meshStandardMaterial map={saturnMap} roughness={0.9} metalness={0.05} />
       </mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[2.05, 3.65, 128]} />
-        <meshBasicMaterial map={ringMap} color="#D4B896" side={THREE.DoubleSide} transparent opacity={0.88} depthWrite={false} />
-      </mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[3.65, 4.3, 128]} />
-        <meshBasicMaterial color="#C4A060" side={THREE.DoubleSide} transparent opacity={0.18} depthWrite={false} />
-      </mesh>
+      <Atmosphere
+        radius={1.55}
+        color={air.color}
+        thickness={air.thickness}
+        falloff={air.falloff}
+        intensity={air.intensity}
+        sunPosition={[-worldPos[0], -worldPos[1], -worldPos[2]]}
+      />
+      <SaturnRings ringMap={ringMap ?? null} planetRadius={1.55} sunDir={sunDir} />
     </group>
   );
 };
@@ -259,24 +360,42 @@ const GENERIC_TEXTURE_MAP: Record<string, string> = {
   Jupiter: TX.jupiter, Uranus: TX.uranus, Neptune: TX.neptune,
 };
 
-const GenericPlanetBody = ({ data, onSelect }: { data: PlanetData; onSelect: () => void }) => {
+const GenericPlanetBody = ({ data, onSelect, worldPos }: {
+  data: PlanetData; onSelect: () => void; worldPos: [number, number, number];
+}) => {
   const ref = useRef<THREE.Mesh>(null);
   const texture = useTexture(GENERIC_TEXTURE_MAP[data.name] || TX.mercury);
+  const air = ATMOSPHERES[data.name];
 
   useEffect(() => { if (texture) { texture.anisotropy = 16; texture.needsUpdate = true; } }, [texture]);
-  useFrame(() => { if (ref.current) ref.current.rotation.y += 0.008; });
+
+  // Spin at the planet's REAL rate, on the same clock the orbits use, so a
+  // Venusian day really does outlast a Venusian year and Venus really does turn
+  // backwards. Spinning every planet at one arbitrary speed throws away the most
+  // teachable fact several of them have.
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    const days = ROTATION_PERIOD[data.name] ?? 1;
+    ref.current.rotation.y = (clock.getElapsedTime() * YEARS_PER_SECOND * 365.25 * Math.PI * 2) / days;
+  });
 
   return (
-    <group>
+    <group rotation={[0, 0, AXIAL_TILT[data.name] ?? 0]}>
       <mesh ref={ref} onClick={(e) => { e.stopPropagation(); onSelect(); }} castShadow receiveShadow>
         <sphereGeometry args={[data.size, 64, 64]} />
         <meshStandardMaterial map={texture} roughness={0.85} metalness={0.05} />
       </mesh>
-      {(data.type === 'Gas Giant' || data.type === 'Ice Giant') && (
-        <mesh>
-          <sphereGeometry args={[data.size * 1.025, 32, 32]} />
-          <meshBasicMaterial color={data.color} opacity={0.045} transparent side={THREE.BackSide} depthWrite={false} />
-        </mesh>
+      {/* The limb glow, which is what makes a sphere read as a world. Mercury
+          is airless and correctly gets none. */}
+      {air && (
+        <Atmosphere
+          radius={data.size}
+          color={air.color}
+          thickness={air.thickness}
+          falloff={air.falloff}
+          intensity={air.intensity}
+          sunPosition={[-worldPos[0], -worldPos[1], -worldPos[2]]}
+        />
       )}
     </group>
   );
@@ -329,25 +448,51 @@ const FallbackSphere = ({ data }: { data: PlanetData }) => {
 };
 
 // ─── Orbiting Wrapper ─────────────────────────────────────────────────────────
-const OrbitingPlanet = ({ data, onSelect, isSelected }: { data: PlanetData; onSelect: (n: string) => void; isSelected: boolean }) => {
+const OrbitingPlanet = ({ data, onSelect, isSelected, onPose }: {
+  data: PlanetData; onSelect: (n: string) => void; isSelected: boolean;
+  onPose?: (name: string, p: THREE.Vector3) => void;
+}) => {
   const groupRef = useRef<THREE.Group>(null);
-  const offset = useMemo(() => Math.random() * Math.PI * 2, []);
+  const el = ELEMENTS[data.name];
 
   useFrame(({ clock }) => {
-    if (!groupRef.current || data.distance === 0) return;
-    const angle = clock.getElapsedTime() * data.speed * 0.08 + offset;
-    groupRef.current.position.x = Math.cos(angle) * data.distance;
-    groupRef.current.position.z = Math.sin(angle) * data.distance;
+    const g = groupRef.current;
+    if (!g) return;
+    if (data.distance === 0 || !el) {
+      onPose?.(data.name, g.position);
+      return;
+    }
+    // REAL KEPLERIAN MOTION. The planet traces its true ellipse on its true
+    // orbital plane, and — because the Sun sits at a focus rather than the
+    // centre — it genuinely accelerates through perihelion. That change of pace
+    // is most of what separates a solar system from a carousel.
+    const t = clock.getElapsedTime() * YEARS_PER_SECOND;
+    const [x, y, z] = orbitalPosition(el, data.distance, t);
+    g.position.set(x, y, z);
+    onPose?.(data.name, g.position);
   });
 
   const sel = () => onSelect(data.name);
   const fb = <FallbackSphere data={data} />;
 
+  // Sampled once per render rather than per frame: it only steers the direction
+  // of a terminator and a ring shadow, both of which turn far too slowly for the
+  // update rate to be visible — and a per-frame React update here would cost
+  // more than the entire scene.
+  const [wp, setWp] = useState<[number, number, number]>([data.distance, 0, 0]);
+  useEffect(() => {
+    const id = setInterval(() => {
+      const g = groupRef.current;
+      if (g) setWp([g.position.x, g.position.y, g.position.z]);
+    }, 400);
+    return () => clearInterval(id);
+  }, []);
+
   const body =
     data.name === 'Sun'    ? <SunBody onSelect={sel} /> :
     data.name === 'Earth'  ? <EarthBody onSelect={sel} /> :
-    data.name === 'Saturn' ? <SaturnBody onSelect={sel} /> :
-                             <GenericPlanetBody data={data} onSelect={sel} />;
+    data.name === 'Saturn' ? <SaturnBody onSelect={sel} worldPos={wp} /> :
+                             <GenericPlanetBody data={data} onSelect={sel} worldPos={wp} />;
 
   return (
     <group ref={groupRef}>
@@ -364,31 +509,109 @@ const OrbitingPlanet = ({ data, onSelect, isSelected }: { data: PlanetData; onSe
   );
 };
 
-// ─── Orbit Rings ──────────────────────────────────────────────────────────────
-const OrbitRings = () => (
+// ─── Orbit Paths ──────────────────────────────────────────────────────────────
+// Traced from the same mechanics that move the planets, so a planet can never
+// drift off the line drawn for it — these were flat concentric rings, which sat
+// wrong under every inclined orbit and made the system look like a target.
+const OrbitLine = ({ name, distance, highlight }: { name: string; distance: number; highlight: boolean }) => {
+  const geometry = useMemo(() => {
+    const el = ELEMENTS[name];
+    if (!el) return null;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(orbitPath(el, distance, 512), 3));
+    return g;
+  }, [name, distance]);
+
+  useEffect(() => () => { geometry?.dispose(); }, [geometry]);
+  if (!geometry) return null;
+
+  return (
+    <line>
+      <primitive object={geometry} attach="geometry" />
+      <lineBasicMaterial
+        color={highlight ? '#9FD4FF' : '#8899BB'}
+        transparent
+        opacity={highlight ? 0.5 : 0.13}
+        depthWrite={false}
+      />
+    </line>
+  );
+};
+
+const OrbitRings = ({ selected }: { selected: string }) => (
   <group>
     {PLANET_DATA.filter(p => p.distance > 0).map(p => (
-      <mesh key={p.name} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[p.distance - 0.016, p.distance + 0.016, 256]} />
-        <meshBasicMaterial color="#8899BB" opacity={0.07} transparent depthWrite={false} />
-      </mesh>
+      <OrbitLine key={p.name} name={p.name} distance={p.distance} highlight={p.name === selected} />
     ))}
   </group>
 );
 
 // ─── Full Scene ───────────────────────────────────────────────────────────────
-const Scene = ({ selected, setSelected }: { selected: string; setSelected: (n: string) => void }) => (
-  <>
-    <ambientLight intensity={0.04} />
-    <Stars radius={500} depth={100} count={30000} factor={5.5} saturation={0.08} fade speed={0.4} />
-    <OrbitRings />
-    <AsteroidBelt />
-    {PLANET_DATA.map(p => (
-      <OrbitingPlanet key={p.name} data={p} onSelect={setSelected} isSelected={selected === p.name} />
-    ))}
-    <OrbitControls enablePan maxDistance={130} minDistance={3} enableDamping dampingFactor={0.06} />
-  </>
-);
+const Scene = ({ selected, setSelected, tourEnabled }: {
+  selected: string; setSelected: (n: string) => void; tourEnabled: boolean;
+}) => {
+  // Live positions, kept in a ref rather than state: the camera rig reads them
+  // every frame, and routing that through React would re-render the whole scene
+  // sixty times a second.
+  const poses = useRef<Record<string, THREE.Vector3>>({});
+  const targetRef = useRef<THREE.Vector3 | null>(null);
+  const [arrived, setArrived] = useState(true);
+
+  const onPose = useMemo(() => (name: string, p: THREE.Vector3) => {
+    const store = poses.current[name] ?? (poses.current[name] = new THREE.Vector3());
+    store.copy(p);
+  }, []);
+
+  const selectedData = PLANET_DATA.find(p => p.name === selected) ?? PLANET_DATA[0];
+  targetRef.current = poses.current[selected] ?? null;
+
+  useEffect(() => { setArrived(false); }, [selected]);
+
+  return (
+    <>
+      {/* Deep space is not lit, but a scene with literally zero fill reads as
+          cut-out silhouettes rather than as night. */}
+      <ambientLight intensity={0.05} />
+
+      {/* The real sky, with the Milky Way in it. */}
+      <Starfield radius={620} intensity={0.5} sparkleCount={1400} />
+
+      <OrbitRings selected={selected} />
+      <AsteroidBelt />
+      {PLANET_DATA.map(p => (
+        <OrbitingPlanet
+          key={p.name}
+          data={p}
+          onSelect={setSelected}
+          isSelected={selected === p.name}
+          onPose={onPose}
+        />
+      ))}
+
+      {/* Fly to whatever was selected, then hand control back. */}
+      {tourEnabled && (
+        <CameraRig
+          target={targetRef.current}
+          targetRadius={selectedData.size}
+          targetKey={selected}
+          framing={selected === 'Sun' ? 6.5 : 4.5}
+          onArrive={() => setArrived(true)}
+        />
+      )}
+
+      <OrbitControls
+        makeDefault
+        enablePan
+        maxDistance={200}
+        minDistance={2}
+        enableDamping
+        dampingFactor={0.06}
+        // Don't fight the rig mid-flight; the user takes over on arrival.
+        enabled={arrived || !tourEnabled}
+      />
+    </>
+  );
+};
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const SolarSystemModule: React.FC<{ onBack: () => void }> = ({ onBack }) => {
@@ -396,6 +619,10 @@ const SolarSystemModule: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [tab, setTab] = useState<'OVERVIEW' | 'STATS' | 'GALLERY' | 'PROBES' | 'AI'>('OVERVIEW');
   const [showNews, setShowNews] = useState(false);
   const [muted, setMuted] = useState(false);
+  // Cinematic tour: fly to whatever is selected. On by default, because the
+  // module's whole point is looking AT things — but a visitor who wants to
+  // stay put and drive the camera themselves can switch it off.
+  const [tour, setTour] = useState(true);
   const [aiInsight, setAiInsight] = useState<{ summary: string; fact: string } | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
@@ -423,18 +650,36 @@ const SolarSystemModule: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       <div className="absolute inset-0 z-0">
         <Canvas
           shadows
-          gl={{ antialias: true, powerPreference: 'high-performance' }}
-          camera={{ position: [0, 28, 65], fov: 48 }}
+          dpr={[1, 1.75]}
+          gl={{ antialias: false, powerPreference: 'high-performance' }}
+          camera={{ position: [0, 28, 65], fov: 48, near: 0.1, far: 2000 }}
+          onCreated={({ gl }) => { gl.toneMappingExposure = 1.1; }}
         >
           <Suspense fallback={null}>
-            <Scene selected={selected} setSelected={setSelected} />
+            <Scene selected={selected} setSelected={setSelected} tourEnabled={tour} />
+            {/* The grade. Space has the widest dynamic range of any subject the
+                app renders — a star beside an unlit ice giant — and showing it
+                on an untouched linear buffer is what made the module look like a
+                diagram of the solar system rather than a photograph of it.
+
+                Bloom is the important one: it is how a real lens responds to the
+                Sun, and it is the only thing here that makes a star read as
+                painfully bright rather than as a bright circle. The threshold is
+                set so only genuinely emissive surfaces bloom and lit planets do
+                not smear. ACES then rolls those highlights off the way film
+                does, instead of clipping them flat to white. */}
+            <EffectComposer multisampling={0}>
+              <Bloom intensity={1.15} luminanceThreshold={0.62} luminanceSmoothing={0.32} mipmapBlur />
+              <SMAA />
+              <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+              <Vignette offset={0.28} darkness={0.62} />
+            </EffectComposer>
           </Suspense>
         </Canvas>
       </div>
 
-      {/* Vignette */}
-      <div className="absolute inset-0 z-[1] pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.7) 100%)' }} />
+      {/* The vignette moved into the composer, where it lands on the rendered
+          image rather than as a DOM overlay. Keeping both would double it. */}
 
       {/* Header */}
       <header className="relative z-10 px-8 pt-8 pb-4 flex items-center justify-between pointer-events-none">
@@ -456,6 +701,18 @@ const SolarSystemModule: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white hover:bg-white/10 transition-all"
           >
             <Newspaper size={14} /> Space News
+          </button>
+          <button
+            onClick={() => setTour(v => !v)}
+            title={tour ? 'Camera follows your selection' : 'Camera stays where you put it'}
+            aria-pressed={tour}
+            className={`w-11 h-11 rounded-xl border flex items-center justify-center transition-all ${
+              tour
+                ? 'bg-[#9FD4FF]/15 border-[#9FD4FF]/40 text-[#9FD4FF]'
+                : 'bg-white/5 border-white/10 text-white/50 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <Orbit size={18} />
           </button>
           <button
             onClick={() => setMuted(v => !v)}
