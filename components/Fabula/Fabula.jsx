@@ -13,6 +13,7 @@ import { acquire as acquireDecoder } from "../../services/fabula/decoderBudget";
 import { createCompositor, webgpuAvailable } from "../../services/fabula/gpuComposite";
 import { renderFabulaToBlob } from "../../services/fabulaRender";
 import { crossover } from "../../services/crossover";
+import { kindOf as codecKind, importAccept as codecImportAccept } from "../../services/fabula/codecMatrix";
 import SceneView from "../plajahPixels/components/SceneView";
 import { useContextMenu } from "../ui/ContextMenu";
 import { getMyMusicTracks, buildSubtitleClips, syncLicenseInfo } from "../../services/fabulaMusic";
@@ -27,6 +28,7 @@ import Waveform from "./Waveform";
 import { attachAudioGraph, getAudioCtx, meterRegistry, needsCors, resumeAudioCtx, CLIP_AUDIO_DEFAULT, COMP_DEFAULT, EQ_LABELS } from "../../services/fabula/audioGraph";
 import { transcodeToProxy, canTranscode } from "../plajahPixels/engine/core/proxyTranscoder";
 import { FxLibraryPanel, LottieBuilder, PerformCapture, CompBuilder } from "./FxLibrary";
+import NodeGraphEditor from "./NodeGraphEditor";
 import ColorScopes from "./ColorScopes";
 import GradePreview from "./GradePreview";
 import MixConsole from "./MixConsole";
@@ -34,6 +36,12 @@ import VoiceStudio from "./VoiceStudio";
 import AudioEditor from "./AudioEditor";
 import AudioTimeline from "./AudioTimeline";
 import ColorWheels from "./ColorWheels";
+import CurveEditor from "./CurveEditor";
+import { buildCurveLut, isCurvesIdentity } from "../../services/fabula/gradeCurves";
+import { isQualifierIdentity, keyFromPixel, QUALIFIER_DEFAULT } from "../../services/fabula/hslKey";
+import { isWindowEnabled, WINDOW_DEFAULT } from "../../services/fabula/gradeWindow";
+import { rangeClips } from "../../services/fabula/rangeClips";
+import { sampleParam as kfSample, isAnimated as kfIsAnimated, hasKeys as kfHasKeys, addKey as kfAddKey, removeKey as kfRemoveKey, keyAt as kfKeyAt, prevKeyTime as kfPrev, nextKeyTime as kfNext, KF_PARAMS, KF_ALL } from "../../services/fabula/keyframes";
 import { quickStems, separateStemsCloud } from "../../services/fabula/stemSeparation";
 import { exportFCPXML, importFCPXML } from "../../services/fabula/fcpxml";
 import { initResumableUploads, enqueueUpload, onUploadProgress, pendingCount, setUploadsPaused, uploadsPaused, clearUploadQueue } from "../../services/fabula/resumableUpload";
@@ -158,12 +166,13 @@ const trackClearance = (meta, grants, editId, uid) => {
 
 const EXT_TYPE = (name) => {
   const e = (name.split(".").pop() || "").toLowerCase();
-  if (["png", "jpg", "jpeg", "webp", "gif", "bmp", "tif", "tiff"].includes(e)) return "image";
+  // Graphics / 3D / text stay hard-coded (the codec matrix only covers A/V/still media).
   if (["svg", "ai", "eps", "psd"].includes(e)) return "graphic";
-  if (["mp4", "mov", "webm", "mkv", "avi", "m4v"].includes(e)) return "video";
-  if (["mp3", "wav", "m4a", "aac", "ogg", "flac", "aif", "aiff"].includes(e)) return "audio";
   if (["glb", "gltf", "obj", "fbx", "stl", "usdz", "blend", "c4d"].includes(e)) return "model";
   if (["txt", "md", "json", "csv", "rtf"].includes(e)) return "text";
+  if (e === "gif") return "image";
+  const k = codecKind(name);            // 'video' | 'audio' | 'image' | null
+  if (k) return k;
   return "graphic";
 };
 
@@ -606,7 +615,18 @@ export default function Fabula() {
   const [renderPct, setRenderPct] = useState(0);
   const [renderStage, setRenderStage] = useState("");
   const renderAbortRef = useRef(null);
+  // ── Render queue: several export jobs (format × range) run in sequence, with a
+  //    done-list you can come back to. deliverRange picks what a new job covers. ──
+  const [deliverRange, setDeliverRange] = useState("all"); // all | inout | markers
+  const [renderQueue, setRenderQueue] = useState([]);      // {id,kind,label,t0,t1,status,pct}
+  const [queueRunning, setQueueRunning] = useState(false);
+  const queueAbortRef = useRef(false);
   const [editWs, setEditWs] = useState("edit");     // resolve-style workspace: media|edit|vfx|color|audio|deliver
+  const [colorTab, setColorTab] = useState("wheels"); // color room control-bar tab: looks|wheels|curves|primaries
+  const [audioTab, setAudioTab] = useState("mixer");  // audio room control-band tab: mixer|voice|clips
+  const [vfxTab, setVfxTab] = useState("comp");       // vfx room control-band tab: comp|lottie|capture
+  const [eyedrop, setEyedrop] = useState(false);      // qualifier eyedropper armed → next monitor click samples a key
+  const [gradeLayer, setGradeLayer] = useState(0);    // color room: which grade layer the tabs edit (0 = base)
   const [binFilter, setBinFilter] = useState("all");
   const [previewAsset, setPreviewAsset] = useState(null); // source viewer (dual canvas, à la resolve)
   const [srcPlaying, setSrcPlaying] = useState(false);
@@ -2804,6 +2824,79 @@ export default function Fabula() {
       setRendering(false);
     }
   };
+  // ── RENDER QUEUE ENGINE ────────────────────────────────────────────────────
+  // Transform the timeline to a sub-range [t0,t1): keep clips that overlap, shift
+  // them to a zero origin, and push srcIn forward when the range cuts mid-clip so
+  // the source frame stays correct. Whole-timeline is just [0, seqEnd].
+  const rangeClipsFor = (t0, t1) => rangeClips(clips, t0, t1);
+  // The ranges a job can cover, from the current deliverRange choice.
+  const queueSpans = () => {
+    if (deliverRange === "inout" && markIn != null && markOut != null && markOut > markIn) {
+      return [{ t0: markIn, t1: markOut, tag: "IN→OUT" }];
+    }
+    if (deliverRange === "markers" && markers.length) {
+      const pts = [...markers.map((m) => m.t), seqEnd].sort((a, b) => a - b);
+      const spans = [];
+      let prev = 0;
+      for (const p of pts) { if (p - prev > 0.05) spans.push({ t0: prev, t1: p, tag: `SEG ${spans.length + 1}` }); prev = p; }
+      return spans.length ? spans : [{ t0: 0, t1: seqEnd, tag: "ALL" }];
+    }
+    return [{ t0: 0, t1: seqEnd, tag: "ALL" }];
+  };
+  const addToQueue = (kind) => {
+    if (!clips.length) { ping("Nothing on the timeline to queue."); return; }
+    const spans = kind === "mp4" ? queueSpans() : [{ t0: 0, t1: seqEnd, tag: "ALL" }]; // interchange = whole cut
+    const base = (container?.title || "Fabula Cut").trim();
+    const jobs = spans.map((sp) => ({
+      id: uid(), kind, t0: sp.t0, t1: sp.t1, status: "queued", pct: 0,
+      label: `${base} · ${kind.toUpperCase()}${sp.tag !== "ALL" ? ` · ${sp.tag}` : ""}`,
+    }));
+    setRenderQueue((q) => [...q, ...jobs]);
+    ping(`Queued ${jobs.length} ${kind.toUpperCase()} job${jobs.length === 1 ? "" : "s"}`);
+  };
+  const downloadBlob = (blob, name) => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name;
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+  };
+  const runQueue = async () => {
+    if (queueRunning) { queueAbortRef.current = true; renderAbortRef.current?.abort(); return; }
+    const pending = renderQueue.filter((j) => j.status === "queued");
+    if (!pending.length) { ping("Queue is empty."); return; }
+    setQueueRunning(true); queueAbortRef.current = false;
+    setPlaying(false); rateRef.current = 1;
+    for (const job of pending) {
+      if (queueAbortRef.current) break;
+      setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, status: "running", pct: 0 } : j)));
+      const nameBase = job.label.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
+      try {
+        if (job.kind === "mp4") {
+          renderAbortRef.current = new AbortController();
+          const rc = rangeClipsFor(job.t0, job.t1);
+          const blob = await renderFabulaToBlob({
+            clips: rc, mediaPool: prod.mediaPool || [], format: vfmt,
+            palette: prod?.pixelsConfig?.colorPalette || [], title: job.label,
+            trackSettings: container?.timeline?.trackSettings || {},
+            onProgress: (p) => setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, pct: p } : j))),
+            signal: renderAbortRef.current.signal,
+          });
+          if (!blob) { setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, status: queueAbortRef.current ? "queued" : "error" } : j))); continue; }
+          downloadBlob(blob, nameBase + ".mp4");
+        } else if (job.kind === "fcpxml") {
+          exportTimelineFCPXML();
+        } else if (job.kind === "edl") {
+          exportEDL();
+        }
+        setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, status: "done", pct: 1 } : j)));
+      } catch (e) {
+        console.warn("[Fabula queue]", e);
+        setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, status: "error" } : j)));
+      }
+    }
+    setQueueRunning(false);
+    ping(queueAbortRef.current ? "Queue stopped." : "Queue finished.");
+  };
+
   // Shared destinations UI — shown inline in the DELIVER section (pre-render) AND in the
   // post-render confirm dialog. Same state either way: one file, flags route where it surfaces.
   const renderDestinations = () => (
@@ -3214,16 +3307,31 @@ export default function Fabula() {
     const secs = tlEnd() || 1;
     setZoom(Math.max(0.1, Math.min(4, +(avail / (secs * 46)).toFixed(3))));
   };
-  const addCrossDissolve = () => {
-    const c = getSel(); if (!c) return;
-    const same = clips.filter((x) => x.trackId === c.trackId).sort((a, b) => a.start - b.start);
-    const nextClip = same[same.findIndex((x) => x.id === c.id) + 1];
+  // A real transition OBJECT on the cut: fx.trans = { type, dur } on the INCOMING clip.
+  // The renderer composites the outgoing + incoming across the window (services/fabulaRender);
+  // a first clip with a transition reads as a fade from black.
+  const addCrossDissolve = (type = "dissolve", dur = 1) => {
+    const c = getSel(); if (!c) { ping("Select a clip to add a transition into it."); return; }
+    applyClips(clips.map((x) => (x.id === c.id ? { ...x, fx: { ...ensureFx(x), trans: { type, dur } } } : x)));
+    ping(`${type === "dip" ? "Dip to black" : "Cross dissolve"} · ${dur}s`);
+  };
+  // Cycle a clip's transition dissolve → dip → wipe → blur → off (timeline wedge click).
+  const TRANS_CYCLE = ["dissolve", "dip", "wipe", "blur"];
+  const cycleTransition = (clipId) => {
     applyClips(clips.map((x) => {
-      if (x.id === c.id) return { ...x, fx: { ...(x.fx || FX_DEFAULTS), fadeOut: Math.max((x.fx && x.fx.fadeOut) || 0, 0.5) } };
-      if (nextClip && x.id === nextClip.id) return { ...x, fx: { ...(x.fx || FX_DEFAULTS), fadeIn: Math.max((x.fx && x.fx.fadeIn) || 0, 0.5) } };
-      return x;
+      if (x.id !== clipId) return x;
+      const cur = x.fx?.trans?.type;
+      const nextFx = { ...ensureFx(x) };
+      const i = TRANS_CYCLE.indexOf(cur);
+      const dur = x.fx?.trans?.dur || 1;
+      if (i < 0) nextFx.trans = { type: "dissolve", dur: 1 };
+      else if (i >= TRANS_CYCLE.length - 1) delete nextFx.trans;
+      else nextFx.trans = { type: TRANS_CYCLE[i + 1], dur, ...(TRANS_CYCLE[i + 1] === "wipe" ? { dir: x.fx?.trans?.dir ?? 0 } : {}) };
+      return { ...x, fx: nextFx };
     }));
-    ping("Cross dissolve");
+  };
+  const setTransitionDur = (clipId, dur) => {
+    applyClips(clips.map((x) => (x.id === clipId && x.fx?.trans ? { ...x, fx: { ...ensureFx(x), trans: { ...x.fx.trans, dur: Math.max(0.1, Math.min(4, dur)) } } } : x)));
   };
 
   useFabulaShortcuts({
@@ -3706,7 +3814,7 @@ export default function Fabula() {
                         }}>+ BIN</button>
                     </div>
                     <button className="minibtn full" onClick={() => fileRef.current?.click()}><Upload size={12} /> IMPORT MEDIA</button>
-                    <input ref={fileRef} type="file" multiple accept="video/*,image/*,audio/*,.lottie,.json,.svg,.ai,.pdf" style={{ display: "none" }} onChange={handleUpload} />
+                    <input ref={fileRef} type="file" multiple accept={`${codecImportAccept()},.lottie,.json,.svg,.ai,.pdf`} style={{ display: "none" }} onChange={handleUpload} />
                     <input ref={relinkRef} type="file" accept="video/*,image/*,audio/*" style={{ display: "none" }}
                       onChange={(e) => {
                         const f = e.target.files?.[0]; const id = relinkTargetRef.current;
@@ -4157,13 +4265,35 @@ export default function Fabula() {
                         )}
                         {selClip.kind !== "voice" && !selIsAudio && (() => {
                           const fx = ensureFx(selClip);
-                          const slider = (lbl, key, min, max, step) => (
-                            <div className="fxrow" key={key}>
-                              <span className="fxlbl">{lbl}</span>
-                              <input type="range" min={min} max={max} step={step} value={fx[key]} onChange={(e) => updateFx(selClip.id, { [key]: parseFloat(e.target.value) })} />
-                              <span className="fxval">{Number(fx[key]).toFixed(step < 0.1 ? 2 : 1)}</span>
-                            </div>
-                          );
+                          // Clip-local playhead time — where keyframes are read/written.
+                          const kfLt = Math.max(0, Math.min(selClip.duration || 0, playhead - selClip.start));
+                          const KFKEYS = new Set(KF_ALL);
+                          const slider = (lbl, key, min, max, step) => {
+                            const kfable = KFKEYS.has(key);
+                            const track = fx.kf?.[key];
+                            const animated = kfHasKeys(track);
+                            const val = animated ? kfSample(fx, key, kfLt, fx[key]) : fx[key];
+                            const onDiamond = () => {
+                              const nkf = { ...(fx.kf || {}) };
+                              if (kfKeyAt(track, kfLt)) { const t2 = kfRemoveKey(track, kfLt); if (t2.length) nkf[key] = t2; else delete nkf[key]; }
+                              else nkf[key] = kfAddKey(track, kfLt, val);
+                              updateFx(selClip.id, { kf: nkf });
+                            };
+                            const setVal = (nv) => {
+                              if (animated) updateFx(selClip.id, { kf: { ...(fx.kf || {}), [key]: kfAddKey(track, kfLt, nv) } });
+                              else updateFx(selClip.id, { [key]: nv });
+                            };
+                            return (
+                              <div className="fxrow" key={key}>
+                                <span className="fxlbl">{lbl}</span>
+                                <input type="range" min={min} max={max} step={step} value={val} onChange={(e) => setVal(parseFloat(e.target.value))}
+                                  onDoubleClick={() => { if (animated) { const nkf = { ...(fx.kf || {}) }; delete nkf[key]; updateFx(selClip.id, { kf: nkf }); } }} />
+                                <span className="fxval">{Number(val).toFixed(step < 0.1 ? 2 : 1)}</span>
+                                {kfable && <button className={`kfdiamond ${animated ? "anim" : ""} ${kfKeyAt(track, kfLt) ? "on" : ""}`}
+                                  title={animated ? "Key at playhead — click to add/remove · double-click the slider to clear the track" : "Keyframe this parameter at the playhead"} onClick={onDiamond}>◆</button>}
+                              </div>
+                            );
+                          };
                           return (
                             <>
                               <div className="insp-div" />
@@ -4173,6 +4303,25 @@ export default function Fabula() {
                               {slider("POS X", "x", -100, 100, 1)}
                               {slider("POS Y", "y", -100, 100, 1)}
                               {slider("ROTATE", "rot", -180, 180, 1)}
+                              {kfIsAnimated(fx) && (() => {
+                                // Keyframe navigator: jump the playhead between keys (across all
+                                // animated params) and see which params move. The ◆ diamonds above
+                                // add/remove keys at the playhead; editing a slider re-keys there.
+                                const animKeys = KF_ALL.filter((k) => kfHasKeys(fx.kf?.[k]));
+                                const prevs = animKeys.map((k) => kfPrev(fx.kf[k], kfLt)).filter((v) => v != null);
+                                const nexts = animKeys.map((k) => kfNext(fx.kf[k], kfLt)).filter((v) => v != null);
+                                const goPrev = prevs.length ? Math.max(...prevs) : null;
+                                const goNext = nexts.length ? Math.min(...nexts) : null;
+                                return (
+                                  <div className="fxrow kfnav">
+                                    <span className="fxlbl" style={{ color: "var(--pur)" }}>KEYS</span>
+                                    <button disabled={goPrev == null} title="Previous keyframe" onClick={() => setPlayhead(selClip.start + goPrev)}>◀ KEY</button>
+                                    <button disabled={goNext == null} title="Next keyframe" onClick={() => setPlayhead(selClip.start + goNext)}>KEY ▶</button>
+                                    <span className="kfchips">{animKeys.map((k) => <span key={k} className="chip pur" style={{ padding: "2px 5px" }}>{k.toUpperCase()} {fx.kf[k].length}</span>)}</span>
+                                    <button title="Clear all keyframes on this clip" onClick={() => updateFx(selClip.id, { kf: undefined })}>CLEAR</button>
+                                  </div>
+                                );
+                              })()}
                               {slider("BLUR", "blur", 0, 30, 0.5)}
                               {slider("BRIGHT", "bri", 0, 2.5, 0.02)}
                               {slider("CONTRAST", "con", 0, 2.5, 0.02)}
@@ -4369,29 +4518,237 @@ export default function Fabula() {
       </div>
     );
   };
+  /* ═══ BAND 2 · THE ROOM TOOL BAR ═══════════════════════════════
+     Every workspace now opens with the same four bands: context bar (header) →
+     TOOL BAR → work surface → control surface, then the page rail. Before this,
+     only EDIT had a tool row and it lived INSIDE the timeline panel, so COLOR,
+     VFX, AUDIO and DELIVER started with no chrome at all.
+
+     Room verbs on the left, room-agnostic state on the right. Every verb here
+     calls a handler the menu bar and the keyboard map already use — nothing new
+     is wired, it is just reachable without opening a menu. */
+  const renderRoomToolbar = () => {
+    if (!prod || !container) return null;
+    const canSplit = clips.some((c) => playhead > c.start && playhead < c.start + c.duration);
+    const remoteVideo = (prod?.mediaPool || []).filter((a) => a.type === "video" && /^https?:/i.test(a.url || "")).length;
+    const trimModes = [["normal", "NORMAL"], ["ripple", "RIPPLE"], ["roll", "ROLL"], ["slip", "SLIP"]];
+    const toggleGuides = () => { const nv = !guides; setGuides(nv); try { localStorage.setItem("fabula:guides", nv ? "1" : "0"); } catch { /* */ } };
+    const toggleFxLib = () => { const nv = !fxLibOpen; setFxLibOpen(nv); try { localStorage.setItem("fabula:fxlib", nv ? "1" : "0"); } catch { /* */ } };
+
+    let verbs = null;
+    let state = null;
+
+    if (editWs === "media") {
+      verbs = (
+        <>
+          <div className="tgrp">
+            <button className="tbtn2" title="Import individual files" onClick={() => fileRef.current?.click()}><Upload size={11} /> FILES</button>
+            <button className="tbtn2" title="Import a folder once — bins mirror its nested structure" onClick={() => editFolderRef.current?.click()}><FolderOpen size={11} /> FOLDER</button>
+            <button className="tbtn2" title="Watch a folder — new files import automatically" onClick={addSyncFolderNow}><RefreshCw size={11} /> WATCH</button>
+            <button className="tbtn2" style={{ borderColor: "rgba(224,69,155,0.45)", color: "#f0b8dd" }}
+              title="Generate with a linked service — results land in a bin" onClick={() => setGenOpen(true)}><Sparkles size={11} /> GENERATE</button>
+          </div>
+          <span className="tdiv" />
+          <div className="tgrp">
+            <button className="tbtn2" title="Relink offline media from a folder" onClick={() => folderRelinkRef.current?.click()}>RELINK</button>
+            <button className="tbtn2" disabled={!!proxyBusy || !remoteVideo}
+              title="Build instant-seek proxies for remote video"
+              onClick={() => buildProxiesFor((prod?.mediaPool || []).filter((a) => a.type === "video" && /^https?:/i.test(a.url || "")))}>
+              {proxyBusy ? `PROXIES ${proxyBusy}` : `PROXIES${remoteVideo ? ` (${remoteVideo})` : ""}`}</button>
+          </div>
+        </>
+      );
+      state = (
+        <>
+          <span className="segx">
+            <button className={poolView === "list" ? "on" : ""} onClick={() => { setPoolView("list"); try { localStorage.setItem("fabula:poolview", "list"); } catch { /* */ } }}>LIST</button>
+            <button className={poolView === "thumbs" ? "on" : ""} onClick={() => { setPoolView("thumbs"); try { localStorage.setItem("fabula:poolview", "thumbs"); } catch { /* */ } }}>THUMBS</button>
+          </span>
+          <button className={`tbtn2 ${unsyncedCount ? "" : "ghost"}`} disabled={syncing} onClick={syncAssetsToCloud}
+            title="Upload local media so this project opens on any device">
+            ☁ {syncing ? "SYNCING…" : unsyncedCount ? `SYNC (${unsyncedCount})` : "SYNCED"}</button>
+        </>
+      );
+    } else if (editWs === "edit") {
+      verbs = (
+        <>
+          <div className="tgrp">
+            <button className={`tbtn2 ${toolMode === "select" ? "on" : ""}`} title="Select / move tool (A)"
+              onClick={() => setToolMode("select")}><MousePointer2 size={11} /></button>
+            <button className={`tbtn2 ${toolMode === "razor" ? "on" : ""}`} title="Razor — click a clip to cut it (B)"
+              onClick={() => setToolMode(toolMode === "razor" ? "select" : "razor")}><Scissors size={11} /></button>
+          </div>
+          <span className="tdiv" />
+          <div className="tgrp">
+            <span className="cap" style={{ marginRight: 3 }}>TRIM</span>
+            <span className="segx">
+              {trimModes.map(([id, lab]) => (
+                <button key={id} className={trimMode === id ? "on" : ""} title={`${lab} trim`} onClick={() => setTrimMode(id)}>{lab}</button>
+              ))}
+            </span>
+          </div>
+          <span className="tdiv" />
+          <div className="tgrp">
+            <button className="tbtn2" title="Split clip at playhead (B)" disabled={!canSplit} onClick={() => bladeAtPlayhead()}><Scissors size={11} /> SPLIT</button>
+            <button className="tbtn2" title="Mark In (I)" onClick={() => setMarkIn(playhead)}><FlagTriangleRight size={11} /> IN</button>
+            <button className="tbtn2" title="Mark Out (O)" onClick={() => setMarkOut(playhead)}><FlagTriangleLeft size={11} /> OUT</button>
+            <button className="tbtn2" title="Clear In/Out" disabled={markIn == null && markOut == null}
+              onClick={() => { setMarkIn(null); setMarkOut(null); }}><X size={11} /></button>
+            <button className="tbtn2 danger" title="Ripple-delete In→Out (closes the gap)"
+              disabled={markIn == null || markOut == null || markOut <= markIn}
+              onClick={() => rippleDeleteRange(markIn, markOut)}><Trash2 size={11} /> RIPPLE</button>
+          </div>
+          <span className="tdiv" />
+          <div className="tgrp">
+            <button className="tbtn2" title="Add the default transition at the nearest cut (Ctrl+T)" disabled={!selClip}
+              onClick={addCrossDissolve}><Wand2 size={11} /> TRANS</button>
+            <button className="tbtn2" title="Add a marker at the playhead (M)" onClick={addMarkerAtPlayhead}>MARKER</button>
+            <button className="tbtn2" title="Duplicate the selected clip (Ctrl+D)" disabled={!selClip} onClick={duplicateSel}>DUPE</button>
+          </div>
+          <span className="tdiv" />
+          <div className="tgrp">
+            <button className="tbtn2 ghost" title="Undo (Ctrl+Z)" onClick={undoEdit}>↶</button>
+            <button className="tbtn2 ghost" title="Redo (Ctrl+Shift+Z)" onClick={redoEdit}>↷</button>
+          </div>
+        </>
+      );
+      state = (
+        <>
+          <button className={`tbtn2 ${snapOn ? "on" : "ghost"}`} title="Snapping (N)" onClick={() => setSnapOn((v) => !v)}>SNAP</button>
+          <button className={`tbtn2 ${guides ? "on" : "ghost"}`} title="Action / title-safe guides — overlay only, never exported" onClick={toggleGuides}>SAFE</button>
+          <button className={`tbtn2 ${fxLibOpen ? "on" : "ghost"}`} title="Effects library" onClick={toggleFxLib}>⚡ FX</button>
+        </>
+      );
+    } else if (editWs === "vfx") {
+      verbs = (
+        <>
+          <div className="tgrp">
+            <button className="tbtn2" title="Effects library — filters, generators, Lottie" onClick={toggleFxLib}><Sparkles size={11} /> FX LIBRARY</button>
+            <button className="tbtn2" title="Import a Lottie / .lottie animation" onClick={() => fileRef.current?.click()}><Upload size={11} /> LOTTIE</button>
+          </div>
+          <span className="tdiv" />
+          <div className="tgrp">
+            <span className="cap">COMP</span>
+            <span className="chip dimchip">LAYER STACK</span>
+          </div>
+        </>
+      );
+      state = (
+        <>
+          <button className={`tbtn2 ${guides ? "on" : "ghost"}`} title="Action / title-safe guides" onClick={toggleGuides}>SAFE</button>
+          <span className="numval">{fmtTc(playhead, vfmt)}</span>
+        </>
+      );
+    } else if (editWs === "color") {
+      const gradeKeys = ["bri", "con", "sat", "hue", "warm", "blur", "wheel"];
+      verbs = (
+        <>
+          <div className="tgrp">
+            <button className="tbtn2" title="Copy this clip's grade" disabled={!selClip}
+              onClick={() => { if (!selClip) return; const fx = ensureFx(selClip); const g = {}; gradeKeys.forEach((k) => { g[k] = fx[k]; }); window.__fabGrade = g; ping("Grade copied"); }}>⧉ COPY GRADE</button>
+            <button className="tbtn2" title="Paste the copied grade onto this clip" disabled={!selClip || !window.__fabGrade}
+              onClick={() => { if (selClip && window.__fabGrade) { updateFx(selClip.id, { ...window.__fabGrade }); ping("Grade pasted"); } }}>⧊ PASTE</button>
+            <button className="tbtn2" title="Paste the copied grade onto every selected clip" disabled={selIds.length < 2 || !window.__fabGrade}
+              onClick={() => { if (selIds.length > 1 && window.__fabGrade) { applyClips(clips.map((c) => (selIds.includes(c.id) ? { ...c, fx: { ...ensureFx(c), ...window.__fabGrade } } : c))); ping(`Grade → ${selIds.length} clips`); } }}>PASTE → SELECTED</button>
+          </div>
+          <span className="tdiv" />
+          <div className="tgrp">
+            <button className="tbtn2 danger" title="Reset this clip's grade" disabled={!selClip}
+              onClick={() => selClip && updateFx(selClip.id, { bri: 1, con: 1, sat: 1, hue: 0, warm: 0, blur: 0, wheel: undefined })}>RESET</button>
+          </div>
+        </>
+      );
+      state = (
+        <>
+          {prod.design?.lookId && <span className="chip amb">{(LOOKS.find((l) => l.id === prod.design.lookId) || {}).name}</span>}
+          <button className={`tbtn2 ${guides ? "on" : "ghost"}`} title="Action / title-safe guides" onClick={toggleGuides}>SAFE</button>
+          <span className="numval">{fmtTc(playhead, vfmt)}</span>
+        </>
+      );
+    } else if (editWs === "audio") {
+      const aClips = clips.filter((c) => c.trackId?.startsWith("a"));
+      verbs = (
+        <>
+          <div className="tgrp">
+            <button className={`tbtn2 ${playing ? "on" : ""}`} title="Play / pause (Space)" onClick={() => setPlaying((v) => !v)}>
+              {playing ? <Pause size={11} /> : <Play size={11} />}</button>
+            <button className="tbtn2" title="Go to start (Home)" onClick={() => setPlayhead(0)}><SkipBack size={11} /></button>
+          </div>
+          <span className="tdiv" />
+          <div className="tgrp">
+            <button className="tbtn2" title="Non-destructive clean-up on the selected clip" disabled={!selClip}
+              onClick={() => selClip && openAudioEditor(selClip)}><SlidersHorizontal size={11} /> CLEAN-UP</button>
+            <button className="tbtn2" title="Isolate vocals + music onto their own tracks" disabled={!selClip || stemBusy}
+              onClick={() => selClip && splitClipStems(selClip, "vocals-music")}><Mic2 size={11} /> STEMS</button>
+          </div>
+        </>
+      );
+      state = (
+        <>
+          <span className="chip dimchip">{aClips.length} AUDIO CLIPS</span>
+          <span className="numval">{fmtTc(playhead, vfmt)}</span>
+        </>
+      );
+    } else if (editWs === "deliver") {
+      const rangeReady = deliverRange === "all" || (deliverRange === "inout" ? (markIn != null && markOut != null && markOut > markIn) : markers.length > 0);
+      verbs = (
+        <>
+          <div className="tgrp">
+            <span className="cap" style={{ marginRight: 3 }}>RANGE</span>
+            <span className="segx">
+              <button className={deliverRange === "all" ? "on" : ""} onClick={() => setDeliverRange("all")}>WHOLE</button>
+              <button className={deliverRange === "inout" ? "on" : ""} disabled={markIn == null || markOut == null} onClick={() => setDeliverRange("inout")}>IN→OUT</button>
+              <button className={deliverRange === "markers" ? "on" : ""} disabled={!markers.length} onClick={() => setDeliverRange("markers")}>EACH MARKER</button>
+            </span>
+          </div>
+          <span className="tdiv" />
+          <div className="tgrp">
+            <span className="cap" style={{ marginRight: 3 }}>QUEUE</span>
+            <button className="tbtn2" disabled={!rangeReady} title="Add MP4 render job(s) for the chosen range" onClick={() => addToQueue("mp4")}>＋ MP4</button>
+            <button className="tbtn2" title="Add an FCPXML job (whole cut)" onClick={() => addToQueue("fcpxml")}>＋ FCPXML</button>
+            <button className="tbtn2" title="Add an EDL job (whole cut)" onClick={() => addToQueue("edl")}>＋ EDL</button>
+          </div>
+          <span className="tdiv" />
+          <div className="tgrp">
+            <button className="tbtn2 on" disabled={rendering} title="Render the whole timeline to MP4 now" onClick={doRenderMP4}>
+              <Film size={11} /> {rendering ? `RENDERING ${Math.round(renderPct * 100)}%` : "RENDER NOW"}</button>
+          </div>
+        </>
+      );
+      state = (
+        <>
+          {renderQueue.some((j) => j.status === "queued") && <span className="chip amb">{renderQueue.filter((j) => j.status === "queued").length} QUEUED</span>}
+          <span className="chip dimchip">{vfmt.label} · {vfmt.w}×{vfmt.h}</span>
+          <span className="numval">{fmtTc(seqEnd, vfmt)}</span>
+        </>
+      );
+    }
+
+    return (
+      <div className="roomtool" role="toolbar" aria-label={`${editWs} tools`}>
+        <span className="troom">{editWs}</span>
+        <span className="tdiv" />
+        {verbs}
+        <div className="tstate">{state}</div>
+      </div>
+    );
+  };
+
   const renderTimeline = () => (
 <>
                 <div className="tl-resize" title="Drag to resize the timeline" onMouseDown={startTlResize} />
                 {tlMarquee && <div style={{ position: "fixed", left: Math.min(tlMarquee.x0, tlMarquee.x1), top: Math.min(tlMarquee.y0, tlMarquee.y1), width: Math.abs(tlMarquee.x1 - tlMarquee.x0), height: Math.abs(tlMarquee.y1 - tlMarquee.y0), border: "1px solid #FF8C00", background: "rgba(255,140,0,0.12)", zIndex: 9998, pointerEvents: "none" }} />}
 <div className="tlwrap glass-dark" style={{ height: tlHeight }}>
                   <div className="tl-tools">
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      {/* Tools */}
-                      <button className="minibtn" title="Select / move tool (V)" style={{ opacity: toolMode === "select" ? 1 : 0.5, color: toolMode === "select" ? "#FF8C00" : undefined }}
-                        onClick={() => setToolMode("select")}><MousePointer2 size={11} /></button>
-                      <button className="minibtn" title="Razor — click a clip to cut it (B / C)" style={{ opacity: toolMode === "razor" ? 1 : 0.5, color: toolMode === "razor" ? "#FF8C00" : undefined }}
-                        onClick={() => setToolMode(toolMode === "razor" ? "select" : "razor")}><Scissors size={11} /></button>
-                      <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.12)", margin: "0 2px" }} />
-                      <button className="minibtn" title="Split clip at playhead (S)" disabled={!clips.some((c) => playhead > c.start && playhead < c.start + c.duration)}
-                        onClick={() => bladeAtPlayhead()}><Scissors size={11} /> SPLIT</button>
-                      <button className="minibtn" title="Mark In (I)" onClick={() => setMarkIn(playhead)}><FlagTriangleRight size={11} /> IN</button>
-                      <button className="minibtn" title="Mark Out (O)" onClick={() => setMarkOut(playhead)}><FlagTriangleLeft size={11} /> OUT</button>
-                      <button className="minibtn" title="Clear In/Out" disabled={markIn == null && markOut == null}
-                        onClick={() => { setMarkIn(null); setMarkOut(null); }}><X size={11} /></button>
-                      <button className="minibtn" title="Ripple-delete range In→Out (closes the gap)" disabled={markIn == null || markOut == null || markOut <= markIn}
-                        onClick={() => rippleDeleteRange(markIn, markOut)}><Trash2 size={11} /> RIPPLE</button>
-                      <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.12)", margin: "0 2px" }} />
-                      <span className="dim small">{clips.length} CLIPS</span>
+                    {/* Room VERBS live in the page tool band (renderRoomToolbar) — what stays
+                        here is timeline-scoped VIEW state: what is in it and how it is displayed. */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span className="cap">TIMELINE</span>
+                      <span className="dim small numval">{clips.length} CLIPS</span>
+                      {markIn != null && markOut != null && markOut > markIn && (
+                        <span className="chip amb">IN → OUT {fmtTc(markOut - markIn, vfmt)}</span>
+                      )}
+                      {markers.length > 0 && <span className="chip dimchip">{markers.length} MARKERS</span>}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative" }}>
                       <button className="minibtn" onClick={() => setFormatOpen(!formatOpen)} title="Project format">
@@ -4522,6 +4879,19 @@ export default function Fabula() {
                                     <span>{c.label}</span>
                                   </div>
                                   {wfUrl && <div className="clipwave"><Waveform url={wfUrl} srcIn={c.srcIn} duration={c.duration} /></div>}
+                                  {tr.type === "video" && c.fx?.trans?.dur > 0 && (
+                                    <div className={`transwedge ${c.fx.trans.type}`} style={{ width: Math.min(Math.max(10, c.fx.trans.dur * pxPerSec), Math.max(8, c.duration * pxPerSec)) }}
+                                      title={`${({ dip: "Dip to black", wipe: "Wipe", blur: "Blur dissolve" }[c.fx.trans.type]) || "Cross dissolve"} · ${c.fx.trans.dur.toFixed(1)}s — click: change type · drag: length`}
+                                      onMouseDown={(e) => {
+                                        e.stopPropagation();
+                                        const x0 = e.clientX, d0 = c.fx.trans.dur; let moved = false;
+                                        const mv = (ev) => { const dd = (ev.clientX - x0) / pxPerSec; if (Math.abs(ev.clientX - x0) > 3) moved = true; setTransitionDur(c.id, d0 + dd); };
+                                        const up = () => { window.removeEventListener("mousemove", mv); window.removeEventListener("mouseup", up); if (!moved) cycleTransition(c.id); };
+                                        window.addEventListener("mousemove", mv); window.addEventListener("mouseup", up);
+                                      }}>
+                                      <span>{({ dip: "▽", wipe: "▶", blur: "≈" }[c.fx.trans.type]) || "✕"}</span>
+                                    </div>
+                                  )}
                                   <div className="trimL" onMouseDown={(e) => onClipDown(e, c.id, "start")} />
                                   <div className="trimR" onMouseDown={(e) => onClipDown(e, c.id, "end")} />
                                 </div>
@@ -4845,7 +5215,7 @@ export default function Fabula() {
                           production view — so without this, the ref was null and nothing opened. */}
                       <input ref={mirrorFolderRef} type="file" webkitdirectory="" directory="" multiple style={{ display: "none" }}
                         onChange={(e) => { importFolderMirror(e.target.files); e.target.value = ""; }} />
-                      <input ref={mediaFilesRef} type="file" multiple accept="video/*,image/*,audio/*,.lottie,.json,.svg,.ai,.pdf" style={{ display: "none" }}
+                      <input ref={mediaFilesRef} type="file" multiple accept={`${codecImportAccept()},.lottie,.json,.svg,.ai,.pdf`} style={{ display: "none" }}
                         onChange={(e) => { importFolderMirror(e.target.files); e.target.value = ""; }} />
                       <input ref={scriptFilesRef} type="file" multiple accept=".txt,.md,.fountain,.markdown" style={{ display: "none" }}
                         onChange={(e) => { importScriptFiles(e.target.files); e.target.value = ""; }} />
@@ -5033,8 +5403,10 @@ export default function Fabula() {
                 <div className="acthead">{act.title}</div>
                 {act.scenes.map((s) => {
                   const ready = (s.shots || []).filter((x) => x.status === "ready").length;
+                  // Identity stripe by furthest-along state, so a scene's status reads at a glance.
+                  const stateTab = s.timeline?.clips?.length ? "var(--green)" : s.shots?.length ? "var(--pur)" : s.bible ? "var(--blue)" : "var(--w25)";
                   return (
-                    <div className="scenerow" key={s.id}>
+                    <div className="scenerow idleft" key={s.id} style={{ "--tab": stateTab }}>
                       <input className="scenetitle" value={s.title} onClick={(e) => e.stopPropagation()}
                         onChange={(e) => updateProd((p) => { const a = p.acts.find((x) => x.id === act.id); const sc = a.scenes.find((x) => x.id === s.id); sc.title = e.target.value; })} />
                       <span className="dim small">{s.slugline}</span>
@@ -5408,7 +5780,31 @@ export default function Fabula() {
                 )}
 
                 {slateStep === "shots" && (
-                  <>
+                  <div className="slateshots">
+                    {/* Source material stays visible while you work the coverage (Mockup-D). */}
+                    <aside className="slateref glass-card idleft" style={{ "--tab": "var(--org)" }}>
+                      <div className="lbl">SCRIPT</div>
+                      <div className="script-ref">{scene.script || <span className="dim small">No script text.</span>}</div>
+                      {scene.bible && (
+                        <>
+                          <div className="lbl" style={{ marginTop: 4 }}>INTENT</div>
+                          <div className="dim small" style={{ lineHeight: 1.5 }}>{scene.bible.intent}</div>
+                          <div className="lbl" style={{ marginTop: 4 }}>LOCKS</div>
+                          {(scene.bible.characters || []).map((c, i) => (
+                            <div key={i} className="srow idleft" style={{ "--tab": "var(--green)", background: "rgba(0,0,0,.28)", border: "1px solid var(--line-2)" }}>
+                              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
+                            </div>
+                          ))}
+                          {scene.bible.palette && (
+                            <>
+                              <div className="lbl" style={{ marginTop: 4 }}>PALETTE</div>
+                              <div className="dim small" style={{ lineHeight: 1.5 }}>{scene.bible.palette}</div>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </aside>
+                    <div className="slatemain">
                     <div className="btnrow" style={{ marginBottom: 14 }}>
                       <button className="cta" disabled={busy} onClick={generateAllPrompts}><Sparkles size={13} /> GENERATE ALL PROMPTS</button>
                       <button className="minibtn blue" onClick={() => { buildEditFromBreakdown(); setPage("edit"); }}><Film size={12} /> BUILD EDIT → TIMELINE</button>
@@ -5451,7 +5847,8 @@ export default function Fabula() {
                         )}
                       </div>
                     ))}
-                  </>
+                    </div>
+                  </div>
                 )}
               </>
             )}
@@ -5486,6 +5883,7 @@ export default function Fabula() {
             )}
             {prod && container && (
               <>
+                {renderRoomToolbar()}
                 {editWs === "media" && (
                   <div className="mediaws glass-dark"
                     onDragOver={(e) => { if (e.dataTransfer?.types?.includes("Files")) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } }}
@@ -5534,25 +5932,16 @@ export default function Fabula() {
                           updateProd((p) => { p.bins = p.bins || []; if (!p.bins.includes(name)) p.bins.push(name); });
                           setBinFilter(name);
                         }}>+ NEW BIN</button>
-                      <div className="insp-div" />
-                      <button className="minibtn full" onClick={() => fileRef.current?.click()}><Upload size={12} /> IMPORT FILES</button>
-                      <button className="minibtn full blue" style={{ marginTop: 6 }} onClick={() => editFolderRef.current?.click()} title="Import a folder — the bins mirror its nested folder structure exactly (vectors rasterized, media auto-synced)"><Upload size={12} /> IMPORT FOLDER</button>
+                      {/* Hidden folder input — the band-2 tool bar's FOLDER verb clicks this ref. */}
                       <input ref={editFolderRef} type="file" webkitdirectory="" directory="" multiple style={{ display: "none" }}
                         onChange={(e) => { importFolderMirror(e.target.files); e.target.value = ""; }} />
-                      <button className="minibtn full" style={{ marginTop: 6, background: "linear-gradient(120deg,rgba(124,58,237,0.28),rgba(249,115,22,0.22))", borderColor: "rgba(224,69,155,0.4)", color: "#fff" }}
-                        onClick={() => setGenOpen(true)} title="Generate with a linked service (Kling, Magnific) — results land in a bin automatically">
-                        <Sparkles size={12} /> GENERATE</button>
                       <div className="insp-div" />
-                      <button className="minibtn full" style={{ color: unsyncedCount ? "var(--green)" : undefined, borderColor: unsyncedCount ? "rgba(120,220,150,0.35)" : undefined }}
-                        disabled={syncing} onClick={syncAssetsToCloud}
-                        title="Upload local media to the cloud so this project opens on any device. Down-sync is automatic when you reopen the project elsewhere.">
-                        ☁ {syncing ? "SYNCING…" : `SYNC TO CLOUD${unsyncedCount ? ` (${unsyncedCount})` : " ✓"}`}
-                      </button>
-                      <div className="dim small" style={{ marginTop: 6 }}>
-                        {unsyncedCount ? `${unsyncedCount} local asset${unsyncedCount === 1 ? "" : "s"} not yet in the cloud — sync to work on this project from any device.` : "All media is in the cloud — this project is portable across devices."}
+                      <div className="dim small" style={{ marginTop: 2 }}>
+                        {unsyncedCount ? `${unsyncedCount} local asset${unsyncedCount === 1 ? "" : "s"} not yet in the cloud — SYNC in the tool bar to work on this project from any device.` : "All media is in the cloud — this project is portable across devices."}
                       </div>
-                      <div className="dim small" style={{ marginTop: 8 }}>Folder bins populate Productions & SLATE automatically — a characters bin runs identity verification into the Cast; props/sets/lore route into the World.</div>
+                      <div className="dim small" style={{ marginTop: 8 }}>Import, folder-mirror, generate and sync live in the tool bar. Folder bins populate Productions & SLATE automatically — a characters bin runs identity verification into the Cast; props/sets/lore route into the World.</div>
                     </div>
+                    <div className="mwmain">
                     {(() => {
                       // Compute the filtered pool and the bin-option list ONCE per render (not once per
                       // card) — the old per-card `new Set(...mediaPool.map)` was O(n²) and, together with
@@ -5624,6 +6013,61 @@ export default function Fabula() {
                     </>
                       );
                     })()}
+                    </div>
+
+                    {/* ── ASSET INSPECTOR — real technical metadata + a used-in backlink, so you can
+                          see what a clip is doing in the cut before you touch it (Mockup-D). ── */}
+                    {(() => {
+                      const a = previewAsset || (poolSel.length === 1 ? (prod.mediaPool || []).find((x) => x.id === poolSel[0]) : null);
+                      if (!a) return (
+                        <aside className="mwinsp glass-dark">
+                          <div className="lbl">ASSET</div>
+                          <div className="dim small" style={{ marginTop: 8, lineHeight: 1.6 }}>Click a clip to inspect it — codec, size, and everywhere it lands in the cut.</div>
+                        </aside>
+                      );
+                      const usedIn = clips.filter((c) => c.assetId === a.id);
+                      const kindTab = a.type === "audio" ? "var(--green)" : a.type === "image" || a.type === "graphic" ? "var(--yel)" : a.type === "multicam" ? "var(--pur)" : "var(--blue)";
+                      const rows = [
+                        ["TYPE", (a.type || "?").toUpperCase()],
+                        a.duration ? ["LENGTH", fmtTc(a.duration, vfmt)] : null,
+                        ["BIN", a.bin || "imports"],
+                        a.designation ? ["ROLE", a.designation === "frame" ? "FRAME / STILL" : "EDIT MEDIA"] : null,
+                        [a.cloudUrl || !a.session ? "CLOUD" : "LOCAL", a.cloudUrl || !a.session ? "SYNCED" : "LOCAL ONLY"],
+                        a.needsConversion ? ["CODEC", a.converted ? "CONVERTED" : "NEEDS CONVERT"] : null,
+                      ].filter(Boolean);
+                      return (
+                        <aside className="mwinsp glass-dark idleft" style={{ "--tab": kindTab }}>
+                          <div className="isec"><span className="lbl" style={{ flex: 1 }}>ASSET</span>
+                            <span className="chip dimchip">{(a.type || "?").toUpperCase()}</span></div>
+                          <div className="mwipreview">
+                            {a.url && (a.type === "image" || a.type === "graphic") && <img src={a.url} alt="" />}
+                            {a.url && a.type === "video" && <ScrubThumb url={a.url} />}
+                            {(!a.url || !["image", "graphic", "video"].includes(a.type)) && <span className="wext">{{ audio: "♪", model: "3D", text: "TXT", multicam: "MC" }[a.type] || "?"}</span>}
+                          </div>
+                          <div style={{ fontSize: 10.5, fontWeight: 800, color: "#eee", wordBreak: "break-all" }}>{a.name}</div>
+                          <div className="dtable" style={{ marginTop: 2 }}>
+                            {rows.map(([k, v]) => (
+                              <div key={k}><span className="param">{k}</span><span className="numval">{v}</span></div>
+                            ))}
+                          </div>
+                          {a.offline && <span className="chip red" style={{ alignSelf: "flex-start" }}>OFFLINE — RELINK</span>}
+                          <div className="lbl" style={{ marginTop: 4 }}>USED IN <span className="cap">{usedIn.length} PLACE{usedIn.length === 1 ? "" : "S"}</span></div>
+                          {usedIn.length ? usedIn.sort((x, y) => x.start - y.start).map((c) => (
+                            <button key={c.id} className="srow idleft" style={{ "--tab": "var(--org)", width: "100%", background: "rgba(0,0,0,.3)", border: "1px solid var(--line-2)" }}
+                              onClick={() => { setEditWs("edit"); setSelClipId(c.id); setPlayhead(c.start); }} title="Jump to this clip in the edit">
+                              <span className="numval" style={{ fontSize: 9 }}>{fmtTc(c.start, vfmt)}</span>
+                              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "left" }}>{c.label || a.name}</span>
+                            </button>
+                          )) : <div className="dim small">Not on the timeline yet.</div>}
+                          {a.tags?.length ? (
+                            <>
+                              <div className="lbl" style={{ marginTop: 4 }}>TAGS</div>
+                              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{a.tags.map((t) => <span key={t} className="chip dimchip">{t}</span>)}</div>
+                            </>
+                          ) : null}
+                        </aside>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -5652,204 +6096,501 @@ export default function Fabula() {
                   </>
                 )}
 
-                {editWs === "vfx" && (
-                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, minHeight: 0, overflowY: "auto" }}>
-                    <div className="edit-upper" style={{ flex: "0 0 300px", minHeight: 300 }}>
-                      {renderMonitor()}
-                      {renderInspector()}
-                    </div>
-                    <CompBuilder prod={prod} askAI={callClaudeJson} ping={ping}
-                      onAddToPool={(snapshot, nm) => {
-                        const asset = { id: uid(), name: nm + " (comp)", type: "graphic", generated: true, duration: 8, bin: "comps", pixels: snapshot };
-                        updateProd((p) => { p.mediaPool.push(asset); });
-                        ping(`🎇 "${nm}" is in the media pool — drop it on the timeline like a clip`);
-                      }} />
-                    <LottieBuilder onAddToPool={addLottieBlobToPool} />
-                    <PerformCapture onTake={addTakeToPool} ping={ping} />
-                  </div>
-                )}
-
-                {editWs === "color" && (
-                  <div className="edit-upper">
-                    {renderMonitor()}
-                    <aside className="inspector glass-dark">
-                      <div className="paneltitle"><Palette size={12} /> COLOR</div>
-                      <div className="lbl">PRODUCTION LOOK</div>
-                      <div className="colorlooks">
-                        {LOOKS.map((lk) => (
-                          <button key={lk.id} className={`lookcard mini ${prod.design.lookId === lk.id ? "on" : ""}`}
-                            onClick={() => updateProd((p) => { p.design.lookId = p.design.lookId === lk.id ? null : lk.id; })}>
-                            <div className="lookswatch">{lk.sw.map((s, si) => <i key={si} style={{ background: s }} />)}</div>
-                            <b>{lk.name}</b>
-                          </button>
-                        ))}
+                {editWs === "vfx" && (() => {
+                  // Four-band VFX/COMP: monitor + inspector reference surface; the three authoring
+                  // tools (comp / lottie / capture) become a tabbed control band.
+                  const VTABS = [["comp", "COMPOSITE"], ["nodes", "NODE GRAPH"], ["lottie", "LOTTIE"], ["capture", "PERFORM CAPTURE"]];
+                  return (
+                    <div className="vfxroom">
+                      <div className="vfxstage edit-upper">
+                        {renderMonitor()}
+                        {renderInspector()}
                       </div>
-                      {selClip && selClip.kind !== "voice" ? (() => {
-                        const fx = ensureFx(selClip);
-                        const gv = (k, d = 0) => (fx[k] != null ? fx[k] : d);
-                        const slider = (lbl, key, min, max, step, def = 0) => (
-                          <div className="fxrow" key={key}>
-                            <span className="fxlbl">{lbl}</span>
-                            <input type="range" min={min} max={max} step={step} value={gv(key, def)} onChange={(e) => updateFx(selClip.id, { [key]: parseFloat(e.target.value) })}
-                              onDoubleClick={() => updateFx(selClip.id, { [key]: def })} />
-                            <span className="fxval">{Number(gv(key, def)).toFixed(2)}</span>
+                      <div className="vfxctrl glass-dark">
+                        <div className="vfxtabs">
+                          <span className="troom">VFX</span>
+                          <span className="tdiv" />
+                          <span className="segx">
+                            {VTABS.map(([id, lab]) => (
+                              <button key={id} className={vfxTab === id ? "on" : ""} onClick={() => setVfxTab(id)}>{lab}</button>
+                            ))}
+                          </span>
+                        </div>
+                        <div className="vfxbody">
+                          {vfxTab === "comp" && (
+                            <CompBuilder prod={prod} askAI={callClaudeJson} ping={ping}
+                              onAddToPool={(snapshot, nm) => {
+                                const asset = { id: uid(), name: nm + " (comp)", type: "graphic", generated: true, duration: 8, bin: "comps", pixels: snapshot };
+                                updateProd((p) => { p.mediaPool.push(asset); });
+                                ping(`🎇 "${nm}" is in the media pool — drop it on the timeline like a clip`);
+                              }} />
+                          )}
+                          {vfxTab === "nodes" && (
+                            <NodeGraphEditor ping={ping} palette={prod?.pixelsConfig?.colorPalette}
+                              onAddToPool={(snapshot, nm) => {
+                                const asset = { id: uid(), name: nm + " (graph)", type: "graphic", generated: true, duration: 8, bin: "comps", pixels: snapshot };
+                                updateProd((p) => { p.mediaPool.push(asset); });
+                                ping(`Node graph "${nm}" is in the media pool — drop it on the timeline`);
+                              }} />
+                          )}
+                          {vfxTab === "lottie" && <LottieBuilder onAddToPool={addLottieBlobToPool} />}
+                          {vfxTab === "capture" && <PerformCapture onTake={addTakeToPool} ping={ping} />}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {editWs === "color" && (() => {
+                  // \\u2550\\u2550 BAND 3 (work surface): monitor-dominant \\u2014 big program monitor + a
+                  //    scopes column. Grade controls drop to BAND 4 below (tabbed banks).
+                  //    Mockup-A restructure: the picture no longer competes with the sliders.
+                  const gradeable = selClip && selClip.kind !== "voice";
+                  const fx = gradeable ? ensureFx(selClip) : null;
+                  const gv = (k, d = 0) => (fx && fx[k] != null ? fx[k] : d);
+                  // GRADE LAYERS (H2): the flat fx is layer 0 (base); fx.grades[] are secondaries.
+                  // The wheels/curves/qualifier/windows tabs edit whichever layer is selected.
+                  const gLayers = fx ? [{ base: true }, ...(fx.grades || [])] : [];
+                  const gi = Math.min(gradeLayer, gLayers.length - 1);
+                  const layerData = fx ? (gi === 0 ? fx : (fx.grades?.[gi - 1] || {})) : {};
+                  const setLayer = (patch) => {
+                    if (!selClip) return;
+                    if (gi === 0) { updateFx(selClip.id, patch); return; }
+                    const grades = [...(fx.grades || [])];
+                    while (grades.length < gi) grades.push({ enabled: true });
+                    grades[gi - 1] = { ...grades[gi - 1], ...patch };
+                    updateFx(selClip.id, { grades });
+                  };
+                  const wheel = fx ? { lift: [0, 0, 0], gamma: [1, 1, 1], gain: [1, 1, 1], temp: 0, tint: 0, ...(layerData.wheel || {}) } : null;
+                  const setWheel = (patch) => setLayer({ wheel: { ...wheel, ...patch } });
+                  const slider = (lbl, key, min, max, step, def = 0) => (
+                    <div className="fxrow" key={key}>
+                      <span className="fxlbl param">{lbl}</span>
+                      <input type="range" min={min} max={max} step={step} value={gv(key, def)} onChange={(e) => updateFx(selClip.id, { [key]: parseFloat(e.target.value) })}
+                        onDoubleClick={() => updateFx(selClip.id, { [key]: def })} />
+                      <span className="fxval numval">{Number(gv(key, def)).toFixed(2)}</span>
+                    </div>
+                  );
+                  // Declared BEFORE glg (which spreads them) — order matters (const TDZ).
+                  const curveLut = fx && !isCurvesIdentity(fx.curves) ? buildCurveLut(fx.curves) : undefined;
+                  const qual = layerData.qualifier || null;
+                  const setQual = (patch) => setLayer({ qualifier: { ...QUALIFIER_DEFAULT, ...(layerData.qualifier || {}), ...patch } });
+                  const win = layerData.window || null;
+                  const setWin = (patch) => setLayer({ window: { ...WINDOW_DEFAULT, ...(layerData.window || {}), ...patch } });
+                  const hasGrade = fx && (!!curveLut || !isQualifierIdentity(fx.qualifier)
+                    || (fx.wheel && ((fx.wheel.lift || []).some((v) => v !== 0) || (fx.wheel.gamma || []).some((v) => v !== 1) || (fx.wheel.gain || []).some((v) => v !== 1) || fx.wheel.temp || fx.wheel.tint)));
+                  const glg = fx ? {
+                    lift: fx.wheel?.lift, gamma: fx.wheel?.gamma, gain: fx.wheel?.gain,
+                    temp: fx.wheel?.temp || 0, tint: fx.wheel?.tint || 0,
+                    contrast: fx.con ?? 1, sat: fx.sat ?? 1, hue: ((fx.hue || 0) * Math.PI) / 180,
+                    ...(curveLut ? { curveLut } : {}),
+                    ...(!isQualifierIdentity(fx.qualifier) ? { qualifier: fx.qualifier } : {}),
+                    ...(hasGrade && isWindowEnabled(fx.window) ? { window: fx.window } : {}),
+                  } : null;
+                  // The live grade monitor gets the SAME layer stack the export bakes.
+                  const monToGrade = (g) => ({ lift: g.wheel?.lift, gamma: g.wheel?.gamma, gain: g.wheel?.gain, temp: g.wheel?.temp || 0, tint: g.wheel?.tint || 0,
+                    ...(g.curves && !isCurvesIdentity(g.curves) ? { curveLut: buildCurveLut(g.curves) } : {}),
+                    ...(g.qualifier && !isQualifierIdentity(g.qualifier) ? { qualifier: g.qualifier } : {}),
+                    ...(isWindowEnabled(g.window) ? { window: g.window } : {}) });
+                  const extraMon = (fx?.grades || []).filter((g) => g && g.enabled !== false).map(monToGrade);
+                  const glgStack = extraMon.length ? [glg, ...extraMon].filter(Boolean) : null;
+                  const CTABS = [["looks", "LOOKS"], ["wheels", "WHEELS"], ["curves", "CURVES"], ["qualifier", "QUALIFIER"], ["windows", "WINDOWS"], ["primaries", "PRIMARIES"]];
+                  return (
+                    <div className="colorroom">
+                      <div className="colorstage">
+                        <div className="colormon">{renderMonitor()}</div>
+                        <aside className="colorscopes glass-dark">
+                          <div className="paneltitle">GRADE MONITOR <span className="cap">GPU &middot; EXPORT-EXACT</span>
+                            {eyedrop && <span className="chip amb" style={{ marginLeft: "auto" }}>CLICK TO SAMPLE</span>}</div>
+                          <div style={{ position: "relative", cursor: eyedrop ? "crosshair" : "default" }}
+                            onClick={eyedrop ? (e) => {
+                              const cv = gradeMonRef.current; if (!cv || !selClip) return;
+                              const r = cv.getBoundingClientRect();
+                              const x = Math.round(((e.clientX - r.left) / r.width) * cv.width);
+                              const y = Math.round(((e.clientY - r.top) / r.height) * cv.height);
+                              try {
+                                const ctx = cv.getContext("2d");
+                                let px;
+                                if (ctx) { px = ctx.getImageData(x, y, 1, 1).data; }
+                                else { const g2 = document.createElement("canvas"); g2.width = cv.width; g2.height = cv.height; const c2 = g2.getContext("2d"); c2.drawImage(cv, 0, 0); px = c2.getImageData(x, y, 1, 1).data; }
+                                updateFx(selClip.id, { qualifier: keyFromPixel(px[0] / 255, px[1] / 255, px[2] / 255, fx?.qualifier) });
+                                setEyedrop(false); setColorTab("qualifier"); ping("Keyed the sampled colour");
+                              } catch { ping("Could not sample — try again."); }
+                            } : undefined}>
+                            <GradePreview videoRef={videoRef} grade={glg} grades={glgStack} outRef={gradeMonRef} />
                           </div>
-                        );
-                        const GRADE_KEYS = ["bri", "con", "sat", "hue", "warm", "blur", "wheel"];
-                        const wheel = { lift: [0, 0, 0], gamma: [1, 1, 1], gain: [1, 1, 1], temp: 0, tint: 0, ...(fx.wheel || {}) };
-                        const setWheel = (patch) => updateFx(selClip.id, { wheel: { ...wheel, ...patch } });
-                        const wheelRow = (label, key, def, min, max) => (
-                          <div key={key} style={{ marginBottom: 6 }}>
-                            <div className="insp-row"><span className="lbl" style={{ width: 44 }}>{label}</span>
-                              <input type="range" min={min} max={max} step="0.005" value={(wheel[key][0] + wheel[key][1] + wheel[key][2]) / 3}
-                                onChange={(e) => { const m = parseFloat(e.target.value); const cur = (wheel[key][0] + wheel[key][1] + wheel[key][2]) / 3; const d = m - cur; setWheel({ [key]: wheel[key].map((v) => Math.max(min, Math.min(max, v + d))) }); }}
-                                onDoubleClick={() => setWheel({ [key]: [def, def, def] })} title="Master — drag; double-click resets" />
-                              <span className="insp-val mono">{((wheel[key][0] + wheel[key][1] + wheel[key][2]) / 3).toFixed(2)}</span>
-                            </div>
-                            <div style={{ display: "flex", gap: 4, paddingLeft: 48 }}>
-                              {["R", "G", "B"].map((ch, i) => (
-                                <label key={ch} style={{ flex: 1, display: "flex", alignItems: "center", gap: 3 }}>
-                                  <span style={{ fontSize: 7, color: ["#ff7a7a", "#7ee2a8", "#7ab8ff"][i], fontWeight: 900 }}>{ch}</span>
-                                  <input type="range" min={min} max={max} step="0.005" value={wheel[key][i]} style={{ flex: 1, height: 8, accentColor: ["#ff7a7a", "#7ee2a8", "#7ab8ff"][i] }}
-                                    onChange={(e) => { const n = [...wheel[key]]; n[i] = parseFloat(e.target.value); setWheel({ [key]: n }); }}
-                                    onDoubleClick={() => { const n = [...wheel[key]]; n[i] = def; setWheel({ [key]: n }); }} />
-                                </label>
+                          <div className="paneltitle" style={{ marginTop: 8 }}>SCOPES <span className="cap">POST-GRADE</span></div>
+                          <ColorScopes sourceRef={gradeMonRef} />
+                          <div className="dim small" style={{ marginTop: 8, lineHeight: 1.5 }}>Waveform: exposure (skin ~55&ndash;70%). Parade: channel balance. Vectorscope: skin hugs the orange line. Histogram: watch the ends for clipping.</div>
+                        </aside>
+                      </div>
+
+                      <div className="colorctrl glass-dark">
+                        <div className="colortabs">
+                          <span className="troom">COLOR</span>
+                          <span className="tdiv" />
+                          <span className="segx">
+                            {CTABS.map(([id, lab]) => (
+                              <button key={id} className={colorTab === id ? "on" : ""} onClick={() => setColorTab(id)}>{lab}</button>
+                            ))}
+                          </span>
+                          {gradeable && colorTab !== "looks" && colorTab !== "primaries" && (
+                            <span className="gradelayers">
+                              <span className="cap" style={{ marginLeft: 6 }}>GRADES</span>
+                              {gLayers.map((g, i) => (
+                                <button key={i} className={`glchip ${gi === i ? "on" : ""} ${i > 0 && g.enabled === false ? "off" : ""}`}
+                                  title={i === 0 ? "Base grade" : `Secondary ${i}${g.enabled === false ? " (off)" : ""} — click to edit · dbl-click toggles`}
+                                  onClick={() => setGradeLayer(i)}
+                                  onDoubleClick={() => { if (i === 0) return; const grades = [...(fx.grades || [])]; grades[i - 1] = { ...grades[i - 1], enabled: grades[i - 1].enabled === false }; updateFx(selClip.id, { grades }); }}>
+                                  {i === 0 ? "BASE" : i}</button>
+                              ))}
+                              <button className="glchip add" title="Add a secondary grade layer"
+                                onClick={() => { const grades = [...(fx.grades || []), { enabled: true }]; updateFx(selClip.id, { grades }); setGradeLayer(grades.length); }}>＋</button>
+                              {gi > 0 && (
+                                <button className="glchip del" title="Remove this grade layer"
+                                  onClick={() => { const grades = (fx.grades || []).filter((_, k) => k !== gi - 1); updateFx(selClip.id, { grades }); setGradeLayer(Math.max(0, gi - 1)); }}>✕</button>
+                              )}
+                            </span>
+                          )}
+                          {gradeable && <span className="chip pur" style={{ marginLeft: "auto" }}>{selClip.label}</span>}
+                          {prod.design?.lookId && <span className="chip amb">{(LOOKS.find((l) => l.id === prod.design.lookId) || {}).name}</span>}
+                        </div>
+
+                        <div className="colorbody">
+                          {colorTab === "looks" && (
+                            <div className="colorlooks wide">
+                              {LOOKS.map((lk) => (
+                                <button key={lk.id} className={`lookcard ${prod.design.lookId === lk.id ? "on" : ""}`}
+                                  onClick={() => updateProd((p) => { p.design.lookId = p.design.lookId === lk.id ? null : lk.id; })}>
+                                  <div className="lookswatch">{lk.sw.map((sw, si) => <i key={si} style={{ background: sw }} />)}</div>
+                                  <b>{lk.name}</b>
+                                </button>
                               ))}
                             </div>
-                          </div>
-                        );
-                        return (
-                          <>
-                            <div className="insp-div" />
-                            <div className="lbl">COLOR WHEELS — GPU grade (exports on the compositor)</div>
-                            <ColorWheels wheel={wheel} setWheel={setWheel} />
-                            <div className="insp-row" style={{ marginTop: 8 }}><span className="lbl">TEMP</span>
-                              <input type="range" min="-0.3" max="0.3" step="0.005" value={wheel.temp} onChange={(e) => setWheel({ temp: parseFloat(e.target.value) })} onDoubleClick={() => setWheel({ temp: 0 })} />
-                              <span className="insp-val mono">{wheel.temp.toFixed(2)}</span>
-                            </div>
-                            <div className="insp-row"><span className="lbl">TINT</span>
-                              <input type="range" min="-0.3" max="0.3" step="0.005" value={wheel.tint} onChange={(e) => setWheel({ tint: parseFloat(e.target.value) })} onDoubleClick={() => setWheel({ tint: 0 })} />
-                              <span className="insp-val mono">{wheel.tint.toFixed(2)}</span>
-                            </div>
-                            <div className="insp-div" />
-                            <div className="lbl">PRIMARIES <span className="dim small" style={{ letterSpacing: 0 }}>(double-click a slider to reset)</span></div>
-                            {slider("EXPOSURE", "bri", 0, 2.5, 0.02, 1)}
-                            {slider("CONTRAST", "con", 0, 2.5, 0.02, 1)}
-                            {slider("SATURATION", "sat", 0, 2.5, 0.02, 1)}
-                            {slider("HUE °", "hue", -180, 180, 1, 0)}
-                            {slider("WARMTH", "warm", 0, 1, 0.02, 0)}
-                            {slider("SOFTEN", "blur", 0, 30, 0.5, 0)}
-                            <div className="btnrow" style={{ gap: 5, marginTop: 8 }}>
-                              <button className="minibtn" onClick={() => { const g = {}; GRADE_KEYS.forEach((k) => { g[k] = fx[k]; }); window.__fabGrade = g; ping("Grade copied"); }}>⧉ COPY GRADE</button>
-                              <button className="minibtn" disabled={!window.__fabGrade} onClick={() => { if (window.__fabGrade) { updateFx(selClip.id, { ...window.__fabGrade }); ping("Grade pasted"); } }}>⧊ PASTE</button>
-                              <button className="minibtn" onClick={() => { if (selIds.length > 1 && window.__fabGrade) { applyClips(clips.map((c) => (selIds.includes(c.id) ? { ...c, fx: { ...ensureFx(c), ...window.__fabGrade } } : c))); ping(`Grade → ${selIds.length} clips`); } else ping("Ctrl+click / marquee-select clips in EDIT first, copy a grade, then paste to all."); }}>PASTE → SELECTED</button>
-                              <button className="minibtn" onClick={() => updateFx(selClip.id, { bri: 1, con: 1, sat: 1, hue: 0, warm: 0, blur: 0, wheel: undefined })}>RESET</button>
-                            </div>
-                          </>
-                        );
-                      })() : <div className="dim small" style={{ marginTop: 10 }}>Select a clip in the EDIT room (or click one in the timeline below) to grade it. Scopes read the program monitor live.</div>}
-                    </aside>
-                    <aside className="inspector glass-dark" style={{ width: 500, minWidth: 380, overflowY: "auto" }}>
-                      <div className="paneltitle">🎛 GRADE MONITOR <span className="dim small" style={{ letterSpacing: 0 }}>GPU — the export's exact shader</span></div>
-                      {(() => {
-                        const fx = selClip ? ensureFx(selClip) : null;
-                        const w = fx?.wheel;
-                        const glg = fx ? {
-                          lift: w?.lift, gamma: w?.gamma, gain: w?.gain,
-                          temp: w?.temp || 0, tint: w?.tint || 0,
-                          contrast: fx.con ?? 1, sat: fx.sat ?? 1, hue: ((fx.hue || 0) * Math.PI) / 180,
-                        } : null;
-                        return <GradePreview videoRef={videoRef} grade={glg} outRef={gradeMonRef} />;
-                      })()}
-                      <div className="paneltitle" style={{ marginTop: 10 }}>📈 SCOPES <span className="dim small" style={{ letterSpacing: 0 }}>post-grade — reading the grade monitor</span></div>
-                      <ColorScopes sourceRef={gradeMonRef} />
-                      <div className="dim small" style={{ marginTop: 8 }}>Waveform: exposure (keep skin ~55–70%). Parade: channel balance — matching tops/bottoms = neutral. Vectorscope: saturation spread; skin tones hug the orange line. Histogram: clipping at either end.</div>
-                    </aside>
-                  </div>
-                )}
+                          )}
 
-                {editWs === "audio" && (
-                  <div className="scroll" style={{ padding: 12, display: "flex", flexDirection: "column", gap: 12 }}>
-                    {/* REFERENCE MONITOR — score & mix to picture: the program frame at the playhead. */}
-                    {(() => {
-                      const vclips = clips.filter((c) => c.trackId?.startsWith("v") && c.assetId).sort((a, b) => a.start - b.start);
-                      const cur = [...vclips].reverse().find((c) => playhead >= c.start && playhead < c.start + c.duration);
-                      const ar = (vfmt.w && vfmt.h) ? vfmt.w / vfmt.h : 16 / 9;
-                      return (
-                        <div className="glass-card" style={{ padding: 10 }}>
-                          <div className="lbl" style={{ display: "flex", alignItems: "center", gap: 8 }}><MonitorPlay size={12} /> REFERENCE MONITOR
-                            <span className="dim small mono" style={{ letterSpacing: 0, marginLeft: "auto" }}>{fmtTc(playhead, vfmt)}</span></div>
-                          {/* scaled back 50%: compact monitor on the left, transport + note beside it */}
-                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <div style={{ position: "relative", width: "50%", maxWidth: 340, flex: "0 0 auto", aspectRatio: String(ar), background: "#0c0c11", borderRadius: 8, overflow: "hidden", border: "1px solid var(--line)" }}>
-                              {cur
-                                ? <MonitorLayer key={cur.id} clip={cur} active prod={monitorProd} scene={scene} playhead={playhead} playing={playing} top={false} z={10} vol={0} mute />
-                                : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#5a5a64", fontSize: 11 }}>no picture at playhead</div>}
+                          {colorTab === "wheels" && (gradeable ? (
+                            <div className="gradepanels">
+                              <div className="gpanel">
+                                <div className="lbl">COLOR WHEELS <span className="cap">GPU &middot; EXPORTS ON THE COMPOSITOR</span></div>
+                                <ColorWheels wheel={wheel} setWheel={setWheel} />
+                              </div>
+                              <div className="gpanel narrow">
+                                <div className="lbl">TEMP / TINT</div>
+                                <div className="insp-row"><span className="param" style={{ width: 40 }}>TEMP</span>
+                                  <input type="range" min="-0.3" max="0.3" step="0.005" value={wheel.temp} onChange={(e) => setWheel({ temp: parseFloat(e.target.value) })} onDoubleClick={() => setWheel({ temp: 0 })} />
+                                  <span className="insp-val numval">{wheel.temp.toFixed(2)}</span></div>
+                                <div className="insp-row"><span className="param" style={{ width: 40 }}>TINT</span>
+                                  <input type="range" min="-0.3" max="0.3" step="0.005" value={wheel.tint} onChange={(e) => setWheel({ tint: parseFloat(e.target.value) })} onDoubleClick={() => setWheel({ tint: 0 })} />
+                                  <span className="insp-val numval">{wheel.tint.toFixed(2)}</span></div>
+                              </div>
                             </div>
-                            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-                              <button className="minibtn" onClick={() => setPlaying((p) => !p)} style={{ width: 52 }}>{playing ? <Pause size={13} /> : <Play size={13} />}</button>
-                              <span className="dim small">Picture follows the timeline — a fixed reference while you build the score.</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                    <AudioTimeline audioTracks={tracks.filter((tr) => tr.type === "audio")} clips={clips} prod={prod} vfmt={vfmt} fmtTc={fmtTc}
-                      playhead={playhead} setPlayhead={setPlayhead} playing={playing} setPlaying={setPlaying}
-                      selClipId={selClipId} setSelClipId={setSelClipId} trackSettings={container.timeline?.trackSettings || {}}
-                      setTrackSetting={setTrackSetting} onOpenEditor={openAudioEditor} onSplit={(c) => splitClipStems(c, "vocals-music")} />
-                    <MixConsole audioTracks={tracks.filter((tr) => tr.type === "audio")} trackSettings={container.timeline?.trackSettings || {}} setTrackSetting={setTrackSetting} />
-                    <VoiceStudio audioTracks={tracks.filter((tr) => tr.type === "audio")} playhead={playhead} setPlayhead={setPlayhead} setPlaying={setPlaying} onPlaceClip={placeAudioClip} ping={ping} />
-                    <div className="glass-card">
-                      <div className="lbl">DIALOGUE &amp; AUDIO CLIPS ON THIS TIMELINE <span className="dim small" style={{ letterSpacing: 0 }}>· edit or separate any clip</span></div>
-                      {clips.filter((c) => c.trackId.startsWith("a")).sort((a, b) => a.start - b.start).map((c) => {
-                        const shot = c.shotId ? scene?.shots.find((s) => s.id === c.shotId) : null;
-                        return (
-                          <div className="briefrow" key={c.id} style={{ cursor: "pointer" }}>
-                            <div className="briefhead" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <span className="tc" style={{ fontSize: 11, cursor: "pointer" }} onClick={() => { setSelClipId(c.id); setPlayhead(c.start); }}>{fmtTc(c.start, vfmt)}</span>
-                              <strong style={{ flex: 1 }} onClick={() => { setSelClipId(c.id); setPlayhead(c.start); }}>{c.label}</strong>
-                              {shot?.voice && <CopyBtn text={shot.voice} label="VOICE DIRECTION" small />}
-                              <button className="minibtn" title="Send to audio editor (non-destructive clean-up)" onClick={(e) => { e.stopPropagation(); openAudioEditor(c); }}><SlidersHorizontal size={11} /></button>
-                              <button className="minibtn" disabled={stemBusy} title="Isolate vocals + music to new tracks" onClick={(e) => { e.stopPropagation(); splitClipStems(c, "vocals-music"); }}><Mic2 size={11} /></button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {!clips.some((c) => c.trackId.startsWith("a")) && <div className="dim small">No audio clips yet — use TEXT-TO-VOICE, record a voiceover, or drop music/dialogue on the timeline.</div>}
-                    </div>
-                  </div>
-                )}
+                          ) : <div className="dim small colorempty">Select a clip in the EDIT room &mdash; or click one in the timeline below &mdash; to grade it. Scopes read the program monitor live.</div>)}
 
-                {editWs === "deliver" && (
-                  <div className="scroll" style={{ padding: 16 }}>
-                    <div className="glass-card">
-                      <div className="lbl">DELIVER — "{container.title}"</div>
-                      <div className="readtxt">{vfmt.label} · {vfmt.w}×{vfmt.h} · {vfmt.fps}{vfmt.drop ? " DF" : " NDF"} fps · {prod.defaults.aspect} · {clips.length} clips · {fmtTc(seqEnd, vfmt)} runtime</div>
-                      <div className="lbl" style={{ marginTop: 12 }}>DESTINATIONS — where the render goes when it finishes</div>
-                      {renderDestinations()}
-                      <div className="btnrow" style={{ marginTop: 12 }}>
-                        <button className="cta" onClick={doRenderMP4} style={{ background: rendering ? "#3a2a12" : undefined }}>
-                          <Film size={13} /> {rendering ? `RENDERING ${Math.round(renderPct * 100)}% — CANCEL` : "RENDER MP4 (PIXELS ENGINE)"}
-                        </button>
-                        <button className="cta" onClick={exportTimelineFCPXML} title="Export this timeline as FCPXML — import into DaVinci Resolve (File ▸ Import ▸ Timeline), Premiere, or Final Cut"><ListVideo size={13} /> EXPORT FCPXML (RESOLVE)</button>
-                        <button className="cta" onClick={exportEDL}><ListVideo size={13} /> EXPORT EDL (CMX3600)</button>
-                        <CopyBtn text={exportAll()} label="⤓ COPY FULL EXPORT (BIBLE + SHOTS + PROMPTS)" />
-                      </div>
-                      {rendering && (
-                        <div style={{ marginTop: 10 }}>
-                          <div className="dim small" style={{ marginBottom: 4 }}>{renderStage}…</div>
-                          <div style={{ height: 6, background: "#26263a", borderRadius: 4, overflow: "hidden" }}>
-                            <div style={{ height: "100%", width: `${renderPct * 100}%`, background: "linear-gradient(90deg,#FF8C00,#ffb347)", transition: "width .2s" }} />
-                          </div>
+                          {colorTab === "curves" && (gradeable ? (
+                            <div className="gradepanels">
+                              <div className="gpanel" style={{ flex: "0 0 auto" }}>
+                                <div className="lbl">TONE CURVES <span className="cap">GPU &middot; EXPORT-EXACT</span></div>
+                                <CurveEditor curves={layerData.curves} onChange={(c) => setLayer({ curves: c })} width={264} height={264} />
+                              </div>
+                              <div className="gpanel narrow">
+                                <div className="lbl">CURVE</div>
+                                <div className="dim small" style={{ lineHeight: 1.6 }}>
+                                  Click the line to add a point, drag to shape it, double-click a point to remove it.
+                                  <b style={{ color: "#f2f2f5" }}> Y</b> is the master (luma) curve; <b style={{ color: "#ff7a7a" }}>R</b>/<b style={{ color: "#7ee2a8" }}>G</b>/<b style={{ color: "#7ab8ff" }}>B</b> shift colour per channel.
+                                  A soft <b>S</b> adds filmic contrast; lifting the bottom-left raises the black point.
+                                </div>
+                                <button className="minibtn" style={{ marginTop: 8 }} onClick={() => setLayer({ curves: undefined })}>RESET ALL CURVES</button>
+                              </div>
+                            </div>
+                          ) : <div className="dim small colorempty">Select a clip to shape its tone curves.</div>)}
+
+                          {colorTab === "qualifier" && (gradeable ? (() => {
+                            const q = { ...QUALIFIER_DEFAULT, ...(qual || {}) };
+                            const qrow = (lbl, key, min, max, step = 0.005, fmt = (v) => v.toFixed(2)) => (
+                              <div className="insp-row" key={key}><span className="param" style={{ width: 62 }}>{lbl}</span>
+                                <input type="range" min={min} max={max} step={step} value={q[key]}
+                                  onChange={(e) => setQual({ [key]: parseFloat(e.target.value) })} />
+                                <span className="insp-val numval">{fmt(q[key])}</span></div>
+                            );
+                            const active = !isQualifierIdentity(qual);
+                            return (
+                              <div className="gradepanels">
+                                <div className="gpanel">
+                                  <div className="isec"><span className="lbl" style={{ flex: 1 }}>KEY <span className="cap">HSL SECONDARY &middot; GPU EXPORT-EXACT</span></span>
+                                    {active && <span className="chip pur">KEYED</span>}</div>
+                                  <div className="btnrow" style={{ gap: 6, marginBottom: 6 }}>
+                                    <button className={`minibtn ${eyedrop ? "on" : ""}`} onClick={() => setEyedrop((v) => !v)} title="Then click the grade monitor to key that colour">⦿ EYEDROPPER</button>
+                                    <button className={`minibtn ${q.show ? "blue" : ""}`} onClick={() => setQual({ show: !q.show })} title="Show the key as a matte">◑ SHOW KEY</button>
+                                    <button className="minibtn danger" onClick={() => setLayer({ qualifier: undefined })}>RESET</button>
+                                  </div>
+                                  {qrow("HUE", "h", 0, 1)}
+                                  {qrow("HUE WIDTH", "hw", 0.005, 0.5)}
+                                  {qrow("SAT LOW", "sl", 0, 1)}
+                                  {qrow("SAT HIGH", "sh", 0, 1)}
+                                  {qrow("LUM LOW", "ll", 0, 1)}
+                                  {qrow("LUM HIGH", "lh", 0, 1)}
+                                  {qrow("SOFTNESS", "soft", 0, 0.4)}
+                                </div>
+                                <div className="gpanel narrow">
+                                  <div className="lbl">CORRECTION <span className="cap">INSIDE THE KEY</span></div>
+                                  {qrow("HUE SHIFT", "dHue", -0.5, 0.5)}
+                                  {qrow("SATURATION", "mSat", 0, 3, 0.01)}
+                                  {qrow("LUMINANCE", "mLum", 0, 3, 0.01)}
+                                  <div className="dim small" style={{ marginTop: 8, lineHeight: 1.6 }}>
+                                    Eyedrop a colour, tune the ranges (turn on <b>Show Key</b> to see exactly what it grabs), then shift hue / sat / lum only inside it. The correction bakes into the export.
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })() : <div className="dim small colorempty">Select a clip to isolate a colour with the HSL qualifier.</div>)}
+
+                          {colorTab === "windows" && (gradeable ? (() => {
+                            const wv = { ...WINDOW_DEFAULT, ...(win || {}) };
+                            const wrow = (lbl, key, min, max, step = 0.005, fmt = (v) => v.toFixed(2)) => (
+                              <div className="insp-row" key={key}><span className="param" style={{ width: 62 }}>{lbl}</span>
+                                <input type="range" min={min} max={max} step={step} value={wv[key]}
+                                  onChange={(e) => setWin({ [key]: parseFloat(e.target.value) })} />
+                                <span className="insp-val numval">{fmt(wv[key])}</span></div>
+                            );
+                            return (
+                              <div className="gradepanels">
+                                <div className="gpanel">
+                                  <div className="isec"><span className="lbl" style={{ flex: 1 }}>POWER WINDOW <span className="cap">LIMITS THE GRADE TO A REGION</span></span>
+                                    {isWindowEnabled(win) && <span className="chip pur">ON</span>}</div>
+                                  <div className="btnrow" style={{ gap: 6, marginBottom: 6 }}>
+                                    <button className={`minibtn ${wv.shape === "ellipse" ? "on" : ""}`} onClick={() => setWin({ shape: "ellipse" })}>◯ ELLIPSE</button>
+                                    <button className={`minibtn ${wv.shape === "rect" ? "on" : ""}`} onClick={() => setWin({ shape: "rect" })}>▢ RECT</button>
+                                    <button className={`minibtn ${wv.invert ? "blue" : ""}`} onClick={() => setWin({ invert: !wv.invert })} title="Grade OUTSIDE the shape">⇄ INVERT</button>
+                                    <button className="minibtn danger" onClick={() => setLayer({ window: undefined })}>RESET</button>
+                                  </div>
+                                  {wrow("CENTRE X", "x", 0, 1)}
+                                  {wrow("CENTRE Y", "y", 0, 1)}
+                                  {wrow("WIDTH", "w", 0.02, 0.6)}
+                                  {wrow("HEIGHT", "h", 0.02, 0.6)}
+                                  {wrow("FEATHER", "feather", 0, 1)}
+                                </div>
+                                <div className="gpanel narrow">
+                                  <div className="lbl">WINDOW</div>
+                                  <div className="dim small" style={{ lineHeight: 1.6 }}>
+                                    A window confines the clip's <b>wheels, curves and qualifier</b> to a region — a vignette, a face, a sky. The <b>primaries</b> tab grades the whole frame. Watch the grade monitor as you move it; the shape bakes into the export exactly as previewed.
+                                  </div>
+                                  {!hasGrade && <span className="chip amb" style={{ alignSelf: "flex-start", marginTop: 6 }}>ADD A GRADE FIRST</span>}
+                                </div>
+                              </div>
+                            );
+                          })() : <div className="dim small colorempty">Select a clip to add a power window.</div>)}
+
+                          {colorTab === "primaries" && (gradeable ? (
+                            <div className="gradepanels">
+                              <div className="gpanel">
+                                <div className="lbl">PRIMARIES <span className="cap">DOUBLE-CLICK A SLIDER TO RESET</span></div>
+                                {slider("EXPOSURE", "bri", 0, 2.5, 0.02, 1)}
+                                {slider("CONTRAST", "con", 0, 2.5, 0.02, 1)}
+                                {slider("SATURATION", "sat", 0, 2.5, 0.02, 1)}
+                              </div>
+                              <div className="gpanel">
+                                <div className="lbl">&nbsp;</div>
+                                {slider("HUE \\u00b0", "hue", -180, 180, 1, 0)}
+                                {slider("WARMTH", "warm", 0, 1, 0.02, 0)}
+                                {slider("SOFTEN", "blur", 0, 30, 0.5, 0)}
+                              </div>
+                            </div>
+                          ) : <div className="dim small colorempty">Select a clip to grade its primaries.</div>)}
                         </div>
-                      )}
-                      <div className="dim small" style={{ marginTop: 10 }}>
-                        RENDER MP4 writes a real, frame/beat/sample-accurate file via the Plajah Pixels engine — Pixels scenes render as their true composite; plain media + the soundtrack are included. The EDL still round-trips this cut into Resolve, Premiere, or Avid for finishing.
                       </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}                {editWs === "audio" && (() => {
+                  // ── BAND 3 + 4: lanes are the work surface (with the reference monitor docked
+                  //    beside them), the mixer/voice/clips become a TABBED control band. Before this
+                  //    it was one vertical scroller where you could never see the mix and the picture
+                  //    at once. Mockup-D restructure. ──
+                  const audioTracksList = tracks.filter((tr) => tr.type === "audio");
+                  const vclips = clips.filter((c) => c.trackId?.startsWith("v") && c.assetId).sort((a, b) => a.start - b.start);
+                  const cur = [...vclips].reverse().find((c) => playhead >= c.start && playhead < c.start + c.duration);
+                  const ar = (vfmt.w && vfmt.h) ? vfmt.w / vfmt.h : 16 / 9;
+                  const aClips = clips.filter((c) => c.trackId?.startsWith("a")).sort((a, b) => a.start - b.start);
+                  const ATABS = [["mixer", "MIXER"], ["voice", "VOICE STUDIO"], ["clips", `CLIPS · ${aClips.length}`]];
+                  return (
+                    <div className="audioroom">
+                      <div className="audiostage">
+                        <div className="audiolanes glass-dark">
+                          <AudioTimeline audioTracks={audioTracksList} clips={clips} prod={prod} vfmt={vfmt} fmtTc={fmtTc}
+                            playhead={playhead} setPlayhead={setPlayhead} playing={playing} setPlaying={setPlaying}
+                            selClipId={selClipId} setSelClipId={setSelClipId} trackSettings={container.timeline?.trackSettings || {}}
+                            setTrackSetting={setTrackSetting} onOpenEditor={openAudioEditor} onSplit={(c) => splitClipStems(c, "vocals-music")} />
+                        </div>
+                        <aside className="audioref glass-dark">
+                          <div className="paneltitle"><MonitorPlay size={12} /> REFERENCE
+                            <span className="numval dim small" style={{ marginLeft: "auto" }}>{fmtTc(playhead, vfmt)}</span></div>
+                          <div style={{ position: "relative", width: "100%", aspectRatio: String(ar), background: "#0c0c11", borderRadius: 8, overflow: "hidden", border: "1px solid var(--line)" }}>
+                            {cur
+                              ? <MonitorLayer key={cur.id} clip={cur} active prod={monitorProd} scene={scene} playhead={playhead} playing={playing} top={false} z={10} vol={0} mute />
+                              : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#5a5a64", fontSize: 11 }}>no picture at playhead</div>}
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <button className="minibtn" onClick={() => setPlaying((pl) => !pl)} style={{ width: 52 }}>{playing ? <Pause size={13} /> : <Play size={13} />}</button>
+                            {cur?.shotId && <span className="chip blue">SHOT</span>}
+                          </div>
+                          <span className="dim small" style={{ lineHeight: 1.5 }}>Picture follows the timeline — a fixed reference while you build the score.</span>
+                        </aside>
+                      </div>
+
+                      <div className="audioctrl glass-dark">
+                        <div className="audiotabs">
+                          <span className="troom">AUDIO</span>
+                          <span className="tdiv" />
+                          <span className="segx">
+                            {ATABS.map(([id, lab]) => (
+                              <button key={id} className={audioTab === id ? "on" : ""} onClick={() => setAudioTab(id)}>{lab}</button>
+                            ))}
+                          </span>
+                          <span className="chip dimchip" style={{ marginLeft: 8 }}>{audioTracksList.length} TRACKS</span>
+                        </div>
+                        <div className="audiobody">
+                          {audioTab === "mixer" && (
+                            <MixConsole audioTracks={audioTracksList} trackSettings={container.timeline?.trackSettings || {}} setTrackSetting={setTrackSetting} />
+                          )}
+                          {audioTab === "voice" && (
+                            <VoiceStudio audioTracks={audioTracksList} playhead={playhead} setPlayhead={setPlayhead} setPlaying={setPlaying} onPlaceClip={placeAudioClip} ping={ping} />
+                          )}
+                          {audioTab === "clips" && (
+                            <div>
+                              <div className="lbl">DIALOGUE &amp; AUDIO CLIPS <span className="cap">EDIT OR SEPARATE ANY CLIP</span></div>
+                              {aClips.map((c) => {
+                                const shot = c.shotId ? scene?.shots.find((sh) => sh.id === c.shotId) : null;
+                                return (
+                                  <div className="briefrow" key={c.id} style={{ cursor: "pointer" }}>
+                                    <div className="briefhead" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                      <span className="tc numval" style={{ fontSize: 11, cursor: "pointer" }} onClick={() => { setSelClipId(c.id); setPlayhead(c.start); }}>{fmtTc(c.start, vfmt)}</span>
+                                      <strong style={{ flex: 1 }} onClick={() => { setSelClipId(c.id); setPlayhead(c.start); }}>{c.label}</strong>
+                                      {shot?.voice && <CopyBtn text={shot.voice} label="VOICE DIRECTION" small />}
+                                      <button className="minibtn" title="Send to audio editor (non-destructive clean-up)" onClick={(e) => { e.stopPropagation(); openAudioEditor(c); }}><SlidersHorizontal size={11} /></button>
+                                      <button className="minibtn" disabled={stemBusy} title="Isolate vocals + music to new tracks" onClick={(e) => { e.stopPropagation(); splitClipStems(c, "vocals-music"); }}><Mic2 size={11} /></button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {!aClips.length && <div className="dim small">No audio clips yet — use TEXT-TO-VOICE, record a voiceover, or drop music/dialogue on the timeline.</div>}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {editWs === "deliver" && (() => {
+                  // ── Four-band DELIVER. The export VERBS (RENDER MP4 / FCPXML / EDL) live in the
+                  //    band-2 tool bar like every other room; the work surface holds the deliverables:
+                  //    format presets, destinations, and a runtime summary. Band-4 = render progress. ──
+                  const runtime = fmtTc(seqEnd, vfmt);
+                  const mp = prod.mediaPool || [];
+                  const badFormats = mp.filter((a) => a.needsConversion && !a.converted && clips.some((c) => c.assetId === a.id && !c.disabled)).length;
+                  const PRESETS = [
+                    { id: "mp4", tab: "var(--org)", name: "Master — MP4 / H.264", sub: `${vfmt.w}×${vfmt.h} · ${vfmt.fps}${vfmt.drop ? " DF" : ""} · AAC`, note: "Pixels engine · frame-exact" },
+                    { id: "fcpxml", tab: "var(--blue)", name: "FCPXML — Resolve / Premiere / FCP", sub: "timeline interchange · relinkable", note: "Round-trips this cut for finishing" },
+                    { id: "edl", tab: "var(--green)", name: "EDL — CMX3600", sub: "classic conform list", note: "Avid / any NLE" },
+                  ];
+                  return (
+                    <div className="deliverroom">
+                      <div className="deliverstage">
+                        <aside className="deliverpanel glass-dark" style={{ width: 300, flex: "none" }}>
+                          <div className="lbl">DELIVERABLES <span className="cap">RUN A VERB FROM THE TOOL BAR</span></div>
+                          {PRESETS.map((ps) => (
+                            <div key={ps.id} className="pset idtop" style={{ "--tab": ps.tab }}>
+                              <span style={{ fontSize: 10, fontWeight: 800, color: "#eee" }}>{ps.name}</span>
+                              <span className="qsub numval">{ps.sub}</span>
+                              <span className="dim small" style={{ letterSpacing: 0 }}>{ps.note}</span>
+                            </div>
+                          ))}
+                          <CopyBtn text={exportAll()} label="⤓ COPY FULL EXPORT (BIBLE + SHOTS + PROMPTS)" />
+                        </aside>
+
+                        <div className="deliverpanel glass-dark" style={{ flex: 1, minWidth: 0 }}>
+                          <div className="isec"><span className="lbl" style={{ flex: 1 }}>RENDER QUEUE <span className="cap">FORMAT × RANGE</span></span>
+                            {renderQueue.length > 0 && <button className="minibtn" onClick={() => setRenderQueue((q) => q.filter((j) => j.status === "running"))}>CLEAR</button>}</div>
+                          {renderQueue.length === 0 && (
+                            <div className="dim small" style={{ lineHeight: 1.6 }}>Nothing queued. Pick a <b>range</b> in the tool bar and add MP4 / FCPXML / EDL jobs — MP4 honours In→Out and per-marker segments (dailies), interchange exports the whole cut.</div>
+                          )}
+                          {renderQueue.map((j) => {
+                            const tab = j.kind === "mp4" ? "var(--org)" : j.kind === "fcpxml" ? "var(--blue)" : "var(--green)";
+                            const st = j.status === "running" ? "amb" : j.status === "done" ? "green" : j.status === "error" ? "red" : "dimchip";
+                            return (
+                              <div key={j.id} className="qrow idtop" style={{ "--tab": tab }}>
+                                <span style={{ flex: 1, minWidth: 0 }}>
+                                  <span className="qname" style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.label}</span>
+                                  <span className="qsub numval">{j.kind === "mp4" ? `${fmtTc(j.t0, vfmt)} → ${fmtTc(j.t1, vfmt)}` : "whole cut"}</span>
+                                </span>
+                                {j.status === "running" && <><div className="dbar" style={{ maxWidth: 90 }}><span style={{ width: `${j.pct * 100}%` }} /></div><span className="numval" style={{ fontSize: 9 }}>{Math.round(j.pct * 100)}%</span></>}
+                                <span className={`chip ${st}`}>{j.status.toUpperCase()}</span>
+                                {j.status !== "running" && <button className="ghost danger" title="Remove" onClick={() => setRenderQueue((q) => q.filter((x) => x.id !== j.id))}><X size={11} /></button>}
+                              </div>
+                            );
+                          })}
+                          <div className="insp-div" />
+                          <div className="lbl">DESTINATIONS <span className="cap">MP4 · WHERE IT SURFACES</span></div>
+                          {renderDestinations()}
+                        </div>
+
+                        <aside className="deliverpanel glass-dark" style={{ width: 250, flex: "none" }}>
+                          <div className="lbl">SEQUENCE</div>
+                          <div className="dtable">
+                            <div><span className="param">FORMAT</span><span className="numval">{vfmt.label}</span></div>
+                            <div><span className="param">FRAME</span><span className="numval">{vfmt.w}×{vfmt.h}</span></div>
+                            <div><span className="param">RATE</span><span className="numval">{vfmt.fps}{vfmt.drop ? " DF" : " NDF"}</span></div>
+                            <div><span className="param">ASPECT</span><span className="numval">{prod.defaults.aspect}</span></div>
+                            <div><span className="param">CLIPS</span><span className="numval">{clips.length}</span></div>
+                            <div><span className="param">RUNTIME</span><span className="numval">{runtime}</span></div>
+                          </div>
+                          {badFormats > 0 && <span className="chip amb" style={{ alignSelf: "flex-start" }}>{badFormats} CLIP{badFormats > 1 ? "S" : ""} NEED CONVERT</span>}
+                          <span className="dim small" style={{ lineHeight: 1.5 }}>RENDER MP4 writes a real, frame/beat/sample-accurate file via the Plajah Pixels engine. FCPXML / EDL round-trip this cut into Resolve, Premiere or Avid for finishing.</span>
+                        </aside>
+                      </div>
+
+                      <div className="deliverctrl glass-dark">
+                        <span className="troom">DELIVER</span>
+                        <span className="tdiv" />
+                        {(() => {
+                          const pending = renderQueue.filter((j) => j.status === "queued").length;
+                          const done = renderQueue.filter((j) => j.status === "done").length;
+                          if (queueRunning) {
+                            const running = renderQueue.find((j) => j.status === "running");
+                            return (
+                              <>
+                                <span className="cap" style={{ color: "var(--org)" }}>RENDERING QUEUE</span>
+                                {running && <span className="dim small" style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{running.label}</span>}
+                                {running && <div className="dbar"><span style={{ width: `${(running.pct || 0) * 100}%` }} /></div>}
+                                <span className="numval">{done}/{renderQueue.length}</span>
+                                <button className="minibtn danger" style={{ marginLeft: "auto" }} onClick={runQueue}>STOP QUEUE</button>
+                              </>
+                            );
+                          }
+                          if (rendering) {
+                            return (
+                              <>
+                                <span className="cap" style={{ color: "var(--org)" }}>{renderStage}…</span>
+                                <div className="dbar"><span style={{ width: `${renderPct * 100}%` }} /></div>
+                                <span className="numval">{Math.round(renderPct * 100)}%</span>
+                                <button className="minibtn danger" style={{ marginLeft: "auto" }} onClick={doRenderMP4}>CANCEL</button>
+                              </>
+                            );
+                          }
+                          return (
+                            <>
+                              <span className="chip green">READY</span>
+                              {pending > 0
+                                ? <span className="dim small">{pending} job{pending === 1 ? "" : "s"} queued{done ? ` · ${done} done` : ""} — MP4 downloads as it finishes.</span>
+                                : <span className="dim small">Add jobs from the tool bar, or RENDER NOW for a one-off whole-timeline MP4.</span>}
+                              <button className="minibtn on" style={{ marginLeft: "auto" }} disabled={!pending} onClick={runQueue}><Film size={12} /> START QUEUE</button>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  );
+                })()}
               </>
             )}
           </div>
@@ -5954,7 +6695,26 @@ export default function Fabula() {
 /* ---------- compositing layer: one active clip on one video track ---------- */
 function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, vol = 1, mute = false, active = true, gpuMode = false, gpuReg = null }) {
   const localRef = useRef(null);
-  const fx = ensureFx(clip);
+  const fxBase = ensureFx(clip);
+  // KEYFRAMES: transform + opacity sampled at the playhead so scrubbing/stepping
+  // shows the animation. (Static clips return fxBase untouched — zero overhead.)
+  const fx = kfIsAnimated(fxBase) ? (() => {
+    const lt = playhead - clip.start;
+    return { ...fxBase,
+      x: kfSample(fxBase, "x", lt, fxBase.x), y: kfSample(fxBase, "y", lt, fxBase.y),
+      sc: kfSample(fxBase, "sc", lt, fxBase.sc), rot: kfSample(fxBase, "rot", lt, fxBase.rot),
+      op: kfSample(fxBase, "op", lt, fxBase.op),
+      bri: kfSample(fxBase, "bri", lt, fxBase.bri), con: kfSample(fxBase, "con", lt, fxBase.con),
+      sat: kfSample(fxBase, "sat", lt, fxBase.sat), hue: kfSample(fxBase, "hue", lt, fxBase.hue),
+      blur: kfSample(fxBase, "blur", lt, fxBase.blur) };
+  })() : fxBase;
+  // TRANSITION preview: ramp the incoming clip's opacity across its window so you see
+  // it come in. (The true two-clip crossfade renders in the export; the monitor shows
+  // the incoming fading in from what's beneath / black.)
+  const _td = fxBase.trans?.dur || 0;
+  if (_td > 0.01 && playhead >= clip.start && playhead < clip.start + _td) {
+    fx.op = (fx.op ?? 1) * Math.max(0, Math.min(1, (playhead - clip.start) / _td));
+  }
   // resolve media (multicam → active angle)
   let asset = clip.assetId ? prod.mediaPool.find((a) => a.id === clip.assetId) : null;
   let offset = clip.srcIn || 0;
@@ -6484,6 +7244,49 @@ const CSS = `
 .slash{color:#fff}
 .lede{color:var(--w40);font-weight:500;margin:0 0 22px;max-width:640px;line-height:1.5;font-size:14px}
 .lbl{font-size:10.5px;font-weight:900;letter-spacing:.2em;text-transform:uppercase;color:rgba(249,115,22,.65);margin:0 0 6px}
+
+/* STUDIO SYSTEM — the shared vocabulary every room draws from. Tokens unchanged;
+   these RULES make them apply consistently.
+   1) LABEL LADDER: .cap (structural, white 25%) / .lbl (panel header, orange 62%)
+      / .param (parameter name, white 40%). Every value = JetBrains Mono (.numval).
+   2) COLOUR CONTRACT: orange=selected, blue=picture, green=audio/matte, yel=solo,
+      pur=animated/AI, red=playhead/destructive; the Plajah gradient stays ambient.
+   3) IDENTITY STRIPE: the MixConsole --tab stripe generalised to anything named.
+   4) ROOM TOOL BAND: band 2 of every page. See renderRoomToolbar(). */
+.cap{font-size:8.5px;font-weight:900;letter-spacing:.24em;text-transform:uppercase;color:var(--w25);margin:0}
+.param{font-size:8px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--w40);margin:0}
+.numval{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;font-weight:700}
+.idstripe{width:3px;border-radius:2px;background:var(--tab,var(--w25));flex:none;align-self:stretch;min-height:12px}
+.idtop{position:relative}
+.idtop::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--tab,var(--org));opacity:.92;z-index:2}
+.idleft{position:relative}
+.idleft::before{content:"";position:absolute;left:0;top:5px;bottom:5px;width:3px;border-radius:0 2px 2px 0;background:var(--tab,var(--w25));z-index:2}
+.roomtool{height:34px;flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:0 11px;
+  border-bottom:1px solid var(--line);background:rgba(0,0,0,.24);position:relative;z-index:12;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.roomtool::-webkit-scrollbar{height:0}
+.tgrp{display:flex;align-items:center;gap:3px;flex:none}
+.tdiv{width:1px;height:16px;background:var(--line);margin:0 4px;flex:none}
+.tbtn2{height:23px;padding:0 8px;border-radius:5px;background:rgba(255,255,255,.06);
+  border:1px solid var(--line-2);color:#cfcfd6;font-size:9px;font-weight:800;letter-spacing:.1em;
+  text-transform:uppercase;display:inline-flex;align-items:center;gap:5px;justify-content:center;
+  font-family:inherit;cursor:pointer;white-space:nowrap;flex:none}
+.tbtn2:hover:not(:disabled){background:rgba(255,255,255,.12);color:#fff}
+.tbtn2.on{background:var(--org);border-color:var(--org);color:#0b0b0e}
+.tbtn2.ghost{background:transparent;color:var(--w40)}
+.tbtn2.danger{color:#ff9a9a;border-color:rgba(239,68,68,.4)}
+.tbtn2:disabled{opacity:.35;cursor:default}
+.tbtn2 .k{font-size:7px;opacity:.55;font-family:'JetBrains Mono',monospace;letter-spacing:0}
+.tbtn2:focus-visible,.tsel:focus-visible{outline:2px solid var(--org);outline-offset:1px}
+.segx{display:flex;gap:2px;border:1px solid var(--line-2);border-radius:6px;padding:2px;background:rgba(0,0,0,.34);flex:none}
+.segx button{background:none;border:none;font-family:inherit;cursor:pointer;
+  font-size:7.5px;font-weight:900;letter-spacing:.1em;padding:3px 8px;border-radius:4px;color:var(--w25);text-transform:uppercase}
+.segx button:hover{color:#fff}
+.segx button.on{background:var(--org);color:#0b0b0e}
+.tstate{margin-left:auto;display:flex;align-items:center;gap:5px;flex:none;padding-left:10px}
+.tstate .numval{font-size:9.5px;color:#ccc}
+.troom{font-size:8.5px;font-weight:900;letter-spacing:.24em;color:rgba(255,255,255,.16);
+  text-transform:uppercase;flex:none;padding-right:2px}
 .dim{color:var(--w40)} .dim2{color:rgba(255,255,255,.25)} .small{font-size:12px} .center{text-align:center}
 .big-empty{padding:80px 20px;font-size:14px;letter-spacing:.04em}
 .ital{font-style:italic}
@@ -6576,7 +7379,7 @@ const CSS = `
 .ptab.on{background:var(--org);color:#000;border-color:var(--org)}
 .actcard{padding:14px}
 .acthead{font-weight:900;font-style:italic;letter-spacing:.04em;color:#fff;font-size:13px;margin-bottom:8px;text-transform:uppercase}
-.scenerow{display:flex;align-items:center;gap:10px;padding:8px 6px;border-top:1px solid var(--w04);flex-wrap:wrap}
+.scenerow{display:flex;align-items:center;gap:10px;padding:8px 6px 8px 12px;border-top:1px solid var(--w04);flex-wrap:wrap}
 .scenetitle{background:transparent;border:none;color:#fff;font-family:'JetBrains Mono',monospace;font-weight:700;
   font-size:12.5px;width:150px}
 .scenetitle:focus{outline:1px solid rgba(249,115,22,.4);border-radius:4px}
@@ -6711,7 +7514,10 @@ const CSS = `
 .trackhead{width:128px;min-width:128px;max-width:128px;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:3px;
   padding:4px 8px;font-size:9px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;position:sticky;left:0;
   background:rgba(22,22,28,.94);z-index:5;overflow:hidden}
-.trackhead.video{color:var(--blue)} .trackhead.audio{color:var(--green)}
+.trackhead.video{color:var(--blue);--tab:var(--blue)} .trackhead.audio{color:var(--green);--tab:var(--green)}
+.trackhead.subtitle{color:var(--blue);--tab:var(--blue)}
+.trackhead::before{content:"";position:absolute;left:0;top:5px;bottom:5px;width:3px;border-radius:0 2px 2px 0;
+  background:var(--tab,var(--w25));opacity:.9;z-index:2}
 .thname{display:flex;align-items:center;gap:4px;min-width:0}
 .thlabel{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 /* audio channel strip — controls on the left, vertical peak meter on the right; nothing spills the 128px header */
@@ -6978,6 +7784,26 @@ const CSS = `
 .fxlbl{font-size:8px;font-weight:900;letter-spacing:.12em;color:var(--w40);width:52px;flex:none}
 .fxrow input[type=range]{flex:1;accent-color:#f97316;min-width:0}
 .fxval{font-family:'JetBrains Mono',monospace;font-size:9px;color:#ccc;width:32px;text-align:right}
+/* keyframe diamond — the studio-wide "animated" colour is purple (--pur) */
+.kfdiamond{width:13px;height:13px;flex:none;border:none;background:none;cursor:pointer;color:var(--w25);
+  font-size:9px;line-height:1;display:grid;place-items:center;padding:0}
+.kfdiamond:hover{color:#fff}
+.kfdiamond.anim{color:rgba(168,85,247,.7)}
+.kfdiamond.on{color:var(--pur);text-shadow:0 0 6px rgba(168,85,247,.7)}
+.kfnav{gap:5px;margin-top:5px;border-top:1px solid var(--line-2);padding-top:6px}
+.kfnav button{background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.3);color:#d6b3ff;
+  font-size:8px;font-weight:900;letter-spacing:.08em;border-radius:4px;padding:3px 6px;cursor:pointer}
+.kfnav button:disabled{opacity:.35;cursor:default}
+.kfchips{flex:1;display:flex;gap:3px;flex-wrap:wrap;min-width:0}
+/* transition wedge — a real transition object on the incoming clip's left edge */
+.transwedge{position:absolute;left:0;top:0;bottom:0;z-index:6;cursor:ew-resize;display:grid;place-items:center;
+  border-right:1px solid rgba(255,255,255,.5);
+  background:linear-gradient(90deg,rgba(255,255,255,.05),rgba(255,255,255,.34));
+  clip-path:polygon(0 0,100% 0,100% 100%,0 100%,55% 50%)}
+.transwedge.dip{background:linear-gradient(90deg,rgba(0,0,0,.7),rgba(0,0,0,.15))}
+.transwedge.wipe{background:linear-gradient(90deg,rgba(0,163,255,.4),rgba(0,163,255,.1))}
+.transwedge.blur{background:linear-gradient(90deg,rgba(168,85,247,.4),rgba(168,85,247,.1))}
+.transwedge span{font-size:8px;font-weight:900;color:#fff;text-shadow:0 1px 2px #000;pointer-events:none}
 .gennote{background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.35);border-radius:8px;padding:8px;margin-top:6px;display:flex;flex-direction:column;gap:5px;align-items:flex-start}
 
 /* dual canvas — source + program viewers */
@@ -7006,8 +7832,25 @@ const CSS = `
 /* media workspace */
 .mediaws{flex:1;display:flex;border-radius:12px;overflow:hidden;min-height:0}
 .mwside{width:210px;border-right:1px solid var(--w08);padding:12px;display:flex;flex-direction:column;overflow-y:auto}
-.binbtn{display:flex;justify-content:space-between;align-items:center;background:none;border:none;color:var(--w40);
-  font-size:10px;font-weight:900;letter-spacing:.12em;padding:7px 9px;border-radius:6px;cursor:pointer;text-align:left}
+/* MEDIA ROOM (Mockup-D) */
+.mwmain{flex:1;display:flex;flex-direction:column;min-height:0;min-width:0}
+.mwinsp{width:244px;flex:none;border-left:1px solid var(--w08);padding:11px;display:flex;flex-direction:column;gap:8px;overflow-y:auto}
+.mwipreview{width:100%;aspect-ratio:16/10;border-radius:8px;overflow:hidden;border:1px solid var(--line-2);
+  background:#0c0c11;display:flex;align-items:center;justify-content:center;position:relative}
+.mwipreview img{width:100%;height:100%;object-fit:cover}
+.isec{display:flex;align-items:center;gap:6px}
+/* SLATE shots step — coverage with the script + bible docked as a sticky reference rail (Mockup-D) */
+.slateshots{display:flex;gap:14px;align-items:flex-start}
+.slateref{width:280px;flex:none;position:sticky;top:0;max-height:calc(100vh - 180px);overflow-y:auto;
+  display:flex;flex-direction:column;gap:6px;padding:12px 12px 12px 15px}
+.slateref .script-ref{font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.6;color:rgba(255,255,255,.62);
+  white-space:pre-wrap;max-height:240px;overflow-y:auto;border:1px solid var(--line-2);border-radius:7px;padding:8px;background:rgba(0,0,0,.28)}
+.slatemain{flex:1;min-width:0;display:flex;flex-direction:column}
+.binbtn{position:relative;display:flex;justify-content:space-between;align-items:center;background:none;border:none;color:var(--w40);
+  font-size:10px;font-weight:900;letter-spacing:.12em;padding:7px 9px 7px 13px;border-radius:6px;cursor:pointer;text-align:left}
+.binbtn::before{content:"";position:absolute;left:3px;top:6px;bottom:6px;width:3px;border-radius:2px;
+  background:var(--tab,currentColor);opacity:0;transition:opacity .12s}
+.binbtn:hover::before,.binbtn.on::before{opacity:.85}
 .binbtn:hover{color:#fff;background:var(--w04)}
 .binbtn.on{background:var(--org);color:#000}
 .bintree{opacity:.4;margin-right:4px;font-weight:400}
@@ -7090,6 +7933,89 @@ const CSS = `
 .lookcard.mini{padding:6px;gap:3px}
 .lookcard.mini b{font-size:8px}
 .colorlooks{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+/* COLOR ROOM — monitor-dominant, banded (Mockup-A) */
+.colorroom{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0}
+.colorstage{flex:1;display:flex;gap:8px;min-height:0}
+.colormon{flex:1;min-width:0;display:flex;flex-direction:column}
+.colormon .monitor{flex:1}
+.colorscopes{width:300px;min-width:260px;flex:none;border-radius:12px;padding:10px;overflow-y:auto;
+  display:flex;flex-direction:column;gap:6px}
+.colorctrl{flex:none;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;max-height:288px}
+.colortabs{height:34px;flex:none;display:flex;align-items:center;gap:8px;padding:0 11px;
+  border-bottom:1px solid var(--line);background:rgba(0,0,0,.24)}
+.colorbody{flex:1;padding:12px 14px;overflow-y:auto;min-height:0}
+/* grade layers (H2) — base + secondaries strip in the color tab bar */
+.gradelayers{display:flex;align-items:center;gap:3px}
+.glchip{min-width:20px;height:20px;padding:0 6px;border-radius:5px;border:1px solid rgba(168,85,247,.35);
+  background:rgba(168,85,247,.12);color:#d6b3ff;font-size:8.5px;font-weight:900;letter-spacing:.06em;cursor:pointer}
+.glchip.on{background:var(--pur);border-color:var(--pur);color:#fff}
+.glchip.off{opacity:.4;text-decoration:line-through}
+.glchip.add{color:var(--green);border-color:rgba(120,220,150,.4);background:rgba(120,220,150,.1)}
+.glchip.del{color:#ff9a9a;border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.1)}
+.colorlooks.wide{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.gradepanels{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.gpanel{flex:1;min-width:220px}
+.gpanel.narrow{flex:0 0 220px}
+.colorempty{margin-top:10px;max-width:56ch;line-height:1.6}
+/* AUDIO ROOM (Mockup-D) */
+.audioroom{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0}
+.audiostage{flex:1;display:flex;gap:8px;min-height:0}
+.audiolanes{flex:1;min-width:0;border-radius:12px;padding:8px;overflow:auto}
+.audioref{width:284px;min-width:240px;flex:none;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.audioctrl{flex:none;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;max-height:300px}
+.audiotabs{height:34px;flex:none;display:flex;align-items:center;gap:8px;padding:0 11px;
+  border-bottom:1px solid var(--line);background:rgba(0,0,0,.24)}
+.audiobody{flex:1;padding:12px 14px;overflow-y:auto;min-height:0}
+/* DELIVER ROOM (Mockup-D) */
+.deliverroom{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0}
+.deliverstage{flex:1;display:flex;gap:8px;min-height:0}
+.deliverpanel{border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:9px;overflow-y:auto}
+.pset{border:1px solid var(--line-2);border-radius:9px;padding:8px 9px;background:rgba(0,0,0,.3);
+  display:flex;flex-direction:column;gap:3px}
+.qsub{font-size:9px;color:var(--w40)}
+.qrow{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 11px;border:1px solid var(--line-2);
+  border-radius:8px;background:rgba(0,0,0,.3)}
+.qname{font-size:9.5px;font-weight:800;color:#eee;letter-spacing:.02em}
+.dtable{display:flex;flex-direction:column;gap:5px}
+.dtable>div{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.dtable .numval{font-size:11px;color:#ddd}
+.deliverctrl{flex:none;border-radius:12px;display:flex;align-items:center;gap:10px;padding:0 12px;height:46px}
+.dbar{flex:1;max-width:340px;height:6px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden}
+.dbar span{display:block;height:100%;background:linear-gradient(90deg,var(--org),#ffb347);transition:width .2s}
+.minibtn.danger{color:#ff9a9a;border-color:rgba(239,68,68,.4)}
+/* VFX ROOM */
+.vfxroom{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0}
+.vfxstage{flex:none;height:280px;min-height:0}
+.vfxctrl{flex:1;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+.vfxtabs{height:34px;flex:none;display:flex;align-items:center;gap:8px;padding:0 11px;
+  border-bottom:1px solid var(--line);background:rgba(0,0,0,.24)}
+.vfxbody{flex:1;padding:12px 14px;overflow-y:auto;min-height:0}
+/* NODE GRAPH EDITOR (H3) */
+.ngeditor{display:flex;flex-direction:column;gap:8px;height:100%;min-height:360px}
+.ngpalette{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ngbody{flex:1;display:flex;gap:8px;min-height:0}
+.ngcanvas{flex:1;position:relative;min-width:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  background:radial-gradient(circle at 50% 40%,rgba(124,58,237,.08),transparent 60%),rgba(0,0,0,.34);
+  background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1px);background-size:20px 20px}
+.ngwires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+.ngnode{position:absolute;z-index:2;border-radius:8px;padding:6px 8px;cursor:grab;user-select:none;
+  background:linear-gradient(180deg,rgba(40,40,52,.96),rgba(24,24,32,.98));border:1px solid var(--line-hi);
+  box-shadow:0 3px 10px rgba(0,0,0,.5)}
+.ngnode.sel{border-color:var(--org);box-shadow:0 0 0 1px var(--org),0 3px 14px rgba(249,115,22,.3)}
+.ngnode.source{border-top:2px solid var(--blue)} .ngnode.effect{border-top:2px solid var(--pur)}
+.ngnode.merge{border-top:2px solid var(--green)} .ngnode.output{border-top:2px solid var(--org)}
+.ngtitle{display:flex;align-items:center;gap:5px;font-size:9px;font-weight:900;letter-spacing:.06em;color:#eee}
+.ngtitle span:first-child{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ngbadge{font-size:6.5px;font-weight:900;padding:1px 4px;border-radius:3px;background:var(--org);color:#0b0b0e}
+.ngtype{font-size:7px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--w25);margin-top:2px}
+.ngport{position:absolute;width:11px;height:11px;border-radius:50%;border:1px solid rgba(0,0,0,.6);cursor:pointer;z-index:3}
+.ngport.out{right:-6px;top:calc(50% - 5px);background:radial-gradient(circle at 40% 35%,#ffd0a0,#f97316)}
+.ngport.out.armed{box-shadow:0 0 0 3px rgba(249,115,22,.4)}
+.ngport.in{left:-6px;top:calc(50% - 5px);background:radial-gradient(circle at 40% 35%,#cbb3ff,#7c3aed)}
+.ngport.in.a{top:calc(35% - 5px)} .ngport.in.b{top:calc(65% - 5px)}
+.nginsp{width:236px;flex:none;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:7px;overflow-y:auto}
+.ngpreview{aspect-ratio:16/9;border-radius:7px;overflow:hidden;border:1px solid var(--line-2);background:#000}
+.ngpreview>*{width:100%;height:100%}
 .raildiv{width:1px;height:20px;background:var(--w08);margin:0 6px;align-self:center}
 .raildot.ws{padding:6px 8px}
 

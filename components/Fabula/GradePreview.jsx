@@ -6,10 +6,12 @@
 import { memo, useEffect, useRef } from "react";
 import { Compositor } from "../plajahPixels/engine/core/compositor";
 
-function GradePreview({ videoRef, grade, outRef }) {
+function GradePreview({ videoRef, grade, grades, outRef }) {
   const canvasRef = useRef(null);
   const gradeRef = useRef(grade);
   gradeRef.current = grade;
+  const gradesRef = useRef(grades);
+  gradesRef.current = grades;
   useEffect(() => {
     let raf; let comp = null;
     try {
@@ -24,7 +26,11 @@ function GradePreview({ videoRef, grade, outRef }) {
       last = now;
       const v = videoRef?.current;
       if (!v || (v.readyState != null && v.readyState < 2)) return;
-      try { comp.render([{ element: v, opacity: 1, blendMode: "normal", grade: gradeRef.current || undefined }]); } catch { /* frame not ready */ }
+      try {
+        const st = gradesRef.current;
+        comp.render([{ element: v, opacity: 1, blendMode: "normal",
+          ...(st && st.length ? { grades: st } : { grade: gradeRef.current || undefined }) }]);
+      } catch { /* frame not ready */ }
     };
     raf = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(raf); try { comp?.dispose(); } catch { /* */ } if (outRef) outRef.current = null; };

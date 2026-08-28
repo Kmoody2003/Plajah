@@ -16,6 +16,10 @@
 import { renderTimeline } from '../components/plajahPixels/engine/core/offlineRenderer';
 import type { SceneSnapshot, RenderLayer } from '../components/plajahPixels/engine/timeline/sceneTimeline';
 import { EQ_BANDS, makeIR } from './fabula/audioGraph';
+import { buildCurveLut, isCurvesIdentity } from './fabula/gradeCurves';
+import { isQualifierIdentity } from './fabula/hslKey';
+import { isWindowEnabled } from './fabula/gradeWindow';
+import { sampleParam } from './fabula/keyframes';
 import { probeVideoFrameRate, sourceSafeRenderFrameRate } from './videoFrameRate';
 
 interface RenderFabulaOpts {
@@ -244,41 +248,107 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
 
   const resolveLayers = (t: number): RenderLayer[] => {
     const out: RenderLayer[] = [];
-    for (const tid of tracks) {                       // bottom → top
-      const clip = videoClips.find(c => c.trackId === tid && t >= c.start && t < c.start + c.duration);
-      if (!clip) continue;
+    // Emit one clip's layers into `out`, opacity scaled by opMul. `freeze` overrides
+    // the clip-local time (used to HOLD the outgoing clip's last frame under a transition).
+    const emitClip = (clip: any, tAbs: number, opMul: number, freeze: number | null, extra?: { wipe?: any; blurAdd?: number }) => {
+      if (opMul <= 0.001) return;
       const item = itemById.get(clip.assetId);
       const snap = itemToSnapshot(item, clip.label || 'clip');
-      const lt = t - clip.start + (clip.srcIn || 0);
+      const kfT = freeze != null ? freeze : tAbs - clip.start;
+      const lt = kfT + (clip.srcIn || 0);
       const fx = clip.fx;
       const clipBlend = fx?.blend && fx.blend !== 'normal' ? fx.blend : null;
-      const clipOp = fx?.op ?? 1;
-      // Fabula fx → compositor transform: x/y are % (→ UV fraction), sc scale, rot deg→rad.
-      const tf = fx ? { x: (fx.x || 0) / 100, y: (fx.y || 0) / 100, scale: fx.sc ?? 1, rot: ((fx.rot || 0) * Math.PI) / 180 } : null;
+      const clipOp = sampleParam(fx, 'op', kfT, fx?.op ?? 1) * opMul;
+      const kx = sampleParam(fx, 'x', kfT, fx?.x || 0);
+      const ky = sampleParam(fx, 'y', kfT, fx?.y || 0);
+      const ksc = sampleParam(fx, 'sc', kfT, fx?.sc ?? 1);
+      const krot = sampleParam(fx, 'rot', kfT, fx?.rot || 0);
+      const tf = fx ? { x: kx / 100, y: ky / 100, scale: ksc, rot: (krot * Math.PI) / 180 } : null;
       const hasTf = tf && (tf.x !== 0 || tf.y !== 0 || tf.scale !== 1 || tf.rot !== 0);
-      // Per-clip GRADE rides into the export (monitor parity): exposure/contrast/saturation/
-      // hue/warmth/soften were preview-only before — the MP4 ignored them entirely.
-      const grade = fx ? { bri: fx.bri ?? 1, con: fx.con ?? 1, sat: fx.sat ?? 1, hue: fx.hue || 0, warm: fx.warm || 0, blur: fx.blur || 0 } : null;
+      const grade = fx ? {
+        bri: sampleParam(fx, 'bri', kfT, fx.bri ?? 1), con: sampleParam(fx, 'con', kfT, fx.con ?? 1),
+        sat: sampleParam(fx, 'sat', kfT, fx.sat ?? 1), hue: sampleParam(fx, 'hue', kfT, fx.hue || 0),
+        warm: fx.warm || 0, blur: sampleParam(fx, 'blur', kfT, fx.blur || 0),
+      } : null;
       const hasGrade = grade && (grade.bri !== 1 || grade.con !== 1 || grade.sat !== 1 || grade.hue !== 0 || grade.warm !== 0 || grade.blur !== 0);
-      // WHEEL grade (lift/gamma/gain + temp/tint from the color page) → the compositor's
-      // per-input GPU grade stage. Separate from the ctx.filter primaries above — no overlap,
-      // no double application: filters bake bri/con/sat/hue/warm; GL applies the wheels.
       const w = fx?.wheel;
-      const glGrade = w && (
+      const hasWheel = w && (
         (w.lift || []).some((v: number) => v !== 0) || (w.gamma || []).some((v: number) => v !== 1)
         || (w.gain || []).some((v: number) => v !== 1) || w.temp || w.tint
-      ) ? { lift: w.lift, gamma: w.gamma, gain: w.gain, temp: w.temp || 0, tint: w.tint || 0 } : null;
+      );
+      const curveLut = !isCurvesIdentity(fx?.curves) ? buildCurveLut(fx.curves) : null;
+      const qualifier = !isQualifierIdentity(fx?.qualifier) ? fx.qualifier : null;
+      const window = isWindowEnabled(fx?.window) ? fx.window : null;
+      const baseGrade = (hasWheel || curveLut || qualifier) ? {
+        lift: w?.lift, gamma: w?.gamma, gain: w?.gain, temp: w?.temp || 0, tint: w?.tint || 0,
+        ...(curveLut ? { curveLut } : {}),
+        ...(qualifier ? { qualifier } : {}),
+        ...(window ? { window } : {}),
+      } : null;
+      // GRADE LAYERS (H2): flat fx = the base grade; fx.grades[] are stacked secondaries.
+      const toInputGrade = (g: any) => {
+        const gw = g.wheel;
+        const gcl = !isCurvesIdentity(g.curves) ? buildCurveLut(g.curves) : null;
+        const gq = !isQualifierIdentity(g.qualifier) ? g.qualifier : null;
+        const gwin = isWindowEnabled(g.window) ? g.window : null;
+        return { lift: gw?.lift, gamma: gw?.gamma, gain: gw?.gain, temp: gw?.temp || 0, tint: gw?.tint || 0,
+          ...(gcl ? { curveLut: gcl } : {}), ...(gq ? { qualifier: gq } : {}), ...(gwin ? { window: gwin } : {}) };
+      };
+      const extraGrades = (fx?.grades || []).filter((g: any) => g && g.enabled !== false).map(toInputGrade);
+      const glGrade = (!extraGrades.length && baseGrade) ? baseGrade : null;   // single inline path
+      const glGrades = extraGrades.length ? [baseGrade, ...extraGrades].filter(Boolean) : null; // multi-pass
+      // Blur-dissolve: add transition blur (canvas-side) on top of any graded blur.
+      const blurAdd = extra?.blurAdd || 0;
+      const emitGrade = blurAdd ? { ...(grade || { bri: 1, con: 1, sat: 1, hue: 0, warm: 0, blur: 0 }), blur: (grade?.blur || 0) + blurAdd } : grade;
+      const emitHasGrade = hasGrade || blurAdd > 0;
       for (const layer of snap.layers) {
         out.push({
           ...layer,
-          id: `${tid}:${layer.id}`,                    // unique per track for the generator pool
+          id: `${clip.trackId}:${clip.id}:${layer.id}`,   // unique per clip (two clips can co-exist mid-transition)
           blendMode: clipBlend || layer.blendMode,
           opacity: (layer.opacity ?? 1) * clipOp,
           time: lt,
           transform: hasTf ? tf : undefined,
-          ...(hasGrade ? { grade } : {}),
+          ...(emitHasGrade ? { grade: emitGrade } : {}),
           ...(glGrade ? { glGrade } : {}),
+          ...(glGrades ? { glGrades } : {}),
+          ...(extra?.wipe ? { wipe: extra.wipe } : {}),
         } as any);
+      }
+    };
+
+    for (const tid of tracks) {                       // bottom → top
+      const onTrack = videoClips.filter(c => c.trackId === tid).sort((a, b) => a.start - b.start);
+      const cur = onTrack.find(c => t >= c.start && t < c.start + c.duration);
+      if (!cur) continue;
+      // A transition lives on the INCOMING clip (fx.trans = { type, dur }) and plays over
+      // the first `dur` seconds of that clip, blending FROM the previous clip on the track.
+      const trans = cur.fx?.trans;
+      const dur = trans?.dur || 0;
+      if (dur > 0.01 && t < cur.start + dur) {
+        const idx = onTrack.indexOf(cur);
+        const prev = idx > 0 ? onTrack[idx - 1] : null;
+        const p = Math.max(0, Math.min(1, (t - cur.start) / dur)); // 0 → 1 across the window
+        if (trans.type === 'dip') {
+          // Dip THROUGH black: outgoing fades out over the first half, incoming in over the second.
+          if (prev) emitClip(prev, t, 1 - Math.min(1, p * 2), prev.duration - 1e-3);
+          emitClip(cur, t, Math.max(0, (p - 0.5) * 2), null);
+        } else if (trans.type === 'wipe') {
+          // WIPE: hold the outgoing, reveal the incoming behind a moving edge (shader matte).
+          if (prev) emitClip(prev, t, 1, prev.duration - 1e-3);
+          emitClip(cur, t, 1, null, { wipe: { dir: (trans.dir ?? 0), p, soft: 0.06 } });
+        } else if (trans.type === 'blur') {
+          // BLUR DISSOLVE: both clips blur toward the midpoint while crossing over.
+          const bl = (1 - Math.abs(p - 0.5) * 2) * 22; // 0 → 22px → 0
+          if (prev) emitClip(prev, t, 1, prev.duration - 1e-3, { blurAdd: bl });
+          emitClip(cur, t, p, null, { blurAdd: bl });
+        } else {
+          // Dissolve / fade: HOLD the outgoing's last frame, cross the incoming in over it.
+          if (prev) emitClip(prev, t, 1, prev.duration - 1e-3);
+          emitClip(cur, t, p, null);
+        }
+      } else {
+        emitClip(cur, t, 1, null);
       }
     }
     // Subtitle + title clips burn in on top, screen-blended.
