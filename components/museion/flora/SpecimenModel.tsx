@@ -31,7 +31,15 @@ export interface SpecimenModelProps {
 export default function SpecimenModel({
   url, position = [0, 0, 0], rotation = 0, targetHeight, wind = 1, seed = 1, onClick,
 }: SpecimenModelProps) {
-  const { scene } = useGLTF(url);
+  // NOTE: a model that fails to load must never leave the gallery silently empty.
+  // Suspense shows nothing while loading; the ErrorBoundary above catches a hard
+  // failure; and the console warning below names the file so it can be traced.
+  // Our specimen GLBs are DRACO-compressed (that is most of why a 200 MB scan
+  // becomes 5 MB), so the loader needs a decoder. Passing the decoder path makes
+  // useGLTF attach a DRACOLoader; without it the model silently fails to appear —
+  // which is exactly what an empty gallery looks like. Self-hosted rather than
+  // Google's CDN so it works offline and behind a strict CSP.
+  const { scene } = useGLTF(url, '/draco/');
   const group = useRef<THREE.Group>(null);
 
   // Clone so several specimens can share one loaded asset without fighting over
@@ -99,5 +107,5 @@ export default function SpecimenModel({
 
 /** Warm a model before the visitor reaches it. */
 export function preloadSpecimen(url: string) {
-  try { useGLTF.preload(url); } catch { /* a bad path must never break the hall */ }
+  try { useGLTF.preload(url, '/draco/'); } catch { /* a bad path must never break the hall */ }
 }

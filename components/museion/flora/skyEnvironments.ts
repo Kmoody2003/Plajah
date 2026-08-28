@@ -40,6 +40,8 @@ export interface SkyEnvironment {
   sun?: { position: [number, number, number]; color: string; intensity: number };
   /** Scene fog colour — should match the sky's horizon or you get a seam. */
   fog?: string;
+  /** God-ray strength for this sky; 0 for overcast, 1+ for low hard sun. */
+  shafts?: number;
 }
 
 export const SKY_ENVIRONMENTS: SkyEnvironment[] = [
@@ -54,6 +56,7 @@ export const SKY_ENVIRONMENTS: SkyEnvironment[] = [
     blur: 0,
     sun: { position: [34, 30, 18], color: '#fff2d8', intensity: 2.6 },
     fog: '#c9d8e2',
+    shafts: 0.75,
   },
   {
     id: 'forest-slope',
@@ -66,6 +69,7 @@ export const SKY_ENVIRONMENTS: SkyEnvironment[] = [
     blur: 0.04,
     sun: { position: [18, 24, -12], color: '#e8f0c8', intensity: 1.5 },
     fog: '#93a98a',
+    shafts: 1.35,
   },
 ];
 

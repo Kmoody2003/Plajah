@@ -18,6 +18,9 @@ import SpecimenModel from './SpecimenModel';
 import GrassField from './GrassField';
 import { disposeFloraTextures } from './textures';
 import { SKY_ENVIRONMENTS, DEFAULT_SKY, skyById } from './skyEnvironments';
+import ForestBackdrop from './ForestBackdrop';
+import LightShafts from './LightShafts';
+import { BACKDROP_SETS, defaultBackdrop } from './backdrops';
 import { ForestAudio, roomForGallery } from './ForestAudio';
 import { FLORA, GALLERY_META, LINEAGE_LABEL, CONSERVATION_LABEL, populatedGalleries } from '../../../data/flora';
 import type { FloraSpecimen, Gallery } from '../../../data/flora';
@@ -86,6 +89,7 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
   const [audioOn, setAudioOn] = useState(false);
   const [skyId, setSkyId] = useState<string>(DEFAULT_SKY);
   const sky = useMemo(() => skyById(skyId), [skyId]);
+  const backdrop = useMemo(defaultBackdrop, []);
   const skyRef = useRef(sky);
   skyRef.current = sky;
   const audioRef = useRef<ForestAudio | null>(null);
@@ -160,6 +164,26 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
             environmentRotation={[0, sky.rotationY ?? 0, 0]}
             backgroundRotation={[0, sky.rotationY ?? 0, 0]}
           />
+          {/* A photographic cyclorama at the treeline — the museum-diorama trick.
+              Empty until photos are added to public/backdrops/, and harmless when
+              empty. */}
+          {backdrop.images.length > 0 && (
+            <Suspense fallback={null}>
+              <ForestBackdrop
+                images={backdrop.images}
+                radius={backdrop.radius}
+                height={backdrop.height}
+                yOffset={backdrop.yOffset}
+                intensity={backdrop.intensity}
+              />
+            </Suspense>
+          )}
+          {!reduced && tier.post && (
+            <LightShafts
+              sunPosition={(sky.sun ?? { position: [30, 26, 16] }).position}
+              intensity={sky.shafts ?? 1}
+            />
+          )}
           <SoftShadows size={26} samples={12} focus={0.7} />
           <ForestLight sun={sky.sun ?? { position: [30, 26, 16], color: '#ffe2b0', intensity: 2.6 }} />
           <ForestFloor />
