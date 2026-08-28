@@ -6,12 +6,13 @@
 // latin binomials always in italic serif. Labels float as frosted glass in the
 // scene rather than sitting on a flat page.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, Sky } from '@react-three/drei';
 import * as THREE from 'three';
 import { ArrowLeft, Volume2, VolumeX, Sprout, BookOpen } from 'lucide-react';
 import TreeMesh from './TreeMesh';
+import SpecimenModel from './SpecimenModel';
 import GrassField from './GrassField';
 import { disposeFloraTextures } from './textures';
 import { ForestAudio, roomForGallery } from './ForestAudio';
@@ -23,12 +24,12 @@ const prefersReducedMotion = () =>
 
 /** Fire-TV contract: cap DPR and drop branch sides on small/weak devices. */
 function tierFor(): { dpr: [number, number]; radial: number; grass: number } {
-  if (typeof window === 'undefined') return { dpr: [1, 1.5], radial: 6, grass: 4200 };
+  if (typeof window === 'undefined') return { dpr: [1, 1.5], radial: 6, grass: 20000 };
   const tv = /TV|BRAVIA|AFT|SmartTV|Tizen/i.test(navigator.userAgent);
   const small = window.innerWidth < 700;
-  if (tv) return { dpr: [1, 1], radial: 5, grass: 1400 };
-  if (small) return { dpr: [1, 1.5], radial: 5, grass: 1800 };
-  return { dpr: [1, 1.75], radial: 7, grass: 5000 };
+  if (tv) return { dpr: [1, 1], radial: 5, grass: 9000 };
+  if (small) return { dpr: [1, 1.5], radial: 5, grass: 12000 };
+  return { dpr: [1, 1.75], radial: 7, grass: 32000 };
 }
 
 /** Ground plane + a hint of mist, so trees stand in a place rather than a void. */
@@ -150,8 +151,24 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
           </Environment>
           {specimens.map((s, i) => {
             const spot = layout[i];
-            if (!s.model || s.model.kind !== 'procedural' || !spot) return null;
+            if (!s.model || !spot) return null;
             const isSel = s.id === selected?.id;
+            // A hero specimen is a real model; everything else grows procedurally.
+            if (s.model.kind === 'glb') {
+              return (
+                <Suspense key={s.id} fallback={null}>
+                  <SpecimenModel
+                    url={s.model.url}
+                    position={spot.pos}
+                    rotation={spot.rot}
+                    targetHeight={s.model.scale}
+                    seed={i * 977 + 13}
+                    wind={reduced ? 0 : isSel ? 1.1 : 0.6}
+                    onClick={() => setSelectedId(s.id)}
+                  />
+                </Suspense>
+              );
+            }
             return (
               <TreeMesh
                 key={s.id}

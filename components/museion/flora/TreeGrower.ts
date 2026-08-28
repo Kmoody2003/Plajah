@@ -145,26 +145,28 @@ export function growTree(params: TreeParams, seed = 1): TreeSkeleton {
     });
     if (end[1] > height) height = end[1];
 
-    if (depth >= maxDepth) {
-      // Terminal twig — hang leaves off the tip.
-      const n = Math.max(0, Math.round(params.leafDensity));
+    // Foliage rides the outer TWO levels of the crown, not just the last twig:
+    // tip-only leaves left a bare interior that read as a dead tree.
+    const foliar = depth >= maxDepth - 1;
+    if (foliar) {
+      const n = Math.max(0, Math.round(params.leafDensity * (depth >= maxDepth ? 1 : 0.55)));
       for (let i = 0; i < n; i++) {
-        const spread = params.leafSize * 0.9;
+        const spread = params.leafSize * 0.62;
         const off = perp(dir);
         const roll = rand() * Math.PI * 2;
         const o = rotAxis(off, dir, roll);
-        const t = 0.55 + rand() * 0.45;              // cluster toward the tip
+        const t = 0.2 + rand() * 0.85;               // along the twig, not only its tip
         leaves.push({
-          x: origin[0] + dir[0] * length * t + o[0] * spread * (rand() - 0.5),
-          y: origin[1] + dir[1] * length * t + o[1] * spread * (rand() - 0.5),
-          z: origin[2] + dir[2] * length * t + o[2] * spread * (rand() - 0.5),
+          x: origin[0] + dir[0] * length * t + o[0] * spread * (rand() - 0.5) * 2,
+          y: origin[1] + dir[1] * length * t + o[1] * spread * (rand() - 0.5) * 2,
+          z: origin[2] + dir[2] * length * t + o[2] * spread * (rand() - 0.5) * 2,
           dx: o[0], dy: o[1], dz: o[2],
-          scale: params.leafSize * (0.75 + rand() * 0.5),
+          scale: params.leafSize * (0.72 + rand() * 0.62),
           bornAt: Math.min(0.96, bornAt + 0.06),
           tint: rand(),
         });
       }
-      return;
+      if (depth >= maxDepth) return;
     }
 
     const [smin, smax] = params.splits;
@@ -244,7 +246,7 @@ export const TREE_SPECIES: Record<string, TreeParams> = {
     splits: [2, 3], branchAngle: 38, angleJitter: 26,
     lengthFalloff: 0.74, radiusFalloff: 0.66,
     gravitropism: 0.05, twist: 34,
-    leafSize: 0.38, leafDensity: 7, leafShape: 'broad',       // lobed — the oak signature
+    leafSize: 1.5, leafDensity: 9, leafShape: 'broad',        // lobed — the oak signature
     barkColor: '#4a3b2a', leafColor: '#3f7d3a', autumnColor: '#b3541e',
   },
   birch: {
@@ -253,7 +255,7 @@ export const TREE_SPECIES: Record<string, TreeParams> = {
     splits: [2, 2], branchAngle: 26, angleJitter: 18,
     lengthFalloff: 0.78, radiusFalloff: 0.7,
     gravitropism: -0.12, twist: 46,          // slender, weeping tips
-    leafSize: 0.24, leafDensity: 8, leafShape: 'ovate',       // ovate + doubly serrate
+    leafSize: 1.15, leafDensity: 9, leafShape: 'ovate',       // ovate + doubly serrate
     barkColor: '#d8d2c4', leafColor: '#7ab648', autumnColor: '#e0b62c',
   },
   pine: {
@@ -262,7 +264,7 @@ export const TREE_SPECIES: Record<string, TreeParams> = {
     splits: [4, 5], branchAngle: 68, angleJitter: 12,
     lengthFalloff: 0.62, radiusFalloff: 0.58,
     gravitropism: -0.06, twist: 72,          // whorled, near-horizontal tiers
-    leafSize: 0.42, leafDensity: 10, leafShape: 'needle',
+    leafSize: 1.25, leafDensity: 10, leafShape: 'needle',
     barkColor: '#5a3f2b', leafColor: '#2f5d3f',
   },
   willow: {
@@ -271,7 +273,7 @@ export const TREE_SPECIES: Record<string, TreeParams> = {
     splits: [2, 3], branchAngle: 30, angleJitter: 22,
     lengthFalloff: 0.8, radiusFalloff: 0.62,
     gravitropism: -0.55, twist: 28,          // the signature fall
-    leafSize: 0.34, leafDensity: 9, leafShape: 'lanceolate',  // long, narrow, drooping
+    leafSize: 1.3, leafDensity: 10, leafShape: 'lanceolate',  // long, narrow, drooping
     barkColor: '#5c4a33', leafColor: '#6f9c4a', autumnColor: '#c9b84c',
   },
   baobab: {
@@ -280,7 +282,7 @@ export const TREE_SPECIES: Record<string, TreeParams> = {
     splits: [3, 4], branchAngle: 44, angleJitter: 30,
     lengthFalloff: 0.52, radiusFalloff: 0.42,
     gravitropism: 0.22, twist: 40,           // fat bottle trunk, stubby crown
-    leafSize: 0.2, leafDensity: 3, leafShape: 'palmate',
+    leafSize: 1.35, leafDensity: 7, leafShape: 'palmate',
     barkColor: '#8b7a63', leafColor: '#5b8f46',
     bareTrunk: 0.7,
   },

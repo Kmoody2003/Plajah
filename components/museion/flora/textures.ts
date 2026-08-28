@@ -204,8 +204,23 @@ export function barkNormal(species: string, size = 512, strength = 2.4): THREE.T
  * Leaf sprite: the species outline rasterised with veins and a little colour
  * variance. Transparent outside the blade, so a quad reads as a leaf.
  */
-export function leafTexture(shape: LeafShape, color: string, size = 256): THREE.Texture | null {
-  const key = `leaf:${shape}:${color}:${size}`;
+/**
+ * Leaf CARD: the technique every real-time tree uses. A single quad carries a
+ * whole cluster of leaves rather than one blade, so a canopy reads as thousands
+ * of leaves at a few hundred quads. Individual leaf quads is what made the first
+ * pass look like bare winter branches — you cannot afford enough of them.
+ *
+ * The card scatters `count` outlines across the canvas with varied rotation,
+ * scale, depth-shading and hue, then leaves the background transparent.
+ */
+export function leafCardTexture(
+  shape: LeafShape,
+  color: string,
+  size = 512,
+  count = 16,
+  seed = 1,
+): THREE.Texture | null {
+  const key = `card:${shape}:${color}:${size}:${count}:${seed}`;
   const hit = canvasCache.get(key);
   if (hit) return hit;
   const made = makeCanvas(size, size);
@@ -213,43 +228,75 @@ export function leafTexture(shape: LeafShape, color: string, size = 256): THREE.
   const { cv, ctx } = made;
   const o = leafOutline(shape);
   const base = new THREE.Color(color);
+  const rand = mulberry(seed * 7919 + shape.length * 31);
 
   ctx.clearRect(0, 0, size, size);
-  // leaf space (x −0.5..0.5, y 0..1) → canvas, tip up, with a small margin
-  const M = 0.06;
-  const toX = (x: number) => (x + 0.5) * size * (1 - M * 2) + size * M;
-  const toY = (y: number) => size - (y * size * (1 - M * 2) + size * M);
 
-  for (const poly of o.polygons) {
-    ctx.beginPath();
-    poly.forEach(([x, y], i) => (i ? ctx.lineTo(toX(x), toY(y)) : ctx.moveTo(toX(x), toY(y))));
-    ctx.closePath();
-    // a soft gradient down the blade so leaves aren't flat chips of colour
-    const g = ctx.createLinearGradient(0, toY(1), 0, toY(0));
-    const lo = base.clone().multiplyScalar(0.68);
-    const hi = base.clone().lerp(new THREE.Color('#ffffff'), 0.12);
-    g.addColorStop(0, `#${hi.getHexString()}`);
-    g.addColorStop(1, `#${lo.getHexString()}`);
-    ctx.fillStyle = g;
-    ctx.fill();
+  // Leaves nearer the "back" of the card draw first and darker, so the cluster
+  // has depth instead of reading as a flat decal.
+  const leaves: { x: number; y: number; rot: number; s: number; shade: number }[] = [];
+  for (let i = 0; i < count; i++) {
+    leaves.push({
+      x: 0.5 + (rand() - 0.5) * 0.86,
+      y: 0.5 + (rand() - 0.5) * 0.86,
+      rot: rand() * Math.PI * 2,
+      s: 0.3 + rand() * 0.34,
+      shade: rand(),
+    });
   }
+  leaves.sort((a, b) => a.shade - b.shade);
 
-  // veins, slightly lighter than the blade
-  if (o.veins.length) {
-    ctx.strokeStyle = `rgba(255,255,255,0.22)`;
-    ctx.lineWidth = Math.max(1, size / 220);
-    for (const v of o.veins) {
+  for (const lf of leaves) {
+    ctx.save();
+    ctx.translate(lf.x * size, lf.y * size);
+    ctx.rotate(lf.rot);
+    const S = lf.s * size;
+    // depth shading + slight hue drift keeps a cluster from looking stamped
+    const tone = 0.55 + lf.shade * 0.62;
+    const drift = (rand() - 0.5) * 0.1;
+    const c = base.clone().multiplyScalar(tone).offsetHSL(drift * 0.1, 0, 0);
+    const hi = c.clone().lerp(new THREE.Color('#ffffff'), 0.16);
+    const lo = c.clone().multiplyScalar(0.66);
+
+    for (const poly of o.polygons) {
       ctx.beginPath();
-      v.forEach(([x, y], i) => (i ? ctx.lineTo(toX(x), toY(y)) : ctx.moveTo(toX(x), toY(y))));
-      ctx.stroke();
+      poly.forEach(([px, py], i) => {
+        const X = px * S;
+        const Y = -(py * S);           // tip points "up" in card space
+        if (i) ctx.lineTo(X, Y); else ctx.moveTo(X, Y);
+      });
+      ctx.closePath();
+      const g = ctx.createLinearGradient(0, -S, 0, 0);
+      g.addColorStop(0, `#${hi.getHexString()}`);
+      g.addColorStop(1, `#${lo.getHexString()}`);
+      ctx.fillStyle = g;
+      ctx.fill();
     }
+    if (o.veins.length) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+      ctx.lineWidth = Math.max(0.7, S / 90);
+      for (const v of o.veins) {
+        ctx.beginPath();
+        v.forEach(([px, py], i) => {
+          const X = px * S, Y = -(py * S);
+          if (i) ctx.lineTo(X, Y); else ctx.moveTo(X, Y);
+        });
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
 
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
+  tex.anisotropy = 8;
   canvasCache.set(key, tex);
   return tex;
+}
+
+/** A single blade, for close-up specimen plates. */
+export function leafTexture(shape: LeafShape, color: string, size = 256): THREE.Texture | null {
+  return leafCardTexture(shape, color, size, 1, 3);
 }
 
 /** Free every baked texture (wing unmount). */

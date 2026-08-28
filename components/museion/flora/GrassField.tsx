@@ -25,7 +25,7 @@ export interface GrassFieldProps {
 }
 
 /** A single blade: tapered, curving, with vertex colours dark at the root. */
-function bladeGeometry(segments = 3, height = 1, width = 0.055): THREE.BufferGeometry {
+function bladeGeometry(segments = 4, height = 1, width = 0.019): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry();
   const pos: number[] = [];
   const uv: number[] = [];
@@ -55,7 +55,7 @@ export default function GrassField({
 }: GrassFieldProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const matRef = useRef<THREE.MeshStandardMaterial>(null);
-  const geom = useMemo(() => bladeGeometry(3, 1, 0.055), []);
+  const geom = useMemo(() => bladeGeometry(4, 1, 0.019), []);
 
   // Scatter once — deterministic, so the floor doesn't reshuffle on re-render.
   const { matrices, tints } = useMemo(() => {
@@ -75,11 +75,11 @@ export default function GrassField({
       // sqrt keeps density even across the disc instead of clumping at the centre
       const r = innerRadius + Math.sqrt(rand()) * (outerRadius - innerRadius);
       const a = rand() * Math.PI * 2;
-      const h = 0.34 + rand() * 0.72;
+      const h = 0.16 + rand() * 0.34;
       v.set(Math.cos(a) * r, 0, Math.sin(a) * r);
       e.set((rand() - 0.5) * 0.24, rand() * Math.PI * 2, (rand() - 0.5) * 0.24);
       q.setFromEuler(e);
-      s.set(0.8 + rand() * 0.5, h, 0.8 + rand() * 0.5);
+      s.set(0.7 + rand() * 0.7, h, 0.7 + rand() * 0.7);
       m.compose(v, q, s);
       m.toArray(mats, i * 16);
       tn[i] = rand();

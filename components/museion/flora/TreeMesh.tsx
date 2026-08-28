@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { growTree, skeletonAtGrowth, type TreeParams, type TreeSkeleton } from './TreeGrower';
 import { buildTreeGeometry, buildLeafMatrices } from './treeGeometry';
-import { barkTexture, barkNormal, leafTexture } from './textures';
+import { barkTexture, barkNormal, leafCardTexture } from './textures';
 
 /** Autumn ramp: leaves lerp from their summer colour toward the species' autumn. */
 function seasonColor(leafHex: string, autumnHex: string | undefined, season: number): THREE.Color {
@@ -89,9 +89,11 @@ export default function TreeMesh({
     return t;
   }, [params.species, params.trunkHeight]);
   const normalScale = useMemo(() => new THREE.Vector2(1.1, 1.1), []);
+  // Leaf CARDS: one quad carries a whole cluster, which is the only way to reach
+  // canopy density in real time. Three variants so the crown isn't one repeated decal.
   const leafMap = useMemo(
-    () => leafTexture(params.leafShape as never, params.leafColor),
-    [params.leafShape, params.leafColor],
+    () => leafCardTexture(params.leafShape as never, params.leafColor, 512, 18, seed),
+    [params.leafShape, params.leafColor, seed],
   );
 
   const barkColor = useMemo(() => new THREE.Color(params.barkColor), [params.barkColor]);
@@ -124,7 +126,6 @@ export default function TreeMesh({
         <instancedMesh
           ref={leafRef}
           args={[leafGeom, undefined as unknown as THREE.Material, leafData.count]}
-          castShadow
           frustumCulled={false}
         >
           <meshStandardMaterial
