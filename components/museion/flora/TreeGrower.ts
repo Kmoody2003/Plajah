@@ -60,13 +60,15 @@ export interface TreeParams {
   twist: number;              // degrees of roll between sibling branches
   leafSize: number;
   leafDensity: number;        // leaves per terminal twig
-  leafShape: 'broad' | 'needle' | 'palmate' | 'scale' | 'frond' | 'lanceolate' | 'ovate';
+  leafShape: 'broad' | 'needle' | 'palmate' | 'scale' | 'frond' | 'lanceolate' | 'ovate' | 'maple' | 'fan' | 'heart';
   barkColor: string;
   leafColor: string;
   /** Autumn target — the seasonal shader ramps toward this. */
   autumnColor?: string;
   /** Fraction of the crown that is bare trunk (a palm is nearly all trunk). */
   bareTrunk?: number;
+  /** Palms and tree ferns don't branch: one column, one crown of fronds. */
+  crownOnly?: boolean;
 }
 
 // ── deterministic PRNG (mulberry32) ─────────────────────────────────────────
@@ -81,6 +83,7 @@ function rng(seed: number): () => number {
 }
 
 const DEG = Math.PI / 180;
+const TAU_LOCAL = Math.PI * 2;
 
 /** Rotate v around an arbitrary unit axis (Rodrigues). */
 function rotAxis(v: [number, number, number], axis: [number, number, number], ang: number): [number, number, number] {
@@ -184,6 +187,43 @@ export function growTree(params: TreeParams, seed = 1): TreeSkeleton {
     }
   };
 
+  // A palm is a column with a crown bolted on: no recursive branching at all.
+  if (params.crownOnly) {
+    const segs = 8;
+    let cur: [number, number, number] = [0, 0, 0];
+    const dir: [number, number, number] = norm([(rand() - 0.5) * 0.12, 1, (rand() - 0.5) * 0.12]);
+    const segLen = params.trunkHeight / segs;
+    for (let i = 0; i < segs; i++) {
+      const t0 = i / segs, t1 = (i + 1) / segs;
+      const nxt: [number, number, number] = [cur[0] + dir[0] * segLen, cur[1] + dir[1] * segLen, cur[2] + dir[2] * segLen];
+      segments.push({
+        x0: cur[0], y0: cur[1], z0: cur[2],
+        x1: nxt[0], y1: nxt[1], z1: nxt[2],
+        r0: params.trunkRadius * (1 - t0 * 0.3),
+        r1: params.trunkRadius * (1 - t1 * 0.3),
+        depth: 0, bornAt: t0 * 0.55,
+      });
+      cur = nxt;
+    }
+    height = cur[1];
+    const fronds = Math.max(4, Math.round(params.leafDensity));
+    for (let i = 0; i < fronds; i++) {
+      const a = (i / fronds) * TAU_LOCAL + rand() * 0.3;
+      const droop = 0.35 + rand() * 0.45;
+      const out: [number, number, number] = norm([Math.cos(a), droop, Math.sin(a)]);
+      leaves.push({
+        x: cur[0] + out[0] * params.leafSize * 0.35,
+        y: cur[1] + out[1] * params.leafSize * 0.25,
+        z: cur[2] + out[2] * params.leafSize * 0.35,
+        dx: out[0], dy: out[1], dz: out[2],
+        scale: params.leafSize * (0.85 + rand() * 0.35),
+        bornAt: 0.5 + (i / fronds) * 0.3,
+        tint: rand(),
+      });
+    }
+    return { segments, leaves, height, species: params.species };
+  }
+
   const start: [number, number, number] = [0, 0, 0];
   const up: [number, number, number] = norm([
     (rand() - 0.5) * 0.06, 1, (rand() - 0.5) * 0.06,   // a hair off-vertical: nothing in a forest is plumb
@@ -275,6 +315,79 @@ export const TREE_SPECIES: Record<string, TreeParams> = {
     gravitropism: -0.55, twist: 28,          // the signature fall
     leafSize: 1.3, leafDensity: 10, leafShape: 'lanceolate',  // long, narrow, drooping
     barkColor: '#5c4a33', leafColor: '#6f9c4a', autumnColor: '#c9b84c',
+  },
+  maple: {
+    species: 'maple',
+    trunkHeight: 3.4, trunkRadius: 0.36, depth: 5,
+    splits: [2, 3], branchAngle: 34, angleJitter: 22,
+    lengthFalloff: 0.76, radiusFalloff: 0.67,
+    gravitropism: 0.08, twist: 38,
+    leafSize: 1.45, leafDensity: 10, leafShape: 'maple',
+    barkColor: '#514334', leafColor: '#4a8c3f', autumnColor: '#d43f22',   // the famous scarlet
+  },
+  ginkgo: {
+    species: 'ginkgo',
+    trunkHeight: 4.4, trunkRadius: 0.3, depth: 4,
+    splits: [2, 3], branchAngle: 42, angleJitter: 30,
+    lengthFalloff: 0.7, radiusFalloff: 0.64,
+    gravitropism: 0.16, twist: 52,                       // irregular, ascending
+    leafSize: 1.1, leafDensity: 9, leafShape: 'fan',
+    barkColor: '#6b5a45', leafColor: '#7fae3e', autumnColor: '#f5c518',   // pure gold
+  },
+  poplar: {
+    species: 'poplar',
+    trunkHeight: 7.5, trunkRadius: 0.28, depth: 5,
+    splits: [2, 3], branchAngle: 13, angleJitter: 8,     // fastigiate: a green exclamation mark
+    lengthFalloff: 0.72, radiusFalloff: 0.7,
+    gravitropism: 0.62, twist: 30,
+    leafSize: 0.95, leafDensity: 10, leafShape: 'heart',
+    barkColor: '#7d7059', leafColor: '#79b03f', autumnColor: '#e8c33a',
+  },
+  cypress: {
+    species: 'cypress',
+    trunkHeight: 6.5, trunkRadius: 0.24, depth: 4,
+    splits: [2, 3], branchAngle: 12, angleJitter: 7,
+    lengthFalloff: 0.7, radiusFalloff: 0.68,
+    gravitropism: 0.7, twist: 44,                        // the Tuscan column
+    leafSize: 0.85, leafDensity: 11, leafShape: 'scale',
+    barkColor: '#5c4a3a', leafColor: '#2c4f33',
+  },
+  redwood: {
+    species: 'redwood',
+    trunkHeight: 12, trunkRadius: 0.95, depth: 4,
+    splits: [4, 5], branchAngle: 74, angleJitter: 14,
+    lengthFalloff: 0.5, radiusFalloff: 0.5,
+    gravitropism: -0.1, twist: 66,                       // narrow conical spire
+    leafSize: 1.3, leafDensity: 10, leafShape: 'needle',
+    barkColor: '#8a4b32', leafColor: '#2f5a3c',          // cinnamon bark
+  },
+  palm: {
+    species: 'palm',
+    trunkHeight: 8.5, trunkRadius: 0.3, depth: 0,
+    splits: [1, 1], branchAngle: 0, angleJitter: 0,
+    lengthFalloff: 1, radiusFalloff: 1,
+    gravitropism: 0, twist: 0,
+    leafSize: 3.6, leafDensity: 14, leafShape: 'frond',
+    barkColor: '#8a7452', leafColor: '#4f8c3a',
+    crownOnly: true,
+  },
+  cherry: {
+    species: 'cherry',
+    trunkHeight: 2.8, trunkRadius: 0.3, depth: 5,
+    splits: [2, 3], branchAngle: 44, angleJitter: 28,
+    lengthFalloff: 0.74, radiusFalloff: 0.65,
+    gravitropism: -0.05, twist: 36,                      // low, spreading, horizontal
+    leafSize: 1.2, leafDensity: 11, leafShape: 'ovate',
+    barkColor: '#584036', leafColor: '#f2b6cd', autumnColor: '#f7dce6',   // in blossom
+  },
+  eucalyptus: {
+    species: 'eucalyptus',
+    trunkHeight: 8, trunkRadius: 0.34, depth: 4,
+    splits: [2, 2], branchAngle: 30, angleJitter: 26,
+    lengthFalloff: 0.78, radiusFalloff: 0.68,
+    gravitropism: -0.2, twist: 40,                       // tall, open, drooping
+    leafSize: 1.15, leafDensity: 7, leafShape: 'lanceolate',
+    barkColor: '#c3b6a4', leafColor: '#7d9e7a',          // pale peeling bark, grey-green leaves
   },
   baobab: {
     species: 'baobab',

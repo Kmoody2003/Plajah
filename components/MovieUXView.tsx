@@ -35,6 +35,11 @@ import { createPortal } from 'react-dom';
 import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { BuyToOwn, useOwnership } from './BuyToOwn';
+import AriaMark from './aria/AriaMark';
+import { watchAnalysisJob, type TaleoAnalysisJob } from '../services/storyIntelService';
+
+// Owner-only Story Intelligence review surface — lazy so viewers never pay for it.
+const StoryIntelReview = React.lazy(() => import('./taleo/StoryIntelReview'));
 
 interface MovieUXViewProps {
   item: Video | Album;
@@ -866,6 +871,15 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
   const filmOwnership = useOwnership('film', item.id, currentUser?.uid);
   const hasFilmAccess = isOwner || !isPaidFilm || filmOwnership.owned;
 
+  // ── Taleo Story Intelligence (owner-only) ──────────────────────────────────
+  // Watch the analysis job doc; when one exists, surface the Aria review pill.
+  const [storyIntelJob, setStoryIntelJob] = useState<TaleoAnalysisJob | null>(null);
+  const [showStoryIntel, setShowStoryIntel] = useState(false);
+  useEffect(() => {
+    if (!isOwner || !item.id) { setStoryIntelJob(null); return; }
+    return watchAnalysisJob(item.id, setStoryIntelJob);
+  }, [isOwner, item.id]);
+
   const handlePlay = () => {
     // Gate paid films: without a license (or being the creator), don't start playback —
     // the hero shows Buy/Rent instead. Belt-and-suspenders in case the CTA is reached.
@@ -1317,6 +1331,18 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                         title="Edit this film's details"
                       >
                         <Pencil size={16} /> Edit Film
+                      </motion.button>
+                    )}
+                    {isOwner && storyIntelJob && (
+                      <motion.button
+                        whileHover={{ scale: 1.04 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => setShowStoryIntel(true)}
+                        className="h-12 px-6 bg-[#8b5cf6]/15 hover:bg-[#8b5cf6]/25 border border-[#8b5cf6]/40 text-[#c4b5fd] font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-2.5 transition-all"
+                        title="Aria's story analysis of this film"
+                      >
+                        <AriaMark size={18} thinking={storyIntelJob.status !== 'READY' && storyIntelJob.status !== 'PARTIAL' && storyIntelJob.status !== 'FAILED' && storyIntelJob.status !== 'SKIPPED'} />
+                        Story Intelligence
                       </motion.button>
                     )}
                     <button
@@ -1871,6 +1897,18 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
             )}
           </div>
         </div>
+
+        {/* ── Story Intelligence review (owner-only, lazy) ─────────────────── */}
+        {showStoryIntel && (
+          <React.Suspense fallback={null}>
+            <StoryIntelReview
+              albumId={item.id}
+              ownerId={ownerId || ''}
+              title={title}
+              onClose={() => setShowStoryIntel(false)}
+            />
+          </React.Suspense>
+        )}
       </div>
     </>
   );

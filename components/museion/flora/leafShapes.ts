@@ -13,7 +13,9 @@
 // renderer only ever sees an alpha map.
 // ═══════════════════════════════════════════════════════════════════════════
 
-export type LeafShape = 'broad' | 'needle' | 'palmate' | 'scale' | 'frond' | 'lanceolate' | 'ovate';
+export type LeafShape =
+  | 'broad' | 'needle' | 'palmate' | 'scale' | 'frond'
+  | 'lanceolate' | 'ovate' | 'maple' | 'fan' | 'heart';
 
 /** A closed outline: [x, y] pairs, counter-clockwise. */
 export type Polygon = [number, number][];
@@ -170,6 +172,74 @@ function frond(pairs = 12): LeafOutline {
   return { polygons, veins: [] };
 }
 
+/**
+ * Maple: palmately LOBED — one blade with five points radiating from the petiole
+ * and deep sinuses between them. Different from 'palmate', which is separate
+ * leaflets; this is the flag-of-Canada silhouette.
+ */
+function mapleBlade(points = 5, steps = 220): LeafOutline {
+  const poly: Polygon = [];
+  const SWEEP = 1.22;                                 // ±70°: a fan, not a full circle
+  for (let i = 0; i <= steps; i++) {
+    const u = i / steps;
+    const ang = (u - 0.5) * SWEEP * 2;
+    // |cos| peaks once per lobe; the exponent sharpens the sinus between them
+    const wave = Math.abs(Math.cos((u - 0.5) * points * Math.PI));
+    const taper = 1 - Math.abs(u - 0.5) * 0.5;        // outer lobes are shorter
+    const r = (0.34 + 0.62 * Math.pow(wave, 0.62)) * taper;
+    poly.push([Math.sin(ang) * r * 0.62, Math.max(0, Math.cos(ang) * r)]);
+  }
+  poly.push([0, 0]);                                  // close at the petiole
+  const veins: Polygon[] = [];
+  for (let k = 0; k < points; k++) {
+    const f = points === 1 ? 0 : (k / (points - 1) - 0.5) * 2;
+    const ang = f * SWEEP;
+    veins.push([[0, 0.03], [Math.sin(ang) * 0.5 * 0.62, Math.max(0.05, Math.cos(ang) * 0.78)]]);
+  }
+  return { polygons: [poly], veins };
+}
+
+/** Ginkgo: a fan — no midrib, just dichotomous veins radiating to a notched edge. */
+function fanBlade(steps = 60): LeafOutline {
+  const poly: Polygon = [[0, 0]];
+  const spread = 1.05;
+  for (let i = 0; i <= steps; i++) {
+    const u = i / steps;
+    const a = (u - 0.5) * spread * 2;
+    // a shallow notch splits the fan's outer edge in two
+    const notch = 1 - Math.pow(Math.cos(a * 3.1), 8) * 0.16;
+    const r = 0.92 * notch;
+    poly.push([Math.sin(a) * r * 0.72, Math.cos(a) * r]);
+  }
+  const veins: Polygon[] = [];
+  for (let k = 0; k < 7; k++) {
+    const a = (k / 6 - 0.5) * spread * 1.7;
+    veins.push([[0, 0.02], [Math.sin(a) * 0.62, Math.cos(a) * 0.84]]);
+  }
+  return { polygons: [poly], veins };
+}
+
+/** Cordate — a heart, for lindens and poplars: broad shoulders, drawn-out tip. */
+function heartBlade(steps = 110): LeafOutline {
+  const right: Polygon = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    // widest low on the blade, notched at the base
+    const env = Math.sin(Math.pow(t, 0.42) * Math.PI) * 0.47;
+    const notch = t < 0.1 ? Math.pow(t / 0.1, 0.55) : 1;
+    right.push([env * notch, t]);
+  }
+  const poly: Polygon = [...right];
+  for (let i = right.length - 1; i >= 0; i--) poly.push([-right[i][0], right[i][1]]);
+  const veins: Polygon[] = [[[0, 0], [0, 1]]];
+  for (let k = 1; k <= 3; k++) {
+    const y = 0.12 + k * 0.2;
+    veins.push([[0, 0.06], [0.4, y + 0.16]]);
+    veins.push([[0, 0.06], [-0.4, y + 0.16]]);
+  }
+  return { polygons: [poly], veins };
+}
+
 /** The species → outline table. */
 export function leafOutline(shape: LeafShape): LeafOutline {
   switch (shape) {
@@ -179,6 +249,9 @@ export function leafOutline(shape: LeafShape): LeafOutline {
     case 'frond': return frond();
     case 'lanceolate': return lanceolate();
     case 'ovate': return ovateSerrate();
+    case 'maple': return mapleBlade();
+    case 'fan': return fanBlade();
+    case 'heart': return heartBlade();
     case 'broad':
     default: return oakBlade();
   }

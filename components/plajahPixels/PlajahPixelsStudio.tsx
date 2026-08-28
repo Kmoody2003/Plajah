@@ -1165,8 +1165,13 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
     useEffect(() => {
         if (config.enableLiveCaptions && audioState.isPlaying && audioContextRef.current && sourceRef.current) {
             if (!liveSessionRef.current) {
-                const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || "";
-                liveSessionRef.current = new LiveLyricsSession(apiKey);
+                // Live lyrics go through the server-minted ephemeral token now
+                // (routes/veo.ts); the only client-side requirement is being signed in.
+                if (!auth.currentUser) {
+                    setIsLiveLyricsActive(false);
+                    return;
+                }
+                liveSessionRef.current = new LiveLyricsSession();
                 
                 liveSessionRef.current.connect(
                     audioContextRef.current,

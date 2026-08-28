@@ -34,6 +34,26 @@ function tierFor(): { dpr: [number, number]; radial: number; grass: number; post
   return { dpr: [1, 1.75], radial: 7, grass: 32000, post: true };
 }
 
+/** Preetham sky with fog disabled on its shader — see the note at the call site. */
+function SkyDome() {
+  const ref = useRef<THREE.Mesh>(null);
+  useEffect(() => {
+    const m = ref.current?.material as THREE.Material | undefined;
+    if (m) { (m as THREE.ShaderMaterial).fog = false; m.needsUpdate = true; }
+  }, []);
+  return (
+    <Sky
+      ref={ref as never}
+      distance={450000}
+      sunPosition={[30, 26, 16]}
+      turbidity={4.2}
+      rayleigh={1.6}
+      mieCoefficient={0.0045}
+      mieDirectionalG={0.82}
+    />
+  );
+}
+
 /** Ground plane + a hint of mist, so trees stand in a place rather than a void. */
 function ForestFloor() {
   return (
@@ -127,15 +147,21 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
           camera={{ position: [0, 4.2, 15], fov: 52 }}
           gl={{ antialias: true, powerPreference: 'high-performance' }}
           onCreated={({ scene, gl }) => {
-            gl.toneMappingExposure = 1.05;
+            gl.toneMappingExposure = 1.06;
             gl.shadowMap.type = THREE.PCFSoftShadowMap;
-            scene.fog = new THREE.FogExp2('#a8c6b4', 0.0095);
+            // LINEAR fog with a hard far plane: distant trees fade into haze while
+            // the sky dome (far beyond `far`, and fog-exempt) stays clean. Colour is
+            // sampled from the horizon so the two meet without a seam.
+            scene.fog = new THREE.Fog('#cfe0e8', 34, 190);
           }}
         >
           {/* Preetham atmospheric sky — no asset, and it sets the horizon colour
               the whole hall is lit against. */}
-          <Sky distance={4500} sunPosition={[26, 18, 14]} turbidity={7} rayleigh={2.2}
-            mieCoefficient={0.006} mieDirectionalG={0.86} />
+          {/* Preetham atmospheric sky. It MUST opt out of fog: exponential fog over
+              the dome's distance renders it 100% fog colour, which is what turned
+              the horizon white. Sun position matches the directional light so the
+              scattering and the shadows agree. */}
+          <SkyDome />
           <SoftShadows size={26} samples={12} focus={0.7} />
           <ForestLight />
           <ForestFloor />

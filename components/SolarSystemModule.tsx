@@ -9,19 +9,19 @@ import { generatePlanetInsight } from '../services/geminiService';
 // ─── Texture URLs (Three.js CDN — confirmed working) ─────────────────────────
 const TX = {
   sun:          'https://upload.wikimedia.org/wikipedia/commons/9/99/Map_of_the_full_sun.jpg',
-  mercury:      'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/mercury.jpg',
-  venus:        'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/venus_atmosphere.jpg',
-  earthDay:     'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_atmos_2048.jpg',
-  earthNight:   'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_lights_2048.png',
-  earthClouds:  'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_clouds_1024.png',
-  earthNormal:  'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_normal_2048.jpg',
-  earthSpec:    'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_specular_2048.jpg',
-  mars:         'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/mars.jpg',
-  jupiter:      'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/jupiter.jpg',
-  saturn:       'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/saturn.jpg',
-  saturnRing:   'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/saturn_ring_alpha.png',
-  uranus:       'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/uranus.jpg',
-  neptune:      'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/neptune.jpg',
+  mercury:      '/textures/solar/2k_mercury.jpg',
+  venus:        '/textures/solar/2k_venus_atmosphere.jpg',
+  earthDay:     '/textures/solar/earth_atmos_2048.jpg',
+  earthNight:   '/textures/solar/earth_lights_2048.png',
+  earthClouds:  '/textures/solar/earth_clouds_1024.png',
+  earthNormal:  '/textures/solar/earth_normal_2048.jpg',
+  earthSpec:    '/textures/solar/earth_specular_2048.jpg',
+  mars:         '/textures/solar/2k_mars.jpg',
+  jupiter:      '/textures/solar/2k_jupiter.jpg',
+  saturn:       '/textures/solar/2k_saturn.jpg',
+  saturnRing:   '/textures/solar/2k_saturn_ring_alpha.png',
+  uranus:       '/textures/solar/2k_uranus.jpg',
+  neptune:      '/textures/solar/2k_neptune.jpg',
 };
 
 // ─── Planet Data ─────────────────────────────────────────────────────────────

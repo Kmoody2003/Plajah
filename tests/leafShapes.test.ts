@@ -4,7 +4,7 @@ import {
   leafOutline, outlineBounds, polygonArea, type LeafShape,
 } from '../components/museion/flora/leafShapes.ts';
 
-const SHAPES: LeafShape[] = ['broad', 'ovate', 'lanceolate', 'palmate', 'needle', 'scale', 'frond'];
+const SHAPES: LeafShape[] = ['broad', 'ovate', 'lanceolate', 'palmate', 'needle', 'scale', 'frond', 'maple', 'fan', 'heart'];
 
 test('every shape produces closed, finite, non-degenerate blades', () => {
   for (const s of SHAPES) {

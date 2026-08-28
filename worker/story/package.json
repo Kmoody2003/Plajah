@@ -1,0 +1,18 @@
+{
+  "name": "plajah-story-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Taleo Story Intelligence — watches a published movie and writes a story report (Cloud Run worker)",
+  "scripts": {
+    "start": "tsx index.ts"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "tsx": "^4.22.4"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.14.0"
+  }
+}

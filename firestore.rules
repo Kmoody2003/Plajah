@@ -1223,6 +1223,13 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAuthenticated();
     }
+    match /taleoAnalysis/{albumId} {
+      // Taleo Story Intelligence job docs (status + progress for the background
+      // film-analysis worker). Owner-only read; only the server (service
+      // account, rules-exempt) writes them.
+      allow read: if request.auth != null && request.auth.uid == resource.data.ownerId;
+      allow write: if false;
+    }
     match /photoCritiques/{photoId}/entries/{critiqueId} {
       // Structured photo critique (composition / light / story, 1–5) — the doc id IS the
       // critic's uid, so a person can only ever write their own critique and re-submitting

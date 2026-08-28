@@ -414,15 +414,29 @@ function videoFrameB64(url) {
     v.onerror = () => { clearTimeout(bail); rej(new Error("video load failed")); };
   });
 }
-async function claudeVisionJson(images, prompt) {
+async function claudeVisionJson(images, prompt, maxRetries = 2) {
   // images: [{data, media}] — supports reference + candidate comparisons
+  // Routed through /api/ai/anthropic (same auth + retry pattern as callClaude) —
+  // the proxy holds the API key; it passes messages through untouched.
   const content = [...images.map((im) => ({ type: "image", source: { type: "base64", media_type: im.media, data: im.data } })), { type: "text", text: prompt }];
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, messages: [{ role: "user", content }] }),
-  });
-  const data = await res.json();
-  return parseJsonRobust((data.content || []).map((b) => b.text || "").join("\n"));
+  let token = await getAuthToken();
+  let lastErr;
+  for (let a = 0; a <= maxRetries; a++) {
+    try {
+      const res = await fetch("/api/ai/anthropic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1024, messages: [{ role: "user", content }] }),
+      });
+      if (res.status === 401) { token = await getAuthToken(true); const b = await res.json().catch(() => ({})); lastErr = new Error(`auth (${b.error || "401"})`); continue; }
+      if (!res.ok) { const b = await res.json().catch(() => ({})); lastErr = new Error(`AI ${res.status}${b.error ? ": " + b.error : ""}`); continue; }
+      const data = await res.json();
+      const text = (data.content || []).map((b) => (b.type === "text" ? b.text : "")).join("\n");
+      if (!text) { lastErr = new Error("empty response"); continue; }
+      return parseJsonRobust(text);
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error("AI vision request failed");
 }
 async function claudeTagMedia(b64, media, hint) {
   return claudeVisionJson([{ data: b64, media }],
@@ -1226,7 +1240,7 @@ export default function Fabula() {
               if (!r.match) m.note = "⚠ does not appear to be this character — " + (r.observed || "");
             }
           });
-        } catch {}
+        } catch (e) { console.warn("[fabula] vision call failed", e); }
       }
 
       // auto-tag the first taggable assets from local records (state-safe); the rest tag on demand
@@ -1249,7 +1263,7 @@ export default function Fabula() {
               if (a) a.tags = it.tags;
             }
           });
-        } catch {}
+        } catch (e) { console.warn("[fabula] vision call failed", e); }
       }
       const castN = entries.filter((e) => e.cat === "__cast").length;
       ping(`Folder imported — ${entries.length - castN} world assets sorted${castN ? `, ${castN} routed to cast` : ""}, ${taggable.length} auto-tagged`);

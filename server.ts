@@ -29,6 +29,8 @@ import { postmanRouter } from './routes/postman';
 import { campaignsRouter } from './routes/campaigns';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { kithSightingsRouter } from './routes/kithSightings';
+import { veoRouter } from './routes/veo';
+import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/taleo';
 import { createCustomToken, fsGet, fsSet, fsPatch, fsDelete } from './services/firebaseAdminRest';
 import { buildFfmpegArgs } from './services/crossover/engine';
 import { extFor } from './services/crossover/formats';
@@ -1861,7 +1863,9 @@ async function startServer() {
   // larger bodies (the AI proxy sends system prompt + scene context, well over 10kb)
   // so they can parse with their own limit instead of being 413'd here first.
   const tightJson = express.json({ limit: '10kb' });
-  const LARGE_BODY_ROUTES = new Set(['/api/ai/anthropic', '/api/ai/gemini', '/api/ai/pokee']);
+  const LARGE_BODY_ROUTES = new Set(['/api/ai/anthropic', '/api/ai/gemini', '/api/ai/pokee',
+    // Veo/Pixels proxy: /content carries base64 inlineData audio, /generate can carry an image.
+    '/api/ai/veo/content', '/api/ai/veo/generate']);
   app.use((req, res, next) => {
     if (LARGE_BODY_ROUTES.has(req.path)) return next();
     return tightJson(req, res, next);
@@ -7071,6 +7075,26 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
               });
             }
           } catch (e: any) { console.error('[MUX webhook] Video update failed:', e.message); }
+
+          // Story Intelligence: a movie upload's analysis job waits as WAITING_MEDIA until its
+          // asset is streamable. Album ids contain underscores so the sys_{albumId}_{trackId}
+          // doc id can't be parsed reliably — instead sweep the (tiny) WAITING_MEDIA set and
+          // let enqueueIfReady re-check each album for a ready playbackId. Idempotent.
+          try {
+            const jq = await fetch(`${fsBase}:runQuery`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ structuredQuery: {
+                from: [{ collectionId: 'taleoAnalysis' }],
+                where: { fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'WAITING_MEDIA' } } },
+                limit: 10,
+              } }),
+            });
+            const jrows = await jq.json();
+            for (const row of (Array.isArray(jrows) ? jrows : [])) {
+              const aid = row?.document?.fields?.albumId?.stringValue;
+              if (aid) taleoEnqueueIfReady(aid).catch(() => {});
+            }
+          } catch (e: any) { console.warn('[MUX webhook] story-intel enqueue sweep failed:', e?.message); }
         }
       }
 
@@ -8519,6 +8543,12 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // anyone burning API budget trying to find that out.
   app.use('/api/kith/spawn-check', authLimiter);
   app.use('/api/kith', express.json({ limit: '8kb' }), kithSightingsRouter);
+
+  // Pixels Veo/Gemini proxy (browser code must never hold the key — see routes/veo.ts).
+  app.use('/api/ai/veo', express.json({ limit: '48mb' }), veoRouter);
+
+  // Taleo Story Intelligence enqueue (worker poke; see routes/taleo.ts + worker/story/).
+  app.use('/api/taleo', express.json({ limit: '16kb' }), taleoRouter);
 
   if (process.env.SPORTS_INGESTION_WORKER !== 'false') {
     const intervalMs = Number(process.env.SPORTS_INGESTION_INTERVAL_MS) || undefined;

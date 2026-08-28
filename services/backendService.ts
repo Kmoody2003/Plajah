@@ -3354,6 +3354,21 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
       })();
     }
 
+    // Trigger Taleo Story Intelligence for movies / TV series (fire-and-forget — never blocks publish)
+    if (cloudAlbum.type === 'VIDEO' && (cloudAlbum.subType === 'MOVIE' || cloudAlbum.subType === 'TV_SERIES')) {
+      (async () => {
+        try {
+          const token = await auth.currentUser!.getIdToken();
+          const appUrl = (import.meta as any).env?.VITE_APP_URL ?? window.location.origin;
+          await fetch(`${appUrl}/api/taleo/analyze`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ albumId: cloudAlbum.id }),
+          });
+        } catch { /* analysis failure must never surface to the user */ }
+      })();
+    }
+
     // Set user as artist
     await setDoc(doc(db, "users", auth.currentUser.uid), { isArtist: true }, { merge: true });
 
