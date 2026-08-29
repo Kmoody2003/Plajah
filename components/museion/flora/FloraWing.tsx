@@ -115,6 +115,22 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
   const [skyId, setSkyId] = useState<string>(DEFAULT_SKY);
   const sky = useMemo(() => skyById(skyId), [skyId]);
   const [backdropId, setBackdropId] = useState<string>(() => defaultBackdrop().id);
+  /**
+   * Render layers, most-decorated to barest.
+   *
+   * This exists because a hall that renders wrong gives you almost nothing to go
+   * on: post-processing, ground cover and the specimens all fail into the same
+   * symptom — "it looks broken" — and bisecting them means a code change and a
+   * reload for each guess. Dropping a layer at a time turns that into two
+   * clicks, and it doubles as an honest performance control on weak hardware.
+   *
+   *   full   — everything
+   *   plain  — no post-processing (isolates the composer: AO, bloom, DoF, grade)
+   *   bare   — no post, no ground cover, no light shafts: specimens and light only
+   */
+  const [renderMode, setRenderMode] = useState<'full' | 'plain' | 'bare'>('full');
+  const wantPost = renderMode === 'full';
+  const wantGround = renderMode !== 'bare';
   const backdrop = useMemo(() => backdropById(backdropId), [backdropId]);
   const skyRef = useRef(sky);
   skyRef.current = sky;
@@ -211,7 +227,7 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
               />
             </Suspense>
           )}
-          {!reduced && tier.post && (
+          {!reduced && tier.post && wantGround && (
             <LightShafts
               sunPosition={(sky.sun ?? { position: [30, 26, 16] }).position}
               intensity={sky.shafts ?? 1}
@@ -220,22 +236,22 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
           <SoftShadows size={26} samples={12} focus={0.7} />
           <ForestLight sun={sky.sun ?? { position: [30, 26, 16], color: '#ffe2b0', intensity: 2.6 }} />
           <ForestFloor />
-          <GrassField
+          {wantGround && <GrassField
             count={grassCount}
             outerRadius={26}
             season={season}
             wind={reduced ? 0 : 1}
             sunPosition={(sky.sun ?? { position: [30, 26, 16] }).position}
-          />
-          <GroundCover
+          />}
+          {wantGround && <GroundCover
             count={Math.round(grassCount / 40)}
             outerRadius={26}
             shape="broad"
             season={season}
             wind={reduced ? 0 : 1}
             sunPosition={(sky.sun ?? { position: [30, 26, 16] }).position}
-          />
-          <GroundCover
+          />}
+          {wantGround && <GroundCover
             count={Math.round(grassCount / 70)}
             outerRadius={24}
             shape="frond"
@@ -243,7 +259,7 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
             season={season}
             wind={reduced ? 0 : 1}
             sunPosition={(sky.sun ?? { position: [30, 26, 16] }).position}
-          />
+          />}
           {specimens.map((s, i) => {
             const spot = layout[i];
             if (!s.model || !spot) return null;
@@ -284,7 +300,7 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
               highlights into film-like rolloff. N8AO grounds trunks in the grass
               and darkens the crown interior; SMAA cleans the alpha-tested leaf
               edges that otherwise shimmer. Tiered off on weak devices. */}
-          {tier.post && (
+          {tier.post && wantPost && (
             <EffectComposer enableNormalPass multisampling={0}>
               <N8AO aoRadius={1.5} intensity={1.5} distanceFalloff={0.85} quality="performance" halfRes />
               <Bloom intensity={0.42} luminanceThreshold={0.86} luminanceSmoothing={0.28} mipmapBlur />
@@ -339,6 +355,16 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
             title={audioOn ? 'Silence the forest' : 'Let the forest in'}>
             {audioOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
           </button>
+          <select
+            className="fw-skysel"
+            value={renderMode}
+            onChange={(e) => setRenderMode(e.target.value as 'full' | 'plain' | 'bare')}
+            title="Render layers — drop one at a time to see which is responsible for a problem, or to gain frames"
+          >
+            <option value="full">Full render</option>
+            <option value="plain">No post-processing</option>
+            <option value="bare">Specimens only</option>
+          </select>
           <select className="fw-skysel" value={backdropId} onChange={(e) => setBackdropId(e.target.value)}
             title="Backdrop — photographs standing at the treeline behind the specimens">
             {BACKDROP_SETS.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
