@@ -1,5 +1,8 @@
 {
   "compilerOptions": {
+    // Specimen photo credits ship as JSON so a fetch script can regenerate
+    // them without anyone hand-editing a data file.
+    "resolveJsonModule": true,
     "target": "ES2022",
     "experimentalDecorators": true,
     "useDefineForClassFields": false,

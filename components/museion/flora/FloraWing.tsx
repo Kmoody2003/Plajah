@@ -12,7 +12,7 @@ import { OrbitControls, Environment, SoftShadows } from '@react-three/drei';
 import { EffectComposer, N8AO, Bloom, ToneMapping, SMAA, Vignette, DepthOfField, HueSaturation } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import * as THREE from 'three';
-import { ArrowLeft, Volume2, VolumeX, Sprout, BookOpen } from 'lucide-react';
+import { ArrowLeft, Volume2, VolumeX, Sprout, BookOpen, Landmark } from 'lucide-react';
 import TreeMesh from './TreeMesh';
 import SpecimenModel from './SpecimenModel';
 import GrassField from './GrassField';
@@ -21,6 +21,7 @@ import { disposeFloraTextures, forestFloorTexture, forestFloorNormal } from './t
 import { SKY_ENVIRONMENTS, DEFAULT_SKY, skyById } from './skyEnvironments';
 import ForestBackdrop from './ForestBackdrop';
 import LightShafts from './LightShafts';
+import BotanyHall from './BotanyHall';
 import { BACKDROP_SETS, defaultBackdrop, backdropById } from './backdrops';
 import { ForestAudio, roomForGallery } from './ForestAudio';
 import { FLORA, GALLERY_META, LINEAGE_LABEL, CONSERVATION_LABEL, populatedGalleries } from '../../../data/flora';
@@ -129,6 +130,10 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
    *   bare   — no post, no ground cover, no light shafts: specimens and light only
    */
   const [renderMode, setRenderMode] = useState<'full' | 'plain' | 'bare'>('full');
+  /** Which photograph is enlarged. Reset per specimen — see the effect below. */
+  const [photoIndex, setPhotoIndex] = useState(0);
+  /** The history room. Text, not a 3D scene — it opens over the hall. */
+  const [historyOpen, setHistoryOpen] = useState(false);
   const wantPost = renderMode === 'full';
   const wantGround = renderMode !== 'bare';
   const backdrop = useMemo(() => backdropById(backdropId), [backdropId]);
@@ -140,6 +145,9 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
   const grassCount = tier.grass;
 
   useEffect(() => { setSelectedId(specimens[0]?.id ?? ''); }, [gallery]); // eslint-disable-line
+  // Back to the lead photograph on every new specimen — otherwise a card opens
+  // on "image 2" of a plant that only has one, and shows nothing.
+  useEffect(() => { setPhotoIndex(0); }, [selectedId]);
 
   // Ambience follows the room; gesture-gated start (browsers refuse otherwise).
   useEffect(() => {
@@ -172,6 +180,7 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
   return (
     <div className="flora-wing">
       <style>{CSS}</style>
+      {historyOpen && <BotanyHall onBack={() => setHistoryOpen(false)} />}
 
       <div className="fw-stage">
         <Canvas
@@ -185,12 +194,18 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
             // LINEAR fog with a hard far plane: distant trees haze out while the
             // HDRI background (drawn beyond it) stays crisp. Colour comes from the
             // chosen sky's horizon so the two meet without a seam.
-            // Fog starts BEYOND the hall. It began at 38 while the ground
-            // runs to 92, so most of the floor was being mixed toward flat pale
-            // blue — the grey wash over everything. Depth separation is the
-            // depth-of-field pass's job now; fog only softens the far rim, and
-            // the colour leans to the sky's warmth rather than a cold haze.
-            scene.fog = new THREE.Fog(skyRef.current.fog ?? '#cfe0e8', 78, 260);
+            // NO FOG.
+            //
+            // It was here to build depth, and it was the wrong tool for it: fog
+            // creates distance by mixing everything toward one flat colour, so
+            // the greens went grey, the backdrop photographs went pale, and the
+            // hall read as an overcast day no matter which sky was chosen.
+            // Pushing it further out only moved the problem.
+            //
+            // The depth-of-field pass does the same job the way a lens does —
+            // far things go soft, nothing changes colour — so the haze has
+            // nothing left to contribute and is gone entirely.
+            scene.fog = null;
           }}
         >
           {/* Preetham atmospheric sky — no asset, and it sets the horizon colour
@@ -373,6 +388,13 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
             title="Sky & lighting — the panorama is both the background and the light source">
             {SKY_ENVIRONMENTS.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
           </select>
+          <button
+            className="fw-icon"
+            onClick={() => setHistoryOpen(true)}
+            title="The Study of Plants — how botany found out what it knows"
+          >
+            <Landmark size={15} />
+          </button>
           {onOpenStudyRoom && (
             <button className="fw-icon" onClick={onOpenStudyRoom} title="The Study Room — cells, photosynthesis, microscopy">
               <BookOpen size={15} />
@@ -400,6 +422,34 @@ export default function FloraWing({ onBack, onOpenStudyRoom }: { onBack: () => v
             <h2>{selected.commonName}</h2>
             <p className="fw-sci">{selected.sciName}</p>
           </div>
+          {/* The photographs. A procedural tree is a good model of a species and
+              a poor likeness of one — the visitor still needs to see the real
+              bark, the real leaf, the real habit. Each carries its own credit
+              because each has its own photographer and licence; a single
+              attribution line for the page would be wrong the moment a second
+              image came from someone else. */}
+          {selected.photos.length > 0 && (
+            <figure className="fw-photos">
+              <div className="fw-photo-row">
+                {selected.photos.map((p, i) => (
+                  <button
+                    key={p.url}
+                    type="button"
+                    className={`fw-photo ${photoIndex === i ? 'on' : ''}`}
+                    onClick={() => setPhotoIndex(i)}
+                    aria-label={`Photograph ${i + 1} of ${selected.photos.length}`}
+                  >
+                    <img src={p.url} alt={`${selected.commonName} (${selected.sciName})`} loading="lazy" decoding="async" />
+                  </button>
+                ))}
+              </div>
+              <figcaption className="fw-credit">
+                {selected.photos[Math.min(photoIndex, selected.photos.length - 1)].credit}
+                {' · '}
+                {selected.photos[Math.min(photoIndex, selected.photos.length - 1)].license}
+              </figcaption>
+            </figure>
+          )}
           <div className="fw-chips">
             <span className="fw-chip">{selected.family}</span>
             <span className="fw-chip ghost">{LINEAGE_LABEL[selected.lineage].split(' — ')[0]}</span>
@@ -507,7 +557,7 @@ const CSS = `
 .fw-chip.iucn.warn{background:rgba(255,179,71,.15);color:#ffc077}
 .fw-story{font-size:13.5px;line-height:1.65;color:rgba(231,236,230,.72);margin:0}
 .fw-credit{font-size:10px;color:rgba(231,236,230,.4);margin:10px 0 0;line-height:1.45}
-.fw-stats{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:14px 0 0;font-size:12px}
+.fw-photos{margin:12px 0 0}.fw-photo-row{display:flex;gap:6px}.fw-photo{flex:1 1 0;min-width:0;padding:0;border:1px solid rgba(255,255,255,.10);border-radius:10px;overflow:hidden;background:rgba(255,255,255,.04);cursor:pointer;height:96px;transition:flex-grow .32s cubic-bezier(.4,0,.2,1),border-color .2s}.fw-photo.on{flex-grow:2.6;border-color:rgba(255,255,255,.34)}.fw-photo:focus-visible{outline:2px solid #8fd8a0;outline-offset:2px}.fw-photo img{width:100%;height:100%;object-fit:cover;display:block}.fw-photos .fw-credit{margin-top:6px}.fw-stats{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:14px 0 0;font-size:12px}
 .fw-stats dt{color:rgba(231,236,230,.4);font-weight:600;font-size:9.5px;letter-spacing:.12em;
   text-transform:uppercase;align-self:center}
 .fw-stats dd{margin:0;color:rgba(231,236,230,.85)}
