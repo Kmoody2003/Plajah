@@ -35,6 +35,10 @@ import { createCustomToken, fsGet, fsSet, fsPatch, fsDelete } from './services/f
 import { buildFfmpegArgs } from './services/crossover/engine';
 import { extFor } from './services/crossover/formats';
 import type { Recipe as CxRecipe, MediaKind as CxKind, MediaProbe as CxProbe } from './services/crossover/types';
+import {
+  runChoraTranscodeWorker, startChoraTranscodeScheduler, PROCESSING_STALE_MS,
+  type ChoraTranscodeDeps, type TrackCandidate as ChoraTrackCandidate,
+} from './services/choraTranscodeWorker.js';
 
 // Load .env.local (development) or .env (production) — no dotenv dependency needed
 for (const envFile of ['.env.local', '.env']) {
@@ -6549,6 +6553,117 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     } finally { if (inPath) fs.unlink(inPath).catch(() => {}); }
   });
 
+  // ── Chora transcode worker: cron + status + enqueue ──────────────────────────
+  //
+  // Replaces the browser as the driver. See services/choraTranscodeWorker for the full story;
+  // the short version is that publishing a 39-track album used to fire 39 concurrent 150-second
+  // ffmpeg requests from one page load and then navigate away, stranding every one of them at
+  // status:'processing' forever.
+
+  /** Every music track that has a fetchable source, newest albums first. */
+  async function choraListCandidates(limit: number): Promise<ChoraTrackCandidate[]> {
+    const albums = await fsQueryDocs('albums', [{ field: 'type', op: 'EQUAL', value: 'MUSIC' }], 300);
+    const out: ChoraTrackCandidate[] = [];
+    for (const a of albums) {
+      const tracks = Array.isArray(a.data?.tracks) ? a.data.tracks : [];
+      for (const t of tracks) {
+        const trackId = String(t?.id || '').trim();
+        const srcUrl = String(t?.url || '').trim();
+        if (!trackId || !/^https?:/i.test(srcUrl)) continue;
+        out.push({ trackId, srcUrl, albumId: a.id });
+        if (out.length >= limit) return out;
+      }
+    }
+    return out;
+  }
+
+  const choraWorkerDeps: ChoraTranscodeDeps = {
+    listCandidates: choraListCandidates,
+    readStream: async (trackId) => (await firestoreRead('choraStreams', trackId)) as any,
+    writeStream: async (trackId, patch) => { await firestoreWrite('choraStreams', trackId, patch as any); },
+    transcodeOne: async ({ trackId, srcUrl }) => {
+      const publicBase = (process.env.PUBLIC_API_BASE || 'https://plajah.com').replace(/\/+$/, '');
+      let inPath: string | null = null;
+      try {
+        inPath = await fetchToTmp(srcUrl, 'audio');
+        if (!inPath) throw new Error('source fetch failed');
+        const r = await choraTranscodeToGcs(inPath, trackId, publicBase);
+        await firestoreWrite('choraStreams', trackId, {
+          status: r.status, hls: r.hls, low: r.low, flac: r.flac,
+          loudnessLufs: Math.round(r.loudnessLufs), durationSec: Math.round(r.durationSec),
+          rungs: ['low', 'high', 'lossless'], updatedAt: Date.now(),
+        });
+      } finally { if (inPath) fs.unlink(inPath).catch(() => {}); }
+    },
+  };
+
+  // The durable driver. Key-gated because a scheduler carries no Firebase ID token — same shape
+  // as /api/terra/cron/ingest. The run is AWAITED, and the worker's own budget keeps it inside
+  // Cloud Run's 300s ceiling; letting it outlive the request would strand jobs exactly like the
+  // browser did.
+  app.post('/api/chora/cron/transcode', express.json({ limit: '4kb' }), async (req: any, res) => {
+    const expected = process.env.CHORA_CRON_KEY || '';
+    const provided = String(req.get('x-chora-cron-key') || '');
+    if (!secretsEqual(provided, expected)) return res.status(401).json({ error: 'invalid or missing cron key' });
+    try {
+      const summary = await runChoraTranscodeWorker(choraWorkerDeps, { reason: 'cron' });
+      res.json(summary);
+    } catch (err: any) {
+      console.error('[Chora transcode] Cron run failed:', err?.message || err);
+      res.status(500).json({ error: String(err?.message || err) });
+    }
+  });
+
+  // Read-only coverage, public. The visibility that was missing: how much of the catalogue
+  // actually has a rendition, and how much is stuck. Without this the 30% gap was invisible
+  // until someone counted by hand.
+  app.get('/api/chora/transcode/status', async (_req: any, res: any) => {
+    try {
+      const candidates = await choraListCandidates(1000);
+      const counts = { total: candidates.length, ready: 0, processing: 0, pending: 0, failed: 0, missing: 0, stale: 0 };
+      const now = Date.now();
+      for (const c of candidates) {
+        const s: any = await firestoreRead('choraStreams', c.trackId);
+        if (!s || !s.status) { counts.missing++; continue; }
+        if (s.status === 'ready') counts.ready++;
+        else if (s.status === 'pending') counts.pending++;
+        else if (s.status === 'failed') counts.failed++;
+        else if (s.status === 'processing') {
+          counts.processing++;
+          if (!s.updatedAt || now - Number(s.updatedAt) > PROCESSING_STALE_MS) counts.stale++;
+        }
+      }
+      const pct = counts.total ? Math.round((counts.ready / counts.total) * 1000) / 10 : 0;
+      res.json({ ...counts, readyPct: pct });
+    } catch (err: any) {
+      res.status(500).json({ error: String(err?.message || err) });
+    }
+  });
+
+  // Publish-time enqueue. ONE call for a whole album, returns immediately. This is what the
+  // browser calls instead of looping enqueueTranscode() per track — it only marks work as
+  // pending, and the worker above does it. Nothing long-running happens in this request.
+  app.post('/api/chora/enqueue-album', apiLimiter, authMiddleware, express.json({ limit: '16kb' }), async (req: any, res) => {
+    const albumId = String(req.body?.albumId || '').trim();
+    if (!albumId || !/^[\w-]{1,128}$/.test(albumId)) return res.status(400).json({ error: 'albumId required' });
+    const album = await firestoreRead('albums', albumId);
+    if (!album) return res.status(404).json({ error: 'album not found' });
+    if (String(album.ownerId || '') !== req.uid) return res.status(403).json({ error: 'not your album' });
+
+    const tracks = Array.isArray(album.tracks) ? album.tracks : [];
+    let queued = 0;
+    for (const t of tracks) {
+      const trackId = String((t as any)?.id || '').trim();
+      const srcUrl = String((t as any)?.url || '').trim();
+      if (!trackId || !/^https?:/i.test(srcUrl)) continue;
+      const existing: any = await firestoreRead('choraStreams', trackId);
+      if (existing?.status === 'ready') continue;
+      await firestoreWrite('choraStreams', trackId, { status: 'pending', updatedAt: Date.now() });
+      queued++;
+    }
+    res.json({ ok: true, queued, total: tracks.length });
+  });
+
   // Backend-only transcode for the catalogue backfill. Identical work to the route above, but
   // gated by a shared key instead of a Firebase ID token — so it can be driven entirely from the
   // server side (a script / cron) with NO signed-in browser or TV in the loop. This is why the
@@ -8664,6 +8779,15 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // Terra parcel spine. Detroit publishes daily, so this runs nightly by default.
   // Off unless explicitly enabled — the first full pull is heavy and should be a
   // deliberate act, not a side effect of a deploy.
+  // Chora streaming-ladder transcodes. The external Cloud Scheduler hitting
+  // /api/chora/cron/transcode is the durable driver; this in-process pass only helps a container
+  // that stays warm. On by default: unlike Terra's first pull this is incremental and bounded by
+  // the worker's own time budget, so a deploy cannot kick off anything heavy by surprise.
+  if (process.env.CHORA_TRANSCODE_WORKER !== 'false') {
+    const intervalMs = Number(process.env.CHORA_TRANSCODE_INTERVAL_MS) || undefined;
+    startChoraTranscodeScheduler(choraWorkerDeps, intervalMs ? { intervalMs } : undefined);
+  }
+
   if (process.env.TERRA_INGESTION_WORKER === 'true') {
     const intervalMs = Number(process.env.TERRA_INGESTION_INTERVAL_MS) || undefined;
     const { startTerraIngestionScheduler } = await import('./services/terraIngestionWorker.js');

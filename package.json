@@ -25,6 +25,7 @@
     "test:paper": "npx tsx --test --experimental-test-module-mocks tests/paperTrading.test.ts",
     "test:academia": "npx tsx --test tests/academiaIntegrity.test.ts",
     "test:taste": "npx tsx --test tests/videoTaste.test.ts",
+    "test:transcode": "npx tsx --test tests/choraTranscodeWorker.test.ts",
     "test:playback": "npx tsx --test tests/playbackHealth.test.ts",
     "test:melos": "npx tsx --test tests/melosArp.test.ts tests/melosKera.test.ts",
     "test:fabulagen": "npx tsx --test tests/fabulaGenHandoff.test.ts",

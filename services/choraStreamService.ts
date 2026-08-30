@@ -140,6 +140,32 @@ export async function enqueueTranscode(trackId: string, srcUrl: string): Promise
   } catch { return false; }
 }
 
+/**
+ * Ask the server to queue an album's tracks for transcoding. ONE request, returns immediately.
+ *
+ * This is the replacement for calling enqueueTranscode() per track from the browser. That pattern
+ * made the PAGE the driver of a ~150s server job: publishing a large album fired dozens of
+ * concurrent long requests and then abandoned them on navigation, stranding each doc at
+ * 'processing'. Here the browser only says "these need doing" and leaves; the work is claimed and
+ * run by services/choraTranscodeWorker on the server.
+ */
+export async function enqueueAlbumForTranscode(albumId: string): Promise<number> {
+  try {
+    const token = await auth.currentUser?.getIdToken();
+    if (!token || !albumId) return 0;
+    const res = await fetch('/api/chora/enqueue-album', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ albumId }),
+    });
+    if (!res.ok) return 0;
+    const json = await res.json().catch(() => null);
+    return Number(json?.queued) || 0;
+  } catch {
+    return 0;   // publish must never fail because the transcode queue did
+  }
+}
+
 /** Backfill: enqueue an album's not-yet-transcoded music tracks, throttled. Returns how many were
  *  queued. Skips tracks already 'ready', and 'processing' ones that are still plausibly alive —
  *  a 'processing' doc older than PROCESSING_STALE_MS is treated as a dead job and retried.

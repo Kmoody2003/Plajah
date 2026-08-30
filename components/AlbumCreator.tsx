@@ -6,7 +6,7 @@ import { buildShareUrl, shareText } from '../services/deepLinkService';
 import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
 import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, fetchUserCharacters, uploadFile as storageUpload, uploadVideo, fetchUserVideos } from '../services/backendService';
 import { listCloudProjects } from './plajahPixels/services/projectService';
-import { enqueueTranscode } from '../services/choraStreamService';
+import { enqueueAlbumForTranscode } from '../services/choraStreamService';
 import { requestAnalysis } from '../services/storyIntelService';
 // Lyric sync lives in ONE place (services/lyricSync.ts) so the Melos Project view and this
 // Caption Sync card can never drift apart.
@@ -1030,9 +1030,15 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           // Kick off transcode-to-streaming-ladder for music tracks (background; status-gated, so
           // playback keeps using the original until the AAC/HLS + FLAC renditions are ready).
           if (type === 'MUSIC' && Array.isArray(finalAlbum?.tracks)) {
-            for (const t of finalAlbum.tracks) {
-              if (t?.id && typeof t.url === 'string' && /^https?:/i.test(t.url)) enqueueTranscode(t.id, t.url).catch(() => {});
-            }
+            // ONE call that marks the album's tracks 'pending'; the server-side worker
+            // (services/choraTranscodeWorker) does the actual transcoding on its own schedule.
+            //
+            // This used to be a `for` loop firing enqueueTranscode() per track with no await —
+            // each one a synchronous ~150s ffmpeg request, all in parallel, from this page. A
+            // 39-track album fired 39 concurrent 150-second jobs and then navigated away and
+            // abandoned them, which both stampeded Cloud Run and pinned every one of those docs
+            // at status:'processing' forever. 68 tracks sat that way for over a month.
+            void enqueueAlbumForTranscode(finalAlbum.id);
             // REAL caption sync, now that the audio has a URL the server can fetch. This hits the
             // same windowed-transcription endpoint the player's "Sync Lyrics" uses (short audio
             // windows anchored to real timestamps), instead of guessing evenly-spaced times.
