@@ -3,6 +3,7 @@ import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/Globa
 import { useGoogleCast } from '../hooks/useGoogleCast';
 import { useViewport } from '../hooks/useViewport';
 import { useShellNext } from '../hooks/useShellNext';
+import { getPlatformInfo } from '../hooks/usePlatform';
 import CommandPlayer from './CommandPlayer';
 import TrackReactions from './TrackReactions';
 import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Shuffle, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon, Headphones, ZapOff } from 'lucide-react';
@@ -390,7 +391,18 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   // ── New shell (beta): the Command Player owns every desktop surface. The new
   // Command Split pillar doesn't host a nano, so we float it here instead of the
   // sidebar — nano = a bottom-left card, full = the bottom bar. Phones keep classic.
-  if (shellNextGP.enabled && !isPhoneMode) {
+  //
+  // MUST exclude TV. App.tsx's own inline CommandPlayer mount already skips TV
+  // (`!getPlatformInfo().isTV`) and falls through to plain <GlobalPlayer>, on the
+  // assumption that GlobalPlayer's internal logic is TV-safe. It wasn't: this
+  // branch re-derives the same "New shell" decision independently, with no TV
+  // check of its own — so on a TV (shellNext defaults ON, and a TV is never
+  // "phone mode") it rendered the desktop floating nano / bottom bar over the
+  // TV's own TvTopTabs UI. That was the "floating desktop player is on my TV"
+  // bug. isTVMode from context exists for exactly this but is dead (settable,
+  // never re-read) — call getPlatformInfo().isTV directly, same as every other
+  // TV gate in App.tsx, so this can't drift out of sync again.
+  if (shellNextGP.enabled && !isPhoneMode && !getPlatformInfo().isTV) {
     const cp = (variant: 'full' | 'nano') => (
       <CommandPlayer
         variant={variant}

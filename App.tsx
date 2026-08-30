@@ -5996,7 +5996,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onMinimize={() => { setIsNanoView(true); setIsNanoDocked(true); setIsMinimized(true); }}
               />
             </div>
-          ) : shellNext.enabled && !isMobile && !getPlatformInfo().isTV && currentTrack && isNanoView ? null : (
+          ) : shellNext.enabled && !isMobile && !getPlatformInfo().isTV && currentTrack && isNanoView ? null : getPlatformInfo().isTV ? null : (
+          // TV gets no floating player from this block at all — every branch above already
+          // excludes it, but the fallback below is <GlobalPlayer>, which had ZERO TV-awareness
+          // of its own (its internal `isNanoView` nano and its own copy of the New-shell
+          // Command Player branch both render unconditionally once mounted). That put the
+          // desktop floating nano / bottom bar in view over the TV's TvTopTabs UI whenever
+          // something was playing. TV's own screens (LiveTvPlus, the TV Music view) own
+          // playback chrome on TV; this component should never reach a television at all.
           <GlobalPlayer
             onNavigate={handleGlobalNavigate}
             bottomOffset={(isMobile || theme === 'PHONE') ? "0px" : "0px"} 
