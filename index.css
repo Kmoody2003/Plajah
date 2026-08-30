@@ -1418,8 +1418,11 @@ html.tv-nav :is(a, button, input, select, textarea, summary,
   background-color: transparent !important;
   transform: scale(1.05) !important;
   /* Only transform transitions — the ring snaps in instantly (crisp, no paint
-     animation of the shadow), the lift eases in on the compositor. */
-  transition: transform 0.13s ease !important;
+     animation of the shadow), the lift eases in on the compositor.
+     90ms, not 130: at the tightened key-repeat the old duration meant the lift was still
+     easing when the next press arrived, so held navigation looked like it was sliding rather
+     than stepping. Short enough to read as immediate, long enough not to be a jump cut. */
+  transition: transform 0.09s cubic-bezier(0.2, 0, 0, 1) !important;
   border-radius: 10px;
   z-index: 200 !important;
 }

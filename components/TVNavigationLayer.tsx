@@ -147,12 +147,17 @@ const canGoBackInApp = (): boolean => window.history.length > 1 && !!window.hist
 // Long-press on a remote fires the browser's native key-repeat, which on a TV overshoots by
 // several items before the user's thumb lifts. Gate repeats to a deliberate ramp instead:
 // slow for the first few, then faster, never faster than ~10/sec.
-const repeatInterval = (run: number): number => (run < 2 ? 300 : run < 6 ? 170 : 100);
+// Tightened for feel: the first press must be instant or the whole remote reads as laggy, since
+// a single tap is by far the most common input. 300ms on step one meant every deliberate press
+// waited a third of a second before it could be followed. The ramp still guards against
+// long-press overshoot — it just no longer taxes the taps.
+const repeatInterval = (run: number): number => (run < 2 ? 190 : run < 6 ? 120 : 80);
 
 // Two presses closer together than this are treated as one held run, even when the remote
-// reports repeat === false. Comfortably longer than the fastest ramp step (100ms) so a genuine
-// held press stays throttled, and short enough that two deliberate taps still both register.
-const RUN_GAP_MS = 250;
+// reports repeat === false. Must stay comfortably above the fastest ramp step (80ms) so a
+// genuine held press is still throttled; lowered alongside the ramp so deliberate double-taps
+// are not swallowed into a "run" and dropped.
+const RUN_GAP_MS = 160;
 
 /**
  * Global D-pad / 10-foot navigation layer.

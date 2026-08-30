@@ -10,6 +10,7 @@ import {
   ThumbsUp, ThumbsDown, ScrollText, Milestone, ShieldCheck,
 } from 'lucide-react';
 import CommentSection from './CommentSection';
+import PlatformBumperPlayer from './tv/PlatformBumperPlayer';
 import WorldBadge from './WorldBadge';
 import HoverPreviewThumb, { previewSourceFor } from './HoverPreviewThumb';
 import { motion, AnimatePresence } from 'motion/react';
@@ -705,6 +706,8 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
 
   const [scrolled, setScrolled] = useState(false);
   const [isUIVisible, setIsUIVisible] = useState(true);
+  /** Payload waiting behind the studio ident. Non-null only between Watch Now and the ident ending. */
+  const [prerollFor, setPrerollFor] = useState<Video | null>(null);
   const [activeVideo, setActiveVideo] = useState<Video | null>(null);
   // Alternate cuts (extended / director's / …). The primary payload is remembered so we
   // can switch back; selecting an alternate just swaps the playback URL (direct file).
@@ -970,14 +973,23 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
     }
 
     if (payload) {
-      primaryPayloadRef.current = payload;
-      setActiveVersionId('primary');
-      setActiveVideo(payload);
-      setIsUIVisible(false);
-      activateVideoSource(payload);
+      // The studio ident runs HERE, in front of the feature, rather than in front of the title
+      // page. It used to be mounted by App on `view === 'MOVIE_UX'`, so it played the moment
+      // someone opened a poster — and ahead of the licence gate above, meaning a film the
+      // viewer could not watch still got one.
+      setPrerollFor(payload);
     } else {
       setIsUIVisible(true);
     }
+  };
+
+  /** Start the feature. Called once the ident clears (or immediately if there isn't one). */
+  const beginPlayback = (payload: Video) => {
+    primaryPayloadRef.current = payload;
+    setActiveVersionId('primary');
+    setActiveVideo(payload);
+    setIsUIVisible(false);
+    activateVideoSource(payload);
   };
 
   // Switch the playing cut. 'primary' restores the main film; an alternate swaps to its
@@ -1134,6 +1146,18 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
 
   return (
     <>
+      {/* ── Studio ident, in front of the feature ────────────────────────────────
+          Mounted only once Watch Now has been pressed and the licence gate has
+          passed, so it always precedes something the viewer is actually about to
+          watch. onError inside the player also calls onDone, so a missing or
+          broken ident can never block playback. */}
+      {prerollFor && (
+        <PlatformBumperPlayer
+          kind="TALEO_PREROLL"
+          allowSkip
+          onDone={() => { const p = prerollFor; setPrerollFor(null); beginPlayback(p); }}
+        />
+      )}
       {/* ── Character World View overlay ─────────────────────────────────────── */}
       <AnimatePresence>
         {activeCharacter && (

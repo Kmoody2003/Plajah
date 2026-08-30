@@ -64,7 +64,12 @@ const PlatformBumperPlayer: React.FC<Props> = ({ kind, onDone, allowSkip = false
     const t = setTimeout(finish, maxMs);
     const skipT = allowSkip ? setTimeout(() => setShowSkip(true), skipAfterSec * 1000) : undefined;
     if (v) {
-      v.play().catch(() => { try { v.muted = true; v.play().catch(() => {}); } catch { /* */ } });
+      // Starts muted (see the element), so this play() is always permitted and the first frame
+      // arrives without a policy round trip. Then try to bring sound in — if the browser objects,
+      // stay muted rather than losing the ident.
+      v.play()
+        .then(() => { try { v.muted = false; } catch { /* */ } })
+        .catch(() => { try { v.muted = true; v.play().catch(() => {}); } catch { /* */ } });
     }
     return () => { clearTimeout(t); if (skipT) clearTimeout(skipT); };
   }, [asset]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -80,7 +85,10 @@ const PlatformBumperPlayer: React.FC<Props> = ({ kind, onDone, allowSkip = false
     return () => { alive = false; clearTimeout(t); };
   }, [asset?.url]);
 
-  if (!asset) return null;
+  // Render the brand ground the moment this mounts, not once an asset resolves. Returning null
+  // while the Firestore lookup was in flight left the launch showing whatever was underneath —
+  // part of the blank moment on cold start.
+  if (!asset) return <div className="fixed inset-0 z-[3000] bg-[#04030A]" />;
 
   return (
     <div className="fixed inset-0 z-[3000] bg-black grid place-items-center">
@@ -90,6 +98,12 @@ const PlatformBumperPlayer: React.FC<Props> = ({ kind, onDone, allowSkip = false
         className="w-full h-full object-contain bg-black"
         autoPlay
         playsInline
+        // `muted` up front and `preload="auto"`: without them the first play() is rejected by
+        // autoplay policy and the muted retry costs another round trip, during which the WebView
+        // paints its stock grey play triangle. The ident is a brand sting, so starting it silent
+        // is the right default anyway — the audible retry below restores sound where allowed.
+        muted
+        preload="auto"
         onEnded={finish}
         onError={finish}
         poster={asset.thumbnailUrl}

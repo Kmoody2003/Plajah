@@ -129,9 +129,27 @@ const MoviesTvView: React.FC<{
     enabled: !channel && !livePlaying,   // a fullscreen player owns the remote while it's open
   });
 
-  // Keep the focused card centred along its rail and its row in view.
+  // Keep the focused card in view — but only actually scroll when it is near an edge.
+  //
+  // This used to re-centre on EVERY press with block:'center', so a one-card hop restarted a
+  // smooth-scroll of the whole grid and each press landed on a still-moving surface, which is
+  // most of why the wall felt heavy. Now it matches the safe-area approach useDpadNavigation
+  // already takes: inside the pad, nothing moves and focus is instant; at the edge, the rail
+  // brings the next card in. block:'nearest' also stops a horizontal hop from scrolling
+  // vertically for no reason.
   const cellRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { cellRef.current?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'center' }); }, [pos]);
+  useEffect(() => {
+    const el = cellRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const padX = Math.max(48, window.innerWidth * 0.12);
+    const padY = Math.max(48, window.innerHeight * 0.12);
+    const outside =
+      r.left < padX || r.right > window.innerWidth - padX ||
+      r.top < padY || r.bottom > window.innerHeight - padY;
+    if (!outside) return;
+    el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }, [pos]);
 
   return (
     <div className="relative h-[100dvh] text-white flex flex-col overflow-hidden" data-tv-capture>

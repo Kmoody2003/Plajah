@@ -294,6 +294,19 @@ if (!rootElement) {
 
 const root = ReactDOM.createRoot(rootElement);
 
+// Retire the pre-mount splash (index.html #pj-boot) once React has actually painted.
+// Two rAFs: the first lands after the commit, the second after the browser has painted it, so
+// the splash is never pulled while the app's own first frame is still blank. The 4s failsafe
+// exists because rAF does not fire in a never-painting webview — the same starvation the guard
+// in index.html handles — and a splash that outlived the app would be worse than the flash.
+function dismissBootSplash(): void {
+  const el = document.getElementById('pj-boot');
+  if (!el) return;
+  const done = () => { el.classList.add('pj-boot-done'); setTimeout(() => el.remove(), 320); };
+  requestAnimationFrame(() => requestAnimationFrame(done));
+  setTimeout(done, 4000);
+}
+
 const search = new URLSearchParams(window.location.search);
 const isProgramOut = search.get('programOut') === '1';
 const isPrompterWindow = search.get('role') === 'prompter';
@@ -346,3 +359,5 @@ if (isProgramOut) {
     </ErrorBoundary>
   );
 }
+
+dismissBootSplash();

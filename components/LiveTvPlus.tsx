@@ -18,6 +18,10 @@ import { probeDurations } from '../services/mediaProbe';
 import { now as clockNow } from '../services/platformClock';
 import AdBreakBumper from './tv/AdBreakBumper';
 import ComingUpNextBumper, { type UpNextItem } from './tv/ComingUpNextBumper';
+import { fadeVolume, playAudible, type FadeHandle } from '../utils/audioFade';
+
+/** Channel-change audio ramp. Long enough to read as a tune-in, short enough not to feel broken. */
+const CHANNEL_FADE_MS = 2000;
 import EndlessHourPlayer from './tv/EndlessHourPlayer';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { isShellFocused, setShellFocus } from '../hooks/useTvShellFocus';
@@ -87,6 +91,10 @@ const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWat
   // Branded tune-in state instead of a grey video box with the platform's default play glyph.
   const [ready, setReady] = useState(false);
   useEffect(() => { setReady(false); }, [channel?.id, channel?.playUrl]);
+  // The element is recreated on every channel change (this component is keyed on the channel),
+  // so the fade always starts from a fresh element at volume 0 rather than ramping a survivor.
+  const fadeRef = useRef<FadeHandle | null>(null);
+  useEffect(() => () => { fadeRef.current?.cancel(); }, []);
 
   useEffect(() => {
     const v = videoRef.current;
@@ -124,7 +132,7 @@ const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWat
             hlsRef.current = hls;
             hls.loadSource(channel.playUrl);
             hls.attachMedia(v);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => { capLevelsToPanel(hls as any); v.play().catch(() => {}); });
+            hls.on(Hls.Events.MANIFEST_PARSED, () => { capLevelsToPanel(hls as any); if (!muted) { v.volume = 0; void playAudible(v); } else { v.play().catch(() => {}); } });
             // Recover transient faults so a hiccup doesn't leave the channel black; the 30s re-resolve
             // moves past a permanently dead slot.
             let tries = 0;
@@ -140,14 +148,28 @@ const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWat
             v.src = channel.playUrl;
           }
         }
-        v.muted = muted;
-        v.play().catch(() => {});
+        if (muted) {
+          v.muted = true;
+          v.play().catch(() => {});
+        } else {
+          // Start silent and let onPlaying ramp it up, so tuning into a channel doesn't
+          // arrive as a blast. playAudible keeps the picture if autoplay refuses sound.
+          v.volume = 0;
+          void playAudible(v);
+        }
       } catch { /* */ }
     })();
     return () => { cancelled = true; if (watchdogRef.current) clearTimeout(watchdogRef.current); try { hlsRef.current?.destroy?.(); hlsRef.current = null; } catch { /* */ } };
   }, [channel?.id, channel?.kind, channel?.playUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { if (videoRef.current) videoRef.current.muted = muted; }, [muted]);
+  // Toggling mute from the UI is immediate in both directions — a fade would make the control
+  // feel broken. The 2s ramp belongs to tuning, not to pressing mute.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = muted;
+    if (!muted && v.volume === 0) { fadeRef.current?.cancel(); v.volume = 1; }
+  }, [muted]);
 
   if (!channel) return <div className="absolute inset-0 grid place-items-center text-white/30"><Tv size={48} /></div>;
 
@@ -169,7 +191,14 @@ const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWat
     return (
       <>
         <video ref={videoRef} className="absolute inset-0 w-full h-full object-contain bg-black" autoPlay playsInline muted={muted}
-          onPlaying={() => { startedRef.current = true; setReady(true); if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; } }}
+          onPlaying={() => {
+            startedRef.current = true; setReady(true);
+            if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; }
+            // Ease the sound in over 2s as the channel settles, rather than cutting in at full
+            // level the instant the decoder produces a frame.
+            const v = videoRef.current;
+            if (v && !muted) { fadeRef.current?.cancel(); fadeRef.current = fadeVolume(v, 1, CHANNEL_FADE_MS, { from: 0 }); }
+          }}
           onLoadedData={() => { startedRef.current = true; }}
           onEnded={onEnded}
           onError={() => { if (!startedRef.current) onFail?.(); }} />
@@ -307,7 +336,12 @@ const LiveTvPlus: React.FC<{
   currentUser?: { uid: string; displayName?: string | null; photoURL?: string | null } | null;
 }> = ({ onBack, feeds, liveArtists, fastChannels = [], onOpenClassic, onWatchWebrtc, focusOwnerId, focusPlajahId, focusNumber, currentUser }) => {
   const [index, setIndex] = useState(0);
-  const [muted, setMuted] = useState(true);
+  // Live TV starts with SOUND. Muted-by-default is a browser-autoplay habit, and it made the TV
+  // app a silent television — worse because the mute control is pointer-only and hides itself
+  // after 15s of no remote input, so on a TV there was no way back to it. The Capacitor shells
+  // set mediaPlaybackRequiresUserGesture(false), so unmuted autoplay is permitted there; on the
+  // web, playAudible() falls back to muted rather than losing the picture.
+  const [muted, setMuted] = useState(false);
   const [loadedIndex, setLoadedIndex] = useState(0); // player follows the dial once it settles
   const [renamedChannels, setRenamedChannels] = useState<Record<string, string>>({});
   const [editingOwnerId, setEditingOwnerId] = useState<string | null>(null);
@@ -532,6 +566,12 @@ const LiveTvPlus: React.FC<{
         e.preventDefault(); setIdx(Math.max(0, index - 1));
       }
       else if (isDown) { e.preventDefault(); setIdx(Math.min(channels.length - 1, index + 1)); }
+      // A remote's own mute key, and 'm' for a keyboard. Previously the only mute control was a
+      // pointer-only button in a bar that hides itself after 15s on TV, so once it vanished the
+      // audio could not be reached at all — Enter could unmute but nothing could mute again.
+      else if (kc === 164 || e.key === 'AudioVolumeMute' || e.key === 'VolumeMute' || e.key === 'm' || e.key === 'M') {
+        e.preventDefault(); setMuted(m => !m); setImmersive(false);
+      }
       else if (e.key === 'Enter' || kc === 13 || kc === 23) { const ch = channels[index]; if (ch?.kind === 'webrtc') onWatchWebrtc?.(ch.feed); setMuted(false); }
     };
     window.addEventListener('keydown', onKey);

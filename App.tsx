@@ -620,9 +620,9 @@ const App: React.FC = () => {
   // TV-app opening ident — a random Plajah bumper plays once per launch on TV APKs, replacing the
   // static splash. Only armed on TVs; resolves to done if the library has none.
   const [tvIntroDone, setTvIntroDone] = useState(() => !getPlatformInfo().isTV);
-  // Taleo pre-roll ident (studio ta-dum) — plays before a title starts; tracks which item id has
-  // cleared its pre-roll so the player mounts only after it (no audio under the ident).
-  const [prerollDoneFor, setPrerollDoneFor] = useState<string | null>(null);
+  // (The Taleo pre-roll ident moved into MovieUXView's Watch Now handler — it belongs in front
+  // of the feature, not in front of the poster. This state tracked which title had cleared it
+  // and was never reset on leaving MOVIE_UX, so A → B → A replayed the ident on every hop.)
   // In-session Kids Mode: when a parent switches into a child, the app behaves AS that
   // child (safe content + screen-time) without a separate login.
   const [activeChildProfile, setActiveChildProfile] = useState<UserProfile | null>(null);
@@ -5815,11 +5815,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onOpenMix={handleSelectItem}
               />
             )}
-            {/* Taleo pre-roll ident — plays before the title; player mounts only once it clears. */}
-            {view === 'MOVIE_UX' && selectedMovieItem && prerollDoneFor !== (selectedMovieItem as any).id && (
-              <PlatformBumperPlayer kind="TALEO_PREROLL" allowSkip onDone={() => setPrerollDoneFor((selectedMovieItem as any).id || 'done')} />
-            )}
-            {view === 'MOVIE_UX' && selectedMovieItem && prerollDoneFor === ((selectedMovieItem as any).id || 'done') && (
+            {/* The Taleo ident now plays from MovieUXView's Watch Now handler, not from here.
+                Gating it on `view === 'MOVIE_UX'` meant it fired the moment someone opened a
+                title page — before they had seen the page or asked for anything — and it held
+                MovieUXView unmounted behind it. An ident belongs in front of the feature, not
+                in front of the poster. It also ran ahead of the paid-film licence check, so a
+                title the viewer could not actually watch still got one. */}
+            {view === 'MOVIE_UX' && selectedMovieItem && (
               <ErrorBlock componentName="MovieUXView">
                 <MovieUXView
                   item={selectedMovieItem}

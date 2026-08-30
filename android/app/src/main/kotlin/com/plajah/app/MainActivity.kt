@@ -59,10 +59,30 @@ class MainActivity : BridgeActivity() {
         // On a phone without CameraX wired it simply reports unavailable to JS (harmless).
         registerPlugin(PlajahCameraPlugin::class.java)
 
-        installSplashScreen()
+        // Hold the native splash until the web layer has something on screen, then hand over.
+        //
+        // installSplashScreen() with no condition dismisses on the WebView's FIRST drawn frame —
+        // which is the blank one, before the remote page has loaded. Because this APK is a thin
+        // shell over the live site (capacitor.config server.url), that gap is a whole network
+        // page load, and it showed as the white flash on launch. The ceiling matters as much as
+        // the condition: a splash that outlives a failed load would strand the app behind it, so
+        // this yields after SPLASH_MAX_MS regardless and lets the web layer's own boot splash
+        // (index.html #pj-boot, same mark and palette) carry on seamlessly from there.
+        val splash = installSplashScreen()
+        val splashStart = System.currentTimeMillis()
+        splash.setKeepOnScreenCondition {
+            (System.currentTimeMillis() - splashStart) < SPLASH_HOLD_MS
+        }
         super.onCreate(savedInstanceState)
         // Render edge-to-edge — Compose and the WebView both respect system bar insets
         WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        // The WebView paints white by default, so a held splash could still hand over to a white
+        // rectangle. Paint it the same near-black as @color/plajah_splash_bg and index.html's
+        // #pj-boot, so nothing in the launch sequence is ever white.
+        try {
+            bridge?.webView?.setBackgroundColor(android.graphics.Color.parseColor("#04030A"))
+        } catch (_: Throwable) { /* pre-bridge or unavailable — the theme background still covers */ }
 
         if (!isTelevision()) return
 
@@ -116,5 +136,16 @@ class MainActivity : BridgeActivity() {
     companion object {
         private const val TAG = "PlajahTV"
         private const val TV_TOKEN = "PlajahTV/1"
+        /**
+         * How long to hold the native splash past the WebView's first frame.
+         *
+         * Bounded on purpose rather than waiting for a real "page ready" signal: detecting that
+         * from here means overriding the WebViewClient that Capacitor owns, and a splash gated on
+         * a signal that never arrives would strand the app behind it — a worse failure than the
+         * flash this fixes. It only has to cover the blank frame, because index.html paints its
+         * own splash (same mark, same palette) as soon as the HTML parses and carries on from
+         * there, so the handover is invisible even when the page is still loading.
+         */
+        private const val SPLASH_HOLD_MS = 900L
     }
 }
