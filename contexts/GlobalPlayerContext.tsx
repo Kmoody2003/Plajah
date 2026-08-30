@@ -13,6 +13,7 @@ import { trackStart, trackProgress, trackComplete } from '../services/contentMet
 import { skipOnTV } from '../services/tvCapabilities';
 import Hls from 'hls.js';
 import { peekTrackStream, prefetchTrackStreams, pickStreamUrl, getQuality as getAudioQuality, enqueueTranscode, enqueueAlbumTranscodes, getTrackStream } from '../services/choraStreamService';
+import { attachPlaybackHealth, configurePlaybackHealth, getSummary as getHealthSummary, getEvents as getHealthEvents, reset as resetHealth } from '../services/playbackHealth';
 import { auth as fbAuth } from '../services/firebase';
 import { buildRadioQueue, type UpNextItem } from '../services/musicRecommender';
 
@@ -1519,6 +1520,18 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   //   await __chora.transcode('<trackId>','<masterUrl>')
   //   await __chora.getStream('<trackId>')          // inspect status
   //   await __chora.backfillEverything()            // the WHOLE public catalog (leave tab open)
+  // Give the health monitor its two lookups. Injected rather than imported inside that module so
+  // it stays free of the Firebase client (and unit-testable).
+  useEffect(() => {
+    configurePlaybackHealth({
+      getQuality: () => getAudioQuality(),
+      getTranscodeStatus: async (trackId: string) => {
+        const s = await getTrackStream(trackId);
+        return !!s && s.status === 'ready';
+      },
+    });
+  }, []);
+
   useEffect(() => {
     (window as any).__chora = {
       transcode: (trackId: string, srcUrl: string) => enqueueTranscode(trackId, srcUrl),
@@ -1551,6 +1564,90 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       },
     };
     return () => { try { delete (window as any).__chora; } catch { /* */ } };
+  }, []);
+
+  // Playback diagnostics, on production, from the console — the counterpart to __chora.
+  //   __choraHealth.report()     // human-readable session summary
+  //   __choraHealth.summary()    // the same numbers as an object
+  //   __choraHealth.events()     // every stall with its full context
+  //   __choraHealth.coverage()   // how much of the catalogue is actually transcoded
+  //   __choraHealth.reset()
+  useEffect(() => {
+    (window as any).__choraHealth = {
+      summary: () => getHealthSummary(),
+      events: () => getHealthEvents(),
+      reset: () => resetHealth(),
+      report: () => {
+        const s = getHealthSummary();
+        const mins = (s.playedSeconds / 60).toFixed(1);
+        console.log(`%c[chora health] ${s.stallCount} drop(s) over ${mins} min of listening`,
+          'color:#FF8C00;font-weight:bold');
+        if (!s.stallCount) {
+          console.log('  No dropouts recorded this session. Play the track that stutters, then run this again.');
+          return s;
+        }
+        console.log(`  rate            ${s.stallsPerHour}/hour · ${(s.stalledRatio * 100).toFixed(2)}% of playing time silent`);
+        console.log(`  total silence   ${(s.totalStalledMs / 1000).toFixed(1)}s`);
+        console.log(`  by source       ${JSON.stringify(s.bySourceKind)}`);
+        console.log(`  untranscoded    ${s.untranscodedStalls} of ${s.stallCount}`);
+        if (s.worstTrack) console.log(`  worst track     "${s.worstTrack.title || s.worstTrack.trackId}" (${s.worstTrack.stalls})`);
+        // Say what the numbers mean, so a report doesn't need a second round trip to interpret.
+        if (s.untranscodedStalls > s.stallCount / 2) {
+          console.log('%c  → Mostly UNTRANSCODED tracks. These stream as raw masters with no HLS\n' +
+                      '    resilience. Fix: __chora.transcodeCurrentAlbum() (or backfillEverything()).',
+            'color:#22c55e');
+        } else if (s.recent.every(e => e.bufferedAhead === 0)) {
+          console.log('%c  → Every stall ran the buffer to zero: starvation, i.e. delivery is not\n' +
+                      '    keeping up. Look at connection and CDN, not the decoder.', 'color:#22c55e');
+        } else {
+          console.log('%c  → Stalls occurred WITH buffer in hand, which is not starvation —\n' +
+                      '    suspect decode/CPU or the element being interrupted.', 'color:#22c55e');
+        }
+        console.table(s.recent.map(e => ({
+          track: e.trackTitle, at: `${e.position.toFixed(0)}s`, silent: `${e.durationMs}ms`,
+          buffered: `${e.bufferedAhead.toFixed(1)}s`, source: e.sourceKind,
+          transcoded: e.transcoded, net: e.effectiveType, recovered: e.recovered,
+        })));
+        return s;
+      },
+      // Transcode coverage across the public catalogue. The leading suspect for drops is a track
+      // that was never transcoded, and until now there was no way to ask how many of those exist.
+      coverage: async () => {
+        const albums = await fetchAllPublicAlbums();
+        const music = (albums || []).filter((a: any) => a && a.type !== 'BOOK' && Array.isArray(a.tracks) && a.tracks.length);
+        const rows: { album: string; trackId: string; title: string }[] = [];
+        for (const a of music) for (const t of a.tracks) if (t?.id) rows.push({ album: a.title || a.id, trackId: t.id, title: t.title });
+        console.log(`%c[chora coverage] checking ${rows.length} tracks across ${music.length} albums…`, 'color:#FF8C00');
+
+        // Resolve with bounded concurrency. Sequentially awaiting one Firestore read per track
+        // takes minutes on a real catalogue and reports nothing until it finishes, which makes
+        // the diagnostic useless exactly when it matters. 12 at a time is well within the SDK's
+        // connection budget and turns this into seconds.
+        let ready = 0, missing = 0, processing = 0, done = 0;
+        const notReady: typeof rows = [];
+        const queue = rows.slice();
+        const worker = async () => {
+          for (;;) {
+            const row = queue.shift();
+            if (!row) return;
+            const s = await getTrackStream(row.trackId).catch(() => null);
+            if (s?.status === 'ready') ready++;
+            else { (s?.status === 'processing' ? processing++ : missing++); notReady.push(row); }
+            if (++done % 100 === 0) console.log(`[chora coverage] ${done}/${rows.length}…`);
+          }
+        };
+        await Promise.all(Array.from({ length: Math.min(12, rows.length) }, worker));
+
+        const total = ready + missing + processing;
+        console.log(`%c[chora coverage] ${ready}/${total} transcoded (${total ? ((ready / total) * 100).toFixed(1) : '0'}%) · ${missing} missing · ${processing} processing`,
+          'color:#FF8C00;font-weight:bold');
+        if (missing) console.log('%c  → Those "missing" tracks stream as raw masters and are the ones that stutter.\n' +
+          '    Fix: __chora.backfillEverything() (slow but resumable), or backfillAlbum(tracks) for one.', 'color:#22c55e');
+        if (notReady.length) console.table(notReady.slice(0, 50));
+        return { total, ready, missing, processing, notReady };
+      },
+    };
+    return () => { try { delete (window as any).__choraHealth; } catch { /* */ } };
   }, []);
 
   useEffect(() => {
@@ -1662,7 +1759,16 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     audio.addEventListener('error', onError);
     audio.addEventListener('ended', onEnded);
 
+    // Measure what the listener actually hears. Nothing above catches a buffer underrun — the
+    // element stays "playing", raises no error, and recovers on its own — which is exactly the
+    // dropout people report. Passive: it observes and records, never touches playback.
+    const detachHealth = attachPlaybackHealth(audio, () => ({
+      trackId: stateRef.current.currentTrack?.id ?? null,
+      title: stateRef.current.currentTrack?.title ?? null,
+    }));
+
     return () => {
+      detachHealth();
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('durationchange', onDurationChange);
       audio.removeEventListener('play', onPlay);
