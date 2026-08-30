@@ -15,7 +15,7 @@
 // can't manipulate it; it only reacts.
 
 import React, { useEffect, useRef, useState } from 'react';
-import FxStageVisualizers, { FX_ENGINE_PRESETS, fxPresetName, loadMilkdropNames, type FxEngine } from './FxStageVisualizers';
+import FxStageVisualizers, { FX_ENGINE_PRESETS, fxPresetName, loadMilkdropNames, loadShaderNames, type FxEngine } from './FxStageVisualizers';
 import { AudioDriverSampler } from './plajahPixels/engine/audioDrivers';
 import LayerStack from './plajahPixels/components/LayerStack';
 import { loadCloudProject } from './plajahPixels/services/projectService';
@@ -23,7 +23,8 @@ import type { VisualizationConfig } from './plajahPixels/types';
 import type { LauncherLayer } from './plajahPixels/components/ClipLauncher';
 
 const GEN_COUNT = FX_ENGINE_PRESETS.GENERATOR.length;    // the 22 canvas generators
-const SHADER_COUNT = FX_ENGINE_PRESETS.SHADER.length;    // the bundled audio-reactive shaders
+// Shaders (the Signature Series) load on demand like the milkdrop pool does, so the count
+// is read at runtime rather than captured here at module load — when it was, this sat at 0.
 
 type Visual = { engine: FxEngine; index: number };
 
@@ -57,9 +58,13 @@ const MixPixelsStage: React.FC<MixPixelsStageProps> = ({
   const [mdNames, setMdNames] = useState<string[]>([]);
   const mdNamesRef = useRef<string[]>([]);
   mdNamesRef.current = mdNames;
+  const [shaderNames, setShaderNames] = useState<string[]>([]);
+  const shaderNamesRef = useRef<string[]>([]);
+  shaderNamesRef.current = shaderNames;
   useEffect(() => {
     let alive = true;
     loadMilkdropNames().then(n => { if (alive) setMdNames(n || []); }).catch(() => {});
+    loadShaderNames().then(n => { if (alive) setShaderNames(n || []); }).catch(() => {});
     return () => { alive = false; };
   }, []);
 
@@ -77,7 +82,10 @@ const MixPixelsStage: React.FC<MixPixelsStageProps> = ({
     }
     return { engine: 'GENERATOR', index: order[genCurRef.current++] };
   };
-  const nextShader = (): Visual => ({ engine: 'SHADER', index: (shaderCurRef.current++) % Math.max(1, SHADER_COUNT) });
+  const nextShader = (): Visual | null => {
+    const n = shaderNamesRef.current.length;
+    return n > 0 ? { engine: 'SHADER', index: (shaderCurRef.current++) % n } : null;
+  };
   const nextMilkdrop = (): Visual | null => {
     const n = mdNamesRef.current.length;
     return n > 0 ? { engine: 'MILKDROP', index: Math.floor(Math.random() * n) } : null;
@@ -91,7 +99,7 @@ const MixPixelsStage: React.FC<MixPixelsStageProps> = ({
     const mdW = hasMd ? e * e * 1.4 : 0;
     let r = Math.random() * (genW + shaderW + mdW);
     if ((r -= genW) < 0) return nextGen();
-    if ((r -= shaderW) < 0) return nextShader();
+    if ((r -= shaderW) < 0) return nextShader() ?? nextGen();
     return nextMilkdrop() ?? nextGen();
   };
   const applyVisual = (v: Visual) => setVisual(prev => (prev.engine === v.engine && prev.index === v.index ? prev : v));
@@ -119,9 +127,16 @@ const MixPixelsStage: React.FC<MixPixelsStageProps> = ({
     if (authoredActive) {
       infoCb.current?.({ index: 0, count: 0, name: authored!.name, authored: true });
     } else {
-      infoCb.current?.({ index: 0, count: 0, name: `${engLabel(visual.engine)} · ${fxPresetName(visual.engine, visual.index, mdNamesRef.current)}`, authored: false });
+      // Each async engine has its OWN name pool — passing the milkdrop list for a shader
+      // would label the visual with an unrelated preset name.
+      const names = visual.engine === 'MILKDROP' ? mdNamesRef.current
+        : visual.engine === 'SHADER' ? shaderNamesRef.current
+        : undefined;
+      infoCb.current?.({ index: 0, count: 0, name: `${engLabel(visual.engine)} · ${fxPresetName(visual.engine, visual.index, names)}`, authored: false });
     }
-  }, [visual, authoredActive]); // eslint-disable-line react-hooks/exhaustive-deps
+    // The name pools arrive async, so re-run once they land — otherwise a visual chosen
+    // before its pool loaded keeps the placeholder "Preset N" label until the next switch.
+  }, [visual, authoredActive, mdNames, shaderNames]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The intelligent, energy-aware advance loop. Auto-Show only.
   useEffect(() => {

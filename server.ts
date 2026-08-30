@@ -6533,7 +6533,13 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       res.setHeader('Cache-Control', sub.endsWith('.m3u8') ? 'public, max-age=60' : 'public, max-age=31536000, immutable');
       const cr = g.headers.get('content-range'); if (cr) res.setHeader('Content-Range', cr);
       const cl = g.headers.get('content-length'); if (cl) res.setHeader('Content-Length', cl);
-      res.status(g.status === 206 ? 206 : 200).end(Buffer.from(await g.arrayBuffer()));
+      res.status(g.status === 206 ? 206 : 200);
+      // Pipe the GCS response straight through instead of buffering the whole segment in memory
+      // first (the old `Buffer.from(await g.arrayBuffer())`) — that forced every HLS segment
+      // fetch to pay full GCS-to-server latency THEN full server-to-client latency serially
+      // instead of overlapping them, adding real per-segment delay on every play.
+      if (!g.body) return res.end();
+      Readable.fromWeb(g.body as any).pipe(res);
     } catch (e: any) { res.status(502).end(); }
   });
 

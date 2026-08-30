@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { Sparkles, Play, Pause, SkipBack, SkipForward, Music2, X } from 'lucide-react';
-import FxStageVisualizers, { type FxEngine, fxPresetName } from '../FxStageVisualizers';
+import FxStageVisualizers, { type FxEngine, fxPresetName, loadShaderNames, loadMilkdropNames } from '../FxStageVisualizers';
 import { useGlobalPlayer } from '../../contexts/GlobalPlayerContext';
 import { thumb, THUMB } from '../../src/lib/imageThumb';
 
@@ -39,11 +39,23 @@ const TvFxSurface: React.FC = () => {
 
   const [engineIdx, setEngineIdx] = useState(0);
   const [presetIndex, setPresetIndex] = useState(0);
+  // MilkDrops and Shaders name their presets from pools loaded on demand; hold them in
+  // state so the caption below names the real preset instead of a placeholder.
+  const [presetNames, setPresetNames] = useState<Record<string, string[]>>({});
   const [controls, setControls] = useState(true);   // show controls on open so the scheme is visible
   const hideTimer = useRef<any>(null);
 
   const showing = isTvFxActive && !isSlideshowActive;
   const engine = TV_ENGINES[engineIdx];
+
+  useEffect(() => {
+    if (!showing) return;   // don't pull either pool until the surface is actually open
+    let alive = true;
+    const put = (k: string) => (n: string[]) => { if (alive) setPresetNames(p => (p[k] ? p : { ...p, [k]: n || [] })); };
+    if (engine === 'SHADER' && !presetNames.SHADER) loadShaderNames().then(put('SHADER')).catch(() => {});
+    if (engine === 'MILKDROP' && !presetNames.MILKDROP) loadMilkdropNames().then(put('MILKDROP')).catch(() => {});
+    return () => { alive = false; };
+  }, [showing, engine, presetNames.SHADER, presetNames.MILKDROP]);
 
   const wake = useCallback(() => {
     setControls(true);
@@ -185,7 +197,7 @@ const TvFxSurface: React.FC = () => {
           <div className="min-w-0 flex-1">
             <p className="text-2xl font-black text-white truncate">{currentTrack?.title || ''}</p>
             <p className="text-base text-white/55 truncate">
-              {currentTrack?.artist || ''} <span className="text-white/30">· {ENGINE_LABEL[engine]}: {fxPresetName(engine, presetIndex)}</span>
+              {currentTrack?.artist || ''} <span className="text-white/30">· {ENGINE_LABEL[engine]}: {fxPresetName(engine, presetIndex, presetNames[engine])}</span>
             </p>
           </div>
           <div className="flex items-center gap-5 shrink-0 text-white/85">

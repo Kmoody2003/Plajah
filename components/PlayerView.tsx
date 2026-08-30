@@ -16,7 +16,7 @@ import { useChoraNext } from '../hooks/useChoraNext';
 import OrreryStage from './OrreryStage';
 import AlbumTvView from './tv/AlbumTvView';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
-import FxStageVisualizers, { type FxEngine, fxPresetName, FX_ENGINE_PRESETS, loadMilkdropNames } from './FxStageVisualizers';
+import FxStageVisualizers, { type FxEngine, fxPresetName, FX_ENGINE_PRESETS, loadMilkdropNames, loadShaderNames } from './FxStageVisualizers';
 import Logo from './Logo';
 import { publishToCloud, postComment, subscribeToComments, updateAlbum, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost, auth } from '../services/backendService';
 import ShareButton from './ShareButton';
@@ -655,15 +655,18 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     return () => window.clearTimeout(timer);
   }, [gatefoldOn, gatefoldStageMode, isStageCycling, stageCycleStarted, selectGatefoldStage]);
   const [milkdropNames, setMilkdropNames] = useState<string[]>([]);
+  const [shaderNames, setShaderNames] = useState<string[]>([]);
   const isPixelsEngine = fxEngine === 'MILKDROP' || fxEngine === 'SHADER' || fxEngine === 'GENERATOR';
   const FX_OPTIONS = [
     { id: 'FLOW' as const, label: 'Flow' }, { id: 'PAINT' as const, label: 'Paint' },
     { id: 'MILKDROP' as const, label: 'MilkDrops' }, { id: 'SHADER' as const, label: 'Shaders' }, { id: 'GENERATOR' as const, label: 'Generators' },
   ];
-  // Lazily fetch the full butterchurn preset name list the first time MilkDrops is used.
+  // Lazily fetch each async engine's full preset name list the first time it's used —
+  // butterchurn's presets, and the Signature Series shader library.
   React.useEffect(() => {
     if (fxEngine === 'MILKDROP' && milkdropNames.length === 0) loadMilkdropNames().then(setMilkdropNames);
-  }, [fxEngine, milkdropNames.length]);
+    if (fxEngine === 'SHADER' && shaderNames.length === 0) loadShaderNames().then(setShaderNames);
+  }, [fxEngine, milkdropNames.length, shaderNames.length]);
   // Pixels engines (Generators / MilkDrops / Shaders) need a live analyser; it's only created on
   // first play. If the FX Stage is opened on a Pixels engine before anything has played, create the
   // audio graph now so the visualizer isn't stuck on "Loading…" (it re-publishes via analyserEpoch).
@@ -675,8 +678,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     if (id === 'FLOW' || id === 'PAINT') setVisualizerType(id);
   }, [setVisualizerType]);
   const cycleFxPreset = React.useCallback((dir: 1 | -1) => setFxPresetIndex(p => p + dir), []);
-  // The active pixels engine's full preset list (MilkDrops loaded async).
-  const fxPresetList = fxEngine === 'MILKDROP' ? milkdropNames : (isPixelsEngine ? FX_ENGINE_PRESETS[fxEngine as FxEngine] : []);
+  // The active pixels engine's full preset list (MilkDrops + Shaders loaded async).
+  const fxPresetList = fxEngine === 'MILKDROP' ? milkdropNames
+    : fxEngine === 'SHADER' ? shaderNames
+    : (isPixelsEngine ? FX_ENGINE_PRESETS[fxEngine as FxEngine] : []);
   const fxCurrentPreset = fxPresetList.length ? fxPresetList[((fxPresetIndex % fxPresetList.length) + fxPresetList.length) % fxPresetList.length] : '';
 
   // Selector: the three types stay separate (pills); the active pixels type gets its own
@@ -700,7 +705,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-black/50 border border-white/10 text-white/60 hover:text-white transition-all"><ChevronLeft size={14} /></button>
           <button onClick={() => setFxMenuOpen(o => !o)}
             className="shrink-0 flex items-center gap-1.5 h-7 px-3 rounded-full bg-black/50 border border-white/10 text-white text-[9px] font-bold hover:bg-black/70 transition-all max-w-[150px]">
-            <span className="truncate">{fxCurrentPreset || (fxEngine === 'MILKDROP' ? 'Loading…' : `Preset ${fxPresetIndex + 1}`)}</span>
+            <span className="truncate">{fxCurrentPreset || (fxEngine === 'MILKDROP' || fxEngine === 'SHADER' ? 'Loading…' : `Preset ${fxPresetIndex + 1}`)}</span>
             <ChevronDown size={12} className={`shrink-0 transition-transform ${fxMenuOpen ? 'rotate-180' : ''}`} />
           </button>
           <button onClick={() => cycleFxPreset(1)} aria-label="Next preset"
@@ -2689,14 +2694,22 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                       <AnimatedSlideshow key={`gatefold-slide-${album.id}-${currentTrack?.id || 'album'}`} images={gatefoldSlides} startIndex={gatefoldSlides.length > 1 ? 1 : 0} presentation="panel" isPlaying={globalIsPlaying && isCurrentTrackGlobal} themeColor={album.themeColor} />
                     </motion.div>
                   ) : gatefoldOn && gatefoldStageMode === 'FX' ? (
-                    <motion.div key="fx" className="relative w-[min(460px,48vh)] max-w-full aspect-square rounded-[2rem] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.6)] border border-small-orange/25 bg-black" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.7 }}>
-                      <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} />
-                      {visualizerType === 'PAINT' && <div className="absolute inset-0"><PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} /></div>}
+                    <motion.div key="fx" className="relative w-[min(460px,48vh)] max-w-full aspect-square rounded-[2rem] overflow-visible shadow-[0_24px_80px_rgba(0,0,0,0.6)] border border-small-orange/25 bg-black" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.7 }}>
+                      <div className="absolute inset-0 rounded-[2rem] overflow-hidden">
+                        {isPixelsEngine ? (
+                          <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
+                        ) : (
+                          <>
+                            <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} />
+                            {visualizerType === 'PAINT' && <div className="absolute inset-0"><PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} /></div>}
+                          </>
+                        )}
+                      </div>
                       {/* Reactor/engine + preset controls — kept in view so the FX stage is controllable while it's on */}
-                      <div className="absolute inset-x-0 top-0 z-20 p-3 flex items-center justify-center bg-gradient-to-b from-black/75 to-transparent overflow-x-auto no-scrollbar">
+                      <div className="absolute inset-x-0 top-0 z-20 p-3 flex items-center justify-center bg-gradient-to-b from-black/75 to-transparent rounded-t-[2rem]">
                         {fxSelectorEl}
                       </div>
-                      <div className="absolute inset-x-0 bottom-0 p-5 bg-gradient-to-t from-black/80 to-transparent flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.22em] text-small-orange"><Activity size={12} /> FX Stage</div>
+                      <div className="absolute inset-x-0 bottom-0 p-5 bg-gradient-to-t from-black/80 to-transparent flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.22em] text-small-orange rounded-b-[2rem]"><Activity size={12} /> FX Stage</div>
                     </motion.div>
                   ) : (
                     <motion.div key="art" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.6, type: 'spring', damping: 20 }} className="relative w-[min(460px,48vh)] max-w-full aspect-square rounded-[2rem] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.6)] border border-white/10 group">

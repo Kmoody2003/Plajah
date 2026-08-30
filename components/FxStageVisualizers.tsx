@@ -6,8 +6,9 @@
 // Each engine carries a list of PRESETS the FX Stage can arrow through. The heavy
 // engine components are lazy-loaded so they never weigh down the player bundle.
 
-import React, { Suspense, useMemo } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { VisualizerMode, type VisualizationConfig } from './plajahPixels/types';
+import { getPlatformInfo } from '../hooks/usePlatform';
 
 const ButterchurnLayer = React.lazy(() => import('./plajahPixels/components/ButterchurnLayer'));
 const ShaderLayer = React.lazy(() => import('./plajahPixels/components/ShaderLayer'));
@@ -15,38 +16,50 @@ const AudioVisualizer = React.lazy(() => import('./plajahPixels/components/Audio
 
 export type FxEngine = 'MILKDROP' | 'SHADER' | 'GENERATOR';
 
-// ── Shader presets (Shadertoy-style, audio-reactive via iChannel0 + iBass/iMid/iTreble/iLevel) ──
-const SHADERS: { name: string; source: string }[] = [
-  { name: 'Aurora Rings', source: `
-    void mainImage(out vec4 O, in vec2 F){
-      vec2 R=iResolution.xy; vec2 uv=(F-0.5*R)/R.y;
-      float t=iTime*0.25+iBass*2.2; float r=length(uv); float a=atan(uv.y,uv.x);
-      float fft=texture(iChannel0,vec2(clamp(r*0.5,0.0,1.0),0.0)).x;
-      float v=sin(r*9.0-t*3.0+a*3.0+fft*9.0)+0.5*sin(a*6.0+t*2.0);
-      vec3 c=0.5+0.5*cos(vec3(0.0,2.0,4.0)+v*2.0+iMid*3.0+iTime*0.18);
-      c*=0.55+0.9*iLevel; c+=iTreble*0.45*vec3(0.3,0.6,1.0)*smoothstep(0.45,0.0,r);
-      O=vec4(c,1.0);
-    }` },
-  { name: 'Plasma Flow', source: `
-    void mainImage(out vec4 O, in vec2 F){
-      vec2 R=iResolution.xy; vec2 p=(F-0.5*R)/R.y;
-      float t=iTime*0.5+iBass*3.0;
-      float v=sin(p.x*6.0+t)+sin(p.y*6.0+t*1.2)+sin((p.x+p.y)*5.0+t*0.8)+sin(length(p)*8.0-t*2.0+iMid*6.0);
-      vec3 c=0.5+0.5*cos(vec3(0.0,2.1,4.2)+v+iTime*0.2);
-      c*=0.6+0.8*iLevel; O=vec4(c,1.0);
-    }` },
-  { name: 'Bass Tunnel', source: `
-    void mainImage(out vec4 O, in vec2 F){
-      vec2 R=iResolution.xy; vec2 uv=(F-0.5*R)/R.y;
-      float a=atan(uv.y,uv.x); float r=length(uv);
-      float depth=0.35/(r+0.05)+iTime*0.6+iBass*2.0;
-      float rings=0.5+0.5*sin(depth*8.0+iMid*8.0);
-      float spokes=0.5+0.5*sin(a*8.0+iTime);
-      vec3 c=mix(vec3(0.42,0.0,0.6),vec3(1.0,0.55,0.0),rings)*spokes;
-      c*=smoothstep(0.0,0.25,r)*(0.6+0.9*iLevel)+iTreble*0.3;
-      O=vec4(c,1.0);
-    }` },
-];
+// ── Shaders: the Plajah Pixels SIGNATURE SERIES ──
+// The FX Stage shows the same house set the VJ studio does — one library, not a private
+// copy. (It used to carry three shaders written inline here, which is why none of the
+// Signature works ever appeared in Chora.) The library is ~300KB of GLSL, so it is
+// dynamically imported on first use rather than riding in the player bundle, exactly like
+// the butterchurn presets below.
+export type FxShader = { name: string; source: string; params: number[] };
+let _shaders: FxShader[] | null = null;
+let _shadersPromise: Promise<FxShader[]> | null = null;
+
+export async function loadSignatureShaders(): Promise<FxShader[]> {
+  if (_shaders) return _shaders;
+  if (_shadersPromise) return _shadersPromise;
+  _shadersPromise = (async () => {
+    let built: FxShader[] = [];
+    try {
+      const mod: any = await import('./plajahPixels/engine/presets/signatureShaders');
+      const works: any[] = mod.SIGNATURE_WORKS || [];
+      // Series V (kit3d) are full SDF raymarchers at 72–104 steps per pixel. Great on a
+      // desktop GPU, far too heavy for a TV box — and the TV FX surface shares this list.
+      const allowHeavy = !getPlatformInfo().isTV;
+      built = works
+        .filter(w => allowHeavy || !w.kit3d)
+        .map(w => ({
+          name: w.name,
+          source: mod.signatureSource(w),
+          // Each work ships its own tuned defaults; without them the whole set renders at
+          // a flat 0.5 and reads nothing like the intended look.
+          params: [0, 1, 2, 3].map(i => w.params?.[i]?.def ?? 0.5),
+        }));
+    } catch (e) {
+      console.warn('[Plajah Pixels] Signature shader library failed to load:', e);
+    }
+    _shaders = built;
+    FX_ENGINE_PRESETS.SHADER = built.map(s => s.name);
+    return built;
+  })();
+  return _shadersPromise;
+}
+
+/** Preset-name list for the Shaders dropdown (mirrors loadMilkdropNames). */
+export async function loadShaderNames(): Promise<string[]> {
+  return (await loadSignatureShaders()).map(s => s.name);
+}
 
 // ── Generator presets — every Plajah Pixels scene, chrome stripped ──
 const GEN_MODES: { name: string; mode: VisualizerMode }[] = [
@@ -80,12 +93,14 @@ export async function loadMilkdropNames(): Promise<string[]> {
 // Preset-list metadata the selector uses to label. MilkDrops is loaded async (above).
 export const FX_ENGINE_PRESETS: Record<FxEngine, string[]> = {
   MILKDROP: [], // filled at runtime via loadMilkdropNames()
-  SHADER: SHADERS.map(s => s.name),
+  SHADER: [],   // filled at runtime via loadSignatureShaders()
   GENERATOR: GEN_MODES.map(g => g.name),
 };
 
-export function fxPresetName(engine: FxEngine, index: number, milkdropNames?: string[]): string {
-  const list = engine === 'MILKDROP' ? (milkdropNames || []) : FX_ENGINE_PRESETS[engine];
+/** `names` supplies the runtime list for the async engines (MilkDrops, Shaders); the
+ *  already-loaded FX_ENGINE_PRESETS entry is used when a caller doesn't hold one. */
+export function fxPresetName(engine: FxEngine, index: number, names?: string[]): string {
+  const list = names?.length ? names : FX_ENGINE_PRESETS[engine];
   if (!list.length) return `Preset ${index + 1}`;
   return list[((index % list.length) + list.length) % list.length];
 }
@@ -137,7 +152,16 @@ export default function FxStageVisualizers({
   isPlaying: boolean;
 }) {
   const startTimeMs = useMemo(() => (typeof performance !== 'undefined' ? performance.now() : 0), [engine, presetIndex]);
-  const shader = SHADERS[((presetIndex % SHADERS.length) + SHADERS.length) % SHADERS.length];
+  const [shaders, setShaders] = useState<FxShader[]>(() => _shaders || []);
+  useEffect(() => {
+    if (engine !== 'SHADER' || shaders.length) return;
+    let alive = true;
+    loadSignatureShaders().then(s => { if (alive) setShaders(s); });
+    return () => { alive = false; };
+  }, [engine, shaders.length]);
+  const shader = shaders.length
+    ? shaders[((presetIndex % shaders.length) + shaders.length) % shaders.length]
+    : null;
   const genMode = GEN_MODES[((presetIndex % GEN_MODES.length) + GEN_MODES.length) % GEN_MODES.length];
   const genConfig = useMemo<VisualizationConfig>(() => ({ ...BASE_CONFIG, mode: genMode.mode }), [genMode.mode]);
 
@@ -146,7 +170,9 @@ export default function FxStageVisualizers({
   return (
     <Suspense fallback={<Loading />}>
       {engine === 'MILKDROP' && <ButterchurnLayer analyser={analyser} presetIndex={presetIndex} />}
-      {engine === 'SHADER' && <ShaderLayer key={shader.name} analyser={analyser} source={shader.source} startTimeMs={startTimeMs} />}
+      {engine === 'SHADER' && (shader
+        ? <ShaderLayer key={shader.name} analyser={analyser} source={shader.source} startTimeMs={startTimeMs} params={shader.params} />
+        : <Loading />)}
       {engine === 'GENERATOR' && (
         <AudioVisualizer analyser={analyser} config={genConfig} isPlaying={isPlaying} hasBackground={false} />
       )}

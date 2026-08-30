@@ -97,9 +97,27 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, texDataRef.current);
     texRef.current = tex;
 
-    const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; gl.viewport(0, 0, canvas.width, canvas.height); };
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      const w = Math.max(1, Math.round((rect.width || window.innerWidth) * dpr));
+      const h = Math.max(1, Math.round((rect.height || window.innerHeight) * dpr));
+      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    };
     window.addEventListener('resize', resize); resize();
-    return () => { window.removeEventListener('resize', resize); cancelAnimationFrame(rafRef.current); };
+    const ro = new ResizeObserver(resize); ro.observe(canvas);
+    return () => {
+      window.removeEventListener('resize', resize);
+      ro.disconnect();
+      cancelAnimationFrame(rafRef.current);
+      // Free the GPU context explicitly — this layer remounts often (every preset
+      // switch), and without this browsers can exhaust their live-WebGL-context
+      // ceiling over a long session (a full Mix set switches scenes for an hour+),
+      // after which getContext('webgl2') starts returning null and the canvas
+      // just goes black with no error.
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analyser]);
 

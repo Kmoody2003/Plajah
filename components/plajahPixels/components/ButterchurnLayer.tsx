@@ -75,7 +75,20 @@ const ButterchurnLayer: React.FC<Props> = ({
         namesRef.current   = Object.keys(presets);
 
         const ctx = analyser.context as AudioContext;
-        const w = window.innerWidth, h = window.innerHeight;
+        // Size to the canvas's own box, not the window — this layer remounts on every
+        // preset switch, and a small embedded card (album FX Stage, Mixes port) was
+        // being rendered at full-window resolution, wasting GPU headroom for no visible
+        // gain and contributing to long-set context exhaustion (see cleanup below).
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const rect = canvas.getBoundingClientRect();
+        const w = Math.max(1, Math.round(rect.width || window.innerWidth));
+        const h = Math.max(1, Math.round(rect.height || window.innerHeight));
+        // butterchurn never touches the canvas's own backing store — it only tracks its
+        // internal render size — so without this the element keeps its default 300x150
+        // drawing buffer and the visual is drawn at 300x150 then stretched to fill,
+        // arriving visibly soft. Set it ourselves to match what we hand createVisualizer.
+        canvas.width = Math.round(w * dpr);
+        canvas.height = Math.round(h * dpr);
         const viz = butterchurn.createVisualizer(ctx, canvas, {
           width: w, height: h,
           pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
@@ -98,12 +111,29 @@ const ButterchurnLayer: React.FC<Props> = ({
         captureThumbnail(initName, 500);
 
         const onResize = () => {
-          const ww = window.innerWidth, hh = window.innerHeight;
+          const r = canvas.getBoundingClientRect();
+          const ww = Math.max(1, Math.round(r.width || window.innerWidth));
+          const hh = Math.max(1, Math.round(r.height || window.innerHeight));
+          const bw = Math.round(ww * dpr), bh = Math.round(hh * dpr);
+          if (canvas.width !== bw || canvas.height !== bh) { canvas.width = bw; canvas.height = bh; }
           try { vizRef.current?.setRendererSize(ww, hh); } catch { /* */ }
         };
         window.addEventListener('resize', onResize);
+        const ro = new ResizeObserver(onResize); ro.observe(canvas);
         onResize();
-        cleanupRef.current = () => window.removeEventListener('resize', onResize);
+        cleanupRef.current = () => {
+          window.removeEventListener('resize', onResize);
+          ro.disconnect();
+          // Explicitly free the GPU context. Without this, a long Mix set — which
+          // switches visuals every few seconds via its energy-aware auto-show — can
+          // exhaust the browser's live-WebGL-context ceiling over time; once that
+          // happens getContext('webgl2') silently returns null and the port goes
+          // black with no error surfaced anywhere.
+          try {
+            const gl = (canvas.getContext('webgl2') || canvas.getContext('webgl')) as WebGLRenderingContext | WebGL2RenderingContext | null;
+            gl?.getExtension('WEBGL_lose_context')?.loseContext();
+          } catch { /* */ }
+        };
       } catch (e) {
         console.warn('[Plajah Pixels] Milkdrop (butterchurn) failed to load:', e);
         onMeta?.({ count: 0, name: 'unavailable' });
