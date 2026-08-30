@@ -12,6 +12,7 @@ import { fetchArchiveAudiobooks, VAULT_SHELVES, type ArchiveTrack } from '../../
 import { fetchTopVoted, fetchTrending, searchStations, type RadioStation } from '../../services/radioBrowser';
 import { PUBLIC_RADIO_SHELVES, GENRE_SHELVES } from '../../data/radioShelves';
 import { MUSIC_HISTORY_ERAS } from '../../data/musicHistory';
+import { fetchAudiusTrending, audiusTrackToNativeAlbum } from '../../services/audiusService';
 
 /**
  * What each Chora section shows on television.
@@ -53,6 +54,20 @@ const albumItem = (a: Album): TvItem => ({
 
 /** The Vault, audiobooks and archive podcasts all arrive as ArchiveTrack, whose cover field is
  *  `thumbnailUrl` — not `coverImage`. Getting this wrong yields a rail of blank squares. */
+/** Audius track → TV card. Distinct from archiveItem: it must keep the `audius:` id scheme that
+ *  audiusTrackToNativeAlbum produces, since the player routes on it, and must NOT be flagged
+ *  isGlobalArchive or titled as the Vault. */
+const audiusItem = (t: ArchiveTrack): TvItem => {
+  const album = audiusTrackToNativeAlbum(t);
+  return {
+    id: t.id,
+    title: t.title,
+    subtitle: t.artist || 'Audius',
+    image: t.thumbnailUrl,
+    action: { kind: 'TRACK', track: album.tracks[0], album, source: 'LIBRARY' },
+  };
+};
+
 const archiveItem = (t: ArchiveTrack): TvItem => {
   const track: Track = {
     id: t.id,
@@ -308,7 +323,16 @@ export async function asyncRails(
       const artistAlbums = group(loose, t => t.artist || '', 'artist');
       const singles = loose.filter(t => !(t as any).albumTitle && !(t as any).albumId);
 
+      // The locker gets its OWN named rail, first. It was already being fetched here, but folding
+      // it into the unlabelled Albums/Artists/Singles lenses meant a viewer looking for their own
+      // uploads saw no such heading and reasonably concluded the TV just didn't have them. It
+      // still also flows into the lenses below, so nothing becomes less reachable.
+      // NOTE: locker media is private and must never be shared (services/musicLocker.ts) — this
+      // only renders it for its signed-in owner on their own screen; do not add a share/cast
+      // affordance to this rail.
+      const lockerItems = recentFirst(locker || []).map(t => trackItem(t));
       return nonEmpty([
+        { id: 'locker',  title: 'Your Locker', items: lockerItems },
         { id: 'albums',  title: 'Albums',    items: [...(personalAlbums || []).map(albumItem), ...looseAlbums] },
         { id: 'artists', title: 'Artists',   items: artistAlbums },
         { id: 'lists',   title: 'Playlists', items: (personalPlaylists || []).map(playlistItem) },
@@ -325,6 +349,32 @@ export async function asyncRails(
         { id: 'mine', title: 'My Playlists', items: (mine || []).map(playlistItem) },
         { id: 'pub', title: 'From The Community', items: (pub || []).slice(0, 30).map(playlistItem) },
       ]);
+    }
+
+    case 'AUDIUS': {
+      // Audius was simply absent from the TV — no section, no rail, no import — even though this
+      // file's own header claims parity with MusicView and lists its only two deliberate
+      // omissions elsewhere. Public browse needs no auth, so it works on TV exactly as on the
+      // phone; the connected-account library (OAuth, popup-based) is a separate piece of work.
+      //
+      // Genres are fetched independently and published as each lands, in declared order, so the
+      // rails don't reshuffle as the slow ones arrive — the same shape VAULT uses below. Fewer
+      // genres than the phone's six: the TV runs on a much smaller heap budget, and each of
+      // these is a live network fan-out.
+      const shelves: { id: string; title: string; genre?: string }[] = [
+        { id: 'trending', title: 'Trending on Audius' },
+        { id: 'electronic', title: 'Electronic', genre: 'Electronic' },
+        { id: 'hiphop', title: 'Hip-Hop / Rap', genre: 'Hip-Hop/Rap' },
+        { id: 'rnb', title: 'R&B / Soul', genre: 'R&B/Soul' },
+      ];
+      const got: Record<string, TvRail> = {};
+      await Promise.all(shelves.map(async shelf => {
+        const items = await fetchAudiusTrending(shelf.genre, 12).catch(() => [] as ArchiveTrack[]);
+        if (!items.length) return;
+        got[shelf.id] = { id: shelf.id, title: shelf.title, items: items.map(audiusItem) };
+        onPartial?.(shelves.map(s => got[s.id]).filter(Boolean));
+      }));
+      return shelves.map(s => got[s.id]).filter(Boolean);
     }
 
     case 'VAULT': {

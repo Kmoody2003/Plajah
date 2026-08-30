@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Music2, Radio as RadioIcon, Library, Users, Disc3, Sparkles, Archive, Mic2, BookOpen, ListMusic, GraduationCap, Crown, Play, ArrowLeft } from 'lucide-react';
+import { Music2, Radio as RadioIcon, Library, Users, Disc3, Sparkles, Archive, Mic2, BookOpen, ListMusic, GraduationCap, Crown, Play, ArrowLeft, Waves } from 'lucide-react';
 import type { Album, UserProfile } from '../../types';
 import { fetchAllPublicAlbums, fetchUpcomingAlbums, searchUsers } from '../../services/backendService';
 import { thumb, THUMB } from '../../src/lib/imageThumb';
@@ -36,6 +36,7 @@ const SECTIONS = [
   { id: 'FOR_YOU',     label: 'For You',     icon: Music2 },
   { id: 'RADIO',       label: 'Radio',       icon: RadioIcon },
   { id: 'MY_LIBRARY',  label: 'My Library',  icon: Library },
+  { id: 'AUDIUS',      label: 'Audius',      icon: Waves },
   { id: 'ARTISTS',     label: 'Artists',     icon: Users },
   { id: 'ALBUMS',      label: 'Albums',      icon: Disc3 },
   { id: 'GENRES',      label: 'Genres',      icon: ListMusic },
