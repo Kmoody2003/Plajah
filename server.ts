@@ -535,16 +535,29 @@ const fetchFirebaseDoc = async (collection: string, id: string) => {
 // of scalars (e.g. fcmTokens) are decoded; nested maps are left undefined (not needed here).
 const decodeFirestoreScalar = (v: any = {}): any =>
   v.stringValue ?? (v.integerValue !== undefined ? Number(v.integerValue) : (v.doubleValue ?? (v.booleanValue !== undefined ? v.booleanValue : undefined)));
+/**
+ * Decode any Firestore REST value, INCLUDING nested maps and arrays of maps.
+ *
+ * decodeFirestoreScalar above handles only string/number/bool and returns undefined for a
+ * mapValue -- and the array branch below used to drop those undefineds. So any document field
+ * holding an array of OBJECTS decoded to an empty array. `albums.tracks` is exactly that, which
+ * meant every album read through fsQueryDocs came back with `tracks: []` and anything counting
+ * tracks server-side silently saw zero of them.
+ */
+const decodeFirestoreValue = (v: any = {}): any => {
+  if (v.stringValue !== undefined) return v.stringValue;
+  if (v.integerValue !== undefined) return Number(v.integerValue);
+  if (v.doubleValue !== undefined) return v.doubleValue;
+  if (v.booleanValue !== undefined) return v.booleanValue;
+  if (v.timestampValue !== undefined) return v.timestampValue;
+  if (v.nullValue !== undefined) return null;
+  if (v.arrayValue !== undefined) return (v.arrayValue.values || []).map(decodeFirestoreValue);
+  if (v.mapValue !== undefined) return decodeFirestoreFields(v.mapValue.fields || {});
+  return undefined;
+};
 const decodeFirestoreFields = (f: any = {}): any => {
   const out: any = {};
-  for (const k in f) {
-    const v = f[k] || {};
-    if (v.arrayValue !== undefined) {
-      out[k] = (v.arrayValue.values || []).map(decodeFirestoreScalar).filter((x: any) => x !== undefined);
-    } else {
-      out[k] = decodeFirestoreScalar(v);
-    }
-  }
+  for (const k in f) out[k] = decodeFirestoreValue(f[k] || {});
   return out;
 };
 
