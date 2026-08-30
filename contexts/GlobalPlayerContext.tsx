@@ -9,6 +9,18 @@ import { getCachedMedia } from '../services/offlineStorageService';
 import { getOrComputeAnalysis, getCachedAnalysis } from '../services/djAnalysis';
 import { hasRealSlides } from '../services/slideshow';
 import { getPlatformInfo } from '../hooks/usePlatform';
+
+/** A phone or tablet, explicitly NOT a television.
+ *
+ *  The audio graph is restricted on handhelds to protect background playback, and that
+ *  restriction was previously expressed as a bare `/Android/i` UA test — which silently swept up
+ *  every Android TV, since their user agents contain "Android" too. Anything gating on "is this a
+ *  handheld" must go through this, never a fresh UA regex. */
+const isPhoneNotTv = (): boolean => {
+  if (getPlatformInfo().isTV) return false;
+  return /iPad|iPhone|iPod|Android/i.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+};
 import { trackStart, trackProgress, trackComplete } from '../services/contentMetrics';
 import { skipOnTV } from '../services/tvCapabilities';
 import Hls from 'hls.js';
@@ -474,11 +486,17 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }, delay);
   }, []);
 
-  const connectAudioSource = useCallback(() => {
-    // Disable Web Audio API connections on mobile to allow background playback
-    // (Mobile browsers often block or suspend Web Audio API in background)
-    const isMobile = /iPad|iPhone|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (isMobile) return;
+  const connectAudioSource = useCallback((force = false) => {
+    // Disable Web Audio API connections on PHONES to allow background playback
+    // (mobile browsers block or suspend Web Audio in the background).
+    //
+    // A television is not a phone. This check used to be a bare UA regex, and an Android TV's
+    // user agent contains "Android" — so every TV was treated as a phone, the analyser was never
+    // connected, and nothing else fed it either. That is why Plajah Pixels visuals rendered on
+    // the TV but never moved to the music: the FFT was all zeros. getPlatformInfo() already draws
+    // this distinction correctly (isMobile there is `!isTV && …`), so use it rather than
+    // re-deriving it from the UA and getting it wrong a second time.
+    if (isPhoneNotTv() && !force) return;
 
     const audio = audioRef.current;
     if (audioContextRef.current && analyserRef.current && !sourceRef.current) {
@@ -518,8 +536,8 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // and the visuals degrade to their previous non-reactive state — never a regression, never audio
   // loss. Consumers should call this when they actually need reactivity (e.g. opening a Mix).
   const ensureAnalyserTap = useCallback(() => {
-    const isMobile = /iPad|iPhone|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (!isMobile) return;                       // desktop is already fed via connectAudioSource
+    const onTv = getPlatformInfo().isTV;
+    if (!isPhoneNotTv() && !onTv) return;         // desktop is already fed via connectAudioSource
     if (sourceRef.current || tapSourceRef.current) return; // already routed/tapped
     initAudioContext();
     const ctx = audioContextRef.current;
@@ -528,18 +546,26 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!ctx || !analyser || !audio) return;
     const capture: (() => MediaStream) | undefined =
       (audio as any).captureStream || (audio as any).mozCaptureStream;
-    if (!capture) return;                        // captureStream unsupported → leave as-is
-    try {
-      const stream = capture.call(audio) as MediaStream;
-      if (!stream || stream.getAudioTracks().length === 0) return; // no audio track (e.g. tainted)
-      const src = ctx.createMediaStreamSource(stream);
-      src.connect(analyser);                     // tap → analyser ONLY; never → destination
-      tapSourceRef.current = src;
-      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-    } catch (e) {
-      console.warn('[Plajah Audio] analyser tap unavailable:', e);
+    if (capture) {
+      try {
+        const stream = capture.call(audio) as MediaStream;
+        if (stream && stream.getAudioTracks().length > 0) {
+          const src = ctx.createMediaStreamSource(stream);
+          src.connect(analyser);                 // tap → analyser ONLY; never → destination
+          tapSourceRef.current = src;
+          if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+          return;
+        }
+      } catch (e) {
+        console.warn('[Plajah Audio] analyser tap unavailable:', e);
+      }
     }
-  }, [initAudioContext]);
+    // TV fallback: wire the element through the graph directly. That is off-limits on a phone
+    // because it makes the OS suspend background audio, but a TV app is foreground by nature and
+    // a silent visualizer is the worse trade there. Deliberately LAST — the passive tap above
+    // can never affect audio, this can, so it only runs when the safe route is unavailable.
+    if (onTv) connectAudioSource(true);
+  }, [initAudioContext, connectAudioSource]);
 
   // Global click listener to resume AudioContext (critical for mobile browsers)
   useEffect(() => {

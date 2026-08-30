@@ -15,10 +15,13 @@ interface Props {
   onMeta?:        (meta: { count: number; name: string }) => void;
   /** Called after each preset settles with a JPEG thumbnail dataURL. */
   onThumbnail?:   (name: string, dataUrl: string) => void;
+  /** Cap the render loop to N fps (0/undefined = uncapped). Set on low-power targets like TV,
+   *  where a held 30 looks better than an unstable 45. */
+  fpsCap?:        number;
 }
 
 const ButterchurnLayer: React.FC<Props> = ({
-  analyser, presetIndex, blendSeconds = 2.0, blendMode, layerOpacity, onMeta, onThumbnail,
+  analyser, presetIndex, blendSeconds = 2.0, blendMode, layerOpacity, onMeta, onThumbnail, fpsCap,
 }) => {
   const canvasRef      = useRef<HTMLCanvasElement>(null);
   const vizRef         = useRef<any>(null);
@@ -98,8 +101,16 @@ const ButterchurnLayer: React.FC<Props> = ({
         vizRef.current = viz;
         applyPreset(presetIndex, 0);
 
+        // Frame budget for the cap; the -2ms slack keeps a frame that lands a hair early from
+        // being deferred to the next vsync and halving the effective rate.
+        const minFrameMs = fpsCap && fpsCap > 0 ? (1000 / fpsCap) - 2 : 0;
+        let lastDrawn = 0;
         const render = () => {
-          try { vizRef.current?.render(); } catch { /* frame skip */ }
+          const tNow = performance.now();
+          if (!minFrameMs || tNow - lastDrawn >= minFrameMs) {
+            lastDrawn = tNow;
+            try { vizRef.current?.render(); } catch { /* frame skip */ }
+          }
           rafRef.current = requestAnimationFrame(render);
         };
         rafRef.current = requestAnimationFrame(render);

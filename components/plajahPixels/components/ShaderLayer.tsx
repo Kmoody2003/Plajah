@@ -23,6 +23,9 @@ interface Props {
   sanctuary?: boolean;
   /** Up to 4 user-controlled parameters exposed as iParam0..iParam3 uniforms (0–1). */
   params?: number[];
+  /** Cap the render loop to N fps (0/undefined = uncapped). Set on low-power targets like TV,
+   *  where a held 30 looks better than an unstable 45. */
+  fpsCap?: number;
 }
 
 const VERT = `#version 300 es
@@ -53,7 +56,7 @@ const FRAG_MAIN = `
 void main(){ vec4 c = vec4(0.0,0.0,0.0,1.0); mainImage(c, gl_FragCoord.xy); _frag = c; }
 `;
 
-const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, blendMode, layerOpacity, params, sanctuary }) => {
+const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, blendMode, layerOpacity, params, sanctuary, fpsCap }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glRef = useRef<WebGL2RenderingContext | null>(null);
   const progRef = useRef<WebGLProgram | null>(null);
@@ -159,10 +162,17 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
 
   // Render loop.
   useEffect(() => {
+    // Frame budget for the cap. Subtract a slice so a frame that lands a hair early still draws,
+    // instead of being pushed to the next vsync and halving the effective rate to 15.
+    const minFrameMs = fpsCap && fpsCap > 0 ? (1000 / fpsCap) - 2 : 0;
+    let lastDrawn = 0;
     const loop = () => {
       const gl = glRef.current, prog = progRef.current, canvas = canvasRef.current;
+      const tNow = performance.now();
+      if (minFrameMs && tNow - lastDrawn < minFrameMs) { rafRef.current = requestAnimationFrame(loop); return; }
+      lastDrawn = tNow;
       if (gl && prog && canvas) {
-        const now = performance.now();
+        const now = tNow;
         const dt = lastRef.current ? (now - lastRef.current) / 1000 : 0; lastRef.current = now;
 
         // Update audio texture + bands.
@@ -210,7 +220,7 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [analyser, startTimeMs]);
+  }, [analyser, startTimeMs, fpsCap]);
 
   return (
     <canvas

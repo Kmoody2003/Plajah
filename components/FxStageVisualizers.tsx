@@ -9,12 +9,26 @@
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { VisualizerMode, type VisualizationConfig } from './plajahPixels/types';
 import { getPlatformInfo } from '../hooks/usePlatform';
+import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
 
 const ButterchurnLayer = React.lazy(() => import('./plajahPixels/components/ButterchurnLayer'));
 const ShaderLayer = React.lazy(() => import('./plajahPixels/components/ShaderLayer'));
 const AudioVisualizer = React.lazy(() => import('./plajahPixels/components/AudioVisualizer'));
 
 export type FxEngine = 'MILKDROP' | 'SHADER' | 'GENERATOR';
+
+/**
+ * Frames per second the Pixels engines should target on this device. 0 = uncapped.
+ *
+ * A TV box is a fraction of a desktop GPU and these visuals are fill-rate bound, so chasing 60
+ * there means dropped frames and a stuttering picture. Capping is the better trade: 30fps that
+ * HOLDS reads as smooth, where an unstable 45 reads as broken. Ambient visuals are also the most
+ * forgiving thing to run at a lower rate — nobody is reading motion cues off a shader.
+ * Deliberately not applied off-TV: desktop has the headroom and should use it.
+ */
+export function fxFrameCap(): number {
+  return getPlatformInfo().isTV ? 30 : 0;
+}
 
 // ── Shaders: the Plajah Pixels SIGNATURE SERIES ──
 // The FX Stage shows the same house set the VJ studio does — one library, not a private
@@ -34,11 +48,12 @@ export async function loadSignatureShaders(): Promise<FxShader[]> {
     try {
       const mod: any = await import('./plajahPixels/engine/presets/signatureShaders');
       const works: any[] = mod.SIGNATURE_WORKS || [];
-      // Series V (kit3d) are full SDF raymarchers at 72–104 steps per pixel. Great on a
-      // desktop GPU, far too heavy for a TV box — and the TV FX surface shares this list.
-      const allowHeavy = !getPlatformInfo().isTV;
+      // The WHOLE library is offered on every surface, television included. Series V (kit3d) are
+      // SDF raymarchers at 72–104 steps per pixel and genuinely heavy, but hiding a third of the
+      // collection from the biggest screen in the house is the wrong trade — a TV is where these
+      // are most worth looking at. They are paid for with frame rate instead (see fxFrameCap),
+      // which costs smoothness on the heaviest works rather than removing them.
       built = works
-        .filter(w => allowHeavy || !w.kit3d)
         .map(w => ({
           name: w.name,
           source: mod.signatureSource(w),
@@ -151,6 +166,16 @@ export default function FxStageVisualizers({
   analyser: AnalyserNode | null;
   isPlaying: boolean;
 }) {
+  // Reactivity is requested HERE, by the thing that needs it, rather than by each surface that
+  // happens to host it. Every Pixels visual — album FX Stage, Mixes, the TV surface — goes through
+  // this component, so asking here means a new surface cannot forget and end up with visuals that
+  // render but never move. That is exactly what had happened on the TV.
+  const gp = useGlobalPlayer();
+  useEffect(() => {
+    if (!isPlaying) return;
+    try { gp?.ensureAnalyserTap?.(); } catch { /* never let a diagnostic concern break the visual */ }
+  }, [isPlaying, gp]);
+
   const startTimeMs = useMemo(() => (typeof performance !== 'undefined' ? performance.now() : 0), [engine, presetIndex]);
   const [shaders, setShaders] = useState<FxShader[]>(() => _shaders || []);
   useEffect(() => {
@@ -163,15 +188,21 @@ export default function FxStageVisualizers({
     ? shaders[((presetIndex % shaders.length) + shaders.length) % shaders.length]
     : null;
   const genMode = GEN_MODES[((presetIndex % GEN_MODES.length) + GEN_MODES.length) % GEN_MODES.length];
-  const genConfig = useMemo<VisualizationConfig>(() => ({ ...BASE_CONFIG, mode: genMode.mode }), [genMode.mode]);
+  const fps = fxFrameCap();
+  // The canvas generators already take a frame target through their config, so the cap reaches
+  // all three engines rather than only the two WebGL ones.
+  const genConfig = useMemo<VisualizationConfig>(
+    () => ({ ...BASE_CONFIG, mode: genMode.mode, targetFrameRate: fps || BASE_CONFIG.targetFrameRate }),
+    [genMode.mode, fps],
+  );
 
   if (!analyser) return <Loading />;
 
   return (
     <Suspense fallback={<Loading />}>
-      {engine === 'MILKDROP' && <ButterchurnLayer analyser={analyser} presetIndex={presetIndex} />}
+      {engine === 'MILKDROP' && <ButterchurnLayer analyser={analyser} presetIndex={presetIndex} fpsCap={fps} />}
       {engine === 'SHADER' && (shader
-        ? <ShaderLayer key={shader.name} analyser={analyser} source={shader.source} startTimeMs={startTimeMs} params={shader.params} />
+        ? <ShaderLayer key={shader.name} analyser={analyser} source={shader.source} startTimeMs={startTimeMs} params={shader.params} fpsCap={fps} />
         : <Loading />)}
       {engine === 'GENERATOR' && (
         <AudioVisualizer analyser={analyser} config={genConfig} isPlaying={isPlaying} hasBackground={false} />
