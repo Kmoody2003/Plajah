@@ -23,6 +23,23 @@ export interface WatchEntry {
   /** Optional grouping for series — resume the series, not just one episode. */
   seriesId?: string;
   worldId?: string;
+  // ── Taste facets ───────────────────────────────────────────────────────────
+  // Carried so services/videoTasteService can learn from what was actually watched, not just
+  // from deliberate thumbs. Without these, finishing a film could only teach the vector about
+  // its world; with them it also teaches genre, category, creator and tags. All optional — an
+  // entry written before this existed, or by a caller that has only an id, still resumes fine.
+  genre?: string;
+  category?: string;
+  creatorId?: string;
+  tags?: string[];
+  /**
+   * Who watched it. The localStorage cache is shared by everyone who uses this device, so
+   * without this an account switch hands the next person the previous person's history — which
+   * services/videoTasteService would then score their "% Match" against. Entries written while
+   * signed out carry no uid and stay visible to all, which is the right behaviour for a personal
+   * device's anonymous history.
+   */
+  uid?: string;
 }
 
 const LS_KEY = 'plajah_watch_history_v1';
@@ -30,8 +47,21 @@ const MAX_LOCAL = 200;
 // Consider a title "finished" past 92% so it drops out of Continue Watching.
 const COMPLETE_RATIO = 0.92;
 
+/** Drop undefined-valued keys — see the note in recordProgress for why this is not optional. */
+function stripUndefined<T extends object>(obj: T): Partial<T> {
+  const out: any = {};
+  for (const [k, v] of Object.entries(obj)) if (v !== undefined) out[k] = v;
+  return out;
+}
+
 function readLocal(): WatchEntry[] {
   try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch { return []; }
+}
+
+/** Local entries this viewer is entitled to see: their own, plus anything watched signed out. */
+function readLocalForViewer(): WatchEntry[] {
+  const uid = auth.currentUser?.uid;
+  return readLocal().filter(e => !e.uid || e.uid === uid);
 }
 function writeLocal(entries: WatchEntry[]): void {
   try {
@@ -76,10 +106,14 @@ function syncWatchNext(entry: WatchEntry): void {
 /** Record (upsert) playback progress. Safe to call frequently; caller throttles. */
 export async function recordProgress(entry: Omit<WatchEntry, 'updatedAt' | 'completed'> & { updatedAt?: number }): Promise<void> {
   const completed = entry.durationSec > 0 && entry.positionSec / entry.durationSec >= COMPLETE_RATIO;
+  const signedInAs = auth.currentUser?.uid;
   const full: WatchEntry = { ...entry, updatedAt: entry.updatedAt ?? Date.now(), completed };
+  if (signedInAs) full.uid = signedInAs;
 
   // localStorage first — instant + offline.
-  const local = readLocal().filter(e => e.id !== full.id);
+  // Replace only THIS viewer's entry for the title. Filtering on id alone would let one account
+  // overwrite another's position for the same film on a shared device.
+  const local = readLocal().filter(e => !(e.id === full.id && (e.uid || undefined) === (full.uid || undefined)));
   local.unshift(full);
   writeLocal(local);
 
@@ -89,7 +123,12 @@ export async function recordProgress(entry: Omit<WatchEntry, 'updatedAt' | 'comp
   const uid = auth.currentUser?.uid;
   if (!uid) return;
   try {
-    await setDoc(doc(db, 'users', uid, 'watchHistory', full.id), full, { merge: true });
+    // Strip undefined before writing. The Web SDK THROWS on an undefined field value (the named
+    // DB is created without ignoreUndefinedProperties), and callers legitimately pass optional
+    // facets as undefined — MovieUXView sends `seriesId: ...?.seriesTitle || undefined` on every
+    // film. That throw was caught below and discarded, so Taleo progress never reached Firestore
+    // at all: it lived in localStorage only, and "resume on another device" silently did nothing.
+    await setDoc(doc(db, 'users', uid, 'watchHistory', full.id), stripUndefined(full), { merge: true });
   } catch { /* network — localStorage already holds it */ }
 }
 
@@ -123,13 +162,17 @@ export async function loadHistory(max = 100): Promise<WatchEntry[]> {
   }
   // Merge by id, remote winning ties, newest updatedAt first.
   const byId = new Map<string, WatchEntry>();
-  for (const e of readLocal()) byId.set(e.id, e);
+  for (const e of readLocalForViewer()) byId.set(e.id, e);
   for (const e of remote) {
     const prev = byId.get(e.id);
     if (!prev || e.updatedAt >= prev.updatedAt) byId.set(e.id, e);
   }
   const merged = [...byId.values()].sort((a, b) => b.updatedAt - a.updatedAt);
-  writeLocal(merged);
+  // Persist the merge WITHOUT evicting entries belonging to other accounts on this device —
+  // writeLocal replaces the whole array, so anything not carried forward here is destroyed.
+  const viewer = auth.currentUser?.uid;
+  const others = readLocal().filter(e => e.uid && e.uid !== viewer);
+  writeLocal([...merged, ...others]);
   return merged.slice(0, max);
 }
 
@@ -143,7 +186,7 @@ export async function getContinueWatching(kind?: WatchKind, max = 20): Promise<W
 
 /** Synchronous best-effort resume position from the local cache (no await). */
 export function getResumePosition(id: string): number {
-  const e = readLocal().find(x => x.id === id);
+  const e = readLocalForViewer().find(x => x.id === id);
   return e && !e.completed ? e.positionSec : 0;
 }
 

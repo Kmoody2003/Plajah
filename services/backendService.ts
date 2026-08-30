@@ -4470,6 +4470,17 @@ export const logout = async () => {
       }).catch(() => {});
     }
     await signOut(auth);
+    // Drop every per-user cache. These reset helpers all existed but NOTHING called them, so on
+    // an account switch the next user inherited the previous one's taste vector, play-count
+    // cache and metrics session — which on a shared device means one person's "% Match" scored
+    // against another person's viewing. Imported lazily so this module keeps no load-time
+    // dependency on the services that import IT.
+    await Promise.all([
+      import('./tasteService').then(m => m.resetTasteCaches()).catch(() => {}),
+      import('./videoTasteService').then(m => m.resetVideoTasteCaches()).catch(() => {}),
+      import('./publicStats').then(m => m.resetPublicStatsCache()).catch(() => {}),
+      import('./contentMetrics').then(m => m.resetMetricsSession()).catch(() => {}),
+    ]);
   } catch (error) {
     console.error("Logout failed:", error);
   }
@@ -10014,19 +10025,18 @@ export const fetchHideNSeekStats = async (albumId: string): Promise<HideNSeekSta
 
 // ── Listen Counts ─────────────────────────────────────────────────────────────
 
-export const incrementTrackPlay = async (trackId: string, albumId?: string): Promise<void> => {
-  try {
-    await setDoc(doc(db, 'track_stats', trackId), {
-      trackId,
-      albumId: albumId || null,
-      playCount: increment(1),
-      lastPlayed: Date.now(),
-    }, { merge: true });
-    if (albumId) {
-      await updateDoc(doc(db, 'albums', albumId), { playCount: increment(1) });
-    }
-  } catch (_) {}
-};
+// REMOVED: incrementTrackPlay().
+//
+// It wrote track_stats/{id} and albums/{id} straight from the client, and neither write could
+// ever land: the track_stats rule allowed only ['playCount'] to change but this also sent
+// trackId/albumId/lastPlayed, and the albums rule requires the doc OWNER, so a listener's
+// increment was denied outright. Both failures went into the empty catch above, so the counters
+// simply stayed near zero while looking like they worked.
+//
+// Plays now go through services/contentMetrics -> POST /api/metrics/events, where the server
+// (which bypasses rules) owns every counter. That is also what makes them trustworthy: a
+// client-writable counter is a forgeable counter. track_stats is now server-written, and
+// fetchTrackStats below reads exactly the same numbers it always did.
 
 export const fetchTrackStats = async (trackIds: string[]): Promise<Record<string, number>> => {
   if (!trackIds.length) return {};

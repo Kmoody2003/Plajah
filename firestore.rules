@@ -975,6 +975,15 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // Video taste reactions (services/videoTasteService) — the signal behind the "% Match"
+      // badge, and the video sibling of trackReactions. Each doc carries the facets of the title
+      // it was about (genre/category/creator/world/tags) so the vector can be derived without
+      // re-fetching every video. Owner-private: this is a record of what one person likes, and
+      // nothing else needs to read it.
+      match /videoReactions/{videoId} {
+        allow read, write: if isOwner(userId);
+      }
+
       // Marketing campaigns (services/marketing/campaignService) — the Local Reach
       // Campaign Hub. Lives under the operating user's subtree even when scoped to
       // a managed BUSINESS/ORG identity (scope.id / authorOrgId are logical partition
@@ -1965,18 +1974,38 @@ service cloud.firestore {
       }
     }
 
+    // The PUBLIC half of the metrics rollup: play count and the thumbs tally, and nothing else.
+    // Deliberately separate from contentStats — that doc also carries watch-time and the retention
+    // curve, which are the creator's business metrics. Rules cannot restrict which FIELDS a read
+    // returns, so the only way to publish one number without publishing all of them is a separate
+    // document. Written by the server alone (service account bypasses rules).
+    match /publicStats/{contentId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Per-voter record backing the publicStats thumbs tally. Server-only in both directions: it
+    // exists so the aggregate can apply a vote DELTA rather than blindly adding, and it is not a
+    // public who-voted-what list.
+    match /contentRatings/{contentId}/voters/{uid} {
+      allow read, write: if false;
+    }
+
+    // Legacy public play counters. Now written exclusively by /api/metrics/events (the server's
+    // service account bypasses rules), so client writes are denied outright.
+    //
+    // These rules USED to let any signed-in client do a +1. That made every counter forgeable —
+    // and it did not even work: the writer in backendService.incrementTrackPlay also sent
+    // trackId/albumId/lastPlayed, which hasOnly(['playCount']) rejected, so every play after the
+    // first was silently denied and the numbers on screen were stuck near zero.
     match /track_stats/{id} {
       allow read: if true;
-      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['playCount']) &&
-                      request.resource.data.playCount == resource.data.playCount + 1;
-      allow create: if request.resource.data.playCount == 1;
+      allow write: if false;
     }
 
     match /video_stats/{id} {
       allow read: if true;
-      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['playCount']) &&
-                      request.resource.data.playCount == resource.data.playCount + 1;
-      allow create: if request.resource.data.playCount == 1;
+      allow write: if false;
     }
 
     // ===============================================================

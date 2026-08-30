@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Video, Album, Character, IPWorld, LoreEntry, TimelineEvent, WhatIfBranchPoint, WhatIfChoice, CharacterTimestamp, Club } from '../types';
 import {
-  Play, Plus, Share2, ArrowLeft, Star, Pencil,
+  Play, Plus, Share2, ArrowLeft, Eye, Pencil,
   Info, Film, Globe, MessageCircle,
   X, Users, Maximize2, Minimize2, Check,
   Bookmark, Sparkles, RefreshCw, Calendar,
@@ -17,6 +17,9 @@ import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { getDoc, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
 import { recordProgress, getResumePosition } from '../services/watchHistoryService';
+import { trackStart, trackProgress, trackComplete } from '../services/contentMetrics';
+import { subscribePublicStats, submitRating, positiveShare, formatCount, type PublicStats } from '../services/publicStats';
+import { setVideoReaction, matchScoreFor, type MatchResult } from '../services/videoTasteService';
 import {
   db, auth,
   fetchWorldCharacters,
@@ -250,6 +253,11 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
     const record = () => {
       if (!liveVideo.id || !(videoEl.duration > 0) || isNaN(videoEl.duration)) return;
       if (!(videoEl.currentTime > 0)) return;
+      // Creator metrics — the aggregate view count and retention curve, distinct from the private
+      // resume position written just below. Taleo reported neither before, which is why every
+      // number on the detail page had to be invented to have anything to show.
+      trackStart(liveVideo.id, 'film', (liveVideo as any).ownerId);
+      trackProgress(liveVideo.id, 'film', videoEl.currentTime, videoEl.duration, (liveVideo as any).ownerId);
       recordProgress({
         id: liveVideo.id,
         kind: 'TALEO',
@@ -260,6 +268,12 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
         durationSec: videoEl.duration,
         seriesId: (liveVideo as any).tvMetadata?.seriesTitle || undefined,
         worldId: liveVideo.worldId,
+        // Taste facets — what videoTasteService learns from actually finishing (or abandoning)
+        // this film, as opposed to from a deliberate thumb.
+        genre: liveVideo.genre,
+        category: liveVideo.category,
+        creatorId: liveVideo.ownerId,
+        tags: liveVideo.tags,
       }).catch(() => {});
     };
 
@@ -291,7 +305,11 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
       }
     };
 
-    const onEndedEvt = () => { record(); onEnded?.(); };
+    const onEndedEvt = () => {
+      record();
+      if (liveVideo.id) trackComplete(liveVideo.id, 'film', videoEl.duration, (liveVideo as any).ownerId);
+      onEnded?.();
+    };
 
     videoEl.addEventListener('timeupdate', onTime);
     videoEl.addEventListener('pause', onPause);
@@ -1053,7 +1071,32 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
 
   // ── Detail page: maturity rating (from data), match %, thumbs rating ──────
   const maturity = (item as any).contentRating || (item as any).filmDistribution?.contentRating || (item as any).movieMetadata?.maturityRating || 'NR';
-  const matchPct = 68 + (Array.from(String(item.id || (item as any).title || '')).reduce((a, c) => a + c.charCodeAt(0), 0) % 31);
+
+  // Real audience numbers, live from publicStats. Two things used to sit here instead:
+  //
+  //   - a "% Match" computed as `68 + (sum of the title's char codes) % 31`. It looked like a
+  //     personalization score and was a hash of the title — the same for every viewer, unrelated
+  //     to anything they had ever watched. There is no film taste model to back one (tasteService
+  //     is music-only), so the badge is gone rather than faked.
+  //   - a hardcoded `9.8` star rating, identical on every title on the platform.
+  //
+  // What replaces them is the thumbs tally the buttons below already collect, shown only once
+  // somebody has actually voted.
+  const [publicStats, setPublicStats] = useState<PublicStats | null>(null);
+  useEffect(() => subscribePublicStats(item.id, setPublicStats), [item.id]);
+  const audienceScore = positiveShare(publicStats);
+
+  // Personal "% Match", from services/videoTasteService. Null — and therefore no badge — until
+  // this viewer has enough watch/reaction history to say anything, and until this title shares a
+  // facet with it. Recomputed when they rate something, since that changes the vector.
+  const [match, setMatch] = useState<MatchResult | null>(null);
+  const [tasteEpoch, setTasteEpoch] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    matchScoreFor(item as any).then(m => { if (!cancelled) setMatch(m); });
+    return () => { cancelled = true; };
+  }, [item.id, tasteEpoch]);
+
   const [myRating, setMyRating] = useState<'UP' | 'DOWN' | null>(null);
   useEffect(() => {
     const uid = auth.currentUser?.uid;
@@ -1063,9 +1106,19 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
   const rate = async (r: 'UP' | 'DOWN') => {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
+    const next = myRating === r ? null : r;      // pressing the lit thumb retracts the vote
     const ref = doc(db, 'users', uid, 'titleRatings', item.id);
-    if (myRating === r) await deleteDoc(ref).catch(() => {});
-    else await setDoc(ref, { rating: r, titleId: item.id, title: (item as any).title || '', at: Date.now() }).catch(() => {});
+    // The viewer's own doc drives the button's lit/unlit state; the server call is what moves the
+    // PUBLIC tally. It dedupes against this viewer's previous vote, so retracting or switching
+    // sides adjusts the score instead of inflating it.
+    if (next === null) await deleteDoc(ref).catch(() => {});
+    else await setDoc(ref, { rating: next, titleId: item.id, title: (item as any).title || '', at: Date.now() }).catch(() => {});
+    void submitRating(item.id, 'film', next);
+    // Same press, third destination: the personal taste vector behind the % Match badge. Stored
+    // with this title's facets so the vector learns what KIND of thing was rated, not just that
+    // something was. Awaited so the badge below refreshes against the new vector.
+    await setVideoReaction(item as any, next);
+    setTasteEpoch(n => n + 1);
   };
 
   const worldVideos = (worldContent?.videos || []).filter(v => v.id !== item.id).slice(0, 6);
@@ -1258,10 +1311,28 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
 
                   {/* Meta */}
                   <div className="flex items-center gap-4 text-[10px] font-black tracking-[0.15em] uppercase text-white/40 flex-wrap">
-                    <span className="text-[#3FBE85]">{matchPct}% Match</span>
-                    <span className="flex items-center gap-1.5 text-[#D0BCFF]">
-                      <Star fill="currentColor" size={12} /> 9.8
-                    </span>
+                    {/* Personal match — only when the taste vector can actually speak to this
+                        title. The tooltip names what drove it, so the number is inspectable
+                        rather than mysterious. */}
+                    {match && (
+                      <span
+                        className="text-[#3FBE85]"
+                        title={`Based on your ${match.basis.map(b => b.family).join(', ')}`}
+                      >
+                        {match.score}% Match
+                      </span>
+                    )}
+                    {/* Audience score — shown only once real votes exist. No votes, no number. */}
+                    {audienceScore !== null && (
+                      <span className="flex items-center gap-1.5 text-[#3FBE85]" title={`${publicStats!.up + publicStats!.down} ratings`}>
+                        <ThumbsUp fill="currentColor" size={11} /> {audienceScore}% liked
+                      </span>
+                    )}
+                    {!!publicStats?.plays && (
+                      <span className="flex items-center gap-1.5 text-white/40">
+                        <Eye size={11} /> {formatCount(publicStats.plays)} views
+                      </span>
+                    )}
                     {releaseYear && <span className="text-white/40">{releaseYear}</span>}
                     <span
                       title={`Content rating: ${maturity}`}
@@ -1284,7 +1355,14 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                     {description || 'No description available.'}
                   </p>
 
-                  <The411 itemId={item.id} itemType="VIDEO" title={title} author={artist} />
+                  <The411
+                    itemId={item.id}
+                    itemType="MOVIE"
+                    title={title}
+                    author={artist}
+                    likes={(item as any).likesCount || 0}
+                    comments={(item as any).commentsCount || 0}
+                  />
 
                   {(item as any).worldId && (
                     <WorldBadge

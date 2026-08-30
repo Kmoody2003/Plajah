@@ -1,4 +1,4 @@
-import { collection, getDocs, query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import type { FilmVideoAnalytics } from '../types';
 
@@ -454,27 +454,50 @@ export async function fetchFilmAnalytics(uid: string): Promise<FilmVideoAnalytic
     ...filmAlbums,
   ];
 
-  return filmVideos.map((v: any): FilmVideoAnalytics => {
+  // Everything below used to be INVENTED when the real field was missing: dropOffSegments were
+  // generated with Math.random() (so the "retention heatmap" showed different numbers on every
+  // page load), avgWatchDuration defaulted to duration * 0.45, and sourceAttribution was a
+  // fixed percentage split of the play count dressed up as traffic sources. A creator studying
+  // that heatmap to decide where their film loses people was reading noise.
+  //
+  // These now come from contentStats/{id}, the rollup /api/metrics/events writes from real
+  // playback. The doc is owner-read-only by rules, which is exactly who this function serves.
+  // Where a title has no data yet the field stays 0 / empty and the UI says so — an honest blank
+  // beats a confident fiction.
+  const rollups = await Promise.all(
+    filmVideos.map(v => getDoc(doc(db, 'contentStats', v.id)).catch(() => null)),
+  );
 
-    // Everything below used to be INVENTED when the real field was missing: dropOffSegments were
-    // generated with Math.random() (so the "retention heatmap" showed different numbers on every
-    // page load), avgWatchDuration defaulted to duration * 0.45, and sourceAttribution was a
-    // fixed percentage split of the play count dressed up as traffic sources. A creator studying
-    // that heatmap to decide where their film loses people was reading noise.
-    //
-    // Real equivalents now come from contentStats, populated by /api/metrics/events. Until a
-    // title has accumulated data, these stay EMPTY and the UI says so — an honest blank beats a
-    // confident fiction.
+  return filmVideos.map((v: any, i: number): FilmVideoAnalytics => {
+    const st: any = rollups[i]?.exists() ? rollups[i]!.data() : null;
+    const plays = Number(st?.plays) || 0;
+
+    // r10..r100 are "how many sessions reached at least this tenth". The share still watching at
+    // each mark is that count over total plays; the drop-off AT a mark is the share lost between
+    // it and the next. r100 has no next mark, so its loss is everyone who reached it without
+    // registering a completion.
+    const reach = (d: number) => Number(st?.[`r${d}`]) || 0;
+    const dropOffSegments = plays > 0
+      ? [10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(d => ({
+          pct: d,
+          dropOffRate: Math.max(0, (reach(d) - (d === 100 ? (Number(st?.completions) || 0) : reach(d + 10))) / plays),
+        }))
+      : [];
+
     return {
       videoId:          v.id,
       title:            v.title || 'Untitled',
-      completionRate:   typeof v.completionRate === 'number' ? v.completionRate : 0,
-      avgWatchDuration: typeof v.avgWatchDuration === 'number' ? v.avgWatchDuration : 0,
-      dropOffSegments:  [],
+      completionRate:   plays > 0 ? Math.min(1, (Number(st?.completions) || 0) / plays) : 0,
+      avgWatchDuration: plays > 0 ? (Number(st?.secondsPlayed) || 0) / plays : 0,
+      dropOffSegments,
       rentalCount:      v.rentalCount   || 0,
       purchaseCount:    v.purchaseCount || 0,
       ppvCount:         v.ppvCount      || 0,
+      // Deliberately not derived. Counting unique viewers means retaining per-viewer records,
+      // which the ingest specifically does not do — creators get counts and curves, never
+      // individuals. Left at whatever a purchase/rental flow recorded, or 0.
       uniqueViewers:    typeof v.uniqueViewers === 'number' ? v.uniqueViewers : 0,
+      // Still empty: nothing records where a play came from. Inventing a split was the old bug.
       sourceAttribution: [],
     };
   });

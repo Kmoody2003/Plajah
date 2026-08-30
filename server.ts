@@ -6380,6 +6380,41 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   const METRIC_CONTENT_TYPES = new Set(['track', 'album', 'video', 'film', 'book', 'article', 'post', 'podcast']);
   const ymd = (t: number) => new Date(t).toISOString().slice(0, 10);
 
+  // Where a PUBLIC play count for each content type already lives, so the surfaces that read
+  // these fields today (Chora track rows, Reello view pills, the Reello ranking in
+  // services/relloFeedService) light up from the same ingest rather than needing their own.
+  // `contentStats` cannot serve them: it is owner-read-only by design, because the rollup also
+  // carries watch-time and the retention curve — business data, not a public number.
+  const PUBLIC_MIRROR: Record<string, { collection: string; field: string; idField?: string }> = {
+    // `idField` marks a stats doc that may not exist yet — a bare field transform fails on a
+    // missing document, so those need an identity field written in the same commit to create it.
+    // The name matches the shape the existing docs already use, so fetchTrackStats keeps reading
+    // the same collection unchanged. The content docs (videos/albums) always exist by the time
+    // anyone can play them, so they need no such field.
+    track: { collection: 'track_stats', field: 'playCount', idField: 'trackId' },
+    album: { collection: 'albums', field: 'playCount' },
+    video: { collection: 'videos', field: 'playsCount' },
+    film:  { collection: 'videos', field: 'playsCount' },
+  };
+
+  /**
+   * Mirror a play into the world-readable counters.
+   *
+   * `publicStats/{contentId}` is the canonical public doc — one number, no watch-time, no
+   * retention — so a viewer can be shown "42,980 plays" without being handed the creator's
+   * business metrics. The per-collection mirror above keeps existing UI working unchanged.
+   */
+  async function mirrorPublicPlay(contentId: string, contentType: string): Promise<void> {
+    await firestoreIncrement(`publicStats/${contentId}`, { plays: 1 }, { contentId, contentType, updatedAt: Date.now() });
+    const target = PUBLIC_MIRROR[contentType];
+    if (!target) return;
+    await firestoreIncrement(
+      `${target.collection}/${contentId}`,
+      { [target.field]: 1 },
+      target.idField ? { [target.idField]: contentId, lastPlayed: Date.now() } : {},
+    );
+  }
+
   app.post('/api/metrics/events', apiLimiter, authMiddleware, express.json({ limit: '64kb' }), async (req: any, res) => {
     const events = Array.isArray(req.body?.events) ? req.body.events.slice(0, 50) : [];
     if (!events.length) return res.json({ ok: true, accepted: 0 });
@@ -6435,10 +6470,56 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       // never by viewer.
       await firestoreIncrement(`contentStats/${contentId}`, inc, { ...identity, updatedAt: Date.now() });
       await firestoreIncrement(`contentStats/${contentId}/daily/${day}`, dayInc, { ...identity, day });
+      // Only a 'start' is a play. Progress and completion events must not bump the public count,
+      // or one session would register as several.
+      if (inc.plays) await mirrorPublicPlay(contentId, contentType);
       accepted++;
     }
 
     res.json({ ok: true, accepted });
+  });
+
+  // ── Audience score (thumbs up/down) ──────────────────────────────────────────
+  //
+  // The public "% liked" number. It has to be aggregated HERE for the same reason plays are:
+  // each viewer's own vote lives at users/{uid}/titleRatings/{id}, which is owner-private, so no
+  // client can count the others' votes — and a client-writable tally is a forgeable tally.
+  //
+  // Double-voting is prevented by remembering each voter's LAST vote server-side and applying
+  // only the delta. Re-sending the same vote is a no-op, and switching UP->DOWN moves one vote
+  // rather than adding one. The voter doc is server-only (rules deny the client outright), so it
+  // is a record of the tally's arithmetic, not a public who-voted-what list.
+  app.post('/api/metrics/rating', apiLimiter, authMiddleware, express.json({ limit: '4kb' }), async (req: any, res) => {
+    const contentId = String(req.body?.contentId || '').trim();
+    const contentType = String(req.body?.contentType || '').trim();
+    const raw = req.body?.rating;
+    const rating: 'UP' | 'DOWN' | null = raw === 'UP' || raw === 'DOWN' ? raw : null;
+
+    if (!contentId || !/^[\w-]{1,128}$/.test(contentId) || !METRIC_CONTENT_TYPES.has(contentType)) {
+      return res.status(400).json({ error: 'contentId and contentType required' });
+    }
+
+    const voterPath = `contentRatings/${contentId}/voters`;
+    const prevDoc = await firestoreRead(voterPath, req.uid);
+    const prev: 'UP' | 'DOWN' | null =
+      prevDoc?.rating === 'UP' || prevDoc?.rating === 'DOWN' ? prevDoc.rating : null;
+
+    if (prev === rating) {
+      const cur = await firestoreRead('publicStats', contentId);
+      return res.json({ ok: true, up: Number(cur?.up || 0), down: Number(cur?.down || 0) });
+    }
+
+    const inc: Record<string, number> = {};
+    if (prev === 'UP') inc.up = (inc.up || 0) - 1;
+    if (prev === 'DOWN') inc.down = (inc.down || 0) - 1;
+    if (rating === 'UP') inc.up = (inc.up || 0) + 1;
+    if (rating === 'DOWN') inc.down = (inc.down || 0) + 1;
+
+    await firestoreIncrement(`publicStats/${contentId}`, inc, { contentId, contentType, updatedAt: Date.now() });
+    await firestoreWrite(voterPath, req.uid, { rating: rating || '', at: Date.now() });
+
+    const cur = await firestoreRead('publicStats', contentId);
+    res.json({ ok: true, up: Number(cur?.up || 0), down: Number(cur?.down || 0) });
   });
 
   // ── Chora — transcode a track's master to the streaming ladder (Step 1) ──────
