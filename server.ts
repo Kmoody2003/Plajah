@@ -6620,7 +6620,19 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       // fetch to pay full GCS-to-server latency THEN full server-to-client latency serially
       // instead of overlapping them, adding real per-segment delay on every play.
       if (!g.body) return res.end();
-      Readable.fromWeb(g.body as any).pipe(res);
+      const upstream = Readable.fromWeb(g.body as any);
+      // Every listener hits this route once per segment, and aborts are the norm here —
+      // seeking, skipping a track, closing the tab. Without destroying the upstream on
+      // close, each of those strands an open GCS stream on the instance.
+      res.on('close', () => upstream.destroy());
+      // A mid-pipe failure lands after the try/catch has already returned and after the
+      // headers went out, so it arrives as an unhandled 'error' on the readable rather
+      // than a 502. Swallow the request instead of letting it take the instance down.
+      upstream.on('error', (err) => {
+        console.warn('[Chora media] upstream stream error:', err?.message || err);
+        res.destroy();
+      });
+      upstream.pipe(res);
     } catch (e: any) { res.status(502).end(); }
   });
 
