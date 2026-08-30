@@ -50,8 +50,8 @@ async function findFilm(albumId: string, album: Record<string, any>): Promise<{
 }> {
   const tracks: any[] = Array.isArray(album.tracks) ? album.tracks : [];
   const track = tracks[0];
-  const title = String(track?.title || album.title || albumId);
-  const durationSec = Number(track?.duration) > 0 ? Math.round(Number(track.duration)) : undefined;
+  let title = String(track?.title || album.title || albumId);
+  let durationSec = Number(track?.duration) > 0 ? Math.round(Number(track.duration)) : undefined;
   const castRaw = Array.isArray(album.cast) ? album.cast : Array.isArray(album.castNames) ? album.castNames : null;
   const cast = castRaw
     ? castRaw.map((c: any) => String(typeof c === 'object' ? c?.name ?? '' : c)).filter(Boolean).slice(0, 100)
@@ -62,6 +62,18 @@ async function findFilm(albumId: string, album: Record<string, any>): Promise<{
     const mirror = await fsGet(`videos/sys_${albumId}_${track.id}`);
     if (typeof mirror?.muxPlaybackId === 'string' && mirror.muxPlaybackId) muxPlaybackId = mirror.muxPlaybackId;
   }
+  // Films uploaded through the VIDEO path — most already-published Taleo movies — carry NO
+  // tracks[] at all: the media lives at videos/{albumId}, the SAME id in another collection.
+  // Without this lookup those jobs sit at WAITING_MEDIA forever (found live, 2026-08-28).
+  if (!muxPlaybackId) {
+    const own = await fsGet(`videos/${albumId}`);
+    if (typeof own?.muxPlaybackId === 'string' && own.muxPlaybackId) {
+      muxPlaybackId = own.muxPlaybackId;
+      if (!durationSec && Number(own.duration) > 0) durationSec = Math.round(Number(own.duration));
+      if (!track?.title && typeof own.title === 'string' && own.title) title = own.title;
+    }
+  }
+
   return { muxPlaybackId, title, durationSec, cast: cast && cast.length ? cast : undefined };
 }
 
