@@ -128,6 +128,8 @@ import LiveFollowPills from './components/LiveFollowPills';
 import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } from './services/tvPerformance';
 import TvUnavailableNotice from './components/TvUnavailableNotice';
 import TvTopTabs from './components/TvTopTabs';
+import TvSpine, { TV_SPINE_W } from './components/tv/TvSpine';
+import { useTvLineup } from './hooks/useTvLineup';
 const TvSignInView = retryLazy(() => import('./components/TvSignInView'));
 const ChoraTvView = retryLazy(() => import('./components/tv/ChoraTvView'));
 const TvSearchView = retryLazy(() => import('./components/tv/TvSearchView'));
@@ -983,6 +985,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // touch tablets, split pillars as an opt-in. See hooks/useNavLayout.
   const navLayout = useNavLayout();
   const shellNext = useShellNext();
+  const tvLineup = useTvLineup();
   // Transient red warning toast (e.g. nano view isn't available in bar mode).
   const [navWarning, setNavWarning] = useState<string | null>(null);
   const navWarnTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -5127,63 +5130,96 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
 
-            {/* On a TV the four tabs ARE the navigation — see TvTopTabs for why a sidebar is the
-                wrong shape for a remote.
+            {/* On a TV the four (or five, on Spine) surfaces ARE the navigation — see TvTopTabs
+                for why a sidebar is the wrong shape for a remote.
                 ORDER MATTERS: every TV screen must render AFTER this block. The screens are
                 h-full, so anything rendered above the bar takes the whole viewport and pushes the
-                bar off the top — which is exactly what happened to Reello. */}
+                bar off the top — which is exactly what happened to Reello.
+
+                SPINE vs CLASSIC: TvSpine is a drop-in replacement for TvTopTabs — identical props,
+                identical shell-focus contract (useTvShellFocus) — so this is the only place the
+                two shells differ. Gated behind useTvLineup, default OFF: see that hook for why a
+                nav change on someone's only physical TV, unverified on real hardware, ships
+                opt-in rather than on. */}
             {getPlatformInfo().isTV && (
-              <TvTopTabs
-                activeView={view}
-                onSelect={(v) => setView(v as AppView)}
-                focused={tvTabsFocused}
-                onExitDown={() => setShellFocus(false)}
-                onOpenSearch={() => { setShellFocus(false); setView('TV_SEARCH' as AppView); }}
-                onOpenNowPlaying={() => {
-                  setShellFocus(false);
-                  // Go back to the SOURCE that is playing, not a generic player: an album
-                  // returns to its album screen, radio to Radio. Landing somewhere that isn't
-                  // what you're hearing is disorienting on a TV, where there is no address bar
-                  // to tell you where you are.
-                  if (audioSource === 'RADIO') { setView('RADIO' as AppView); return; }
-                  if (currentAlbum) { handleSelectItem(currentAlbum); return; }
-                  setView('PLAYER' as AppView);
-                }}
-              />
+              tvLineup.enabled ? (
+                <TvSpine
+                  activeView={view}
+                  onSelect={(v) => setView(v as AppView)}
+                  focused={tvTabsFocused}
+                  onExitDown={() => setShellFocus(false)}
+                  onOpenSearch={() => { setShellFocus(false); setView('TV_SEARCH' as AppView); }}
+                  onOpenNowPlaying={() => {
+                    setShellFocus(false);
+                    if (audioSource === 'RADIO') { setView('RADIO' as AppView); return; }
+                    if (currentAlbum) { handleSelectItem(currentAlbum); return; }
+                    setView('PLAYER' as AppView);
+                  }}
+                />
+              ) : (
+                <TvTopTabs
+                  activeView={view}
+                  onSelect={(v) => setView(v as AppView)}
+                  focused={tvTabsFocused}
+                  onExitDown={() => setShellFocus(false)}
+                  onOpenSearch={() => { setShellFocus(false); setView('TV_SEARCH' as AppView); }}
+                  onOpenNowPlaying={() => {
+                    setShellFocus(false);
+                    // Go back to the SOURCE that is playing, not a generic player: an album
+                    // returns to its album screen, radio to Radio. Landing somewhere that isn't
+                    // what you're hearing is disorienting on a TV, where there is no address bar
+                    // to tell you where you are.
+                    if (audioSource === 'RADIO') { setView('RADIO' as AppView); return; }
+                    if (currentAlbum) { handleSelectItem(currentAlbum); return; }
+                    setView('PLAYER' as AppView);
+                  }}
+                />
+              )
             )}
 
             {/* Reello on a television is its own screen, modelled on the YouTube TV app —
                 landscape rows, a fixed destination rail, and selection going straight to
                 fullscreen playback. VideoTab is a pointer-and-scroll surface and does not
-                survive a D-pad. */}
+                survive a D-pad.
+                The paddingLeft wrapper is the ONLY change Spine makes to this screen: it flows
+                normally below the (now fixed, not sticky) rail, same as it always flowed below
+                the sticky top bar — it just needs to know not to run underneath the rail's width.
+                Nothing about ReelloTvView's own D-pad logic changes. */}
             {view === 'VIDEOS' && getPlatformInfo().isTV && (
-              <Suspense fallback={null}>
-                <ReelloTvView
-                  userProfile={userProfile}
-                  onSelectVideo={handleSelectItem}
-                  onVisitChannel={(p) => handleVisitUser(p.uid)}
-                />
-              </Suspense>
+              <div style={tvLineup.enabled ? { paddingLeft: TV_SPINE_W } : undefined}>
+                <Suspense fallback={null}>
+                  <ReelloTvView
+                    userProfile={userProfile}
+                    onSelectVideo={handleSelectItem}
+                    onVisitChannel={(p) => handleVisitUser(p.uid)}
+                  />
+                </Suspense>
+              </div>
             )}
 
             {/* Global TV search — reachable from the top bar's Search chip. handleSelectItem is the
                 universal router (album→player, film→MOVIE_UX, video→player), so all three catalogues
                 open exactly where their own home screens would send them. */}
             {view === 'TV_SEARCH' && getPlatformInfo().isTV && (
-              <Suspense fallback={null}>
-                <TvSearchView
-                  onBack={() => setView('MOVIES_TV' as AppView)}
-                  onSelectAlbum={handleSelectItem}
-                  onSelectMovie={handleSelectItem}
-                  onSelectVideo={handleSelectItem}
-                />
-              </Suspense>
+              <div style={tvLineup.enabled ? { paddingLeft: TV_SPINE_W } : undefined}>
+                <Suspense fallback={null}>
+                  <TvSearchView
+                    onBack={() => setView('MOVIES_TV' as AppView)}
+                    onSelectAlbum={handleSelectItem}
+                    onSelectMovie={handleSelectItem}
+                    onSelectVideo={handleSelectItem}
+                  />
+                </Suspense>
+              </div>
             )}
 
             {/* Profile on a TV is the short settings list, not the full desktop surface. */}
             {getPlatformInfo().isTV && view === 'USER_PROFILE' && (
               <Suspense fallback={null}>
                 <TvSettingsView
+                  railInset={tvLineup.enabled ? TV_SPINE_W : 0}
+                  tvLineupEnabled={tvLineup.enabled}
+                  onSetTvLineupEnabled={tvLineup.setEnabled}
                   userProfile={userProfile}
                   subscriptionLabel={(userProfile as any)?.subscriptionTier || 'Free'}
                   onSignOut={() => { try { logout(); } catch { /* ignore */ } }}
@@ -5315,14 +5351,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 geometric inference, which is what made the adapted version unpredictable.
                 Album playback still uses the existing TV album/player layout. */}
             {view === 'MUSIC' && getPlatformInfo().isTV && (
-              <Suspense fallback={<div className="h-full grid place-items-center text-white/30 text-xs font-black uppercase tracking-[0.3em]">Loading Chora…</div>}>
-                <ChoraTvView
-                  userProfile={userProfile}
-                  onSelectAlbum={handleSelectItem}
-                  onOpenSection={() => { /* sections render in-place; nothing to route yet */ }}
-                  onOpenPlus={() => setView('SANCTUARY_HUB' as AppView)}
-                />
-              </Suspense>
+              <div style={tvLineup.enabled ? { paddingLeft: TV_SPINE_W } : undefined}>
+                <Suspense fallback={<div className="h-full grid place-items-center text-white/30 text-xs font-black uppercase tracking-[0.3em]">Loading Chora…</div>}>
+                  <ChoraTvView
+                    userProfile={userProfile}
+                    onSelectAlbum={handleSelectItem}
+                    onOpenSection={() => { /* sections render in-place; nothing to route yet */ }}
+                    onOpenPlus={() => setView('SANCTUARY_HUB' as AppView)}
+                  />
+                </Suspense>
+              </div>
             )}
 
             {view === 'MUSIC' && !getPlatformInfo().isTV && (
@@ -5528,9 +5566,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {/* Taleo on a TV gets the purpose-built declarative-grid screen (like Chora/Reello);
                 pointer/desktop keeps the geometric MoviesTVView. Selection is identical. */}
             {view === 'MOVIES_TV' && getPlatformInfo().isTV && (
-              <Suspense fallback={null}>
-                <MoviesTvView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} />
-              </Suspense>
+              <div style={tvLineup.enabled ? { paddingLeft: TV_SPINE_W } : undefined}>
+                <Suspense fallback={null}>
+                  <MoviesTvView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} />
+                </Suspense>
+              </div>
             )}
             {view === 'MOVIES_TV' && !getPlatformInfo().isTV && <MoviesTVView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} onNavigate={(v) => setView(v as any)} />}
             {view === 'GAMES' && <GamesView onBack={() => setView('DASHBOARD')} onSelectGame={handleSelectGame} />}

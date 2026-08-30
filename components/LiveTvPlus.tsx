@@ -21,6 +21,8 @@ import ComingUpNextBumper, { type UpNextItem } from './tv/ComingUpNextBumper';
 import EndlessHourPlayer from './tv/EndlessHourPlayer';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { isShellFocused, setShellFocus } from '../hooks/useTvShellFocus';
+import { useTvLineup } from '../hooks/useTvLineup';
+import { TV_SPINE_W } from './tv/TvSpine';
 import { PLAJAH_CHANNELS, UNNUMBERED, guideSortKey, legacyMajors, plajahNumber, type NumberRegistry } from '../services/fast/channelNumbers';
 import { isChannelFeed } from '../services/fast/guideLineup';
 import ShareButton from './ShareButton';
@@ -314,6 +316,7 @@ const LiveTvPlus: React.FC<{
   const [renameError, setRenameError] = useState('');
   const settleRef = useRef<any>(null);
   const guideRef = useRef<HTMLDivElement>(null);
+  const tvLineup = useTvLineup();
 
   // Every number in one document. Numbers are GIVEN, not derived, so the guide's job is to look
   // them up rather than to work them out — which is what makes a channel's number the same on
@@ -497,6 +500,15 @@ const LiveTvPlus: React.FC<{
   }, [focusOwnerId, focusPlajahId, focusNumber, channels]);
 
   // Keyboard / D-pad (works on the TV app too).
+  //
+  // CHANNEL UP/DOWN previously did nothing on a real remote, and even the plain arrow keys were
+  // unreliable. Root cause: this listener carries no `data-tv-capture` marker on its screen, and
+  // TVNavigationLayer's `inCaptureZone` check falls through to "ordinary page → geometry navigates"
+  // whenever nothing on the current screen is marked — so the geometric layer was eating arrow keys
+  // with `stopImmediatePropagation` before this bubble-phase handler ever ran, unless the shell
+  // happened to already hold focus. The fix is the `data-tv-capture` attribute on the root div below
+  // (see TVNavigationLayer.inCaptureZone), which makes the geometric layer yield unconditionally
+  // while this screen is showing — the same mechanism MoviesTvView and TvSearchView already use.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // On the TV the shell's tab bar can own the remote — go inert so one press never moves two things.
@@ -504,6 +516,16 @@ const LiveTvPlus: React.FC<{
       const kc = (e as any).keyCode || 0;
       const isUp = e.key === 'ArrowUp' || kc === 38 || kc === 19;
       const isDown = e.key === 'ArrowDown' || kc === 40 || kc === 20;
+      // A physical remote's dedicated Channel Up/Down buttons. Different vendors deliver them
+      // differently — Android TV's consumer-electronics keycodes (166/167), a named key
+      // ('ChannelUp'/'ChannelDown'), or the bracket/PageUp/PageDown keys used for the same purpose
+      // in a browser — so all of them are accepted rather than guessing which one a given remote or
+      // keyboard sends. They page the channel from anywhere on this surface, independent of the
+      // dial's up/down stepping above.
+      const isChUp = kc === 166 || e.key === 'ChannelUp' || e.key === 'PageUp' || e.key === ']';
+      const isChDown = kc === 167 || e.key === 'ChannelDown' || e.key === 'PageDown' || e.key === '[';
+      if (isChUp) { e.preventDefault(); setIdx(Math.min(channels.length - 1, index + 1)); return; }
+      if (isChDown) { e.preventDefault(); setIdx(Math.max(0, index - 1)); return; }
       if (isUp) {
         // At the top of the dial, UP hands focus back to the TV tab bar instead of trapping the viewer.
         if (index === 0 && getPlatformInfo().isTV) { e.preventDefault(); setShellFocus(true); return; }
@@ -524,7 +546,12 @@ const LiveTvPlus: React.FC<{
 
   const selected = channels[index] || null;
   const playing = channels[loadedIndex] || null;
-  const tvInset = getPlatformInfo().isTV;   // leave room for the TV shell's tab bar
+  const isTv = getPlatformInfo().isTV;
+  // Room to leave for whichever shell is mounted above: the classic top bar (64px) or, with Spine,
+  // a fixed left rail instead — same idea, different edge. Spine's own width constant is imported
+  // rather than duplicated, so the two can never drift out of sync.
+  const tvInset = isTv && !tvLineup.enabled;                 // classic: inset from the top
+  const tvRailInset = isTv && tvLineup.enabled ? TV_SPINE_W : 0;   // spine: inset from the left
 
   const beginRename = useCallback((channel: TvChannel) => {
     const ownerId = channel.scheduleOwner || channel.ownerId;
@@ -783,7 +810,18 @@ const LiveTvPlus: React.FC<{
   return (
     // On the TV this sits BELOW the shell's tab bar (which is 64px tall) so the Live tab never covers
     // the navigation — the viewer can always press up and move across to another tab.
-    <div className={`fixed ${tvInset ? 'inset-x-0 bottom-0 top-16' : 'inset-0'} z-[60] bg-[#04050a] text-white flex flex-col`} style={{ height: tvInset ? 'calc(100dvh - 4rem)' : '100dvh' }}>
+    <div
+      // data-tv-capture: see the comment above the keydown effect — without this the geometric
+      // TVNavigationLayer eats arrow keys before this screen's own handler ever runs.
+      data-tv-capture
+      className={`fixed ${tvInset ? 'inset-x-0 bottom-0 top-16' : tvRailInset ? 'inset-y-0 right-0 bottom-0' : 'inset-0'} z-[60] bg-[#04050a] text-white flex flex-col`}
+      style={{
+        height: tvInset ? 'calc(100dvh - 4rem)' : '100dvh',
+        // left + right (no width) is deliberate: a fixed element with both edges set stretches to
+        // fill the gap on its own, which stays correct if TV_SPINE_W ever changes.
+        left: tvRailInset || undefined,
+      }}
+    >
       {/* Top bar (hidden in full-screen viewing) */}
       {!immersive && (
       <div className="flex items-center justify-between px-4 py-2.5 shrink-0 z-30">

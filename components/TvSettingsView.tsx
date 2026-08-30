@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogOut, Users, CreditCard, Receipt, Home, Monitor, Check, RotateCw } from 'lucide-react';
+import { LogOut, Users, CreditCard, Receipt, Home, Monitor, Check, RotateCw, PanelLeft } from 'lucide-react';
 import { getTvHome, setTvHome, type TvHomeView } from '../services/tvCapabilities';
 
 /**
@@ -50,12 +50,22 @@ const TvSettingsView: React.FC<{
   onSignOut?: () => void;
   onSwitchAccount?: () => void;
   onOpenPurchases?: () => void;
-}> = ({ userProfile, subscriptionLabel, onSignOut, onSwitchAccount, onOpenPurchases }) => {
+  /** Left padding to clear the Spine rail, when it's on. Passed rather than read directly so this
+   *  screen doesn't need its own platform/lineup checks — App.tsx already computed it. */
+  railInset?: number;
+  /** Whether the Spine left-rail shell is on. Undefined on non-TV callers, which hides the row. */
+  tvLineupEnabled?: boolean;
+  onSetTvLineupEnabled?: (v: boolean) => void;
+}> = ({ userProfile, subscriptionLabel, onSignOut, onSwitchAccount, onOpenPurchases, railInset = 0, tvLineupEnabled, onSetTvLineupEnabled }) => {
   const [home, setHome] = useState<TvHomeView>(getTvHome);
 
   const chooseHome = (v: TvHomeView) => { setTvHome(v); setHome(v); };
 
   return (
+    // The outer padding pushes the CENTERING CONTEXT rightward, not just the content — mx-auto below
+    // centers within (100% − railInset), which is what actually clears the rail rather than shifting
+    // content inside a box that's still centered on the full, rail-covered viewport.
+    <div style={{ paddingLeft: railInset || undefined }}>
     <div className="max-w-3xl mx-auto px-8 py-10 space-y-9">
       <header className="space-y-1.5">
         <h1 className="text-3xl font-black text-white tracking-tight">TV Settings</h1>
@@ -110,6 +120,37 @@ const TvSettingsView: React.FC<{
         <Row icon={LogOut} label="Sign out" onClick={onSignOut} danger />
       </section>
 
+      {/* Only rendered when a caller actually passed the lineup props (i.e. on TV — this component
+          also gets reused in contexts where it doesn't apply, so an undefined handler hides it
+          instead of throwing on click). */}
+      {onSetTvLineupEnabled && (
+        <section className="space-y-3">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 px-1">Navigation</h2>
+          <button
+            data-tv-focusable
+            onClick={() => onSetTvLineupEnabled(!tvLineupEnabled)}
+            className="w-full flex items-center justify-between gap-6 px-7 py-5 rounded-2xl border bg-white/[0.04] border-white/10 text-white hover:bg-white/[0.09] transition-colors text-left"
+          >
+            <span className="flex items-center gap-4">
+              <PanelLeft size={20} className="text-white/50" />
+              <span className="flex flex-col">
+                <span className="font-bold text-base">Spine navigation</span>
+                <span className="text-white/40 text-xs mt-0.5">
+                  A left-side rail instead of the top tabs. New — try it and switch back anytime.
+                </span>
+              </span>
+            </span>
+            <span
+              className={`shrink-0 w-12 h-7 rounded-full relative transition-colors ${tvLineupEnabled ? 'bg-[#FF8C00]' : 'bg-white/15'}`}
+            >
+              <span
+                className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${tvLineupEnabled ? 'translate-x-6' : 'translate-x-1'}`}
+              />
+            </span>
+          </button>
+        </section>
+      )}
+
       {/* Say where the rest lives rather than pretending this is everything. */}
       <div className="flex items-start gap-4 px-7 py-5 rounded-2xl bg-white/[0.03] border border-dashed border-white/12">
         <Monitor size={20} className="text-white/35 shrink-0 mt-0.5" />
@@ -118,6 +159,7 @@ const TvSettingsView: React.FC<{
           phone or computer — they need a keyboard and a pointer to be worth using.
         </p>
       </div>
+    </div>
     </div>
   );
 };
