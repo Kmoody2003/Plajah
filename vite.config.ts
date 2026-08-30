@@ -57,7 +57,20 @@ export default defineConfig(({ mode }) => {
             ]
           },
           workbox: {
-            maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+            // 8 MiB, not 5. The main bundle is ~5.25 MB and this is a HARD failure, not a
+            // warning: when an asset exceeds it, vite-plugin-pwa aborts the build with an
+            // empty "error during build: Error:" that names no file and no cause.
+            //
+            // The old 5 MiB ceiling left ~0.1% of headroom, so the bundle crossed it on an
+            // ordinary commit and every master deploy failed from 18e962c onward. It was
+            // invisible locally because an uncommitted working tree happened to land 5 KB
+            // UNDER the line while the committed tree landed 2.7 KB over — the build passed
+            // on disk and failed in CI on the same commit.
+            //
+            // Raising it preserves the original intent (precache the app shell). It does not
+            // remove the underlying issue: the main chunk is large and growing, and wants
+            // real code-splitting rather than a higher ceiling each time it grows.
+            maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
             cleanupOutdatedCaches: true,
             navigateFallback: null,
             // Keep the optional Basic Pitch model + TensorFlow.js OUT of the install
