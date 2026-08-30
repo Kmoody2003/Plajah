@@ -509,7 +509,7 @@ import PayItForwardNotification from './components/PayItForwardNotification';
 import LiveFeedPlayer from './components/LiveFeedPlayer';
 import OnboardingTour from './components/OnboardingTour';
 import Tooltip from './components/Tooltip';
-import { UserProfile, PayItForwardWinner, Article, LiveFeed, PitchDeck, ExperienceMode } from './types';
+import { UserProfile, PayItForwardWinner, Article, PitchDeck, ExperienceMode } from './types';
 import { UploadProvider } from './contexts/UploadContext';
 import { AchievementProvider } from './contexts/AchievementContext';
 import { PointsProvider } from './contexts/PointsContext';
@@ -5130,17 +5130,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
 
-            {/* On a TV the four (or five, on Spine) surfaces ARE the navigation — see TvTopTabs
-                for why a sidebar is the wrong shape for a remote.
+            {/* On a TV the top-level surfaces ARE the navigation — see TvTopTabs for why a
+                sidebar is the wrong shape for a remote.
                 ORDER MATTERS: every TV screen must render AFTER this block. The screens are
                 h-full, so anything rendered above the bar takes the whole viewport and pushes the
                 bar off the top — which is exactly what happened to Reello.
 
-                SPINE vs CLASSIC: TvSpine is a drop-in replacement for TvTopTabs — identical props,
-                identical shell-focus contract (useTvShellFocus) — so this is the only place the
-                two shells differ. Gated behind useTvLineup, default OFF: see that hook for why a
-                nav change on someone's only physical TV, unverified on real hardware, ships
-                opt-in rather than on. */}
+                LINEUP vs CLASSIC: TvSpine (component name; the shipped feature is "Lineup" —
+                see that component's own doc comment) is a drop-in replacement for TvTopTabs —
+                identical props, identical shell-focus contract (useTvShellFocus) — so this is
+                the only place the two shells differ. Gated behind useTvLineup, default OFF: see
+                that hook for why a nav change on someone's only physical TV, unverified on real
+                hardware, ships opt-in rather than on. */}
             {getPlatformInfo().isTV && (
               tvLineup.enabled ? (
                 <TvSpine
@@ -5155,6 +5156,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     if (currentAlbum) { handleSelectItem(currentAlbum); return; }
                     setView('PLAYER' as AppView);
                   }}
+                  // A typed channel number that isn't one of the static rows (1/2/3/90) —
+                  // hand it to Live Hub's existing deep-link so the REAL channel list (live
+                  // data LiveTvPlus already owns) resolves it, rather than Spine guessing.
+                  onTuneChannel={(num) => { setLiveChannelFocus({ number: num }); setView('LIVE_HUB' as AppView); }}
                 />
               ) : (
                 <TvTopTabs

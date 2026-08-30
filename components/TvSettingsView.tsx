@@ -134,9 +134,9 @@ const TvSettingsView: React.FC<{
             <span className="flex items-center gap-4">
               <PanelLeft size={20} className="text-white/50" />
               <span className="flex flex-col">
-                <span className="font-bold text-base">Spine navigation</span>
+                <span className="font-bold text-base">Lineup navigation</span>
                 <span className="text-white/40 text-xs mt-0.5">
-                  A left-side rail instead of the top tabs. New — try it and switch back anytime.
+                  A numbered channel lineup on the left, apps and Live as peers. New — try it and switch back anytime.
                 </span>
               </span>
             </span>

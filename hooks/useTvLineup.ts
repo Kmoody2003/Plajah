@@ -1,8 +1,13 @@
 /**
- * useTvLineup — state for the "Spine" TV shell: a persistent left rail of
- * surfaces (Search/Taleo/Chora/Reello/Live/Settings) replacing the fixed top
- * tab bar. This is the direction picked from the three TV redesign mockups
- * (Evolution/Spine/Channels) — "Lineup", built on Spine's persistent rail.
+ * useTvLineup — state for the "Lineup" TV shell: a persistent left rail that
+ * IS the channel lineup — apps (Taleo/Chora/Reello) and Live as numbered
+ * peers — replacing the fixed top tab bar. This is the hybrid direction
+ * actually picked from the four TV redesign mockups (Evolution/Spine/
+ * Channels/Lineup — see project memory for the artifact links): Spine's
+ * always-visible orientation, fused with Channels' number-driven flip speed.
+ * The component implementing it is named TvSpine for historical reasons
+ * (it started as a plain Spine build before the full Lineup mockup was
+ * found and read) — the shipped feature is Lineup.
  *
  * Per-device via localStorage, mirroring {@link useShellNext} and
  * {@link useChoraNext} exactly, with one deliberate difference: DEFAULT OFF.
