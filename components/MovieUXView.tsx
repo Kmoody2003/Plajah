@@ -31,9 +31,11 @@ import {
   fetchUserClubs, createClubEvent,
   fetchDiscussionPostsByContentId,
   loginWithGoogle,
+  updateAlbum, updateVideo,
 } from '../services/backendService';
 import The411 from './The411';
 import { shareAsset, shareText } from '../services/deepLinkService';
+import { cleanDescription } from '../utils/description';
 import CharacterWorldView from './CharacterWorldView';
 import { createPortal } from 'react-dom';
 import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
@@ -874,13 +876,51 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
   const isPaywalled = !!(item as Video).isPaywalled;
 
   const title = item.title;
-  const description = item.description;
+  // cleanDescription drops the legacy generated filler, so a film stamped with it shows the
+  // empty state (and, for the owner, an invitation to write the real synopsis) instead.
+  const description = cleanDescription(item.description);
+
+  // ── Owner-editable synopsis ────────────────────────────────────────────────
+  // The description here is whatever publishing wrote, and it was not always the creator's own
+  // words. Rather than send them back through the whole publish wizard to fix a paragraph, the
+  // owner edits it in place — write, paste, save. `descOverride` holds the saved text for this
+  // session, since `item` is a prop the parent hydrated before the edit.
+  const [descOverride, setDescOverride] = useState<string | null>(null);
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [descDraft, setDescDraft] = useState('');
+  const [savingDesc, setSavingDesc] = useState(false);
+  const shownDescription = descOverride ?? description;
   const coverImage = (item as Album).coverImage || (item as Video).coverImageUrl || (item as Video).thumbnailUrl;
   const artist = (item as Album).artist || (item as Video).artist;
   const ownerId = (item as Album).ownerId || (item as Video).ownerId;
   const isOwner = !!(currentUser?.uid && currentUser.uid === ownerId);
   const castMembers = (item as Video).movieMetadata?.castMembers || [];
   const releaseYear = (item as Video).movieMetadata?.releaseYear;
+
+  // Drop a previous title's edit when the page swaps titles.
+  useEffect(() => { setDescOverride(null); setEditingDesc(false); }, [item.id]);
+
+  /**
+   * Persist the synopsis. A film published through the creator is an `albums` doc, but a film
+   * can also live in `videos` (Reello-side uploads), so resolve which one actually holds this
+   * id rather than guessing and writing a stray doc.
+   */
+  const saveDescription = async () => {
+    const next = descDraft.trim();
+    if (next === (shownDescription || '').trim()) { setEditingDesc(false); return; }
+    setSavingDesc(true);
+    try {
+      const asAlbum = await getDoc(doc(db, 'albums', item.id));
+      if (asAlbum.exists()) await updateAlbum(item.id, { description: next });
+      else await updateVideo(item.id, { description: next });
+      setDescOverride(next);
+      setEditingDesc(false);
+    } catch (e) {
+      alert('Could not save the synopsis. Check your connection and try again.');
+    } finally {
+      setSavingDesc(false);
+    }
+  };
 
   // ── Buy-to-own gate (Taleo) ────────────────────────────────────────────────
   // Paid films carry filmDistribution.{model,purchasePrice,rentalPrice,delivery,...}.
@@ -1374,10 +1414,51 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                     </span>
                   </div>
 
-                  {/* Description */}
-                  <p className="text-sm md:text-base text-white/50 leading-relaxed max-w-xl">
-                    {description || 'No description available.'}
-                  </p>
+                  {/* Description — the owner's own words, editable in place. */}
+                  {editingDesc ? (
+                    <div className="max-w-xl space-y-2">
+                      <textarea
+                        autoFocus
+                        value={descDraft}
+                        onChange={(e) => setDescDraft(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Escape') setEditingDesc(false); }}
+                        placeholder="Write or paste your synopsis…"
+                        className="w-full h-36 bg-white/[0.06] border border-white/15 rounded-2xl px-4 py-3 text-sm md:text-base text-white/85 leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-[#D0BCFF]/40 placeholder:text-white/20"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={saveDescription}
+                          disabled={savingDesc}
+                          className="h-9 px-5 bg-[#D0BCFF] hover:bg-[#E8DAFF] disabled:opacity-50 text-[#1C1B1F] font-black text-[10px] uppercase tracking-widest rounded-full transition-colors"
+                        >
+                          {savingDesc ? 'Saving…' : 'Save Synopsis'}
+                        </button>
+                        <button
+                          onClick={() => setEditingDesc(false)}
+                          disabled={savingDesc}
+                          className="h-9 px-5 bg-white/[0.07] hover:bg-white/[0.12] border border-white/10 text-white/60 hover:text-white font-black text-[10px] uppercase tracking-widest rounded-full transition-all"
+                        >
+                          Cancel
+                        </button>
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-white/25">Esc to cancel</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="max-w-xl">
+                      <p className={`text-sm md:text-base leading-relaxed ${shownDescription ? 'text-white/50' : 'text-white/25 italic'}`}>
+                        {shownDescription || (isOwner ? 'No synopsis yet — add the one you wrote.' : 'No description available.')}
+                      </p>
+                      {isOwner && (
+                        <button
+                          onClick={() => { setDescDraft(shownDescription || ''); setEditingDesc(true); }}
+                          className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-[#D0BCFF] transition-colors"
+                          title="Edit the synopsis shown on this page"
+                        >
+                          <Pencil size={11} /> {shownDescription ? 'Edit Synopsis' : 'Add Synopsis'}
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   <The411
                     itemId={item.id}

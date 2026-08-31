@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit, FilmDistribution, FilmVersion, Character } from '../types';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { buildShareUrl, shareText } from '../services/deepLinkService';
-import { generateAlbumMetadata, generateTrackLyrics } from '../services/geminiService';
+import { cleanDescription } from '../utils/description';
+import { generateAlbumMetadata, generateTrackLyrics, type ReleaseKind } from '../services/geminiService';
 import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, fetchUserCharacters, uploadFile as storageUpload, uploadVideo, fetchUserVideos } from '../services/backendService';
 import { listCloudProjects } from './plajahPixels/services/projectService';
 import { enqueueAlbumForTranscode } from '../services/choraStreamService';
@@ -119,6 +120,11 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   // Content licensing (built but OFF — gated behind CONTENT_LICENSING flag).
   const [license, setLicense] = useState<string>(initialAlbum?.license || DEFAULT_LICENSE);
   const licensingEnabled = isFeatureEnabled('CONTENT_LICENSING', auth.currentUser?.uid || '', auth.currentUser?.email === 'kmoody2003@gmail.com');
+  // The public-facing description — the paragraph under the title on the film/album page.
+  // It used to have no field at all: publish always overwrote it with AI album metadata (or,
+  // with no key configured, the canned "A sonic journey through sound"), which is how films
+  // ended up describing themselves as music. What the creator types here always wins.
+  const [description, setDescription] = useState(cleanDescription(initialAlbum?.description));
   const [artistBio, setArtistBio] = useState(initialAlbum?.artistBio || '');
   const [linerNotes, setLinerNotes] = useState(initialAlbum?.linerNotes || '');
   const [trackListLabel, setTrackListLabel] = useState(initialAlbum?.trackListLabel || '');
@@ -337,6 +343,15 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   // step 1 skipped for BOOK/PHOTO/GAME; step 4 skipped unless VIDEO MOVIE/TV_SERIES
   const hasCastStep = type === 'VIDEO' && (subType === 'MOVIE' || subType === 'TV_SERIES');
   const isFilm = hasCastStep; // VIDEO + MOVIE/TV_SERIES — shows the film distribution step
+  // Which voice AI metadata should be written in. A film is not an album.
+  const metadataKind: ReleaseKind =
+    type === 'VIDEO' && subType === 'MOVIE' ? 'FILM'
+    : type === 'VIDEO' && subType === 'TV_SERIES' ? 'TV'
+    : type === 'VIDEO' ? 'VIDEO'
+    : type === 'BOOK' ? 'BOOK'
+    : type === 'GAME' ? 'GAME'
+    : type === 'PHOTO' ? 'PHOTO'
+    : 'MUSIC';
   const skipStep1 = !hasSubtype(type);
   const skipStep4 = !hasCastStep;
 
@@ -802,10 +817,12 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     if (!title) return;
     setStatus({ text: "Consulting AI Architect...", percent: 30 });
     const trackNames = tracks.map(t => t.title);
-    const metadata = await generateAlbumMetadata(title, trackNames);
-    setArtistBio(metadata.description);
+    const metadata = await generateAlbumMetadata(title, trackNames, metadataKind);
+    // Never blank out what the creator wrote because the model was unavailable.
+    if (metadata.description) setArtistBio(metadata.description);
+    else alert('AI notes are unavailable right now — your text is untouched.');
     setStatus({ text: "", percent: 0 });
-  }, [title, tracks]);
+  }, [title, tracks, metadataKind]);
 
   // ── Submit ───────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
@@ -863,13 +880,21 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       // uploaded https URL. Tracks publish with plain lyrics until it lands.
       const autoSyncedTracks = tracks;
 
-      let description = initialAlbum?.description || "";
+      // ── Description ────────────────────────────────────────────────────────
+      // The creator's own words are the source of truth. AI metadata is only a fallback for a
+      // brand-new project whose description was left blank, and it is asked for in the voice of
+      // the actual medium (a film gets a synopsis, not liner notes). It never runs on autosave —
+      // that used to bake a generated blurb into every draft, seconds after typing a title.
+      // Plain trim, no fallback to the stored value: clearing the field must actually clear it.
+      let finalDescription = description.trim();
       let themeColor = initialAlbum?.themeColor || "#ffffff";
-      if (!initialAlbum) {
-        const metadata = await generateAlbumMetadata(title, trackNames);
-        description = metadata.description;
-        themeColor = metadata.themeColor;
-        if (!linerNotes) setLinerNotes(metadata.linerNotes);
+      if (!initialAlbum && !finalDescription && !quiet) {
+        const metadata = await generateAlbumMetadata(title, trackNames, metadataKind);
+        // Empty means the model was unavailable — leave the description blank rather than
+        // stamping the film with someone else's copy. The owner can write it on the page.
+        if (metadata.description) finalDescription = metadata.description;
+        if (metadata.themeColor) themeColor = metadata.themeColor;
+        if (!linerNotes && metadata.linerNotes) setLinerNotes(metadata.linerNotes);
       }
       const albumId = projectIdRef.current;
 
@@ -946,7 +971,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           title: vidTitle,
           kind: 'Reello',
           run: (onProgress) => uploadVideo({
-            title: vidTitle, description, file: vidFile, thumbnailFile: coverFile, coverImageFile: coverFile,
+            title: vidTitle, description: finalDescription, file: vidFile, thumbnailFile: coverFile, coverImageFile: coverFile,
             genre, isRello: true, isPrivate, tags,
           } as any, (p) => onProgress('Uploading to Reello…', Math.max(5, Math.round(p)))),
           onDone: (created) => onCreated(created as any),
@@ -974,7 +999,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         artistBio: artistBio || `Exploring the boundaries of creativity as ${artist}.`,
         linerNotes,
         artistImage: artistImage || coverImage,
-        artistFile, coverImage, coverFile, description, themeColor,
+        artistFile, coverImage, coverFile, description: finalDescription, themeColor,
         tracks: autoSyncedTracks, slideshow, slideshowFiles, galleryUrl, socialLinks,
         musicVideos: type === 'VIDEO' && subType === 'MOVIE' ? musicVideos.map(v => ({ ...v, movieMetadata: finalMovieMetadata })) : musicVideos,
         videoPlaylists,
@@ -1117,7 +1142,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   useEffect(() => {
     if (dirtyInitRef.current) { dirtyInitRef.current = false; return; }
     setIsDirty(true);
-  }, [title, artist, type, subType, genre, price, isPaywalled, artistBio, linerNotes, artistImage, coverImage,
+  }, [title, artist, type, subType, genre, price, isPaywalled, description, artistBio, linerNotes, artistImage, coverImage,
       JSON.stringify(tracks), JSON.stringify(bookChapters), JSON.stringify(slideshow), JSON.stringify(musicVideos),
       JSON.stringify(videoPlaylists), JSON.stringify(socialLinks), JSON.stringify(tags)]);
 
@@ -1136,7 +1161,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     if (!title.trim() || isDeploying) return;
     const t = setTimeout(() => autosave(), 3500);
     return () => clearTimeout(t);
-  }, [title, artist, type, subType, genre, price, isPaywalled, artistBio, linerNotes, artistImage, coverImage,
+  }, [title, artist, type, subType, genre, price, isPaywalled, description, artistBio, linerNotes, artistImage, coverImage,
       JSON.stringify(tracks), JSON.stringify(bookChapters), JSON.stringify(slideshow), JSON.stringify(musicVideos),
       JSON.stringify(videoPlaylists), JSON.stringify(socialLinks), JSON.stringify(tags)]);
 
@@ -2558,10 +2583,46 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         </div>
       </div>
 
+      {/* ── Public description ───────────────────────────────────────────────
+          The paragraph that appears under the title on the published page. Films and series
+          get their own labelled space here, because this is the field their page reads — the
+          Artist Bio below is a different thing and never showed up there. Paste freely. */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-70">
+            <Pencil size={10} />
+            {subType === 'MOVIE' ? 'Film Synopsis'
+              : subType === 'TV_SERIES' ? 'Series Synopsis'
+              : type === 'BOOK' ? 'Book Description'
+              : type === 'GAME' ? 'Game Description'
+              : type === 'PHOTO' ? 'Collection Description'
+              : 'Description'}
+          </label>
+          <span className="text-[9px] font-bold uppercase tracking-widest text-white/25">
+            {isFilm ? 'Shown under the title on the film page' : 'Shown under the title on the project page'}
+          </span>
+        </div>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder={
+            subType === 'MOVIE' ? 'Write or paste your synopsis — this is exactly what viewers read on the film page...'
+              : subType === 'TV_SERIES' ? 'Write or paste your series synopsis — this is exactly what viewers read on the series page...'
+              : 'Write or paste the description shown on your project page...'
+          }
+          className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-8 py-6 text-white font-medium focus:outline-none focus:ring-4 focus:ring-white/5 transition-all h-36 resize-none placeholder:text-white/10"
+        />
+        <p className="text-[9px] font-bold uppercase tracking-widest text-white/20">
+          {description.trim()
+            ? 'Your words. Nothing overwrites this.'
+            : 'Leave blank and Plajah will suggest one on publish — you can always replace it.'}
+        </p>
+      </div>
+
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-60">
-            {type === 'BOOK' ? 'About This Book' : type === 'GAME' ? 'Game Description' : 'Artist Bio / Project Description'}
+            {type === 'BOOK' ? 'About This Book' : type === 'GAME' ? 'About The Studio' : 'Artist Bio / Backstory'}
           </label>
           <button type="button" onClick={handleGenerateAI} className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-small-orange"><Sparkles size={12} /> Generate AI Notes</button>
         </div>

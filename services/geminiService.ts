@@ -103,14 +103,44 @@ export async function callGeminiDetailed(contents: any, config: any = {}, model 
   }
 }
 
-export const generateAlbumMetadata = async (albumTitle: string, trackNames: string[]) => {
+/**
+ * Metadata suggestions for a release. `kind` picks the voice: a film gets a synopsis from a
+ * film critic, not liner notes from a music critic — a movie page was showing "A sonic journey
+ * through sound" because every type went through the album prompt (and its fallback).
+ *
+ * The fallback is deliberately EMPTY. This is a suggestion, never a substitute for what the
+ * creator wrote: callers must keep their own text when the description comes back blank.
+ */
+export type ReleaseKind = 'MUSIC' | 'FILM' | 'TV' | 'BOOK' | 'GAME' | 'PHOTO' | 'VIDEO';
+
+const EMPTY_METADATA = { description: "", linerNotes: "", themeColor: "#ffffff" };
+
+const metadataPromptFor = (kind: ReleaseKind, title: string, items: string[]): string => {
+  const list = items.filter(Boolean).join(', ');
+  switch (kind) {
+    case 'FILM':
+      return `Write a spoiler-free synopsis for a film titled "${title}"${list ? ` (scenes/parts: ${list})` : ''}. Also write production notes (credits, shooting vibe, notable sequences) and a primary theme color (hex). The synopsis should read like a festival programme note — present tense, no marketing hype.`;
+    case 'TV':
+      return `Write a spoiler-free series synopsis for a TV series titled "${title}"${list ? ` (episodes: ${list})` : ''}. Also write production notes (credits, tone, format) and a primary theme color (hex). Describe the premise and the season arc, not individual twists.`;
+    case 'BOOK':
+      return `Write back-cover copy for a book titled "${title}"${list ? ` (chapters: ${list})` : ''}. Also write front-matter notes (credits, acknowledgements, edition details) and a primary theme color (hex).`;
+    case 'GAME':
+      return `Write a store description for a game titled "${title}"${list ? ` (features/levels: ${list})` : ''}. Also write development notes (engine, credits, design intent) and a primary theme color (hex).`;
+    case 'PHOTO':
+      return `Write a gallery statement for a photo collection titled "${title}"${list ? ` (images: ${list})` : ''}. Also write technical notes (gear, process, locations) and a primary theme color (hex).`;
+    default:
+      return `Generate a compelling, artistic album description, detailed atmospheric liner notes (credits, recording vibes), and a recommended primary theme color (hex code) for a music album titled "${title}" with the following tracks: ${list}. The description should sound like it was written by a professional music critic.`;
+  }
+};
+
+export const generateAlbumMetadata = async (albumTitle: string, trackNames: string[], kind: ReleaseKind = 'MUSIC') => {
   const ai = getAI();
-  if (!ai) return { description: "A sonic journey through sound.", themeColor: "#ffffff" };
+  if (!ai) return EMPTY_METADATA;
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-flash-latest",
-      contents: `Generate a compelling, artistic album description, detailed atmospheric liner notes (credits, recording vibes), and a recommended primary theme color (hex code) for a music album titled "${albumTitle}" with the following tracks: ${trackNames.join(', ')}. The description should sound like it was written by a professional music critic.`,
+      contents: metadataPromptFor(kind, albumTitle, trackNames),
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -135,7 +165,7 @@ export const generateAlbumMetadata = async (albumTitle: string, trackNames: stri
     });
     return JSON.parse(response.text);
   } catch (error) {
-    return { description: "A sonic journey through sound.", themeColor: "#ffffff" };
+    return EMPTY_METADATA;
   }
 };
 
