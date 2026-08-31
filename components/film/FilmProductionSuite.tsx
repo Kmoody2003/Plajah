@@ -36,6 +36,8 @@ import type { CallSheetTemplate, RecipientDelivery } from '../../services/produc
 import { canManageProductionChat, provisionProductionChat } from '../../services/productionChatService';
 import { putTaskWithAction } from '../../services/productionActionService';
 import { copyFilmShowcaseProduction, ensureFilmShowcaseProduction, buildFilmShowcaseCorpus } from '../../services/productionShowcaseTemplate';
+import { MasterClock } from './MasterClock';
+import { OnSetMobile, useIsPhone } from './OnSetMobile';
 import { isDemoMode, subscribeDemoMode } from '../../services/demoMode';
 
 // Identifiers for the always-available, in-memory demo production.
@@ -255,6 +257,7 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
   return (
     <ProdCtx.Provider value={value}>
       <ProductionWorkspaceBar />
+      {prod && <MasterClock />}
       {prod ? children : <ProductionEmptyState signedIn={!!uid} />}
     </ProdCtx.Provider>
   );
@@ -334,7 +337,14 @@ const askAria = (prompt: string) => window.dispatchEvent(new CustomEvent('OPEN_A
 
 // ─── Production Hub ──────────────────────────────────────────────────────────
 
+// On phones, the On Set hub becomes the phone-first "Today" companion; larger
+// screens keep the full desktop hub. The Master Clock sits above both.
 export const ProductionHubTab: React.FC = () => {
+  const isPhone = useIsPhone();
+  return isPhone ? <OnSetMobile /> : <ProductionHubDesktop />;
+};
+
+const ProductionHubDesktop: React.FC = () => {
   const { prod, members, scenes, callSheets, tasks, orders, activeSheet, setActiveSheetId, isOwner, goTab } = useProd();
   const [broadcasting, setBroadcasting] = useState(false);
 
