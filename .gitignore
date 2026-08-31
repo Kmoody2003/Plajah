@@ -57,3 +57,6 @@ artifacts/
 release-production-*.files
 release-production-*.patch
 release-production-*.stat
+
+# Undo files written by scripts/clearFillerDescriptions.ts — keep them locally, never commit
+filler-descriptions-backup-*.json
