@@ -1,4 +1,5 @@
 import express from 'express';
+import { cleanDescription } from './utils/description';
 // NOTE: `vite` is imported LAZILY inside the dev-only branch below. A static top-level import pulls
 // the entire Vite package (esbuild + rollup + its whole dep graph) into memory on EVERY boot — even
 // in production, where the Vite dev middleware is never used. That eager load was the bulk of the
@@ -3744,7 +3745,7 @@ async function startServer() {
         .map((v: any) => {
           const url = v.muxPlaybackId ? `https://stream.mux.com/${v.muxPlaybackId}.m3u8` : v.url;
           if (!url) return null;
-          return { id: v.id || v.identifier || url, title: v.title || 'Untitled', description: v.description, url,
+          return { id: v.id || v.identifier || url, title: v.title || 'Untitled', description: cleanDescription(v.description) || undefined, url,
             thumbnailUrl: v.muxPlaybackId ? `https://image.mux.com/${v.muxPlaybackId}/thumbnail.png?width=640&height=360&time=5` : (v.thumbnailUrl || v.coverImageUrl),
             durationSec: Number(v.duration) || undefined };
         })

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { cleanDescription } from '../utils/description';
 import { Album, Track, Comment, Character, IPWorld, Video } from '../types';
 import { buildShareUrl } from '../services/deepLinkService';
 import { getActiveCaption } from '../src/lib/captions';
@@ -900,7 +901,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
   const scrollingText = comments.length > 0 
     ? comments.map(c => `${c.author}: ${c.text}`).join(" • ")
-    : album.description || "Liner notes unavailable";
+    : cleanDescription(album.description) || "Liner notes unavailable";
 
   // Sync with global player if it's playing a track from THIS album
   useEffect(() => {
@@ -1966,7 +1967,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 </div>
               </div>
               <p className="text-sm font-medium leading-relaxed text-white/60 italic font-display">
-                {album.artistBio || album.description}
+                {album.artistBio || cleanDescription(album.description)}
               </p>
 
               {album.worldId && (
@@ -2745,8 +2746,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                        {album.type === 'BOOK' ? `${album.bookChapters?.length || 0} chapters` : `${album.tracks?.length || 0} tracks`}
                      </span>
                    </div>
-                   {(album.linerNotes || album.description) && (
-                     <p className="mt-3 text-[11px] leading-relaxed text-white/55 line-clamp-3">{album.linerNotes || album.description}</p>
+                   {(album.linerNotes || cleanDescription(album.description)) && (
+                     <p className="mt-3 text-[11px] leading-relaxed text-white/55 line-clamp-3">{album.linerNotes || cleanDescription(album.description)}</p>
                    )}
                  </div>
                )}

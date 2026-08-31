@@ -7,6 +7,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { cleanDescription } from '../../utils/description';
 import { motion } from 'motion/react';
 import {
   Music2, Plus, Sparkles, Rocket, Copy, Check, Calendar, Megaphone, Radio,
@@ -42,7 +43,7 @@ function buildKit(a: Album): MarketingKit {
   const artist = a.artist || 'the artist';
   const genre = a.genre || 'music';
   const trackCount = a.tracks?.length || 0;
-  const blurb = (a.description || a.linerNotes || '').trim();
+  const blurb = (cleanDescription(a.description) || a.linerNotes || '').trim();
   const short = blurb.length > 160 ? blurb.slice(0, 157).trim() + '…' : blurb;
   const dateStr = a.releaseDate ? fmtDate(a.releaseDate) : 'soon';
 

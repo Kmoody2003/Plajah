@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
 import { Video, VideoPlaylist, UserProfile, MovieMetadata, Album, LiveFeed, Track, Character, Club } from '../types';
+import { cleanDescription } from '../utils/description';
 import { useContextMenu, type MenuNode } from './ui/ContextMenu';
 import {
   fetchAllVideos, uploadVideo, fetchVideoPlaylists, fetchFollowedVideos,
@@ -1347,7 +1348,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                         <div className="flex-1 min-w-0">
                           <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mb-2">{selectedMovie.subType?.replace('_', ' ')} Â· {selectedMovie.movieMetadata?.releaseYear}</p>
                           <h3 className="text-3xl font-display font-black tracking-tight uppercase mb-2 leading-tight">{selectedMovie.title}</h3>
-                          <p className="text-sm text-white/50 leading-relaxed line-clamp-3">{selectedMovie.description}</p>
+                          <p className="text-sm text-white/50 leading-relaxed line-clamp-3">{cleanDescription(selectedMovie.description)}</p>
                           <button type="button" onClick={() => setSelectedMovie(null)} className="mt-4 text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors">Dismiss</button>
                         </div>
                       </div>
@@ -1443,7 +1444,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                       <div>
                         <span className="inline-block px-3 py-1 bg-small-orange text-white text-[8px] font-black uppercase tracking-widest rounded-full mb-5">Global Latest</span>
                         <h3 className="text-3xl lg:text-5xl font-display font-black tracking-tightest uppercase mb-4 leading-tight">{interestVideos[0].title}</h3>
-                        <p className="text-white/40 text-sm leading-relaxed mb-6 max-w-md line-clamp-3">{interestVideos[0].description || "Experience the latest release tailored to your taste."}</p>
+                        <p className="text-white/40 text-sm leading-relaxed mb-6 max-w-md line-clamp-3">{cleanDescription(interestVideos[0].description) || "Experience the latest release tailored to your taste."}</p>
                         <div className="flex items-center gap-4">
                           <button onClick={() => handlePlay(interestVideos[0])} className="px-8 py-3.5 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl">Watch Now</button>
                           <div className="flex items-center gap-3">
@@ -1598,7 +1599,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                   <div className="absolute left-4 right-16 bottom-6 z-[4]">
                     <p className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1">{short?.artist || short?.ownerName || 'Creator'}</p>
                     <h3 className="text-base font-black uppercase tracking-tight text-white leading-tight line-clamp-2 mb-2">{short?.title}</h3>
-                    {short?.description && <p className="text-[10px] text-white/40 line-clamp-2 leading-relaxed">{short.description}</p>}
+                    {!!cleanDescription(short?.description) && <p className="text-[10px] text-white/40 line-clamp-2 leading-relaxed">{cleanDescription(short?.description)}</p>}
                     {/* Sounds (1B.2) — a tappable sound chip when this short has one,
                         otherwise the affordance to turn its audio into a sound.
                         Both render nothing when they don't apply. */}
