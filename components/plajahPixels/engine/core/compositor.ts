@@ -397,6 +397,9 @@ export interface LayerInput {
     params: Record<string, number>;
     auxTexture?: WebGLTexture;
     auxElement?: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement;
+    /** PixelChooser mask (R channel = where the effect applies), rasterised by forgeBindings. */
+    maskElement?: HTMLCanvasElement | null;
+    maskInvert?: boolean;
   }>;
   /** Timeline time supplied to deterministic/animated effects. */
   time?: number;
@@ -442,6 +445,7 @@ export class Compositor {
   private cubeProg: WebGLProgram; private cubeTex: WebGLTexture; private cubeKey = '';
   private cubeU: Record<string, WebGLUniformLocation | null> = {};
   private auxTextures = new Map<string, WebGLTexture>();
+  private maskTextures = new Map<string, WebGLTexture>();
   private width = 0; private height = 0;
   private disposed = false;
 
@@ -641,9 +645,16 @@ export class Compositor {
             if (!auxiliary) { auxiliary = makeSourceTexture(gl); this.auxTextures.set(instance.id, auxiliary); }
             if (!uploadElement(gl, auxiliary, instance.auxElement)) auxiliary = undefined;
           }
-          src = this.fx.render(`clip:${instance.id}`, effect.id, values, src, this.width, this.height, { time: layer.time ?? 0, audio: this.fxAudio }, auxiliary, { mix: instance.mix ?? 1 });
+          let maskTex: WebGLTexture | undefined;
+          if (instance.maskElement) {
+            maskTex = this.maskTextures.get(instance.id);
+            if (!maskTex) { maskTex = makeSourceTexture(gl); this.maskTextures.set(instance.id, maskTex); }
+            if (!uploadElement(gl, maskTex, instance.maskElement)) maskTex = undefined;
+          }
+          src = this.fx.render(`clip:${instance.id}`, effect.id, values, src, this.width, this.height, { time: layer.time ?? 0, audio: this.fxAudio }, auxiliary, { mix: instance.mix ?? 1, mask: maskTex, maskInvert: !!instance.maskInvert });
         }
-        gl.useProgram(this.compositeProg);
+        // FxRenderer leaves the VAO unbound; restore the composite draw state.
+        gl.useProgram(this.compositeProg); gl.bindVertexArray(this.quad); gl.disable(gl.BLEND);
         gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, this.curveTex);
         gl.uniform1i(this.inGradeU.uCurveTex, 2);
       }
@@ -653,7 +664,7 @@ export class Compositor {
       const hasGradeLayers = !!(layer.grades && layer.grades.length);
       if (hasGradeLayers) {
         src = this.applyInputGrades(src, layer.grades!);
-        gl.useProgram(this.compositeProg);
+        gl.useProgram(this.compositeProg); gl.bindVertexArray(this.quad); gl.disable(gl.BLEND);
         gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, this.curveTex);
         gl.uniform1i(this.inGradeU.uCurveTex, 2);
       }
@@ -663,6 +674,9 @@ export class Compositor {
       // blend path below so accumulator ownership/ping-pong stays deterministic.
       if (layer.transition) {
         src = this.transitions.render(this.ping.tex, src, this.width, this.height, layer.transition);
+        gl.useProgram(this.compositeProg); gl.bindVertexArray(this.quad); gl.disable(gl.BLEND);
+        gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, this.curveTex);
+        gl.uniform1i(this.inGradeU.uCurveTex, 2);
       }
 
       // dst=ping → render blended into pong, then swap.
@@ -826,6 +840,7 @@ export class Compositor {
     this.fxAudio.dispose();
     gl.deleteTexture(this.cubeTex); gl.deleteProgram(this.cubeProg);
     this.auxTextures.forEach((texture) => gl.deleteTexture(texture)); this.auxTextures.clear();
+    this.maskTextures.forEach((texture) => gl.deleteTexture(texture)); this.maskTextures.clear();
     gl.deleteTexture(this.curveTex);
     if (this.gradeA) { gl.deleteTexture(this.gradeA.tex); gl.deleteFramebuffer(this.gradeA.fbo); }
     if (this.gradeB) { gl.deleteTexture(this.gradeB.tex); gl.deleteFramebuffer(this.gradeB.fbo); }

@@ -36,6 +36,7 @@ import { parseCubeLut } from "../../services/fabula/cubeLut";
 import { createVectorTrack, stabilizationAt, trackPoint, upsertTrackSample, grayFromRgba } from "../../services/fabula/vectorTrack";
 import { createPlanarSequence, referenceSample, trackPlanarFrame, upsertPlanarSample, samplePlanarAt, planarStabilizeAt, cornerPinAt, planarTrackedRange, quadPoint } from "../../services/fabula/planarSequence";
 import { invertHomography, toPixelSpace, mat3ToCssMatrix3d, isIdentityMat3, containBox } from "../../services/fabula/planarTrack";
+import { resolveInstanceForFrame, maskOutlineAt, MASK_DEFAULT, BINDING_SOURCES } from "../../services/fabula/forgeBindings";
 import { Compositor as PixelsCompositor } from "../plajahPixels/engine/core/compositor";
 import NodeGraphEditor from "./NodeGraphEditor";
 import ColorScopes from "./ColorScopes";
@@ -1711,6 +1712,7 @@ export default function Fabula() {
   const trackCancelRef = useRef(false);
   const [trackProgress, setTrackProgress] = useState(null); // { frame, total, confidence, note }
   const [surfaceEdit, setSurfaceEdit] = useState(false);     // dragging the surface corners on the monitor
+  const [maskEdit, setMaskEdit] = useState(null);             // { clipId, instanceId } — editing a Forge mask on the monitor
   const placeSurface = () => {
     const clip = getSel(); if (!clip) { ping("Select a video clip first."); return; }
     if (!ensureFx(clip).planarSurface) updateFx(clip.id, { planarSurface: { corners: [{ x: .3, y: .3 }, { x: .7, y: .3 }, { x: .7, y: .7 }, { x: .3, y: .7 }] } });
@@ -4244,6 +4246,7 @@ export default function Fabula() {
 <section className="monitor" onMouseDown={() => (activeViewerRef.current = "program")}>
                     <div ref={screenRef} className="screen" style={{ aspectRatio: prod.defaults.aspect.includes(":") ? prod.defaults.aspect.replace(":", "/") : "2.39/1", filter: LOOKS.find((l) => l.id === prod.design?.lookId)?.filter || "none", containerType: "inline-size" }}>
                       {gpuMonitor && <GpuStage reg={gpuRegRef.current} hostRef={screenRef} onFail={() => { try { localStorage.setItem("fabula:gpuMonitor", "off"); } catch { /* */ } gpuRegRef.current.clear(); setGpuMonitor(false); ping("GPU monitor hit an issue — reverted to the standard renderer."); }} />}
+                      {(() => { const s = getSel(); const inst = maskEdit && s && s.id === maskEdit.clipId ? (s.fx?.stack || []).find((i) => i.id === maskEdit.instanceId) : null; return inst?.mask ? <MaskOverlay clip={s} instance={inst} playhead={playhead} screenRef={screenRef} videoRef={videoRef} fps={vfmt.fps || 24} onChange={(mask) => updateFx(s.id, { stack: s.fx.stack.map((i) => i.id === inst.id ? { ...i, mask } : i) })} /> : null; })()}
                       {(() => { const s = getSel(); return s && /^v\d+$/.test(s.trackId) && (s.fx?.planarSurface || s.fx?.planarTrack) ? <SurfaceOverlay clip={s} playhead={playhead} screenRef={screenRef} videoRef={videoRef} editing={surfaceEdit} onChange={(corners) => updateFx(s.id, { planarSurface: { corners } })} /> : null; })()}
                       {videoTracksAsc.map((tr, i) => {
                         // Double-buffer: mount the current clip + its neighbours, keyed by clip.id, so the
@@ -4628,6 +4631,7 @@ export default function Fabula() {
                               {fx.stack.map((instance, stackIndex) => {
                                 const effect = FX_EFFECTS.find((candidate) => candidate.id === instance.effectId);
                                 if (!effect) return null;
+                                const hasTracks = !!(fx.vectorTrack || fx.planarTrack);
                                 const patchStack = (patch) => {
                                   const stack = fx.stack.map((item, index) => index === stackIndex ? { ...item, ...patch } : item);
                                   updateFx(selClip.id, { stack });
@@ -4667,9 +4671,22 @@ export default function Fabula() {
                                     )}
                                     {effect.params.map((param) => {
                                       const value = instance.params?.[param.key] ?? param.default;
-                                      return <div className="fxrow" key={param.key}><span className="fxlbl">{param.label}</span><input type="range" min={param.min} max={param.max} step={param.step || (param.max - param.min) / 200} value={value} onChange={(e) => patchStack({ presetId: undefined, params: { ...instance.params, [param.key]: parseFloat(e.target.value) } })} onDoubleClick={() => patchStack({ presetId: undefined, params: { ...instance.params, [param.key]: param.default } })} /><span className="fxval">{Number(value).toFixed(param.step && param.step >= 1 ? 0 : 2)}</span></div>;
+                                      return <div className="fxrow" key={param.key}><span className="fxlbl">{param.label}</span><input type="range" min={param.min} max={param.max} step={param.step || (param.max - param.min) / 200} value={value} onChange={(e) => patchStack({ presetId: undefined, params: { ...instance.params, [param.key]: parseFloat(e.target.value) } })} onDoubleClick={() => patchStack({ presetId: undefined, params: { ...instance.params, [param.key]: param.default } })} /><span className="fxval">{Number(value).toFixed(param.step && param.step >= 1 ? 0 : 2)}</span>{hasTracks && <select className="sel xs" title="Link this parameter to the clip's track" value={instance.bindings?.[param.key]?.source || ""} onChange={(e) => { const bindings = { ...(instance.bindings || {}) }; if (e.target.value) bindings[param.key] = { source: e.target.value }; else delete bindings[param.key]; patchStack({ bindings }); }}><option value="">·</option>{BINDING_SOURCES.filter((b) => (b.id.startsWith("point") ? !!fx.vectorTrack : !!fx.planarTrack)).map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}</select>}</div>;
                                     })}
                                     <div className="fxrow"><span className="fxlbl">MIX</span><input type="range" min={0} max={1} step={.01} value={instance.mix ?? 1} onChange={(e) => patchStack({ mix: parseFloat(e.target.value) })} onDoubleClick={() => patchStack({ mix: 1 })} /><span className="fxval">{Number(instance.mix ?? 1).toFixed(2)}</span></div>
+                                    <div className="fxrow"><span className="fxlbl">MASK</span>
+                                      <select className="sel xs grow" value={instance.mask && instance.mask.enabled !== false ? instance.mask.shape : ""} onChange={(e) => { const shape = e.target.value; if (!shape) { patchStack({ mask: undefined }); if (maskEdit?.instanceId === instance.id) setMaskEdit(null); return; } patchStack({ mask: { ...MASK_DEFAULT, ...(instance.mask || {}), shape, enabled: true, refFrame: Math.max(0, Math.round((playhead - selClip.start) * (vfmt.fps || 24))), ...(shape === "poly" && !instance.mask?.points ? { points: [{ x: .3, y: .3 }, { x: .7, y: .3 }, { x: .7, y: .7 }, { x: .3, y: .7 }] } : {}) } }); }}>
+                                        <option value="">none</option><option value="ellipse">ellipse</option><option value="rect">rectangle</option><option value="poly">polygon</option>
+                                      </select>
+                                      {instance.mask && <button className={`minibtn ${maskEdit?.instanceId === instance.id ? "on" : ""}`} onClick={() => setMaskEdit(maskEdit?.instanceId === instance.id ? null : { clipId: selClip.id, instanceId: instance.id })}>{maskEdit?.instanceId === instance.id ? "✓ DONE" : "EDIT"}</button>}
+                                    </div>
+                                    {instance.mask && (<>
+                                      <div className="fxrow"><span className="fxlbl">FEATHER</span><input type="range" min={0} max={.3} step={.005} value={instance.mask.feather ?? 0} onChange={(e) => patchStack({ mask: { ...instance.mask, feather: parseFloat(e.target.value) } })} /><span className="fxval">{Number(instance.mask.feather ?? 0).toFixed(3)}</span></div>
+                                      <div className="fxrow"><span className="fxlbl">INVERT</span><button className={`minibtn ${instance.mask.invert ? "on" : ""}`} onClick={() => patchStack({ mask: { ...instance.mask, invert: !instance.mask.invert } })}>{instance.mask.invert ? "ON" : "OFF"}</button>
+                                        {hasTracks && <><span className="fxlbl" style={{ marginLeft: 8 }}>FOLLOW</span>
+                                        <select className="sel xs" value={instance.mask.track || "none"} onChange={(e) => patchStack({ mask: { ...instance.mask, track: e.target.value, refFrame: Math.max(0, Math.round((playhead - selClip.start) * (vfmt.fps || 24))) } })}><option value="none">none</option>{fx.vectorTrack && <option value="point">point track</option>}{fx.planarTrack && <option value="planar">surface</option>}</select></>}
+                                      </div>
+                                    </>)}
                                   </div>
                                 );
                               })}
@@ -7311,9 +7328,10 @@ export default function Fabula() {
 /* Forge clip preview — renders a timeline video through the same WebGL effect
    stack as graph nodes and offline rendering. The source video remains mounted
    for decode/audio sync but its DOM pixels are hidden while this canvas presents. */
-function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool }) {
+function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool, clipFx = null, fps = 24 }) {
   const canvasRef = useRef(null);
   const effectsRef = useRef(effects); effectsRef.current = effects;
+  const clipFxRef = useRef(clipFx); clipFxRef.current = clipFx;
   const timeRef = useRef(time); timeRef.current = time;
   const lutRef = useRef(cubeLut); lutRef.current = cubeLut;
   const auxRef = useRef(new Map());
@@ -7341,7 +7359,10 @@ function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool 
       const video = videoRef?.current;
       if (!video || video.readyState < 2) return;
       try {
-        const resolved = effectsRef.current.map((instance) => {
+        const trackCtx = { vectorTrack: clipFxRef.current?.vectorTrack, planarTrack: clipFxRef.current?.planarTrack, fps };
+        const resolved = effectsRef.current.map((stored) => {
+          // Same resolver as the export: track-bound params + rasterised mask for this frame.
+          const instance = resolveInstanceForFrame(stored, FX_EFFECTS.find((e) => e.id === stored.effectId), trackCtx, timeRef.current, { w: video.videoWidth || 16, h: video.videoHeight || 9 });
           const auxElement = auxRef.current.get(instance.id);
           if (auxElement instanceof HTMLVideoElement && auxElement.readyState >= 1 && Math.abs(auxElement.currentTime - timeRef.current) > .08) auxElement.currentTime = Math.min(timeRef.current, Math.max(0, (auxElement.duration || timeRef.current) - .001));
           return auxElement ? { ...instance, auxElement } : instance;
@@ -7357,6 +7378,59 @@ function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool 
 }
 
 /* ---------- compositing layer: one active clip on one video track ---------- */
+
+
+/* ---------- Forge mask overlay: PixelChooser shape editor on the program monitor ----------
+   Ellipse/rect: drag the body to move, corner handles to resize. Polygon: drag vertices, drag the
+   body to move, double-click the body to add a vertex. Shapes are stored in normalized clip space. */
+function MaskOverlay({ clip, instance, playhead, screenRef, videoRef, fps, onChange }) {
+  const mask = instance?.mask;
+  const el = screenRef?.current;
+  const W = el?.clientWidth || 0, H = el?.clientHeight || 0;
+  const maskRef = useRef(mask); maskRef.current = mask;
+  if (!clip || !mask || !W || !H) return null;
+  const vw = videoRef?.current?.videoWidth || 16, vh = videoRef?.current?.videoHeight || 9;
+  const box = containBox(vw, vh, W, H);
+  const localT = playhead - clip.start;
+  const ctxT = { vectorTrack: clip.fx?.vectorTrack, planarTrack: clip.fx?.planarTrack, fps };
+  // Handles edit the stored (reference-frame) shape; the outline shows where the track puts it now.
+  const stored = maskOutlineAt({ ...mask, track: "none" }, ctxT, localT, 64);
+  const live = maskOutlineAt(mask, ctxT, localT, 64);
+  const toPx = (p) => [box.x + p.x * box.w, box.y + p.y * box.h];
+  const fromEvent = (ev) => { const r = el.getBoundingClientRect(); return { x: (ev.clientX - r.left - box.x) / box.w, y: (ev.clientY - r.top - box.y) / box.h }; };
+  const drag = (kind, index) => (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const start = fromEvent(e); const origin = JSON.parse(JSON.stringify(maskRef.current));
+    const move = (ev) => {
+      const p = fromEvent(ev); const dx = p.x - start.x, dy = p.y - start.y; const m = origin;
+      if (kind === "body") {
+        if (m.shape === "poly") onChange({ ...m, points: (m.points || []).map((q) => ({ x: q.x + dx, y: q.y + dy })) });
+        else onChange({ ...m, cx: m.cx + dx, cy: m.cy + dy });
+      } else if (kind === "vertex") {
+        onChange({ ...m, points: (m.points || []).map((q, k) => k === index ? { x: p.x, y: p.y } : q) });
+      } else if (kind === "corner") {
+        // corner k of the bbox: 0 TL 1 TR 2 BR 3 BL — resize about the opposite corner
+        const sx = index === 1 || index === 2 ? 1 : -1, sy = index === 2 || index === 3 ? 1 : -1;
+        const w = Math.max(.02, m.w + dx * sx), h = Math.max(.02, m.h + dy * sy);
+        onChange({ ...m, w, h, cx: m.cx + (w - m.w) / 2 * sx, cy: m.cy + (h - m.h) / 2 * sy });
+      }
+    };
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  };
+  const addVertex = (e) => { if (mask.shape !== "poly") return; const p = fromEvent(e); const pts = mask.points || []; let best = 0, bd = Infinity; for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2; const d = Math.hypot(mx - p.x, my - p.y); if (d < bd) { bd = d; best = i; } } const next = [...pts]; next.splice(best + 1, 0, p); onChange({ ...mask, points: next }); };
+  const removeVertex = (i) => (e) => { e.preventDefault(); e.stopPropagation(); if (mask.shape !== "poly" || (mask.points || []).length <= 3) return; onChange({ ...mask, points: mask.points.filter((_, k) => k !== i) }); };
+  const handles = mask.shape === "poly" ? (mask.points || []) : [{ x: mask.cx - mask.w / 2, y: mask.cy - mask.h / 2 }, { x: mask.cx + mask.w / 2, y: mask.cy - mask.h / 2 }, { x: mask.cx + mask.w / 2, y: mask.cy + mask.h / 2 }, { x: mask.cx - mask.w / 2, y: mask.cy + mask.h / 2 }];
+  const tracked = mask.track && mask.track !== "none";
+  return (
+    <svg className="vt-surface" viewBox={`0 0 ${W} ${H}`} style={{ pointerEvents: "auto" }}>
+      {tracked && <polygon points={live.map((p) => toPx(p).join(",")).join(" ")} fill="none" stroke="#22c55e" strokeWidth={1.5} strokeDasharray="4 3" />}
+      <polygon points={stored.map((p) => toPx(p).join(",")).join(" ")} fill="rgba(0,163,255,.10)" stroke="#00A3FF" strokeWidth={1.5} style={{ cursor: "move" }} onPointerDown={drag("body")} onDoubleClick={addVertex} />
+      {handles.map((p, i) => { const [x, y] = toPx(p); return <circle key={i} className="vt-handle" cx={x} cy={y} r={6} fill="#0f0e13" stroke="#00A3FF" strokeWidth={2} onPointerDown={drag(mask.shape === "poly" ? "vertex" : "corner", i)} onContextMenu={removeVertex(i)} />; })}
+      <text x={toPx(stored[0])[0]} y={toPx(stored[0])[1] - 9} fill="#00A3FF" fontSize={10} fontFamily="'JetBrains Mono',monospace" letterSpacing={1}>MASK · {mask.shape}{tracked ? ` · follows ${mask.track === "planar" ? "surface" : "point"}` : ""}{mask.shape === "poly" ? " · dbl-click adds, right-click removes" : ""}</text>
+    </svg>
+  );
+}
 
 /* ---------- VectorTrack surface overlay: the planar surface quad on the program monitor ----------
    Editing: drag corners (or the body) to place the reference surface. Tracked: shows the surface
@@ -7605,7 +7679,7 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
         <SceneView snapshot={asset.pixels} palette={prod?.pixelsConfig?.colorPalette}
           playing={playing} time={playhead - clip.start + offset} className="mvid" />
       ) : <>
-        {hasForge && <ForgeClipPreview videoRef={vRef} effects={fx.stack} mediaPool={prod?.mediaPool || []} cubeLut={activeCubeLut} time={Math.max(0, playhead - clip.start)} active={active} />}
+        {hasForge && <ForgeClipPreview videoRef={vRef} effects={fx.stack} mediaPool={prod?.mediaPool || []} cubeLut={activeCubeLut} time={Math.max(0, playhead - clip.start)} active={active} clipFx={fx} fps={prod?.defaults?.format?.fps || 24} />}
         {playbackSrc && asset.type === "video" && <video ref={vRef} src={playbackSrc} className="mvid" style={hasForge ? { opacity: 0 } : undefined} muted={!active || !!mute || !!clip.disabled || !!clip.av || engineOwnsAudio} playsInline preload="auto" onLoadStart={() => setLoadState((s) => ({ ...s, phase: s.phase === "local" ? "loading" : s.phase }))} onWaiting={() => setLoadState((s) => ({ ...s, phase: s.phase === "local" ? "buffering" : s.phase }))} onPlaying={() => setLoadState((s) => ({ ...s, phase: s.phase === "cached" ? "cached" : s.phase === "local" ? "local" : "streaming" }))} onLoadedData={doSeek} onCanPlay={doSeek} onSeeked={() => { if (!playing) doSeek(); }}
           onError={() => {
             // Dead source (revoked/evicted blob URL) used to mean a permanently black clip.

@@ -25,6 +25,8 @@ import type { CubeLutData } from './fabula/cubeLut';
 import { stabilizationAt } from './fabula/vectorTrack';
 import { planarStabilizeAt, cornerPinAt } from './fabula/planarSequence';
 import { isIdentityMat3 } from './fabula/planarTrack';
+import { resolveInstanceForFrame } from './fabula/forgeBindings';
+import { getEffect } from '../components/plajahPixels/engine/fx/effects';
 
 interface RenderFabulaOpts {
   clips: any[];                 // Fabula clips on the active timeline
@@ -349,8 +351,10 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
           ...(glGrade ? { glGrade } : {}),
           ...(glGrades ? { glGrades } : {}),
           ...(fx?.stack?.length ? { forgeEffects: fx.stack.filter((instance: any) => instance.enabled !== false).map((instance: any) => {
-            const auxAsset = instance.auxAssetId ? itemById.get(instance.auxAssetId) : null;
-            return auxAsset?.url ? { ...instance, auxUrl: auxAsset.url, auxMediaType: auxAsset.type === 'video' ? 'video' : 'image' } : instance;
+            // Track-bound params + rasterised mask for THIS frame (same resolver as the monitor).
+            const resolved = resolveInstanceForFrame(instance, getEffect(instance.effectId), { vectorTrack: fx.vectorTrack, planarTrack: fx.planarTrack, fps: format?.fps }, kfT, { w: format?.w || 1920, h: format?.h || 1080 });
+            const auxAsset = resolved.auxAssetId ? itemById.get(resolved.auxAssetId) : null;
+            return auxAsset?.url ? { ...resolved, auxUrl: auxAsset.url, auxMediaType: auxAsset.type === 'video' ? 'video' : 'image' } : resolved;
           }) } : {}),
           ...(extra?.wipe ? { wipe: extra.wipe } : {}),
           // Transition belongs to the first incoming layer. Standard Fabula media
