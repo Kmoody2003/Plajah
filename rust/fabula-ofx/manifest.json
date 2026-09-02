@@ -21993,6 +21993,1328 @@
       }
     },
     {
+      "pluginIdentifier": "com.plajah.fabula.flarerig",
+      "label": "Flare Rig",
+      "grouping": "Fabula/Light",
+      "description": "A full flare rig — glow ball, anamorphic streak, starburst, iris ghosts with chromatic edges, halo, rainbow arc — around a light you can track; occluded by the picture.",
+      "versionMajor": 1,
+      "versionMinor": 0,
+      "contexts": [
+        "OfxImageEffectContextFilter"
+      ],
+      "clips": [
+        {
+          "name": "Source",
+          "optional": false,
+          "temporalAccess": false
+        },
+        {
+          "name": "Output",
+          "optional": false
+        }
+      ],
+      "params": [
+        {
+          "name": "x",
+          "label": "Light X",
+          "type": "OfxParamTypeDouble",
+          "default": 0.7,
+          "min": -0.5,
+          "max": 1.5,
+          "displayMin": -0.5,
+          "displayMax": 1.5,
+          "increment": 0.005,
+          "animates": true,
+          "abiIndex": 0
+        },
+        {
+          "name": "y",
+          "label": "Light Y",
+          "type": "OfxParamTypeDouble",
+          "default": 0.3,
+          "min": -0.5,
+          "max": 1.5,
+          "displayMin": -0.5,
+          "displayMax": 1.5,
+          "increment": 0.005,
+          "animates": true,
+          "abiIndex": 1
+        },
+        {
+          "name": "brightness",
+          "label": "Brightness",
+          "type": "OfxParamTypeDouble",
+          "default": 1,
+          "min": 0,
+          "max": 3,
+          "displayMin": 0,
+          "displayMax": 3,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 2
+        },
+        {
+          "name": "scale",
+          "label": "Scale",
+          "type": "OfxParamTypeDouble",
+          "default": 1,
+          "min": 0.2,
+          "max": 3,
+          "displayMin": 0.2,
+          "displayMax": 3,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 3
+        },
+        {
+          "name": "ghosts",
+          "label": "Ghosts",
+          "type": "OfxParamTypeInteger",
+          "default": 6,
+          "min": 0,
+          "max": 12,
+          "displayMin": 0,
+          "displayMax": 12,
+          "increment": 1,
+          "animates": true,
+          "abiIndex": 4
+        },
+        {
+          "name": "streak",
+          "label": "Anamorphic Streak",
+          "type": "OfxParamTypeDouble",
+          "default": 0.6,
+          "min": 0,
+          "max": 2,
+          "displayMin": 0,
+          "displayMax": 2,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 5
+        },
+        {
+          "name": "hue",
+          "label": "Tint (<0 warm white)",
+          "type": "OfxParamTypeDouble",
+          "default": -1,
+          "min": -1,
+          "max": 1,
+          "displayMin": -1,
+          "displayMax": 1,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 6
+        },
+        {
+          "name": "obscure",
+          "label": "Obscuration",
+          "type": "OfxParamTypeDouble",
+          "default": 0.6,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 7
+        }
+      ],
+      "presets": [
+        {
+          "id": "anamorphic-blue",
+          "name": "Anamorphic Blue",
+          "description": "Long horizontal blue streak, few ghosts.",
+          "params": {
+            "x": 0.7,
+            "y": 0.3,
+            "brightness": 1.1,
+            "scale": 1,
+            "ghosts": 3,
+            "streak": 1.6,
+            "hue": 0.58,
+            "obscure": 0.6
+          }
+        },
+        {
+          "id": "sun-glare",
+          "name": "Sun Glare",
+          "description": "Warm sun with many iris ghosts and a rainbow arc.",
+          "params": {
+            "x": 0.75,
+            "y": 0.2,
+            "brightness": 1.3,
+            "scale": 1.2,
+            "ghosts": 9,
+            "streak": 0.3,
+            "hue": -1,
+            "obscure": 0.6
+          }
+        },
+        {
+          "id": "vintage-50mm",
+          "name": "Vintage 50mm",
+          "description": "Soft ghosts and a wide halo.",
+          "params": {
+            "x": 0.6,
+            "y": 0.4,
+            "brightness": 0.9,
+            "scale": 1.4,
+            "ghosts": 6,
+            "streak": 0.1,
+            "hue": 0.09,
+            "obscure": 0.5
+          }
+        },
+        {
+          "id": "sci-fi",
+          "name": "Sci-Fi",
+          "description": "Cyan streak and sharp starburst.",
+          "params": {
+            "x": 0.5,
+            "y": 0.5,
+            "brightness": 1.4,
+            "scale": 0.9,
+            "ghosts": 4,
+            "streak": 1.2,
+            "hue": 0.5,
+            "obscure": 0.3
+          }
+        },
+        {
+          "id": "subtle-practical",
+          "name": "Subtle Practical",
+          "description": "Small glow for on-set lamps.",
+          "params": {
+            "x": 0.5,
+            "y": 0.5,
+            "brightness": 0.5,
+            "scale": 0.6,
+            "ghosts": 2,
+            "streak": 0.2,
+            "hue": 0.1,
+            "obscure": 0.8
+          }
+        }
+      ],
+      "supportsTiles": false,
+      "temporalClipAccess": false,
+      "supportsMultiResolution": false,
+      "renderThreadSafety": "OfxImageEffectRenderInstanceSafe",
+      "kernel": {
+        "language": "glsl-es-300",
+        "entry": "fx",
+        "paramAbi": [
+          "x",
+          "y",
+          "brightness",
+          "scale",
+          "ghosts",
+          "streak",
+          "hue",
+          "obscure"
+        ],
+        "passes": [
+          {
+            "id": "main",
+            "source": "\nfloat lfh(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }\nvec3 lfhue(float h){ return hsv2rgb(vec3(fract(h),0.75,1.0)); }\n// n-gon iris shape distance (r = 1 at the edge)\nfloat ngon(vec2 d, float n){ float a=atan(d.y,d.x); float seg=6.28318/n; float k=cos(floor(0.5+a/seg)*seg-a); return length(d)*k; }\n\nvec4 fx(vec2 uv){\n  vec4 b=inp(uv); float asp=uResolution.x/uResolution.y;\n  vec2 L=vec2(P0,P1); vec2 p=(uv-L)*vec2(asp,1.0); vec2 c=(vec2(0.5)-L)*vec2(asp,1.0);\n  // Obscuration: how much of the source is bright around the light (light behind dark = flare fades).\n  float occ=0.0; for(int i=0;i<9;i++){ vec2 o=vec2(float(i%3)-1.0,float(i/3)-1.0)*0.012; occ+=dot(inp(clamp(L+o,0.0,1.0)).rgb,vec3(.2126,.7152,.0722)); } occ/=9.0;\n  float vis=mix(1.0,smoothstep(0.15,0.75,occ),P7);\n  float inFrame=step(-0.2,L.x)*step(L.x,1.2)*step(-0.2,L.y)*step(L.y,1.2);\n  vis*=inFrame;\n  vec3 tint=P6<0.0?vec3(1.0,0.93,0.82):lfhue(P6);\n  float s=P3; float r=length(p)/s;\n  vec3 acc=vec3(0.0);\n  // 1. glow ball + core\n  acc+=tint*(exp(-r*9.0)*1.2+exp(-r*40.0)*2.0);\n  // 2. anamorphic streak (horizontal)\n  float streak=exp(-abs(p.y)*90.0/s)*exp(-abs(p.x)*1.6/(s*(0.5+P5)))*P5*1.4;\n  acc+=mix(tint,vec3(0.55,0.7,1.0),0.6)*streak;\n  // 3. starburst spikes\n  float ang=atan(p.y,p.x); float spikes=pow(abs(cos(ang*4.0)),24.0)*0.7+pow(abs(cos(ang*6.0+0.4)),60.0)*0.5;\n  acc+=tint*spikes*exp(-r*3.0)*0.9;\n  // 4. halo ring\n  acc+=mix(tint,vec3(1.0,0.5,0.35),0.5)*exp(-pow((r-0.55)*9.0,2.0))*0.35;\n  // 5. rainbow arc (spectral halo further out)\n  float rb=exp(-pow((r-0.95)*10.0,2.0))*0.25; acc+=hsv2rgb(vec3(fract((r-0.85)*4.0),0.9,1.0))*rb;\n  // 6. iris ghosts along the light→centre axis, with chromatic edges\n  int n=int(clamp(P4,0.0,12.0)+0.5);\n  for(int i=0;i<12;i++){\n    if(i>=n) break; float fi=float(i);\n    float t=(fi+1.0)/(float(n)+1.0); float h=lfh(vec2(fi,3.7));\n    vec2 gc=c*(t*2.2-0.4); float gs=s*(0.03+0.12*h);\n    vec2 d=(p-gc); float sides=5.0+floor(h*4.0);\n    float rr=ngon(d,sides)/gs;\n    float disc=(1.0-smoothstep(0.85,1.0,rr))*(0.35+0.65*smoothstep(0.4,1.0,rr));\n    vec3 gcol=lfhue(0.05+h*0.7+t*0.2);\n    float chroma=smoothstep(0.75,1.0,rr)*(1.0-smoothstep(1.0,1.1,rr));\n    acc+=(gcol*disc*0.35+vec3(1.0,0.4,0.2)*chroma*0.15)*(0.6+0.4*(1.0-t));\n  }\n  acc*=P2*vis;\n  vec3 o=b.rgb+acc-b.rgb*acc*0.3;\n  return vec4(clamp(o,0.0,1.0),b.a);\n}"
+          }
+        ],
+        "uniforms": {
+          "input": "uInput",
+          "source": "uSource",
+          "aux": "uAux",
+          "prev": "uPrev",
+          "prevSrc": "uPrevSrc",
+          "resolution": "uResolution",
+          "time": "uTime",
+          "deltaT": "uDeltaT",
+          "frame": "uFrame",
+          "audio": [
+            "iBass",
+            "iMid",
+            "iTreble",
+            "iLevel"
+          ]
+        },
+        "headerHash": "985610c1",
+        "temporal": false
+      }
+    },
+    {
+      "pluginIdentifier": "com.plajah.fabula.lightsweep",
+      "label": "Light Sweep",
+      "grouping": "Fabula/Light",
+      "description": "A soft light bar sweeping across the frame (logo / title reveal glint), with angle, width and loop.",
+      "versionMajor": 1,
+      "versionMinor": 0,
+      "contexts": [
+        "OfxImageEffectContextFilter"
+      ],
+      "clips": [
+        {
+          "name": "Source",
+          "optional": false,
+          "temporalAccess": false
+        },
+        {
+          "name": "Output",
+          "optional": false
+        }
+      ],
+      "params": [
+        {
+          "name": "progress",
+          "label": "Position",
+          "type": "OfxParamTypeDouble",
+          "default": 0.5,
+          "min": -0.5,
+          "max": 1.5,
+          "displayMin": -0.5,
+          "displayMax": 1.5,
+          "increment": 0.005,
+          "animates": true,
+          "abiIndex": 0
+        },
+        {
+          "name": "angle",
+          "label": "Angle",
+          "type": "OfxParamTypeInteger",
+          "default": 20,
+          "min": -90,
+          "max": 90,
+          "displayMin": -90,
+          "displayMax": 90,
+          "increment": 1,
+          "hint": "Unit: deg",
+          "animates": true,
+          "abiIndex": 1
+        },
+        {
+          "name": "width",
+          "label": "Width",
+          "type": "OfxParamTypeDouble",
+          "default": 0.12,
+          "min": 0.01,
+          "max": 0.6,
+          "displayMin": 0.01,
+          "displayMax": 0.6,
+          "increment": 0.005,
+          "animates": true,
+          "abiIndex": 2
+        },
+        {
+          "name": "intensity",
+          "label": "Intensity",
+          "type": "OfxParamTypeDouble",
+          "default": 0.8,
+          "min": 0,
+          "max": 2,
+          "displayMin": 0,
+          "displayMax": 2,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 3
+        },
+        {
+          "name": "speed",
+          "label": "Auto Sweep",
+          "type": "OfxParamTypeDouble",
+          "default": 0,
+          "min": 0,
+          "max": 3,
+          "displayMin": 0,
+          "displayMax": 3,
+          "increment": 0.05,
+          "hint": "Unit: Hz",
+          "animates": true,
+          "abiIndex": 4
+        },
+        {
+          "name": "alphaOnly",
+          "label": "Only on Alpha",
+          "type": "OfxParamTypeBoolean",
+          "default": 0,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 1,
+          "animates": true,
+          "abiIndex": 5
+        }
+      ],
+      "presets": [
+        {
+          "id": "logo-glint",
+          "name": "Logo Glint",
+          "description": "Narrow bright glint, only on the layer alpha.",
+          "params": {
+            "progress": 0.5,
+            "angle": 25,
+            "width": 0.08,
+            "intensity": 1.2,
+            "speed": 0,
+            "alphaOnly": 1
+          }
+        },
+        {
+          "id": "looping-sweep",
+          "name": "Looping Sweep",
+          "description": "Wide soft sweep that loops.",
+          "params": {
+            "progress": 0,
+            "angle": 15,
+            "width": 0.25,
+            "intensity": 0.6,
+            "speed": 0.4,
+            "alphaOnly": 0
+          }
+        },
+        {
+          "id": "hard-bar",
+          "name": "Hard Bar",
+          "description": "Vertical hard-edged light bar.",
+          "params": {
+            "progress": 0.5,
+            "angle": 0,
+            "width": 0.04,
+            "intensity": 1.5,
+            "speed": 0,
+            "alphaOnly": 0
+          }
+        }
+      ],
+      "supportsTiles": false,
+      "temporalClipAccess": false,
+      "supportsMultiResolution": false,
+      "renderThreadSafety": "OfxImageEffectRenderInstanceSafe",
+      "kernel": {
+        "language": "glsl-es-300",
+        "entry": "fx",
+        "paramAbi": [
+          "progress",
+          "angle",
+          "width",
+          "intensity",
+          "speed",
+          "alphaOnly"
+        ],
+        "passes": [
+          {
+            "id": "main",
+            "source": "vec4 fx(vec2 uv){ vec4 b=inp(uv); float a=radians(P1); vec2 d=vec2(cos(a),sin(a)); float t=dot(uv-0.5,d)+0.5; float pos=P4>0.0?fract(uTime*P4)*2.0-0.5:P0; float band=exp(-pow((t-pos)/max(P2,1e-3),2.0)*2.0); float k=band*P3*(P5>0.5?b.a:1.0); vec3 o=b.rgb+vec3(1.0)*k-b.rgb*k*0.5; return vec4(clamp(o,0.0,1.0),b.a); }"
+          }
+        ],
+        "uniforms": {
+          "input": "uInput",
+          "source": "uSource",
+          "aux": "uAux",
+          "prev": "uPrev",
+          "prevSrc": "uPrevSrc",
+          "resolution": "uResolution",
+          "time": "uTime",
+          "deltaT": "uDeltaT",
+          "frame": "uFrame",
+          "audio": [
+            "iBass",
+            "iMid",
+            "iTreble",
+            "iLevel"
+          ]
+        },
+        "headerHash": "985610c1",
+        "temporal": false
+      }
+    },
+    {
+      "pluginIdentifier": "com.plajah.fabula.pagecurl",
+      "label": "Page Curl",
+      "grouping": "Fabula/Distort & Warp",
+      "description": "Peels the frame like a page from a corner, with a shaded cylinder and the back of the page showing through.",
+      "versionMajor": 1,
+      "versionMinor": 0,
+      "contexts": [
+        "OfxImageEffectContextFilter"
+      ],
+      "clips": [
+        {
+          "name": "Source",
+          "optional": false,
+          "temporalAccess": false
+        },
+        {
+          "name": "Output",
+          "optional": false
+        }
+      ],
+      "params": [
+        {
+          "name": "amount",
+          "label": "Curl",
+          "type": "OfxParamTypeDouble",
+          "default": 0.35,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.005,
+          "animates": true,
+          "abiIndex": 0
+        },
+        {
+          "name": "angle",
+          "label": "Direction",
+          "type": "OfxParamTypeInteger",
+          "default": 45,
+          "min": 0,
+          "max": 360,
+          "displayMin": 0,
+          "displayMax": 360,
+          "increment": 1,
+          "hint": "Unit: deg",
+          "animates": true,
+          "abiIndex": 1
+        },
+        {
+          "name": "radius",
+          "label": "Radius",
+          "type": "OfxParamTypeDouble",
+          "default": 0.12,
+          "min": 0.02,
+          "max": 0.5,
+          "displayMin": 0.02,
+          "displayMax": 0.5,
+          "increment": 0.005,
+          "animates": true,
+          "abiIndex": 2
+        },
+        {
+          "name": "backBright",
+          "label": "Back Brightness",
+          "type": "OfxParamTypeDouble",
+          "default": 0.75,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 3
+        },
+        {
+          "name": "shadow",
+          "label": "Shadow",
+          "type": "OfxParamTypeDouble",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 4
+        }
+      ],
+      "presets": [
+        {
+          "id": "corner",
+          "name": "Corner Peel",
+          "description": "Classic bottom-right corner peel.",
+          "params": {
+            "amount": 0.35,
+            "angle": 45,
+            "radius": 0.12,
+            "backBright": 0.75,
+            "shadow": 0.5
+          }
+        },
+        {
+          "id": "tight-roll",
+          "name": "Tight Roll",
+          "description": "Small radius, strong shadow.",
+          "params": {
+            "amount": 0.5,
+            "angle": 30,
+            "radius": 0.05,
+            "backBright": 0.6,
+            "shadow": 0.8
+          }
+        },
+        {
+          "id": "side-turn",
+          "name": "Side Turn",
+          "description": "Left-to-right page turn.",
+          "params": {
+            "amount": 0.4,
+            "angle": 0,
+            "radius": 0.18,
+            "backBright": 0.85,
+            "shadow": 0.3
+          }
+        }
+      ],
+      "supportsTiles": false,
+      "temporalClipAccess": false,
+      "supportsMultiResolution": false,
+      "renderThreadSafety": "OfxImageEffectRenderInstanceSafe",
+      "kernel": {
+        "language": "glsl-es-300",
+        "entry": "fx",
+        "paramAbi": [
+          "amount",
+          "angle",
+          "radius",
+          "backBright",
+          "shadow"
+        ],
+        "passes": [
+          {
+            "id": "main",
+            "source": "\nvec2 aspectUv(vec2 uv, float asp){ return (uv-0.5)*vec2(asp,1.0); }\nvec2 unAspect(vec2 p, float asp){ return p/vec2(asp,1.0)+0.5; }\nfloat inb(vec2 uv){ return step(0.0,uv.x)*step(uv.x,1.0)*step(0.0,uv.y)*step(uv.y,1.0); }\nvec4 fx(vec2 uv){ float asp=uResolution.x/uResolution.y; vec2 p=aspectUv(uv,asp); float a=radians(P1); vec2 dir=vec2(cos(a),sin(a)); float diag=length(vec2(asp,1.0)); float fold=(0.5-P0)*diag*2.0; float t=dot(p,dir); float R=P2; vec4 base=inp(uv); float alpha=base.a; if(t<fold) return base; float dt=t-fold; if(dt<3.14159*R){ float ang=dt/R; float z=sin(ang)*R; float back=cos(ang); vec2 q=p-dir*(dt-sin(ang)*R); vec2 suv=unAspect(q,asp); vec4 c=inp(suv); float shade=1.0-0.35*P4*(1.0-cos(ang)); vec3 col=c.rgb*shade; if(back<0.0){ col=mix(vec3(0.93),c.rgb,0.15)*P3*(0.7+0.3*abs(back)); } return vec4(col,c.a*inb(suv)); } vec2 q=p-dir*(dt-3.14159*R)*1.0; q=p-dir*(2.0*(dt-3.14159*R)+3.14159*R); vec2 suv=unAspect(q,asp); vec4 c=inp(suv); float k=inb(suv); vec3 back=mix(vec3(0.93),c.rgb,0.15)*P3; vec4 under=vec4(0.0); return vec4(mix(under.rgb,back,k),k*c.a); }"
+          }
+        ],
+        "uniforms": {
+          "input": "uInput",
+          "source": "uSource",
+          "aux": "uAux",
+          "prev": "uPrev",
+          "prevSrc": "uPrevSrc",
+          "resolution": "uResolution",
+          "time": "uTime",
+          "deltaT": "uDeltaT",
+          "frame": "uFrame",
+          "audio": [
+            "iBass",
+            "iMid",
+            "iTreble",
+            "iLevel"
+          ]
+        },
+        "headerHash": "985610c1",
+        "temporal": false
+      }
+    },
+    {
+      "pluginIdentifier": "com.plajah.fabula.cubeface",
+      "label": "Cube Face",
+      "grouping": "Fabula/Distort & Warp",
+      "description": "Maps the frame onto one rotating face of a cube seen in perspective, with edge shading — the BCC Cube / 3D flip look.",
+      "versionMajor": 1,
+      "versionMinor": 0,
+      "contexts": [
+        "OfxImageEffectContextFilter"
+      ],
+      "clips": [
+        {
+          "name": "Source",
+          "optional": false,
+          "temporalAccess": false
+        },
+        {
+          "name": "Output",
+          "optional": false
+        }
+      ],
+      "params": [
+        {
+          "name": "yaw",
+          "label": "Yaw",
+          "type": "OfxParamTypeInteger",
+          "default": 25,
+          "min": -180,
+          "max": 180,
+          "displayMin": -180,
+          "displayMax": 180,
+          "increment": 1,
+          "hint": "Unit: deg",
+          "animates": true,
+          "abiIndex": 0
+        },
+        {
+          "name": "pitch",
+          "label": "Pitch",
+          "type": "OfxParamTypeInteger",
+          "default": 10,
+          "min": -90,
+          "max": 90,
+          "displayMin": -90,
+          "displayMax": 90,
+          "increment": 1,
+          "hint": "Unit: deg",
+          "animates": true,
+          "abiIndex": 1
+        },
+        {
+          "name": "depth",
+          "label": "Camera Distance",
+          "type": "OfxParamTypeDouble",
+          "default": 2,
+          "min": 1,
+          "max": 6,
+          "displayMin": 1,
+          "displayMax": 6,
+          "increment": 0.05,
+          "animates": true,
+          "abiIndex": 2
+        },
+        {
+          "name": "size",
+          "label": "Size",
+          "type": "OfxParamTypeDouble",
+          "default": 1,
+          "min": 0.2,
+          "max": 2,
+          "displayMin": 0.2,
+          "displayMax": 2,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 3
+        },
+        {
+          "name": "shade",
+          "label": "Shading",
+          "type": "OfxParamTypeDouble",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 4
+        },
+        {
+          "name": "spin",
+          "label": "Spin",
+          "type": "OfxParamTypeDouble",
+          "default": 0,
+          "min": -2,
+          "max": 2,
+          "displayMin": -2,
+          "displayMax": 2,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 5
+        }
+      ],
+      "presets": [
+        {
+          "id": "tumble",
+          "name": "Tumble",
+          "description": "Slow spinning cube face.",
+          "params": {
+            "yaw": 0,
+            "pitch": 12,
+            "depth": 2,
+            "size": 1,
+            "shade": 0.5,
+            "spin": 0.4
+          }
+        },
+        {
+          "id": "card-tilt",
+          "name": "Card Tilt",
+          "description": "Static tilted card.",
+          "params": {
+            "yaw": 25,
+            "pitch": 10,
+            "depth": 2.2,
+            "size": 1,
+            "shade": 0.4,
+            "spin": 0
+          }
+        },
+        {
+          "id": "flip-mid",
+          "name": "Flip Midway",
+          "description": "Edge-on flip.",
+          "params": {
+            "yaw": 80,
+            "pitch": 0,
+            "depth": 1.8,
+            "size": 1.2,
+            "shade": 0.7,
+            "spin": 0
+          }
+        }
+      ],
+      "supportsTiles": false,
+      "temporalClipAccess": false,
+      "supportsMultiResolution": false,
+      "renderThreadSafety": "OfxImageEffectRenderInstanceSafe",
+      "kernel": {
+        "language": "glsl-es-300",
+        "entry": "fx",
+        "paramAbi": [
+          "yaw",
+          "pitch",
+          "depth",
+          "size",
+          "shade",
+          "spin"
+        ],
+        "passes": [
+          {
+            "id": "main",
+            "source": "\nvec2 aspectUv(vec2 uv, float asp){ return (uv-0.5)*vec2(asp,1.0); }\nvec2 unAspect(vec2 p, float asp){ return p/vec2(asp,1.0)+0.5; }\nfloat inb(vec2 uv){ return step(0.0,uv.x)*step(uv.x,1.0)*step(0.0,uv.y)*step(uv.y,1.0); }\nvec4 fx(vec2 uv){ float asp=uResolution.x/uResolution.y; vec2 p=aspectUv(uv,asp); float yaw=radians(P0)+uTime*P5, pit=radians(P1); float cy=cos(yaw), sy=sin(yaw), cp=cos(pit), sp=sin(pit);\n  // Card basis: rx along the card's width, ry along its height, n its normal (yaw about Y, pitch about X).\n  vec3 rx=vec3(cy,0.0,sy); vec3 ry=vec3(sy*sp,cp,-cy*sp); vec3 n=cross(rx,ry);\n  // Camera at z=-dist looking down +z; the card is centred at the origin.\n  vec3 ro=vec3(0.0,0.0,-P2); vec3 rd=normalize(vec3(p,1.6));\n  float denom=dot(rd,n); if(abs(denom)<1e-5) return vec4(0.0);\n  float t=dot(-ro,n)/denom; if(t<0.0) return vec4(0.0);\n  vec3 hit=ro+rd*t; vec2 local=vec2(dot(hit,rx),dot(hit,ry));\n  float hw=P3*asp*0.5, hh=P3*0.5;\n  vec2 suv=vec2(local.x/hw*0.5+0.5, local.y/hh*0.5+0.5);\n  if(inb(suv)<0.5) return vec4(0.0);\n  vec4 c=inp(suv); float facing=abs(dot(normalize(n),vec3(0.0,0.0,1.0))); float sh=mix(1.0,0.35+0.65*facing,P4);\n  if(denom<0.0) c.rgb*=0.6; // normal points away from the camera → back face\n  return vec4(c.rgb*sh,c.a); }"
+          }
+        ],
+        "uniforms": {
+          "input": "uInput",
+          "source": "uSource",
+          "aux": "uAux",
+          "prev": "uPrev",
+          "prevSrc": "uPrevSrc",
+          "resolution": "uResolution",
+          "time": "uTime",
+          "deltaT": "uDeltaT",
+          "frame": "uFrame",
+          "audio": [
+            "iBass",
+            "iMid",
+            "iTreble",
+            "iLevel"
+          ]
+        },
+        "headerHash": "985610c1",
+        "temporal": false
+      }
+    },
+    {
+      "pluginIdentifier": "com.plajah.fabula.cylinderwrap",
+      "label": "Cylinder",
+      "grouping": "Fabula/Distort & Warp",
+      "description": "Wraps the frame around a vertical or horizontal cylinder with curvature and rotation.",
+      "versionMajor": 1,
+      "versionMinor": 0,
+      "contexts": [
+        "OfxImageEffectContextFilter"
+      ],
+      "clips": [
+        {
+          "name": "Source",
+          "optional": false,
+          "temporalAccess": false
+        },
+        {
+          "name": "Output",
+          "optional": false
+        }
+      ],
+      "params": [
+        {
+          "name": "curve",
+          "label": "Curvature",
+          "type": "OfxParamTypeDouble",
+          "default": 0.6,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 0
+        },
+        {
+          "name": "rotate",
+          "label": "Rotate",
+          "type": "OfxParamTypeInteger",
+          "default": 0,
+          "min": -180,
+          "max": 180,
+          "displayMin": -180,
+          "displayMax": 180,
+          "increment": 1,
+          "hint": "Unit: deg",
+          "animates": true,
+          "abiIndex": 1
+        },
+        {
+          "name": "axis",
+          "label": "Axis",
+          "type": "OfxParamTypeChoice",
+          "default": 0,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 1,
+          "options": [
+            "vertical",
+            "horizontal"
+          ],
+          "animates": true,
+          "abiIndex": 2
+        },
+        {
+          "name": "shade",
+          "label": "Shading",
+          "type": "OfxParamTypeDouble",
+          "default": 0.4,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 3
+        },
+        {
+          "name": "spin",
+          "label": "Spin",
+          "type": "OfxParamTypeDouble",
+          "default": 0,
+          "min": -2,
+          "max": 2,
+          "displayMin": -2,
+          "displayMax": 2,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 4
+        }
+      ],
+      "presets": [
+        {
+          "id": "drum",
+          "name": "Drum",
+          "description": "Vertical cylinder slowly spinning.",
+          "params": {
+            "curve": 0.7,
+            "rotate": 0,
+            "axis": 0,
+            "shade": 0.5,
+            "spin": 0.3
+          }
+        },
+        {
+          "id": "roller",
+          "name": "Roller",
+          "description": "Horizontal roll.",
+          "params": {
+            "curve": 0.6,
+            "rotate": 0,
+            "axis": 1,
+            "shade": 0.4,
+            "spin": -0.4
+          }
+        },
+        {
+          "id": "gentle-bow",
+          "name": "Gentle Bow",
+          "description": "Slight curvature, no spin.",
+          "params": {
+            "curve": 0.25,
+            "rotate": 0,
+            "axis": 0,
+            "shade": 0.2,
+            "spin": 0
+          }
+        }
+      ],
+      "supportsTiles": false,
+      "temporalClipAccess": false,
+      "supportsMultiResolution": false,
+      "renderThreadSafety": "OfxImageEffectRenderInstanceSafe",
+      "kernel": {
+        "language": "glsl-es-300",
+        "entry": "fx",
+        "paramAbi": [
+          "curve",
+          "rotate",
+          "axis",
+          "shade",
+          "spin"
+        ],
+        "passes": [
+          {
+            "id": "main",
+            "source": "\nvec2 aspectUv(vec2 uv, float asp){ return (uv-0.5)*vec2(asp,1.0); }\nvec2 unAspect(vec2 p, float asp){ return p/vec2(asp,1.0)+0.5; }\nfloat inb(vec2 uv){ return step(0.0,uv.x)*step(uv.x,1.0)*step(0.0,uv.y)*step(uv.y,1.0); }\nvec4 fx(vec2 uv){ vec2 q=P2>0.5?uv.yx:uv; float x=(q.x-0.5)*2.0; float r=mix(4.0,1.0,P0); float xs=x/r; if(abs(xs)>1.0) return vec4(0.0); float ang=asin(xs)+radians(P1)+uTime*P4; float u=ang/(3.14159)*r*0.5*(1.0+(1.0-P0)*0.0)+0.5; float depthK=cos(asin(xs)); vec2 suv=vec2(fract(u),q.y); if(P2>0.5) suv=suv.yx; vec4 c=inp(suv); float sh=mix(1.0,0.3+0.7*depthK,P3); return vec4(c.rgb*sh,c.a); }"
+          }
+        ],
+        "uniforms": {
+          "input": "uInput",
+          "source": "uSource",
+          "aux": "uAux",
+          "prev": "uPrev",
+          "prevSrc": "uPrevSrc",
+          "resolution": "uResolution",
+          "time": "uTime",
+          "deltaT": "uDeltaT",
+          "frame": "uFrame",
+          "audio": [
+            "iBass",
+            "iMid",
+            "iTreble",
+            "iLevel"
+          ]
+        },
+        "headerHash": "985610c1",
+        "temporal": false
+      }
+    },
+    {
+      "pluginIdentifier": "com.plajah.fabula.spheremap",
+      "label": "Sphere",
+      "grouping": "Fabula/Distort & Warp",
+      "description": "Wraps the frame onto a sphere (or a fisheye bulge) with lighting and rotation.",
+      "versionMajor": 1,
+      "versionMinor": 0,
+      "contexts": [
+        "OfxImageEffectContextFilter"
+      ],
+      "clips": [
+        {
+          "name": "Source",
+          "optional": false,
+          "temporalAccess": false
+        },
+        {
+          "name": "Output",
+          "optional": false
+        }
+      ],
+      "params": [
+        {
+          "name": "radius",
+          "label": "Radius",
+          "type": "OfxParamTypeDouble",
+          "default": 0.45,
+          "min": 0.1,
+          "max": 1,
+          "displayMin": 0.1,
+          "displayMax": 1,
+          "increment": 0.005,
+          "animates": true,
+          "abiIndex": 0
+        },
+        {
+          "name": "wrap",
+          "label": "Wrap",
+          "type": "OfxParamTypeDouble",
+          "default": 1,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 1
+        },
+        {
+          "name": "rotate",
+          "label": "Rotate",
+          "type": "OfxParamTypeInteger",
+          "default": 0,
+          "min": -180,
+          "max": 180,
+          "displayMin": -180,
+          "displayMax": 180,
+          "increment": 1,
+          "hint": "Unit: deg",
+          "animates": true,
+          "abiIndex": 2
+        },
+        {
+          "name": "shade",
+          "label": "Shading",
+          "type": "OfxParamTypeDouble",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 3
+        },
+        {
+          "name": "spin",
+          "label": "Spin",
+          "type": "OfxParamTypeDouble",
+          "default": 0,
+          "min": -2,
+          "max": 2,
+          "displayMin": -2,
+          "displayMax": 2,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 4
+        },
+        {
+          "name": "keepBg",
+          "label": "Keep Background",
+          "type": "OfxParamTypeInteger",
+          "default": 0,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 1,
+          "animates": true,
+          "abiIndex": 5
+        }
+      ],
+      "presets": [
+        {
+          "id": "globe",
+          "name": "Globe",
+          "description": "Full wrap, spinning globe.",
+          "params": {
+            "radius": 0.45,
+            "wrap": 1,
+            "rotate": 0,
+            "shade": 0.6,
+            "spin": 0.3,
+            "keepBg": 0
+          }
+        },
+        {
+          "id": "bulge",
+          "name": "Bulge",
+          "description": "Fisheye bulge over the original.",
+          "params": {
+            "radius": 0.5,
+            "wrap": 0.35,
+            "rotate": 0,
+            "shade": 0.2,
+            "spin": 0,
+            "keepBg": 1
+          }
+        },
+        {
+          "id": "marble",
+          "name": "Marble",
+          "description": "Small strongly-lit sphere.",
+          "params": {
+            "radius": 0.25,
+            "wrap": 1,
+            "rotate": 30,
+            "shade": 0.9,
+            "spin": 0.5,
+            "keepBg": 0
+          }
+        }
+      ],
+      "supportsTiles": false,
+      "temporalClipAccess": false,
+      "supportsMultiResolution": false,
+      "renderThreadSafety": "OfxImageEffectRenderInstanceSafe",
+      "kernel": {
+        "language": "glsl-es-300",
+        "entry": "fx",
+        "paramAbi": [
+          "radius",
+          "wrap",
+          "rotate",
+          "shade",
+          "spin",
+          "keepBg"
+        ],
+        "passes": [
+          {
+            "id": "main",
+            "source": "\nvec2 aspectUv(vec2 uv, float asp){ return (uv-0.5)*vec2(asp,1.0); }\nvec2 unAspect(vec2 p, float asp){ return p/vec2(asp,1.0)+0.5; }\nfloat inb(vec2 uv){ return step(0.0,uv.x)*step(uv.x,1.0)*step(0.0,uv.y)*step(uv.y,1.0); }\nvec4 fx(vec2 uv){ float asp=uResolution.x/uResolution.y; vec2 p=aspectUv(uv,asp); float r=length(p)/P0; if(r>1.0) return P5>0.5?inp(uv):vec4(0.0); float z=sqrt(1.0-r*r); vec3 n=vec3(p/P0,z); float rot=radians(P2)+uTime*P4; float lon=atan(n.x,n.z)+rot; float lat=asin(clamp(n.y,-1.0,1.0)); vec2 sph=vec2(fract(lon/6.28318+0.5), lat/3.14159+0.5); vec2 fl=uv; vec2 suv=mix(fl,sph,P1); vec4 c=inp(suv); float light=max(0.0,dot(n,normalize(vec3(-0.5,0.6,0.7)))); float sh=mix(1.0,0.15+0.85*light,P3); return vec4(c.rgb*sh,c.a); }"
+          }
+        ],
+        "uniforms": {
+          "input": "uInput",
+          "source": "uSource",
+          "aux": "uAux",
+          "prev": "uPrev",
+          "prevSrc": "uPrevSrc",
+          "resolution": "uResolution",
+          "time": "uTime",
+          "deltaT": "uDeltaT",
+          "frame": "uFrame",
+          "audio": [
+            "iBass",
+            "iMid",
+            "iTreble",
+            "iLevel"
+          ]
+        },
+        "headerHash": "985610c1",
+        "temporal": false
+      }
+    },
+    {
+      "pluginIdentifier": "com.plajah.fabula.cardflip",
+      "label": "Card Flip",
+      "grouping": "Fabula/Distort & Warp",
+      "description": "Flips the frame around a vertical or horizontal axis in perspective; the aux input (or a darkened copy) shows on the back.",
+      "versionMajor": 1,
+      "versionMinor": 0,
+      "contexts": [
+        "OfxImageEffectContextGeneral",
+        "OfxImageEffectContextFilter"
+      ],
+      "clips": [
+        {
+          "name": "Source",
+          "optional": false,
+          "temporalAccess": false
+        },
+        {
+          "name": "Aux",
+          "optional": true
+        },
+        {
+          "name": "Output",
+          "optional": false
+        }
+      ],
+      "params": [
+        {
+          "name": "angle",
+          "label": "Flip Angle",
+          "type": "OfxParamTypeInteger",
+          "default": 30,
+          "min": 0,
+          "max": 360,
+          "displayMin": 0,
+          "displayMax": 360,
+          "increment": 1,
+          "hint": "Unit: deg",
+          "animates": true,
+          "abiIndex": 0
+        },
+        {
+          "name": "axis",
+          "label": "Axis",
+          "type": "OfxParamTypeChoice",
+          "default": 0,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 1,
+          "options": [
+            "vertical",
+            "horizontal"
+          ],
+          "animates": true,
+          "abiIndex": 1
+        },
+        {
+          "name": "depth",
+          "label": "Perspective",
+          "type": "OfxParamTypeDouble",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 2
+        },
+        {
+          "name": "shade",
+          "label": "Shading",
+          "type": "OfxParamTypeDouble",
+          "default": 0.4,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 3
+        },
+        {
+          "name": "spin",
+          "label": "Spin",
+          "type": "OfxParamTypeDouble",
+          "default": 0,
+          "min": -2,
+          "max": 2,
+          "displayMin": -2,
+          "displayMax": 2,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 4
+        }
+      ],
+      "presets": [
+        {
+          "id": "flip-30",
+          "name": "Tilt 30°",
+          "description": "Static tilted card.",
+          "params": {
+            "angle": 30,
+            "axis": 0,
+            "depth": 0.5,
+            "shade": 0.4,
+            "spin": 0
+          }
+        },
+        {
+          "id": "spinning",
+          "name": "Spinning Card",
+          "description": "Continuous flip showing the back face.",
+          "params": {
+            "angle": 0,
+            "axis": 0,
+            "depth": 0.6,
+            "shade": 0.5,
+            "spin": 0.5
+          }
+        },
+        {
+          "id": "table-flip",
+          "name": "Table Flip",
+          "description": "Horizontal-axis flip.",
+          "params": {
+            "angle": 40,
+            "axis": 1,
+            "depth": 0.5,
+            "shade": 0.4,
+            "spin": 0
+          }
+        }
+      ],
+      "supportsTiles": false,
+      "temporalClipAccess": false,
+      "supportsMultiResolution": false,
+      "renderThreadSafety": "OfxImageEffectRenderInstanceSafe",
+      "kernel": {
+        "language": "glsl-es-300",
+        "entry": "fx",
+        "paramAbi": [
+          "angle",
+          "axis",
+          "depth",
+          "shade",
+          "spin"
+        ],
+        "passes": [
+          {
+            "id": "main",
+            "source": "\nvec2 aspectUv(vec2 uv, float asp){ return (uv-0.5)*vec2(asp,1.0); }\nvec2 unAspect(vec2 p, float asp){ return p/vec2(asp,1.0)+0.5; }\nfloat inb(vec2 uv){ return step(0.0,uv.x)*step(uv.x,1.0)*step(0.0,uv.y)*step(uv.y,1.0); }\nvec4 fx(vec2 uv){ float asp=uResolution.x/uResolution.y; vec2 p=aspectUv(uv,asp); if(P1>0.5) p=p.yx; float a=radians(P0)+uTime*P4; float ca=cos(a), sa=sin(a); float persp=1.0+P2*0.8; float denom=persp*ca - p.x*sa*P2*1.2; if(abs(denom)<1e-4) return vec4(0.0); float x=p.x*persp/denom; float y=p.y*persp/denom; vec2 q=vec2(x,y); if(P1>0.5) q=q.yx; vec2 suv=unAspect(q,asp); float k=inb(suv); if(k<0.5) return vec4(0.0); bool back=ca<0.0; vec2 fuv=back?vec2(1.0-suv.x,suv.y):suv; if(P1>0.5&&back) fuv=vec2(suv.x,1.0-suv.y); vec4 c=back?aux(fuv):inp(fuv); if(back){ vec4 f=inp(fuv); c=mix(c,f*0.5,step(0.999,float(c==f))); } float sh=mix(1.0,0.3+0.7*abs(ca),P3); return vec4(c.rgb*sh,c.a); }"
+          }
+        ],
+        "uniforms": {
+          "input": "uInput",
+          "source": "uSource",
+          "aux": "uAux",
+          "prev": "uPrev",
+          "prevSrc": "uPrevSrc",
+          "resolution": "uResolution",
+          "time": "uTime",
+          "deltaT": "uDeltaT",
+          "frame": "uFrame",
+          "audio": [
+            "iBass",
+            "iMid",
+            "iTreble",
+            "iLevel"
+          ]
+        },
+        "headerHash": "985610c1",
+        "temporal": false
+      }
+    },
+    {
       "pluginIdentifier": "com.plajah.fabula.cinematiccolor",
       "label": "Cinematic Color",
       "grouping": "Fabula/Color",
