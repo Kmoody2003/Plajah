@@ -26,6 +26,8 @@ import { MusicAnalysis, analysisAt } from './musicAnalysis';
 import { AudioDriverSampler } from '../audioDrivers';
 import { getTextCanvas } from './textLayer';
 import { getTitleCanvas } from './titleLayer';
+import { getLowerThirdCanvas } from './lowerThirdLayer';
+import { findLowerThird } from '../../../../services/fabula/lowerThirdRegistry';
 import { SceneTimeline, RenderLayer, activeBlockAt, localTime } from '../timeline/sceneTimeline';
 import { normalizeVideoFrameRate, videoFrameTiming } from '../../../../services/videoFrameRate';
 import type { CubeLutData } from '../../../../services/fabula/cubeLut';
@@ -253,6 +255,7 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
       const aud = analysis ? analysisAt(analysis, t) : (offAudio ? offAudio.sample(t) : null);
       if (aud) {
         audioTex.updateFromArrays(aud.freq, aud.wave);
+        comp.updateAudio(aud.freq, aud.wave);   // Forge effects + Beat Reactor bindings
         if (wantShake) {
           shakeSampler.updateFromArray(aud.freq, t * 1000, audioBuffer?.sampleRate || offAudio?.sampleRate || 48000);
           const target = shakeSampler.intensity * 0.4 + shakeSampler.density * 0.55;
@@ -345,6 +348,11 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
           inputs.push({ element: colorEl(clip.fillColor), opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });
         } else if (clip.type === 'text' && clip.text) {
           inputs.push({ element: getTextCanvas(clip.text, clip.fillColor), opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });
+        } else if (clip.type === 'title' && (clip as any).tGraphic && findLowerThird((clip as any).tGraphic.specId)) {
+          // Motion lower third — same renderer as Fabula's monitor, keyed per frame while animating.
+          const tc = clip as any;
+          const spec = findLowerThird(tc.tGraphic.specId)!;
+          inputs.push({ element: getLowerThirdCanvas({ spec, ref: tc.tGraphic, title: tc.rawText ?? clip.text ?? '', subtitle: clip.subtitle, tag: tc.tag, t: layer.time ?? 0, duration: tc.tDur ?? Infinity, origin: tc.tx != null && tc.ty != null ? { x: tc.tx, y: tc.ty } : undefined, width, height }), opacity, blendMode: 'normal', transform: layer.transform, homography: (layer as any).homography });
         } else if (clip.type === 'title' && clip.text) {
           const tc = clip as any; // Fabula titler overrides ride along on the clip
           inputs.push({ element: getTitleCanvas(clip.text, clip.subtitle, clip.titleStyle, clip.fillColor, { font: tc.tFont, color: tc.tColor, subColor: tc.tSubColor, size: tc.tSize, x: tc.tx, y: tc.ty }, { anim: tc.tAnim, t: layer.time ?? 0, duration: tc.tDur }), opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });

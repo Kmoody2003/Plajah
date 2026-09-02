@@ -15,6 +15,7 @@ import { GL, RenderTarget, createGL, createProgram, createFullscreenQuad, makeTa
 import { FxRenderer } from '../fx/fxRenderer';
 import { ForgeTransitionRenderer, ForgeTransitionInput } from '../fx/transitionRenderer';
 import { getEffect } from '../fx/effects';
+import { applyAudioBindings, type AudioBinding, type AudioLevels } from '../fx/audioReact';
 import { AudioTexture } from './audioTexture';
 import type { CubeLutData } from '../../../../services/fabula/cubeLut';
 
@@ -400,6 +401,8 @@ export interface LayerInput {
     /** PixelChooser mask (R channel = where the effect applies), rasterised by forgeBindings. */
     maskElement?: HTMLCanvasElement | null;
     maskInvert?: boolean;
+    /** Beat Reactor: param key → audio binding, resolved here against the frame's audio. */
+    audio?: Record<string, AudioBinding>;
   }>;
   /** Timeline time supplied to deterministic/animated effects. */
   time?: number;
@@ -503,6 +506,13 @@ export class Compositor {
   }
 
   /** Resize internal targets + canvas backing store (capped to a 1080p-class target). */
+  /** Feed the effect chain's audio from a spectrum + waveform (offline: exact per frame). */
+  updateAudio(freq: Uint8Array, wave: Uint8Array) { this.fxAudio.updateFromArrays(freq, wave); }
+  /** Feed it from a live AnalyserNode instead (the monitor's master bus). */
+  updateAudioFromAnalyser(analyser: AnalyserNode | null) { this.fxAudio.update(analyser); }
+  /** Current levels driving both the GLSL uniforms and the Beat Reactor bindings. */
+  audioLevels(): AudioLevels { return { level: this.fxAudio.level, bass: this.fxAudio.bass, mid: this.fxAudio.mid, treble: this.fxAudio.treble }; }
+
   resize(w: number, h: number) {
     w = Math.max(1, Math.round(w)); h = Math.max(1, Math.round(h));
     if (w === this.width && h === this.height && this.ping) return;
@@ -638,7 +648,10 @@ export class Compositor {
           if (instance.enabled === false) continue;
           const effect = getEffect(instance.effectId);
           if (!effect) continue;
-          const values = effect.params.map((param) => instance.params?.[param.key] ?? param.default);
+          let values = effect.params.map((param) => instance.params?.[param.key] ?? param.default);
+          // Beat Reactor: modulate the declared params from the SAME audio the shaders read,
+          // so a bound parameter and an iBass-reading shader always agree.
+          if (instance.audio) values = applyAudioBindings(values, effect.params, instance.audio, this.audioLevels());
           let auxiliary = instance.auxTexture;
           if (!auxiliary && instance.auxElement) {
             auxiliary = this.auxTextures.get(instance.id);

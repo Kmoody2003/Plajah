@@ -33,6 +33,8 @@ import { FX_EFFECTS } from "../plajahPixels/engine/fx/effects";
 import { createEffectInstance } from "../../services/fabula/forgeEffects";
 import { createForgeTransition } from "../../services/fabula/forgeTransitions";
 import { instantiateLook, lookFromStack, saveUserLook, LOOK_CATEGORIES } from "../../services/fabula/forgeLooks";
+import { AUDIO_SOURCES } from "../plajahPixels/engine/fx/audioReact";
+import { masterAnalyser } from "../../services/fabula/audioGraph";
 import { parseCubeLut } from "../../services/fabula/cubeLut";
 import { createVectorTrack, stabilizationAt, trackPoint, upsertTrackSample, grayFromRgba } from "../../services/fabula/vectorTrack";
 import { createPlanarSequence, referenceSample, trackPlanarFrame, upsertPlanarSample, samplePlanarAt, planarStabilizeAt, cornerPinAt, planarTrackedRange, quadPoint, exportCornerPin } from "../../services/fabula/planarSequence";
@@ -4808,7 +4810,9 @@ export default function Fabula() {
                                     )}
                                     {effect.params.map((param) => {
                                       const value = instance.params?.[param.key] ?? param.default;
-                                      return <div className="fxrow" key={param.key}><span className="fxlbl">{param.label}</span><input type="range" min={param.min} max={param.max} step={param.step || (param.max - param.min) / 200} value={value} onChange={(e) => patchStack({ presetId: undefined, params: { ...instance.params, [param.key]: parseFloat(e.target.value) } })} onDoubleClick={() => patchStack({ presetId: undefined, params: { ...instance.params, [param.key]: param.default } })} /><span className="fxval">{Number(value).toFixed(param.step && param.step >= 1 ? 0 : 2)}</span>{hasTracks && <select className="sel xs" title="Link this parameter to the clip's track" value={instance.bindings?.[param.key]?.source || ""} onChange={(e) => { const bindings = { ...(instance.bindings || {}) }; if (e.target.value) bindings[param.key] = { source: e.target.value }; else delete bindings[param.key]; patchStack({ bindings }); }}><option value="">·</option>{BINDING_SOURCES.filter((b) => (b.id.startsWith("point") ? !!fx.vectorTrack : !!fx.planarTrack)).map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}</select>}</div>;
+                                      return <div className="fxrow" key={param.key}><span className="fxlbl">{param.label}</span><input type="range" min={param.min} max={param.max} step={param.step || (param.max - param.min) / 200} value={value} onChange={(e) => patchStack({ presetId: undefined, params: { ...instance.params, [param.key]: parseFloat(e.target.value) } })} onDoubleClick={() => patchStack({ presetId: undefined, params: { ...instance.params, [param.key]: param.default } })} /><span className="fxval">{Number(value).toFixed(param.step && param.step >= 1 ? 0 : 2)}</span><select className="sel xs" title="Drive this parameter from the timeline audio" value={instance.audio?.[param.key]?.source || ""} onChange={(e) => { const audio = { ...(instance.audio || {}) }; if (e.target.value) audio[param.key] = { source: e.target.value, amount: audio[param.key]?.amount ?? .5 }; else delete audio[param.key]; patchStack({ audio }); }}><option value="">♪</option>{AUDIO_SOURCES.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}</select>
+                                      {instance.audio?.[param.key] && <input type="range" title="How much the audio moves this parameter" min={-1} max={1} step={.05} value={instance.audio[param.key].amount} onChange={(e) => patchStack({ audio: { ...instance.audio, [param.key]: { ...instance.audio[param.key], amount: parseFloat(e.target.value) } } })} style={{ maxWidth: 54 }} />}
+                                      {hasTracks && <select className="sel xs" title="Link this parameter to the clip's track" value={instance.bindings?.[param.key]?.source || ""} onChange={(e) => { const bindings = { ...(instance.bindings || {}) }; if (e.target.value) bindings[param.key] = { source: e.target.value }; else delete bindings[param.key]; patchStack({ bindings }); }}><option value="">·</option>{BINDING_SOURCES.filter((b) => (b.id.startsWith("point") ? !!fx.vectorTrack : !!fx.planarTrack)).map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}</select>}</div>;
                                     })}
                                     <div className="fxrow"><span className="fxlbl">MIX</span><input type="range" min={0} max={1} step={.01} value={instance.mix ?? 1} onChange={(e) => patchStack({ mix: parseFloat(e.target.value) })} onDoubleClick={() => patchStack({ mix: 1 })} /><span className="fxval">{Number(instance.mix ?? 1).toFixed(2)}</span></div>
                                     <div className="fxrow"><span className="fxlbl">MASK</span>
@@ -7551,6 +7555,9 @@ function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool,
           if (auxElement instanceof HTMLVideoElement && auxElement.readyState >= 1 && Math.abs(auxElement.currentTime - timeRef.current) > .08) auxElement.currentTime = Math.min(timeRef.current, Math.max(0, (auxElement.duration || timeRef.current) - .001));
           return auxElement ? { ...instance, auxElement } : instance;
         });
+        // Beat Reactor: the preview reacts to the master bus; the export uses the rendered
+        // mix's exact per-frame spectrum. Same processing either way (AudioTexture).
+        try { comp.updateAudioFromAnalyser(masterAnalyser()); } catch { /* mixer not built yet */ }
         comp.render([{ id: "timeline-preview", element: video, opacity: 1, blendMode: "normal", effects: resolved, time: timeRef.current }], undefined, undefined, lutRef.current);
       }
       catch { /* source frame not ready */ }

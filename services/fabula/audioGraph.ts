@@ -144,6 +144,10 @@ function getMasterBus(ctx: AudioContext) {
   _master = { input, gain, limiter, makeup, analyser, limiterOn: true };
   return (_master as any);
 }
+/** The master bus analyser (post-limiter) — drives audio-reactive effects in the monitor.
+ *  Null until the mixer has been built by the first audio clip. */
+export function masterAnalyser(): AnalyserNode | null { return _master ? _master.analyser : null; }
+
 /** Master fader (0..1.5). */
 export function setMasterGain(v: number) { if (_master) _master.gain.gain.value = Math.max(0, v); }
 /** Bypass/engage the brickwall limiter (re-patch gain → limiter or gain → makeup). */

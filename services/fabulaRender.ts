@@ -354,6 +354,8 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
           ...(fx?.stack?.length ? { forgeEffects: fx.stack.filter((instance: any) => instance.enabled !== false).map((instance: any) => {
             // Track-bound params + rasterised mask for THIS frame (same resolver as the monitor).
             const resolved = resolveInstanceForFrame(instance, getEffect(instance.effectId), { vectorTrack: fx.vectorTrack, planarTrack: fx.planarTrack, fps: format?.fps }, kfT, { w: format?.w || 1920, h: format?.h || 1080 });
+            // Beat Reactor bindings ride along untouched; the compositor resolves them against
+            // the frame's audio, so preview and export react to the same numbers.
             const auxAsset = resolved.auxAssetId ? itemById.get(resolved.auxAssetId) : null;
             const maskAsset = (resolved as any).maskAssetId ? itemById.get((resolved as any).maskAssetId) : null;
             const withMask = maskAsset?.url ? { ...resolved, maskUrl: maskAsset.url, maskMediaType: maskAsset.type === 'video' ? 'video' : 'image' } : resolved;
@@ -421,7 +423,7 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
     for (const c of titleClips) {
       if (!(t >= c.start && t < c.start + c.duration)) continue;
       // titler overrides (font/color/size/position) ride along so the export matches the monitor
-      out.push({ id: `title:${c.id}`, clip: { type: 'title', text: dynamicText(c.text, t - c.start, c.tDynamic, c.duration), subtitle: c.subtitle, titleStyle: c.titleStyle, tFont: c.tFont, tColor: c.tColor, tSubColor: c.tSubColor, tSize: c.tSize, tx: c.tx, ty: c.ty, tAnim: c.tAnim, tDur: c.duration } as any, blendMode: 'screen', opacity: 1, time: t - c.start });
+      out.push({ id: `title:${c.id}`, clip: { type: 'title', text: dynamicText(c.text, t - c.start, c.tDynamic, c.duration), subtitle: c.subtitle, titleStyle: c.titleStyle, tFont: c.tFont, tColor: c.tColor, tSubColor: c.tSubColor, tSize: c.tSize, tx: c.tx, ty: c.ty, tAnim: c.tAnim, tDur: c.duration, tGraphic: c.tGraphic, tag: c.tag, rawText: c.text } as any, blendMode: c.tGraphic ? 'normal' : 'screen', opacity: 1, time: t - c.start });
     }
     return out;
   };
