@@ -5,7 +5,7 @@
  * Tabs: Overview · Payroll · Contracts · Invoices · Tasks · Vendors · Venues · Ad Hub
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Users, FileText, Receipt, CheckSquare, Truck, MapPin, Megaphone,
@@ -15,7 +15,7 @@ import {
   Copy, Eye, Package, Zap, ArrowRight, Shield, Search, Filter,
   Mic, Layers, Ticket, Radio, Sparkles, Disc3,
   Camera, Film, Clapperboard, Scissors, BookOpen, PenLine, Newspaper, Award, Target, BookMarked,
-  LayoutDashboard, ClipboardList, Utensils, UserCheck, MessageSquare,
+  LayoutDashboard, ClipboardList, Utensils, UserCheck, MessageSquare, Square,
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import {
@@ -25,6 +25,10 @@ import * as FilmProduction from '../services/filmProductionService';
 import { patchSceneWithAction, putLocationWithAction } from '../services/productionActionService';
 import { askProductionBrain, type ProductionBrainAnswer } from '../services/productionIntelligenceService';
 import { addHqAsset } from '../services/orgAssets';
+import { buildFabulaProjectFromTakes } from '../services/filmEditBridge';
+import { transcribeAndScoreTake, coverageGaps } from '../services/takeScoring';
+import { startTakeRecorder, recordingToFile, pendingCameraTiers, type TakeRecorderHandle } from '../services/takeCapture';
+import { uploadFile } from '../services/backendService';
 import { FilmStaffingTab } from './film/FilmStaffingTab';
 import { FilmBreakdownTab } from './film/FilmBreakdownTab';
 import { FilmScheduleTab as ProductionScheduleTab } from './film/FilmScheduleTab';
@@ -2581,6 +2585,252 @@ const FilmClearancesTab: React.FC = () => {
   );
 };
 
+// ─── Film Tab: Live Edit (Set-to-Cut) ───────────────────────────────────────
+
+const TAKE_STATUSES: FilmProduction.TakeStatus[] = ['GOOD', 'SELECT', 'HOLD', 'NG'];
+const takeStatusColor: Record<string, string> = {
+  GOOD: 'text-white/50 bg-white/5', SELECT: 'text-emerald-400 bg-emerald-500/10',
+  HOLD: 'text-yellow-400 bg-yellow-500/10', NG: 'text-red-400 bg-red-500/10',
+};
+const readVideoDuration = (file: File): Promise<number> => new Promise(resolve => {
+  try {
+    const v = document.createElement('video'); v.preload = 'metadata';
+    v.onloadedmetadata = () => { const d = v.duration; URL.revokeObjectURL(v.src); resolve(Number.isFinite(d) && d > 0 ? d : 5); };
+    v.onerror = () => resolve(5);
+    v.src = URL.createObjectURL(file);
+  } catch { resolve(5); }
+});
+
+const TakeRecorderModal: React.FC<{ sceneNum: string; nextTake: number; onFile: (f: File) => void; onClose: () => void }> = ({ sceneNum, nextTake, onFile, onClose }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const handleRef = useRef<TakeRecorderHandle | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [err, setErr] = useState('');
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    startTakeRecorder().then(h => {
+      if (!alive) { h.cancel(); return; }
+      handleRef.current = h;
+      if (videoRef.current) { videoRef.current.srcObject = h.stream; videoRef.current.muted = true; videoRef.current.play().catch(() => {}); }
+    }).catch(e => setErr(e instanceof Error ? e.message : 'Camera unavailable — check permissions.'));
+    const t = window.setInterval(() => setElapsed(e => e + 1), 1000);
+    return () => { alive = false; window.clearInterval(t); handleRef.current?.cancel(); };
+  }, []);
+  const stop = async () => {
+    const h = handleRef.current;
+    if (!h) { onClose(); return; }
+    setSaving(true);
+    try { const rec = await h.stop(); onFile(recordingToFile(rec, sceneNum, nextTake)); } finally { onClose(); }
+  };
+  const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  return (
+    <div className="fixed inset-0 z-[70] bg-black/85 backdrop-blur-sm grid place-items-center p-4" onClick={onClose}>
+      <div className="w-full max-w-md bg-[#0e0d13] border border-white/10 rounded-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+          <p className="text-xs font-black uppercase tracking-widest text-white">Record · Sc {sceneNum} · Take {nextTake}</p>
+          <span className="flex items-center gap-1.5 text-[11px] font-black text-red-400 tabular-nums"><span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> {fmt(elapsed)}</span>
+        </div>
+        <div className="relative bg-black aspect-video">
+          <video ref={videoRef} playsInline muted className="w-full h-full object-cover" />
+          {err && <div className="absolute inset-0 grid place-items-center text-center p-6"><p className="text-sm text-red-300">{err}</p></div>}
+        </div>
+        <div className="p-4 flex gap-3">
+          <button onClick={onClose} className="px-4 py-3 rounded-xl bg-white/5 text-white/50 text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all">Cancel</button>
+          <button onClick={stop} disabled={!!err || saving} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-red-500 text-white text-sm font-black uppercase tracking-widest hover:bg-red-400 transition-all disabled:opacity-40"><Square size={14} /> {saving ? 'Saving…' : 'Stop & save take'}</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const FilmEditTab: React.FC = () => {
+  const { prod, scenes, takes, members, me, isOwner, readOnly, can } = useProd();
+  const canManage = !readOnly && (isOwner || can('MANAGE_REPORTS') || can('EDIT_SCRIPT_BREAKDOWN'));
+  const [busyScene, setBusyScene] = useState<string | null>(null);
+  const [assembling, setAssembling] = useState(false);
+  const [scoring, setScoring] = useState<{ done: number; total: number } | null>(null);
+  const [recordScene, setRecordScene] = useState<FilmProduction.ProductionScene | null>(null);
+  const [message, setMessage] = useState('');
+  const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white';
+
+  const ordered = [...scenes].sort((a, b) => (a.shootDay - b.shootDay) || (a.order ?? 0) - (b.order ?? 0) || a.sceneNum.localeCompare(b.sceneNum, undefined, { numeric: true }));
+  const takesByScene = (sceneId: string) => takes.filter(t => t.sceneId === sceneId).sort((a, b) => a.takeNumber - b.takeNumber);
+  const scenesCovered = ordered.filter(s => takes.some(t => t.sceneId === s.id && (t.proxyUrl || t.proxyAssetId))).length;
+  const selectFor = (sceneId: string) => {
+    const c = takes.filter(t => t.sceneId === sceneId && t.status !== 'NG' && (t.proxyUrl || t.proxyAssetId));
+    return c.find(t => t.circled) || [...c].sort((a, b) => (b.rating || 0) - (a.rating || 0) || a.takeNumber - b.takeNumber)[0];
+  };
+
+  const addTake = async (scene: FilmProduction.ProductionScene, file?: File | null) => {
+    if (!prod || !file) return;
+    setBusyScene(scene.id); setMessage('');
+    try {
+      const id = uuid();
+      const uid = FilmProduction.currentUid() || 'anon';
+      const ext = (file.name.split('.').pop() || 'mp4').toLowerCase();
+      const [proxyUrl, duration] = await Promise.all([
+        uploadFile(`users/${uid}/productions/${prod.id}/takes/${id}.${ext}`, file),
+        readVideoDuration(file),
+      ]);
+      const existing = takesByScene(scene.id);
+      const takeNumber = Math.max(0, ...existing.map(t => t.takeNumber)) + 1;
+      await FilmProduction.putTake(prod.id, {
+        id, sceneId: scene.id, sceneNum: scene.sceneNum, takeNumber,
+        proxyUrl, duration, status: 'GOOD', byMemberId: me?.id, byName: me?.name, createdAt: Date.now(),
+      });
+    } catch (e) { setMessage(e instanceof Error ? e.message : 'Proxy upload failed.'); }
+    finally { setBusyScene(null); }
+  };
+  const toggleCircle = (t: FilmProduction.ProductionTake) => { if (prod) FilmProduction.patchTake(prod.id, t.id, { circled: !t.circled }); };
+  const setStatus = (t: FilmProduction.ProductionTake, status: FilmProduction.TakeStatus) => { if (prod) FilmProduction.patchTake(prod.id, t.id, { status }); };
+  const del = (t: FilmProduction.ProductionTake) => { if (prod) FilmProduction.removeTake(prod.id, t.id); };
+
+  const castNames = members.filter(m => m.isCast || m.dept === 'CAST').map(m => m.character || m.name).filter(Boolean);
+  const gaps = coverageGaps(scenes, takes);
+  const scoreAll = async () => {
+    if (!prod) return;
+    if (!prod.currentDraftId) { setMessage('Greenlight a script first — scoring matches each take against the scripted dialogue.'); return; }
+    const targets = takes.filter(t => t.proxyUrl || t.proxyAssetId);
+    if (!targets.length) { setMessage('Add takes with proxies first.'); return; }
+    setScoring({ done: 0, total: targets.length }); setMessage('');
+    try {
+      const elements = await FilmProduction.fetchDraftElements(prod.id, prod.currentDraftId);
+      let done = 0;
+      for (const t of targets) {
+        const scene = scenes.find(s => s.id === t.sceneId);
+        if (scene) {
+          try {
+            const r = await transcribeAndScoreTake(t, scene, elements, castNames);
+            if (r) await FilmProduction.patchTake(prod.id, t.id, { transcript: r.transcript, matchScore: r.matchScore ?? undefined });
+          } catch (e) { setMessage(e instanceof Error ? e.message : 'A take failed to score.'); }
+        }
+        done += 1; setScoring({ done, total: targets.length });
+      }
+      setMessage(`Scored ${done} take${done === 1 ? '' : 's'} against the script — the % is how much scripted dialogue each reading contains.`);
+    } finally { setScoring(null); }
+  };
+  const bestReading = (sceneId: string) => {
+    if (!prod) return;
+    const scored = takes.filter(t => t.sceneId === sceneId && typeof t.matchScore === 'number' && t.status !== 'NG');
+    if (!scored.length) return;
+    const best = [...scored].sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))[0];
+    takes.filter(t => t.sceneId === sceneId && t.circled && t.id !== best.id).forEach(t => FilmProduction.patchTake(prod.id, t.id, { circled: false }));
+    FilmProduction.patchTake(prod.id, best.id, { circled: true });
+  };
+
+  const assemble = async () => {
+    if (!prod) return;
+    setAssembling(true); setMessage('');
+    try {
+      const r = await buildFabulaProjectFromTakes(prod, scenes, takes);
+      setMessage(r ? `Assembled ${r.clipCount} scene${r.clipCount === 1 ? '' : 's'} from ${r.takeCount} takes — opening Fabula…` : 'Add at least one take with a proxy first.');
+    } catch (e) { setMessage(e instanceof Error ? e.message : 'Assembly failed.'); }
+    finally { setAssembling(false); }
+  };
+
+  const shotTakes = takes.filter(t => t.proxyUrl || t.proxyAssetId);
+  const circledCount = takes.filter(t => t.circled).length;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      <div className="p-5 bg-gradient-to-br from-cyan-500/[0.08] to-white/[0.02] border border-cyan-500/20 rounded-2xl">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-cyan-300/80">Set to Cut · Live Edit</p>
+            <p className="text-sm text-white/60 mt-1 max-w-lg">Log takes as you shoot — circle the keepers — then assemble a rough cut straight into Fabula: a bin per scene, selects laid in order.</p>
+            <p className="text-[11px] text-white/40 mt-2 font-mono">{scenesCovered}/{ordered.length} scenes covered · {shotTakes.length} takes · {circledCount} circled</p>
+          </div>
+          <div className="flex gap-2">
+            {canManage && (
+              <button onClick={scoreAll} disabled={!!scoring || !shotTakes.length} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-cyan-500/30 text-cyan-300 text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-40">
+                <Sparkles size={13} /> {scoring ? `Scoring ${scoring.done}/${scoring.total}` : 'Score takes'}
+              </button>
+            )}
+            <button onClick={assemble} disabled={assembling || !shotTakes.length} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 text-black text-xs font-black uppercase tracking-widest hover:bg-cyan-400 transition-all disabled:opacity-40">
+              <Scissors size={13} /> {assembling ? 'Assembling…' : 'Assemble in Fabula'}
+            </button>
+          </div>
+        </div>
+        {message && <p className="text-[11px] text-cyan-200 mt-3">{message}</p>}
+        {gaps.length > 0 && (
+          <div className="mt-3 flex items-start gap-2 text-[11px] text-yellow-300/90">
+            <AlertCircle size={13} className="mt-0.5 shrink-0" />
+            <span><b className="text-yellow-300">{gaps.length} scene{gaps.length === 1 ? '' : 's'} with no coverage:</b> {gaps.slice(0, 10).map(s => s.sceneNum).join(', ')}{gaps.length > 10 ? '…' : ''} — resolve before the company moves.</span>
+          </div>
+        )}
+        <p className="text-[10px] text-white/25 mt-2">Capture sources: <b className="text-white/50">This device · Manual upload</b> — {pendingCameraTiers().map(t => t.label).join(' · ')} on the desktop / native build.</p>
+      </div>
+      {recordScene && <TakeRecorderModal sceneNum={recordScene.sceneNum} nextTake={Math.max(0, ...takesByScene(recordScene.id).map(t => t.takeNumber)) + 1} onFile={f => addTake(recordScene, f)} onClose={() => setRecordScene(null)} />}
+
+      {ordered.length === 0 ? (
+        <EmptyState icon={<Film size={22} />} title="No scenes yet" body="Greenlight a script or add scenes first — takes attach to scenes, and the assembly reads them in scene order." />
+      ) : (
+        <div className="space-y-2.5">
+          {ordered.map(scene => {
+            const st = takesByScene(scene.id);
+            const sel = selectFor(scene.id);
+            return (
+              <div key={scene.id} className="p-3.5 bg-white/[0.03] border border-white/[0.06] rounded-xl">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-sm font-black text-white shrink-0">{scene.sceneNum}</span>
+                    <span className="text-[9px] font-black text-white/30 uppercase shrink-0">{scene.intExt}/{scene.dayNight.slice(0, 3)}</span>
+                    <span className="text-[11px] text-white/50 truncate">{scene.set}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {sel ? <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400">◎ Select · T{sel.takeNumber}</span>
+                      : st.length ? <span className="text-[9px] font-black uppercase tracking-widest text-yellow-400/70">No select</span>
+                      : <span className="text-[9px] font-black uppercase tracking-widest text-white/20">No coverage</span>}
+                    {canManage && st.filter(t => typeof t.matchScore === 'number').length >= 2 && (
+                      <button onClick={() => bestReading(scene.id)} title="Circle the best-matching reading" className="flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-[9px] font-black uppercase tracking-widest hover:bg-cyan-500/20 transition-all"><Sparkles size={10} /> Best</button>
+                    )}
+                    {canManage && (
+                      <button onClick={() => setRecordScene(scene)} title="Record a take from this device" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all"><Camera size={11} /> Record</button>
+                    )}
+                    {canManage && (
+                      <label className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-white/50 text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-white/10 transition-all ${busyScene === scene.id ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <Plus size={11} /> {busyScene === scene.id ? 'Uploading…' : 'Take'}
+                        <input type="file" accept="video/*" className="sr-only" onChange={e => { addTake(scene, e.target.files?.[0]); e.currentTarget.value = ''; }} />
+                      </label>
+                    )}
+                  </div>
+                </div>
+                {st.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2.5">
+                    {st.map(t => (
+                      <div key={t.id} className={`flex items-center gap-1.5 pl-1.5 pr-1 py-1 rounded-lg border ${t.circled ? 'border-emerald-500/40 bg-emerald-500/[0.08]' : 'border-white/10 bg-white/[0.02]'}`}>
+                        <button onClick={() => toggleCircle(t)} disabled={!canManage} title="Circle take" className={`text-sm leading-none ${t.circled ? 'text-emerald-400' : 'text-white/25 hover:text-white/50'}`}>◎</button>
+                        <span className="text-[11px] font-black text-white/70 font-mono">T{t.takeNumber}</span>
+                        {t.duration ? <span className="text-[9px] text-white/25 font-mono">{Math.round(t.duration)}s</span> : null}
+                        {canManage ? (
+                          <select value={t.status} onChange={e => setStatus(t, e.target.value as FilmProduction.TakeStatus)} className={`text-[8px] font-black uppercase rounded px-1 py-0.5 border-0 cursor-pointer ${takeStatusColor[t.status]}`}>
+                            {TAKE_STATUSES.map(s => <option key={s} value={s} className="bg-neutral-900 text-white">{s}</option>)}
+                          </select>
+                        ) : <span className={`text-[8px] font-black uppercase rounded px-1 py-0.5 ${takeStatusColor[t.status]}`}>{t.status}</span>}
+                        {typeof t.matchScore === 'number' && <span className={`text-[8px] font-black font-mono px-1 py-0.5 rounded ${t.matchScore >= 70 ? 'text-emerald-400 bg-emerald-500/10' : t.matchScore >= 40 ? 'text-yellow-400 bg-yellow-500/10' : 'text-red-400 bg-red-500/10'}`} title="How much of the scripted dialogue this reading contains">{t.matchScore}%</span>}
+                        {t.proxyUrl && <a href={t.proxyUrl} target="_blank" rel="noreferrer" className="text-white/25 hover:text-cyan-400" title="View proxy"><Eye size={12} /></a>}
+                        {canManage && <button onClick={() => del(t)} className="text-white/20 hover:text-red-400"><Trash2 size={11} /></button>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="p-4 bg-cyan-500/5 border border-cyan-500/20 rounded-2xl">
+        <button onClick={() => window.dispatchEvent(new CustomEvent('OPEN_ARIA', { detail: { prompt: 'Act as Aria, my post-production supervisor. Explain the "Set to Cut" workflow: how logging circle-takes on set and assembling proxies into an editor as we shoot speeds up post, what a good selects/coverage discipline looks like, and how an assistant editor should refine the auto-assembled rough cut.' } }))}
+          className="flex items-center gap-2 text-cyan-300 text-xs font-black uppercase tracking-widest hover:text-cyan-200 transition-colors">
+          <Sparkles size={11} /> Ask Aria — Post Supervisor →
+        </button>
+      </div>
+    </motion.div>
+  );
+};
+
 // ─── Film Tab: Schedule ─────────────────────────────────────────────────────
 
 const FilmScheduleTab: React.FC = () => {
@@ -3249,7 +3499,7 @@ const WriterPressTab: React.FC = () => (
 type PMTab =
   | 'overview' | 'releases' | 'productions' | 'import' | 'payroll' | 'contracts' | 'invoices' | 'tasks' | 'vendors' | 'venues' | 'events' | 'boards' | 'promote'
   | 'film_overview' | 'film_script' | 'film_breakdown' | 'film_budget' | 'film_crew' | 'film_locations' | 'film_schedule' | 'film_distro'
-  | 'film_hub' | 'film_chat' | 'film_callsheets' | 'film_staffing' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports' | 'film_clearances'
+  | 'film_hub' | 'film_chat' | 'film_callsheets' | 'film_staffing' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports' | 'film_clearances' | 'film_edit'
   | 'writer_overview' | 'writer_projects' | 'writer_manuscripts' | 'writer_research' | 'writer_submissions' | 'writer_events' | 'writer_press';
 
 type Discipline = 'music' | 'film' | 'writer';
@@ -3290,6 +3540,7 @@ const FILM_TABS: { id: PMTab; label: string; icon: React.ReactNode; color: strin
   { id: 'film_roster',     label: 'Roster',       icon: <Users size={13} />,        color: '#a855f7' },
   { id: 'film_craft',      label: 'Craft',        icon: <Utensils size={13} />,     color: '#14b8a6' },
   { id: 'film_reports',    label: 'Reports',      icon: <ClipboardList size={13} />, color: '#a855f7' },
+  { id: 'film_edit',       label: 'Live Edit',    icon: <Scissors size={13} />,     color: '#06b6d4' },
   { id: 'film_script',     label: 'Script',       icon: <Clapperboard size={13} />, color: '#a855f7' },
   { id: 'film_breakdown',  label: 'Breakdown',    icon: <Layers size={13} />,       color: '#f97316' },
   { id: 'film_budget',     label: 'Budget',       icon: <DollarSign size={13} />,   color: '#10b981' },
@@ -3380,6 +3631,7 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
       case 'film_crew':           return <FilmCrewTab />;
       case 'film_locations':      return <FilmLocationsTab />;
       case 'film_clearances':     return <FilmClearancesTab />;
+      case 'film_edit':           return <FilmEditTab />;
       case 'film_schedule':       return <ProductionScheduleTab />;
       case 'film_distro':         return <FilmDistroTab />;
       case 'writer_overview':     return <WriterOverviewTab />;
