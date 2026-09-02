@@ -34,8 +34,8 @@ import { createEffectInstance } from "../../services/fabula/forgeEffects";
 import { createForgeTransition } from "../../services/fabula/forgeTransitions";
 import { parseCubeLut } from "../../services/fabula/cubeLut";
 import { createVectorTrack, stabilizationAt, trackPoint, upsertTrackSample, grayFromRgba } from "../../services/fabula/vectorTrack";
-import { createPlanarSequence, referenceSample, trackPlanarFrame, upsertPlanarSample, samplePlanarAt, planarStabilizeAt, cornerPinAt, planarTrackedRange, quadPoint } from "../../services/fabula/planarSequence";
-import { invertHomography, toPixelSpace, mat3ToCssMatrix3d, isIdentityMat3, containBox } from "../../services/fabula/planarTrack";
+import { createPlanarSequence, referenceSample, trackPlanarFrame, upsertPlanarSample, samplePlanarAt, planarStabilizeAt, cornerPinAt, planarTrackedRange, quadPoint, exportCornerPin } from "../../services/fabula/planarSequence";
+import { invertHomography, toPixelSpace, mat3ToCssMatrix3d, isIdentityMat3, containBox, solveHomography, transformPoint } from "../../services/fabula/planarTrack";
 import { resolveInstanceForFrame, maskOutlineAt, MASK_DEFAULT, BINDING_SOURCES } from "../../services/fabula/forgeBindings";
 import { segmentSubjectLatest } from "../../services/fabula/subjectMatte";
 import { Compositor as PixelsCompositor } from "../plajahPixels/engine/core/compositor";
@@ -1719,7 +1719,25 @@ export default function Fabula() {
     if (!ensureFx(clip).planarSurface) updateFx(clip.id, { planarSurface: { corners: [{ x: .3, y: .3 }, { x: .7, y: .3 }, { x: .7, y: .7 }, { x: .3, y: .7 }] } });
     setSurfaceEdit(true);
   };
-  const trackPlanarForward = async () => {
+  // AdjustTrack: a corner drag on a tracked frame becomes a MANUAL sample (exact plane through the
+  // dragged corners); tracking again from that frame resumes from it.
+  const adjustPlanarFrame = (clip, frame, corners) => {
+    const seq = clip?.fx?.planarTrack; if (!seq) return;
+    const solve = solveHomography(seq.referenceCorners, corners); if (!solve) { ping("Corners are degenerate."); return; }
+    const sample = { frame, matrix: solve.matrix, corners, features: seq.features.map((p) => transformPoint(solve.matrix, p)), featureConfidence: seq.features.map(() => 1), inliers: seq.features.length, confidence: 1, rmsError: 0, manual: true };
+    updateFx(clip.id, { planarTrack: upsertPlanarSample(seq, sample) });
+  };
+  const exportPlanarPin = () => {
+    const clip = getSel(); const seq = clip?.fx?.planarTrack; if (!seq) { ping("No planar track on this clip."); return; }
+    const rows = exportCornerPin(seq);
+    const payload = { format: "fabula-cornerpin-v1", clip: clip.label || clip.id, fps: seq.fps, referenceFrame: seq.referenceFrame, referenceCorners: seq.referenceCorners, order: "TL,TR,BR,BL", coords: "normalized, origin top-left, y down", frames: rows };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${(clip.label || "clip").replace(/[^\w.-]+/g, "_")}-cornerpin.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    ping(`Corner pin exported · ${rows.length} frames`);
+  };
+  const trackPlanarForward = () => trackPlanar(1);
+  const trackPlanarBackward = () => trackPlanar(-1);
+  const trackPlanar = async (dir = 1) => {
     const clip = getSel(); const asset = clip && (prod?.mediaPool || []).find((candidate) => candidate.id === clip.assetId);
     if (!clip || !asset?.url || asset.type !== "video") { ping("Select a video clip to track."); return; }
     const fx0 = ensureFx(clip);
@@ -1738,7 +1756,8 @@ export default function Fabula() {
       const scale = Math.min(1, 640 / Math.max(1, video.videoWidth)), width = Math.max(2, Math.round(video.videoWidth * scale)), height = Math.max(2, Math.round(video.videoHeight * scale));
       const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height; const ctx = canvas.getContext("2d", { willReadFrequently: true });
       const gray = () => { ctx.drawImage(video, 0, 0, width, height); return grayFromRgba(ctx.getImageData(0, 0, width, height).data, width, height); };
-      const startFrame = Math.max(0, Math.round((playhead - clip.start) * fps)), endFrame = Math.min(Math.round(clip.duration * fps), startFrame + 600);
+      const startFrame = Math.max(0, Math.round((playhead - clip.start) * fps));
+      const endFrame = dir > 0 ? Math.min(Math.round(clip.duration * fps), startFrame + 600) : Math.max(0, startFrame - 600);
       await seek((clip.srcIn || 0) + startFrame / fps);
       let previous = gray();
       // Continue an existing track from a good sample at the playhead; otherwise start a fresh
@@ -1746,11 +1765,11 @@ export default function Fabula() {
       const existing = fx0.planarTrack;
       const resume = existing && existing.samples.find((s) => s.frame === startFrame && !s.lost);
       let current;
-      if (resume) { seq = { ...existing, samples: existing.samples.filter((s) => s.frame <= startFrame && !s.lost) }; current = resume.features; }
+      if (resume) { seq = { ...existing, samples: existing.samples.filter((s) => (dir > 0 ? s.frame <= startFrame : s.frame >= startFrame) && !s.lost) }; current = resume.features; }
       else { seq = createPlanarSequence(asset.id, fps, startFrame, fx0.planarSurface.corners, uid(), { reference: previous, width, height }); seq = upsertPlanarSample(seq, referenceSample(seq)); current = seq.features; }
-      let prevFeatures = null, total = endFrame - startFrame, lastNote = "";
+      let prevFeatures = null, total = Math.abs(endFrame - startFrame), lastNote = "";
       setTrackProgress({ frame: 0, total, confidence: 1, note: "" });
-      for (let frame = startFrame + 1; frame <= endFrame; frame++) {
+      for (let frame = startFrame + dir; dir > 0 ? frame <= endFrame : frame >= endFrame; frame += dir) {
         if (trackCancelRef.current) { lastNote = "stopped"; break; }
         await seek((clip.srcIn || 0) + frame / fps);
         const next = gray();
@@ -1758,10 +1777,10 @@ export default function Fabula() {
         const result = trackPlanarFrame(seq, previous, next, frame, current, velocity);
         if (!result) { lastNote = "degenerate surface"; break; }
         seq = upsertPlanarSample(seq, result.sample);
-        setTrackProgress({ frame: frame - startFrame, total, confidence: result.sample.confidence, note: result.reason || "" });
+        setTrackProgress({ frame: Math.abs(frame - startFrame), total, confidence: result.sample.confidence, note: result.reason || "" });
         if (!result.accepted) { lastNote = result.reason || "lost"; break; }
         prevFeatures = current; current = result.features; previous = next;
-        if ((frame - startFrame) % 2 === 0) await yieldUi();
+        if (Math.abs(frame - startFrame) % 2 === 0) await yieldUi();
       }
       const good = seq.samples.filter((s) => !s.lost).length;
       updateFx(clip.id, { planarTrack: seq, trackMode: fx0.trackMode === "stabilize" ? "stabilize" : (fx0.trackMode === "planar" || !fx0.trackMode || fx0.trackMode === "off" ? fx0.trackMode || "off" : fx0.trackMode) });
@@ -4248,7 +4267,7 @@ export default function Fabula() {
                     <div ref={screenRef} className="screen" style={{ aspectRatio: prod.defaults.aspect.includes(":") ? prod.defaults.aspect.replace(":", "/") : "2.39/1", filter: LOOKS.find((l) => l.id === prod.design?.lookId)?.filter || "none", containerType: "inline-size" }}>
                       {gpuMonitor && <GpuStage reg={gpuRegRef.current} hostRef={screenRef} onFail={() => { try { localStorage.setItem("fabula:gpuMonitor", "off"); } catch { /* */ } gpuRegRef.current.clear(); setGpuMonitor(false); ping("GPU monitor hit an issue — reverted to the standard renderer."); }} />}
                       {(() => { const s = getSel(); const inst = maskEdit && s && s.id === maskEdit.clipId ? (s.fx?.stack || []).find((i) => i.id === maskEdit.instanceId) : null; return inst?.mask && inst.mask.kind !== "subject" ? <MaskOverlay clip={s} instance={inst} playhead={playhead} screenRef={screenRef} videoRef={videoRef} fps={vfmt.fps || 24} onChange={(mask) => updateFx(s.id, { stack: s.fx.stack.map((i) => i.id === inst.id ? { ...i, mask } : i) })} /> : null; })()}
-                      {(() => { const s = getSel(); return s && /^v\d+$/.test(s.trackId) && (s.fx?.planarSurface || s.fx?.planarTrack) ? <SurfaceOverlay clip={s} playhead={playhead} screenRef={screenRef} videoRef={videoRef} editing={surfaceEdit} onChange={(corners) => updateFx(s.id, { planarSurface: { corners } })} /> : null; })()}
+                      {(() => { const s = getSel(); return s && /^v\d+$/.test(s.trackId) && (s.fx?.planarSurface || s.fx?.planarTrack) ? <SurfaceOverlay clip={s} playhead={playhead} screenRef={screenRef} videoRef={videoRef} editing={surfaceEdit} onChange={(corners) => updateFx(s.id, { planarSurface: { corners } })} onAdjust={(frame, corners) => adjustPlanarFrame(s, frame, corners)} /> : null; })()}
                       {videoTracksAsc.map((tr, i) => {
                         // Double-buffer: mount the current clip + its neighbours, keyed by clip.id, so the
                         // next clip is already decoded/seeked and going live is just a visibility swap (no
@@ -4701,13 +4720,16 @@ export default function Fabula() {
                               <div className="lbl" style={{ marginTop: 8 }}>VECTORTRACK <span className="cap">PLANAR · SURFACE</span></div>
                               <div className="btnrow" style={{ gap: 5 }}>
                                 <button className={`minibtn ${surfaceEdit ? "on" : ""}`} onClick={() => (surfaceEdit ? setSurfaceEdit(false) : placeSurface())}>{surfaceEdit ? "✓ DONE" : "▢ SURFACE"}</button>
-                                <button className="minibtn blue grow" disabled={!fx.planarSurface || !!trackProgress} onClick={trackPlanarForward}>◈ TRACK PLANAR</button>
+                                <button className="minibtn" title="Track backward from the playhead" disabled={!fx.planarSurface || !!trackProgress} onClick={trackPlanarBackward}>◀</button>
+                                <button className="minibtn blue grow" disabled={!fx.planarSurface || !!trackProgress} onClick={trackPlanarForward}>◈ TRACK ▶</button>
+                                {fx.planarTrack && <button className="minibtn" title="Download corner-pin keyframes (JSON)" onClick={exportPlanarPin}>⇩ PIN</button>}
                                 {fx.planarTrack && <button className={`minibtn ${fx.trackMode === "planar" ? "on" : ""}`} onClick={() => updateFx(selClip.id, { trackMode: fx.trackMode === "planar" ? "off" : "planar" })}>STABILIZE</button>}
                                 {(fx.planarTrack || fx.planarSurface) && <button className="minibtn danger" onClick={() => { setSurfaceEdit(false); updateFx(selClip.id, { planarTrack: undefined, planarSurface: undefined, trackMode: fx.trackMode === "planar" ? "off" : fx.trackMode }); }}>CLEAR</button>}
                               </div>
                               {trackProgress && <div className="dim small">tracking {trackProgress.frame}/{trackProgress.total} · confidence {(trackProgress.confidence * 100).toFixed(0)}%{trackProgress.note ? ` · ${trackProgress.note}` : ""} <button className="minibtn" style={{ marginLeft: 6 }} onClick={() => { trackCancelRef.current = true; }}>STOP</button></div>}
                               {!trackProgress && fx.planarTrack && (() => { const r = planarTrackedRange(fx.planarTrack); const last = fx.planarTrack.samples.filter((s) => !s.lost).at(-1); return <div className="dim small">{fx.planarTrack.samples.filter((s) => !s.lost).length} frames · ref {fx.planarTrack.referenceFrame} → {r.end}{r.lostAt != null ? ` · lost at ${r.lostAt}` : ""} · {fx.planarTrack.features.length} features · confidence {((last?.confidence || 0) * 100).toFixed(0)}% · {last?.inliers ?? 0} inliers</div>; })()}
-                              {!trackProgress && !fx.planarTrack && fx.planarSurface && <div className="dim small">surface placed · park the playhead on the reference frame and TRACK PLANAR</div>}
+                              {!trackProgress && !fx.planarTrack && fx.planarSurface && <div className="dim small">surface placed · park the playhead on the reference frame and TRACK</div>}
+                              {!trackProgress && fx.planarTrack && <div className="dim small">drag the green corners on the monitor to correct a frame, then TRACK again from it</div>}
                               {(() => {
                                 const surfaces = clips.filter((c) => c.id !== selClip.id && /^v\d+$/.test(c.trackId) && c.fx?.planarTrack && c.start < selClip.start + selClip.duration && c.start + c.duration > selClip.start);
                                 if (!surfaces.length && !fx.pinTo) return null;
@@ -7437,7 +7459,7 @@ function MaskOverlay({ clip, instance, playhead, screenRef, videoRef, fps, onCha
 /* ---------- VectorTrack surface overlay: the planar surface quad on the program monitor ----------
    Editing: drag corners (or the body) to place the reference surface. Tracked: shows the surface
    where the track puts it on this frame, coloured by confidence, with the feature lattice. */
-function SurfaceOverlay({ clip, playhead, screenRef, videoRef, editing, onChange }) {
+function SurfaceOverlay({ clip, playhead, screenRef, videoRef, editing, onChange, onAdjust }) {
   const fx = clip?.fx || {};
   const seq = fx.planarTrack, surface = fx.planarSurface;
   const quadRef = useRef(null);
@@ -7454,8 +7476,9 @@ function SurfaceOverlay({ clip, playhead, screenRef, videoRef, editing, onChange
   quadRef.current = quad;
   const toPx = (p) => [box.x + p.x * box.w, box.y + p.y * box.h];
   const pts = quad.map(toPx);
+  const adjustable = live && !editing && typeof onAdjust === "function";
   const startDrag = (i) => (e) => {
-    if (!editing) return;
+    if (!editing && !adjustable) return;
     e.preventDefault(); e.stopPropagation();
     const rect = el.getBoundingClientRect();
     const origin = quadRef.current.map((p) => ({ ...p }));
@@ -7464,7 +7487,7 @@ function SurfaceOverlay({ clip, playhead, screenRef, videoRef, editing, onChange
       const dx = (ev.clientX - x0) / box.w, dy = (ev.clientY - y0) / box.h;
       const clamp = (v) => Math.max(-.5, Math.min(1.5, v));
       const next = origin.map((p, k) => (i === -1 || k === i) ? { x: clamp(p.x + dx), y: clamp(p.y + dy) } : p);
-      onChange(next);
+      if (editing) onChange(next); else onAdjust(frame, next);
     };
     const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
@@ -7473,11 +7496,12 @@ function SurfaceOverlay({ clip, playhead, screenRef, videoRef, editing, onChange
   const grid = [];
   for (let k = 1; k < 3; k++) { const u = k / 3; grid.push([quadPoint(quad, u, 0), quadPoint(quad, u, 1)], [quadPoint(quad, 0, u), quadPoint(quad, 1, u)]); }
   return (
-    <svg className="vt-surface" viewBox={`0 0 ${W} ${H}`} style={{ pointerEvents: editing ? "auto" : "none" }}>
+    <svg className="vt-surface" viewBox={`0 0 ${W} ${H}`} style={{ pointerEvents: (editing || adjustable) ? "auto" : "none" }}>
       <polygon points={pts.map((p) => p.join(",")).join(" ")} fill={editing ? "rgba(249,115,22,.10)" : "rgba(34,197,94,.06)"} stroke={color} strokeWidth={1.5} style={{ cursor: editing ? "move" : "default" }} onPointerDown={startDrag(-1)} />
       {grid.map(([a, b], i) => { const [ax, ay] = toPx(a), [bx, by] = toPx(b); return <line key={i} x1={ax} y1={ay} x2={bx} y2={by} stroke={color} strokeOpacity={.35} strokeWidth={1} />; })}
       {features && features.map((p, i) => { const [x, y] = toPx(p); return <circle key={i} cx={x} cy={y} r={2.5} fill={color} fillOpacity={.8} />; })}
       {editing && pts.map(([x, y], i) => <circle key={i} className="vt-handle" cx={x} cy={y} r={7} fill="#0f0e13" stroke="#f97316" strokeWidth={2} onPointerDown={startDrag(i)} />)}
+      {adjustable && pts.map(([x, y], i) => <circle key={i} className="vt-handle" cx={x} cy={y} r={6} fill="#0f0e13" stroke={color} strokeWidth={2} onPointerDown={startDrag(i)} />)}
       <text x={pts[0][0]} y={pts[0][1] - 9} fill={color} fontSize={10} fontFamily="'JetBrains Mono',monospace" letterSpacing={1}>{editing ? "SURFACE · drag corners" : live ? `PLANAR ${(conf * 100).toFixed(0)}%` : "SURFACE"}</text>
     </svg>
   );
