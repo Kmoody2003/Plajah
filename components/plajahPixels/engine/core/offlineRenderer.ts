@@ -14,6 +14,7 @@
 
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
 import { Compositor, LayerInput, ShakeParams } from './compositor';
+import { segmentSubject } from '../../../../services/fabula/subjectMatte';
 import { GeneratorRenderer, hasGenerator, hexToRgb } from './generators';
 import { ShaderRenderer } from './shaderRenderer';
 import { createMilkdropDriver, MilkdropDriver } from './milkdropDriver';
@@ -322,8 +323,11 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
             if (dur > 0) st = st % dur; // loop the source within the clip
             if (fast) { try { el.currentTime = st; } catch { /* */ } } // no wait — nearest ready frame
             else await seekVideo(el, st);
+            // ML subject mattes are computed from the SEEKED frame so the export is exact.
+            for (const inst of forgeEffects) if (inst?.subjectMask) inst.maskElement = await segmentSubject(el, 512, Math.max(2, Math.round(512 * (el.videoHeight || 9) / (el.videoWidth || 16))));
             inputs.push({ element: applyGrade(el), opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography, grade: (layer as any).glGrade, grades: (layer as any).glGrades, effects: forgeEffects, time: layer.time, wipe: (layer as any).wipe, transition: (layer as any).forgeTransition });
           } else if (el instanceof HTMLImageElement) {
+            for (const inst of forgeEffects) if (inst?.subjectMask) inst.maskElement = await segmentSubject(el, 512, Math.max(2, Math.round(512 * (el.naturalHeight || 9) / (el.naturalWidth || 16))));
             inputs.push({ element: applyGrade(el), opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography, grade: (layer as any).glGrade, grades: (layer as any).glGrades, effects: forgeEffects, time: layer.time, wipe: (layer as any).wipe, transition: (layer as any).forgeTransition });
           }
         } else if (clip.type === 'color' && clip.fillColor) {

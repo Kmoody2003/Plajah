@@ -31,10 +31,11 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W3a | DONE 2026-09-02 (phase3ParticleEffects.ts: Emitter · Field + Emitter · Burst, 17 presets) — **Emitter (stateless particles)**: closed-form GPU particle fields (rain/snow/sparks/embers/dust/bokeh/streaks), forces via curl noise, 3D-ish depth, motion blur; preset library by category | DONE (fluid sim / 3D model emitters remain open) |
 | W3b | Text animators on the titler (per-glyph type-on, tracking, scramble, counters) | later |
 | W3c | three.js layer node (extrusions, shatter, Form/Mir/Tao) | later |
-| W4 | ML tier: MediaPipe subject matte as a mask source (live + offline), depth ONNX, Crossover SAM2 | later |
+| W4 | ML tier: MediaPipe subject matte as a mask source (live + offline) DONE 2026-09-02 (services/fabula/subjectMatte.ts, mask kind = subject); depth ONNX + Crossover SAM2 | partial |
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust/C++ shell open |
 
 ## Done this run
+- (2026-09-02) W4 step 1: subject (AI) matte as a mask kind on any effect — MediaPipe selfie segmenter (lazy CDN, GPU→CPU), exact per-frame in the offline renderer (after the seek), throttled last-matte reuse in the live monitor. Verified the model loads and returns a matte canvas in the browser (~14 s first load).
 - (2026-09-02) Kernel batch: phase3GradsTintsEffects (ND grad, colour grad, dual grad, radial tint, split tone, gels, skin tone, sunset; Net/Silk/Frost/Mist/Center Spot/Split Field/Double Fog glass), phase3StylizeVariantsEffects (kaleidoscope, halftone pro, fly-eye, tile scramble, emboss glass, pseudo colour, zebra, roman tile, strip slide, infinite zoom, parallax strips, warp repeat), phase3GraphicsEffects (array gun, HUD rings, progress bar, long shadow, luster, laser beam, zap, aurora, night sky). 154 effects / 448 presets; compile sweep 154/154.
 - (2026-09-02) W5 step 1: OFX descriptor generator (choice/int/bool typing from labels, clips, contexts, kernel ABI + header hash). W3a: Emitter Field (rest-frame hashed, 3 parallax layers, 7 shapes) + Emitter Burst (64 closed-form particles, bindable emitter position); compile sweep 118/118, deterministic.
 - (2026-09-02) W2a temporal access + 10 Time effects; fixed compositor VAO rebind after effects/grade layers/transitions (effects rendered BLACK before), two Forge shaders that did not compile, cube LUT sampler3D precision.
@@ -42,9 +43,9 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 - (2026-09-02) VectorTrack planar tracker end to end — see `plajah-vectortrack` memory / build matrix.
 
 ## Next up (in order)
-1. W4 MediaPipe subject matte as a mask source (live + offline).
-2. W2d VectorTrack track-backward + AdjustTrack + corner-pin FCPXML export.
-3. W3b text animators.
+1. W2d VectorTrack track-backward + AdjustTrack + corner-pin FCPXML export.
+2. W3b text animators.
+3. Depth matte (ONNX depth model as mask/aux source) + Crossover SAM2 tracked mattes.
 4. OFX shell scaffold (Rust cdylib reading the manifest) — only after the above.
 
 ## Backlog (kernel gaps vs the Boris/Red Giant catalog, for later kernel batches)

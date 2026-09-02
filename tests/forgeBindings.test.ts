@@ -56,3 +56,12 @@ describe('Forge bindings + masks', () => {
     assert.equal(poly.length, 3);
   });
 });
+
+describe('Forge subject matte', () => {
+  it('flags subject masks for the renderer instead of rasterising a shape', async () => {
+    const { resolveInstanceForFrame } = await import('../services/fabula/forgeBindings');
+    const inst: any = { id: 'i', effectId: 'invert', version: 1, enabled: true, mix: 1, params: { amt: 1 }, mask: { kind: 'subject', shape: 'ellipse', cx: .5, cy: .5, w: .5, h: .5, rotation: 0, feather: 0, invert: true, enabled: true } };
+    const r: any = resolveInstanceForFrame(inst, undefined, {}, 0, { w: 16, h: 9 });
+    assert.equal(r.subjectMask, true); assert.equal(r.maskInvert, true); assert.equal(r.maskElement, undefined);
+  });
+});
