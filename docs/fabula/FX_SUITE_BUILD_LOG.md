@@ -11,8 +11,7 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
   `components/plajahPixels/engine/fx/effects.ts` and its packs.
 - The worktree carries other sessions' uncommitted work. Commit ONLY files you touched, with a
   clear message, no push. Never revert or reformat others' hunks. Check `git status --short` first.
-- Validation after every batch: `npx tsx --test tests/forgeEffects.test.ts`,
-  `npm run test:vectortrack`, `npx esbuild <file> --loader:.ts=ts --outfile=/dev/null` (or
+- Validation after every batch: `npm run test:forge`, `npm run test:vectortrack`, `npx esbuild <file> --loader:.ts=ts --outfile=/dev/null` (or
   `--loader:.jsx=jsx`) on touched files. Optional: in the browser, import the compositor from the
   dev server and compile every registered effect (see "GLSL compile sweep" below).
 - Monitor == export: anything added to the renderer must land in `compositor.ts` (live + offline),
@@ -35,6 +34,7 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust shell step 1 DONE 2026-09-02 (rust/fabula-ofx: dependency-free cdylib, generated src/manifest_gen.rs, describe / describe-in-context / passthrough render; `npm run ofx:check`). Step 2 = wgpu kernel execution |
 
 ## Done this run
+- (2026-09-02, continuation) VectorTrack motion → FCPXML `<adjust-transform>` keyframes (services/fabula/fcpxmlTransform.ts: planar stabilise via inverse-plane affine decomposition, point stabilise translation, pinned overlays via the placement matrix; centre-origin pixels, y up, rotation CCW; linear-run thinning). Perspective is dropped (FCPXML has no corner pin). `npm run test:forge` bundles all Forge/title/OFX/FCPXML tests.
 - (2026-09-02, continuation) AI depth map as an AUX source: any aux-input effect (external depth defocus, displacement, etc.) can pick "AI depth map of this clip" instead of an asset — exact per frame in export, throttled live. OFX step 3 (wgpu kernel execution) is BLOCKED on this machine: wgpu dependencies need native build scripts and there is no MSVC linker; leave it for a machine with Build Tools.
 - (2026-09-02) Mask kind `aux` (any pool image/video as a luma mask; live + export). Dynamic title text (services/fabula/titleDynamic.ts: counter, percent, timecode, countdown, terminal screen) — same function in the DOM monitor and the export resolver; inspector DYNAMIC TEXT block.
 - (2026-09-02) Flare Rig (element-stack lens flare: glow, anamorphic streak, starburst, iris ghosts, halo, rainbow arc, luma obscuration; light bindable to tracks) + Light Sweep; DVE pack: Page Curl, Cube Face, Cylinder, Sphere, Card Flip (aux back face). 161 effects. Track-bound Y positions now flip into GL space (effect position params are y-UP because frames upload Y-flipped).
@@ -52,11 +52,10 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 - (2026-09-02) VectorTrack planar tracker end to end — see `plajah-vectortrack` memory / build matrix.
 
 ## Next up (in order)
-1. Corner-pin / planar stabilise → FCPXML transform keyframes (affine decomposition per frame).
-2. Shared track assets across clips (prod.motionTracks[] + clip references).
-3. Wire remover (Anchor + temporal clean plate); text tile / data columns generator.
-4. Crossover SAM2 tracked mattes.
-5. OFX shell step 3 (wgpu kernel execution) — needs a machine with MSVC/clang.
+1. Shared track assets across clips (prod.motionTracks[] + clip references).
+2. Wire remover (Anchor + temporal clean plate); text tile / data columns generator.
+3. Crossover SAM2 tracked mattes.
+4. OFX shell step 3 (wgpu kernel execution) — needs a machine with MSVC/clang.
 
 ## Backlog (kernel gaps vs the Boris/Red Giant catalog, for later kernel batches)
 Symbol mapper (ASCII), retrograde/carousel film frames, VHS text generator, dither palettes
