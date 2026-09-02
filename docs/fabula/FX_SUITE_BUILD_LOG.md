@@ -34,6 +34,7 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust shell step 1 DONE 2026-09-02 (rust/fabula-ofx: dependency-free cdylib, generated src/manifest_gen.rs, describe / describe-in-context / passthrough render; `npm run ofx:check`). Step 2 = wgpu kernel execution |
 
 ## Done this run
+- (2026-09-02, continuation) Cleanup pack (phase3CleanupEffects.ts): Wire Remover (line endpoints bindable to tracks, fills from both sides with grain match), Spot Fix (ring heal), Clone Patch (offset clone with brightness match). 164 effects. Not a temporal clean-plate Remover — that needs multi-frame history (feedback gives one frame).
 - (2026-09-02, continuation) Track sharing: USE TRACK FROM… copies another clip of the same footage's planar/point track re-based to this clip's source time (services/fabula/trackShare.ts; tests).
 - (2026-09-02, continuation) VectorTrack motion → FCPXML `<adjust-transform>` keyframes (services/fabula/fcpxmlTransform.ts: planar stabilise via inverse-plane affine decomposition, point stabilise translation, pinned overlays via the placement matrix; centre-origin pixels, y up, rotation CCW; linear-run thinning). Perspective is dropped (FCPXML has no corner pin). `npm run test:forge` bundles all Forge/title/OFX/FCPXML tests.
 - (2026-09-02, continuation) AI depth map as an AUX source: any aux-input effect (external depth defocus, displacement, etc.) can pick "AI depth map of this clip" instead of an asset — exact per frame in export, throttled live. OFX step 3 (wgpu kernel execution) is BLOCKED on this machine: wgpu dependencies need native build scripts and there is no MSVC linker; leave it for a machine with Build Tools.
@@ -53,7 +54,7 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 - (2026-09-02) VectorTrack planar tracker end to end — see `plajah-vectortrack` memory / build matrix.
 
 ## Next up (in order)
-1. Wire remover (Anchor + temporal clean plate); text tile / data columns generator.
+1. Text tile / data columns generator; temporal clean-plate Remover (needs N-frame history in FxRenderer).
 2. Crossover SAM2 tracked mattes.
 3. OFX shell step 3 (wgpu kernel execution) — needs a machine with MSVC/clang.
 

@@ -23,6 +23,7 @@ import { PHASE3_STYLIZE_VARIANT_EFFECTS } from './phase3StylizeVariantsEffects';
 import { PHASE3_GRAPHICS_EFFECTS } from './phase3GraphicsEffects';
 import { PHASE3_LENS_FLARE_EFFECTS } from './phase3LensFlareEffects';
 import { PHASE3_DVE_EFFECTS } from './phase3DveEffects';
+import { PHASE3_CLEANUP_EFFECTS } from './phase3CleanupEffects';
 
 export type FxCategory = 'color' | 'light' | 'blur' | 'stylize' | 'distort' | 'utility' | 'time' | 'generator' | 'mask';
 export interface FxParam {
@@ -86,6 +87,7 @@ export const FX_EFFECTS: FxEffect[] = [
   ...PHASE3_GRAPHICS_EFFECTS,
   ...PHASE3_LENS_FLARE_EFFECTS,
   ...PHASE3_DVE_EFFECTS,
+  ...PHASE3_CLEANUP_EFFECTS,
   {
     id: 'cinematiccolor', name: 'Cinematic Color', category: 'color', version: 1,
     summary: 'Filmic contrast, split-tone color separation and highlight rolloff in one tasteful finishing tool.',
