@@ -35,6 +35,7 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust shell step 1 DONE 2026-09-02 (rust/fabula-ofx: dependency-free cdylib, generated src/manifest_gen.rs, describe / describe-in-context / passthrough render; `npm run ofx:check`). Step 2 = wgpu kernel execution |
 
 ## Done this run
+- (2026-09-02, continuation 3) TRANSITIONS are now a registry, not a mega-shader: `phase3Transitions.ts` holds data-driven defs (up to 4 named params + own GLSL `vec4 tx(vec2 uv, float p)` over `outg()`/`inc()`), ForgeTransitionRenderer compiles one cached program per id and still falls back to the legacy 17-kind shader. 28 new transitions (circle/clock/star/checker/stripes/dots/cells/pixelate/wedge wipes; static/tiles/vortex/waves/puddle/flash/diffuse/dither dissolves; cube/fold/stretch/dolly/swish 3D; channel surf, exposure blur, film burn, turbulence, colour mosaic, glint) = 45 total. Verified in-browser: all compile, all vary across progress, and every one resolves exactly to the outgoing frame at p=0 and the incoming at p=1 (that check caught a reversed wedge wipe and a fold that darkened the endpoints).
 - (2026-09-02, continuation 2) Data tile dynamic text (Universe Text Tile: generated columns, kinds n/h/w/t/p/i). Backlog kernel pack (phase3BacklogEffects.ts): Symbol Mapper (ASCII), Retrograde (8/16 mm), Carousel (slide), Dither & Palettes (Bayer/threshold/noise into 1-bit / Game Boy / CGA / 8-bit / duotone / quantised), Glo Fi, Heatwave, ChromaTown, Sketchify, Muzzle Flash. 175 effects.
 - (2026-09-02, continuation 2) N-frame source history in FxRenderer (`temporal: 4` keeps a 4-frame ring; `prevSrcN(n, uv)` in the FX header) + Temporal Median (denoise / rain & dust) + Object Remover (clean-plate fill inside a mask: median / oldest / most-stable history). 166 effects.
 - (2026-09-02, continuation) Cleanup pack (phase3CleanupEffects.ts): Wire Remover (line endpoints bindable to tracks, fills from both sides with grain match), Spot Fix (ring heal), Clone Patch (offset clone with brightness match). 164 effects. Not a temporal clean-plate Remover — that needs multi-frame history (feedback gives one frame).
@@ -62,8 +63,7 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 
 ## Backlog (remaining gaps vs the Boris/Red Giant catalog)
 VHS text generator (status overlay on the VHS effect), Universe HUD text variants, S_Effect-style
-user-authored effect builder UI on the node graph, additional transitions (Sapphire dissolve variants
-as two-input kernels), particle fluid dynamics (needs compute), PowerMesh (needs dense flow).
+user-authored effect builder UI on the node graph, particle fluid dynamics (needs compute), PowerMesh (needs dense flow).
 
 ## GLSL compile sweep (browser)
 ```js

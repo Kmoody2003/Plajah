@@ -3,6 +3,7 @@
 // intentionally separate from one-input effects so it can map cleanly to OFX later.
 
 import { GL, RenderTarget, createFullscreenQuad, createProgram, makeTarget } from '../core/glUtil';
+import { getTransitionDef, TX_HEADER, TX_MAIN } from './phase3Transitions';
 
 const VS = `#version 300 es
 layout(location=0) in vec2 aPos;
@@ -87,14 +88,56 @@ const PARAM_KEYS: Record<string, [string, string]> = {
   'shape-wipe':['shape','softness'],'camera-shake':['amount','frequency'],
 };
 
+const REG_UNIFORMS = ['uOutgoing','uIncoming','uResolution','uProgress','uTime','P0','P1','P2','P3'];
+
 export class ForgeTransitionRenderer {
   private quad: WebGLVertexArrayObject; private prog: WebGLProgram; private target?: RenderTarget;
   private u: Record<string, WebGLUniformLocation | null> = {};
+  /** Per-id programs for registry transitions (phase3Transitions), compiled on first use. */
+  private regProgs = new Map<string, { p: WebGLProgram | null; u: Record<string, WebGLUniformLocation | null> }>();
   constructor(private gl: GL) {
     this.quad=createFullscreenQuad(gl); this.prog=createProgram(gl,VS,FS);
     for(const n of ['uOutgoing','uIncoming','uResolution','uProgress','uTime','uKind','P0','P1']) this.u[n]=gl.getUniformLocation(this.prog,n);
   }
+
+  private regProgram(id: string, glsl: string) {
+    let entry = this.regProgs.get(id);
+    if (!entry) {
+      let p: WebGLProgram | null = null;
+      try { p = createProgram(this.gl, VS, TX_HEADER + '\n' + glsl + TX_MAIN); }
+      catch (e) { console.warn(`[ForgeTransition] "${id}" compile failed:`, (e as Error)?.message || e); p = null; }
+      const u: Record<string, WebGLUniformLocation | null> = {};
+      if (p) for (const n of REG_UNIFORMS) u[n] = this.gl.getUniformLocation(p, n);
+      entry = { p, u }; this.regProgs.set(id, entry);
+    }
+    return entry;
+  }
+
+  /** Registry path: named params in declaration order feed P0..P3. Falls back to the incoming
+   *  frame if the shader failed to compile, so a bad transition never renders black. */
+  private renderRegistry(def: NonNullable<ReturnType<typeof getTransitionDef>>, outgoing: WebGLTexture, incoming: WebGLTexture, w: number, h: number, t: ForgeTransitionInput) {
+    const gl = this.gl;
+    const { p, u } = this.regProgram(def.id, def.glsl);
+    if (!p) return incoming;
+    this.target = makeTarget(gl, w, h, this.target);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.target.fbo); gl.viewport(0, 0, w, h); gl.disable(gl.BLEND);
+    gl.useProgram(p); gl.bindVertexArray(this.quad);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, outgoing); gl.uniform1i(u.uOutgoing, 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, incoming); gl.uniform1i(u.uIncoming, 1);
+    gl.uniform2f(u.uResolution, w, h);
+    gl.uniform1f(u.uProgress, Math.max(0, Math.min(1, t.progress)));
+    gl.uniform1f(u.uTime, t.time || 0);
+    for (let i = 0; i < 4; i++) {
+      const param = def.params[i];
+      gl.uniform1f(u['P' + i], param ? (t.params?.[param.key] ?? param.default) : 0);
+    }
+    gl.drawArrays(gl.TRIANGLES, 0, 3); gl.bindVertexArray(null);
+    return this.target.tex;
+  }
+
   render(outgoing: WebGLTexture,incoming: WebGLTexture,w:number,h:number,t:ForgeTransitionInput){
+    const def = getTransitionDef(t.id);
+    if (def) return this.renderRegistry(def, outgoing, incoming, w, h, t);
     const gl=this.gl; this.target=makeTarget(gl,w,h,this.target); const d=DEFAULTS[t.id]||DEFAULTS['film-dissolve'];
     const keys=PARAM_KEYS[t.id]||PARAM_KEYS['film-dissolve'];
     const p0=t.params?.[keys[0]]??d[0],p1=t.params?.[keys[1]]??d[1];
@@ -105,5 +148,5 @@ export class ForgeTransitionRenderer {
     gl.uniform1f(this.u.uTime,t.time||0); gl.uniform1i(this.u.uKind,KIND[t.id]??0); gl.uniform1f(this.u.P0,p0); gl.uniform1f(this.u.P1,p1);
     gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); return this.target.tex;
   }
-  dispose(){ this.gl.deleteProgram(this.prog); if(this.target){this.gl.deleteTexture(this.target.tex);this.gl.deleteFramebuffer(this.target.fbo);} }
+  dispose(){ this.gl.deleteProgram(this.prog); this.regProgs.forEach(e => { if (e.p) this.gl.deleteProgram(e.p); }); this.regProgs.clear(); if(this.target){this.gl.deleteTexture(this.target.tex);this.gl.deleteFramebuffer(this.target.fbo);} }
 }

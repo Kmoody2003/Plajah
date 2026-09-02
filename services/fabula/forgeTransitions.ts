@@ -1,3 +1,5 @@
+import { PHASE3_TRANSITIONS } from '../../components/plajahPixels/engine/fx/phase3Transitions';
+
 export interface ForgeTransition {
   id: string;
   name: string;
@@ -9,6 +11,12 @@ export interface ForgeTransition {
 
 /** Transition contract is deliberately two-input and separate from one-input effects.
  * The renderer adapter receives outgoing/incoming textures plus progress 0..1. */
+const REGISTRY_TRANSITIONS: ForgeTransition[] = PHASE3_TRANSITIONS.map((t) => ({
+  id: t.id, name: t.name, family: t.family, description: t.description,
+  defaults: Object.fromEntries(t.params.map((p) => [p.key, p.default])),
+  presets: t.presets.map((p) => ({ id: p.id, name: p.name, params: p.params })),
+}));
+
 export const FORGE_TRANSITIONS: ForgeTransition[] = [
   { id: 'film-dissolve', name: 'Film Dissolve', family: 'dissolve', description: 'Gamma-aware optical dissolve with optional exposure bloom.', defaults: { softness: .5, bloom: .08 }, presets: [{ id: 'clean', name: 'Clean Optical', params: { softness: .5, bloom: .04 } }, { id: 'dream', name: 'Dream Bloom', params: { softness: .72, bloom: .38 } }] },
   { id: 'luma-dissolve', name: 'Luma Dissolve', family: 'dissolve', description: 'Reveals the incoming image through its luminance structure.', defaults: { softness: .12, direction: 1 }, presets: [{ id: 'highlights', name: 'Highlights First', params: { softness: .1, direction: 1 } }, { id: 'shadows', name: 'Shadows First', params: { softness: .14, direction: -1 } }] },
@@ -27,6 +35,7 @@ export const FORGE_TRANSITIONS: ForgeTransition[] = [
   { id: 'push-slide', name: 'Push & Slide', family: 'motion', description: 'Clean spatial push with optional directional softness.', defaults: { angle: 0, softness: .02 }, presets: [{ id: 'left', name: 'Push Left', params: { angle: 180, softness: .015 } }, { id: 'up', name: 'Push Up', params: { angle: 90, softness: .02 } }] },
   { id: 'shape-wipe', name: 'Shape Wipe', family: 'graphic', description: 'Circular, diamond-like reveal with a refined controllable edge.', defaults: { shape: 0, softness: .06 }, presets: [{ id: 'circle', name: 'Circle Open', params: { shape: 0, softness: .055 } }, { id: 'diamond', name: 'Diamond Open', params: { shape: 1, softness: .035 } }] },
   { id: 'camera-shake', name: 'Camera Shake Cut', family: 'motion', description: 'Impact-driven two-shot handoff with positional shake and blur-safe easing.', defaults: { amount: .035, frequency: 18 }, presets: [{ id: 'handheld', name: 'Handheld Hit', params: { amount: .018, frequency: 13 } }, { id: 'impact', name: 'Impact Shake', params: { amount: .065, frequency: 24 } }] },
+  ...REGISTRY_TRANSITIONS,
 ];
 
 export function createForgeTransition(id: string, presetId?: string, dur = 1) {
