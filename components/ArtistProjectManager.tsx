@@ -28,6 +28,8 @@ import { addHqAsset } from '../services/orgAssets';
 import { buildFabulaProjectFromTakes } from '../services/filmEditBridge';
 import { transcribeAndScoreTake, coverageGaps } from '../services/takeScoring';
 import { startTakeRecorder, recordingToFile, pendingCameraTiers, type TakeRecorderHandle } from '../services/takeCapture';
+import { compareFrames, grabFrame, type ContinuityResult } from '../services/continuityCheck';
+import { subscribeBreakdownElements, type BreakdownElement } from '../services/productionBreakdownService';
 import { uploadFile } from '../services/backendService';
 import { FilmStaffingTab } from './film/FilmStaffingTab';
 import { FilmBreakdownTab } from './film/FilmBreakdownTab';
@@ -2601,6 +2603,168 @@ const readVideoDuration = (file: File): Promise<number> => new Promise(resolve =
   } catch { resolve(5); }
 });
 
+// ─── Film Tab: Continuity Eye (still-vs-still CV check) ──────────────────────
+
+const CONTINUITY_PROP_CATS = ['PROPS', 'SET_DRESSING', 'WARDROBE', 'MAKEUP_HAIR', 'VEHICLES'];
+
+const CaptureSlot: React.FC<{ label: string; hint: string; src: { url: string } | null; busy: boolean; canEdit: boolean; onFile: (f: File) => void; onCamera: () => void }> = ({ label, hint, src, busy, canEdit, onFile, onCamera }) => (
+  <div className="flex-1 min-w-0">
+    <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">{label}</p>
+    <div className="relative aspect-video rounded-xl overflow-hidden border border-white/10 bg-black grid place-items-center">
+      {src ? <img src={src.url} alt={label} className="w-full h-full object-contain" /> : <span className="text-[11px] text-white/25">{hint}</span>}
+    </div>
+    {canEdit && (
+      <div className="flex gap-2 mt-2">
+        <label className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-white/10 transition-all">
+          <Download size={11} className="rotate-180" /> Upload<input type="file" accept="image/*" className="sr-only" onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); e.currentTarget.value = ''; }} />
+        </label>
+        <button onClick={onCamera} disabled={busy} className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-[10px] font-black uppercase tracking-widest hover:bg-cyan-500/20 transition-all disabled:opacity-40"><Camera size={11} /> {busy ? '…' : 'Camera'}</button>
+      </div>
+    )}
+  </div>
+);
+
+const FilmContinuityTab: React.FC = () => {
+  const { prod, scenes, continuityChecks, me, isOwner, readOnly, can } = useProd();
+  const canManage = !readOnly && (isOwner || can('MANAGE_REPORTS') || can('EDIT_SCRIPT_BREAKDOWN'));
+  const [sceneId, setSceneId] = useState('');
+  const [ref, setRef] = useState<{ blob: Blob; url: string } | null>(null);
+  const [cur, setCur] = useState<{ blob: Blob; url: string } | null>(null);
+  const [result, setResult] = useState<ContinuityResult | null>(null);
+  const [busy, setBusy] = useState<'' | 'compare' | 'ref' | 'cur' | 'save'>('');
+  const [note, setNote] = useState('');
+  const [message, setMessage] = useState('');
+  const [breakdown, setBreakdown] = useState<BreakdownElement[]>([]);
+
+  useEffect(() => { if (!sceneId && scenes[0]) setSceneId(scenes[0].id); }, [scenes, sceneId]);
+  useEffect(() => { if (prod && !prod.isShowcase) return subscribeBreakdownElements(prod.id, setBreakdown); }, [prod?.id, prod?.isShowcase]);
+
+  const scene = scenes.find(s => s.id === sceneId) || null;
+  const sceneChecks = continuityChecks.filter(c => c.sceneId === sceneId).sort((a, b) => b.createdAt - a.createdAt);
+  const sceneProps = breakdown.filter(el => el.occurrences?.some(o => o.sceneId === sceneId) && CONTINUITY_PROP_CATS.includes(el.category));
+
+  const setSlot = (slot: 'ref' | 'cur', v: { blob: Blob; url: string } | null) => { (slot === 'ref' ? setRef : setCur)(v); setResult(null); };
+  const pickFile = (slot: 'ref' | 'cur', file: File) => setSlot(slot, { blob: file, url: URL.createObjectURL(file) });
+  const captureCam = async (slot: 'ref' | 'cur') => {
+    setBusy(slot); setMessage('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+      const blob = await grabFrame(stream);
+      stream.getTracks().forEach(t => t.stop());
+      setSlot(slot, { blob, url: URL.createObjectURL(blob) });
+    } catch (e) { setMessage(e instanceof Error ? e.message : 'Camera unavailable — check permissions.'); }
+    finally { setBusy(''); }
+  };
+  const compare = async () => {
+    if (!ref || !cur) return;
+    setBusy('compare'); setMessage('');
+    try { setResult(await compareFrames(ref.blob, cur.blob)); }
+    catch (e) { setMessage(e instanceof Error ? e.message : 'Comparison failed.'); }
+    finally { setBusy(''); }
+  };
+  const save = async () => {
+    if (!prod || !scene || !result) return;
+    setBusy('save');
+    try {
+      await FilmProduction.putContinuityCheck(prod.id, {
+        id: uuid(), sceneId: scene.id, sceneNum: scene.sceneNum, label: note.trim() || `Sc ${scene.sceneNum} check`,
+        score: result.score, propsScore: result.propsScore, lightingScore: result.lightingScore,
+        lumaDelta: result.lumaDelta, colorTempNote: result.colorTempNote, flagCount: result.flags.length,
+        note: note.trim() || undefined, byMemberId: me?.id, byName: me?.name, createdAt: Date.now(),
+      });
+      setMessage('Continuity check saved to the scene.'); setNote('');
+    } finally { setBusy(''); }
+  };
+  const scoreColor = (s: number) => s >= 80 ? 'text-emerald-400' : s >= 60 ? 'text-yellow-400' : 'text-red-400';
+  const barColor = (s: number) => s >= 80 ? 'bg-emerald-500' : s >= 60 ? 'bg-yellow-500' : 'bg-red-500';
+
+  if (!scenes.length) return <div className="py-16"><EmptyState icon={<Eye size={22} />} title="No scenes yet" body="Greenlight a script or add scenes — continuity checks attach to a scene." /></div>;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 max-w-3xl">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <p className="text-sm font-black text-white">Continuity Eye</p>
+          <p className="text-[11px] text-white/40">Capture a reference frame, then compare after a reset. On-device — frames never leave this device.</p>
+        </div>
+        <select value={sceneId} onChange={e => { setSceneId(e.target.value); setRef(null); setCur(null); setResult(null); }} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500/50">
+          {scenes.map(s => <option key={s.id} value={s.id}>Scene {s.sceneNum} · {s.set}</option>)}
+        </select>
+      </div>
+
+      {sceneProps.length > 0 && (
+        <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+          <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1.5">Should be here (from breakdown)</p>
+          <div className="flex flex-wrap gap-1.5">{sceneProps.map(el => <span key={el.id} className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">{el.name}</span>)}</div>
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row gap-4">
+        <CaptureSlot label="Reference · printed take" hint="Upload or capture the correct frame" src={ref} busy={busy === 'ref'} canEdit={canManage} onFile={f => pickFile('ref', f)} onCamera={() => captureCam('ref')} />
+        <CaptureSlot label="Current · after reset" hint="Upload or capture the current setup" src={cur} busy={busy === 'cur'} canEdit={canManage} onFile={f => pickFile('cur', f)} onCamera={() => captureCam('cur')} />
+      </div>
+
+      <button onClick={compare} disabled={!ref || !cur || busy === 'compare'} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-cyan-500 text-black text-sm font-black uppercase tracking-widest hover:bg-cyan-400 transition-all disabled:opacity-40"><Eye size={15} /> {busy === 'compare' ? 'Comparing…' : 'Compare'}</button>
+      {message && <p className="text-[11px] text-cyan-200">{message}</p>}
+
+      {result && cur && (
+        <div className="space-y-4">
+          <div className="grid md:grid-cols-[1fr_auto] gap-4 items-start">
+            <div className="relative rounded-xl overflow-hidden border border-white/10 bg-black">
+              <img src={cur.url} alt="current" className="w-full block" />
+              {result.flags.filter(f => f.kind === 'CHANGE').map((f, i) => (
+                <div key={i} className="absolute border-2 border-dashed rounded" style={{ left: `${f.x * 100}%`, top: `${f.y * 100}%`, width: `${f.w * 100}%`, height: `${f.h * 100}%`, borderColor: f.severity === 'break' ? '#ff5a6a' : '#f5b544' }}>
+                  <span className="absolute -top-4 left-0 whitespace-nowrap text-[8px] font-black font-mono px-1 rounded" style={{ background: f.severity === 'break' ? '#ff5a6a' : '#f5b544', color: '#000' }}>{f.label}</span>
+                </div>
+              ))}
+              {result.flags.filter(f => f.kind === 'LIGHT').map((f, i) => (
+                <span key={i} className="absolute top-2 right-2 text-[9px] font-black font-mono px-2 py-1 rounded bg-amber-400/90 text-black">{f.label}</span>
+              ))}
+            </div>
+            <div className="w-full md:w-48 space-y-3">
+              <div className="text-center p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                <p className={`text-4xl font-black tabular-nums ${scoreColor(result.score)}`}>{result.score}</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mt-1">{result.score >= 80 ? 'Match' : result.score >= 60 ? 'Review' : 'Break'}</p>
+              </div>
+              {[['Props / set', result.propsScore], ['Lighting', result.lightingScore]].map(([label, val]) => (
+                <div key={label as string}>
+                  <div className="flex justify-between text-[10px] mb-1"><span className="text-white/40 font-bold">{label}</span><span className={`font-black tabular-nums ${scoreColor(val as number)}`}>{val}</span></div>
+                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden"><div className={`h-full ${barColor(val as number)}`} style={{ width: `${val}%` }} /></div>
+                </div>
+              ))}
+              <p className="text-[10px] font-mono text-white/40 text-center">{result.colorTempNote} · {result.lumaDelta > 0 ? '+' : ''}{result.lumaDelta} luma</p>
+            </div>
+          </div>
+
+          {canManage && (
+            <div className="flex gap-2">
+              <input value={note} onChange={e => setNote(e.target.value)} placeholder="Label / note (e.g. Take 5 reset)" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-cyan-500/50" />
+              <button onClick={save} disabled={busy === 'save'} className="px-4 py-2 rounded-xl bg-white/5 border border-cyan-500/30 text-cyan-300 text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-40">{busy === 'save' ? 'Saving…' : 'Save check'}</button>
+            </div>
+          )}
+          <p className="text-[10px] text-white/25">Advisory only — the Script Supervisor decides. Naming a flag to a specific prop is the next step (object memory).</p>
+        </div>
+      )}
+
+      {sceneChecks.length > 0 && (
+        <div>
+          <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Checks · Scene {scene?.sceneNum}</p>
+          <div className="space-y-1.5">
+            {sceneChecks.map(c => (
+              <div key={c.id} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                <span className={`text-sm font-black tabular-nums w-8 ${scoreColor(c.score)}`}>{c.score}</span>
+                <span className="flex-1 text-[11px] text-white/50 truncate">{c.label || 'Check'} · {c.flagCount} flag{c.flagCount === 1 ? '' : 's'} · {c.colorTempNote}</span>
+                <span className="text-[10px] text-white/25">{new Date(c.createdAt).toLocaleDateString()}</span>
+                {canManage && <button onClick={() => prod && FilmProduction.removeContinuityCheck(prod.id, c.id)} className="text-white/20 hover:text-red-400"><Trash2 size={12} /></button>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
 const TakeRecorderModal: React.FC<{ sceneNum: string; nextTake: number; onFile: (f: File) => void; onClose: () => void }> = ({ sceneNum, nextTake, onFile, onClose }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const handleRef = useRef<TakeRecorderHandle | null>(null);
@@ -3499,7 +3663,7 @@ const WriterPressTab: React.FC = () => (
 type PMTab =
   | 'overview' | 'releases' | 'productions' | 'import' | 'payroll' | 'contracts' | 'invoices' | 'tasks' | 'vendors' | 'venues' | 'events' | 'boards' | 'promote'
   | 'film_overview' | 'film_script' | 'film_breakdown' | 'film_budget' | 'film_crew' | 'film_locations' | 'film_schedule' | 'film_distro'
-  | 'film_hub' | 'film_chat' | 'film_callsheets' | 'film_staffing' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports' | 'film_clearances' | 'film_edit'
+  | 'film_hub' | 'film_chat' | 'film_callsheets' | 'film_staffing' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports' | 'film_clearances' | 'film_edit' | 'film_continuity'
   | 'writer_overview' | 'writer_projects' | 'writer_manuscripts' | 'writer_research' | 'writer_submissions' | 'writer_events' | 'writer_press';
 
 type Discipline = 'music' | 'film' | 'writer';
@@ -3541,6 +3705,7 @@ const FILM_TABS: { id: PMTab; label: string; icon: React.ReactNode; color: strin
   { id: 'film_craft',      label: 'Craft',        icon: <Utensils size={13} />,     color: '#14b8a6' },
   { id: 'film_reports',    label: 'Reports',      icon: <ClipboardList size={13} />, color: '#a855f7' },
   { id: 'film_edit',       label: 'Live Edit',    icon: <Scissors size={13} />,     color: '#06b6d4' },
+  { id: 'film_continuity', label: 'Continuity',   icon: <Eye size={13} />,          color: '#22d3ee' },
   { id: 'film_script',     label: 'Script',       icon: <Clapperboard size={13} />, color: '#a855f7' },
   { id: 'film_breakdown',  label: 'Breakdown',    icon: <Layers size={13} />,       color: '#f97316' },
   { id: 'film_budget',     label: 'Budget',       icon: <DollarSign size={13} />,   color: '#10b981' },
@@ -3632,6 +3797,7 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
       case 'film_locations':      return <FilmLocationsTab />;
       case 'film_clearances':     return <FilmClearancesTab />;
       case 'film_edit':           return <FilmEditTab />;
+      case 'film_continuity':     return <FilmContinuityTab />;
       case 'film_schedule':       return <ProductionScheduleTab />;
       case 'film_distro':         return <FilmDistroTab />;
       case 'writer_overview':     return <WriterOverviewTab />;

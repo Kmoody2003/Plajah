@@ -477,6 +477,25 @@ export interface ProductionTake {
   updatedAt?: number;
 }
 
+// Continuity Eye P1 — a saved still-vs-still continuity comparison for a scene.
+// Stores the numeric verdict only (thumbs stay in-session); advisory to the Script Supervisor.
+export interface ContinuityCheck {
+  id: string;
+  sceneId: string;
+  sceneNum: string;
+  label?: string;            // e.g. "Take 5 reset"
+  score: number;             // 0–100 overall
+  propsScore: number;
+  lightingScore: number;
+  lumaDelta: number;         // signed mean-luminance change
+  colorTempNote: string;     // "+430K warmer" etc.
+  flagCount: number;
+  note?: string;
+  byMemberId?: string;
+  byName?: string;
+  createdAt: number;
+}
+
 // ─── Time helpers ────────────────────────────────────────────────────────────
 
 export function addMinutes(hhmm: string, mins: number): string {
@@ -1077,6 +1096,10 @@ export const subTakes = (p: string, cb: (r: ProductionTake[]) => void) => subscr
 export const putTake = (p: string, row: ProductionTake) => put(p, 'takes', row);
 export const patchTake = (p: string, id: string, x: Partial<ProductionTake>) => patch(p, 'takes', id, x);
 export const removeTake = (p: string, id: string) => remove(p, 'takes', id);
+// Continuity checks (Continuity Eye).
+export const subContinuityChecks = (p: string, cb: (r: ContinuityCheck[]) => void) => subscribe<ContinuityCheck>(p, 'continuityChecks', cb);
+export const putContinuityCheck = (p: string, row: ContinuityCheck) => put(p, 'continuityChecks', row);
+export const removeContinuityCheck = (p: string, id: string) => remove(p, 'continuityChecks', id);
 /** Write a clearance and append a workflow-ledger event in one batch, so the On-Set activity feed sees legal changes. */
 export async function putClearanceWithEvent(prodId: string, clearance: ProductionClearance, actorUid: string, summary: string): Promise<void> {
   const now = Date.now();
