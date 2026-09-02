@@ -4529,6 +4529,7 @@ export default function Fabula() {
                                 </>)}
                                 {dyn.type === "timecode" && (<>{row("FPS", "fps", 1, 60, 1)}{row("OFFSET s", "offset", 0, 3600, 1)}</>)}
                                 {dyn.type === "countdown" && (<>{row("FROM s", "from", 1, 3600, 1)}{row("DELAY", "delay", 0, 10, .1)}</>)}
+                                {dyn.type === "datatile" && (<>{row("COLUMNS", "columns", 1, 8, 1)}{row("ROWS", "rows", 1, 16, 1)}{row("REFRESH/S", "rate", .1, 24, .1)}<div className="btnrow" style={{ gap: 5, marginTop: 4 }}><input className="in" placeholder="column kinds: n number · h hex · w word · t time · p percent · i id" value={dyn.kinds || "nhwp"} onChange={(e) => setDyn({ kinds: e.target.value || "nhwp" })} /></div><div className="dim small">Use a monospace font for aligned columns.</div></>)}
                                 {dyn.type === "screen" && (<>{row("CHARS/S", "cps", 1, 120, 1)}{row("LINES", "lines", 1, 20, 1)}<div className="dim small">Use line breaks in the TITLE for multi-line terminal output; the text types on at CHARS/S with a blinking cursor.</div></>)}
                               </>);
                             })()}

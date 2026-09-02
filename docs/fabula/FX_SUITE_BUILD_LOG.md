@@ -35,6 +35,7 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust shell step 1 DONE 2026-09-02 (rust/fabula-ofx: dependency-free cdylib, generated src/manifest_gen.rs, describe / describe-in-context / passthrough render; `npm run ofx:check`). Step 2 = wgpu kernel execution |
 
 ## Done this run
+- (2026-09-02, continuation 2) Data tile dynamic text (Universe Text Tile: generated columns, kinds n/h/w/t/p/i). Backlog kernel pack (phase3BacklogEffects.ts): Symbol Mapper (ASCII), Retrograde (8/16 mm), Carousel (slide), Dither & Palettes (Bayer/threshold/noise into 1-bit / Game Boy / CGA / 8-bit / duotone / quantised), Glo Fi, Heatwave, ChromaTown, Sketchify, Muzzle Flash. 175 effects.
 - (2026-09-02, continuation 2) N-frame source history in FxRenderer (`temporal: 4` keeps a 4-frame ring; `prevSrcN(n, uv)` in the FX header) + Temporal Median (denoise / rain & dust) + Object Remover (clean-plate fill inside a mask: median / oldest / most-stable history). 166 effects.
 - (2026-09-02, continuation) Cleanup pack (phase3CleanupEffects.ts): Wire Remover (line endpoints bindable to tracks, fills from both sides with grain match), Spot Fix (ring heal), Clone Patch (offset clone with brightness match). 164 effects. Not a temporal clean-plate Remover — that needs multi-frame history (feedback gives one frame).
 - (2026-09-02, continuation) Track sharing: USE TRACK FROM… copies another clip of the same footage's planar/point track re-based to this clip's source time (services/fabula/trackShare.ts; tests).
@@ -56,15 +57,13 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 - (2026-09-02) VectorTrack planar tracker end to end — see `plajah-vectortrack` memory / build matrix.
 
 ## Next up (in order)
-1. Text tile / data columns generator.
-2. Crossover SAM2 tracked mattes.
+1. Crossover SAM2 tracked mattes.
 3. OFX (DEFERRED by Kenne 2026-09-02: no OFX host work until the desktop/Crossover version compiles; keep the manifest + shell as-is, do not regenerate).
 
-## Backlog (kernel gaps vs the Boris/Red Giant catalog, for later kernel batches)
-Symbol mapper (ASCII), retrograde/carousel film frames, VHS text generator, dither palettes
-(Universe), Universe text tools (need the text engine), Glo Fi / Quantum fractal glows, Heatwave,
-ChromaTown, Sketchify variants, muzzle flash (Bang), Real Lens Flares element designer, 3D
-cube/cylinder/page-turn DVE, sphere map, wire remover (needs Anchor + inpaint).
+## Backlog (remaining gaps vs the Boris/Red Giant catalog)
+VHS text generator (status overlay on the VHS effect), Universe HUD text variants, S_Effect-style
+user-authored effect builder UI on the node graph, additional transitions (Sapphire dissolve variants
+as two-input kernels), particle fluid dynamics (needs compute), PowerMesh (needs dense flow).
 
 ## GLSL compile sweep (browser)
 ```js

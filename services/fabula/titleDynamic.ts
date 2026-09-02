@@ -1,7 +1,7 @@
 // titleDynamic — dynamic title text (Universe Numbers / Screen Text / Type-On terminal class).
 // A title clip may carry `tDynamic`; the displayed text becomes a pure function of the clip's
 // text and clip-local time, used identically by the DOM monitor and the canvas export.
-export type DynamicTextType = 'none' | 'counter' | 'timecode' | 'countdown' | 'screen' | 'percent';
+export type DynamicTextType = 'none' | 'counter' | 'timecode' | 'countdown' | 'screen' | 'percent' | 'datatile';
 export interface DynamicText {
   type: DynamicTextType;
   /** counter / percent: value range and timing. */
@@ -11,12 +11,41 @@ export interface DynamicText {
   fps?: number; offset?: number;
   /** screen: characters per second and cursor character. */
   cps?: number; cursor?: string; lines?: number;
+  /** datatile: columns x rows of generated data (Universe Text Tile), refreshed rate/s.
+   *  Column kinds letter string: n numbers, h hex, w words, t time, p percent, i id. */
+  columns?: number; rows?: number; rate?: number; kinds?: string;
 }
 export const DYNAMIC_TYPES: { id: DynamicTextType; label: string }[] = [
   { id: 'none', label: 'Static text' }, { id: 'counter', label: 'Counter' }, { id: 'percent', label: 'Percent' },
   { id: 'timecode', label: 'Timecode' }, { id: 'countdown', label: 'Countdown' }, { id: 'screen', label: 'Screen / terminal' },
+  { id: 'datatile', label: 'Data tile (columns)' },
 ];
-export const DYNAMIC_DEFAULT: DynamicText = { type: 'none', from: 0, to: 100, decimals: 0, duration: 2, delay: 0, prefix: '', suffix: '', thousands: true, ease: 'out', fps: 24, offset: 0, cps: 30, cursor: '▌', lines: 6 };
+export const DYNAMIC_DEFAULT: DynamicText = { type: 'none', from: 0, to: 100, decimals: 0, duration: 2, delay: 0, prefix: '', suffix: '', thousands: true, ease: 'out', fps: 24, offset: 0, cps: 30, cursor: '▌', lines: 6, columns: 4, rows: 6, rate: 4, kinds: 'nhwp' };
+
+const TILE_WORDS = ['SYNC', 'LOCK', 'DELTA', 'ORBIT', 'NODE', 'RELAY', 'PULSE', 'GRID', 'FLUX', 'VECTOR', 'SCAN', 'ARRAY', 'CORE', 'LINK', 'PHASE', 'DRIFT', 'GAIN', 'SIGNAL', 'TRACE', 'BUFFER'];
+const th = (i: number, j: number, k: number) => { const x = Math.sin(i * 127.1 + j * 311.7 + k * 74.7) * 43758.5453; return x - Math.floor(x); };
+/** Deterministic generated data grid (Universe Text Tile): kinds per column, refreshed at rate/s. */
+export function dataTile(t: number, columns = 4, rows = 6, rate = 4, kinds = 'nhwp'): string {
+  const tick = Math.floor(t * Math.max(.1, rate));
+  const lines: string[] = [];
+  for (let r = 0; r < rows; r++) {
+    const cells: string[] = [];
+    for (let c = 0; c < columns; c++) {
+      const kind = kinds[c % Math.max(1, kinds.length)] || 'n';
+      const h = th(r, c, tick + (kind === 't' ? 0 : Math.floor(th(r, c, 1) * 7)));
+      switch (kind) {
+        case 'h': cells.push(Math.floor(h * 0xffff).toString(16).toUpperCase().padStart(4, '0')); break;
+        case 'w': cells.push(TILE_WORDS[Math.floor(h * TILE_WORDS.length)]); break;
+        case 't': cells.push(formatTimecode(t * (1 + r * .37) + r * 61, 24)); break;
+        case 'p': cells.push((h * 100).toFixed(1).padStart(5, ' ') + '%'); break;
+        case 'i': cells.push('ID-' + Math.floor(h * 900 + 100)); break;
+        default: cells.push((h * 9999).toFixed(2).padStart(8, ' '));
+      }
+    }
+    lines.push(cells.join('  '));
+  }
+  return lines.join('\n');
+}
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const easeFn = (k: DynamicText['ease'], p: number) => (k === 'out' ? 1 - (1 - p) * (1 - p) * (1 - p) : k === 'inOut' ? (p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2) : p);
@@ -53,6 +82,7 @@ export function dynamicText(base: string, t: number, cfg: DynamicText | null | u
       const mm = Math.floor(remain / 60), ss = Math.floor(remain % 60);
       return `${c.prefix || ''}${c.from && c.from >= 60 ? `${mm}:${String(ss).padStart(2, '0')}` : String(Math.ceil(remain))}${c.suffix || ''}`;
     }
+    case 'datatile': return dataTile(t, c.columns, c.rows, c.rate, c.kinds);
     case 'screen': {
       // Terminal: the base text types on at `cps`; keeps the last `lines` lines; blinking cursor.
       const chars = Array.from(base);
@@ -69,6 +99,6 @@ export function dynamicText(base: string, t: number, cfg: DynamicText | null | u
 /** True while the text changes with time (renderers skip caching). */
 export function isDynamicActive(t: number, cfg: DynamicText | null | undefined): boolean {
   if (!cfg || cfg.type === 'none') return false;
-  if (cfg.type === 'timecode' || cfg.type === 'countdown' || cfg.type === 'screen') return true;
+  if (cfg.type === 'timecode' || cfg.type === 'countdown' || cfg.type === 'screen' || cfg.type === 'datatile') return true;
   return t <= (cfg.delay || 0) + (cfg.duration || 2) + .05;
 }

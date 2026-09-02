@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { dynamicText, formatNumber, formatTimecode, isDynamicActive } from '../services/fabula/titleDynamic';
+import { dynamicText, formatNumber, formatTimecode, isDynamicActive, dataTile } from '../services/fabula/titleDynamic';
 
 describe('Dynamic title text', () => {
   it('counts with easing, grouping and affixes', () => {
@@ -24,5 +24,13 @@ describe('Dynamic title text', () => {
     assert.equal(isDynamicActive(100, cfg), true);
     assert.equal(isDynamicActive(100, { type: 'counter', duration: 2 }), false);
     assert.equal(dynamicText('keep', 3, { type: 'none' }), 'keep');
+  });
+  it('generates a deterministic data tile grid', () => {
+    const a = dataTile(1.3, 3, 4, 4, 'nhw'), b = dataTile(1.3, 3, 4, 4, 'nhw');
+    assert.equal(a, b);
+    assert.equal(a.split('\n').length, 4);
+    assert.match(a.split('\n')[0].split('  ')[1], /^[0-9A-F]{4}$/);
+    assert.notEqual(dataTile(1.3, 3, 4, 4, 'nhw'), dataTile(2.3, 3, 4, 4, 'nhw'));
+    assert.equal(dynamicText('', 0, { type: 'datatile', columns: 2, rows: 2, kinds: 'pi' }).split('\n').length, 2);
   });
 });
