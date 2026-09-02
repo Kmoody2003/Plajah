@@ -23315,6 +23315,632 @@
       }
     },
     {
+      "pluginIdentifier": "com.plajah.fabula.wireremover",
+      "label": "Wire Remover",
+      "grouping": "Fabula/Key & Utility",
+      "description": "Removes a thin wire, rig line or boom by filling it from the pixels on both sides; bind the endpoints to a track to follow the shot.",
+      "versionMajor": 1,
+      "versionMinor": 0,
+      "contexts": [
+        "OfxImageEffectContextFilter"
+      ],
+      "clips": [
+        {
+          "name": "Source",
+          "optional": false,
+          "temporalAccess": false
+        },
+        {
+          "name": "Output",
+          "optional": false
+        }
+      ],
+      "params": [
+        {
+          "name": "x1",
+          "label": "Start X",
+          "type": "OfxParamTypeDouble",
+          "default": 0.2,
+          "min": -0.5,
+          "max": 1.5,
+          "displayMin": -0.5,
+          "displayMax": 1.5,
+          "increment": 0.002,
+          "animates": true,
+          "abiIndex": 0
+        },
+        {
+          "name": "y1",
+          "label": "Start Y",
+          "type": "OfxParamTypeDouble",
+          "default": 0.5,
+          "min": -0.5,
+          "max": 1.5,
+          "displayMin": -0.5,
+          "displayMax": 1.5,
+          "increment": 0.002,
+          "animates": true,
+          "abiIndex": 1
+        },
+        {
+          "name": "x2",
+          "label": "End X",
+          "type": "OfxParamTypeDouble",
+          "default": 0.8,
+          "min": -0.5,
+          "max": 1.5,
+          "displayMin": -0.5,
+          "displayMax": 1.5,
+          "increment": 0.002,
+          "animates": true,
+          "abiIndex": 2
+        },
+        {
+          "name": "y2",
+          "label": "End Y",
+          "type": "OfxParamTypeDouble",
+          "default": 0.5,
+          "min": -0.5,
+          "max": 1.5,
+          "displayMin": -0.5,
+          "displayMax": 1.5,
+          "increment": 0.002,
+          "animates": true,
+          "abiIndex": 3
+        },
+        {
+          "name": "width",
+          "label": "Wire Width",
+          "type": "OfxParamTypeDouble",
+          "default": 4,
+          "min": 0.5,
+          "max": 40,
+          "displayMin": 0.5,
+          "displayMax": 40,
+          "increment": 0.5,
+          "hint": "Unit: px",
+          "animates": true,
+          "abiIndex": 4
+        },
+        {
+          "name": "feather",
+          "label": "Feather",
+          "type": "OfxParamTypeDouble",
+          "default": 3,
+          "min": 0,
+          "max": 20,
+          "displayMin": 0,
+          "displayMax": 20,
+          "increment": 0.5,
+          "hint": "Unit: px",
+          "animates": true,
+          "abiIndex": 5
+        },
+        {
+          "name": "reach",
+          "label": "Sample Reach",
+          "type": "OfxParamTypeDouble",
+          "default": 1.5,
+          "min": 1,
+          "max": 4,
+          "displayMin": 1,
+          "displayMax": 4,
+          "increment": 0.1,
+          "animates": true,
+          "abiIndex": 6
+        },
+        {
+          "name": "noise",
+          "label": "Grain Match",
+          "type": "OfxParamTypeDouble",
+          "default": 0.3,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 7
+        }
+      ],
+      "presets": [
+        {
+          "id": "thin-wire",
+          "name": "Thin Wire",
+          "description": "Hairline wire or fishing line.",
+          "params": {
+            "x1": 0.2,
+            "y1": 0.5,
+            "x2": 0.8,
+            "y2": 0.5,
+            "width": 2.5,
+            "feather": 2,
+            "reach": 1.5,
+            "noise": 0.3
+          }
+        },
+        {
+          "id": "rig-bar",
+          "name": "Rig Bar",
+          "description": "Thicker rig or boom pole.",
+          "params": {
+            "x1": 0.2,
+            "y1": 0.5,
+            "x2": 0.8,
+            "y2": 0.5,
+            "width": 14,
+            "feather": 5,
+            "reach": 1.3,
+            "noise": 0.35
+          }
+        },
+        {
+          "id": "cable",
+          "name": "Cable",
+          "description": "Medium cable with wider blend.",
+          "params": {
+            "x1": 0.2,
+            "y1": 0.5,
+            "x2": 0.8,
+            "y2": 0.5,
+            "width": 6,
+            "feather": 4,
+            "reach": 2,
+            "noise": 0.25
+          }
+        }
+      ],
+      "supportsTiles": false,
+      "temporalClipAccess": false,
+      "supportsMultiResolution": false,
+      "renderThreadSafety": "OfxImageEffectRenderInstanceSafe",
+      "kernel": {
+        "language": "glsl-es-300",
+        "entry": "fx",
+        "paramAbi": [
+          "x1",
+          "y1",
+          "x2",
+          "y2",
+          "width",
+          "feather",
+          "reach",
+          "noise"
+        ],
+        "passes": [
+          {
+            "id": "main",
+            "source": "float wrh(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); } vec4 fx(vec2 uv){ vec4 b=inp(uv); vec2 res=uResolution; vec2 p=uv*res, a=vec2(P0,P1)*res, e=vec2(P2,P3)*res; vec2 ab=e-a; float len=max(length(ab),1e-3); vec2 dir=ab/len, perp=vec2(-dir.y,dir.x); float t=dot(p-a,dir); float along=clamp(t,0.0,len); float d=abs(dot(p-a,perp)); float inSeg=step(0.0,t)*step(t,len); float hw=P4*0.5; float m=(1.0-smoothstep(hw,hw+P5,d))*inSeg; if(m<=0.001) return b; float side=sign(dot(p-a,perp)); vec2 q1=(a+dir*along+perp*(hw+P5)*P6)/res, q2=(a+dir*along-perp*(hw+P5)*P6)/res; vec4 c1=inp(q1), c2=inp(q2); float w=clamp(0.5+dot(p-a,perp)/(2.0*(hw+P5)*P6),0.0,1.0); vec3 fill=mix(c2.rgb,c1.rgb,w); float g=(wrh(p)-0.5)*P7*0.06; fill+=g; return vec4(mix(b.rgb,fill,m),b.a); }"
+          }
+        ],
+        "uniforms": {
+          "input": "uInput",
+          "source": "uSource",
+          "aux": "uAux",
+          "prev": "uPrev",
+          "prevSrc": "uPrevSrc",
+          "resolution": "uResolution",
+          "time": "uTime",
+          "deltaT": "uDeltaT",
+          "frame": "uFrame",
+          "audio": [
+            "iBass",
+            "iMid",
+            "iTreble",
+            "iLevel"
+          ]
+        },
+        "headerHash": "985610c1",
+        "temporal": false
+      }
+    },
+    {
+      "pluginIdentifier": "com.plajah.fabula.spotfix",
+      "label": "Spot Fix",
+      "grouping": "Fabula/Key & Utility",
+      "description": "Heals a small blemish, sensor dust spot or marker by blending a ring of surrounding pixels into a disc — position bindable to a track.",
+      "versionMajor": 1,
+      "versionMinor": 0,
+      "contexts": [
+        "OfxImageEffectContextFilter"
+      ],
+      "clips": [
+        {
+          "name": "Source",
+          "optional": false,
+          "temporalAccess": false
+        },
+        {
+          "name": "Output",
+          "optional": false
+        }
+      ],
+      "params": [
+        {
+          "name": "x",
+          "label": "X",
+          "type": "OfxParamTypeDouble",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.002,
+          "animates": true,
+          "abiIndex": 0
+        },
+        {
+          "name": "y",
+          "label": "Y",
+          "type": "OfxParamTypeDouble",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.002,
+          "animates": true,
+          "abiIndex": 1
+        },
+        {
+          "name": "radius",
+          "label": "Radius",
+          "type": "OfxParamTypeDouble",
+          "default": 14,
+          "min": 1,
+          "max": 120,
+          "displayMin": 1,
+          "displayMax": 120,
+          "increment": 0.5,
+          "hint": "Unit: px",
+          "animates": true,
+          "abiIndex": 2
+        },
+        {
+          "name": "feather",
+          "label": "Feather",
+          "type": "OfxParamTypeDouble",
+          "default": 6,
+          "min": 0,
+          "max": 40,
+          "displayMin": 0,
+          "displayMax": 40,
+          "increment": 0.5,
+          "hint": "Unit: px",
+          "animates": true,
+          "abiIndex": 3
+        },
+        {
+          "name": "ring",
+          "label": "Sample Ring",
+          "type": "OfxParamTypeDouble",
+          "default": 1.4,
+          "min": 1.05,
+          "max": 3,
+          "displayMin": 1.05,
+          "displayMax": 3,
+          "increment": 0.05,
+          "animates": true,
+          "abiIndex": 4
+        },
+        {
+          "name": "noise",
+          "label": "Grain Match",
+          "type": "OfxParamTypeDouble",
+          "default": 0.3,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 5
+        }
+      ],
+      "presets": [
+        {
+          "id": "dust",
+          "name": "Sensor Dust",
+          "description": "Small soft spot.",
+          "params": {
+            "x": 0.5,
+            "y": 0.5,
+            "radius": 10,
+            "feather": 5,
+            "ring": 1.5,
+            "noise": 0.3
+          }
+        },
+        {
+          "id": "marker",
+          "name": "Tracking Marker",
+          "description": "Mid-size patch, tight ring.",
+          "params": {
+            "x": 0.5,
+            "y": 0.5,
+            "radius": 22,
+            "feather": 6,
+            "ring": 1.3,
+            "noise": 0.35
+          }
+        },
+        {
+          "id": "blemish",
+          "name": "Skin Blemish",
+          "description": "Tiny, very soft.",
+          "params": {
+            "x": 0.5,
+            "y": 0.5,
+            "radius": 6,
+            "feather": 6,
+            "ring": 1.6,
+            "noise": 0.15
+          }
+        }
+      ],
+      "supportsTiles": false,
+      "temporalClipAccess": false,
+      "supportsMultiResolution": false,
+      "renderThreadSafety": "OfxImageEffectRenderInstanceSafe",
+      "kernel": {
+        "language": "glsl-es-300",
+        "entry": "fx",
+        "paramAbi": [
+          "x",
+          "y",
+          "radius",
+          "feather",
+          "ring",
+          "noise"
+        ],
+        "passes": [
+          {
+            "id": "main",
+            "source": "float sfh(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); } vec4 fx(vec2 uv){ vec4 b=inp(uv); float asp=uResolution.x/uResolution.y; vec2 c=vec2(P0,P1); vec2 d=(uv-c)*vec2(asp,1.0); float r=length(d)*uResolution.y; float m=1.0-smoothstep(P2,P2+P3,r); if(m<=0.001) return b; vec3 acc=vec3(0.0); float w=0.0; float R=(P2+P3)*P4/uResolution.y; for(int i=0;i<12;i++){ float ang=float(i)*0.5236; vec2 o=vec2(cos(ang)/asp,sin(ang))*R; vec2 s=c+o; float wk=1.0/(1.0+length((d-o*vec2(asp,1.0)))*uResolution.y*0.05); acc+=inp(s).rgb*wk; w+=wk; } vec3 fill=acc/max(w,1e-4); fill+=(sfh(uv*uResolution)-0.5)*P5*0.06; return vec4(mix(b.rgb,fill,m),b.a); }"
+          }
+        ],
+        "uniforms": {
+          "input": "uInput",
+          "source": "uSource",
+          "aux": "uAux",
+          "prev": "uPrev",
+          "prevSrc": "uPrevSrc",
+          "resolution": "uResolution",
+          "time": "uTime",
+          "deltaT": "uDeltaT",
+          "frame": "uFrame",
+          "audio": [
+            "iBass",
+            "iMid",
+            "iTreble",
+            "iLevel"
+          ]
+        },
+        "headerHash": "985610c1",
+        "temporal": false
+      }
+    },
+    {
+      "pluginIdentifier": "com.plajah.fabula.clonepatch",
+      "label": "Clone Patch",
+      "grouping": "Fabula/Key & Utility",
+      "description": "Copies a disc of picture from an offset source position over a target — the clone stamp, with both points bindable to tracks.",
+      "versionMajor": 1,
+      "versionMinor": 0,
+      "contexts": [
+        "OfxImageEffectContextFilter"
+      ],
+      "clips": [
+        {
+          "name": "Source",
+          "optional": false,
+          "temporalAccess": false
+        },
+        {
+          "name": "Output",
+          "optional": false
+        }
+      ],
+      "params": [
+        {
+          "name": "x",
+          "label": "Target X",
+          "type": "OfxParamTypeDouble",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.002,
+          "animates": true,
+          "abiIndex": 0
+        },
+        {
+          "name": "y",
+          "label": "Target Y",
+          "type": "OfxParamTypeDouble",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.002,
+          "animates": true,
+          "abiIndex": 1
+        },
+        {
+          "name": "sx",
+          "label": "Source X",
+          "type": "OfxParamTypeDouble",
+          "default": 0.6,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.002,
+          "animates": true,
+          "abiIndex": 2
+        },
+        {
+          "name": "sy",
+          "label": "Source Y",
+          "type": "OfxParamTypeDouble",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.002,
+          "animates": true,
+          "abiIndex": 3
+        },
+        {
+          "name": "radius",
+          "label": "Radius",
+          "type": "OfxParamTypeInteger",
+          "default": 30,
+          "min": 2,
+          "max": 200,
+          "displayMin": 2,
+          "displayMax": 200,
+          "increment": 1,
+          "hint": "Unit: px",
+          "animates": true,
+          "abiIndex": 4
+        },
+        {
+          "name": "feather",
+          "label": "Feather",
+          "type": "OfxParamTypeInteger",
+          "default": 10,
+          "min": 0,
+          "max": 80,
+          "displayMin": 0,
+          "displayMax": 80,
+          "increment": 1,
+          "hint": "Unit: px",
+          "animates": true,
+          "abiIndex": 5
+        },
+        {
+          "name": "opacity",
+          "label": "Opacity",
+          "type": "OfxParamTypeDouble",
+          "default": 1,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 6
+        },
+        {
+          "name": "matchLuma",
+          "label": "Match Brightness",
+          "type": "OfxParamTypeDouble",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "displayMin": 0,
+          "displayMax": 1,
+          "increment": 0.01,
+          "animates": true,
+          "abiIndex": 7
+        }
+      ],
+      "presets": [
+        {
+          "id": "stamp",
+          "name": "Clone Stamp",
+          "description": "Straight copy with a soft edge.",
+          "params": {
+            "x": 0.5,
+            "y": 0.5,
+            "sx": 0.6,
+            "sy": 0.5,
+            "radius": 30,
+            "feather": 10,
+            "opacity": 1,
+            "matchLuma": 0.3
+          }
+        },
+        {
+          "id": "texture",
+          "name": "Texture Patch",
+          "description": "Large soft patch, brightness matched.",
+          "params": {
+            "x": 0.5,
+            "y": 0.5,
+            "sx": 0.5,
+            "sy": 0.3,
+            "radius": 80,
+            "feather": 40,
+            "opacity": 0.9,
+            "matchLuma": 0.9
+          }
+        },
+        {
+          "id": "pinpoint",
+          "name": "Pinpoint",
+          "description": "Small hard clone.",
+          "params": {
+            "x": 0.5,
+            "y": 0.5,
+            "sx": 0.55,
+            "sy": 0.5,
+            "radius": 8,
+            "feather": 2,
+            "opacity": 1,
+            "matchLuma": 0
+          }
+        }
+      ],
+      "supportsTiles": false,
+      "temporalClipAccess": false,
+      "supportsMultiResolution": false,
+      "renderThreadSafety": "OfxImageEffectRenderInstanceSafe",
+      "kernel": {
+        "language": "glsl-es-300",
+        "entry": "fx",
+        "paramAbi": [
+          "x",
+          "y",
+          "sx",
+          "sy",
+          "radius",
+          "feather",
+          "opacity",
+          "matchLuma"
+        ],
+        "passes": [
+          {
+            "id": "main",
+            "source": "vec4 fx(vec2 uv){ vec4 b=inp(uv); float asp=uResolution.x/uResolution.y; vec2 c=vec2(P0,P1); vec2 d=(uv-c)*vec2(asp,1.0); float r=length(d)*uResolution.y; float m=(1.0-smoothstep(P4,P4+P5,r))*P6; if(m<=0.001) return b; vec2 s=uv-c+vec2(P2,P3); vec4 src=inp(s); float lt=dot(b.rgb,vec3(.2126,.7152,.0722)), ls=dot(src.rgb,vec3(.2126,.7152,.0722)); vec3 fill=src.rgb*mix(1.0,clamp(lt/max(ls,1e-3),0.5,2.0),P7*0.5); return vec4(mix(b.rgb,fill,m),b.a); }"
+          }
+        ],
+        "uniforms": {
+          "input": "uInput",
+          "source": "uSource",
+          "aux": "uAux",
+          "prev": "uPrev",
+          "prevSrc": "uPrevSrc",
+          "resolution": "uResolution",
+          "time": "uTime",
+          "deltaT": "uDeltaT",
+          "frame": "uFrame",
+          "audio": [
+            "iBass",
+            "iMid",
+            "iTreble",
+            "iLevel"
+          ]
+        },
+        "headerHash": "985610c1",
+        "temporal": false
+      }
+    },
+    {
       "pluginIdentifier": "com.plajah.fabula.cinematiccolor",
       "label": "Cinematic Color",
       "grouping": "Fabula/Color",
