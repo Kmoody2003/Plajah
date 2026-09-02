@@ -35,6 +35,7 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust/C++ shell open |
 
 ## Done this run
+- (2026-09-02) W4 step 2: depth window mask kind (services/fabula/depthMatte.ts — Depth Anything V2 small via transformers.js, WebGPU→wasm; near/far/feather window; exact in export, ~4 fps live). Model download is large on first use; runtime verified only as far as module load in this session.
 - (2026-09-02) W2d track backward / AdjustTrack / corner-pin export; W3b per-glyph title animators (monitor == export).
 - (2026-09-02) W4 step 1: subject (AI) matte as a mask kind on any effect — MediaPipe selfie segmenter (lazy CDN, GPU→CPU), exact per-frame in the offline renderer (after the seek), throttled last-matte reuse in the live monitor. Verified the model loads and returns a matte canvas in the browser (~14 s first load).
 - (2026-09-02) Kernel batch: phase3GradsTintsEffects (ND grad, colour grad, dual grad, radial tint, split tone, gels, skin tone, sunset; Net/Silk/Frost/Mist/Center Spot/Split Field/Double Fog glass), phase3StylizeVariantsEffects (kaleidoscope, halftone pro, fly-eye, tile scramble, emboss glass, pseudo colour, zebra, roman tile, strip slide, infinite zoom, parallax strips, warp repeat), phase3GraphicsEffects (array gun, HUD rings, progress bar, long shadow, luster, laser beam, zap, aurora, night sky). 154 effects / 448 presets; compile sweep 154/154.
@@ -44,9 +45,9 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 - (2026-09-02) VectorTrack planar tracker end to end — see `plajah-vectortrack` memory / build matrix.
 
 ## Next up (in order)
-1. Depth matte (ONNX depth model as mask/aux source) + Crossover SAM2 tracked mattes.
-2. OFX shell scaffold (Rust cdylib reading the manifest).
-3. Universe text tools (counters, screen text, text tile) on the title engine; Real Lens Flares element designer; 3D DVE (cube/cylinder/page turn); wire remover (Anchor + inpaint).
+1. OFX shell scaffold (Rust cdylib reading the manifest).
+2. Universe text tools (counters, screen text, text tile) on the title engine; Real Lens Flares element designer; 3D DVE (cube/cylinder/page turn); wire remover (Anchor + inpaint).
+3. Crossover SAM2 tracked mattes; depth as an AUX source for the depth-defocus/Z effects.
 4. Corner-pin → FCPXML transform keyframes; shared track assets across clips.
 
 ## Backlog (kernel gaps vs the Boris/Red Giant catalog, for later kernel batches)
