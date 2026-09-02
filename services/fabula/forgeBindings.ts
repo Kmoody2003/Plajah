@@ -21,7 +21,9 @@ export type MaskTrack = 'none' | 'point' | 'planar';
 export interface EffectMask {
   /** 'shape' (default) rasterises the geometry below; 'subject' asks the ML subject matte
    *  (MediaPipe person segmentation) for this frame — the renderer fills the element in. */
-  kind?: 'shape' | 'subject' | 'depth';
+  kind?: 'shape' | 'subject' | 'depth' | 'aux';
+  /** Pool asset id whose luma is the mask (kind = 'aux'). */
+  assetId?: string;
   shape: MaskShape;
   /** Depth window (kind = 'depth'): 0..1 with 1 = nearest. Feather softens both edges. */
   near?: number; far?: number;
@@ -163,7 +165,7 @@ export function rasterizeMask(outline: Point2[], w: number, h: number, feather: 
   return c;
 }
 
-export interface ResolvedInstance extends ForgeEffectInstance { maskElement?: HTMLCanvasElement | null; maskInvert?: boolean; /** Renderer must supply maskElement from the frame's subject matte. */ subjectMask?: boolean; /** Renderer must supply maskElement from the frame's depth map through this window. */ depthMask?: { near: number; far: number; feather: number }; }
+export interface ResolvedInstance extends ForgeEffectInstance { maskElement?: HTMLCanvasElement | null; maskInvert?: boolean; /** Renderer must supply maskElement from the frame's subject matte. */ subjectMask?: boolean; /** Renderer must supply maskElement from the frame's depth map through this window. */ depthMask?: { near: number; far: number; feather: number }; /** Renderer must supply maskElement from this pool asset (luma). */ maskAssetId?: string; }
 
 /** Turn a stored instance into the per-frame instance the renderer consumes (params bound,
  *  mask rasterised). Mask raster size defaults to a 512-wide analysis raster in the frame's aspect. */
@@ -173,6 +175,9 @@ export function resolveInstanceForFrame(instance: ForgeEffectInstance, effect: F
   const mask = (instance as any).mask as EffectMask | undefined;
   if (mask && mask.enabled !== false && mask.kind === 'subject') {
     return { ...out, subjectMask: true, maskInvert: !!mask.invert };
+  }
+  if (mask && mask.enabled !== false && mask.kind === 'aux') {
+    return mask.assetId ? { ...out, maskAssetId: mask.assetId, maskInvert: !!mask.invert } : out;
   }
   if (mask && mask.enabled !== false && mask.kind === 'depth') {
     return { ...out, depthMask: { near: mask.near ?? 1, far: mask.far ?? .55, feather: mask.feather ?? .08 }, maskInvert: !!mask.invert };

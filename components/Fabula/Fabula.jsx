@@ -40,6 +40,7 @@ import { resolveInstanceForFrame, maskOutlineAt, MASK_DEFAULT, BINDING_SOURCES }
 import { segmentSubjectLatest } from "../../services/fabula/subjectMatte";
 import { estimateDepthLatest, depthRangeCanvas } from "../../services/fabula/depthMatte";
 import { glyphStates, TITLE_ANIMS, TITLE_ANIM_DEFAULT } from "../../services/fabula/titleAnimators";
+import { dynamicText, DYNAMIC_TYPES, DYNAMIC_DEFAULT } from "../../services/fabula/titleDynamic";
 import { Compositor as PixelsCompositor } from "../plajahPixels/engine/core/compositor";
 import NodeGraphEditor from "./NodeGraphEditor";
 import ColorScopes from "./ColorScopes";
@@ -4268,7 +4269,7 @@ export default function Fabula() {
 <section className="monitor" onMouseDown={() => (activeViewerRef.current = "program")}>
                     <div ref={screenRef} className="screen" style={{ aspectRatio: prod.defaults.aspect.includes(":") ? prod.defaults.aspect.replace(":", "/") : "2.39/1", filter: LOOKS.find((l) => l.id === prod.design?.lookId)?.filter || "none", containerType: "inline-size" }}>
                       {gpuMonitor && <GpuStage reg={gpuRegRef.current} hostRef={screenRef} onFail={() => { try { localStorage.setItem("fabula:gpuMonitor", "off"); } catch { /* */ } gpuRegRef.current.clear(); setGpuMonitor(false); ping("GPU monitor hit an issue — reverted to the standard renderer."); }} />}
-                      {(() => { const s = getSel(); const inst = maskEdit && s && s.id === maskEdit.clipId ? (s.fx?.stack || []).find((i) => i.id === maskEdit.instanceId) : null; return inst?.mask && inst.mask.kind !== "subject" && inst.mask.kind !== "depth" ? <MaskOverlay clip={s} instance={inst} playhead={playhead} screenRef={screenRef} videoRef={videoRef} fps={vfmt.fps || 24} onChange={(mask) => updateFx(s.id, { stack: s.fx.stack.map((i) => i.id === inst.id ? { ...i, mask } : i) })} /> : null; })()}
+                      {(() => { const s = getSel(); const inst = maskEdit && s && s.id === maskEdit.clipId ? (s.fx?.stack || []).find((i) => i.id === maskEdit.instanceId) : null; return inst?.mask && inst.mask.kind !== "subject" && inst.mask.kind !== "depth" && inst.mask.kind !== "aux" ? <MaskOverlay clip={s} instance={inst} playhead={playhead} screenRef={screenRef} videoRef={videoRef} fps={vfmt.fps || 24} onChange={(mask) => updateFx(s.id, { stack: s.fx.stack.map((i) => i.id === inst.id ? { ...i, mask } : i) })} /> : null; })()}
                       {(() => { const s = getSel(); return s && /^v\d+$/.test(s.trackId) && (s.fx?.planarSurface || s.fx?.planarTrack) ? <SurfaceOverlay clip={s} playhead={playhead} screenRef={screenRef} videoRef={videoRef} editing={surfaceEdit} onChange={(corners) => updateFx(s.id, { planarSurface: { corners } })} onAdjust={(frame, corners) => adjustPlanarFrame(s, frame, corners)} /> : null; })()}
                       {videoTracksAsc.map((tr, i) => {
                         // Double-buffer: mount the current clip + its neighbours, keyed by clip.id, so the
@@ -4359,11 +4360,12 @@ export default function Fabula() {
                             <div style={{ display: "inline-block", borderLeft: cls === "modern" ? "0.4cqw solid #FF8C00" : "none", paddingLeft: cls === "modern" ? "0.9cqw" : 0 }}>
                               {(() => {
                                 const anim = tc.tAnim && tc.tAnim.type !== "none" ? tc.tAnim : null;
-                                const states = anim ? glyphStates(tc.text, playhead - tc.start, anim, tc.duration) : null;
+                                const shownText = dynamicText(tc.text, playhead - tc.start, tc.tDynamic, tc.duration);
+                                const states = anim ? glyphStates(shownText, playhead - tc.start, anim, tc.duration) : null;
                                 const subOpacity = states ? Math.min(1, states[states.length - 1]?.opacity ?? 1) : 1;
                                 return (<>
                                   <div style={{ color, fontWeight: 700, fontSize: `${size}cqw`, lineHeight: 1.12, fontFamily: font, textShadow: "0 2px 8px rgba(0,0,0,0.9)", whiteSpace: "pre-wrap" }}>
-                                    {states ? states.map((s, i) => <span key={i} style={{ display: "inline-block", whiteSpace: "pre", opacity: s.opacity, transform: `translate(${s.dx}em, ${s.dy}em) scale(${s.scale})`, filter: s.blur > 0.01 ? `blur(${s.blur}em)` : undefined, letterSpacing: s.spacing ? `${s.spacing}em` : undefined }}>{s.char}</span>) : tc.text}
+                                    {states ? states.map((s, i) => <span key={i} style={{ display: "inline-block", whiteSpace: "pre", opacity: s.opacity, transform: `translate(${s.dx}em, ${s.dy}em) scale(${s.scale})`, filter: s.blur > 0.01 ? `blur(${s.blur}em)` : undefined, letterSpacing: s.spacing ? `${s.spacing}em` : undefined }}>{s.char}</span>) : shownText}
                                   </div>
                                   {tc.subtitle && <div style={{ color: tc.tSubColor || (cls === "minimal" ? "rgba(255,255,255,0.85)" : "#FF8C00"), fontWeight: 500, fontSize: `${size * 0.45}cqw`, marginTop: 2, fontFamily: font, textShadow: "0 2px 6px rgba(0,0,0,0.9)", opacity: subOpacity }}>{tc.subtitle}</div>}
                                 </>);
@@ -4500,6 +4502,33 @@ export default function Fabula() {
                                   <div className="insp-row"><span className="lbl">OUT</span><input type="range" min="0" max="3" step="0.05" value={anim.out || 0} onChange={(e) => setAnim({ out: parseFloat(e.target.value) })} /><span className="insp-val mono">{(anim.out || 0).toFixed(2)}s</span></div>
                                   <div className="insp-row"><span className="lbl">STAGGER</span><input type="range" min="0" max="1" step="0.02" value={anim.stagger ?? .6} onChange={(e) => setAnim({ stagger: parseFloat(e.target.value) })} /><span className="insp-val mono">{(anim.stagger ?? .6).toFixed(2)}</span></div>
                                 </>)}
+                              </>);
+                            })()}
+                            <div className="lbl" style={{ marginTop: 6 }}>DYNAMIC TEXT</div>
+                            {(() => {
+                              const dyn = { ...DYNAMIC_DEFAULT, ...(selClip.tDynamic || {}) };
+                              const setDyn = (patch) => updateClip(selClip.id, { tDynamic: { ...dyn, ...patch } });
+                              const row = (label, key, min, max, step) => <div className="insp-row"><span className="lbl">{label}</span><input type="range" min={min} max={max} step={step} value={dyn[key] ?? 0} onChange={(e) => setDyn({ [key]: parseFloat(e.target.value) })} /><span className="insp-val mono">{Number(dyn[key] ?? 0).toFixed(step < 1 ? 2 : 0)}</span></div>;
+                              return (<>
+                                <select className="sel" value={dyn.type} onChange={(e) => setDyn({ type: e.target.value })}>
+                                  {DYNAMIC_TYPES.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+                                </select>
+                                {(dyn.type === "counter" || dyn.type === "percent") && (<>
+                                  <div className="btnrow" style={{ gap: 5, marginTop: 4 }}>
+                                    <input className="in" type="number" value={dyn.from ?? 0} onChange={(e) => setDyn({ from: parseFloat(e.target.value) || 0 })} title="From" />
+                                    <input className="in" type="number" value={dyn.to ?? 100} onChange={(e) => setDyn({ to: parseFloat(e.target.value) || 0 })} title="To" />
+                                    <input className="in" type="number" min="0" max="6" value={dyn.decimals ?? 0} onChange={(e) => setDyn({ decimals: parseInt(e.target.value, 10) || 0 })} title="Decimals" style={{ maxWidth: 56 }} />
+                                  </div>
+                                  <div className="btnrow" style={{ gap: 5, marginTop: 4 }}>
+                                    <input className="in" placeholder="prefix" value={dyn.prefix || ""} onChange={(e) => setDyn({ prefix: e.target.value })} />
+                                    <input className="in" placeholder="suffix" value={dyn.suffix || ""} onChange={(e) => setDyn({ suffix: e.target.value })} />
+                                    <select className="sel" value={dyn.ease || "out"} onChange={(e) => setDyn({ ease: e.target.value })}><option value="linear">linear</option><option value="out">ease out</option><option value="inOut">ease in-out</option></select>
+                                  </div>
+                                  {row("DURATION", "duration", .1, 20, .1)}{row("DELAY", "delay", 0, 10, .1)}
+                                </>)}
+                                {dyn.type === "timecode" && (<>{row("FPS", "fps", 1, 60, 1)}{row("OFFSET s", "offset", 0, 3600, 1)}</>)}
+                                {dyn.type === "countdown" && (<>{row("FROM s", "from", 1, 3600, 1)}{row("DELAY", "delay", 0, 10, .1)}</>)}
+                                {dyn.type === "screen" && (<>{row("CHARS/S", "cps", 1, 120, 1)}{row("LINES", "lines", 1, 20, 1)}<div className="dim small">Use line breaks in the TITLE for multi-line terminal output; the text types on at CHARS/S with a blinking cursor.</div></>)}
                               </>);
                             })()}
                             <div className="lbl" style={{ marginTop: 6 }}>FONT</div>
@@ -4722,13 +4751,21 @@ export default function Fabula() {
                                     })}
                                     <div className="fxrow"><span className="fxlbl">MIX</span><input type="range" min={0} max={1} step={.01} value={instance.mix ?? 1} onChange={(e) => patchStack({ mix: parseFloat(e.target.value) })} onDoubleClick={() => patchStack({ mix: 1 })} /><span className="fxval">{Number(instance.mix ?? 1).toFixed(2)}</span></div>
                                     <div className="fxrow"><span className="fxlbl">MASK</span>
-                                      <select className="sel xs grow" value={instance.mask && instance.mask.enabled !== false ? (instance.mask.kind === "subject" || instance.mask.kind === "depth" ? instance.mask.kind : instance.mask.shape) : ""} onChange={(e) => { const shape = e.target.value; if (!shape) { patchStack({ mask: undefined }); if (maskEdit?.instanceId === instance.id) setMaskEdit(null); return; } if (shape === "subject") { if (maskEdit?.instanceId === instance.id) setMaskEdit(null); patchStack({ mask: { ...MASK_DEFAULT, ...(instance.mask || {}), kind: "subject", shape: "ellipse", track: "none", enabled: true } }); return; } if (shape === "depth") { if (maskEdit?.instanceId === instance.id) setMaskEdit(null); patchStack({ mask: { ...MASK_DEFAULT, ...(instance.mask || {}), kind: "depth", shape: "ellipse", track: "none", enabled: true, near: 1, far: .55, feather: .08 } }); return; } patchStack({ mask: { ...MASK_DEFAULT, ...(instance.mask || {}), kind: "shape", shape, enabled: true, refFrame: Math.max(0, Math.round((playhead - selClip.start) * (vfmt.fps || 24))), ...(shape === "poly" && !instance.mask?.points ? { points: [{ x: .3, y: .3 }, { x: .7, y: .3 }, { x: .7, y: .7 }, { x: .3, y: .7 }] } : {}) } }); }}>
-                                        <option value="">none</option><option value="ellipse">ellipse</option><option value="rect">rectangle</option><option value="poly">polygon</option><option value="subject">subject (AI matte)</option><option value="depth">depth window (AI)</option>
+                                      <select className="sel xs grow" value={instance.mask && instance.mask.enabled !== false ? (instance.mask.kind === "subject" || instance.mask.kind === "depth" || instance.mask.kind === "aux" ? instance.mask.kind : instance.mask.shape) : ""} onChange={(e) => { const shape = e.target.value; if (!shape) { patchStack({ mask: undefined }); if (maskEdit?.instanceId === instance.id) setMaskEdit(null); return; } if (shape === "subject") { if (maskEdit?.instanceId === instance.id) setMaskEdit(null); patchStack({ mask: { ...MASK_DEFAULT, ...(instance.mask || {}), kind: "subject", shape: "ellipse", track: "none", enabled: true } }); return; } if (shape === "depth") { if (maskEdit?.instanceId === instance.id) setMaskEdit(null); patchStack({ mask: { ...MASK_DEFAULT, ...(instance.mask || {}), kind: "depth", shape: "ellipse", track: "none", enabled: true, near: 1, far: .55, feather: .08 } }); return; } if (shape === "aux") { if (maskEdit?.instanceId === instance.id) setMaskEdit(null); patchStack({ mask: { ...MASK_DEFAULT, ...(instance.mask || {}), kind: "aux", shape: "ellipse", track: "none", enabled: true } }); return; } patchStack({ mask: { ...MASK_DEFAULT, ...(instance.mask || {}), kind: "shape", shape, enabled: true, refFrame: Math.max(0, Math.round((playhead - selClip.start) * (vfmt.fps || 24))), ...(shape === "poly" && !instance.mask?.points ? { points: [{ x: .3, y: .3 }, { x: .7, y: .3 }, { x: .7, y: .7 }, { x: .3, y: .7 }] } : {}) } }); }}>
+                                        <option value="">none</option><option value="ellipse">ellipse</option><option value="rect">rectangle</option><option value="poly">polygon</option><option value="subject">subject (AI matte)</option><option value="depth">depth window (AI)</option><option value="aux">asset luma</option>
                                       </select>
-                                      {instance.mask && instance.mask.kind !== "subject" && instance.mask.kind !== "depth" && <button className={`minibtn ${maskEdit?.instanceId === instance.id ? "on" : ""}`} onClick={() => setMaskEdit(maskEdit?.instanceId === instance.id ? null : { clipId: selClip.id, instanceId: instance.id })}>{maskEdit?.instanceId === instance.id ? "✓ DONE" : "EDIT"}</button>}
+                                      {instance.mask && instance.mask.kind !== "subject" && instance.mask.kind !== "depth" && instance.mask.kind !== "aux" && <button className={`minibtn ${maskEdit?.instanceId === instance.id ? "on" : ""}`} onClick={() => setMaskEdit(maskEdit?.instanceId === instance.id ? null : { clipId: selClip.id, instanceId: instance.id })}>{maskEdit?.instanceId === instance.id ? "✓ DONE" : "EDIT"}</button>}
                                     </div>
                                     {instance.mask && (<>
                                       <div className="fxrow"><span className="fxlbl">FEATHER</span><input type="range" min={0} max={.3} step={.005} value={instance.mask.feather ?? 0} onChange={(e) => patchStack({ mask: { ...instance.mask, feather: parseFloat(e.target.value) } })} /><span className="fxval">{Number(instance.mask.feather ?? 0).toFixed(3)}</span></div>
+                                      {instance.mask.kind === "aux" && (
+                                        <div className="fxrow"><span className="fxlbl">MASK ASSET</span>
+                                          <select className="sel xs grow" value={instance.mask.assetId || ""} onChange={(e) => patchStack({ mask: { ...instance.mask, assetId: e.target.value || undefined } })}>
+                                            <option value="">Choose asset…</option>
+                                            {(prod?.mediaPool || []).filter((asset) => asset.url && ["video", "image", "graphic"].includes(asset.type)).map((asset) => <option key={asset.id} value={asset.id}>{asset.name}</option>)}
+                                          </select>
+                                        </div>
+                                      )}
                                       {instance.mask.kind === "depth" && (<>
                                         <div className="fxrow"><span className="fxlbl">NEAR</span><input type="range" min={0} max={1} step={.01} value={instance.mask.near ?? 1} onChange={(e) => patchStack({ mask: { ...instance.mask, near: parseFloat(e.target.value) } })} /><span className="fxval">{Number(instance.mask.near ?? 1).toFixed(2)}</span></div>
                                         <div className="fxrow"><span className="fxlbl">FAR</span><input type="range" min={0} max={1} step={.01} value={instance.mask.far ?? .55} onChange={(e) => patchStack({ mask: { ...instance.mask, far: parseFloat(e.target.value) } })} /><span className="fxval">{Number(instance.mask.far ?? .55).toFixed(2)}</span></div>
@@ -7393,17 +7430,20 @@ function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool,
   useEffect(() => {
     const created = new Map();
     for (const instance of effects || []) {
-      if (!instance.auxAssetId) continue;
-      const asset = (mediaPool || []).find((candidate) => candidate.id === instance.auxAssetId);
-      if (!asset?.url) continue;
-      const el = asset.type === "video" ? document.createElement("video") : new Image();
-      el.crossOrigin = "anonymous"; el.src = asset.url;
-      if (el instanceof HTMLVideoElement) { el.muted = true; el.playsInline = true; el.preload = "auto"; }
-      created.set(instance.id, el);
+      const wants = [[instance.id, instance.auxAssetId], [instance.id + ":mask", instance.mask?.kind === "aux" ? instance.mask.assetId : null]];
+      for (const [key, assetId] of wants) {
+        if (!assetId) continue;
+        const asset = (mediaPool || []).find((candidate) => candidate.id === assetId);
+        if (!asset?.url) continue;
+        const el = asset.type === "video" ? document.createElement("video") : new Image();
+        el.crossOrigin = "anonymous"; el.src = asset.url;
+        if (el instanceof HTMLVideoElement) { el.muted = true; el.playsInline = true; el.preload = "auto"; }
+        created.set(key, el);
+      }
     }
     auxRef.current = created;
     return () => created.forEach((el) => { if (el instanceof HTMLVideoElement) { el.pause(); el.removeAttribute("src"); el.load(); } });
-  }, [effects?.map((instance) => `${instance.id}:${instance.auxAssetId || ""}`).join("|"), mediaPool]); // eslint-disable-line
+  }, [effects?.map((instance) => `${instance.id}:${instance.auxAssetId || ""}:${instance.mask?.kind === "aux" ? instance.mask.assetId || "" : ""}`).join("|"), mediaPool]); // eslint-disable-line
   useEffect(() => {
     if (!active || !effects?.length) return undefined;
     let raf = 0, comp = null;
@@ -7420,6 +7460,7 @@ function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool,
           let instance = resolveInstanceForFrame(stored, FX_EFFECTS.find((e) => e.id === stored.effectId), trackCtx, timeRef.current, { w: video.videoWidth || 16, h: video.videoHeight || 9 });
           if (instance.subjectMask) instance = { ...instance, maskElement: segmentSubjectLatest(video, 512, Math.max(2, Math.round(512 * (video.videoHeight || 9) / (video.videoWidth || 16)))) };
           if (instance.depthMask) { const d = estimateDepthLatest(video, 384, Math.max(2, Math.round(384 * (video.videoHeight || 9) / (video.videoWidth || 16)))); instance = { ...instance, maskElement: d ? depthRangeCanvas(d, instance.depthMask.near, instance.depthMask.far, instance.depthMask.feather) : null }; }
+          if (instance.maskAssetId) { const m = auxRef.current.get(instance.id + ":mask"); if (m instanceof HTMLVideoElement && m.readyState >= 1 && Math.abs(m.currentTime - timeRef.current) > .08) m.currentTime = Math.min(timeRef.current, Math.max(0, (m.duration || timeRef.current) - .001)); if (m) instance = { ...instance, maskElement: m }; }
           const auxElement = auxRef.current.get(instance.id);
           if (auxElement instanceof HTMLVideoElement && auxElement.readyState >= 1 && Math.abs(auxElement.currentTime - timeRef.current) > .08) auxElement.currentTime = Math.min(timeRef.current, Math.max(0, (auxElement.duration || timeRef.current) - .001));
           return auxElement ? { ...instance, auxElement } : instance;

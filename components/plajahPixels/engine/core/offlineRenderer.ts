@@ -284,6 +284,12 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
         const clip = layer.clip;
         const lt = layer.time ?? 0;
         const forgeEffects = await Promise.all(((layer as any).forgeEffects || []).map(async (instance: any) => {
+          if (instance.maskUrl) {
+            // Asset-driven mask (PixelChooser image/video mask): the element's luma feeds the mix stage.
+            const maskEl = await getMedia(instance.maskUrl, instance.maskMediaType === 'video' ? 'video' : 'image');
+            if (maskEl instanceof HTMLVideoElement) { const dur = maskEl.duration || 0; const seek = dur > 0 ? lt % dur : lt; if (fast) { try { maskEl.currentTime = seek; } catch { /* */ } } else await seekVideo(maskEl, seek); }
+            instance = { ...instance, maskElement: maskEl };
+          }
           if (!instance.auxUrl) return instance;
           const auxElement = await getMedia(instance.auxUrl, instance.auxMediaType === 'video' ? 'video' : 'image');
           if (auxElement instanceof HTMLVideoElement) {
