@@ -333,10 +333,12 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
             // ML subject mattes are computed from the SEEKED frame so the export is exact.
             for (const inst of forgeEffects) if (inst?.subjectMask) inst.maskElement = await segmentSubject(el, 512, Math.max(2, Math.round(512 * (el.videoHeight || 9) / (el.videoWidth || 16))));
             for (const inst of forgeEffects) if (inst?.depthMask) { const d = await estimateDepth(el, 384, Math.max(2, Math.round(384 * (el.videoHeight || 9) / (el.videoWidth || 16)))); inst.maskElement = d ? depthRangeCanvas(d, inst.depthMask.near, inst.depthMask.far, inst.depthMask.feather) : null; }
+            for (const inst of forgeEffects) if (inst?.auxSource === 'depth' && !inst.auxElement) inst.auxElement = await estimateDepth(el, 384, Math.max(2, Math.round(384 * (el.videoHeight || 9) / (el.videoWidth || 16))));
             inputs.push({ element: applyGrade(el), opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography, grade: (layer as any).glGrade, grades: (layer as any).glGrades, effects: forgeEffects, time: layer.time, wipe: (layer as any).wipe, transition: (layer as any).forgeTransition });
           } else if (el instanceof HTMLImageElement) {
             for (const inst of forgeEffects) if (inst?.subjectMask) inst.maskElement = await segmentSubject(el, 512, Math.max(2, Math.round(512 * (el.naturalHeight || 9) / (el.naturalWidth || 16))));
             for (const inst of forgeEffects) if (inst?.depthMask) { const d = await estimateDepth(el, 384, Math.max(2, Math.round(384 * (el.naturalHeight || 9) / (el.naturalWidth || 16)))); inst.maskElement = d ? depthRangeCanvas(d, inst.depthMask.near, inst.depthMask.far, inst.depthMask.feather) : null; }
+            for (const inst of forgeEffects) if (inst?.auxSource === 'depth' && !inst.auxElement) inst.auxElement = await estimateDepth(el, 384, Math.max(2, Math.round(384 * (el.naturalHeight || 9) / (el.naturalWidth || 16))));
             inputs.push({ element: applyGrade(el), opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography, grade: (layer as any).glGrade, grades: (layer as any).glGrades, effects: forgeEffects, time: layer.time, wipe: (layer as any).wipe, transition: (layer as any).forgeTransition });
           }
         } else if (clip.type === 'color' && clip.fillColor) {

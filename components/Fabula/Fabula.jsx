@@ -4739,8 +4739,9 @@ export default function Fabula() {
                                     )}
                                     {effect.auxInput && (
                                       <div className="fxrow"><span className="fxlbl">{effect.auxInput.label}</span>
-                                        <select className="sel xs grow" value={instance.auxAssetId || ""} onChange={(e) => patchStack({ auxAssetId: e.target.value || undefined })}>
+                                        <select className="sel xs grow" value={instance.auxSource === "depth" ? "__depth" : (instance.auxAssetId || "")} onChange={(e) => { const v = e.target.value; if (v === "__depth") patchStack({ auxSource: "depth", auxAssetId: undefined }); else patchStack({ auxSource: undefined, auxAssetId: v || undefined }); }}>
                                           <option value="">{effect.auxInput.optional ? "Source fallback" : "Choose asset…"}</option>
+                                          <option value="__depth">AI depth map of this clip</option>
                                           {(prod?.mediaPool || []).filter((asset) => asset.url && ["video", "image", "graphic"].includes(asset.type)).map((asset) => <option key={asset.id} value={asset.id}>{asset.name}</option>)}
                                         </select>
                                       </div>
@@ -7460,6 +7461,7 @@ function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool,
           let instance = resolveInstanceForFrame(stored, FX_EFFECTS.find((e) => e.id === stored.effectId), trackCtx, timeRef.current, { w: video.videoWidth || 16, h: video.videoHeight || 9 });
           if (instance.subjectMask) instance = { ...instance, maskElement: segmentSubjectLatest(video, 512, Math.max(2, Math.round(512 * (video.videoHeight || 9) / (video.videoWidth || 16)))) };
           if (instance.depthMask) { const d = estimateDepthLatest(video, 384, Math.max(2, Math.round(384 * (video.videoHeight || 9) / (video.videoWidth || 16)))); instance = { ...instance, maskElement: d ? depthRangeCanvas(d, instance.depthMask.near, instance.depthMask.far, instance.depthMask.feather) : null }; }
+          if (instance.auxSource === "depth") { const d = estimateDepthLatest(video, 384, Math.max(2, Math.round(384 * (video.videoHeight || 9) / (video.videoWidth || 16)))); if (d) return { ...instance, auxElement: d }; }
           if (instance.maskAssetId) { const m = auxRef.current.get(instance.id + ":mask"); if (m instanceof HTMLVideoElement && m.readyState >= 1 && Math.abs(m.currentTime - timeRef.current) > .08) m.currentTime = Math.min(timeRef.current, Math.max(0, (m.duration || timeRef.current) - .001)); if (m) instance = { ...instance, maskElement: m }; }
           const auxElement = auxRef.current.get(instance.id);
           if (auxElement instanceof HTMLVideoElement && auxElement.readyState >= 1 && Math.abs(auxElement.currentTime - timeRef.current) > .08) auxElement.currentTime = Math.min(timeRef.current, Math.max(0, (auxElement.duration || timeRef.current) - .001));
