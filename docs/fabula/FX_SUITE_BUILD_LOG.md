@@ -35,25 +35,23 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust/C++ shell open |
 
 ## Done this run
+- (2026-09-02) Kernel batch: phase3GradsTintsEffects (ND grad, colour grad, dual grad, radial tint, split tone, gels, skin tone, sunset; Net/Silk/Frost/Mist/Center Spot/Split Field/Double Fog glass), phase3StylizeVariantsEffects (kaleidoscope, halftone pro, fly-eye, tile scramble, emboss glass, pseudo colour, zebra, roman tile, strip slide, infinite zoom, parallax strips, warp repeat), phase3GraphicsEffects (array gun, HUD rings, progress bar, long shadow, luster, laser beam, zap, aurora, night sky). 154 effects / 448 presets; compile sweep 154/154.
 - (2026-09-02) W5 step 1: OFX descriptor generator (choice/int/bool typing from labels, clips, contexts, kernel ABI + header hash). W3a: Emitter Field (rest-frame hashed, 3 parallax layers, 7 shapes) + Emitter Burst (64 closed-form particles, bindable emitter position); compile sweep 118/118, deterministic.
 - (2026-09-02) W2a temporal access + 10 Time effects; fixed compositor VAO rebind after effects/grade layers/transitions (effects rendered BLACK before), two Forge shaders that did not compile, cube LUT sampler3D precision.
 - (2026-09-02) W2b masks (ellipse/rect/poly, feather, invert, follow point/planar) + W2c track-bound params via one resolver (resolveInstanceForFrame) used by ForgeClipPreview and fabulaRender. Verified by GL readback in the browser.
 - (2026-09-02) VectorTrack planar tracker end to end — see `plajah-vectortrack` memory / build matrix.
 
 ## Next up (in order)
-1. Kernel batch from the backlog (grads & tints, diffusion glass, kaleido/halftone variants, HUD/shape generators).
-2. W4 MediaPipe subject matte as a mask source (live + offline).
-3. W2d VectorTrack track-backward + AdjustTrack + corner-pin FCPXML export.
-4. W3b text animators.
-5. OFX shell scaffold (Rust cdylib reading the manifest) — only after the above.
+1. W4 MediaPipe subject matte as a mask source (live + offline).
+2. W2d VectorTrack track-backward + AdjustTrack + corner-pin FCPXML export.
+3. W3b text animators.
+4. OFX shell scaffold (Rust cdylib reading the manifest) — only after the above.
 
 ## Backlog (kernel gaps vs the Boris/Red Giant catalog, for later kernel batches)
-Kaleidoscope family variants, halftone rings/colour, fly's-eye, tile scramble, emboss glass,
-pseudo-colour, zebra, roman tile, strip slide, infinite zoom, parallax strips, warp repeat,
-laser/zap-to-point, aurora/luna/night-sky scenes, grads & tints set (ND grad, dual grad, sunset,
-gels, skin tone, split tone), diffusion glass set (net, silk, frost, mist, center spot, split
-field), HUD components, array gun, progress bars, long shadow, luster bevel, Symbol mapper,
-dither palettes, retrograde/carousel frames, VHS text generator.
+Symbol mapper (ASCII), retrograde/carousel film frames, VHS text generator, dither palettes
+(Universe), Universe text tools (need the text engine), Glo Fi / Quantum fractal glows, Heatwave,
+ChromaTown, Sketchify variants, muzzle flash (Bang), Real Lens Flares element designer, 3D
+cube/cylinder/page-turn DVE, sphere map, wire remover (needs Anchor + inpaint).
 
 ## GLSL compile sweep (browser)
 ```js
