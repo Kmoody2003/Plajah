@@ -6,8 +6,41 @@
 import type { FxEffect } from './effects';
 
 const T = (e: Omit<FxEffect, 'temporal' | 'category'>): FxEffect => ({ ...e, temporal: true, category: 'time' });
+const T4 = (e: Omit<FxEffect, 'temporal' | 'category'>): FxEffect => ({ ...e, temporal: 4, category: 'time' });
 
 export const PHASE2_TIME_EFFECTS: FxEffect[] = [
+  T4({
+    id: 'temporalmedian', name: 'Temporal Median', version: 1,
+    summary: 'Median of the current frame and up to four previous frames — removes rain, dust, sensor noise and brief occluders without smearing still detail.',
+    params: [
+      { key: 'frames', label: 'History Frames', min: 1, max: 4, default: 4, step: 1 },
+      { key: 'strength', label: 'Strength', min: 0, max: 1, default: 1, step: .01 },
+      { key: 'motionGuard', label: 'Motion Guard', min: 0, max: 1, default: .35, step: .01 },
+      { key: 'radius', label: 'Spatial Radius', min: 0, max: 2, default: 0, step: 1, unit: 'px' },
+    ],
+    presets: [
+      { id: 'denoise', name: 'Temporal Denoise', description: 'Full history, guarded against motion.', params: { frames: 4, strength: 1, motionGuard: .45, radius: 0 } },
+      { id: 'rain', name: 'Rain & Dust', description: 'Median across 4 frames, weak guard so streaks vanish.', params: { frames: 4, strength: 1, motionGuard: .15, radius: 1 } },
+      { id: 'gentle', name: 'Gentle', description: 'Two frames, blended half strength.', params: { frames: 2, strength: .5, motionGuard: .5, radius: 0 } },
+    ],
+    glsl: `void srt(inout vec3 a, inout vec3 b){ vec3 lo=min(a,b), hi=max(a,b); a=lo; b=hi; } vec4 fx(vec2 uv){ vec4 c=inp(uv); if(uDeltaT<=0.0) return c; int n=int(clamp(P0,1.0,4.0)+0.5); vec2 px=P3/uResolution; vec3 s0=c.rgb, s1=prevSrcN(1,uv).rgb, s2=n>=2?prevSrcN(2,uv).rgb:s0, s3=n>=3?prevSrcN(3,uv).rgb:s1, s4=n>=4?prevSrcN(4,uv).rgb:s2; if(P3>0.5){ s1=(s1+prevSrcN(1,uv+vec2(px.x,0.)).rgb+prevSrcN(1,uv-vec2(px.x,0.)).rgb)/3.0; } srt(s0,s1); srt(s3,s4); srt(s0,s3); srt(s1,s4); srt(s1,s2); srt(s2,s3); srt(s1,s2); vec3 med=s2; float motion=length(c.rgb-prevSrcN(1,uv).rgb); float lo=mix(1.0,0.02,P2); float guard=1.0-smoothstep(lo,lo+0.1,motion); return vec4(mix(c.rgb,med,P1*guard),c.a); }`,
+  }),
+  T4({
+    id: 'objectremover', name: 'Object Remover', version: 1,
+    summary: 'Clean-plate removal of moving objects: inside the effect mask, each pixel shows the background as seen across the last four frames (median or oldest), so a passer-by or a rig sweep disappears over a still background.',
+    params: [
+      { key: 'mode', label: 'Fill (0 median · 1 oldest · 2 most stable)', min: 0, max: 2, default: 0, step: 1 },
+      { key: 'threshold', label: 'Motion Threshold', min: 0, max: .6, default: .12, step: .005 },
+      { key: 'blend', label: 'Blend', min: 0, max: 1, default: 1, step: .01 },
+      { key: 'hold', label: 'Hold Plate', min: 0, max: 1, default: .85, step: .01 },
+    ],
+    presets: [
+      { id: 'passer-by', name: 'Passer-by', description: 'Median plate, moderate threshold — add a polygon mask around the person.', params: { mode: 0, threshold: .12, blend: 1, hold: .85 } },
+      { id: 'rig-sweep', name: 'Rig Sweep', description: 'Oldest-frame plate for fast intrusions.', params: { mode: 1, threshold: .08, blend: 1, hold: .9 } },
+      { id: 'stable-plate', name: 'Stable Plate', description: 'Picks the most stable history sample per pixel.', params: { mode: 2, threshold: .1, blend: 1, hold: .95 } },
+    ],
+    glsl: `void srt2(inout vec3 a, inout vec3 b){ vec3 lo=min(a,b), hi=max(a,b); a=lo; b=hi; } vec4 fx(vec2 uv){ vec4 c=inp(uv); if(uDeltaT<=0.0) return c; vec3 s1=prevSrcN(1,uv).rgb, s2=prevSrcN(2,uv).rgb, s3=prevSrcN(3,uv).rgb, s4=prevSrcN(4,uv).rgb; vec3 plate; if(P0<0.5){ vec3 a=s1,b=s2,d=s3,e=s4; srt2(a,b); srt2(d,e); srt2(a,d); srt2(b,e); srt2(b,d); plate=(b+d)*0.5; } else if(P0<1.5){ plate=s4; } else { float d12=length(s1-s2), d23=length(s2-s3), d34=length(s3-s4); plate = d12<=d23 && d12<=d34 ? (s1+s2)*0.5 : (d23<=d34 ? (s2+s3)*0.5 : (s3+s4)*0.5); } float motion=length(c.rgb-plate); float k=smoothstep(P1*0.5,P1*1.5+0.01,motion); vec3 held=mix(c.rgb,prev(uv).rgb,P3*(1.0-k)*0.0); vec3 o=mix(c.rgb,plate,k*P2); o=mix(o,prev(uv).rgb,P3*0.35*k); return vec4(o,c.a); }`,
+  }),
   T({
     id: 'trails', name: 'Trails', version: 1,
     summary: 'Light-painting trails: bright motion leaves a decaying luminous wake.',

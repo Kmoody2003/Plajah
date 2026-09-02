@@ -42,7 +42,8 @@ export interface FxRenderOptions {
   maskInvert?: boolean;
 }
 
-interface History { out: [RenderTarget | undefined, RenderTarget | undefined]; idx: number; src?: RenderTarget; lastTime: number; frame: number; }
+interface History { out: [RenderTarget | undefined, RenderTarget | undefined]; idx: number; srcs: (RenderTarget | undefined)[]; srcIdx: number; lastTime: number; frame: number; }
+const MAX_SRC_HISTORY = 4;
 
 const MAX_STEP = 0.5; // seconds; a larger forward jump (or any backward step) resets history
 
@@ -70,7 +71,7 @@ export class FxRenderer {
       try { p = createProgram(this.gl, VS, FX_HEADER + '\n' + glsl + FX_MAIN); }
       catch (e) { console.warn(`[FxRenderer] "${programId}" compile failed:`, (e as Error)?.message || e); p = null; }
       const u: Record<string, WebGLUniformLocation | null> = {};
-      if (p) for (const n of ['uInput', 'uSource', 'uAux', 'uPrev', 'uPrevSrc', 'uResolution', 'uTime', 'uDeltaT', 'uFrame', 'iBass', 'iMid', 'iTreble', 'iLevel', ...P_NAMES]) u[n] = this.gl.getUniformLocation(p, n);
+      if (p) for (const n of ['uInput', 'uSource', 'uAux', 'uPrev', 'uPrevSrc', 'uPrevSrc2', 'uPrevSrc3', 'uPrevSrc4', 'uResolution', 'uTime', 'uDeltaT', 'uFrame', 'iBass', 'iMid', 'iTreble', 'iLevel', ...P_NAMES]) u[n] = this.gl.getUniformLocation(p, n);
       entry = { p, u };
       this.progs.set(programId, entry);
     }
@@ -80,7 +81,7 @@ export class FxRenderer {
   /** Drop a node's temporal history (e.g. when the clip is re-cut). */
   resetHistory(nodeId?: string) {
     const gl = this.gl;
-    const drop = (h: History) => { for (const t of h.out) if (t) { gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fbo); } if (h.src) { gl.deleteTexture(h.src.tex); gl.deleteFramebuffer(h.src.fbo); } };
+    const drop = (h: History) => { for (const t of h.out) if (t) { gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fbo); } for (const t of h.srcs) if (t) { gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fbo); } };
     if (nodeId) { const h = this.history.get(nodeId); if (h) { drop(h); this.history.delete(nodeId); } }
     else { this.history.forEach(drop); this.history.clear(); }
   }
@@ -92,18 +93,24 @@ export class FxRenderer {
     const passes = effect.passes?.length ? effect.passes : [{ id: 'main', glsl: effect.glsl }];
 
     // Temporal history: decide whether the previous frame is usable for this node.
-    let hist: History | undefined; let prevOut: WebGLTexture = input, prevSrc: WebGLTexture = input, deltaT = 0, frame = 0;
+    let hist: History | undefined; let prevOut: WebGLTexture = input, deltaT = 0, frame = 0;
+    const prevSrcs: WebGLTexture[] = [input, input, input, input]; // 1..4 frames ago (nearest available)
+    const depth = typeof effect.temporal === 'number' ? Math.max(1, Math.min(MAX_SRC_HISTORY, Math.round(effect.temporal))) : 1;
     if (effect.temporal) {
       hist = this.history.get(nodeId);
-      if (!hist) { hist = { out: [undefined, undefined], idx: 0, lastTime: NaN, frame: 0 }; this.history.set(nodeId, hist); }
+      if (!hist) { hist = { out: [undefined, undefined], idx: 0, srcs: [], srcIdx: -1, lastTime: NaN, frame: 0 }; this.history.set(nodeId, hist); }
       const dt = ctx.time - hist.lastTime;
-      const continuous = Number.isFinite(dt) && dt > 1e-6 && dt < MAX_STEP && !!hist.out[hist.idx] && !!hist.src;
-      if (continuous) { prevOut = hist.out[hist.idx]!.tex; prevSrc = hist.src!.tex; deltaT = dt; frame = hist.frame; }
-      else { hist.frame = 0; frame = 0; }
+      const continuous = Number.isFinite(dt) && dt > 1e-6 && dt < MAX_STEP && !!hist.out[hist.idx] && hist.srcIdx >= 0;
+      if (continuous) {
+        prevOut = hist.out[hist.idx]!.tex; deltaT = dt; frame = hist.frame;
+        // k frames ago = ring slot (srcIdx - (k-1)); beyond the recorded history reuse the oldest we have.
+        const have = Math.min(hist.frame, depth);
+        for (let k = 1; k <= 4; k++) { const kk = Math.min(k, have); const slot = ((hist.srcIdx - (kk - 1)) % depth + depth) % depth; const t = hist.srcs[slot]; if (t) prevSrcs[k - 1] = t.tex; }
+      } else { hist.frame = 0; frame = 0; }
     }
 
     let current = input;
-    for (const pass of passes) current = this.renderPass(`${nodeId}:${pass.id}`, effect, pass.id, pass.glsl, params, current, input, aux || input, prevOut, prevSrc, deltaT, frame, w, h, ctx);
+    for (const pass of passes) current = this.renderPass(`${nodeId}:${pass.id}`, effect, pass.id, pass.glsl, params, current, input, aux || input, prevOut, prevSrcs, deltaT, frame, w, h, ctx);
 
     if (hist) {
       // Advance history: copy this frame's output and input into the node's own targets
@@ -111,9 +118,10 @@ export class FxRenderer {
       const slot = 1 - hist.idx;
       hist.out[slot] = makeTarget(this.gl, w, h, hist.out[slot]);
       this.blit(current, hist.out[slot]!, w, h);
-      hist.src = makeTarget(this.gl, w, h, hist.src);
-      this.blit(input, hist.src, w, h);
-      hist.idx = slot; hist.lastTime = ctx.time; hist.frame = frame + 1;
+      const s = (hist.srcIdx + 1) % depth;
+      hist.srcs[s] = makeTarget(this.gl, w, h, hist.srcs[s]);
+      this.blit(input, hist.srcs[s]!, w, h);
+      hist.srcIdx = s; hist.idx = slot; hist.lastTime = ctx.time; hist.frame = frame + 1;
     }
 
     const mix = opts?.mix ?? 1;
@@ -142,7 +150,7 @@ export class FxRenderer {
     return target.tex;
   }
 
-  private renderPass(targetId: string, effect: FxEffect, passId: string, glsl: string, params: number[], input: WebGLTexture, source: WebGLTexture, auxiliary: WebGLTexture, prevOut: WebGLTexture, prevSrc: WebGLTexture, deltaT: number, frame: number, w: number, h: number, ctx: FxContext): WebGLTexture {
+  private renderPass(targetId: string, effect: FxEffect, passId: string, glsl: string, params: number[], input: WebGLTexture, source: WebGLTexture, auxiliary: WebGLTexture, prevOut: WebGLTexture, prevSrcs: WebGLTexture[], deltaT: number, frame: number, w: number, h: number, ctx: FxContext): WebGLTexture {
     const gl = this.gl;
     const target = makeTarget(gl, w, h, this.pool.get(targetId));
     this.pool.set(targetId, target);
@@ -161,7 +169,10 @@ export class FxRenderer {
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, source); gl.uniform1i(u.uSource, 1);
     gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, auxiliary); gl.uniform1i(u.uAux, 4);
     gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, prevOut); gl.uniform1i(u.uPrev, 5);
-    gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D, prevSrc); gl.uniform1i(u.uPrevSrc, 6);
+    gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D, prevSrcs[0]); gl.uniform1i(u.uPrevSrc, 6);
+    gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, prevSrcs[1]); gl.uniform1i(u.uPrevSrc2, 7);
+    gl.activeTexture(gl.TEXTURE8); gl.bindTexture(gl.TEXTURE_2D, prevSrcs[2]); gl.uniform1i(u.uPrevSrc3, 8);
+    gl.activeTexture(gl.TEXTURE9); gl.bindTexture(gl.TEXTURE_2D, prevSrcs[3]); gl.uniform1i(u.uPrevSrc4, 9);
     gl.uniform2f(u.uResolution, w, h);
     gl.uniform1f(u.uTime, ctx.time);
     gl.uniform1f(u.uDeltaT, deltaT); gl.uniform1f(u.uFrame, frame);

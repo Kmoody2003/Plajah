@@ -6,6 +6,7 @@ Forge session), `FORGE_PHASE_1_2_BUILD_MATRIX.md` (evidence-based status), the F
 artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 
 ## Ground rules for every continuation
+- OFX is DEFERRED (Kenne, 2026-09-02): do not spend continuations on the Rust shell or manifest until the desktop build compiles. Native Fabula features only.
 - Video FX/plugins only. Native Fabula first; the OFX adapter later translates the same registry
   (stable ids, ordered params, inputs). Do not build a parallel effect system — extend
   `components/plajahPixels/engine/fx/effects.ts` and its packs.
@@ -34,6 +35,7 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust shell step 1 DONE 2026-09-02 (rust/fabula-ofx: dependency-free cdylib, generated src/manifest_gen.rs, describe / describe-in-context / passthrough render; `npm run ofx:check`). Step 2 = wgpu kernel execution |
 
 ## Done this run
+- (2026-09-02, continuation 2) N-frame source history in FxRenderer (`temporal: 4` keeps a 4-frame ring; `prevSrcN(n, uv)` in the FX header) + Temporal Median (denoise / rain & dust) + Object Remover (clean-plate fill inside a mask: median / oldest / most-stable history). 166 effects.
 - (2026-09-02, continuation) Cleanup pack (phase3CleanupEffects.ts): Wire Remover (line endpoints bindable to tracks, fills from both sides with grain match), Spot Fix (ring heal), Clone Patch (offset clone with brightness match). 164 effects. Not a temporal clean-plate Remover — that needs multi-frame history (feedback gives one frame).
 - (2026-09-02, continuation) Track sharing: USE TRACK FROM… copies another clip of the same footage's planar/point track re-based to this clip's source time (services/fabula/trackShare.ts; tests).
 - (2026-09-02, continuation) VectorTrack motion → FCPXML `<adjust-transform>` keyframes (services/fabula/fcpxmlTransform.ts: planar stabilise via inverse-plane affine decomposition, point stabilise translation, pinned overlays via the placement matrix; centre-origin pixels, y up, rotation CCW; linear-run thinning). Perspective is dropped (FCPXML has no corner pin). `npm run test:forge` bundles all Forge/title/OFX/FCPXML tests.
@@ -54,9 +56,9 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 - (2026-09-02) VectorTrack planar tracker end to end — see `plajah-vectortrack` memory / build matrix.
 
 ## Next up (in order)
-1. Text tile / data columns generator; temporal clean-plate Remover (needs N-frame history in FxRenderer).
+1. Text tile / data columns generator.
 2. Crossover SAM2 tracked mattes.
-3. OFX shell step 3 (wgpu kernel execution) — needs a machine with MSVC/clang.
+3. OFX (DEFERRED by Kenne 2026-09-02: no OFX host work until the desktop/Crossover version compiles; keep the manifest + shell as-is, do not regenerate).
 
 ## Backlog (kernel gaps vs the Boris/Red Giant catalog, for later kernel batches)
 Symbol mapper (ASCII), retrograde/carousel film frames, VHS text generator, dither palettes

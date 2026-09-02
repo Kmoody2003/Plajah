@@ -37,8 +37,9 @@ export interface FxEffect {
   category?: FxCategory; summary?: string; version?: number;
   passes?: FxPass[]; presets?: FxPreset[];
   auxInput?: { label: string; optional?: boolean };
-  /** Reads its own previous output (prev) / previous source (prevSrc); needs frame history. */
-  temporal?: boolean;
+  /** Reads its own previous output (prev) / previous source (prevSrc); needs frame history.
+   *  A number (2..4) keeps that many previous SOURCE frames (prevSrcN(n, uv), n = 1..4). */
+  temporal?: boolean | number;
 }
 
 // Shared header: the effect body samples its input via inp(uv) and reads P0..P7 (its
@@ -52,6 +53,7 @@ uniform sampler2D uSource;
 uniform sampler2D uAux;
 uniform sampler2D uPrev;     // this effect's previous OUTPUT (feedback); = input on the first frame
 uniform sampler2D uPrevSrc;  // the previous SOURCE frame; = input on the first frame
+uniform sampler2D uPrevSrc2, uPrevSrc3, uPrevSrc4; // older source frames (temporal: N); = nearest available
 uniform vec2 uResolution;
 uniform float uTime;
 uniform float uDeltaT;       // seconds since the previous frame; 0 = first frame / time jump
@@ -63,6 +65,7 @@ vec4 src(vec2 uv){ return texture(uSource, clamp(uv, 0.0, 1.0)); }
 vec4 aux(vec2 uv){ return texture(uAux, clamp(uv, 0.0, 1.0)); }
 vec4 prev(vec2 uv){ return texture(uPrev, clamp(uv, 0.0, 1.0)); }
 vec4 prevSrc(vec2 uv){ return texture(uPrevSrc, clamp(uv, 0.0, 1.0)); }
+vec4 prevSrcN(int n, vec2 uv){ vec2 q=clamp(uv,0.0,1.0); if(n<=1) return texture(uPrevSrc,q); if(n==2) return texture(uPrevSrc2,q); if(n==3) return texture(uPrevSrc3,q); return texture(uPrevSrc4,q); }
 vec3 rgb2hsv(vec3 c){ vec4 K=vec4(0.,-1./3.,2./3.,-1.); vec4 p=mix(vec4(c.bg,K.wz),vec4(c.gb,K.xy),step(c.b,c.g)); vec4 q=mix(vec4(p.xyw,c.r),vec4(c.r,p.yzx),step(p.x,c.r)); float d=q.x-min(q.w,q.y); float e=1e-10; return vec3(abs(q.z+(q.w-q.y)/(6.*d+e)), d/(q.x+e), q.x); }
 vec3 hsv2rgb(vec3 c){ vec4 K=vec4(1.,2./3.,1./3.,3.); vec3 p=abs(fract(c.xxx+K.xyz)*6.-K.www); return c.z*mix(K.xxx,clamp(p-K.xxx,0.,1.),c.y); }
 `;
