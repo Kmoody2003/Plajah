@@ -38,6 +38,7 @@ import { createPlanarSequence, referenceSample, trackPlanarFrame, upsertPlanarSa
 import { invertHomography, toPixelSpace, mat3ToCssMatrix3d, isIdentityMat3, containBox, solveHomography, transformPoint } from "../../services/fabula/planarTrack";
 import { resolveInstanceForFrame, maskOutlineAt, MASK_DEFAULT, BINDING_SOURCES } from "../../services/fabula/forgeBindings";
 import { segmentSubjectLatest } from "../../services/fabula/subjectMatte";
+import { glyphStates, TITLE_ANIMS, TITLE_ANIM_DEFAULT } from "../../services/fabula/titleAnimators";
 import { Compositor as PixelsCompositor } from "../plajahPixels/engine/core/compositor";
 import NodeGraphEditor from "./NodeGraphEditor";
 import ColorScopes from "./ColorScopes";
@@ -4355,8 +4356,17 @@ export default function Fabula() {
                           <div style={{ position: "absolute", left: x + "%", top: y + "%", transform: cls === "classic" ? "translate(-50%,-50%)" : "translateY(-50%)", textAlign: cls === "classic" ? "center" : "left", zIndex: 61, maxWidth: "76%", pointerEvents: "auto", cursor: isSel ? "move" : "pointer", outline: isSel ? "1px dashed rgba(255,140,0,0.85)" : "none", outlineOffset: 4 }}
                             onMouseDown={dragTitle} title={isSel ? "Drag to move · corner handle resizes" : "Click to select this title"}>
                             <div style={{ display: "inline-block", borderLeft: cls === "modern" ? "0.4cqw solid #FF8C00" : "none", paddingLeft: cls === "modern" ? "0.9cqw" : 0 }}>
-                              <div style={{ color, fontWeight: 700, fontSize: `${size}cqw`, lineHeight: 1.12, fontFamily: font, textShadow: "0 2px 8px rgba(0,0,0,0.9)", whiteSpace: "pre-wrap" }}>{tc.text}</div>
-                              {tc.subtitle && <div style={{ color: tc.tSubColor || (cls === "minimal" ? "rgba(255,255,255,0.85)" : "#FF8C00"), fontWeight: 500, fontSize: `${size * 0.45}cqw`, marginTop: 2, fontFamily: font, textShadow: "0 2px 6px rgba(0,0,0,0.9)" }}>{tc.subtitle}</div>}
+                              {(() => {
+                                const anim = tc.tAnim && tc.tAnim.type !== "none" ? tc.tAnim : null;
+                                const states = anim ? glyphStates(tc.text, playhead - tc.start, anim, tc.duration) : null;
+                                const subOpacity = states ? Math.min(1, states[states.length - 1]?.opacity ?? 1) : 1;
+                                return (<>
+                                  <div style={{ color, fontWeight: 700, fontSize: `${size}cqw`, lineHeight: 1.12, fontFamily: font, textShadow: "0 2px 8px rgba(0,0,0,0.9)", whiteSpace: "pre-wrap" }}>
+                                    {states ? states.map((s, i) => <span key={i} style={{ display: "inline-block", whiteSpace: "pre", opacity: s.opacity, transform: `translate(${s.dx}em, ${s.dy}em) scale(${s.scale})`, filter: s.blur > 0.01 ? `blur(${s.blur}em)` : undefined, letterSpacing: s.spacing ? `${s.spacing}em` : undefined }}>{s.char}</span>) : tc.text}
+                                  </div>
+                                  {tc.subtitle && <div style={{ color: tc.tSubColor || (cls === "minimal" ? "rgba(255,255,255,0.85)" : "#FF8C00"), fontWeight: 500, fontSize: `${size * 0.45}cqw`, marginTop: 2, fontFamily: font, textShadow: "0 2px 6px rgba(0,0,0,0.9)", opacity: subOpacity }}>{tc.subtitle}</div>}
+                                </>);
+                              })()}
                             </div>
                             {isSel && <span onMouseDown={resizeTitle} title="Drag to resize"
                               style={{ position: "absolute", right: -12, bottom: -12, width: 12, height: 12, background: "#FF8C00", borderRadius: 3, cursor: "nwse-resize", border: "1px solid rgba(0,0,0,0.6)" }} />}
@@ -4475,6 +4485,22 @@ export default function Fabula() {
                               <option value="classic">Classic</option>
                               <option value="minimal">Minimal</option>
                             </select>
+                            <div className="lbl" style={{ marginTop: 6 }}>ANIMATION</div>
+                            {(() => {
+                              const anim = { ...TITLE_ANIM_DEFAULT, ...(selClip.tAnim || {}) };
+                              const setAnim = (patch) => updateClip(selClip.id, { tAnim: { ...anim, ...patch } });
+                              return (<>
+                                <select className="sel" value={anim.type} onChange={(e) => setAnim({ type: e.target.value })}>
+                                  {TITLE_ANIMS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+                                </select>
+                                {anim.type !== "none" && (<>
+                                  <div className="insp-row" style={{ marginTop: 4 }}><span className="lbl">IN</span><input type="range" min="0.1" max="4" step="0.05" value={anim.duration} onChange={(e) => setAnim({ duration: parseFloat(e.target.value) })} /><span className="insp-val mono">{anim.duration.toFixed(2)}s</span></div>
+                                  <div className="insp-row"><span className="lbl">DELAY</span><input type="range" min="0" max="3" step="0.05" value={anim.delay || 0} onChange={(e) => setAnim({ delay: parseFloat(e.target.value) })} /><span className="insp-val mono">{(anim.delay || 0).toFixed(2)}s</span></div>
+                                  <div className="insp-row"><span className="lbl">OUT</span><input type="range" min="0" max="3" step="0.05" value={anim.out || 0} onChange={(e) => setAnim({ out: parseFloat(e.target.value) })} /><span className="insp-val mono">{(anim.out || 0).toFixed(2)}s</span></div>
+                                  <div className="insp-row"><span className="lbl">STAGGER</span><input type="range" min="0" max="1" step="0.02" value={anim.stagger ?? .6} onChange={(e) => setAnim({ stagger: parseFloat(e.target.value) })} /><span className="insp-val mono">{(anim.stagger ?? .6).toFixed(2)}</span></div>
+                                </>)}
+                              </>);
+                            })()}
                             <div className="lbl" style={{ marginTop: 6 }}>FONT</div>
                             <div className="btnrow" style={{ gap: 5 }}>
                               <select className="sel grow" value={selClip.tFont || ""} onChange={(e) => updateClip(selClip.id, { tFont: e.target.value || undefined })}>

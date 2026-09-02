@@ -336,7 +336,7 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
           inputs.push({ element: getTextCanvas(clip.text, clip.fillColor), opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });
         } else if (clip.type === 'title' && clip.text) {
           const tc = clip as any; // Fabula titler overrides ride along on the clip
-          inputs.push({ element: getTitleCanvas(clip.text, clip.subtitle, clip.titleStyle, clip.fillColor, { font: tc.tFont, color: tc.tColor, subColor: tc.tSubColor, size: tc.tSize, x: tc.tx, y: tc.ty }), opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });
+          inputs.push({ element: getTitleCanvas(clip.text, clip.subtitle, clip.titleStyle, clip.fillColor, { font: tc.tFont, color: tc.tColor, subColor: tc.tSubColor, size: tc.tSize, x: tc.tx, y: tc.ty }, { anim: tc.tAnim, t: layer.time ?? 0, duration: tc.tDur }), opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });
         } else if (clip.type === 'shader' && clip.shaderSrc) {
           const tex = shaderRend.render(layer.id, clip.shaderSrc, width, height, { time: lt, audio: audioTex, params: clip.params || [] });
           inputs.push({ texture: tex, opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });
