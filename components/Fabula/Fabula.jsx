@@ -32,6 +32,7 @@ import { FxLibraryPanel, LottieBuilder, PerformCapture, CompBuilder } from "./Fx
 import { FX_EFFECTS } from "../plajahPixels/engine/fx/effects";
 import { createEffectInstance } from "../../services/fabula/forgeEffects";
 import { createForgeTransition } from "../../services/fabula/forgeTransitions";
+import { instantiateLook, lookFromStack, saveUserLook, LOOK_CATEGORIES } from "../../services/fabula/forgeLooks";
 import { parseCubeLut } from "../../services/fabula/cubeLut";
 import { createVectorTrack, stabilizationAt, trackPoint, upsertTrackSample, grayFromRgba } from "../../services/fabula/vectorTrack";
 import { createPlanarSequence, referenceSample, trackPlanarFrame, upsertPlanarSample, samplePlanarAt, planarStabilizeAt, cornerPinAt, planarTrackedRange, quadPoint, exportCornerPin } from "../../services/fabula/planarSequence";
@@ -78,6 +79,11 @@ import SpatialMixer from "../spatialMixer/SpatialMixer";
 import { setComicHandoff } from "../../services/comicHandoff";
 import MusicLicensingStore from "../MusicLicensingStore";
 import { CREATIVE_LOOKS, DEFAULT_PHOTO_ADJUSTMENTS, photoAdjustmentsToEffects } from "../../services/photoEditingService";
+import LowerThirdMonitor from "./LowerThirdMonitor";
+import LowerThirdGallery from "./LowerThirdGallery";
+import LowerThirdInspector from "./LowerThirdInspector";
+import { findLowerThird } from "../../services/fabula/lowerThirdRegistry";
+import { openLowerThirdInTela } from "../../services/fabula/lowerThirdToTela";
 
 // Read a drag-and-drop into { path, name, file } items, recursively walking dropped FOLDERS via the
 // webkitGetAsEntry directory API (mirroring their structure into `path`). This is a picker-free way to
@@ -779,6 +785,7 @@ export default function Fabula() {
   const [pubDownload, setPubDownload] = useState(true);
   const [publishing, setPublishing] = useState(false);
   const [localFonts, setLocalFonts] = useState([]);        // families from the Local Font Access API
+  const [ltGallery, setLtGallery] = useState(null);         // null | "add" | clipId being swapped
   const loadLocalFonts = async () => {
     try {
       if (typeof window.queryLocalFonts !== "function") { window.alert("This browser doesn't expose local fonts (Chrome/Edge only)."); return; }
@@ -1681,6 +1688,25 @@ export default function Fabula() {
       const preset = effect?.presets?.find((candidate) => candidate.id === presetId);
       ping(`✦ ${preset?.name || effect?.name || effectId} added to the Forge stack`);
     } catch (error) { ping(error?.message || "Could not add effect"); }
+  };
+  // A look replaces the clip's Forge stack with the look's effects (each still editable).
+  const applyForgeLook = (look) => {
+    if (!selClipId) { ping("Select a clip first."); return; }
+    try {
+      const stack = instantiateLook(look, (effectId, index) => `${effectId}-${uid()}-${index}`);
+      applyClips(clips.map((clip) => clip.id === selClipId ? { ...clip, fx: { ...ensureFx(clip), stack } } : clip));
+      ping(`◈ ${look.name} · ${stack.length} effects`);
+    } catch (error) { ping(error?.message || "Could not apply that look"); }
+  };
+  const saveStackAsLook = () => {
+    const clip = getSel(); const stack = clip ? ensureFx(clip).stack : [];
+    if (!stack.length) { ping("Add some effects first, then save them as a look."); return; }
+    const name = (window.prompt("Name this look", clip.label ? `${clip.label} Look` : "My Look") || "").trim();
+    if (!name) return;
+    const category = (window.prompt(`Category (${LOOK_CATEGORIES.map((c) => c.id).join(", ")})`, "cinematic") || "cinematic").trim().toLowerCase();
+    const valid = LOOK_CATEGORIES.some((c) => c.id === category) ? category : "cinematic";
+    saveUserLook(lookFromStack(stack, name, valid, `${stack.length} effects saved from ${clip.label || "a clip"}.`));
+    ping(`◈ "${name}" saved to LOOKS`);
   };
   const addForgeTransition = (transitionId, presetId) => {
     if (!selClipId) { ping("Select the incoming clip at a cut first."); return; }
@@ -2990,6 +3016,20 @@ export default function Fabula() {
     const nc = [...clips, clip];
     updateProd((p) => { ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
     setClips(nc); setSelClipId(clip.id);
+  };
+  // Motion lower third: a title clip carrying a tGraphic (template id + overrides). The
+  // monitor + export share one canvas renderer, so the template stays editable and exact.
+  const addLowerThird = (spec) => {
+    if (ltGallery && ltGallery !== "add") {
+      // Swap the design on an existing clip; keep its text and timing.
+      const nc = clips.map((c) => (c.id === ltGallery ? { ...c, tGraphic: { specId: spec.id }, tx: undefined, ty: undefined, label: `${c.text || spec.defaults.title} · ${spec.name}` } : c));
+      setClips(nc); commitClips(nc); setLtGallery(null); return;
+    }
+    const sid = subTrackId();
+    const clip = { id: uid(), trackId: sid, start: playhead, duration: spec.duration || 5, kind: "title", text: spec.defaults.title, subtitle: spec.defaults.subtitle || "", tag: spec.defaults.tag || "", tGraphic: { specId: spec.id }, label: `${spec.defaults.title} · ${spec.name}`, srcIn: 0, fx: { ...SUB_FX, blend: "normal", fadeIn: 0, fadeOut: 0 } };
+    const nc = [...clips, clip];
+    updateProd((p) => { ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
+    setClips(nc); setSelClipId(clip.id); setLtGallery(null);
   };
 
   const activeEdit = editSel ? prod?.edits?.find((e) => e.id === editSel) : null;
@@ -4325,6 +4365,10 @@ export default function Fabula() {
                       {(() => {
                         const tc = clips.find((c) => c.kind === "title" && c.text && playhead >= c.start && playhead < c.start + c.duration);
                         if (!tc) return null;
+                        if (tc.tGraphic && findLowerThird(tc.tGraphic.specId)) {
+                          return <LowerThirdMonitor key={tc.id} clip={tc} playhead={playhead} selected={selClipId === tc.id} onSelect={() => setSelClipId(tc.id)}
+                            onMove={(tx, ty, commit) => { setClips((cur) => { const n = cur.map((c) => (c.id === tc.id ? { ...c, tx: Math.round(tx * 10) / 10, ty: Math.round(ty * 10) / 10 } : c)); if (commit) commitClips(n); return n; }); }} />;
+                        }
                         const cls = tc.titleStyle || "modern";
                         const x = tc.tx != null ? tc.tx : (cls === "classic" ? 50 : 12);
                         const y = tc.ty != null ? tc.ty : 78;
@@ -4474,7 +4518,20 @@ export default function Fabula() {
                               onChange={(e) => updateClip(selClip.id, { text: e.target.value, label: e.target.value.slice(0, 40) })} />
                           </>
                         )}
-                        {selClip.kind === "title" && (
+                        {selClip.kind === "title" && selClip.tGraphic && (
+                          <>
+                            <div className="insp-div" />
+                            <div className="lbl">LOWER THIRD · TITLE</div>
+                            <input className="in" value={selClip.text || ""} placeholder="Name…" onChange={(e) => updateClip(selClip.id, { text: e.target.value, label: e.target.value.slice(0, 40) })} />
+                            <div className="lbl" style={{ marginTop: 6 }}>SUBTITLE</div>
+                            <input className="in" value={selClip.subtitle || ""} placeholder="Role, place, handle…" onChange={(e) => updateClip(selClip.id, { subtitle: e.target.value })} />
+                            {(() => { const sp = findLowerThird(selClip.tGraphic.specId); return sp && (sp.tag || selClip.tGraphic.tag) ? (<><div className="lbl" style={{ marginTop: 6 }}>TAG</div><input className="in" value={selClip.tag || ""} placeholder="Live · Location · Kicker" onChange={(e) => updateClip(selClip.id, { tag: e.target.value })} /></>) : null; })()}
+                            <LowerThirdInspector clip={selClip} onPatch={(patch) => updateClip(selClip.id, patch)} onSwap={() => setLtGallery(selClip.id)}
+                              onOpenInTela={() => { const sp = findLowerThird(selClip.tGraphic.specId); if (!sp) return; openLowerThirdInTela(sp, selClip.tGraphic, { title: selClip.text || "", subtitle: selClip.subtitle, tag: selClip.tag }, selClip.tx != null && selClip.ty != null ? { x: selClip.tx, y: selClip.ty } : undefined).catch((e) => ping("Could not open in Tela — " + (e?.message || e))); }} />
+                            <div className="dim small">Duration, position on the timeline and the FX stack below work like any title clip. IN plays from the clip start, OUT ends at the clip end — trim the clip to retime the whole graphic.</div>
+                          </>
+                        )}
+                        {selClip.kind === "title" && !selClip.tGraphic && (
                           <>
                             <div className="insp-div" />
                             <div className="lbl">TITLE</div>
@@ -4705,7 +4762,8 @@ export default function Fabula() {
                                 );
                               })()}
                               <div className="lbl" style={{ marginTop: 8 }}>FORGE STACK <span className="cap">NATIVE · ORDERED · NON-DESTRUCTIVE</span></div>
-                              {!fx.stack.length && <div className="dim small">Add premium effects from Effects Library → Forge.</div>}
+                              {!fx.stack.length && <div className="dim small">Add premium effects from Effects Library → Forge, or start from a LOOK.</div>}
+                              {fx.stack.length > 1 && <div className="btnrow" style={{ gap: 5, marginBottom: 6 }}><button className="minibtn" title="Save this whole stack to the LOOKS tab" onClick={saveStackAsLook}>◈ SAVE AS LOOK</button><span className="dim small mono">{fx.stack.length} effects</span></div>}
                               {fx.stack.map((instance, stackIndex) => {
                                 const effect = FX_EFFECTS.find((candidate) => candidate.id === instance.effectId);
                                 if (!effect) return null;
@@ -5485,7 +5543,8 @@ export default function Fabula() {
                         <button className="minibtn" onClick={() => addTrack("audio")} title="Add an audio track (no limit)"><Music size={10} /> + AUDIO</button>
                         <button className="minibtn" onClick={() => addTrack("subtitle")} title="Add a subtitle/caption track"><Captions size={10} /> + SUBS</button>
                         <button className="minibtn" onClick={addSubtitle} title="Add a subtitle clip at the playhead"><Type size={10} /> + SUBTITLE</button>
-                        <button className="minibtn" onClick={addTitle} title="Add a lower-third title at the playhead"><Type size={10} /> + TITLE</button>
+                        <button className="minibtn" onClick={addTitle} title="Add a plain title at the playhead"><Type size={10} /> + TITLE</button>
+                        <button className="minibtn" onClick={() => setLtGallery("add")} title="Add a motion lower third from the template gallery"><Type size={10} /> + LOWER THIRD</button>
                         <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
                         {["normal", "ripple", "roll", "slip"].map((m) => (
                           <button key={m} className="minibtn" onClick={() => setTrimMode(m)} title={`Trim mode: ${m} — ripple shifts downstream, roll moves the cut, slip shifts content`} style={{ opacity: trimMode === m ? 1 : 0.5, color: trimMode === m ? "#FF8C00" : undefined }}>{m.toUpperCase()}</button>
@@ -6676,6 +6735,7 @@ export default function Fabula() {
                           onApplyFilter={applyFxPreset}
                           onAddForge={addForgeEffect}
                           onAddTransition={addForgeTransition}
+                          onApplyLook={applyForgeLook}
                           onInsertGenerator={insertGenerator}
                           onInsertLottie={(a) => insertAssetClip(a)}
                           onImportLottie={() => fileRef.current?.click()}
@@ -7344,6 +7404,8 @@ export default function Fabula() {
           </div>
         )}
       </main>
+
+      {ltGallery && <LowerThirdGallery onChoose={addLowerThird} onClose={() => setLtGallery(null)} />}
 
       {/* busy bar */}
       {busy && <div className="busybar"><span className="blink" />{busyMsg}</div>}

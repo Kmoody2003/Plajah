@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FX_EFFECTS } from "../plajahPixels/engine/fx/effects";
 import { FORGE_TRANSITIONS } from "../../services/fabula/forgeTransitions";
+import { FORGE_LOOKS, LOOK_CATEGORIES, allLooks, deleteUserLook } from "../../services/fabula/forgeLooks";
 
 /* ─────────────── FILTER PRESETS (map to the clip fx model: bri/con/sat/blur/op) ─────────────── */
 export const FILTER_PRESETS = [
@@ -42,8 +43,10 @@ export const GENERATOR_LIST = [
 ];
 const GEN_TINTS = ["#7b5cff", "#ff8c42", "#31c6a8", "#ff5c8a", "#4ea1ff", "#ffd166", "#9d4edd", "#57cc99"];
 
-export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onAddForge, onAddTransition, onInsertGenerator, onInsertLottie, onImportLottie, onOpenFxPage, onClose }) {
+export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onApplyLook, onAddForge, onAddTransition, onInsertGenerator, onInsertLottie, onImportLottie, onOpenFxPage, onClose }) {
   const [tab, setTab] = useState("forge");
+  const [lookCat, setLookCat] = useState("all");
+  const [looks, setLooks] = useState(() => { try { return allLooks(); } catch { return FORGE_LOOKS; } });
   const [forgeCat, setForgeCat] = useState("all");
   const [forgeQuery, setForgeQuery] = useState("");
   const FORGE_CATS = [["all", "ALL"], ["light", "LIGHT"], ["blur", "BLUR"], ["color", "COLOR"], ["utility", "KEY"], ["stylize", "STYLIZE"], ["distort", "WARP"], ["time", "TIME"], ["generator", "GENERATE"]];
@@ -61,11 +64,34 @@ export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onAddForge, onA
         <button className="minibtn" style={{ marginLeft: "auto", fontSize: 8 }} onClick={onClose} title="Close">✕</button>
       </div>
       <div className="fxtabs">
-        {[["forge", "FORGE"], ["transitions", "TRANSITIONS"], ["filters", "FILTERS"], ["generators", "GENERATORS"], ["lottie", "LOTTIE"]].map(([id, lbl]) => (
+        {[["looks", "LOOKS"], ["forge", "FORGE"], ["transitions", "TRANSITIONS"], ["filters", "FILTERS"], ["generators", "GENERATORS"], ["lottie", "LOTTIE"]].map(([id, lbl]) => (
           <button key={id} className={`fxtab ${tab === id ? "on" : ""}`} onClick={() => setTab(id)}>{lbl}</button>
         ))}
       </div>
       <div className="fxbody">
+        {tab === "looks" && (
+          <>
+            <div className="dim small" style={{ padding: "2px 2px 8px" }}>{selClipId ? "A look is a whole effect stack. One click builds it on the clip; every step stays editable in the Inspector." : "Select a video clip to apply a look."}</div>
+            <div className="btnrow" style={{ gap: 4, flexWrap: "wrap", padding: "0 2px 6px" }}>
+              {[["all", "ALL"], ...LOOK_CATEGORIES.map((c) => [c.id, c.label])].map(([id, lbl]) => (
+                <button key={id} className={`minibtn ${lookCat === id ? "on" : ""}`} onClick={() => setLookCat(id)}>{lbl}</button>
+              ))}
+              <span className="dim small mono">{looks.filter((l) => lookCat === "all" || l.category === lookCat).length}/{looks.length}</span>
+            </div>
+            {looks.filter((look) => lookCat === "all" || look.category === lookCat).map((look) => (
+              <div key={look.id} className="forgefx" style={{ marginBottom: 8 }}>
+                <div className="fxrow">
+                  <button className="fxrowbtn grow" disabled={!selClipId} onClick={() => onApplyLook(look)} title={look.description}>
+                    <span className="fxdot">◈</span><span className="fxrowname">{look.name}</span><span className="dim small">{look.steps.length} FX</span>
+                  </button>
+                  {!look.builtIn && <button className="minibtn danger" title="Delete this saved look" onClick={() => setLooks(() => { deleteUserLook(look.id); return allLooks(); })}>✕</button>}
+                </div>
+                <div className="dim small" style={{ padding: "2px 2px 0" }}>{look.description}</div>
+                <div className="dim small mono" style={{ padding: "2px 2px 0", opacity: .7 }}>{look.steps.map((s) => s.effectId).join(" › ")}</div>
+              </div>
+            ))}
+          </>
+        )}
         {tab === "forge" && (
           <>
             <div className="dim small" style={{ padding: "2px 2px 8px" }}>{selClipId ? "Add a premium native effect or begin with a curated look. The stack stays editable in the Inspector." : "Select a video clip, then choose an effect or curated look."}</div>
