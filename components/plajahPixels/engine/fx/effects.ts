@@ -17,6 +17,7 @@ import { PHASE1_STYLIZE_FINISH_EFFECTS } from './phase1StylizeFinishEffects';
 import { PHASE1_DISTORT_FINISH_EFFECTS } from './phase1DistortFinishEffects';
 import { PHASE1_MULTI_INPUT_EFFECTS } from './phase1MultiInputEffects';
 import { PHASE2_TIME_EFFECTS } from './phase2TimeEffects';
+import { PHASE3_PARTICLE_EFFECTS } from './phase3ParticleEffects';
 
 export type FxCategory = 'color' | 'light' | 'blur' | 'stylize' | 'distort' | 'utility' | 'time' | 'generator' | 'mask';
 export interface FxParam {
@@ -74,6 +75,7 @@ export const FX_EFFECTS: FxEffect[] = [
   ...PHASE1_DISTORT_FINISH_EFFECTS,
   ...PHASE1_MULTI_INPUT_EFFECTS,
   ...PHASE2_TIME_EFFECTS,
+  ...PHASE3_PARTICLE_EFFECTS,
   {
     id: 'cinematiccolor', name: 'Cinematic Color', category: 'color', version: 1,
     summary: 'Filmic contrast, split-tone color separation and highlight rolloff in one tasteful finishing tool.',

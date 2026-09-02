@@ -28,24 +28,24 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W2b | **Mask input per effect (PixelChooser)**: shape masks (ellipse/rect/polygon, feather, invert), aux-luma masks, planar-tracked masks; mask editor overlay; mix stage in FxRenderer | DONE 2026-09-02 (services/fabula/forgeBindings.ts, MaskOverlay in Fabula.jsx; aux-luma masks still open) |
 | W2c | **Track binding**: bind any effect param / mask / window to VectorTrack point or planar data (`instance.bindings`) — resolved identically in monitor + export | DONE 2026-09-02 (LINK select per param when the clip has a track) |
 | W2d | VectorTrack: track backward, AdjustTrack manual key, corner-pin export rows to FCPXML | later |
-| W3a | **Emitter (stateless particles)**: closed-form GPU particle fields (rain/snow/sparks/embers/dust/bokeh/streaks), forces via curl noise, 3D-ish depth, motion blur; preset library by category | after W2 |
+| W3a | DONE 2026-09-02 (phase3ParticleEffects.ts: Emitter · Field + Emitter · Burst, 17 presets) — **Emitter (stateless particles)**: closed-form GPU particle fields (rain/snow/sparks/embers/dust/bokeh/streaks), forces via curl noise, 3D-ish depth, motion blur; preset library by category | DONE (fluid sim / 3D model emitters remain open) |
 | W3b | Text animators on the titler (per-glyph type-on, tracking, scramble, counters) | later |
 | W3c | three.js layer node (extrusions, shatter, Form/Mir/Tao) | later |
 | W4 | ML tier: MediaPipe subject matte as a mask source (live + offline), depth ONNX, Crossover SAM2 | later |
-| W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator after W2 |
+| W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust/C++ shell open |
 
 ## Done this run
+- (2026-09-02) W5 step 1: OFX descriptor generator (choice/int/bool typing from labels, clips, contexts, kernel ABI + header hash). W3a: Emitter Field (rest-frame hashed, 3 parallax layers, 7 shapes) + Emitter Burst (64 closed-form particles, bindable emitter position); compile sweep 118/118, deterministic.
 - (2026-09-02) W2a temporal access + 10 Time effects; fixed compositor VAO rebind after effects/grade layers/transitions (effects rendered BLACK before), two Forge shaders that did not compile, cube LUT sampler3D precision.
-- (2026-09-02) W2b masks (ellipse/rect/poly, feather, invert, follow point/planar) + W2c track-bound params via one resolver () used by ForgeClipPreview and fabulaRender. Verified by GL readback in the browser.
+- (2026-09-02) W2b masks (ellipse/rect/poly, feather, invert, follow point/planar) + W2c track-bound params via one resolver (resolveInstanceForFrame) used by ForgeClipPreview and fabulaRender. Verified by GL readback in the browser.
 - (2026-09-02) VectorTrack planar tracker end to end — see `plajah-vectortrack` memory / build matrix.
 
 ## Next up (in order)
-1. W5 OFX descriptor generator (cheap, on the path).
-2. W3a Emitter (stateless GPU particles) + preset library.
-3. Kernel batch from the backlog (grads & tints, diffusion glass, kaleido/halftone variants, HUD/shape generators).
-4. W4 MediaPipe subject matte as a mask source (live + offline).
-5. W2d VectorTrack track-backward + AdjustTrack + corner-pin FCPXML export.
-6. W3b text animators.
+1. Kernel batch from the backlog (grads & tints, diffusion glass, kaleido/halftone variants, HUD/shape generators).
+2. W4 MediaPipe subject matte as a mask source (live + offline).
+3. W2d VectorTrack track-backward + AdjustTrack + corner-pin FCPXML export.
+4. W3b text animators.
+5. OFX shell scaffold (Rust cdylib reading the manifest) — only after the above.
 
 ## Backlog (kernel gaps vs the Boris/Red Giant catalog, for later kernel batches)
 Kaleidoscope family variants, halftone rings/colour, fly's-eye, tile scramble, emboss glass,
