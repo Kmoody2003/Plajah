@@ -41,6 +41,7 @@ import { segmentSubjectLatest } from "../../services/fabula/subjectMatte";
 import { estimateDepthLatest, depthRangeCanvas } from "../../services/fabula/depthMatte";
 import { glyphStates, TITLE_ANIMS, TITLE_ANIM_DEFAULT } from "../../services/fabula/titleAnimators";
 import { dynamicText, DYNAMIC_TYPES, DYNAMIC_DEFAULT } from "../../services/fabula/titleDynamic";
+import { trackFrameOffset, canShareTrack, rebaseVectorTrack, rebasePlanarTrack } from "../../services/fabula/trackShare";
 import { Compositor as PixelsCompositor } from "../plajahPixels/engine/core/compositor";
 import NodeGraphEditor from "./NodeGraphEditor";
 import ColorScopes from "./ColorScopes";
@@ -4798,6 +4799,26 @@ export default function Fabula() {
                               </div>
                               {trackProgress && <div className="dim small">tracking {trackProgress.frame}/{trackProgress.total} · confidence {(trackProgress.confidence * 100).toFixed(0)}%{trackProgress.note ? ` · ${trackProgress.note}` : ""} <button className="minibtn" style={{ marginLeft: 6 }} onClick={() => { trackCancelRef.current = true; }}>STOP</button></div>}
                               {!trackProgress && fx.planarTrack && (() => { const r = planarTrackedRange(fx.planarTrack); const last = fx.planarTrack.samples.filter((s) => !s.lost).at(-1); return <div className="dim small">{fx.planarTrack.samples.filter((s) => !s.lost).length} frames · ref {fx.planarTrack.referenceFrame} → {r.end}{r.lostAt != null ? ` · lost at ${r.lostAt}` : ""} · {fx.planarTrack.features.length} features · confidence {((last?.confidence || 0) * 100).toFixed(0)}% · {last?.inliers ?? 0} inliers</div>; })()}
+                              {(() => {
+                                // Reuse a track from another clip of the SAME footage (copied + re-based to this clip's source time).
+                                const donors = clips.filter((c) => c.id !== selClip.id && c.assetId && c.assetId === selClip.assetId && (c.fx?.planarTrack || c.fx?.vectorTrack));
+                                if (!donors.length) return null;
+                                return (
+                                  <div className="fxrow"><span className="fxlbl">USE TRACK FROM</span>
+                                    <select className="sel xs grow" value="" onChange={(e) => {
+                                      const donor = clips.find((c) => c.id === e.target.value); if (!donor) return;
+                                      const fps = vfmt.fps || 24; const off = trackFrameOffset(donor, selClip, fps); const patch = {};
+                                      if (donor.fx?.planarTrack) { const r = planarTrackedRange(donor.fx.planarTrack); const ok = canShareTrack(donor, selClip, fps, { start: r.start, end: r.end }); if (!ok.ok) { ping(`Cannot share: ${ok.reason}`); return; } patch.planarTrack = rebasePlanarTrack(donor.fx.planarTrack, off, uid()); if (donor.fx.planarSurface) patch.planarSurface = donor.fx.planarSurface; }
+                                      if (donor.fx?.vectorTrack) { const s = donor.fx.vectorTrack.samples; const ok = canShareTrack(donor, selClip, fps, { start: s[0]?.frame ?? 0, end: s.at(-1)?.frame ?? 0 }); if (ok.ok) patch.vectorTrack = rebaseVectorTrack(donor.fx.vectorTrack, off, uid()); }
+                                      if (!Object.keys(patch).length) { ping("Nothing shareable from that clip."); return; }
+                                      updateFx(selClip.id, patch); ping(`Track copied from ${donor.label || donor.id}`);
+                                    }}>
+                                      <option value="">— pick a clip —</option>
+                                      {donors.map((c) => <option key={c.id} value={c.id}>{c.label || c.id} ({c.trackId}{c.fx?.planarTrack ? " · surface" : ""}{c.fx?.vectorTrack ? " · point" : ""})</option>)}
+                                    </select>
+                                  </div>
+                                );
+                              })()}
                               {!trackProgress && !fx.planarTrack && fx.planarSurface && <div className="dim small">surface placed · park the playhead on the reference frame and TRACK</div>}
                               {!trackProgress && fx.planarTrack && <div className="dim small">drag the green corners on the monitor to correct a frame, then TRACK again from it</div>}
                               {(() => {
