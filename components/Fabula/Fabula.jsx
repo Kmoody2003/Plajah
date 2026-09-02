@@ -5,6 +5,7 @@ import {
   Palette, Box, Cpu, Lock, Unlock, Camera, Brush, Type, Captions, Keyboard,
   Scissors, MousePointer2, FlagTriangleRight, FlagTriangleLeft,
   SlidersHorizontal, Mic2, FolderOpen, Search, Tag, FileText, RefreshCw,
+  Image as ImageIcon,
 } from "lucide-react";
 import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
@@ -28,6 +29,14 @@ import Waveform from "./Waveform";
 import { attachAudioGraph, getAudioCtx, meterRegistry, needsCors, resumeAudioCtx, CLIP_AUDIO_DEFAULT, COMP_DEFAULT, EQ_LABELS } from "../../services/fabula/audioGraph";
 import { transcodeToProxy, canTranscode } from "../plajahPixels/engine/core/proxyTranscoder";
 import { FxLibraryPanel, LottieBuilder, PerformCapture, CompBuilder } from "./FxLibrary";
+import { FX_EFFECTS } from "../plajahPixels/engine/fx/effects";
+import { createEffectInstance } from "../../services/fabula/forgeEffects";
+import { createForgeTransition } from "../../services/fabula/forgeTransitions";
+import { parseCubeLut } from "../../services/fabula/cubeLut";
+import { createVectorTrack, stabilizationAt, trackPoint, upsertTrackSample, grayFromRgba } from "../../services/fabula/vectorTrack";
+import { createPlanarSequence, referenceSample, trackPlanarFrame, upsertPlanarSample, samplePlanarAt, planarStabilizeAt, cornerPinAt, planarTrackedRange, quadPoint } from "../../services/fabula/planarSequence";
+import { invertHomography, toPixelSpace, mat3ToCssMatrix3d, isIdentityMat3, containBox } from "../../services/fabula/planarTrack";
+import { Compositor as PixelsCompositor } from "../plajahPixels/engine/core/compositor";
 import NodeGraphEditor from "./NodeGraphEditor";
 import ColorScopes from "./ColorScopes";
 import GradePreview from "./GradePreview";
@@ -52,6 +61,7 @@ import { initResumableUploads, enqueueUpload, onUploadProgress, pendingCount, se
 import { listSyncFolders, addSyncFolder, removeSyncFolder, rescanNew, markSeen, getFileFromFolder } from "../../services/fabula/syncFolders";
 import { isVectorFile, rasterizeVector } from "../../services/fabula/vectorRaster";
 import GeneratePanel from "./GeneratePanel";
+import { specFromShot, connectorById, placeResultInCut } from "../../services/fabula/genAgent";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
@@ -61,6 +71,7 @@ import { syncProductionToWorld, worldCharactersForProduction } from "../../servi
 import SpatialMixer from "../spatialMixer/SpatialMixer";
 import { setComicHandoff } from "../../services/comicHandoff";
 import MusicLicensingStore from "../MusicLicensingStore";
+import { CREATIVE_LOOKS, DEFAULT_PHOTO_ADJUSTMENTS, photoAdjustmentsToEffects } from "../../services/photoEditingService";
 
 // Read a drag-and-drop into { path, name, file } items, recursively walking dropped FOLDERS via the
 // webkitGetAsEntry directory API (mirroring their structure into `path`). This is a picker-free way to
@@ -199,8 +210,8 @@ const ENGINE_KINDS = [
 ];
 
 /* per-clip effects defaults — the compositing model */
-const FX_DEFAULTS = { op: 1, sc: 1, x: 0, y: 0, rot: 0, blur: 0, bri: 1, con: 1, sat: 1, blend: "normal", fadeIn: 0, fadeOut: 0, matte: { t: "none", x: 50, y: 50, w: 60, h: 60, f: 0 }, genNote: "" };
-const ensureFx = (c) => ({ ...FX_DEFAULTS, ...(c.fx || {}), matte: { ...FX_DEFAULTS.matte, ...(c.fx?.matte || {}) } });
+const FX_DEFAULTS = { op: 1, sc: 1, x: 0, y: 0, rot: 0, blur: 0, bri: 1, con: 1, sat: 1, blend: "normal", fadeIn: 0, fadeOut: 0, matte: { t: "none", x: 50, y: 50, w: 60, h: 60, f: 0 }, stack: [], genNote: "" };
+const ensureFx = (c) => ({ ...FX_DEFAULTS, ...(c.fx || {}), matte: { ...FX_DEFAULTS.matte, ...(c.fx?.matte || {}) }, stack: Array.isArray(c.fx?.stack) ? c.fx.stack : [] });
 const BLENDS = ["normal", "multiply", "screen", "overlay", "soft-light", "hard-light", "lighten", "darken", "difference", "color-dodge"];
 
 const TRACKS = [
@@ -706,6 +717,19 @@ export default function Fabula() {
       items.push({ id: "detach", label: "Split audio to track", icon: <Music size={14} />, shortcut: (selIds.length > 1 && selIds.includes(c.id)) ? `×${selIds.length}` : undefined, onSelect: () => detachAudio(c.id) });
     }
     items.push({ id: "transcribe", label: transcribing ? "Transcribing…" : "Transcribe clip", icon: <Captions size={14} />, disabled: transcribing || !c.assetId, onSelect: () => transcribeClip(c) });
+    // Generation, in the cut. Only offered on clips that trace back to a SLATE shot — everything else
+    // has no prompt to regenerate from, and a menu item that can only fail is worse than no item.
+    if (c.shotId && shotForClip(c)) {
+      items.push(
+        { kind: "separator" },
+        {
+          id: "regen-video", label: c.kind === "script" ? "Generate shot…" : "Generate alternate take…",
+          icon: <Sparkles size={14} />, shortcut: shotForClip(c)?.shot?.slug,
+          onSelect: () => openGenForClip(c, "video"),
+        },
+        { id: "regen-still", label: "Generate still for this shot…", icon: <ImageIcon size={14} />, onSelect: () => openGenForClip(c, "still") },
+      );
+    }
     if (c.assetId && (c.trackId?.startsWith("a") || c.kind === "media")) {
       items.push(
         { kind: "separator" },
@@ -1100,6 +1124,10 @@ export default function Fabula() {
   const mediaFilesRef = useRef(null);               // plain files → auto-tagged import (media assets tab)
   const scriptFilesRef = useRef(null);              // .txt/.md/.fountain → Lorea script structuring
   const [genOpen, setGenOpen] = useState(false);    // generation agent panel (Kling/Magnific → bins)
+  // Context for the generation panel when it's opened from a SLATE shot card or a timeline clip rather
+  // than the media pool — carries the compiled ShotSpec so the panel opens pre-filled with the shot's
+  // prompt and the scene bible's identity locks as references. null = opened bare from the pool.
+  const [genCtx, setGenCtx] = useState(null);
 
   const inferCategory = (relPath) => {
     for (const [re, cat] of FOLDER_MAP) if (re.test(relPath)) return cat;
@@ -1635,6 +1663,108 @@ export default function Fabula() {
     if (!selClipId) { ping("Select a clip in the timeline first."); return; }
     updateFx(selClipId, preset.fx);
     ping(`Filter "${preset.name}" applied — fine-tune in the inspector`);
+  };
+  const addForgeEffect = (effectId, presetId) => {
+    if (!selClipId) { ping("Select a video clip in the timeline first."); return; }
+    const clip = clips.find((candidate) => candidate.id === selClipId);
+    const current = ensureFx(clip);
+    try {
+      const instance = createEffectInstance(effectId, presetId, uid());
+      updateFx(selClipId, { stack: [...current.stack, instance] });
+      const effect = FX_EFFECTS.find((candidate) => candidate.id === effectId);
+      const preset = effect?.presets?.find((candidate) => candidate.id === presetId);
+      ping(`✦ ${preset?.name || effect?.name || effectId} added to the Forge stack`);
+    } catch (error) { ping(error?.message || "Could not add effect"); }
+  };
+  const addForgeTransition = (transitionId, presetId) => {
+    if (!selClipId) { ping("Select the incoming clip at a cut first."); return; }
+    try {
+      const trans = createForgeTransition(transitionId, presetId, 1);
+      applyClips(clips.map((clip) => clip.id === selClipId ? { ...clip, fx: { ...ensureFx(clip), trans } } : clip));
+      ping(`⇄ ${transitionId.replaceAll("-", " ")} transition added`);
+    } catch (error) { ping(error?.message || "Could not add transition"); }
+  };
+  const trackSelectedForward = async () => {
+    const clip = getSel(); const asset = clip && (prod?.mediaPool || []).find((candidate) => candidate.id === clip.assetId);
+    if (!clip || !asset?.url || asset.type !== "video") { ping("Select a video clip to track."); return; }
+    const fps = vfmt.fps || 24, existing = ensureFx(clip).vectorTrack;
+    let track = existing || createVectorTrack(asset.id, fps, 0, 0, `${clip.label || asset.name} Track`, uid());
+    const video = document.createElement("video"); video.crossOrigin = "anonymous"; video.muted = true; video.preload = "auto"; video.src = asset.url;
+    const wait = (event) => new Promise((resolve, reject) => { const ok = () => { clean(); resolve(); }, bad = () => { clean(); reject(new Error("Could not decode tracking source")); }, clean = () => { video.removeEventListener(event, ok); video.removeEventListener("error", bad); }; video.addEventListener(event, ok, { once: true }); video.addEventListener("error", bad, { once: true }); });
+    const seek = async (time) => { if (Math.abs(video.currentTime - time) < .001) return; video.currentTime = time; await wait("seeked"); };
+    try {
+      if (video.readyState < 1) await wait("loadedmetadata");
+      const scale = Math.min(1, 640 / Math.max(1, video.videoWidth)), width = Math.max(2, Math.round(video.videoWidth * scale)), height = Math.max(2, Math.round(video.videoHeight * scale));
+      const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height; const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const gray = () => { ctx.drawImage(video, 0, 0, width, height); const rgba = ctx.getImageData(0, 0, width, height).data, data = new Uint8Array(width * height); for (let i = 0; i < data.length; i++) data[i] = Math.round(rgba[i * 4] * .2126 + rgba[i * 4 + 1] * .7152 + rgba[i * 4 + 2] * .0722); return { width, height, data }; };
+      const startFrame = Math.max(0, Math.round((playhead - clip.start) * fps)), endFrame = Math.min(Math.round(clip.duration * fps), startFrame + 300);
+      await seek((clip.srcIn || 0) + startFrame / fps); let previous = gray(); let seed = track.samples.find((sample) => sample.frame === startFrame) || { frame: startFrame, x: .5, y: .5, confidence: 1, error: 0, manual: true };
+      track = { ...track, width, height }; track = upsertTrackSample(track, seed);
+      for (let frame = startFrame + 1; frame <= endFrame; frame++) { await seek((clip.srcIn || 0) + frame / fps); const next = gray(), result = trackPoint(previous, next, seed.x, seed.y, track.settings.patchRadius, track.settings.searchRadius); seed = { frame, ...result }; track = upsertTrackSample(track, seed); previous = next; if (result.confidence < track.settings.minConfidence) break; }
+      updateFx(clip.id, { vectorTrack: track, trackMode: "stabilize" }); ping(`VectorTrack · ${track.samples.length} samples · stabilization enabled`);
+    } catch (error) { ping(error?.message || "Tracking failed"); } finally { video.removeAttribute("src"); video.load(); }
+  };
+
+  // ── VectorTrack PLANAR (Mocha "Track" core): a user-placed surface quad, a feature lattice inside
+  // it, one reference→frame homography per frame with outlier rejection + failure confidence, and
+  // reusable corner-pin data. Runs on the same serial <video> seek decode path as the point tracker.
+  const trackCancelRef = useRef(false);
+  const [trackProgress, setTrackProgress] = useState(null); // { frame, total, confidence, note }
+  const [surfaceEdit, setSurfaceEdit] = useState(false);     // dragging the surface corners on the monitor
+  const placeSurface = () => {
+    const clip = getSel(); if (!clip) { ping("Select a video clip first."); return; }
+    if (!ensureFx(clip).planarSurface) updateFx(clip.id, { planarSurface: { corners: [{ x: .3, y: .3 }, { x: .7, y: .3 }, { x: .7, y: .7 }, { x: .3, y: .7 }] } });
+    setSurfaceEdit(true);
+  };
+  const trackPlanarForward = async () => {
+    const clip = getSel(); const asset = clip && (prod?.mediaPool || []).find((candidate) => candidate.id === clip.assetId);
+    if (!clip || !asset?.url || asset.type !== "video") { ping("Select a video clip to track."); return; }
+    const fx0 = ensureFx(clip);
+    if (!fx0.planarSurface?.corners) { ping("Place a surface first (SURFACE), then track."); return; }
+    if (trackProgress) { ping("A track is already running."); return; }
+    const fps = vfmt.fps || 24;
+    const video = document.createElement("video"); video.crossOrigin = "anonymous"; video.muted = true; video.preload = "auto"; video.src = asset.url;
+    const wait = (event) => new Promise((resolve, reject) => { const ok = () => { clean(); resolve(); }, bad = () => { clean(); reject(new Error("Could not decode tracking source")); }, clean = () => { video.removeEventListener(event, ok); video.removeEventListener("error", bad); }; video.addEventListener(event, ok, { once: true }); video.addEventListener("error", bad, { once: true }); });
+    const seek = async (time) => { if (Math.abs(video.currentTime - time) < .001) return; video.currentTime = time; await wait("seeked"); };
+    const yieldUi = () => new Promise((resolve) => setTimeout(resolve, 0));
+    trackCancelRef.current = false;
+    setSurfaceEdit(false);
+    let seq = null;
+    try {
+      if (video.readyState < 1) await wait("loadedmetadata");
+      const scale = Math.min(1, 640 / Math.max(1, video.videoWidth)), width = Math.max(2, Math.round(video.videoWidth * scale)), height = Math.max(2, Math.round(video.videoHeight * scale));
+      const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height; const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const gray = () => { ctx.drawImage(video, 0, 0, width, height); return grayFromRgba(ctx.getImageData(0, 0, width, height).data, width, height); };
+      const startFrame = Math.max(0, Math.round((playhead - clip.start) * fps)), endFrame = Math.min(Math.round(clip.duration * fps), startFrame + 600);
+      await seek((clip.srcIn || 0) + startFrame / fps);
+      let previous = gray();
+      // Continue an existing track from a good sample at the playhead; otherwise start a fresh
+      // sequence whose reference frame is the playhead and whose reference quad is the surface.
+      const existing = fx0.planarTrack;
+      const resume = existing && existing.samples.find((s) => s.frame === startFrame && !s.lost);
+      let current;
+      if (resume) { seq = { ...existing, samples: existing.samples.filter((s) => s.frame <= startFrame && !s.lost) }; current = resume.features; }
+      else { seq = createPlanarSequence(asset.id, fps, startFrame, fx0.planarSurface.corners, uid(), { reference: previous, width, height }); seq = upsertPlanarSample(seq, referenceSample(seq)); current = seq.features; }
+      let prevFeatures = null, total = endFrame - startFrame, lastNote = "";
+      setTrackProgress({ frame: 0, total, confidence: 1, note: "" });
+      for (let frame = startFrame + 1; frame <= endFrame; frame++) {
+        if (trackCancelRef.current) { lastNote = "stopped"; break; }
+        await seek((clip.srcIn || 0) + frame / fps);
+        const next = gray();
+        const velocity = prevFeatures ? current.map((p, i) => ({ x: p.x - prevFeatures[i].x, y: p.y - prevFeatures[i].y })) : null;
+        const result = trackPlanarFrame(seq, previous, next, frame, current, velocity);
+        if (!result) { lastNote = "degenerate surface"; break; }
+        seq = upsertPlanarSample(seq, result.sample);
+        setTrackProgress({ frame: frame - startFrame, total, confidence: result.sample.confidence, note: result.reason || "" });
+        if (!result.accepted) { lastNote = result.reason || "lost"; break; }
+        prevFeatures = current; current = result.features; previous = next;
+        if ((frame - startFrame) % 2 === 0) await yieldUi();
+      }
+      const good = seq.samples.filter((s) => !s.lost).length;
+      updateFx(clip.id, { planarTrack: seq, trackMode: fx0.trackMode === "stabilize" ? "stabilize" : (fx0.trackMode === "planar" || !fx0.trackMode || fx0.trackMode === "off" ? fx0.trackMode || "off" : fx0.trackMode) });
+      ping(`VectorTrack planar · ${good} frames${lastNote ? ` · ${lastNote}` : ""}`);
+    } catch (error) { ping(error?.message || "Planar tracking failed"); }
+    finally { setTrackProgress(null); video.removeAttribute("src"); video.load(); }
   };
   const insertGenerator = (mode, name) => {
     // A Pixels generator scene as a pool asset: MonitorLayer plays it live (SceneView) and the
@@ -2498,20 +2628,81 @@ export default function Fabula() {
       : `Picked ${arr.length} file${arr.length === 1 ? "" : "s"}, but 0 were added (already imported, or all scripts/unreadable).`);
     return n;
   };
+  // SLATE door into generation. A shot card already holds the compiled still/video prompts and the
+  // scene bible already holds the identity locks — this bundles them into a ShotSpec and opens the one
+  // generation panel pre-filled, instead of the user copy-pasting into a provider by hand. `which`
+  // picks which of the shot's prompts to run; the production's default target for that kind decides
+  // the provider (still → stillTarget, video → service).
+  const openGenForShot = (sc, shot, which) => {
+    if (!shot?.[which]) return;
+    const spec = specFromShot({
+      shot, bible: sc?.bible, which,
+      aspect: prod?.defaults?.aspect,
+      sceneId: sc?.id,
+    });
+    const target = which === "video" ? prod?.defaults?.service : prod?.defaults?.stillTarget;
+    setGenCtx({
+      spec,
+      kind: which === "video" ? "video" : "image",
+      provider: connectorById(target || "")?.id,   // resolves legacy ids like "mj_magnific"
+      title: `${shot.slug} · ${which.toUpperCase()}`,
+    });
+    setGenOpen(true);
+  };
+
+  // EDIT door into generation. `buildEditFromBreakdown()` stamps `shotId` onto every clip it lays down,
+  // so a clip on the timeline can find its way back to the SLATE shot that produced it — which is what
+  // makes "regenerate this shot without leaving the cut" possible at all.
+  const sceneForShot = (shotId) =>
+    shotId ? allScenes.find(({ scene: sc }) => (sc.shots || []).some((s) => s.id === shotId))?.scene : null;
+  const shotForClip = (c) => {
+    const sc = sceneForShot(c?.shotId);
+    const shot = sc ? (sc.shots || []).find((s) => s.id === c.shotId) : null;
+    return shot ? { scene: sc, shot } : null;
+  };
+  const openGenForClip = (c, which) => {
+    const found = shotForClip(c);
+    if (!found) { ping("This clip isn't linked to a SLATE shot — generate from the shot list instead."); return; }
+    if (!found.shot[which]) { ping(`No ${which} prompt on ${found.shot.slug} yet — run SLATE prompts first.`); return; }
+    openGenForShot(found.scene, found.shot, which);
+  };
+
   // Agent results → bins: the generation agent writes outputs to cloud storage; when a job finishes,
   // GeneratePanel hands the result URLs here and they become pool assets in the target bin — the
   // "populate bins headless" path (same destination the watch folder feeds).
-  const importGenResults = (results, bin) => {
+  const importGenResults = (results, bin, job) => {
     if (!results?.length) return;
     const target = bin || "Generated";
+    // Mint the pool assets first so the ids exist before any clip points at one.
+    const minted = results.map((r) => ({
+      id: uid(), name: r.name || "generated", type: r.type || "image", url: r.url, cloudUrl: r.url,
+      bin: target, duration: 0, generated: true, synced: true, session: true,
+      shotId: job?.spec?.shotId,          // provenance: which SLATE shot this came from
+    }));
     updateProd((p) => {
       p.mediaPool = p.mediaPool || []; p.bins = p.bins || [];
       if (!p.bins.includes(target)) p.bins.push(target);
-      results.forEach((r) => {
-        p.mediaPool.push({ id: uid(), name: r.name || "generated", type: r.type || "image", url: r.url, cloudUrl: r.url, bin: target, duration: 0, generated: true, synced: true, session: true });
-      });
+      minted.forEach((a) => p.mediaPool.push(a));
     });
-    ping(`${results.length} generated result${results.length === 1 ? "" : "s"} added to ${target}`);
+
+    // Close the loop back into the cut. `buildEditFromBreakdown()` lays down a `kind:"script"`
+    // placeholder per shot; the first playable result for that shotId takes its slot, keeping the
+    // placeholder's start and duration so the pacing the script implied survives. If the slot already
+    // holds real media this is an alternate take — add it alongside and mute the old one rather than
+    // destroying a take the user may still want.
+    const shotId = job?.spec?.shotId;
+    const playable = minted.find((a) => a.type === "video") || minted.find((a) => a.type === "image");
+    let swapped = 0, alt = 0;
+    if (shotId && playable) {
+      const placed = placeResultInCut(clips, shotId, playable, uid);
+      swapped = placed.filled; alt = placed.alternates;
+      if (swapped || alt) { setClips(placed.clips); commitClips(placed.clips); }
+    }
+
+    const added = `${results.length} generated result${results.length === 1 ? "" : "s"} added to ${target}`;
+    ping(swapped ? `${added} — ${swapped} placeholder${swapped === 1 ? "" : "s"} filled in the cut`
+      : alt ? `${added} — alternate take laid in, previous muted`
+        : added);
   };
   // ── Media Assets: notes + add-to-scene ────────────────────────────────────────
   const updateAssetNote = (assetId, note) => updateProd((p) => { const a = p.mediaPool?.find((x) => x.id === assetId); if (a) a.note = note; });
@@ -2876,6 +3067,7 @@ export default function Fabula() {
         palette: prod?.pixelsConfig?.colorPalette || [],
         title: container?.title,
         trackSettings: container?.timeline?.trackSettings || {}, // render = live mixer parity
+        cubeLut: (prod?.design?.luts || []).find((lut) => lut.id === prod?.design?.activeLutId) || null,
 
         onProgress: (p, s) => { setRenderPct(p); setRenderStage(s); },
         signal: renderAbortRef.current.signal,
@@ -2945,6 +3137,7 @@ export default function Fabula() {
             clips: rc, mediaPool: prod.mediaPool || [], format: vfmt,
             palette: prod?.pixelsConfig?.colorPalette || [], title: job.label,
             trackSettings: container?.timeline?.trackSettings || {},
+            cubeLut: (prod?.design?.luts || []).find((lut) => lut.id === prod?.design?.activeLutId) || null,
             onProgress: (p) => setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, pct: p } : j))),
             signal: renderAbortRef.current.signal,
           });
@@ -4051,6 +4244,7 @@ export default function Fabula() {
 <section className="monitor" onMouseDown={() => (activeViewerRef.current = "program")}>
                     <div ref={screenRef} className="screen" style={{ aspectRatio: prod.defaults.aspect.includes(":") ? prod.defaults.aspect.replace(":", "/") : "2.39/1", filter: LOOKS.find((l) => l.id === prod.design?.lookId)?.filter || "none", containerType: "inline-size" }}>
                       {gpuMonitor && <GpuStage reg={gpuRegRef.current} hostRef={screenRef} onFail={() => { try { localStorage.setItem("fabula:gpuMonitor", "off"); } catch { /* */ } gpuRegRef.current.clear(); setGpuMonitor(false); ping("GPU monitor hit an issue — reverted to the standard renderer."); }} />}
+                      {(() => { const s = getSel(); return s && /^v\d+$/.test(s.trackId) && (s.fx?.planarSurface || s.fx?.planarTrack) ? <SurfaceOverlay clip={s} playhead={playhead} screenRef={screenRef} videoRef={videoRef} editing={surfaceEdit} onChange={(corners) => updateFx(s.id, { planarSurface: { corners } })} /> : null; })()}
                       {videoTracksAsc.map((tr, i) => {
                         // Double-buffer: mount the current clip + its neighbours, keyed by clip.id, so the
                         // next clip is already decoded/seeked and going live is just a visibility swap (no
@@ -4067,7 +4261,7 @@ export default function Fabula() {
                         return [...idxs].filter((idx) => idx >= 0 && idx < tclips.length).map((idx) => {
                           const c = tclips[idx];
                           const isActive = curIdx >= 0 && idx === curIdx;
-                          return <MonitorLayer key={c.id} clip={c} active={isActive} prod={monitorProd} scene={scene} playhead={playhead} playing={playing} top={i > 0} z={(i + 1) * 10 + (isActive ? 5 : 0)} videoRef={(i === 0 && isActive) ? videoRef : undefined} vol={ts.vol} mute={ts.mute} gpuMode={gpuMonitor} gpuReg={gpuRegRef.current} />;
+                          return <MonitorLayer key={c.id} clip={c} active={isActive} prod={monitorProd} scene={scene} playhead={playhead} playing={playing} top={i > 0} z={(i + 1) * 10 + (isActive ? 5 : 0)} videoRef={(i === 0 && isActive) ? videoRef : undefined} vol={ts.vol} mute={ts.mute} gpuMode={gpuMonitor} gpuReg={gpuRegRef.current} pinSource={c.fx?.pinTo?.clipId ? clips.find((x) => x.id === c.fx.pinTo.clipId) || null : null} />;
                         });
                       })}
                       {/* Audio bed — mount the live clip + the next one per track (double-buffered, gapless) */}
@@ -4426,6 +4620,87 @@ export default function Fabula() {
                                     <button disabled={goNext == null} title="Next keyframe" onClick={() => setPlayhead(selClip.start + goNext)}>KEY ▶</button>
                                     <span className="kfchips">{animKeys.map((k) => <span key={k} className="chip pur" style={{ padding: "2px 5px" }}>{k.toUpperCase()} {fx.kf[k].length}</span>)}</span>
                                     <button title="Clear all keyframes on this clip" onClick={() => updateFx(selClip.id, { kf: undefined })}>CLEAR</button>
+                                  </div>
+                                );
+                              })()}
+                              <div className="lbl" style={{ marginTop: 8 }}>FORGE STACK <span className="cap">NATIVE · ORDERED · NON-DESTRUCTIVE</span></div>
+                              {!fx.stack.length && <div className="dim small">Add premium effects from Effects Library → Forge.</div>}
+                              {fx.stack.map((instance, stackIndex) => {
+                                const effect = FX_EFFECTS.find((candidate) => candidate.id === instance.effectId);
+                                if (!effect) return null;
+                                const patchStack = (patch) => {
+                                  const stack = fx.stack.map((item, index) => index === stackIndex ? { ...item, ...patch } : item);
+                                  updateFx(selClip.id, { stack });
+                                };
+                                const moveStack = (dir) => {
+                                  const to = stackIndex + dir;
+                                  if (to < 0 || to >= fx.stack.length) return;
+                                  const stack = [...fx.stack];
+                                  [stack[stackIndex], stack[to]] = [stack[to], stack[stackIndex]];
+                                  updateFx(selClip.id, { stack });
+                                };
+                                return (
+                                  <div key={instance.id} className="forgefx">
+                                    <div className="fxrow">
+                                      <button className={`minibtn ${instance.enabled !== false ? "blue" : ""}`} onClick={() => patchStack({ enabled: instance.enabled === false })}>{instance.enabled !== false ? "ON" : "OFF"}</button>
+                                      <span className="fxrowname">{effect.name}</span>
+                                      <button className="minibtn" disabled={stackIndex === 0} onClick={() => moveStack(-1)}>▲</button>
+                                      <button className="minibtn" disabled={stackIndex === fx.stack.length - 1} onClick={() => moveStack(1)}>▼</button>
+                                      <button className="minibtn danger" onClick={() => updateFx(selClip.id, { stack: fx.stack.filter((_, index) => index !== stackIndex) })}>✕</button>
+                                    </div>
+                                    {!!effect.presets?.length && (
+                                      <select className="sel xs full" value={instance.presetId || ""} onChange={(e) => {
+                                        const preset = effect.presets.find((candidate) => candidate.id === e.target.value);
+                                        if (preset) patchStack({ presetId: preset.id, params: { ...Object.fromEntries(effect.params.map((param) => [param.key, param.default])), ...preset.params } });
+                                      }}>
+                                        <option value="">Custom</option>
+                                        {effect.presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}
+                                      </select>
+                                    )}
+                                    {effect.auxInput && (
+                                      <div className="fxrow"><span className="fxlbl">{effect.auxInput.label}</span>
+                                        <select className="sel xs grow" value={instance.auxAssetId || ""} onChange={(e) => patchStack({ auxAssetId: e.target.value || undefined })}>
+                                          <option value="">{effect.auxInput.optional ? "Source fallback" : "Choose asset…"}</option>
+                                          {(prod?.mediaPool || []).filter((asset) => asset.url && ["video", "image", "graphic"].includes(asset.type)).map((asset) => <option key={asset.id} value={asset.id}>{asset.name}</option>)}
+                                        </select>
+                                      </div>
+                                    )}
+                                    {effect.params.map((param) => {
+                                      const value = instance.params?.[param.key] ?? param.default;
+                                      return <div className="fxrow" key={param.key}><span className="fxlbl">{param.label}</span><input type="range" min={param.min} max={param.max} step={param.step || (param.max - param.min) / 200} value={value} onChange={(e) => patchStack({ presetId: undefined, params: { ...instance.params, [param.key]: parseFloat(e.target.value) } })} onDoubleClick={() => patchStack({ presetId: undefined, params: { ...instance.params, [param.key]: param.default } })} /><span className="fxval">{Number(value).toFixed(param.step && param.step >= 1 ? 0 : 2)}</span></div>;
+                                    })}
+                                    <div className="fxrow"><span className="fxlbl">MIX</span><input type="range" min={0} max={1} step={.01} value={instance.mix ?? 1} onChange={(e) => patchStack({ mix: parseFloat(e.target.value) })} onDoubleClick={() => patchStack({ mix: 1 })} /><span className="fxval">{Number(instance.mix ?? 1).toFixed(2)}</span></div>
+                                  </div>
+                                );
+                              })}
+                              <div className="lbl" style={{ marginTop: 8 }}>VECTORTRACK <span className="cap">POINT</span></div>
+                              <div className="btnrow" style={{ gap: 5 }}>
+                                <button className="minibtn blue grow" onClick={trackSelectedForward}>◎ TRACK FORWARD</button>
+                                {fx.vectorTrack && <button className={`minibtn ${fx.trackMode === "stabilize" ? "on" : ""}`} onClick={() => updateFx(selClip.id, { trackMode: fx.trackMode === "stabilize" ? "off" : "stabilize" })}>STABILIZE</button>}
+                                {fx.vectorTrack && <button className="minibtn danger" onClick={() => updateFx(selClip.id, { vectorTrack: undefined, trackMode: fx.trackMode === "stabilize" ? "off" : fx.trackMode })}>CLEAR</button>}
+                              </div>
+                              {fx.vectorTrack && <div className="dim small">{fx.vectorTrack.samples.length} samples · {fx.vectorTrack.width}×{fx.vectorTrack.height} analysis · confidence {(fx.vectorTrack.samples.at(-1)?.confidence * 100 || 0).toFixed(0)}%</div>}
+                              <div className="lbl" style={{ marginTop: 8 }}>VECTORTRACK <span className="cap">PLANAR · SURFACE</span></div>
+                              <div className="btnrow" style={{ gap: 5 }}>
+                                <button className={`minibtn ${surfaceEdit ? "on" : ""}`} onClick={() => (surfaceEdit ? setSurfaceEdit(false) : placeSurface())}>{surfaceEdit ? "✓ DONE" : "▢ SURFACE"}</button>
+                                <button className="minibtn blue grow" disabled={!fx.planarSurface || !!trackProgress} onClick={trackPlanarForward}>◈ TRACK PLANAR</button>
+                                {fx.planarTrack && <button className={`minibtn ${fx.trackMode === "planar" ? "on" : ""}`} onClick={() => updateFx(selClip.id, { trackMode: fx.trackMode === "planar" ? "off" : "planar" })}>STABILIZE</button>}
+                                {(fx.planarTrack || fx.planarSurface) && <button className="minibtn danger" onClick={() => { setSurfaceEdit(false); updateFx(selClip.id, { planarTrack: undefined, planarSurface: undefined, trackMode: fx.trackMode === "planar" ? "off" : fx.trackMode }); }}>CLEAR</button>}
+                              </div>
+                              {trackProgress && <div className="dim small">tracking {trackProgress.frame}/{trackProgress.total} · confidence {(trackProgress.confidence * 100).toFixed(0)}%{trackProgress.note ? ` · ${trackProgress.note}` : ""} <button className="minibtn" style={{ marginLeft: 6 }} onClick={() => { trackCancelRef.current = true; }}>STOP</button></div>}
+                              {!trackProgress && fx.planarTrack && (() => { const r = planarTrackedRange(fx.planarTrack); const last = fx.planarTrack.samples.filter((s) => !s.lost).at(-1); return <div className="dim small">{fx.planarTrack.samples.filter((s) => !s.lost).length} frames · ref {fx.planarTrack.referenceFrame} → {r.end}{r.lostAt != null ? ` · lost at ${r.lostAt}` : ""} · {fx.planarTrack.features.length} features · confidence {((last?.confidence || 0) * 100).toFixed(0)}% · {last?.inliers ?? 0} inliers</div>; })()}
+                              {!trackProgress && !fx.planarTrack && fx.planarSurface && <div className="dim small">surface placed · park the playhead on the reference frame and TRACK PLANAR</div>}
+                              {(() => {
+                                const surfaces = clips.filter((c) => c.id !== selClip.id && /^v\d+$/.test(c.trackId) && c.fx?.planarTrack && c.start < selClip.start + selClip.duration && c.start + c.duration > selClip.start);
+                                if (!surfaces.length && !fx.pinTo) return null;
+                                return (
+                                  <div className="fxrow" style={{ marginTop: 6 }}>
+                                    <span className="fxlbl">PIN TO SURFACE</span>
+                                    <select value={fx.pinTo?.clipId || ""} onChange={(e) => updateFx(selClip.id, { pinTo: e.target.value ? { clipId: e.target.value } : undefined })}>
+                                      <option value="">— none —</option>
+                                      {surfaces.map((c) => <option key={c.id} value={c.id}>{c.label || c.id} ({c.trackId})</option>)}
+                                      {fx.pinTo && !surfaces.some((c) => c.id === fx.pinTo.clipId) && <option value={fx.pinTo.clipId}>(missing surface clip)</option>}
+                                    </select>
                                   </div>
                                 );
                               })()}
@@ -5116,8 +5391,8 @@ export default function Fabula() {
       )}
       {genOpen && (
         <GeneratePanel projectId={prod?.id || "local"} bins={binTree()}
-          defaultBin={binFilter !== "all" ? binFilter : ""}
-          importResults={importGenResults} onClose={() => setGenOpen(false)} />
+          defaultBin={binFilter !== "all" ? binFilter : ""} context={genCtx}
+          importResults={importGenResults} onClose={() => { setGenOpen(false); setGenCtx(null); }} />
       )}
       {exportReady && (
         <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: "rgba(0,0,0,0.62)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -5814,14 +6089,17 @@ export default function Fabula() {
                       <div className="btnrow" style={{ marginTop: 10 }}>
                         <label className="minibtn" style={{ cursor: "pointer" }}>
                           <Upload size={11} /> IMPORT .CUBE LUT
-                          <input type="file" accept=".cube,.3dl" style={{ display: "none" }} onChange={(e) => {
+                          <input type="file" accept=".cube" style={{ display: "none" }} onChange={async (e) => {
                             const f = e.target.files?.[0]; if (!f) return;
-                            updateProd((p) => { p.design.luts.push({ id: uid(), name: f.name }); });
-                            ping(`"${f.name}" cataloged — named in prompts; full LUT application lands in the render pipeline`);
+                            try {
+                              const lut = parseCubeLut(await f.text(), f.name, uid());
+                              updateProd((p) => { p.design.luts ||= []; p.design.luts.push(lut); p.design.activeLutId = lut.id; });
+                              ping(`“${f.name}” imported and applied to preview + export`);
+                            } catch (error) { ping(error?.message || "That .cube LUT could not be read"); }
                             e.target.value = "";
                           }} />
                         </label>
-                        {(prod.design.luts || []).map((l) => <span className="libchip" key={l.id}>{l.name}</span>)}
+                        {(prod.design.luts || []).map((l) => <button className={`libchip ${prod.design.activeLutId === l.id ? "on" : ""}`} key={l.id} onClick={() => updateProd((p) => { p.design.activeLutId = p.design.activeLutId === l.id ? null : l.id; })}>{l.name}</button>)}
                       </div>
                     </div>
                     <div className="glass-card">
@@ -6006,7 +6284,19 @@ export default function Fabula() {
                           <>
                             {[["STILL — GENERATE FIRST", "still"], ["VIDEO — FROM CHOSEN STILL", "video"], ["VOICE / DELIVERY", "voice"]].map(([tag, key]) => s[key] ? (
                               <div className="pblock" key={key}>
-                                <div className="pbhead"><span className="ptag">{tag}</span><CopyBtn text={s[key]} small /></div>
+                                <div className="pbhead">
+                                  <span className="ptag">{tag}</span>
+                                  {/* Copy stays — it's still the fastest path for a service you already
+                                      have open. SEND opens the generation panel on this shot: same
+                                      prompt, plus the bible's identity locks carried as references. */}
+                                  {key !== "voice" && (
+                                    <button className="copybtn sm" onClick={(e) => { e.stopPropagation(); openGenForShot(scene, s, key); }}
+                                      title={`Generate or hand off this ${key} on a linked service`}>
+                                      <Sparkles size={10} /> SEND
+                                    </button>
+                                  )}
+                                  <CopyBtn text={s[key]} small />
+                                </div>
                                 <textarea className="ta mono" rows={Math.min(8, Math.max(2, Math.ceil(s[key].length / 100)))} value={s[key]}
                                   onChange={(e) => updateScene((sc) => { sc.shots[idx][key] = e.target.value; })} />
                               </div>
@@ -6252,6 +6542,8 @@ export default function Fabula() {
                       {fxLibOpen && (
                         <FxLibraryPanel prod={prod} selClipId={selClipId}
                           onApplyFilter={applyFxPreset}
+                          onAddForge={addForgeEffect}
+                          onAddTransition={addForgeTransition}
                           onInsertGenerator={insertGenerator}
                           onInsertLottie={(a) => insertAssetClip(a)}
                           onImportLottie={() => fileRef.current?.click()}
@@ -6336,14 +6628,28 @@ export default function Fabula() {
                   };
                   const wheel = fx ? { lift: [0, 0, 0], gamma: [1, 1, 1], gain: [1, 1, 1], temp: 0, tint: 0, ...(layerData.wheel || {}) } : null;
                   const setWheel = (patch) => setLayer({ wheel: { ...wheel, ...patch } });
-                  const slider = (lbl, key, min, max, step, def = 0) => (
+                   const slider = (lbl, key, min, max, step, def = 0) => (
                     <div className="fxrow" key={key}>
                       <span className="fxlbl param">{lbl}</span>
                       <input type="range" min={min} max={max} step={step} value={gv(key, def)} onChange={(e) => updateFx(selClip.id, { [key]: parseFloat(e.target.value) })}
                         onDoubleClick={() => updateFx(selClip.id, { [key]: def })} />
                       <span className="fxval numval">{Number(gv(key, def)).toFixed(2)}</span>
                     </div>
-                  );
+                   );
+                   const toneInst = fx?.stack?.find((s) => s.effectId === "developtone");
+                   const finishInst = fx?.stack?.find((s) => s.effectId === "developfinish");
+                   const developValues = { ...DEFAULT_PHOTO_ADJUSTMENTS, ...(toneInst?.params || {}), ...(finishInst?.params || {}) };
+                   const setDevelop = (key, value) => {
+                     const values = { ...developValues, [key]: value };
+                     const compiled = photoAdjustmentsToEffects(values);
+                     const rest = (fx?.stack || []).filter((s) => s.effectId !== "developtone" && s.effectId !== "developfinish");
+                     updateFx(selClip.id, { stack: [...rest, ...compiled] });
+                   };
+                   const devSlider = (lbl, key, min = -100, max = 100) => (
+                     <div className="fxrow" key={key}><span className="fxlbl param">{lbl}</span>
+                       <input type="range" min={min} max={max} step="0.1" value={developValues[key] || 0} onChange={(e) => setDevelop(key, parseFloat(e.target.value))} onDoubleClick={() => setDevelop(key, 0)} />
+                       <span className="fxval numval">{Number(developValues[key] || 0).toFixed(1)}</span></div>
+                   );
                   // Declared BEFORE glg (which spreads them) — order matters (const TDZ).
                   const curveLut = fx && !isCurvesIdentity(fx.curves) ? buildCurveLut(fx.curves) : undefined;
                   const qual = layerData.qualifier || null;
@@ -6367,7 +6673,7 @@ export default function Fabula() {
                     ...(isWindowEnabled(g.window) ? { window: g.window } : {}) });
                   const extraMon = (fx?.grades || []).filter((g) => g && g.enabled !== false).map(monToGrade);
                   const glgStack = extraMon.length ? [glg, ...extraMon].filter(Boolean) : null;
-                  const CTABS = [["looks", "LOOKS"], ["wheels", "WHEELS"], ["curves", "CURVES"], ["qualifier", "QUALIFIER"], ["windows", "WINDOWS"], ["primaries", "PRIMARIES"]];
+                  const CTABS = [["looks", "LOOKS"], ["develop", "DEVELOP"], ["wheels", "WHEELS"], ["curves", "CURVES"], ["qualifier", "QUALIFIER"], ["windows", "WINDOWS"], ["primaries", "PRIMARIES"]];
                   const stillOn = colorStills.find((st) => st.id === wipeStill) || null;
                   const grabStill = () => {
                     const cv = gradeMonRef.current;
@@ -6501,6 +6807,7 @@ export default function Fabula() {
 
                         <div className="colorbody">
                           {colorTab === "looks" && (
+                            <div>
                             <div className="colorlooks wide">
                               {LOOKS.map((lk) => (
                                 <button key={lk.id} className={`lookcard ${prod.design.lookId === lk.id ? "on" : ""}`}
@@ -6509,6 +6816,25 @@ export default function Fabula() {
                                   <b>{lk.name}</b>
                                 </button>
                               ))}
+                            </div>
+                            {gradeable && <>
+                              <div className="lbl" style={{ margin: "12px 0 7px" }}>INSPIRE · CLIP LOOKS <span className="cap">NONDESTRUCTIVE · PHOTO + VIDEO</span></div>
+                              <div className="colorlooks wide">
+                                {CREATIVE_LOOKS.map((lk) => (
+                                  <button key={lk.id} className="lookcard" onClick={() => {
+                                    const a = lk.adjustments;
+                                    updateFx(selClip.id, {
+                                      bri: 1 + ((a.exposure || 0) + (a.brilliance || 0) * .35 + (a.whites || 0) * .15) / 100,
+                                      con: 1 + ((a.contrast || 0) + (a.structure || 0) * .35 + (a.dehaze || 0) * .4 - (a.fade || 0) * .3) / 100,
+                                      sat: 1 + (a.saturation || 0) / 100,
+                                      warm: Math.max(0, (a.warmth || 0) / 100), hue: (a.tint || 0) * .04,
+                                      inspireLook: lk.id,
+                                    });
+                                    ping(`${lk.label} applied to ${selClip.label}`);
+                                  }}><b>{lk.label}</b></button>
+                                ))}
+                              </div>
+                            </>}
                             </div>
                           )}
 
@@ -6529,6 +6855,21 @@ export default function Fabula() {
                               </div>
                             </div>
                           ) : <div className="dim small colorempty">Select a clip in the EDIT room &mdash; or click one in the timeline below &mdash; to grade it. Scopes read the program monitor live.</div>)}
+
+                          {colorTab === "develop" && (gradeable ? (
+                            <div className="gradepanels">
+                              <div className="gpanel"><div className="lbl">LIGHT <span className="cap">LINEAR-LIGHT · EXPORT EXACT</span></div>
+                                {devSlider("EXPOSURE", "exposure")}{devSlider("CONTRAST", "contrast")}{devSlider("HIGHLIGHTS", "highlights")}{devSlider("SHADOWS", "shadows")}{devSlider("WHITES", "whites")}{devSlider("BLACKS", "blacks")}
+                              </div>
+                              <div className="gpanel"><div className="lbl">COLOR & PRESENCE <span className="cap">SHARED WITH PHOTO DEVELOP</span></div>
+                                {devSlider("TEMPERATURE", "warmth")}{devSlider("TINT", "tint")}{devSlider("SATURATION", "saturation")}{devSlider("BRILLIANCE", "brilliance")}{devSlider("CLARITY", "clarity")}{devSlider("STRUCTURE", "structure")}{devSlider("DEHAZE", "dehaze")}
+                              </div>
+                              <div className="gpanel"><div className="lbl">FINISH</div>
+                                {devSlider("FADE", "fade")}{devSlider("VIGNETTE", "vignette")}{devSlider("GRAIN", "grain", 0, 100)}
+                                <button className="minibtn full" onClick={() => { const rest=(fx?.stack||[]).filter((s)=>s.effectId!=="developtone"&&s.effectId!=="developfinish"); updateFx(selClip.id,{stack:rest}); }}>RESET DEVELOP</button>
+                              </div>
+                            </div>
+                          ) : <div className="dim small colorempty">Select a photo or video clip to use the shared Develop controls.</div>)}
 
                           {colorTab === "curves" && (gradeable ? (
                             <div className="gradepanels">
@@ -6967,10 +7308,112 @@ export default function Fabula() {
   );
 }
 
+/* Forge clip preview — renders a timeline video through the same WebGL effect
+   stack as graph nodes and offline rendering. The source video remains mounted
+   for decode/audio sync but its DOM pixels are hidden while this canvas presents. */
+function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool }) {
+  const canvasRef = useRef(null);
+  const effectsRef = useRef(effects); effectsRef.current = effects;
+  const timeRef = useRef(time); timeRef.current = time;
+  const lutRef = useRef(cubeLut); lutRef.current = cubeLut;
+  const auxRef = useRef(new Map());
+  useEffect(() => {
+    const created = new Map();
+    for (const instance of effects || []) {
+      if (!instance.auxAssetId) continue;
+      const asset = (mediaPool || []).find((candidate) => candidate.id === instance.auxAssetId);
+      if (!asset?.url) continue;
+      const el = asset.type === "video" ? document.createElement("video") : new Image();
+      el.crossOrigin = "anonymous"; el.src = asset.url;
+      if (el instanceof HTMLVideoElement) { el.muted = true; el.playsInline = true; el.preload = "auto"; }
+      created.set(instance.id, el);
+    }
+    auxRef.current = created;
+    return () => created.forEach((el) => { if (el instanceof HTMLVideoElement) { el.pause(); el.removeAttribute("src"); el.load(); } });
+  }, [effects?.map((instance) => `${instance.id}:${instance.auxAssetId || ""}`).join("|"), mediaPool]); // eslint-disable-line
+  useEffect(() => {
+    if (!active || !effects?.length) return undefined;
+    let raf = 0, comp = null;
+    try { comp = new PixelsCompositor(canvasRef.current); comp.resize(960, 540); }
+    catch (error) { console.warn("[ForgeClipPreview] WebGL2 unavailable:", error?.message || error); return undefined; }
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      const video = videoRef?.current;
+      if (!video || video.readyState < 2) return;
+      try {
+        const resolved = effectsRef.current.map((instance) => {
+          const auxElement = auxRef.current.get(instance.id);
+          if (auxElement instanceof HTMLVideoElement && auxElement.readyState >= 1 && Math.abs(auxElement.currentTime - timeRef.current) > .08) auxElement.currentTime = Math.min(timeRef.current, Math.max(0, (auxElement.duration || timeRef.current) - .001));
+          return auxElement ? { ...instance, auxElement } : instance;
+        });
+        comp.render([{ id: "timeline-preview", element: video, opacity: 1, blendMode: "normal", effects: resolved, time: timeRef.current }], undefined, undefined, lutRef.current);
+      }
+      catch { /* source frame not ready */ }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(raf); try { comp?.dispose(); } catch { /* */ } };
+  }, [active]); // eslint-disable-line
+  return <canvas ref={canvasRef} className="mvid" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" }} />;
+}
+
 /* ---------- compositing layer: one active clip on one video track ---------- */
-function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, vol = 1, mute = false, active = true, gpuMode = false, gpuReg = null }) {
+
+/* ---------- VectorTrack surface overlay: the planar surface quad on the program monitor ----------
+   Editing: drag corners (or the body) to place the reference surface. Tracked: shows the surface
+   where the track puts it on this frame, coloured by confidence, with the feature lattice. */
+function SurfaceOverlay({ clip, playhead, screenRef, videoRef, editing, onChange }) {
+  const fx = clip?.fx || {};
+  const seq = fx.planarTrack, surface = fx.planarSurface;
+  const quadRef = useRef(null);
+  const el = screenRef?.current;
+  const W = el?.clientWidth || 0, H = el?.clientHeight || 0;
+  if (!clip || !W || !H) return null;
+  const vw = videoRef?.current?.videoWidth || seq?.width || 16, vh = videoRef?.current?.videoHeight || seq?.height || 9;
+  const box = containBox(vw, vh, W, H);
+  const frame = Math.max(0, Math.round((playhead - clip.start) * ((seq?.fps) || 24)));
+  let quad = null, conf = 1, live = false, features = null;
+  if (seq && !editing) { const s = samplePlanarAt(seq, frame); if (s) { quad = s.corners; conf = s.confidence; live = true; features = s.features; } }
+  if (!quad && surface) quad = surface.corners;
+  if (!quad) return null;
+  quadRef.current = quad;
+  const toPx = (p) => [box.x + p.x * box.w, box.y + p.y * box.h];
+  const pts = quad.map(toPx);
+  const startDrag = (i) => (e) => {
+    if (!editing) return;
+    e.preventDefault(); e.stopPropagation();
+    const rect = el.getBoundingClientRect();
+    const origin = quadRef.current.map((p) => ({ ...p }));
+    const x0 = e.clientX, y0 = e.clientY;
+    const move = (ev) => {
+      const dx = (ev.clientX - x0) / box.w, dy = (ev.clientY - y0) / box.h;
+      const clamp = (v) => Math.max(-.5, Math.min(1.5, v));
+      const next = origin.map((p, k) => (i === -1 || k === i) ? { x: clamp(p.x + dx), y: clamp(p.y + dy) } : p);
+      onChange(next);
+    };
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  };
+  const color = editing ? "#f97316" : conf > .6 ? "#22c55e" : conf > .3 ? "#eab308" : "#ef4444";
+  const grid = [];
+  for (let k = 1; k < 3; k++) { const u = k / 3; grid.push([quadPoint(quad, u, 0), quadPoint(quad, u, 1)], [quadPoint(quad, 0, u), quadPoint(quad, 1, u)]); }
+  return (
+    <svg className="vt-surface" viewBox={`0 0 ${W} ${H}`} style={{ pointerEvents: editing ? "auto" : "none" }}>
+      <polygon points={pts.map((p) => p.join(",")).join(" ")} fill={editing ? "rgba(249,115,22,.10)" : "rgba(34,197,94,.06)"} stroke={color} strokeWidth={1.5} style={{ cursor: editing ? "move" : "default" }} onPointerDown={startDrag(-1)} />
+      {grid.map(([a, b], i) => { const [ax, ay] = toPx(a), [bx, by] = toPx(b); return <line key={i} x1={ax} y1={ay} x2={bx} y2={by} stroke={color} strokeOpacity={.35} strokeWidth={1} />; })}
+      {features && features.map((p, i) => { const [x, y] = toPx(p); return <circle key={i} cx={x} cy={y} r={2.5} fill={color} fillOpacity={.8} />; })}
+      {editing && pts.map(([x, y], i) => <circle key={i} className="vt-handle" cx={x} cy={y} r={7} fill="#0f0e13" stroke="#f97316" strokeWidth={2} onPointerDown={startDrag(i)} />)}
+      <text x={pts[0][0]} y={pts[0][1] - 9} fill={color} fontSize={10} fontFamily="'JetBrains Mono',monospace" letterSpacing={1}>{editing ? "SURFACE · drag corners" : live ? `PLANAR ${(conf * 100).toFixed(0)}%` : "SURFACE"}</text>
+    </svg>
+  );
+}
+
+function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, vol = 1, mute = false, active = true, gpuMode = false, gpuReg = null, pinSource = null }) {
   const localRef = useRef(null);
+  const wrapRef = useRef(null);
+  const [playbackSrc, setPlaybackSrc] = useState(null);
+  const [loadState, setLoadState] = useState({ phase: "idle", pct: 0 });
   const fxBase = ensureFx(clip);
+  const activeCubeLut = (prod?.design?.luts || []).find((lut) => lut.id === prod?.design?.activeLutId) || null;
   // KEYFRAMES: transform + opacity sampled at the playhead so scrubbing/stepping
   // shows the animation. (Static clips return fxBase untouched — zero overhead.)
   const fx = kfIsAnimated(fxBase) ? (() => {
@@ -6983,6 +7426,24 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
       sat: kfSample(fxBase, "sat", lt, fxBase.sat), hue: kfSample(fxBase, "hue", lt, fxBase.hue),
       blur: kfSample(fxBase, "blur", lt, fxBase.blur) };
   })() : fxBase;
+  const trackMotion = fx.trackMode === "stabilize" && fx.vectorTrack ? stabilizationAt(fx.vectorTrack, Math.max(0, Math.round((playhead - clip.start) * (fx.vectorTrack.fps || 24)))) : { x: 0, y: 0, confidence: 0 };
+  // PLANAR (VectorTrack): one SAMPLING matrix for this frame — the clip's own track (stabilise:
+  // output(p) = src(H·p)) or another clip's surface (corner pin: inv(H·Q)). The export computes the
+  // same matrices from the same samplers (fabulaRender.ts), so the monitor is the export.
+  const planarFrame = (seq, t) => Math.max(0, Math.round(t * (seq.fps || 24)));
+  let planarSampling = null;
+  if (fx.trackMode === "planar" && fx.planarTrack) { const st = planarStabilizeAt(fx.planarTrack, planarFrame(fx.planarTrack, playhead - clip.start)); if (!isIdentityMat3(st.matrix)) planarSampling = st.matrix; }
+  else if (fx.pinTo?.clipId && pinSource?.fx?.planarTrack) { const pin = cornerPinAt(pinSource.fx.planarTrack, planarFrame(pinSource.fx.planarTrack, playhead - pinSource.start)); if (pin) planarSampling = pin.sample; }
+  // DOM form: CSS matrix3d of the PLACEMENT matrix (inverse of the sampling matrix) in element pixels
+  // over the video's object-fit:contain box. Zero cost when no planar track applies.
+  let planarCss = null;
+  if (planarSampling) {
+    const place = invertHomography(planarSampling);
+    const host = wrapRef.current; const W = host?.clientWidth || 0, Hh = host?.clientHeight || 0;
+    const vEl = videoRef?.current || localRef.current;
+    const vw = vEl?.videoWidth || fx.planarTrack?.width || pinSource?.fx?.planarTrack?.width || W, vh = vEl?.videoHeight || fx.planarTrack?.height || pinSource?.fx?.planarTrack?.height || Hh;
+    if (place && W && Hh) planarCss = mat3ToCssMatrix3d(toPixelSpace(place, containBox(vw, vh, W, Hh)));
+  }
   // TRANSITION preview: ramp the incoming clip's opacity across its window so you see
   // it come in. (The true two-clip crossfade renders in the export; the monitor shows
   // the incoming fading in from what's beneath / black.)
@@ -7000,6 +7461,47 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
   }
   const shot = clip.shotId ? scene?.shots.find((s) => s.id === clip.shotId) : null;
   const vRef = videoRef || localRef;
+
+  // Portable projects stream immediately from cloud, but also promote that source into the
+  // on-device original cache. The next mount/session resolves locally through rehydrateBlobs.
+  // Progress is exposed over the actual picture so a slow remote clip is never a mystery black frame.
+  useEffect(() => {
+    let alive = true; let objectUrl = null; let controller = null;
+    const source = asset?.url;
+    setPlaybackSrc(source || null);
+    setLoadState({ phase: /^https?:/i.test(source || "") ? "cloud" : "local", pct: 0 });
+    if (asset?.type !== "video" || !asset?.id || !/^https?:/i.test(source || "")) return () => { alive = false; };
+    controller = new AbortController();
+    (async () => {
+      try {
+        const cached = await mediaGetBytes("studio:blob:" + asset.id);
+        if (cached?.size) {
+          objectUrl = URL.createObjectURL(cached);
+          if (alive) { setPlaybackSrc(objectUrl); setLoadState({ phase: "cached", pct: 100 }); }
+          return;
+        }
+        const response = await fetch(source, { signal: controller.signal });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const total = Number(response.headers.get("content-length")) || 0;
+        const reader = response.body?.getReader();
+        if (!reader) return;
+        const chunks = []; let received = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value); received += value.byteLength;
+          if (alive) setLoadState({ phase: "cloud", pct: total ? Math.min(99, Math.round(received / total * 100)) : 0 });
+        }
+        const blob = new Blob(chunks, { type: response.headers.get("content-type") || "video/mp4" });
+        await mediaPutBytes("studio:blob:" + asset.id, blob);
+        objectUrl = URL.createObjectURL(blob);
+        if (alive) { setPlaybackSrc(objectUrl); setLoadState({ phase: "cached", pct: 100 }); }
+      } catch (error) {
+        if (error?.name !== "AbortError" && alive) setLoadState({ phase: "streaming", pct: 0 });
+      }
+    })();
+    return () => { alive = false; controller?.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [asset?.id, asset?.url, asset?.type]);
 
   // Target source-time for the current playhead, held in a ref so the video's own
   // load/seek events can re-apply it (fixes: a freshly-swapped clip renders black or a
@@ -7061,6 +7563,7 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
   if (fx.fadeOut > 0 && tOut < fx.fadeOut) fade = Math.min(fade, Math.max(0, tOut / fx.fadeOut));
 
   const m = fx.matte;
+  const hasForge = active && asset?.type === "video" && (fx.stack.some((instance) => instance.enabled !== false) || !!activeCubeLut);
   const clipPath = m.t === "rect"
     ? `inset(${Math.max(0, m.y - m.h / 2)}% ${Math.max(0, 100 - m.x - m.w / 2)}% ${Math.max(0, 100 - m.y - m.h / 2)}% ${Math.max(0, m.x - m.w / 2)}% round ${m.f}px)`
     : m.t === "ellipse" ? `ellipse(${m.w / 2}% ${m.h / 2}% at ${m.x}% ${m.y}%)` : "none";
@@ -7071,10 +7574,10 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
   // shared GPU canvas samples this same element and draws it. The seek/double-buffer/videoRef logic is
   // untouched, so toggling GPU off is a byte-identical fallback.
   const gpuEligible = gpuMode && asset?.type === "video" && !!asset?.url
-    && (fx.blur || 0) === 0 && (fx.matte?.t || "none") === "none" && (fx.blend || "normal") === "normal";
+    && !hasForge && (fx.blur || 0) === 0 && (fx.matte?.t || "none") === "none" && (fx.blend || "normal") === "normal";
   useEffect(() => {
     if (!gpuReg) return undefined;
-    if (gpuEligible && active) gpuReg.set(clip.id, { el: vRef.current, fx, fade, z: z ?? 0 });
+    if (gpuEligible && active) gpuReg.set(clip.id, { el: vRef.current, fx, fade, z: z ?? 0, track: trackMotion, homography: planarSampling });
     else gpuReg.delete(clip.id);
     return undefined;
   });
@@ -7083,27 +7586,39 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
   const style = {
     position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
     opacity: (gpuEligible && active) ? 0 : (active ? fx.op * fade : 0), // GPU draws it → hide the DOM copy; warm buffers already invisible
-    transform: `translate(${fx.x}%, ${fx.y}%) scale(${fx.sc}) rotate(${fx.rot}deg)`,
+    // Planar: the affine part is rewritten about the centre explicitly so matrix3d (origin 0 0)
+    // can be composed on the right (applied first). Without a planar track the string is unchanged.
+    transform: planarCss
+      ? `translate(${fx.x + trackMotion.x * 100}%, ${fx.y + trackMotion.y * 100}%) translate(50%, 50%) scale(${fx.sc}) rotate(${fx.rot}deg) translate(-50%, -50%) ${planarCss}`
+      : `translate(${fx.x + trackMotion.x * 100}%, ${fx.y + trackMotion.y * 100}%) scale(${fx.sc}) rotate(${fx.rot}deg)`,
+    ...(planarCss ? { transformOrigin: "0 0" } : {}),
     filter: `blur(${fx.blur}px) brightness(${fx.bri}) contrast(${fx.con}) saturate(${fx.sat})${fx.warm ? ` sepia(${Math.min(1, fx.warm)})` : ""}${fx.hue ? ` hue-rotate(${fx.hue}deg)` : ""}`,
     mixBlendMode: active && top ? fx.blend : "normal",
     clipPath, zIndex: active ? (z ?? (top ? 2 : 1)) : 0, pointerEvents: "none",
   };
 
   return (
-    <div style={style}>
+    <div style={style} ref={wrapRef}>
       {asset?.pixels ? (
         // Pixels scene — render its live GL composite (the per-clip CSS fx on the
         // wrapping div still apply to this canvas for free).
         <SceneView snapshot={asset.pixels} palette={prod?.pixelsConfig?.colorPalette}
           playing={playing} time={playhead - clip.start + offset} className="mvid" />
       ) : <>
-        {asset?.url && asset.type === "video" && <video ref={vRef} src={asset.url} className="mvid" muted={!active || !!mute || !!clip.disabled || !!clip.av || engineOwnsAudio} playsInline preload="auto" onLoadedData={doSeek} onCanPlay={doSeek} onSeeked={() => { if (!playing) doSeek(); }}
+        {hasForge && <ForgeClipPreview videoRef={vRef} effects={fx.stack} mediaPool={prod?.mediaPool || []} cubeLut={activeCubeLut} time={Math.max(0, playhead - clip.start)} active={active} />}
+        {playbackSrc && asset.type === "video" && <video ref={vRef} src={playbackSrc} className="mvid" style={hasForge ? { opacity: 0 } : undefined} muted={!active || !!mute || !!clip.disabled || !!clip.av || engineOwnsAudio} playsInline preload="auto" onLoadStart={() => setLoadState((s) => ({ ...s, phase: s.phase === "local" ? "loading" : s.phase }))} onWaiting={() => setLoadState((s) => ({ ...s, phase: s.phase === "local" ? "buffering" : s.phase }))} onPlaying={() => setLoadState((s) => ({ ...s, phase: s.phase === "cached" ? "cached" : s.phase === "local" ? "local" : "streaming" }))} onLoadedData={doSeek} onCanPlay={doSeek} onSeeked={() => { if (!playing) doSeek(); }}
           onError={() => {
             // Dead source (revoked/evicted blob URL) used to mean a permanently black clip.
             // Heal in place: fall to the durable cloud copy on this element, then re-seek.
             const v = vRef.current;
             if (v && asset?.cloudUrl && v.src !== asset.cloudUrl) { v.src = asset.cloudUrl; try { v.load(); } catch { /* */ } doSeek(); }
           }} />}
+        {active && asset?.type === "video" && ["cloud", "loading", "buffering"].includes(loadState.phase) && (
+          <div style={{ position: "absolute", left: "6%", right: "6%", bottom: "7%", zIndex: 90, padding: "8px 10px", borderRadius: 8, background: "rgba(0,0,0,.74)", color: "white", fontSize: 9, letterSpacing: ".12em" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}><span>{loadState.phase === "cloud" ? "CACHING ORIGINAL" : loadState.phase.toUpperCase()}</span><span>{loadState.pct ? loadState.pct + "%" : "PREPARING"}</span></div>
+            <div style={{ height: 3, borderRadius: 4, overflow: "hidden", background: "rgba(255,255,255,.18)" }}><div style={{ width: (loadState.pct || 12) + "%", height: "100%", background: "#ff8c00", transition: "width .2s" }} /></div>
+          </div>
+        )}
         {asset?.url && asset.type === "lottie" && <LottieLayer url={asset.url} time={Math.max(0, playhead - clip.start + offset)} playing={playing && active} speed={clip.lottieSpeed || 1} loop={clip.lottieLoop !== false} />}
         {asset?.url && (asset.type === "image" || asset.type === "graphic") && <img src={asset.url} className="mvid" alt="" />}
         {asset && !asset.url && (
@@ -7164,7 +7679,8 @@ function GpuStage({ reg, hostRef, onFail }) {
               return {
                 source: e.el,
                 opacity: (f.op ?? 1) * fade, scale: f.sc ?? 1,
-                tx: ((f.x ?? 0) / 100) * 2, ty: -((f.y ?? 0) / 100) * 2, rot: -((f.rot ?? 0) * Math.PI) / 180,
+                tx: ((f.x ?? 0) / 100 + (e.track?.x || 0)) * 2, ty: -((f.y ?? 0) / 100 + (e.track?.y || 0)) * 2, rot: -((f.rot ?? 0) * Math.PI) / 180,
+                homography: e.homography || null,
                 grade: { brightness: f.bri ?? 1, contrast: f.con ?? 1, saturation: f.sat ?? 1, warmth: f.warm ?? 0, hue: ((f.hue ?? 0) * Math.PI) / 180 },
               };
             });
@@ -8155,6 +8671,8 @@ const CSS = `
 .tbtn.sm{width:27px;height:27px}
 .poolitem.previewing,.mwcard.previewing{background:var(--org-dim);border-color:rgba(249,115,22,.4)}
 .monitor .viewer-tag.prog{position:absolute}
+.vt-surface{position:absolute;inset:0;width:100%;height:100%;z-index:40;overflow:visible}
+.vt-handle{cursor:grab}.vt-handle:active{cursor:grabbing}
 .overlay-slug{left:auto;right:8px}
 
 /* media workspace */

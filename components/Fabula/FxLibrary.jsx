@@ -14,6 +14,8 @@
 //                     straight into the media pool as editable clips.
 
 import { useEffect, useRef, useState } from "react";
+import { FX_EFFECTS } from "../plajahPixels/engine/fx/effects";
+import { FORGE_TRANSITIONS } from "../../services/fabula/forgeTransitions";
 
 /* ─────────────── FILTER PRESETS (map to the clip fx model: bri/con/sat/blur/op) ─────────────── */
 export const FILTER_PRESETS = [
@@ -40,8 +42,8 @@ export const GENERATOR_LIST = [
 ];
 const GEN_TINTS = ["#7b5cff", "#ff8c42", "#31c6a8", "#ff5c8a", "#4ea1ff", "#ffd166", "#9d4edd", "#57cc99"];
 
-export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onInsertGenerator, onInsertLottie, onImportLottie, onOpenFxPage, onClose }) {
-  const [tab, setTab] = useState("filters");
+export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onAddForge, onAddTransition, onInsertGenerator, onInsertLottie, onImportLottie, onOpenFxPage, onClose }) {
+  const [tab, setTab] = useState("forge");
   const lotties = (prod?.mediaPool || []).filter((a) => a.type === "lottie");
   const lottieBins = Array.from(new Set(lotties.map((a) => a.bin || "imports")));
   return (
@@ -50,11 +52,51 @@ export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onInsertGenerat
         <button className="minibtn" style={{ marginLeft: "auto", fontSize: 8 }} onClick={onClose} title="Close">✕</button>
       </div>
       <div className="fxtabs">
-        {[["filters", "FILTERS"], ["generators", "GENERATORS"], ["lottie", "LOTTIE"]].map(([id, lbl]) => (
+        {[["forge", "FORGE"], ["transitions", "TRANSITIONS"], ["filters", "FILTERS"], ["generators", "GENERATORS"], ["lottie", "LOTTIE"]].map(([id, lbl]) => (
           <button key={id} className={`fxtab ${tab === id ? "on" : ""}`} onClick={() => setTab(id)}>{lbl}</button>
         ))}
       </div>
       <div className="fxbody">
+        {tab === "forge" && (
+          <>
+            <div className="dim small" style={{ padding: "2px 2px 8px" }}>{selClipId ? "Add a premium native effect or begin with a curated look. The stack stays editable in the Inspector." : "Select a video clip, then choose an effect or curated look."}</div>
+            {FX_EFFECTS.filter((effect) => effect.category).map((effect) => (
+              <div key={effect.id} style={{ marginBottom: 10 }}>
+                <button className="fxrowbtn" disabled={!selClipId} onClick={() => onAddForge(effect.id)} title={effect.summary || `Add ${effect.name}`}>
+                  <span className="fxdot">✦</span><span className="fxrowname">{effect.name}</span><span className="dim small">ADD</span>
+                </button>
+                {!!effect.presets?.length && (
+                  <div className="fxgrid" style={{ marginTop: 5 }}>
+                    {effect.presets.map((preset) => (
+                      <button key={preset.id} className="fxcard" disabled={!selClipId} onClick={() => onAddForge(effect.id, preset.id)} title={preset.description}>
+                        <span className="fxthumb gen" style={{ background: "radial-gradient(circle at 36% 32%, rgba(255,190,112,.82), rgba(93,54,132,.46) 42%, #0a0a12 78%)" }}>✦</span>
+                        <span className="fxname">{preset.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
+        )}
+        {tab === "transitions" && (
+          <>
+            <div className="dim small" style={{ padding: "2px 2px 8px" }}>{selClipId ? "Apply to the selected incoming clip. Forge blends it with the previous shot using both source frames." : "Select the incoming clip at a cut, then choose a transition look."}</div>
+            {FORGE_TRANSITIONS.map((transition) => (
+              <div key={transition.id} style={{ marginBottom: 10 }}>
+                <div className="fxrowbtn" style={{ cursor: "default" }}><span className="fxdot">⇄</span><span className="fxrowname">{transition.name}</span><span className="dim small">{transition.family}</span></div>
+                <div className="fxgrid" style={{ marginTop: 5 }}>
+                  {transition.presets.map((preset) => (
+                    <button key={preset.id} className="fxcard" disabled={!selClipId} onClick={() => onAddTransition(transition.id, preset.id)} title={transition.description}>
+                      <span className="fxthumb gen" style={{ background: "linear-gradient(120deg,#24174b 0 46%,#ff8c42 54% 100%)" }}>⇄</span>
+                      <span className="fxname">{preset.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
         {tab === "filters" && (
           <>
             <div className="dim small" style={{ padding: "2px 2px 6px" }}>{selClipId ? "Click a preset to apply it to the selected clip. Fine-tune in the inspector." : "Select a clip in the timeline, then click a preset."}</div>

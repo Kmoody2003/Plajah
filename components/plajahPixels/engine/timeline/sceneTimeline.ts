@@ -33,6 +33,8 @@ export interface RenderLayer {
   /** Per-layer transform (translate UV fraction, scale, rotation radians) — e.g. a
    *  Fabula clip's position/scale/rotation fx applied to its whole scene. */
   transform?: { x: number; y: number; scale: number; rot: number };
+  /** Per-layer projective sampling matrix (VectorTrack planar stabilise / corner pin). */
+  homography?: number[] | null;
 }
 
 /** A captured launcher column: layers bottom→top, exactly what the compositor stacks. */

@@ -29,6 +29,9 @@ export interface CompositeLayer {
   ty?: number;
   rot?: number;     // radians
   grade?: Partial<Grade>;
+  /** Row-major 3×3 SAMPLING matrix in normalized image space (y down): out(p)=src(H·p).
+   *  VectorTrack planar stabilise / corner pin. Omit for identity. */
+  homography?: number[] | null;
 }
 
 export interface Compositor {
@@ -43,7 +46,10 @@ struct U {
   xform : vec4<f32>,   // scaleX, scaleY, txClip, tyClip
   rotOp : vec4<f32>,   // cos, sin, opacity, aspect
   gradeA: vec4<f32>,   // brightness, contrast, saturation, warmth
-  gradeB: vec4<f32>,   // hue, _, _, _
+  gradeB: vec4<f32>,   // hue, homographyOn, _, _
+  hom0  : vec4<f32>,   // homography row 0 (a b c _)
+  hom1  : vec4<f32>,   // row 1 (d e f _)
+  hom2  : vec4<f32>,   // row 2 (g h i _)
 };
 @group(0) @binding(0) var samp : sampler;
 @group(0) @binding(1) var tex  : texture_2d<f32>;
@@ -83,7 +89,17 @@ fn hueRotate(rgb : vec3<f32>, a : f32) -> vec3<f32> {
 
 @fragment
 fn fs(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
-  var col = textureSample(tex, samp, uv);
+  // Optional projective resample (planar stabilise / corner pin). textureSampleLevel keeps
+  // the sample in uniform control flow; out-of-bounds → transparent via inb.
+  var suv = uv; var inb = 1.0;
+  if (u.gradeB.y > 0.5) {
+    let hz = u.hom2.x * uv.x + u.hom2.y * uv.y + u.hom2.z;
+    let hx = u.hom0.x * uv.x + u.hom0.y * uv.y + u.hom0.z;
+    let hy = u.hom1.x * uv.x + u.hom1.y * uv.y + u.hom1.z;
+    if (hz > 1e-6) { suv = vec2<f32>(hx / hz, hy / hz); } else { inb = 0.0; }
+    if (suv.x < 0.0 || suv.x > 1.0 || suv.y < 0.0 || suv.y > 1.0) { inb = 0.0; }
+  }
+  var col = textureSampleLevel(tex, samp, clamp(suv, vec2<f32>(0.0), vec2<f32>(1.0)), 0.0) * inb;
   var rgb = col.rgb;
   rgb = rgb * u.gradeA.x;                          // brightness
   rgb = (rgb - vec3<f32>(0.5)) * u.gradeA.y + vec3<f32>(0.5); // contrast
@@ -97,7 +113,7 @@ fn fs(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
 }
 `;
 
-const UBYTES = 64; // 4 x vec4<f32>
+const UBYTES = 112; // 7 x vec4<f32>
 
 /** Create a compositor bound to a canvas. Returns null if WebGPU is unavailable. */
 export async function createCompositor(canvas: HTMLCanvasElement | OffscreenCanvas): Promise<Compositor | null> {
@@ -179,7 +195,8 @@ export async function createCompositor(canvas: HTMLCanvasElement | OffscreenCanv
         (L.scale ?? 1), (L.scale ?? 1), (L.tx ?? 0), (L.ty ?? 0),
         Math.cos(rot), Math.sin(rot), (L.opacity ?? 1), aspect,
         g.brightness, g.contrast, g.saturation, g.warmth,
-        g.hue, 0, 0, 0,
+        g.hue, L.homography ? 1 : 0, 0, 0,
+        ...(L.homography ? [L.homography[0], L.homography[1], L.homography[2], 0, L.homography[3], L.homography[4], L.homography[5], 0, L.homography[6], L.homography[7], L.homography[8], 0] : [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0]),
       ]);
       let ubo = uboCache[i];
       if (!ubo) { ubo = device.createBuffer({ size: UBYTES, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST }); uboCache[i] = ubo; }

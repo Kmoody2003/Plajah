@@ -21,6 +21,10 @@ import { isQualifierIdentity } from './fabula/hslKey';
 import { isWindowEnabled } from './fabula/gradeWindow';
 import { sampleParam } from './fabula/keyframes';
 import { probeVideoFrameRate, sourceSafeRenderFrameRate } from './videoFrameRate';
+import type { CubeLutData } from './fabula/cubeLut';
+import { stabilizationAt } from './fabula/vectorTrack';
+import { planarStabilizeAt, cornerPinAt } from './fabula/planarSequence';
+import { isIdentityMat3 } from './fabula/planarTrack';
 
 interface RenderFabulaOpts {
   clips: any[];                 // Fabula clips on the active timeline
@@ -31,6 +35,7 @@ interface RenderFabulaOpts {
   trackSettings?: Record<string, any>; // per-track mixer: vol/pan/mute/eq/comp (render = live parity)
   onProgress?: (p: number, stage: string) => void;
   signal?: AbortSignal;
+  cubeLut?: CubeLutData | null;
 }
 
 function itemToSnapshot(item: any, label: string): SceneSnapshot {
@@ -138,6 +143,14 @@ async function mixAudio(clips: any[], mediaPool: any[], durationSec: number, tra
   const audioClips = [...aClips, ...vAudio];
   if (!audioClips.length || durationSec <= 0) return null;
   const SR = 48000;
+  // Video transitions also shape their associated audio. Incoming audio ramps up
+  // across the transition while the preceding clip ramps down over the same cut.
+  const transitionInByLink = new Map<string, number>(), transitionOutByLink = new Map<string, number>();
+  const vidsByTrack = clips.filter(c => /^v\d+$/.test(c.trackId) && !c.disabled).reduce<Record<string, any[]>>((groups, clip) => { (groups[clip.trackId] ||= []).push(clip); return groups; }, {});
+  Object.values(vidsByTrack).forEach((track) => {
+    track.sort((a, b) => a.start - b.start);
+    track.forEach((clip, index) => { const dur = Math.max(0, clip.fx?.trans?.dur || 0); if (!dur) return; const key = clip.linkId || clip.id; transitionInByLink.set(key, dur); const prev = track[index - 1]; if (prev) transitionOutByLink.set(prev.linkId || prev.id, dur); });
+  });
 
   // decode each unique asset once
   const cache = new Map<string, AudioBuffer>();
@@ -218,7 +231,9 @@ async function mixAudio(clips: any[], mediaPool: any[], durationSec: number, tra
     const dur = Math.max(0.01, Math.min(c.duration || (ab.duration - offset), ab.duration - offset));
     // clip gain: the inspector's clip-audio volume (c.audio.vol), falling back to legacy fx.vol
     const gainVal = c.audio?.vol != null ? c.audio.vol : (c.fx?.vol != null ? c.fx.vol : (c.vol != null ? c.vol : 1));
-    const fi = Math.min(c.fx?.fadeIn || 0, dur), fo = Math.min(c.fx?.fadeOut || 0, dur);
+    const transitionKey = c.linkId || c.id;
+    const fi = Math.min(Math.max(c.fx?.fadeIn || 0, transitionInByLink.get(transitionKey) || 0), dur);
+    const fo = Math.min(Math.max(c.fx?.fadeOut || 0, transitionOutByLink.get(transitionKey) || 0), dur);
     const src = offline.createBufferSource(); src.buffer = ab;
     const g = offline.createGain();
     g.gain.setValueAtTime(fi > 0 ? 0.0001 : gainVal, start);
@@ -236,7 +251,7 @@ async function mixAudio(clips: any[], mediaPool: any[], durationSec: number, tra
 /** Render the Fabula timeline to an MP4 Blob via the Pixels offline renderer. Composites
  *  ALL video tracks (v1, v2, … unlimited; bottom→top) per frame, captions included. */
 export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob | null> {
-  const { clips, mediaPool, format, palette, trackSettings, onProgress, signal } = opts;
+  const { clips, mediaPool, format, palette, trackSettings, onProgress, signal, cubeLut } = opts;
   const videoClips = clips.filter(c => /^v\d+$/.test(c.trackId) && !c.disabled);
   const subtitleClips = clips.filter(c => c.kind === 'subtitle' && c.text);
   const titleClips = clips.filter(c => c.kind === 'title' && c.text);
@@ -250,7 +265,7 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
     const out: RenderLayer[] = [];
     // Emit one clip's layers into `out`, opacity scaled by opMul. `freeze` overrides
     // the clip-local time (used to HOLD the outgoing clip's last frame under a transition).
-    const emitClip = (clip: any, tAbs: number, opMul: number, freeze: number | null, extra?: { wipe?: any; blurAdd?: number }) => {
+    const emitClip = (clip: any, tAbs: number, opMul: number, freeze: number | null, extra?: { wipe?: any; blurAdd?: number; transition?: any }) => {
       if (opMul <= 0.001) return;
       const item = itemById.get(clip.assetId);
       const snap = itemToSnapshot(item, clip.label || 'clip');
@@ -263,8 +278,27 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
       const ky = sampleParam(fx, 'y', kfT, fx?.y || 0);
       const ksc = sampleParam(fx, 'sc', kfT, fx?.sc ?? 1);
       const krot = sampleParam(fx, 'rot', kfT, fx?.rot || 0);
-      const tf = fx ? { x: kx / 100, y: ky / 100, scale: ksc, rot: (krot * Math.PI) / 180 } : null;
+      const tracked = fx?.trackMode === 'stabilize' && fx?.vectorTrack ? stabilizationAt(fx.vectorTrack, Math.max(0, Math.round(kfT * (fx.vectorTrack.fps || 24)))) : { x: 0, y: 0 };
+      // Compositor UVs run y-UP (textures upload Y-flipped, see glUtil.uploadElement) while the monitor's
+      // CSS translate runs y-DOWN. Negate Y here so keyframed moves and point-track stabilisation export
+      // in the same direction they preview (verified by readback: +0.5 moved content UP before this).
+      const tf = fx ? { x: kx / 100 + tracked.x, y: -(ky / 100 + tracked.y), scale: ksc, rot: (krot * Math.PI) / 180 } : null;
       const hasTf = tf && (tf.x !== 0 || tf.y !== 0 || tf.scale !== 1 || tf.rot !== 0);
+      // VectorTrack PLANAR: a stabilised clip samples through its own track's H; a clip pinned
+      // to another clip's surface samples through inv(H*Q) of THAT clip at THAT clip's local frame.
+      // Same samplers as the monitor (planarSequence.ts) -> export parity by construction.
+      let homography: number[] | null = null;
+      if (fx?.trackMode === 'planar' && fx?.planarTrack) {
+        const st = planarStabilizeAt(fx.planarTrack, Math.max(0, Math.round(kfT * (fx.planarTrack.fps || 24))));
+        if (!isIdentityMat3(st.matrix as any)) homography = st.matrix;
+      } else if (fx?.pinTo?.clipId) {
+        const srcClip = clips.find((c: any) => c.id === fx.pinTo.clipId);
+        const seq = srcClip?.fx?.planarTrack;
+        if (seq) {
+          const pin = cornerPinAt(seq, Math.max(0, Math.round((tAbs - srcClip.start) * (seq.fps || 24))));
+          if (pin) homography = pin.sample;
+        }
+      }
       const grade = fx ? {
         bri: sampleParam(fx, 'bri', kfT, fx.bri ?? 1), con: sampleParam(fx, 'con', kfT, fx.con ?? 1),
         sat: sampleParam(fx, 'sat', kfT, fx.sat ?? 1), hue: sampleParam(fx, 'hue', kfT, fx.hue || 0),
@@ -301,7 +335,8 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
       const blurAdd = extra?.blurAdd || 0;
       const emitGrade = blurAdd ? { ...(grade || { bri: 1, con: 1, sat: 1, hue: 0, warm: 0, blur: 0 }), blur: (grade?.blur || 0) + blurAdd } : grade;
       const emitHasGrade = hasGrade || blurAdd > 0;
-      for (const layer of snap.layers) {
+      for (let layerIndex = 0; layerIndex < snap.layers.length; layerIndex++) {
+        const layer = snap.layers[layerIndex];
         out.push({
           ...layer,
           id: `${clip.trackId}:${clip.id}:${layer.id}`,   // unique per clip (two clips can co-exist mid-transition)
@@ -309,10 +344,20 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
           opacity: (layer.opacity ?? 1) * clipOp,
           time: lt,
           transform: hasTf ? tf : undefined,
+          ...(homography ? { homography } : {}),
           ...(emitHasGrade ? { grade: emitGrade } : {}),
           ...(glGrade ? { glGrade } : {}),
           ...(glGrades ? { glGrades } : {}),
+          ...(fx?.stack?.length ? { forgeEffects: fx.stack.filter((instance: any) => instance.enabled !== false).map((instance: any) => {
+            const auxAsset = instance.auxAssetId ? itemById.get(instance.auxAssetId) : null;
+            return auxAsset?.url ? { ...instance, auxUrl: auxAsset.url, auxMediaType: auxAsset.type === 'video' ? 'video' : 'image' } : instance;
+          }) } : {}),
           ...(extra?.wipe ? { wipe: extra.wipe } : {}),
+          // Transition belongs to the first incoming layer. Standard Fabula media
+          // clips are single-layer; compound scenes will receive a dedicated
+          // precompose target when transition handles land.
+          ...(layerIndex === 0 && extra?.transition ? { forgeTransition: extra.transition } : {}),
+          ...(extra?.transition && snap.layers.length > 1 ? { precomposeGroup: `compound:${clip.id}` } : {}),
         } as any);
       }
     };
@@ -329,22 +374,32 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
         const idx = onTrack.indexOf(cur);
         const prev = idx > 0 ? onTrack[idx - 1] : null;
         const p = Math.max(0, Math.min(1, (t - cur.start) / dur)); // 0 → 1 across the window
-        if (trans.type === 'dip') {
+        // Use the outgoing clip's final `dur` seconds as a moving source handle.
+        // Clamp for short clips; emitClip adds srcIn after this local-time alignment.
+        const outgoingHandleTime = prev ? Math.max(0, Math.min(prev.duration - 1e-3, prev.duration - dur + (t - cur.start))) : 0;
+        const forgeId = trans.forgeId || trans.id || ({ dissolve: 'film-dissolve', light: 'light-leak', whip: 'whip', prism: 'prism-warp', ink: 'ink-reveal', luma: 'luma-dissolve' } as Record<string, string>)[trans.type];
+        if (forgeId) {
+          // Native Forge transitions consume BOTH shots in one shader evaluation.
+          // Hold the outgoing handle and feed the incoming at full opacity; progress
+          // and preset params drive the two-input renderer in the compositor.
+          if (prev) emitClip(prev, t, 1, outgoingHandleTime);
+          emitClip(cur, t, 1, null, { transition: { id: forgeId, progress: p, params: trans.params || {}, time: t } });
+        } else if (trans.type === 'dip') {
           // Dip THROUGH black: outgoing fades out over the first half, incoming in over the second.
-          if (prev) emitClip(prev, t, 1 - Math.min(1, p * 2), prev.duration - 1e-3);
+          if (prev) emitClip(prev, t, 1 - Math.min(1, p * 2), outgoingHandleTime);
           emitClip(cur, t, Math.max(0, (p - 0.5) * 2), null);
         } else if (trans.type === 'wipe') {
           // WIPE: hold the outgoing, reveal the incoming behind a moving edge (shader matte).
-          if (prev) emitClip(prev, t, 1, prev.duration - 1e-3);
+          if (prev) emitClip(prev, t, 1, outgoingHandleTime);
           emitClip(cur, t, 1, null, { wipe: { dir: (trans.dir ?? 0), p, soft: 0.06 } });
         } else if (trans.type === 'blur') {
           // BLUR DISSOLVE: both clips blur toward the midpoint while crossing over.
           const bl = (1 - Math.abs(p - 0.5) * 2) * 22; // 0 → 22px → 0
-          if (prev) emitClip(prev, t, 1, prev.duration - 1e-3, { blurAdd: bl });
+          if (prev) emitClip(prev, t, 1, outgoingHandleTime, { blurAdd: bl });
           emitClip(cur, t, p, null, { blurAdd: bl });
         } else {
           // Dissolve / fade: HOLD the outgoing's last frame, cross the incoming in over it.
-          if (prev) emitClip(prev, t, 1, prev.duration - 1e-3);
+          if (prev) emitClip(prev, t, 1, outgoingHandleTime);
           emitClip(cur, t, p, null);
         }
       } else {
@@ -412,6 +467,6 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
   return renderTimeline({
     resolveLayers, duration, audioBuffer, config,
     width: format.w || 1920, height: format.h || 1080, fps: renderFps,
-    onProgress, signal,
+    onProgress, signal, cubeLut,
   });
 }

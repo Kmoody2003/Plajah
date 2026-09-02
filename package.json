@@ -28,7 +28,8 @@
     "test:transcode": "npx tsx --test tests/choraTranscodeWorker.test.ts",
     "test:playback": "npx tsx --test tests/playbackHealth.test.ts",
     "test:melos": "npx tsx --test tests/melosArp.test.ts tests/melosKera.test.ts",
-    "test:fabulagen": "npx tsx --test tests/fabulaGenHandoff.test.ts",
+    "test:vectortrack": "npx tsx --test tests/vectorTrack.test.ts tests/planarTrack.test.ts tests/planarSequence.test.ts",
+    "test:fabulagen": "npx tsx --test tests/fabulaGenHandoff.test.ts tests/fabulaMagnific.test.ts",
     "academia:ingest": "npx tsx scripts/ingestOerLibrary.ts",
     "test:runner": "npx tsx --test tests/serviceRunner.test.ts",
     "test:stillness": "npx tsx --test tests/stillnessEngine.test.ts tests/solaHandoff.test.ts tests/velaPlayer.test.ts tests/velaSuite.test.ts tests/generativeChannel.test.ts tests/inflection.test.ts tests/composer.test.ts tests/autonomousProducer.test.ts"
