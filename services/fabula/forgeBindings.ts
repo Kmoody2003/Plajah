@@ -94,6 +94,9 @@ export function resolveBoundParams(instance: ForgeEffectInstance, effect: FxEffe
     if (b.source === 'planarCornerX' || b.source === 'planarCornerY') { const c = values.corners?.[clamp(b.corner ?? 0, 0, 3)]; raw = c ? (b.source === 'planarCornerX' ? c.x : c.y) : null; }
     else raw = values[b.source];
     if (raw == null) continue;
+    // Effect position params live in GL/texture space (y UP: 0 = bottom of frame) because the
+    // compositor uploads frames Y-flipped; tracks are image space (y DOWN). Flip Y sources here.
+    if (b.source === 'pointY' || b.source === 'planarCY' || b.source === 'planarCornerY') raw = 1 - raw;
     const range = param.max - param.min;
     // Positions map the 0..1 track space across the param range by default; scale/rotation are direct.
     const isPos = b.source !== 'planarScale' && b.source !== 'planarRotation';

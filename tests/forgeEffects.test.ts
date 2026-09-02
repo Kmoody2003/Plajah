@@ -65,7 +65,7 @@ describe('Fabula Forge effects', () => {
 
   it('publishes true auxiliary-input effects with stable asset bindings', () => {
     const ids = FX_EFFECTS.filter((effect) => effect.auxInput).map((effect) => effect.id);
-    assert.deepEqual(ids.sort(), ['differencekey', 'displacementmap', 'externaldepthdefocus', 'lightwrap', 'referencecolormatch', 'timedisplace'].sort());
+    assert.deepEqual(ids.sort(), ['differencekey', 'displacementmap', 'externaldepthdefocus', 'lightwrap', 'referencecolormatch', 'timedisplace', 'cardflip'].sort());
     const instance = { ...createEffectInstance('differencekey', 'clean-static', 'multi-1'), auxAssetId: 'plate-asset' };
     assert.equal(instance.auxAssetId, 'plate-asset');
   });

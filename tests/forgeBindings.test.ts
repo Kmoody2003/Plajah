@@ -35,6 +35,9 @@ describe('Forge bindings + masks', () => {
     assert.ok(Math.abs(p[key] - expect) < 1e-9, `${p[key]} vs ${expect}`);
     const q = resolveBoundParams({ ...inst, bindings: { [key]: { source: 'pointX', offset: param.max, scale: param.max } } }, effect, tracks(), 1);
     assert.equal(q[key], param.max);
+    // Y sources are flipped into GL space (0 = bottom): pointY .6 at frame 24 → raw .4
+    const yv = resolveBoundParams({ ...inst, bindings: { [key]: { source: 'pointY' } } }, effect, tracks(), 1);
+    assert.ok(Math.abs(yv[key] - (param.min + .4 * (param.max - param.min))) < 1e-9, 'y flipped');
     assert.equal(resolveBoundParams({ ...inst, bindings: {} }, effect, tracks(), 1), inst.params);
   });
 
