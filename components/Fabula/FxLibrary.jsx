@@ -44,6 +44,15 @@ const GEN_TINTS = ["#7b5cff", "#ff8c42", "#31c6a8", "#ff5c8a", "#4ea1ff", "#ffd1
 
 export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onAddForge, onAddTransition, onInsertGenerator, onInsertLottie, onImportLottie, onOpenFxPage, onClose }) {
   const [tab, setTab] = useState("forge");
+  const [forgeCat, setForgeCat] = useState("all");
+  const [forgeQuery, setForgeQuery] = useState("");
+  const FORGE_CATS = [["all", "ALL"], ["light", "LIGHT"], ["blur", "BLUR"], ["color", "COLOR"], ["utility", "KEY"], ["stylize", "STYLIZE"], ["distort", "WARP"], ["time", "TIME"], ["generator", "GENERATE"]];
+  const forgeMatches = (effect) => {
+    if (forgeCat !== "all" && (effect.category || "utility") !== forgeCat) return false;
+    const q = forgeQuery.trim().toLowerCase();
+    if (!q) return true;
+    return effect.name.toLowerCase().includes(q) || (effect.summary || "").toLowerCase().includes(q) || (effect.presets || []).some((p) => p.name.toLowerCase().includes(q));
+  };
   const lotties = (prod?.mediaPool || []).filter((a) => a.type === "lottie");
   const lottieBins = Array.from(new Set(lotties.map((a) => a.bin || "imports")));
   return (
@@ -60,7 +69,12 @@ export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onAddForge, onA
         {tab === "forge" && (
           <>
             <div className="dim small" style={{ padding: "2px 2px 8px" }}>{selClipId ? "Add a premium native effect or begin with a curated look. The stack stays editable in the Inspector." : "Select a video clip, then choose an effect or curated look."}</div>
-            {FX_EFFECTS.filter((effect) => effect.category).map((effect) => (
+            <div className="btnrow" style={{ gap: 4, flexWrap: "wrap", padding: "0 2px 6px" }}>
+              {FORGE_CATS.map(([id, lbl]) => <button key={id} className={`minibtn ${forgeCat === id ? "on" : ""}`} onClick={() => setForgeCat(id)}>{lbl}</button>)}
+              <input className="in" style={{ flex: "1 1 120px", minWidth: 100 }} placeholder="Search effects…" value={forgeQuery} onChange={(e) => setForgeQuery(e.target.value)} />
+              <span className="dim small mono">{FX_EFFECTS.filter((e) => e.category && forgeMatches(e)).length}/{FX_EFFECTS.length}</span>
+            </div>
+            {FX_EFFECTS.filter((effect) => effect.category && forgeMatches(effect)).map((effect) => (
               <div key={effect.id} style={{ marginBottom: 10 }}>
                 <button className="fxrowbtn" disabled={!selClipId} onClick={() => onAddForge(effect.id)} title={effect.summary || `Add ${effect.name}`}>
                   <span className="fxdot">✦</span><span className="fxrowname">{effect.name}</span><span className="dim small">ADD</span>
