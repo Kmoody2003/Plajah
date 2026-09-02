@@ -496,6 +496,78 @@ export interface ContinuityCheck {
   createdAt: number;
 }
 
+// ─── Deliverables & Mastering (W4) — the delivery cliff-closer ────────────────
+// A production can plan and shoot but must also DELIVER against a spec. A chosen
+// spec instantiates a checklist (master file, captions, textless, M&E, poster, QC,
+// chain-of-title …). Master-format guidance mirrors services/fabula/codecMatrix.ts
+// (DNxHR = free default; ProRes = grey; Dolby/DTS never encoded) without coupling
+// to that actively-edited file. Delivered files register as private Content HQ assets.
+
+export type DeliverableStatus = 'NEEDED' | 'IN_PROGRESS' | 'READY' | 'DELIVERED' | 'NA';
+export type DeliverableKind =
+  | 'MASTER' | 'CAPTIONS' | 'TEXTLESS' | 'ME_AUDIO' | 'POSTER' | 'STILLS'
+  | 'TRAILER' | 'QC_REPORT' | 'CHAIN_OF_TITLE' | 'DCP' | 'IMF' | 'OTHER';
+
+export interface ProductionDeliverable {
+  id: string;
+  specId: string;
+  kind: DeliverableKind;
+  label: string;
+  required: boolean;
+  status: DeliverableStatus;
+  format?: string;
+  assetId?: string;        // Content HQ orgAssets id (private)
+  assetUrl?: string;       // authed HQ download URL
+  note?: string;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+export interface DeliverySpec {
+  id: string;
+  label: string;
+  venue: string;
+  loudnessPreset: string;  // → services/loudnessQC LOUDNESS_PRESETS
+  masterFormat: string;    // recommended master (mirrors codecMatrix truth)
+  items: Array<{ kind: DeliverableKind; label: string; required: boolean; format?: string }>;
+}
+
+export const DELIVERY_SPECS: DeliverySpec[] = [
+  { id: 'festival', label: 'Festival (DCP + screener)', venue: 'Festival', loudnessPreset: 'ebu_r128', masterFormat: 'DNxHR HQX (MXF)', items: [
+    { kind: 'MASTER', label: 'Master file', required: true, format: 'DNxHR HQX · MXF (free)' },
+    { kind: 'DCP', label: 'DCP (2K/4K)', required: true, format: 'JPEG2000 · desktop tier' },
+    { kind: 'CAPTIONS', label: 'Subtitles (SRT/VTT)', required: false, format: 'SRT' },
+    { kind: 'POSTER', label: 'Poster / key art', required: true },
+    { kind: 'STILLS', label: 'Production stills', required: true },
+    { kind: 'QC_REPORT', label: 'QC report', required: true },
+    { kind: 'CHAIN_OF_TITLE', label: 'Chain of title', required: true },
+  ] },
+  { id: 'broadcast', label: 'Broadcast (ATSC A/85)', venue: 'Broadcast', loudnessPreset: 'atsc_a85', masterFormat: 'ProRes 422 HQ / DNxHR', items: [
+    { kind: 'MASTER', label: 'Broadcast master', required: true, format: 'ProRes 422 HQ (grey) / DNxHR (free)' },
+    { kind: 'TEXTLESS', label: 'Textless elements', required: true },
+    { kind: 'ME_AUDIO', label: 'M&E audio stems', required: true },
+    { kind: 'CAPTIONS', label: 'Closed captions', required: true, format: 'SCC / iTT (P2)' },
+    { kind: 'QC_REPORT', label: 'QC report (loudness + video)', required: true },
+    { kind: 'CHAIN_OF_TITLE', label: 'E&O + chain of title', required: true },
+  ] },
+  { id: 'streamer', label: 'Streamer / VOD (generic)', venue: 'Streaming', loudnessPreset: 'streaming', masterFormat: 'ProRes 422 HQ / DNxHR', items: [
+    { kind: 'IMF', label: 'IMF or ProRes master', required: true, format: 'ProRes 422 HQ (grey) / IMF · desktop' },
+    { kind: 'CAPTIONS', label: 'Subtitles + captions (SRT/VTT)', required: true, format: 'SRT/VTT' },
+    { kind: 'TEXTLESS', label: 'Textless backgrounds', required: true },
+    { kind: 'ME_AUDIO', label: 'M&E + stems', required: true },
+    { kind: 'TRAILER', label: 'Trailer / promo', required: false },
+    { kind: 'QC_REPORT', label: 'QC report', required: true },
+  ] },
+];
+
+export function buildDeliverablesForSpec(spec: DeliverySpec): ProductionDeliverable[] {
+  const now = Date.now();
+  return spec.items.map((item, index) => ({
+    id: `dlv_${spec.id}_${item.kind}_${now.toString(36)}${index}`, specId: spec.id, kind: item.kind,
+    label: item.label, required: item.required, status: 'NEEDED' as DeliverableStatus, format: item.format, createdAt: now,
+  }));
+}
+
 // ─── Time helpers ────────────────────────────────────────────────────────────
 
 export function addMinutes(hhmm: string, mins: number): string {
@@ -1100,6 +1172,20 @@ export const removeTake = (p: string, id: string) => remove(p, 'takes', id);
 export const subContinuityChecks = (p: string, cb: (r: ContinuityCheck[]) => void) => subscribe<ContinuityCheck>(p, 'continuityChecks', cb);
 export const putContinuityCheck = (p: string, row: ContinuityCheck) => put(p, 'continuityChecks', row);
 export const removeContinuityCheck = (p: string, id: string) => remove(p, 'continuityChecks', id);
+// Deliverables (W4).
+export const subDeliverables = (p: string, cb: (r: ProductionDeliverable[]) => void) => subscribe<ProductionDeliverable>(p, 'deliverables', cb);
+export const putDeliverable = (p: string, row: ProductionDeliverable) => put(p, 'deliverables', row);
+export const patchDeliverable = (p: string, id: string, x: Partial<ProductionDeliverable>) => patch(p, 'deliverables', id, x);
+export const removeDeliverable = (p: string, id: string) => remove(p, 'deliverables', id);
+/** Instantiate a delivery spec's checklist into the production (skips items already present for that spec). */
+export async function applyDeliverySpec(prodId: string, spec: DeliverySpec, existing: ProductionDeliverable[]): Promise<number> {
+  const have = new Set(existing.filter(d => d.specId === spec.id).map(d => d.kind));
+  const rows = buildDeliverablesForSpec(spec).filter(d => !have.has(d.kind));
+  if (!rows.length) return 0;
+  const batch = writeBatch(db);
+  rows.forEach(row => batch.set(doc(db, 'productions', prodId, 'deliverables', row.id), stripUndefined(row)));
+  try { await batch.commit(); return rows.length; } catch { return 0; }
+}
 /** Write a clearance and append a workflow-ledger event in one batch, so the On-Set activity feed sees legal changes. */
 export async function putClearanceWithEvent(prodId: string, clearance: ProductionClearance, actorUid: string, summary: string): Promise<void> {
   const now = Date.now();

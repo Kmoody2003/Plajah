@@ -29,6 +29,8 @@ import { buildFabulaProjectFromTakes } from '../services/filmEditBridge';
 import { transcribeAndScoreTake, coverageGaps } from '../services/takeScoring';
 import { startTakeRecorder, recordingToFile, pendingCameraTiers, type TakeRecorderHandle } from '../services/takeCapture';
 import { compareFrames, grabFrame, type ContinuityResult } from '../services/continuityCheck';
+import { toSRT, toVTT, cuesFromTakes, downloadSidecar } from '../services/captionSidecar';
+import { LOUDNESS_PRESETS, evaluateLoudness } from '../services/loudnessQC';
 import { subscribeBreakdownElements, type BreakdownElement } from '../services/productionBreakdownService';
 import { uploadFile } from '../services/backendService';
 import { FilmStaffingTab } from './film/FilmStaffingTab';
@@ -2603,6 +2605,139 @@ const readVideoDuration = (file: File): Promise<number> => new Promise(resolve =
   } catch { resolve(5); }
 });
 
+// ─── Film Tab: Deliverables & Mastering (W4) ─────────────────────────────────
+
+const DELIVERABLE_STATUSES: FilmProduction.DeliverableStatus[] = ['NEEDED', 'IN_PROGRESS', 'READY', 'DELIVERED', 'NA'];
+const dlvStatusColor: Record<string, string> = { NEEDED: 'text-red-400 bg-red-500/10', IN_PROGRESS: 'text-yellow-400 bg-yellow-500/10', READY: 'text-blue-400 bg-blue-500/10', DELIVERED: 'text-emerald-400 bg-emerald-500/10', NA: 'text-white/30 bg-white/5' };
+
+const FilmDeliverablesTab: React.FC = () => {
+  const { prod, deliverables, takes, isOwner, readOnly, can } = useProd();
+  const canManage = !readOnly && (isOwner || can('MANAGE_REPORTS') || can('MANAGE_POST'));
+  const [specId, setSpecId] = useState(FilmProduction.DELIVERY_SPECS[0].id);
+  const [scan, setScan] = useState<ProductionBrainAnswer | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [lufs, setLufs] = useState('-23');
+  const [tp, setTp] = useState('-1');
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState('');
+
+  const spec = FilmProduction.DELIVERY_SPECS.find(s => s.id === specId)!;
+  const specDlv = deliverables.filter(d => d.specId === specId);
+  const required = specDlv.filter(d => d.required);
+  const doneReq = required.filter(d => d.status === 'DELIVERED').length;
+  const pct = required.length ? Math.round(doneReq / required.length * 100) : 0;
+  const verdict = evaluateLoudness(parseFloat(lufs) || 0, parseFloat(tp) || 0, spec.loudnessPreset);
+  const transcribedCircled = takes.filter(t => t.circled && t.transcript?.length);
+  const inputCls = 'bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-emerald-500/50';
+
+  const apply = async () => { if (prod) { const n = await FilmProduction.applyDeliverySpec(prod.id, spec, deliverables); setMessage(n ? `Added ${n} deliverables for ${spec.label}.` : 'Checklist already applied for this spec.'); } };
+  const setStatus = (d: FilmProduction.ProductionDeliverable, status: FilmProduction.DeliverableStatus) => { if (prod) FilmProduction.patchDeliverable(prod.id, d.id, { status }); };
+  const del = (d: FilmProduction.ProductionDeliverable) => { if (prod) FilmProduction.removeDeliverable(prod.id, d.id); };
+  const attach = async (d: FilmProduction.ProductionDeliverable, file?: File | null) => {
+    if (!prod || !file) return; setBusy(d.id); setMessage('');
+    try { const asset = await addHqAsset({ kind: 'user', id: prod.ownerUid }, file, 'Deliverables'); await FilmProduction.patchDeliverable(prod.id, d.id, { assetId: asset.id, assetUrl: asset.url, status: d.status === 'NEEDED' ? 'READY' : d.status }); }
+    catch (e) { setMessage(e instanceof Error ? e.message : 'Upload failed.'); } finally { setBusy(''); }
+  };
+  const exportCaptions = (fmt: 'srt' | 'vtt') => {
+    const cues = cuesFromTakes(transcribedCircled);
+    if (!cues.length) { setMessage('No transcribed circled takes yet — score takes in Live Edit, then export captions.'); return; }
+    downloadSidecar(fmt === 'srt' ? toSRT(cues) : toVTT(cues), `${(prod?.title || 'film').replace(/\W+/g, '_')}.${fmt}`);
+    setMessage(`Exported ${cues.length} caption cues as ${fmt.toUpperCase()} — a starter to refine on the locked cut.`);
+  };
+  const runScan = async () => { if (!prod) return; setScanning(true); setMessage(''); try { setScan(await askProductionBrain(prod.id, '', 'DELIVERY_SCAN')); } catch (e) { setMessage(e instanceof Error ? e.message : 'Scan failed.'); } finally { setScanning(false); } };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 max-w-3xl">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <p className="text-sm font-black text-white">Deliverables &amp; Mastering</p>
+          <p className="text-[11px] text-white/40">Track everything a delivery spec requires, generate caption sidecars, and QC loudness.</p>
+        </div>
+        <select value={specId} onChange={e => setSpecId(e.target.value)} className={inputCls}>{FilmProduction.DELIVERY_SPECS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}</select>
+      </div>
+
+      {/* Progress + master format */}
+      <div className="p-4 bg-white/[0.03] border border-white/[0.06] rounded-2xl">
+        <div className="flex items-center justify-between mb-2">
+          <div><p className="text-[10px] font-black uppercase tracking-widest text-white/30">{spec.venue} · required delivered</p><p className="text-xl font-black text-white">{doneReq} / {required.length}</p></div>
+          <div className="text-right"><p className="text-[10px] font-black uppercase tracking-widest text-white/30">Recommended master</p><p className="text-xs font-black text-emerald-400">{spec.masterFormat}</p></div>
+        </div>
+        <div className="h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }} /></div>
+        <p className="text-[10px] text-white/25 mt-2">DNxHR is the free default master; ProRes is offered as grey (unofficial); DCP/IMF are desktop-tier. Dolby/DTS are never encoded.</p>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        {/* Loudness QC */}
+        <div className="p-4 bg-white/[0.03] border border-white/[0.06] rounded-2xl">
+          <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Loudness QC · {verdict.preset.label}</p>
+          <p className="text-[11px] text-white/40 mb-3 font-mono">Target {verdict.preset.targetLUFS} LUFS ±{verdict.preset.tolLUFS} · true-peak ≤ {verdict.preset.maxTP} dBTP</p>
+          <div className="flex gap-2 mb-3">
+            <label className="flex-1 text-[10px] text-white/40">Integrated LUFS<input value={lufs} onChange={e => setLufs(e.target.value)} type="number" className={`${inputCls} w-full mt-1`} /></label>
+            <label className="flex-1 text-[10px] text-white/40">True peak dBTP<input value={tp} onChange={e => setTp(e.target.value)} type="number" className={`${inputCls} w-full mt-1`} /></label>
+          </div>
+          <div className={`flex items-start gap-2 text-[11px] p-2.5 rounded-lg ${verdict.pass ? 'bg-emerald-500/10 text-emerald-300' : 'bg-red-500/10 text-red-300'}`}>
+            {verdict.pass ? <CheckCircle2 size={14} className="shrink-0 mt-0.5" /> : <AlertCircle size={14} className="shrink-0 mt-0.5" />}<span>{verdict.advice}</span>
+          </div>
+          <p className="text-[9px] text-white/25 mt-2">Measure with the Master Suite R128 meter; auto-normalise is a later step.</p>
+        </div>
+
+        {/* Captions */}
+        <div className="p-4 bg-white/[0.03] border border-white/[0.06] rounded-2xl">
+          <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Caption sidecars</p>
+          <p className="text-[11px] text-white/40 mb-3">Assembled from your <b className="text-white/60">{transcribedCircled.length}</b> transcribed circled take{transcribedCircled.length === 1 ? '' : 's'} (real timecodes) — a starter to refine on the locked cut.</p>
+          <div className="flex gap-2">
+            <button onClick={() => exportCaptions('srt')} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"><FileText size={12} /> SRT</button>
+            <button onClick={() => exportCaptions('vtt')} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"><FileText size={12} /> VTT</button>
+          </div>
+          <p className="text-[9px] text-white/25 mt-2">SCC / iTT (broadcast) are a later phase.</p>
+        </div>
+      </div>
+
+      {/* Checklist */}
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Deliverables · {spec.label}</p>
+        {canManage && !specDlv.length && <button onClick={apply} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-black uppercase tracking-widest hover:bg-emerald-500/25 transition-all"><Plus size={12} /> Start checklist</button>}
+      </div>
+      {message && <p className="text-[11px] text-emerald-200">{message}</p>}
+
+      {specDlv.length === 0 ? (
+        <EmptyState icon={<Package size={22} />} title="No checklist yet" body={`Start the ${spec.label} checklist to track master, captions, textless, M&E, QC, and chain-of-title.`} cta={canManage ? 'Start checklist' : undefined} onCta={canManage ? apply : undefined} />
+      ) : (
+        <div className="space-y-1.5">
+          {specDlv.map(d => (
+            <div key={d.id} className="flex items-center gap-3 px-4 py-2.5 bg-white/[0.02] border border-white/[0.04] rounded-xl">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-white">{d.label} {d.required && <span className="text-[8px] text-red-400/70 font-black uppercase">req</span>}</p>
+                {(d.format || d.assetUrl) && <p className="text-[10px] text-white/30 font-mono">{d.format}{d.assetUrl ? ' · attached ✓' : ''}</p>}
+              </div>
+              {canManage && (
+                <label className="text-white/25 hover:text-emerald-400 cursor-pointer" title="Attach delivered file (private)">
+                  {busy === d.id ? <span className="text-[9px]">…</span> : <Download size={13} className="rotate-180" />}
+                  <input type="file" className="sr-only" onChange={e => { attach(d, e.target.files?.[0]); e.currentTarget.value = ''; }} />
+                </label>
+              )}
+              {canManage ? (
+                <select value={d.status} onChange={e => setStatus(d, e.target.value as FilmProduction.DeliverableStatus)} className={`text-[9px] font-black uppercase rounded-full px-2 py-1 border-0 cursor-pointer ${dlvStatusColor[d.status]}`}>{DELIVERABLE_STATUSES.map(s => <option key={s} value={s} className="bg-neutral-900 text-white">{s.replace('_', ' ')}</option>)}</select>
+              ) : <span className={`text-[9px] font-black uppercase rounded-full px-2 py-1 ${dlvStatusColor[d.status]}`}>{d.status.replace('_', ' ')}</span>}
+              {canManage && <button onClick={() => del(d)} className="text-white/20 hover:text-red-400"><Trash2 size={12} /></button>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {scan && (
+        <div className="p-5 bg-emerald-500/[0.06] border border-emerald-500/20 rounded-2xl space-y-3">
+          <div className="flex items-center gap-2"><Package size={14} className="text-emerald-300" /><p className="text-xs font-black text-emerald-200 uppercase tracking-widest">Production Brain — Delivery Readiness</p></div>
+          {scan.answer && <p className="text-[12px] text-white/70 leading-relaxed">{scan.answer}</p>}
+          {scan.risks.map((r, i) => <div key={i} className="flex gap-2 border-t border-white/5 pt-2"><AlertCircle size={13} className={r.severity === 'high' ? 'text-red-400 mt-0.5 shrink-0' : 'text-amber-400 mt-0.5 shrink-0'} /><div><p className="text-[11px] font-black text-white">{r.title}</p><p className="text-[10px] text-white/40">{r.detail}</p></div></div>)}
+        </div>
+      )}
+
+      <button onClick={runScan} disabled={scanning || !specDlv.length} className="flex items-center gap-2 text-emerald-400 text-xs font-black uppercase tracking-widest hover:text-emerald-300 transition-colors disabled:opacity-40"><Sparkles size={12} /> {scanning ? 'Scanning…' : 'Delivery Readiness Scan'}</button>
+    </motion.div>
+  );
+};
+
 // ─── Film Tab: Continuity Eye (still-vs-still CV check) ──────────────────────
 
 const CONTINUITY_PROP_CATS = ['PROPS', 'SET_DRESSING', 'WARDROBE', 'MAKEUP_HAIR', 'VEHICLES'];
@@ -3663,7 +3798,7 @@ const WriterPressTab: React.FC = () => (
 type PMTab =
   | 'overview' | 'releases' | 'productions' | 'import' | 'payroll' | 'contracts' | 'invoices' | 'tasks' | 'vendors' | 'venues' | 'events' | 'boards' | 'promote'
   | 'film_overview' | 'film_script' | 'film_breakdown' | 'film_budget' | 'film_crew' | 'film_locations' | 'film_schedule' | 'film_distro'
-  | 'film_hub' | 'film_chat' | 'film_callsheets' | 'film_staffing' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports' | 'film_clearances' | 'film_edit' | 'film_continuity'
+  | 'film_hub' | 'film_chat' | 'film_callsheets' | 'film_staffing' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports' | 'film_clearances' | 'film_edit' | 'film_continuity' | 'film_deliverables'
   | 'writer_overview' | 'writer_projects' | 'writer_manuscripts' | 'writer_research' | 'writer_submissions' | 'writer_events' | 'writer_press';
 
 type Discipline = 'music' | 'film' | 'writer';
@@ -3713,6 +3848,7 @@ const FILM_TABS: { id: PMTab; label: string; icon: React.ReactNode; color: strin
   { id: 'film_schedule',   label: 'Schedule',     icon: <Calendar size={13} />,     color: '#3b82f6' },
   { id: 'film_locations',  label: 'Locations',    icon: <MapPin size={13} />,       color: '#ef4444' },
   { id: 'film_clearances', label: 'Clearances',   icon: <Shield size={13} />,       color: '#eab308' },
+  { id: 'film_deliverables', label: 'Deliverables', icon: <Package size={13} />,     color: '#10b981' },
   { id: 'film_distro',     label: 'Distribution', icon: <Award size={13} />,        color: '#f59e0b' },
   { id: 'contracts',       label: 'Contracts',    icon: <FileText size={13} />,     color: '#a855f7' },
   { id: 'invoices',        label: 'Invoices',     icon: <Receipt size={13} />,      color: '#10b981' },
@@ -3798,6 +3934,7 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
       case 'film_clearances':     return <FilmClearancesTab />;
       case 'film_edit':           return <FilmEditTab />;
       case 'film_continuity':     return <FilmContinuityTab />;
+      case 'film_deliverables':   return <FilmDeliverablesTab />;
       case 'film_schedule':       return <ProductionScheduleTab />;
       case 'film_distro':         return <FilmDistroTab />;
       case 'writer_overview':     return <WriterOverviewTab />;
