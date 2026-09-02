@@ -448,6 +448,35 @@ export interface Production {
   updatedAt: number;
 }
 
+// ─── Takes — the link between a shot proxy and a script scene (Set-to-Cut) ────
+// Nothing else ties footage to a scene. A take is one recorded attempt of a
+// scene, carrying its proxy (for editing), the director's circle/rating, and —
+// later — a transcript + match score. These auto-assemble into a Fabula project
+// (see services/filmEditBridge.ts): a bin per scene, the circled/best take per
+// scene laid as a living rough cut.
+
+export type TakeStatus = 'GOOD' | 'NG' | 'HOLD' | 'SELECT';
+export interface ProductionTake {
+  id: string;
+  sceneId: string;
+  sceneNum: string;
+  takeNumber: number;
+  cameraId?: string;
+  proxyUrl?: string;        // playable proxy (Storage URL) — for editing
+  proxyAssetId?: string;    // OPFS studio:blob id (live-stream tier)
+  duration?: number;        // seconds
+  circled?: boolean;        // the director's circle-take
+  rating?: number;          // 1–5
+  status: TakeStatus;
+  note?: string;
+  transcript?: Array<{ time: number; speaker?: string; text: string }>; // P2 (analyzeClipForScript)
+  matchScore?: number;      // P2 — transcript vs scripted dialogue
+  byMemberId?: string;
+  byName?: string;
+  createdAt: number;
+  updatedAt?: number;
+}
+
 // ─── Time helpers ────────────────────────────────────────────────────────────
 
 export function addMinutes(hhmm: string, mins: number): string {
@@ -999,6 +1028,13 @@ export async function fetchDraftBlocks(prodId: string, draftId: string): Promise
     return snap.exists() ? draftScriptBlocks((snap.data() as ScriptDraft).elements || []) : [];
   } catch { return []; }
 }
+/** Raw elements of a draft — for per-scene scripted-dialogue extraction (Set-to-Cut scoring). */
+export async function fetchDraftElements(prodId: string, draftId: string): Promise<ScriptElement[]> {
+  try {
+    const snap = await getDoc(doc(db, 'productions', prodId, 'scriptDrafts', draftId));
+    return snap.exists() ? ((snap.data() as ScriptDraft).elements || []) : [];
+  } catch { return []; }
+}
 
 // Shared planning records used by Artist Manager and the on-set suite.
 export const subBudgetLines = (p: string, cb: (r: ProductionBudgetLine[]) => void) => subscribe<ProductionBudgetLine>(p, 'budgetLines', cb);
@@ -1036,6 +1072,11 @@ export async function seedTimecardsFromDpr(prodId: string, dpr: DailyProductionR
 export const subClearances = (p: string, cb: (r: ProductionClearance[]) => void) => subscribe<ProductionClearance>(p, 'clearances', cb);
 export const patchClearance = (p: string, id: string, x: Partial<ProductionClearance>) => patch(p, 'clearances', id, x);
 export const removeClearance = (p: string, id: string) => remove(p, 'clearances', id);
+// Takes (Set-to-Cut).
+export const subTakes = (p: string, cb: (r: ProductionTake[]) => void) => subscribe<ProductionTake>(p, 'takes', cb);
+export const putTake = (p: string, row: ProductionTake) => put(p, 'takes', row);
+export const patchTake = (p: string, id: string, x: Partial<ProductionTake>) => patch(p, 'takes', id, x);
+export const removeTake = (p: string, id: string) => remove(p, 'takes', id);
 /** Write a clearance and append a workflow-ledger event in one batch, so the On-Set activity feed sees legal changes. */
 export async function putClearanceWithEvent(prodId: string, clearance: ProductionClearance, actorUid: string, summary: string): Promise<void> {
   const now = Date.now();

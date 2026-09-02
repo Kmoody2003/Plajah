@@ -25,7 +25,7 @@ import {
   type DailyProductionReport, type DprSceneRow, type CastWorkCode, type SceneShootStatus, type SidePage,
   type ProductionPermission, type ProductionRoleKey,
   type ProductionBudgetLine, type ProductionLocation, type ProductionFestival, type ProductionClearance,
-  type PurchaseOrder, type PettyCashEntry, type Timecard,
+  type PurchaseOrder, type PettyCashEntry, type Timecard, type ProductionTake,
 } from '../../services/filmProductionService';
 import { listWritingProjects, fetchScriptScenes, type WritingProject } from '../../services/loreaProjectsService';
 import { Button, Surface, Input, Textarea, Chip, Actions, Eyebrow } from '../ui';
@@ -62,6 +62,7 @@ interface Ctx {
   purchaseOrders: PurchaseOrder[];
   pettyCash: PettyCashEntry[];
   timecards: Timecard[];
+  takes: ProductionTake[];
   callSheets: CallSheet[];
   deliveries: RecipientDelivery[];
   callSheetTemplates: CallSheetTemplate[];
@@ -100,6 +101,7 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [pettyCash, setPettyCash] = useState<PettyCashEntry[]>([]);
   const [timecards, setTimecards] = useState<Timecard[]>([]);
+  const [takes, setTakes] = useState<ProductionTake[]>([]);
   const [callSheets, setCallSheets] = useState<CallSheet[]>([]);
   const [deliveries, setDeliveries] = useState<RecipientDelivery[]>([]);
   const [callSheetTemplates, setCallSheetTemplates] = useState<CallSheetTemplate[]>([]);
@@ -169,7 +171,7 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
     if (!selectedId) {
       setMembers([]); setScenes([]); setCallSheets([]); setDeliveries([]); setCallSheetTemplates([]); setTasks([]); setMenu([]); setOrders([]); setDprs([]);
       setBudgetLines([]); setLocations([]); setFestivals([]); setClearances([]);
-      setPurchaseOrders([]); setPettyCash([]); setTimecards([]);
+      setPurchaseOrders([]); setPettyCash([]); setTimecards([]); setTakes([]);
       return;
     }
     if (selectedId === DEMO_FILM_ID) {
@@ -181,7 +183,7 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
       setDprs(demoCorpus.dprs); setBudgetLines(demoCorpus.budgetLines);
       setLocations(demoCorpus.locations); setFestivals(demoCorpus.festivals);
       setClearances((demoCorpus as { clearances?: ProductionClearance[] }).clearances || []);
-      setPurchaseOrders([]); setPettyCash([]); setTimecards([]);
+      setPurchaseOrders([]); setPettyCash([]); setTimecards([]); setTakes([]);
       return;
     }
     const unsubs = [
@@ -194,6 +196,7 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
       FP.subLocations(selectedId, setLocations), FP.subFestivals(selectedId, setFestivals),
       FP.subClearances(selectedId, setClearances),
       FP.subPurchaseOrders(selectedId, setPurchaseOrders), FP.subPettyCash(selectedId, setPettyCash), FP.subTimecards(selectedId, setTimecards),
+      FP.subTakes(selectedId, setTakes),
     ];
     return () => unsubs.forEach(u => u());
   }, [selectedId, demoCorpus]);
@@ -251,7 +254,7 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
 
   const value: Ctx = {
     prod, productions, selectProduction, createProduction, copyShowcase, applySample,
-    members, scenes, budgetLines, locations, festivals, clearances, purchaseOrders, pettyCash, timecards, callSheets: liveCallSheets, deliveries, callSheetTemplates, tasks, menu, orders, dprs,
+    members, scenes, budgetLines, locations, festivals, clearances, purchaseOrders, pettyCash, timecards, takes, callSheets: liveCallSheets, deliveries, callSheetTemplates, tasks, menu, orders, dprs,
     activeSheet, activeSheetId, setActiveSheetId, me, isOwner, readOnly, can, loading, goTab: onGoTab,
   };
   return (
