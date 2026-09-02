@@ -9,6 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
+    "ofx:manifest": "npx tsx scripts/emitOfxManifest.ts",
+    "ofx:check": "npm run ofx:manifest && cargo check --manifest-path rust/fabula-ofx/Cargo.toml",
     "audio:build": "cargo build --release --manifest-path rust/plajah-audio/Cargo.toml --target wasm32-unknown-unknown && node scripts/buildAudioWasm.mjs",
     "test:dsp": "node --test rust/plajah-audio/test/dsp.test.mjs",
     "sports:agent": "tsx scripts/localSportsAgent.ts",

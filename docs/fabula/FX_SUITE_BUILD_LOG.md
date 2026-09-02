@@ -32,9 +32,12 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W3b | Text animators on the titler DONE 2026-09-02 (services/fabula/titleAnimators.ts: type on, fade up/in, tracking, scramble, word slide, blur in, drop in, with out phase; DOM monitor spans + canvas export per glyph; inspector ANIMATION block). Counters/HUD text tools still open | DONE (core) |
 | W3c | three.js layer node (extrusions, shatter, Form/Mir/Tao) | later |
 | W4 | ML tier: MediaPipe subject matte as a mask source (live + offline) DONE 2026-09-02 (services/fabula/subjectMatte.ts, mask kind = subject); depth ONNX + Crossover SAM2 | partial |
-| W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust/C++ shell open |
+| W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust shell step 1 DONE 2026-09-02 (rust/fabula-ofx: dependency-free cdylib, generated src/manifest_gen.rs, describe / describe-in-context / passthrough render; `npm run ofx:check`). Step 2 = wgpu kernel execution |
 
 ## Done this run
+- (2026-09-02) W5 step 2: OFX shell crate rust/fabula-ofx — OpenFX 1.4 C ABI declared by hand; plugin table + typed params generated from the registry into src/manifest_gen.rs (no deps, no build.rs, so `cargo check` passes here — this machine has NO MSVC linker, only the Windows SDK; the .ofx bundle needs Build Tools or clang). Passthrough render copies Source→Output; wgpu kernel execution is next.
+- Note: `npm run lint` crashes Node (heap OOM, exit 134) on this machine — pre-existing, not a lint failure.
+- Shell trap: never put backticks inside a double-quoted `node -e "..."` in Git Bash — they run as command substitutions. Use a script file.
 - (2026-09-02) W4 step 2: depth window mask kind (services/fabula/depthMatte.ts — Depth Anything V2 small via transformers.js, WebGPU→wasm; near/far/feather window; exact in export, ~4 fps live). Model download is large on first use; runtime verified only as far as module load in this session.
 - (2026-09-02) W2d track backward / AdjustTrack / corner-pin export; W3b per-glyph title animators (monitor == export).
 - (2026-09-02) W4 step 1: subject (AI) matte as a mask kind on any effect — MediaPipe selfie segmenter (lazy CDN, GPU→CPU), exact per-frame in the offline renderer (after the seek), throttled last-matte reuse in the live monitor. Verified the model loads and returns a matte canvas in the browser (~14 s first load).
@@ -45,7 +48,7 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 - (2026-09-02) VectorTrack planar tracker end to end — see `plajah-vectortrack` memory / build matrix.
 
 ## Next up (in order)
-1. OFX shell scaffold (Rust cdylib reading the manifest).
+1. OFX shell step 3: kernel execution (wgpu, CPU fallback) + param fetch at render time; bundle layout; host smoke test on a machine with MSVC/clang.
 2. Universe text tools (counters, screen text, text tile) on the title engine; Real Lens Flares element designer; 3D DVE (cube/cylinder/page turn); wire remover (Anchor + inpaint).
 3. Crossover SAM2 tracked mattes; depth as an AUX source for the depth-defocus/Z effects.
 4. Corner-pin → FCPXML transform keyframes; shared track assets across clips.
