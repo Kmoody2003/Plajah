@@ -25,6 +25,7 @@ import { PHASE3_TEXT_EFFECTS } from './phase3TextEffects';
 import { PHASE4_VOLUMETRIC_EFFECTS } from './phase4Volumetric3DEffects';
 import { PHASE4_FRAGMENT_EFFECTS } from './phase4FragmentEffects';
 import { PHASE4_SIMULATION_EFFECTS } from './phase4SimulationEffects';
+import { PHASE4_MESH_EFFECTS } from './phase4MeshWarpEffects';
 import { PHASE3_LENS_FLARE_EFFECTS } from './phase3LensFlareEffects';
 import { PHASE3_DVE_EFFECTS } from './phase3DveEffects';
 import { PHASE3_CLEANUP_EFFECTS } from './phase3CleanupEffects';
@@ -48,7 +49,7 @@ export interface FxEffect {
   passes?: FxPass[]; presets?: FxPreset[];
   /** Secondary texture input. `kind: 'text'` means the host rasterises a string into it
    *  (services/fabula/textOverlay.ts) rather than binding another asset. */
-  auxInput?: { label: string; optional?: boolean; kind?: 'image' | 'text' };
+  auxInput?: { label: string; optional?: boolean; kind?: 'image' | 'text' | 'mesh' };
   /** Reads its own previous output (prev) / previous source (prevSrc); needs frame history.
    *  A number (2..4) keeps that many previous SOURCE frames (prevSrcN(n, uv), n = 1..4). */
   temporal?: boolean | number;
@@ -112,6 +113,7 @@ export const FX_EFFECTS: FxEffect[] = [
   ...PHASE4_VOLUMETRIC_EFFECTS,
   ...PHASE4_FRAGMENT_EFFECTS,
   ...PHASE4_SIMULATION_EFFECTS,
+  ...PHASE4_MESH_EFFECTS,
   ...PHASE3_LENS_FLARE_EFFECTS,
   ...PHASE3_DVE_EFFECTS,
   ...PHASE3_CLEANUP_EFFECTS,

@@ -35,6 +35,16 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust shell step 1 DONE 2026-09-02 (rust/fabula-ofx: dependency-free cdylib, generated src/manifest_gen.rs, describe / describe-in-context / passthrough render; `npm run ofx:check`). Step 2 = wgpu kernel execution |
 
 ## Done this run
+- (2026-09-03, continuation 17b) MESH TRACKING (`services/fabula/meshTrack.ts`) + **meshtrackwarp** (Mesh Track Warp). 185 effects. The Mocha PowerMesh equivalent.
+- **The third mis-scoping corrected.** The log filed this as "needs dense optical flow". It does not. PowerMesh tracks a MESH of points and warps the surface between them; dense per-pixel flow is a different and much more expensive tool solving a different problem. Everything needed was already in the repo — `trackPoint` block-matches one feature and the planar tracker already lays a feature lattice inside a quad.
+- **What actually makes mesh tracking different from planar tracking** is what happens when a vertex matches badly. Planar has a global model to fall back on: throw the outlier away and the homography still says where it belongs. A mesh has no global model, so a bad vertex must be repaired from its NEIGHBOURS or the surface tears. Hence: block-match every vertex, rebuild any untrusted one by flooding trusted displacements outwards, Laplacian-smooth the field (this is what stops noise reading as boiling), then refuse any move that turns a quad inside out — a folded mesh samples back-to-front and reads as a shredded, flickering patch.
+- The mesh reaches the shader as an aux image the size of the LATTICE (7x7 for a 6x6 mesh), not a full-resolution displacement map. GPU bilinear filtering interpolates it back up: far cheaper than rasterising per pixel in JS, and smoother than drawing the quads flat-shaded. Same host-generated aux pattern as text, so monitor and export share one generator.
+- **Two traps, both silent rather than loud:**
+  1. *A half-step encoding bias.* Mapping displacement onto the full 0..255 byte range puts zero at 127.5, and 128/255 decodes to 0.50196 rather than 0.5. An untracked mesh therefore shifted the picture by a fraction of a pixel instead of leaving it alone. Encoding as 128 +/- 127 and decoding through the byte values makes zero decode to exactly zero, and "no track" is now a byte-exact passthrough.
+  2. *A checkerboard is the worst possible test fixture for block matching.* The first tracking test used one and the tracker confidently reported motion in the WRONG DIRECTION — every patch matches every other patch one period away. That is the aperture problem in its purest form, and it tests the fixture, not the tracker. The fixture is now a deterministic non-repeating texture.
+- `meshtrackwarp` also collided with an existing `meshwarp` (the manual centre/radius/twist deformer in phase1DistortEffects); the uniqueness test caught it immediately.
+- Verified on the GPU: no track is an exact passthrough, Amount 0 is an exact passthrough, a bulge/wave/twist mesh deforms smoothly with no faceting, hold-still differs from follow, and a frame past the tracked range holds the last sample. `tests/meshTrack.test.ts` (23) added to `test:forge`, now 143 green; vectortrack 11 green. Baseline regenerated at 185 (1 added, 0 changed).
+- **NEXT STEP for this feature:** the tracking RUNNER and its UI are not built. There is no way for a user to lay a mesh on a clip and track it yet — the decode-and-step loop the planar tracker has (`Track Forward`) needs its mesh equivalent, plus an overlay to place and adjust the lattice. Everything below that line is done and tested.
 - (2026-09-03, continuation 17) PERSISTENT SIMULATION STATE in the engine (`effect.state`, `FxPass.target`) + **fluidflow** (Fluid Flow). 184 effects, all compiling.
 - **The second mis-scoping corrected.** The log filed fluid dynamics as "needs compute/WebGPU". That was never the obstacle — stable fluids has run in WebGL fragment shaders for two decades. What was missing was somewhere to KEEP the velocity field: `prev()` returns an effect's previous VISIBLE output, and a velocity field is not something the viewer should see, so there was nowhere to put it.
 - An effect may now declare `state: 1 | 2` and a pass may declare `target: 'state0' | 'state1'`. A state pass writes the buffer's other slot and leaves the visible chain untouched, so every pass in a frame reads one consistent previous state; the slots swap after the frame. State rides on the same History record as temporal access, so ONE reset rule governs both, and buffers are cleared to zero on creation and on any time jump — an uninitialised texture would make the same timeline render differently on every run.
@@ -139,7 +149,10 @@ infrastructure or deferred by Kenne:
    ships on the new `effect.state` buffers. What is still unbuilt is a PARTICLE system with
    per-particle state (Trapcode Particular's model); the state buffers make it reachable, but
    it wants a particle-indexed layout rather than a screen-space field.
-4. BLOCKED, needs dense optical flow: PowerMesh.
+4. PARTLY DONE 2026-09-03: PowerMesh needed a tracked MESH, not dense optical flow —
+   `services/fabula/meshTrack.ts` + `meshtrackwarp` ship the tracker and the warp. What
+   remains is the UI: a runner that decodes and steps frames (the planar tracker's `Track
+   Forward` equivalent) and an overlay to place and adjust the lattice.
 5. UNBUILT, needs a real 3D node: imported geometry (the Form/Mir/Tao LOOK is covered by the
    raymarched generators, arbitrary meshes are not). NOTE 2026-09-03: shatter was wrongly filed
    here — it needs no geometry and is now built as an inverse-mapped registry effect.
@@ -157,11 +170,12 @@ plain-clip size, with the custom effect expanded in place into the chain.
 
 ## Backlog (remaining gaps vs the Boris/Red Giant catalog)
 (Looks now cover the "one click to a finished result" gap; effect-level parts are broadly complete.)
-Remaining: PowerMesh (needs dense optical flow), Crossover SAM2 tracked mattes (no server
-endpoint), imported geometry (needs a real 3D node), and a particle-indexed particle system.
-Two items filed here as blocked turned out to be mis-scoped and are now built: shatter (needed
-inverse mapping, not meshes) and fluid dynamics (needed persistent state, not compute). Worth
-re-reading the rest of this list with the same suspicion. DONE 2026-09-03:
+Remaining: Crossover SAM2 tracked mattes (no server endpoint, genuinely blocked), imported
+geometry (needs a real 3D node), a particle-indexed particle system, and the mesh-tracking UI.
+THREE items filed here as blocked turned out to be mis-scoped and are now built: shatter (needed
+inverse mapping, not meshes), fluid dynamics (needed persistent state, not compute) and PowerMesh
+(needed a tracked mesh, not dense flow). Three for three. Read any remaining "blocked" claim as a
+hypothesis to test rather than a fact. DONE 2026-09-03:
 VHS status text, HUD text variants and counters via the text aux input
 (services/fabula/textOverlay.ts); user-authored effects (services/fabula/customEffects.ts).
 

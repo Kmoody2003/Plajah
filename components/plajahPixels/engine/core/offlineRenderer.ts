@@ -34,6 +34,7 @@ import { normalizeVideoFrameRate, videoFrameTiming } from '../../../../services/
 import type { CubeLutData } from '../../../../services/fabula/cubeLut';
 import { getEffect } from '../fx/effects';
 import { TextOverlayCache } from '../../../../services/fabula/textOverlay';
+import { meshAuxElement } from '../../../../services/fabula/meshTrack';
 
 export interface RenderOptions {
   timeline?: SceneTimeline;              // single-track Pixels path (activeBlockAt)
@@ -299,6 +300,12 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
             instance = { ...instance, maskElement: maskEl };
           }
           const eff = getEffect(instance.effectId);
+          if (eff?.auxInput?.kind === 'mesh') {
+            // A mesh warp takes a generated displacement map, not an asset. Neutral when the clip
+            // has no track — never the renderer's source-frame fallback, which a warp shader would
+            // read as a displacement field and tear the picture apart.
+            return { ...instance, auxElement: meshAuxElement(instance.meshTrack, Math.round(lt * fps)) };
+          }
           if (eff?.auxInput?.kind === 'text') {
             // Text effects take a rasterised string, not an asset. Blank when empty — never the
             // renderer's source-frame fallback, which would read as full glyph coverage.

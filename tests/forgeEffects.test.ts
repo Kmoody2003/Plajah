@@ -64,17 +64,20 @@ describe('Fabula Forge effects', () => {
   });
 
   it('publishes true auxiliary-input effects with stable asset bindings', () => {
-    // Asset-bound aux only. A 'text' slot is a different contract — the host rasterises a string
-    // into it and there is no asset to bind — so those effects are asserted separately.
-    const ids = FX_EFFECTS.filter((effect) => effect.auxInput && effect.auxInput.kind !== 'text').map((effect) => effect.id);
+    // Asset-bound aux only. 'text' and 'mesh' slots are different contracts — the host generates
+    // their content per frame and there is no asset to bind — so they are asserted separately.
+    const generated = ['text', 'mesh'];
+    const ids = FX_EFFECTS.filter((effect) => effect.auxInput && !generated.includes(effect.auxInput.kind || 'image')).map((effect) => effect.id);
     assert.deepEqual(ids.sort(), ['differencekey', 'displacementmap', 'externaldepthdefocus', 'lightwrap', 'referencecolormatch', 'timedisplace', 'cardflip'].sort());
     const instance = { ...createEffectInstance('differencekey', 'clean-static', 'multi-1'), auxAssetId: 'plate-asset' };
     assert.equal(instance.auxAssetId, 'plate-asset');
   });
 
-  it('keeps text-input effects off the asset-binding path', () => {
+  it('keeps host-generated aux inputs off the asset-binding path', () => {
     const text = FX_EFFECTS.filter((effect) => effect.auxInput?.kind === 'text').map((effect) => effect.id);
     assert.deepEqual(text.sort(), ['hudreadout', 'terminaltext', 'vhsstatus']);
+    const mesh = FX_EFFECTS.filter((effect) => effect.auxInput?.kind === 'mesh').map((effect) => effect.id);
+    assert.deepEqual(mesh.sort(), ['meshtrackwarp']);
   });
 
   it('starts the fragment effects in a no-op state, so dropping one on a clip changes nothing', () => {

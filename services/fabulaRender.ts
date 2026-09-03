@@ -357,6 +357,10 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
           ...(fx?.stack?.length ? { forgeEffects: expandStack(fx.stack, customLookup()).filter((instance: any) => instance.enabled !== false).map((instance: any) => {
             // Track-bound params + rasterised mask for THIS frame (same resolver as the monitor).
             const resolved = resolveInstanceForFrame(instance, getEffect(instance.effectId), { vectorTrack: fx.vectorTrack, planarTrack: fx.planarTrack, fps: format?.fps }, kfT, { w: format?.w || 1920, h: format?.h || 1080 });
+            // A mesh-input effect needs the clip's mesh sequence; the renderer turns it into a
+            // displacement map for the exact frame it is drawing.
+            const meshEffect = getEffect(instance.effectId)?.auxInput?.kind === 'mesh';
+            if (meshEffect && fx.meshTrack) (resolved as any).meshTrack = fx.meshTrack;
             // Beat Reactor bindings ride along untouched; the compositor resolves them against
             // the frame's audio, so preview and export react to the same numbers.
             const auxAsset = resolved.auxAssetId ? itemById.get(resolved.auxAssetId) : null;

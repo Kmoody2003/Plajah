@@ -35,6 +35,7 @@ import { createForgeTransition } from "../../services/fabula/forgeTransitions";
 import { instantiateLook, lookFromStack, saveUserLook, LOOK_CATEGORIES } from "../../services/fabula/forgeLooks";
 import { AUDIO_SOURCES } from "../plajahPixels/engine/fx/audioReact";
 import { TextOverlayCache } from "../../services/fabula/textOverlay";
+import { meshAuxElement } from "../../services/fabula/meshTrack";
 import { estimateEffectCost, TIER_LABEL, TIER_HINT } from "../../services/fabula/effectCost";
 import { expandStack, customLookup, customEffectDescriptor, isCustomEffectId, bareCustomId, createCustomInstance, customFromStack, promoteControl, validateCustomEffect, loadCustomEffects, saveCustomEffect, deleteCustomEffect } from "../../services/fabula/customEffects";
 import { masterAnalyser } from "../../services/fabula/audioGraph";
@@ -7651,6 +7652,7 @@ function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool,
   const auxRef = useRef(new Map());
   // Rasterised text overlays, keyed by effect instance — redrawn only when the string changes.
   const textAuxRef = useRef(new TextOverlayCache());
+  const meshAuxRef = useRef(null);   // reused canvas for the mesh displacement map
   useEffect(() => {
     const created = new Map();
     for (const instance of effects || []) {
@@ -7696,6 +7698,13 @@ function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool,
           // Text-as-input effects: rasterise the string for THIS frame, exactly as the export
           // does, and hand over a blank texture when it is empty so the renderer never falls
           // back to the source frame (which would read as full glyph coverage).
+          const auxKind = FX_EFFECTS.find((e) => e.id === instance.effectId)?.auxInput?.kind;
+          if (auxKind === "mesh") {
+            // Same generator and the same frame maths as the export, so a warped insert sits in
+            // the same place in the monitor as it does in the file.
+            const meshFrame = Math.round(timeRef.current * (fps || 24));
+            return { ...instance, auxElement: meshAuxElement(clipFxRef.current?.meshTrack, meshFrame, meshAuxRef.current) };
+          }
           const textEffect = FX_EFFECTS.find((e) => e.id === instance.effectId)?.auxInput;
           if (textEffect?.kind === "text") return { ...instance, auxElement: textAuxRef.current.resolve(instance.id, instance.textOverlay, { localT: timeRef.current, fps }, srcW, srcH) };
           if (instance.maskAssetId) { const m = auxRef.current.get(instance.id + ":mask"); if (m instanceof HTMLVideoElement && m.readyState >= 1 && Math.abs(m.currentTime - timeRef.current) > .08) m.currentTime = Math.min(timeRef.current, Math.max(0, (m.duration || timeRef.current) - .001)); if (m) instance = { ...instance, maskElement: m }; }
