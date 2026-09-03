@@ -63,7 +63,7 @@ import {
   startPlayback, stopPlayback, engineRunning, engineClock, setEngineTracks,
   warmAudio, subscribePlayback, enginePlayable, registerLiveVideo, unregisterLiveVideo, syncLiveVideos, engineStats, engineIsDead,
 } from "../../services/fabula/playbackEngine";
-import { sampleParam as kfSample, isAnimated as kfIsAnimated, hasKeys as kfHasKeys, addKey as kfAddKey, removeKey as kfRemoveKey, keyAt as kfKeyAt, prevKeyTime as kfPrev, nextKeyTime as kfNext, KF_PARAMS, KF_ALL } from "../../services/fabula/keyframes";
+import { sampleTrack, sampleParam as kfSample, isAnimated as kfIsAnimated, hasKeys as kfHasKeys, addKey as kfAddKey, removeKey as kfRemoveKey, keyAt as kfKeyAt, prevKeyTime as kfPrev, nextKeyTime as kfNext, KF_PARAMS, KF_ALL } from "../../services/fabula/keyframes";
 import { quickStems, separateStemsCloud } from "../../services/fabula/stemSeparation";
 import { exportFCPXML, importFCPXML } from "../../services/fabula/fcpxml";
 import { initResumableUploads, enqueueUpload, onUploadProgress, pendingCount, setUploadsPaused, uploadsPaused, clearUploadQueue } from "../../services/fabula/resumableUpload";
@@ -4809,8 +4809,24 @@ export default function Fabula() {
                                       </div>
                                     )}
                                     {effect.params.map((param) => {
-                                      const value = instance.params?.[param.key] ?? param.default;
-                                      return <div className="fxrow" key={param.key}><span className="fxlbl">{param.label}</span><input type="range" min={param.min} max={param.max} step={param.step || (param.max - param.min) / 200} value={value} onChange={(e) => patchStack({ presetId: undefined, params: { ...instance.params, [param.key]: parseFloat(e.target.value) } })} onDoubleClick={() => patchStack({ presetId: undefined, params: { ...instance.params, [param.key]: param.default } })} /><span className="fxval">{Number(value).toFixed(param.step && param.step >= 1 ? 0 : 2)}</span><select className="sel xs" title="Drive this parameter from the timeline audio" value={instance.audio?.[param.key]?.source || ""} onChange={(e) => { const audio = { ...(instance.audio || {}) }; if (e.target.value) audio[param.key] = { source: e.target.value, amount: audio[param.key]?.amount ?? .5 }; else delete audio[param.key]; patchStack({ audio }); }}><option value="">♪</option>{AUDIO_SOURCES.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}</select>
+                                      // Effect params keyframe exactly like clip params: times are
+                                      // clip-local seconds, the slider writes a key while animated.
+                                      const fxLt = Math.max(0, playhead - selClip.start);
+                                      const kfTrack = instance.kf?.[param.key];
+                                      const kfOn = kfHasKeys(kfTrack);
+                                      const stored = instance.params?.[param.key] ?? param.default;
+                                      const value = kfOn ? sampleTrack(kfTrack, fxLt, stored) : stored;
+                                      const setParamValue = (nv) => {
+                                        if (kfOn) patchStack({ presetId: undefined, kf: { ...(instance.kf || {}), [param.key]: kfAddKey(kfTrack, fxLt, nv) } });
+                                        else patchStack({ presetId: undefined, params: { ...instance.params, [param.key]: nv } });
+                                      };
+                                      const toggleParamKey = () => {
+                                        const kf = { ...(instance.kf || {}) };
+                                        if (kfOn && kfKeyAt(kfTrack, fxLt)) { const next = kfRemoveKey(kfTrack, fxLt); if (next.length) kf[param.key] = next; else delete kf[param.key]; }
+                                        else kf[param.key] = kfAddKey(kfTrack, fxLt, value);
+                                        patchStack({ presetId: undefined, kf });
+                                      };
+                                      return <div className="fxrow" key={param.key}><span className="fxlbl">{param.label}</span><input type="range" min={param.min} max={param.max} step={param.step || (param.max - param.min) / 200} value={value} onChange={(e) => setParamValue(parseFloat(e.target.value))} onDoubleClick={() => patchStack({ presetId: undefined, params: { ...instance.params, [param.key]: param.default } })} /><button className={`kfdiamond ${kfOn ? "anim" : ""} ${kfOn && kfKeyAt(kfTrack, fxLt) ? "on" : ""}`} title={kfOn ? "Key at the playhead (click to add/remove) — double-click the slider resets" : "Animate this parameter: adds a keyframe at the playhead"} onClick={toggleParamKey}>◆</button><span className="fxval">{Number(value).toFixed(param.step && param.step >= 1 ? 0 : 2)}</span><select className="sel xs" title="Drive this parameter from the timeline audio" value={instance.audio?.[param.key]?.source || ""} onChange={(e) => { const audio = { ...(instance.audio || {}) }; if (e.target.value) audio[param.key] = { source: e.target.value, amount: audio[param.key]?.amount ?? .5 }; else delete audio[param.key]; patchStack({ audio }); }}><option value="">♪</option>{AUDIO_SOURCES.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}</select>
                                       {instance.audio?.[param.key] && <input type="range" title="How much the audio moves this parameter" min={-1} max={1} step={.05} value={instance.audio[param.key].amount} onChange={(e) => patchStack({ audio: { ...instance.audio, [param.key]: { ...instance.audio[param.key], amount: parseFloat(e.target.value) } } })} style={{ maxWidth: 54 }} />}
                                       {hasTracks && <select className="sel xs" title="Link this parameter to the clip's track" value={instance.bindings?.[param.key]?.source || ""} onChange={(e) => { const bindings = { ...(instance.bindings || {}) }; if (e.target.value) bindings[param.key] = { source: e.target.value }; else delete bindings[param.key]; patchStack({ bindings }); }}><option value="">·</option>{BINDING_SOURCES.filter((b) => (b.id.startsWith("point") ? !!fx.vectorTrack : !!fx.planarTrack)).map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}</select>}</div>;
                                     })}

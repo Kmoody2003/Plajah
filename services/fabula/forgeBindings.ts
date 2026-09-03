@@ -15,6 +15,7 @@ import type { FxEffect } from '../../components/plajahPixels/engine/fx/effects';
 import { sampleTrackAt, type VectorTrackAsset } from './vectorTrack';
 import { samplePlanarAt, type PlanarTrackSequence } from './planarSequence';
 import { transformPoint, invertHomography, multiplyMat3, decomposePlanar, type Mat3, type Point2 } from './planarTrack';
+import { sampleTrack, hasKeys, type KfMap } from './keyframes';
 
 export type MaskShape = 'ellipse' | 'rect' | 'poly';
 export type MaskTrack = 'none' | 'point' | 'planar';
@@ -82,6 +83,24 @@ export function trackValuesAt(ctx: ClipTrackContext, localT: number): Record<Bin
     }
   }
   return out;
+}
+
+/** Sample an instance's KEYFRAMED params at a clip-local time. Times are seconds from the
+ *  clip's head, matching the clip-level keyframe model. Unanimated params pass through, and the
+ *  stored static value is the fallback for a track with no keys. */
+export function resolveKeyframedParams(instance: ForgeEffectInstance, effect: FxEffect, localT: number): Record<string, number> {
+  const kf = (instance as any).kf as KfMap | undefined;
+  if (!kf) return instance.params;
+  const animated = Object.keys(kf).filter((key) => hasKeys(kf[key]));
+  if (!animated.length) return instance.params;
+  const params = { ...instance.params };
+  for (const key of animated) {
+    const param = effect.params.find((p) => p.key === key);
+    if (!param) continue;
+    const base = params[key] ?? param.default;
+    params[key] = Math.max(param.min, Math.min(param.max, sampleTrack(kf[key], localT, base)));
+  }
+  return params;
 }
 
 /** Apply bindings to an instance's params for one frame. Unbound params are untouched. */
@@ -171,7 +190,14 @@ export interface ResolvedInstance extends ForgeEffectInstance { maskElement?: HT
  *  mask rasterised). Mask raster size defaults to a 512-wide analysis raster in the frame's aspect. */
 export function resolveInstanceForFrame(instance: ForgeEffectInstance, effect: FxEffect | undefined, ctx: ClipTrackContext, localT: number, frame: { w: number; h: number }): ResolvedInstance {
   let out: ResolvedInstance = instance;
-  if (effect) { const params = resolveBoundParams(instance, effect, ctx, localT); if (params !== instance.params) out = { ...out, params }; }
+  if (effect) {
+    // Precedence: keyframes animate the value, an explicit track link overrides it, and audio
+    // modulates whatever survives (resolved later, inside the compositor).
+    const keyed = resolveKeyframedParams(instance, effect, localT);
+    const source = keyed === instance.params ? instance : { ...instance, params: keyed };
+    const params = resolveBoundParams(source, effect, ctx, localT);
+    if (params !== instance.params) out = { ...out, params };
+  }
   const mask = (instance as any).mask as EffectMask | undefined;
   if (mask && mask.enabled !== false && mask.kind === 'subject') {
     return { ...out, subjectMask: true, maskInvert: !!mask.invert };
