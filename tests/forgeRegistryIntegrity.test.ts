@@ -42,6 +42,34 @@ describe('Forge registry integrity', () => {
     }
   });
 
+  it('keeps the persistent-state contract coherent', () => {
+    // A state buffer is invisible by construction, so a mistake here shows up as an effect that
+    // quietly does nothing rather than as a crash. Pin the shape instead.
+    for (const e of FX_EFFECTS) {
+      const passes = e.passes || [];
+      const stateTargets = passes.filter((p) => p.target === 'state0' || p.target === 'state1');
+      const declared = e.state ?? 0;
+
+      if (declared) {
+        assert.ok(declared >= 1 && declared <= 2, `${e.id} declares ${declared} state buffers; 1 or 2 are supported`);
+        assert.ok(stateTargets.length > 0, `${e.id} declares state buffers but no pass writes one`);
+        assert.ok(passes.some((p) => !p.target || p.target === 'out'), `${e.id} writes state but never draws anything visible`);
+      }
+      for (const p of stateTargets) {
+        assert.ok(declared > 0, `${e.id}:${p.id} writes ${p.target} but the effect declares no state`);
+        const index = p.target === 'state1' ? 1 : 0;
+        assert.ok(index < declared, `${e.id}:${p.id} writes ${p.target} but only ${declared} buffer(s) are declared`);
+      }
+      // A state pass runs before the visible one; the reverse order reads a buffer written a
+      // frame late, which looks like lag nobody can explain.
+      if (declared && stateTargets.length) {
+        const firstVisible = passes.findIndex((p) => !p.target || p.target === 'out');
+        const lastState = passes.map((p, i) => ({ p, i })).filter(({ p }) => p.target && p.target !== 'out').pop()!.i;
+        assert.ok(lastState < firstVisible, `${e.id} draws before its simulation pass has run`);
+      }
+    }
+  });
+
   it('no shader body redefines a helper the shared header already provides', () => {
     // A duplicate definition compiles as a redefinition error on some drivers; catching it here
     // is cheaper than finding it on one machine's GPU.

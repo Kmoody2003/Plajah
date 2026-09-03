@@ -24,6 +24,7 @@ import { PHASE3_GRAPHICS_EFFECTS } from './phase3GraphicsEffects';
 import { PHASE3_TEXT_EFFECTS } from './phase3TextEffects';
 import { PHASE4_VOLUMETRIC_EFFECTS } from './phase4Volumetric3DEffects';
 import { PHASE4_FRAGMENT_EFFECTS } from './phase4FragmentEffects';
+import { PHASE4_SIMULATION_EFFECTS } from './phase4SimulationEffects';
 import { PHASE3_LENS_FLARE_EFFECTS } from './phase3LensFlareEffects';
 import { PHASE3_DVE_EFFECTS } from './phase3DveEffects';
 import { PHASE3_CLEANUP_EFFECTS } from './phase3CleanupEffects';
@@ -35,7 +36,12 @@ export interface FxParam {
   step?: number; unit?: string; curve?: 'linear' | 'log' | 'power';
 }
 export interface FxPreset { id: string; name: string; description: string; params: Record<string, number>; }
-export interface FxPass { id: string; glsl: string; }
+export interface FxPass {
+  id: string; glsl: string;
+  /** Where this pass writes. 'out' (default) chains into the next pass and the visible result;
+   *  'state0'/'state1' write a persistent buffer instead and leave the visible chain alone. */
+  target?: 'out' | 'state0' | 'state1';
+}
 export interface FxEffect {
   id: string; name: string; params: FxParam[]; glsl: string;
   category?: FxCategory; summary?: string; version?: number;
@@ -46,6 +52,11 @@ export interface FxEffect {
   /** Reads its own previous output (prev) / previous source (prevSrc); needs frame history.
    *  A number (2..4) keeps that many previous SOURCE frames (prevSrcN(n, uv), n = 1..4). */
   temporal?: boolean | number;
+  /** Persistent simulation buffers (1 or 2), readable as st0()/st1() and written by passes that
+   *  declare `target: 'state0' | 'state1'`. Unlike prev(), a state buffer is NOT the visible
+   *  output, so a simulation can carry a velocity field the viewer never sees. Cleared to zero
+   *  on the first frame and on any time jump, exactly like temporal history. */
+  state?: number;
 }
 
 // Shared header: the effect body samples its input via inp(uv) and reads P0..P7 (its
@@ -60,6 +71,7 @@ uniform sampler2D uAux;
 uniform sampler2D uPrev;     // this effect's previous OUTPUT (feedback); = input on the first frame
 uniform sampler2D uPrevSrc;  // the previous SOURCE frame; = input on the first frame
 uniform sampler2D uPrevSrc2, uPrevSrc3, uPrevSrc4; // older source frames (temporal: N); = nearest available
+uniform sampler2D uState0, uState1;  // persistent simulation buffers (effect.state); zero until written
 uniform vec2 uResolution;
 uniform float uTime;
 uniform float uDeltaT;       // seconds since the previous frame; 0 = first frame / time jump
@@ -72,6 +84,8 @@ vec4 aux(vec2 uv){ return texture(uAux, clamp(uv, 0.0, 1.0)); }
 vec4 prev(vec2 uv){ return texture(uPrev, clamp(uv, 0.0, 1.0)); }
 vec4 prevSrc(vec2 uv){ return texture(uPrevSrc, clamp(uv, 0.0, 1.0)); }
 vec4 prevSrcN(int n, vec2 uv){ vec2 q=clamp(uv,0.0,1.0); if(n<=1) return texture(uPrevSrc,q); if(n==2) return texture(uPrevSrc2,q); if(n==3) return texture(uPrevSrc3,q); return texture(uPrevSrc4,q); }
+vec4 st0(vec2 uv){ return texture(uState0, clamp(uv, 0.0, 1.0)); }
+vec4 st1(vec2 uv){ return texture(uState1, clamp(uv, 0.0, 1.0)); }
 vec3 rgb2hsv(vec3 c){ vec4 K=vec4(0.,-1./3.,2./3.,-1.); vec4 p=mix(vec4(c.bg,K.wz),vec4(c.gb,K.xy),step(c.b,c.g)); vec4 q=mix(vec4(p.xyw,c.r),vec4(c.r,p.yzx),step(p.x,c.r)); float d=q.x-min(q.w,q.y); float e=1e-10; return vec3(abs(q.z+(q.w-q.y)/(6.*d+e)), d/(q.x+e), q.x); }
 vec3 hsv2rgb(vec3 c){ vec4 K=vec4(1.,2./3.,1./3.,3.); vec3 p=abs(fract(c.xxx+K.xyz)*6.-K.www); return c.z*mix(K.xxx,clamp(p-K.xxx,0.,1.),c.y); }
 `;
@@ -97,6 +111,7 @@ export const FX_EFFECTS: FxEffect[] = [
   ...PHASE3_TEXT_EFFECTS,
   ...PHASE4_VOLUMETRIC_EFFECTS,
   ...PHASE4_FRAGMENT_EFFECTS,
+  ...PHASE4_SIMULATION_EFFECTS,
   ...PHASE3_LENS_FLARE_EFFECTS,
   ...PHASE3_DVE_EFFECTS,
   ...PHASE3_CLEANUP_EFFECTS,

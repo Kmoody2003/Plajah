@@ -35,6 +35,14 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust shell step 1 DONE 2026-09-02 (rust/fabula-ofx: dependency-free cdylib, generated src/manifest_gen.rs, describe / describe-in-context / passthrough render; `npm run ofx:check`). Step 2 = wgpu kernel execution |
 
 ## Done this run
+- (2026-09-03, continuation 17) PERSISTENT SIMULATION STATE in the engine (`effect.state`, `FxPass.target`) + **fluidflow** (Fluid Flow). 184 effects, all compiling.
+- **The second mis-scoping corrected.** The log filed fluid dynamics as "needs compute/WebGPU". That was never the obstacle — stable fluids has run in WebGL fragment shaders for two decades. What was missing was somewhere to KEEP the velocity field: `prev()` returns an effect's previous VISIBLE output, and a velocity field is not something the viewer should see, so there was nowhere to put it.
+- An effect may now declare `state: 1 | 2` and a pass may declare `target: 'state0' | 'state1'`. A state pass writes the buffer's other slot and leaves the visible chain untouched, so every pass in a frame reads one consistent previous state; the slots swap after the frame. State rides on the same History record as temporal access, so ONE reset rule governs both, and buffers are cleared to zero on creation and on any time jump — an uninitialised texture would make the same timeline render differently on every run.
+- `temporal` and `state` are now independent: an effect can have simulation buffers without paying for output/source history. The history-advance block only runs its temporal bookkeeping when `temporal` is declared.
+- **fluidflow** self-advects velocity, forces it with curl noise, damps it, and advects dye emitted from the bright parts of the shot. Honest about what it is: there is NO pressure projection, so it is not an incompressible solver — the curl-noise forcing (divergence-free by construction) stands in for the swirl projection would produce. Velocity lives in 8 bits, so the ranges are chosen to keep quantisation reading as texture rather than banding.
+- **The regression harness earned its keep a second time, on an ENGINE change rather than a shader one.** Touching `FxRenderer.render` could have perturbed any of the 183 existing effects; the sweep confirmed 0 changed, 0 added, 0 removed, 0 errored. It also confirmed the stateful effect is deterministic across two consecutive sweeps, which matters far more for a simulation that accumulates than for a stateless shader.
+- `tests/forgeRegistryIntegrity.test.ts` pins the state contract: an effect declaring buffers must write at least one and must still draw something visible, no pass may address a buffer beyond the declared count, and the simulation pass must be ordered BEFORE the visible one (the reverse reads a buffer written a frame late, which looks like unexplainable lag). `test:forge` 120 green; vectortrack 11 green.
+- **A trap for the next continuation:** `render()` had no local `gl` binding. New code calling `makeTarget(gl, ...)` there compiles fine under esbuild — which does no scope analysis — and throws only at runtime.
 - (2026-09-03, continuation 16) FRAGMENT EFFECTS (`phase4FragmentEffects.ts`): **shatterpieces** (Shatter — triangular shards flying from an origin, tumbling, fading) and **carddance** (Card Dance — a card grid offset, turned and shrunk by row / column / distance / random). 183 effects, all compiling.
 - **This was a mis-scoping of mine, corrected.** The log filed "imported geometry and shatter" together as needing a real 3D node. Shatter needs no meshes: scattering pixels forward is what a fragment shader cannot do, but the problem INVERTS — for each output pixel, walk the pieces that could cover it, apply each piece's inverse transform, and keep the front-most whose original footprint contains the result. Imported geometry is still genuinely blocked; shatter never was.
 - **The trap in this design is the SEARCH BOUND, and it fails silently.** A piece is only drawn if its home cell falls inside the neighbourhood walked, so a shard travelling further than that neighbourhood stops being drawn — it vanishes mid-flight rather than flying off screen. The first cut searched 3x3 cells around the output pixel: with fade off and spread 2.5, retained pixels went 36864 → 24152 → 4058 → **0** → **0** across progress. The whole frame disappeared while the shards were supposedly still in the air.
@@ -127,7 +135,10 @@ infrastructure or deferred by Kenne:
 1. DEFERRED by Kenne 2026-09-02: OFX host work, until the desktop/Crossover version compiles. Keep
    the manifest + Rust shell as-is; do NOT regenerate them, even though the registry has grown.
 2. BLOCKED, no server endpoint: Crossover SAM2 tracked mattes.
-3. BLOCKED, needs compute/WebGPU: particle fluid dynamics.
+3. PARTLY DONE 2026-09-03: fluid dynamics needed persistent state, not compute — `fluidflow`
+   ships on the new `effect.state` buffers. What is still unbuilt is a PARTICLE system with
+   per-particle state (Trapcode Particular's model); the state buffers make it reachable, but
+   it wants a particle-indexed layout rather than a screen-space field.
 4. BLOCKED, needs dense optical flow: PowerMesh.
 5. UNBUILT, needs a real 3D node: imported geometry (the Form/Mir/Tao LOOK is covered by the
    raymarched generators, arbitrary meshes are not). NOTE 2026-09-03: shatter was wrongly filed
@@ -146,8 +157,11 @@ plain-clip size, with the custom effect expanded in place into the chain.
 
 ## Backlog (remaining gaps vs the Boris/Red Giant catalog)
 (Looks now cover the "one click to a finished result" gap; effect-level parts are broadly complete.)
-Remaining are all infrastructure-blocked: particle fluid dynamics (needs compute), PowerMesh
-(needs dense optical flow), Crossover SAM2 tracked mattes (no server endpoint). DONE 2026-09-03:
+Remaining: PowerMesh (needs dense optical flow), Crossover SAM2 tracked mattes (no server
+endpoint), imported geometry (needs a real 3D node), and a particle-indexed particle system.
+Two items filed here as blocked turned out to be mis-scoped and are now built: shatter (needed
+inverse mapping, not meshes) and fluid dynamics (needed persistent state, not compute). Worth
+re-reading the rest of this list with the same suspicion. DONE 2026-09-03:
 VHS status text, HUD text variants and counters via the text aux input
 (services/fabula/textOverlay.ts); user-authored effects (services/fabula/customEffects.ts).
 
