@@ -35,6 +35,12 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust shell step 1 DONE 2026-09-02 (rust/fabula-ofx: dependency-free cdylib, generated src/manifest_gen.rs, describe / describe-in-context / passthrough render; `npm run ofx:check`). Step 2 = wgpu kernel execution |
 
 ## Done this run
+- (2026-09-03, continuation 14) EFFECT COST ESTIMATE (`services/fabula/effectCost.ts`) + a badge in the inspector. The GPU pass established that a raymarched generator costs roughly an order of magnitude more than a colour operation, but a user stacking four of them got no warning at all. Live GPU timing is not shippable as a signal — it needs a timer-query extension, a warmed GPU and interleaved A/B runs to mean anything — so this reads the SHADER instead: count the expensive operations, multiply anything inside a loop by its trip count, bucket the result. It ranks; it does not predict milliseconds, and says so.
+- **Two failures on the way, both of which produced a confidently inverted answer:**
+  1. Reading only the text of `fx()` scored `terrain3d` at 28 — the LIGHTEST tier for the most expensive effect in the suite — because all its work sits two calls deep (`v3ter` → `v3fbm` → `v3noise` → hash). The analyser now collects top-level function bodies and folds a helper's cost in at the caller's loop weight, memoised, with a recursion guard.
+  2. Counting only texture fetches and transcendentals STILL scored it light, because optimising it had replaced `fract(sin(...))` with multiply/dot/fract — the effect became ALU-bound, and the model was blind to plain arithmetic. Arithmetic and cheap builtins now carry a small weight.
+- Final ranking matches the measured order: terrain3d (2899) > pathextrude3d (1741) ≈ particlefield3d (1629) >> problur (121) > invert (7). 9 of 181 effects flag heavy, which a test pins below 12% — a warning everything triggers is a warning nobody reads.
+- `tests/effectCost.test.ts` (11) added to `test:forge`, now 109 green; vectortrack 11 green.
 - (2026-09-03, continuation 13) GPU COST PASS on the 3D generators. Nothing had ever measured what an effect costs, and the three raymarchers turned out to be roughly an order of magnitude more expensive than anything else in the suite. `terrain3d` is the most expensive effect Forge has.
 - **terrain3d is ~2.3x faster with better image quality** (53.1 -> 23.2 ms, measured interleaved in one session). Three changes: `fract(sin(...))` hashes replaced with multiply/dot/fract hashes (the terrain was doing well over a thousand `sin` calls per pixel), fbm cut from 5 octaves to 3, and the march from 72 fine steps to 48 coarse ones.
 - A coarse march overshoots thin ridges and punches through them, which showed up as vertical spikes on the high-relief presets — a quality regression I traded for speed and then had to buy back. Five bisections between the last step above the surface and the first below it fix it completely and cost 4% (20.81 -> 21.68 ms, same-session A/B). A finer march instead would have cost more AND still overshot. The wireframe now reads as a grid draped over the terrain, which it never did before.
@@ -103,8 +109,19 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 - (2026-09-02) VectorTrack planar tracker end to end — see `plajah-vectortrack` memory / build matrix.
 
 ## Next up (in order)
-1. Crossover SAM2 tracked mattes.
-3. OFX (DEFERRED by Kenne 2026-09-02: no OFX host work until the desktop/Crossover version compiles; keep the manifest + shell as-is, do not regenerate).
+Every unblocked item in the six waves is now done (2026-09-03). What remains is either blocked on
+infrastructure or deferred by Kenne:
+1. DEFERRED by Kenne 2026-09-02: OFX host work, until the desktop/Crossover version compiles. Keep
+   the manifest + Rust shell as-is; do NOT regenerate them, even though the registry has grown.
+2. BLOCKED, no server endpoint: Crossover SAM2 tracked mattes.
+3. BLOCKED, needs compute/WebGPU: particle fluid dynamics.
+4. BLOCKED, needs dense optical flow: PowerMesh.
+5. UNBUILT, needs a real 3D node: imported geometry and shatter (the Form/Mir/Tao LOOK is covered
+   by the raymarched generators, arbitrary meshes are not).
+
+Unblocked ideas if a continuation wants one: preview resolution scaling when a stack's estimated
+cost is high (the cost estimator now exists to drive it); a regression harness that renders every
+effect to a reference hash so a shader edit cannot silently change unrelated output.
 
 ## Backlog (remaining gaps vs the Boris/Red Giant catalog)
 (Looks now cover the "one click to a finished result" gap; effect-level parts are broadly complete.)

@@ -35,6 +35,7 @@ import { createForgeTransition } from "../../services/fabula/forgeTransitions";
 import { instantiateLook, lookFromStack, saveUserLook, LOOK_CATEGORIES } from "../../services/fabula/forgeLooks";
 import { AUDIO_SOURCES } from "../plajahPixels/engine/fx/audioReact";
 import { TextOverlayCache } from "../../services/fabula/textOverlay";
+import { estimateEffectCost, TIER_LABEL, TIER_HINT } from "../../services/fabula/effectCost";
 import { expandStack, customLookup, customEffectDescriptor, isCustomEffectId, bareCustomId, createCustomInstance, customFromStack, promoteControl, validateCustomEffect, loadCustomEffects, saveCustomEffect, deleteCustomEffect } from "../../services/fabula/customEffects";
 import { masterAnalyser } from "../../services/fabula/audioGraph";
 import { parseCubeLut } from "../../services/fabula/cubeLut";
@@ -4872,6 +4873,12 @@ export default function Fabula() {
                                     <div className="fxrow">
                                       <button className={`minibtn ${instance.enabled !== false ? "blue" : ""}`} onClick={() => patchStack({ enabled: instance.enabled === false })}>{instance.enabled !== false ? "ON" : "OFF"}</button>
                                       <span className="fxrowname">{effect.name}</span>
+                                      {(() => {
+                                        // Static estimate, not a measurement: it ranks effects so
+                                        // nobody stacks four raymarchers before noticing.
+                                        const cost = customDef ? null : estimateEffectCost(effect);
+                                        return cost && cost.tier !== "light" ? <span className={`fxcost ${cost.tier}`} title={TIER_HINT[cost.tier]}>{TIER_LABEL[cost.tier]}</span> : null;
+                                      })()}
                                       <button className="minibtn" disabled={stackIndex === 0} onClick={() => moveStack(-1)}>▲</button>
                                       <button className="minibtn" disabled={stackIndex === fx.stack.length - 1} onClick={() => moveStack(1)}>▼</button>
                                       <button className="minibtn danger" onClick={() => updateFx(selClip.id, { stack: fx.stack.filter((_, index) => index !== stackIndex) })}>✕</button>
@@ -9034,6 +9041,9 @@ const CSS = `
 .fxtext input[type=number]{width:64px}
 .fxrow.tiny{font-size:10px;margin-bottom:0}
 .fxrow.dim{opacity:.55}
+.fxcost{font-size:9px;letter-spacing:.5px;padding:1px 4px;border-radius:3px;white-space:nowrap;flex:none}
+.fxcost.moderate{background:rgba(249,115,22,.16);color:#f9a56b;border:1px solid rgba(249,115,22,.32)}
+.fxcost.heavy{background:rgba(239,68,68,.16);color:#f78d8d;border:1px solid rgba(239,68,68,.36)}
 .fxrow.wrap{flex-wrap:wrap}
 .fxbuilt,.fxbuilder{display:flex;flex-direction:column;gap:3px;margin:5px 0 7px;padding:6px;border-radius:6px;border:1px solid var(--w08);background:rgba(255,255,255,.02)}
 .fxbuilder{border-color:rgba(249,115,22,.35)}
