@@ -26,8 +26,14 @@ export type FxEngine = 'MILKDROP' | 'SHADER' | 'GENERATOR';
  * forgiving thing to run at a lower rate — nobody is reading motion cues off a shader.
  * Deliberately not applied off-TV: desktop has the headroom and should use it.
  */
+export function fxPerformanceProfile(): { fps: 0 | 30; renderScale: number } {
+  if (!getPlatformInfo().isTV) return { fps: 0, renderScale: 1 };
+  const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 2 : 2;
+  const memory = typeof navigator !== 'undefined' ? Number((navigator as any).deviceMemory || 2) : 2;
+  return cores >= 8 && memory >= 6 ? { fps: 30, renderScale: .75 } : { fps: 30, renderScale: .5 };
+}
 export function fxFrameCap(): number {
-  return getPlatformInfo().isTV ? 30 : 0;
+  return fxPerformanceProfile().fps;
 }
 
 // ── Shaders: the Plajah Pixels SIGNATURE SERIES ──
@@ -188,7 +194,7 @@ export default function FxStageVisualizers({
     ? shaders[((presetIndex % shaders.length) + shaders.length) % shaders.length]
     : null;
   const genMode = GEN_MODES[((presetIndex % GEN_MODES.length) + GEN_MODES.length) % GEN_MODES.length];
-  const fps = fxFrameCap();
+  const { fps, renderScale } = fxPerformanceProfile();
   // The canvas generators already take a frame target through their config, so the cap reaches
   // all three engines rather than only the two WebGL ones.
   const genConfig = useMemo<VisualizationConfig>(
@@ -200,12 +206,12 @@ export default function FxStageVisualizers({
 
   return (
     <Suspense fallback={<Loading />}>
-      {engine === 'MILKDROP' && <ButterchurnLayer analyser={analyser} presetIndex={presetIndex} fpsCap={fps} />}
+      {engine === 'MILKDROP' && <ButterchurnLayer analyser={analyser} presetIndex={presetIndex} fpsCap={fps} renderScale={renderScale} />}
       {engine === 'SHADER' && (shader
-        ? <ShaderLayer key={shader.name} analyser={analyser} source={shader.source} startTimeMs={startTimeMs} params={shader.params} fpsCap={fps} />
+        ? <ShaderLayer key={shader.name} analyser={analyser} source={shader.source} startTimeMs={startTimeMs} params={shader.params} fpsCap={fps} renderScale={renderScale} />
         : <Loading />)}
       {engine === 'GENERATOR' && (
-        <AudioVisualizer analyser={analyser} config={genConfig} isPlaying={isPlaying} hasBackground={false} />
+        <AudioVisualizer analyser={analyser} config={genConfig} isPlaying={isPlaying} hasBackground={false} renderScale={renderScale} />
       )}
     </Suspense>
   );

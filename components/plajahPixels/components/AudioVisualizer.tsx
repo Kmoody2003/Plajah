@@ -9,6 +9,7 @@ interface AudioVisualizerProps {
   hasBackground: boolean;
   backgroundMediaRef?: React.RefObject<HTMLDivElement | null>;
   id?: string;
+  renderScale?: number;
 }
 
 // Shard Type for Mosaic
@@ -133,7 +134,7 @@ const LAYOUT_RADIAL = Array.from({length: 14}).map((_, i) => {
 
 const STAGE_LAYOUTS = [LAYOUT_CHEVRONS, LAYOUT_DIAMONDS, LAYOUT_RADIAL];
 
-const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ analyser, config, isPlaying, hasBackground, backgroundMediaRef }, ref) => {
+const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ analyser, config, isPlaying, hasBackground, backgroundMediaRef, renderScale = 1 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
   
@@ -1893,7 +1894,7 @@ const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ a
 
     // Cap DPR at 2 — rendering this heavy 2D path at 3×/4× backing resolution on
     // hi-DPI screens quadruples fill cost for no visible gain. Caps fill rate.
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2) * Math.max(.35, Math.min(1, renderScale));
     const rect = canvas.getBoundingClientRect();
     const desiredWidth = rect.width * dpr;
     const desiredHeight = rect.height * dpr;
@@ -2169,7 +2170,7 @@ const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ a
     if (isPlaying) {
         requestRef.current = requestAnimationFrame(render);
     }
-  }, [analyser, config, isPlaying, hasBackground]);
+  }, [analyser, config, isPlaying, hasBackground, renderScale]);
 
   useEffect(() => {
     if (isPlaying) {

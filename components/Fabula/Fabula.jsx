@@ -5564,7 +5564,7 @@ export default function Fabula() {
                         <button className="minibtn" onClick={() => addTrack("subtitle")} title="Add a subtitle/caption track"><Captions size={10} /> + SUBS</button>
                         <button className="minibtn" onClick={addSubtitle} title="Add a subtitle clip at the playhead"><Type size={10} /> + SUBTITLE</button>
                         <button className="minibtn" onClick={addTitle} title="Add a plain title at the playhead"><Type size={10} /> + TITLE</button>
-                        <button className="minibtn" onClick={() => setLtGallery("add")} title="Add a motion lower third from the template gallery"><Type size={10} /> + LOWER THIRD</button>
+                        <button className="minibtn" onClick={() => setLtGallery("add")} title="Add an editable lower third or full-page shader motion graphic"><Type size={10} /> + MOTION GFX</button>
                         <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
                         {["normal", "ripple", "roll", "slip"].map((m) => (
                           <button key={m} className="minibtn" onClick={() => setTrimMode(m)} title={`Trim mode: ${m} — ripple shifts downstream, roll moves the cut, slip shifts content`} style={{ opacity: trimMode === m ? 1 : 0.5, color: trimMode === m ? "#FF8C00" : undefined }}>{m.toUpperCase()}</button>

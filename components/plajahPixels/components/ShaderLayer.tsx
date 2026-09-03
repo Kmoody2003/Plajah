@@ -5,9 +5,11 @@
 // scalars. Paste a shader, it compiles live; errors are surfaced to the UI.
 
 import React, { useEffect, useRef } from 'react';
+import { extractChroma, smoothChroma, writeChromaAlpha } from '../engine/core/audioChroma';
 
 interface Props {
-  analyser: AnalyserNode;
+  /** Optional for silent design previews; live hosts pass their master analyser. */
+  analyser?: AnalyserNode | null;
   /** User fragment source (must define `void mainImage(out vec4, in vec2)`). */
   source: string;
   startTimeMs: number;
@@ -26,6 +28,9 @@ interface Props {
   /** Cap the render loop to N fps (0/undefined = uncapped). Set on low-power targets like TV,
    *  where a held 30 looks better than an unstable 45. */
   fpsCap?: number;
+  renderScale?: number;
+  /** Deterministic timeline time. Omit to use the normal wall-clock transport. */
+  timeSeconds?: number;
 }
 
 const VERT = `#version 300 es
@@ -56,7 +61,7 @@ const FRAG_MAIN = `
 void main(){ vec4 c = vec4(0.0,0.0,0.0,1.0); mainImage(c, gl_FragCoord.xy); _frag = c; }
 `;
 
-const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, blendMode, layerOpacity, params, sanctuary, fpsCap }) => {
+const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, blendMode, layerOpacity, params, sanctuary, fpsCap, renderScale = 1, timeSeconds }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glRef = useRef<WebGL2RenderingContext | null>(null);
   const progRef = useRef<WebGLProgram | null>(null);
@@ -67,6 +72,9 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
   const texDataRef = useRef<Uint8Array>(new Uint8Array(0));
   const frameRef = useRef(0);
   const lastRef = useRef(0);
+  const chromaRef = useRef(new Float32Array(12));
+  const mouseRef = useRef<[number, number, number, number]>([0, 0, 0, 0]);
+  const timeSecondsRef = useRef(timeSeconds); timeSecondsRef.current = timeSeconds;
   // Compiled-program cache keyed by exact source. Switching back to a previously
   // seen shader (the common case during beat-driven scene switches) then reuses
   // the linked program instantly instead of re-running compileShader/linkProgram
@@ -88,8 +96,8 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
 
     // Audio texture: width = FFT bins, height = 2 (row0 FFT, row1 waveform).
     const W = 512;
-    fftRef.current = new Uint8Array(analyser.frequencyBinCount);
-    waveRef.current = new Uint8Array(analyser.fftSize);
+    fftRef.current = new Uint8Array(analyser?.frequencyBinCount || W);
+    waveRef.current = new Uint8Array(analyser?.fftSize || W * 2);
     texDataRef.current = new Uint8Array(W * 2 * 4);
     const tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -100,7 +108,7 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, texDataRef.current);
     texRef.current = tex;
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2) * Math.max(.35, Math.min(1, renderScale));
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
       const w = Math.max(1, Math.round((rect.width || window.innerWidth) * dpr));
@@ -176,8 +184,8 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
         const dt = lastRef.current ? (now - lastRef.current) / 1000 : 0; lastRef.current = now;
 
         // Update audio texture + bands.
-        analyser.getByteFrequencyData(fftRef.current as any);
-        analyser.getByteTimeDomainData(waveRef.current as any);
+        analyser?.getByteFrequencyData(fftRef.current as any);
+        analyser?.getByteTimeDomainData(waveRef.current as any);
         const W = 512, td = texDataRef.current;
         const fb = fftRef.current, wb = waveRef.current;
         let bass = 0, mid = 0, treble = 0, level = 0;
@@ -192,6 +200,8 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
           level += fv;
         }
         bass /= (W * 0.08 * 255); mid /= (W * 0.27 * 255); treble /= (W * 0.65 * 255); level /= (W * 255);
+        smoothChroma(chromaRef.current, extractChroma(fb, analyser?.context.sampleRate || 48_000), dt || 1 / 60);
+        writeChromaAlpha(td, chromaRef.current);
 
         gl.useProgram(prog);
         gl.activeTexture(gl.TEXTURE0);
@@ -199,10 +209,10 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
         gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, 2, gl.RGBA, gl.UNSIGNED_BYTE, td);
         const u = (n: string) => gl.getUniformLocation(prog, n);
         gl.uniform3f(u('iResolution'), canvas.width, canvas.height, 1);
-        gl.uniform1f(u('iTime'), (now - startTimeMs) / 1000);
+        gl.uniform1f(u('iTime'), timeSecondsRef.current ?? (now - startTimeMs) / 1000);
         gl.uniform1f(u('iTimeDelta'), dt);
         gl.uniform1i(u('iFrame'), frameRef.current);
-        gl.uniform4f(u('iMouse'), 0, 0, 0, 0);
+        gl.uniform4f(u('iMouse'), ...mouseRef.current);
         gl.uniform1i(u('iChannel0'), 0);
         gl.uniform1f(u('iBass'), bass); gl.uniform1f(u('iMid'), mid);
         gl.uniform1f(u('iTreble'), treble); gl.uniform1f(u('iLevel'), level);
@@ -220,15 +230,28 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [analyser, startTimeMs, fpsCap]);
+  }, [analyser, startTimeMs, fpsCap, renderScale]);
 
   return (
     <canvas
       ref={canvasRef}
+      onPointerDown={(e) => {
+        const c = canvasRef.current; if (!c) return;
+        c.setPointerCapture(e.pointerId); const r = c.getBoundingClientRect();
+        const x = (e.clientX - r.left) / Math.max(1, r.width) * c.width, y = (1 - (e.clientY - r.top) / Math.max(1, r.height)) * c.height;
+        mouseRef.current = [x, y, x, y];
+      }}
+      onPointerMove={(e) => {
+        const c = canvasRef.current; if (!c) return; const r = c.getBoundingClientRect();
+        const x = (e.clientX - r.left) / Math.max(1, r.width) * c.width, y = (1 - (e.clientY - r.top) / Math.max(1, r.height)) * c.height;
+        mouseRef.current[0] = x; mouseRef.current[1] = y;
+      }}
+      onPointerUp={() => { mouseRef.current[2] = -Math.abs(mouseRef.current[2]); mouseRef.current[3] = -Math.abs(mouseRef.current[3]); }}
       className="absolute inset-0 w-full h-full"
       style={{
         mixBlendMode: (blendMode ?? 'normal') as any,
         opacity: layerOpacity ?? 1,
+        touchAction: 'none',
       }}
     />
   );
