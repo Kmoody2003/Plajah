@@ -22,6 +22,7 @@ import { PHASE3_GRADS_TINTS_EFFECTS } from './phase3GradsTintsEffects';
 import { PHASE3_STYLIZE_VARIANT_EFFECTS } from './phase3StylizeVariantsEffects';
 import { PHASE3_GRAPHICS_EFFECTS } from './phase3GraphicsEffects';
 import { PHASE3_TEXT_EFFECTS } from './phase3TextEffects';
+import { PHASE4_VOLUMETRIC_EFFECTS } from './phase4Volumetric3DEffects';
 import { PHASE3_LENS_FLARE_EFFECTS } from './phase3LensFlareEffects';
 import { PHASE3_DVE_EFFECTS } from './phase3DveEffects';
 import { PHASE3_CLEANUP_EFFECTS } from './phase3CleanupEffects';
@@ -93,6 +94,7 @@ export const FX_EFFECTS: FxEffect[] = [
   ...PHASE3_STYLIZE_VARIANT_EFFECTS,
   ...PHASE3_GRAPHICS_EFFECTS,
   ...PHASE3_TEXT_EFFECTS,
+  ...PHASE4_VOLUMETRIC_EFFECTS,
   ...PHASE3_LENS_FLARE_EFFECTS,
   ...PHASE3_DVE_EFFECTS,
   ...PHASE3_CLEANUP_EFFECTS,
