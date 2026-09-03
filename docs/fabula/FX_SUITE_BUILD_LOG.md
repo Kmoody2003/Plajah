@@ -125,9 +125,16 @@ infrastructure or deferred by Kenne:
 5. UNBUILT, needs a real 3D node: imported geometry and shatter (the Form/Mir/Tao LOOK is covered
    by the raymarched generators, arbitrary meshes are not).
 
-Unblocked ideas if a continuation wants one: preview resolution scaling when a stack's estimated
-cost is high (the cost estimator now exists to drive it); a regression harness that renders every
-effect to a reference hash so a shader edit cannot silently change unrelated output.
+Unblocked ideas if a continuation wants one:
+- Preview resolution scaling when a stack's estimated cost is high (`services/fabula/effectCost.ts`
+  exists to drive it). CAUTION: effects that read `uResolution` — scanlines, grain, anything in
+  pixel units — look different at a reduced preview size, so this trades against the monitor==export
+  ground rule. Make it explicit and labelled, not silent.
+- A stack-level cost total in the inspector (the per-effect badge is already there).
+
+Integration verified 2026-09-03: one export exercising a keyframed parameter, a shape-masked
+effect, a tokenised text overlay and a user-built effect together produced a valid MP4 at ~3.7x the
+plain-clip size, with the custom effect expanded in place into the chain.
 
 ## Backlog (remaining gaps vs the Boris/Red Giant catalog)
 (Looks now cover the "one click to a finished result" gap; effect-level parts are broadly complete.)
