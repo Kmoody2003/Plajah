@@ -48,3 +48,29 @@ describe('Forge transition catalog', () => {
     assert.throws(() => createForgeTransition('wipe-circle', 'nope'));
   });
 });
+
+describe('Legacy transition parameter mapping', () => {
+  it('every legacy transition maps its own params — no silent fallback', async () => {
+    const { LEGACY_KIND, LEGACY_DEFAULTS, LEGACY_PARAM_KEYS } = await import('../components/plajahPixels/engine/fx/transitionRenderer');
+    // A missing DEFAULTS/PARAM_KEYS entry falls back to film-dissolve's, so the library would show
+    // sliders that move nothing. Every id the renderer knows must carry its own mapping.
+    for (const id of Object.keys(LEGACY_KIND)) {
+      assert.ok(LEGACY_DEFAULTS[id], `${id} has no defaults of its own`);
+      assert.ok(LEGACY_PARAM_KEYS[id], `${id} has no param-key mapping of its own`);
+    }
+    // …and the names the renderer reads must be the names the library publishes.
+    for (const t of FORGE_TRANSITIONS) {
+      const keys = LEGACY_PARAM_KEYS[t.id];
+      if (!keys) continue;                                  // registry transitions map by declaration order
+      assert.deepEqual(Object.keys(t.defaults).sort(), [...keys].sort(), `${t.id} param names differ between library and renderer`);
+      for (let i = 0; i < keys.length; i++) assert.equal(t.defaults[keys[i]], LEGACY_DEFAULTS[t.id][i], `${t.id}/${keys[i]} default differs between library and renderer`);
+    }
+  });
+
+  it('covers both transition generations without id collisions', async () => {
+    const { LEGACY_KIND } = await import('../components/plajahPixels/engine/fx/transitionRenderer');
+    const registryIds = new Set(PHASE3_TRANSITIONS.map(t => t.id));
+    for (const id of Object.keys(LEGACY_KIND)) assert.ok(!registryIds.has(id), `${id} is defined in both generations`);
+    for (const id of [...Object.keys(LEGACY_KIND), ...registryIds]) assert.ok(FORGE_TRANSITIONS.some(t => t.id === id), `${id} is not published in the library`);
+  });
+});

@@ -58,7 +58,7 @@ void main(){
   } else if(uKind==14){ // push slide
     vec2 d=vec2(cos(radians(P0)),sin(radians(P0)));vec2 qa=uv-d*p,qb=uv+d*(1.-p);vec3 ca=texture(uOutgoing,qa).rgb,cb=texture(uIncoming,qb).rgb;float inA=step(0.,qb.x)*step(qb.x,1.)*step(0.,qb.y)*step(qb.y,1.);c=mix(ca,cb,inA);
   } else if(uKind==15){ // shape wipe
-    vec2 q=abs(uv-.5);float metric=mix(length(q),q.x+q.y,step(.5,P0));float edge=mix(.72,0.,p);float m=smoothstep(edge-P1,edge+P1,metric);c=mix(b.rgb,a.rgb,m);
+    vec2 q=abs(uv-.5);float metric=mix(length(q),q.x+q.y,step(.5,P0));float edge=mix(1.05,0.,p);float m=smoothstep(edge-P1,edge+P1,metric);c=mix(a.rgb,b.rgb,m);
   } else if(uKind==16){ // camera shake cut
     float e=sin(p*3.14159265);vec2 j=vec2(sin(p*P1*6.283),cos(p*P1*4.731))*P0*e;vec3 ca=texture(uOutgoing,uv+j).rgb,cb=texture(uIncoming,uv-j).rgb;c=gammaMix(ca,cb,smoothstep(.32,.68,p));
   } else { // gamma-aware film dissolve + exposure bloom
@@ -69,8 +69,8 @@ void main(){
 
 export interface ForgeTransitionInput { id: string; progress: number; params?: Record<string, number>; time?: number; }
 
-const KIND: Record<string, number> = { 'film-dissolve':0,'luma-dissolve':1,'light-leak':2,whip:3,'prism-warp':4,'ink-reveal':5,'glow-dissolve':6,'blur-dissolve':7,'bokeh-dissolve':8,'zoom-pull':9,'film-roll':10,'glitch-cut':11,'rgb-split':12,'burn-flash':13,'push-slide':14,'shape-wipe':15,'camera-shake':16 };
-const DEFAULTS: Record<string, [number, number]> = {
+export const LEGACY_KIND: Record<string, number> = { 'film-dissolve':0,'luma-dissolve':1,'light-leak':2,whip:3,'prism-warp':4,'ink-reveal':5,'glow-dissolve':6,'blur-dissolve':7,'bokeh-dissolve':8,'zoom-pull':9,'film-roll':10,'glitch-cut':11,'rgb-split':12,'burn-flash':13,'push-slide':14,'shape-wipe':15,'camera-shake':16 };
+export const LEGACY_DEFAULTS: Record<string, [number, number]> = {
   'film-dissolve': [.5, .08], 'luma-dissolve': [.12, 1], 'light-leak': [.8, 0],
   whip: [0, 80], 'prism-warp': [.6, .35], 'ink-reveal': [3, .16],
   'glow-dissolve':[.8,.55],'blur-dissolve':[34,.5],'bokeh-dissolve':[42,.8],
@@ -78,7 +78,7 @@ const DEFAULTS: Record<string, [number, number]> = {
   'rgb-split':[.04,0],'burn-flash':[1,0],'push-slide':[0,.02],
   'shape-wipe':[0,.06],'camera-shake':[.035,18],
 };
-const PARAM_KEYS: Record<string, [string, string]> = {
+export const LEGACY_PARAM_KEYS: Record<string, [string, string]> = {
   'film-dissolve': ['softness','bloom'], 'luma-dissolve': ['softness','direction'],
   'light-leak': ['intensity','angle'], whip: ['angle','blur'],
   'prism-warp': ['amount','fringe'], 'ink-reveal': ['scale','edge'],
@@ -138,14 +138,14 @@ export class ForgeTransitionRenderer {
   render(outgoing: WebGLTexture,incoming: WebGLTexture,w:number,h:number,t:ForgeTransitionInput){
     const def = getTransitionDef(t.id);
     if (def) return this.renderRegistry(def, outgoing, incoming, w, h, t);
-    const gl=this.gl; this.target=makeTarget(gl,w,h,this.target); const d=DEFAULTS[t.id]||DEFAULTS['film-dissolve'];
-    const keys=PARAM_KEYS[t.id]||PARAM_KEYS['film-dissolve'];
+    const gl=this.gl; this.target=makeTarget(gl,w,h,this.target); const d=LEGACY_DEFAULTS[t.id]||LEGACY_DEFAULTS['film-dissolve'];
+    const keys=LEGACY_PARAM_KEYS[t.id]||LEGACY_PARAM_KEYS['film-dissolve'];
     const p0=t.params?.[keys[0]]??d[0],p1=t.params?.[keys[1]]??d[1];
     gl.bindFramebuffer(gl.FRAMEBUFFER,this.target.fbo); gl.viewport(0,0,w,h); gl.disable(gl.BLEND); gl.useProgram(this.prog); gl.bindVertexArray(this.quad);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,outgoing); gl.uniform1i(this.u.uOutgoing,0);
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D,incoming); gl.uniform1i(this.u.uIncoming,1);
     gl.uniform2f(this.u.uResolution,w,h); gl.uniform1f(this.u.uProgress,Math.max(0,Math.min(1,t.progress)));
-    gl.uniform1f(this.u.uTime,t.time||0); gl.uniform1i(this.u.uKind,KIND[t.id]??0); gl.uniform1f(this.u.P0,p0); gl.uniform1f(this.u.P1,p1);
+    gl.uniform1f(this.u.uTime,t.time||0); gl.uniform1i(this.u.uKind,LEGACY_KIND[t.id]??0); gl.uniform1f(this.u.P0,p0); gl.uniform1f(this.u.P1,p1);
     gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); return this.target.tex;
   }
   dispose(){ this.gl.deleteProgram(this.prog); this.regProgs.forEach(e => { if (e.p) this.gl.deleteProgram(e.p); }); this.regProgs.clear(); if(this.target){this.gl.deleteTexture(this.target.tex);this.gl.deleteFramebuffer(this.target.fbo);} }

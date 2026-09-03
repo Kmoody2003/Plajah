@@ -263,7 +263,7 @@ export const PHASE3_TRANSITIONS: TransitionDef[] = [
       { id: 'quick-zap', name: 'Quick Zap', description: 'Short, sharp channel change.', params: { noise: .7, roll: 1.6, skew: .3, scanlines: .2 } },
       { id: 'dead-air', name: 'Dead Air', description: 'Heavy snow, slow lock.', params: { noise: 2, roll: .4, skew: 1, scanlines: .7 } },
     ],
-    glsl: `vec4 tx(vec2 uv, float p){ float e=sin(p*3.14159265); float roll=fract(uv.y+p*P1*2.0); vec2 q=vec2(uv.x+(txh(vec2(floor(roll*80.0),floor(uTime*30.0)))-0.5)*P2*0.12*e, roll); vec3 c=gmix(outg(q).rgb,inc(q).rgb,smoothstep(0.35,0.65,p)); vec2 g=floor(uv*uResolution/1.5)+floor(uTime*60.0); float n=txh(g); c=mix(c,vec3(n),clamp(e*P0,0.0,1.0)); float sl=0.5+0.5*sin(uv.y*uResolution.y*3.14159); c*=mix(1.0,0.75+0.25*sl,P3); return vec4(c,1.0); }`,
+    glsl: `vec4 tx(vec2 uv, float p){ float e=sin(p*3.14159265); float roll=fract(uv.y+e*P1*2.0); vec2 q=vec2(uv.x+(txh(vec2(floor(roll*80.0),floor(uTime*30.0)))-0.5)*P2*0.12*e, roll); vec3 c=gmix(outg(q).rgb,inc(q).rgb,smoothstep(0.35,0.65,p)); vec2 g=floor(uv*uResolution/1.5)+floor(uTime*60.0); float n=txh(g); c=mix(c,vec3(n),clamp(e*P0,0.0,1.0)); float sl=0.5+0.5*sin(uv.y*uResolution.y*3.14159); c*=mix(1.0,0.75+0.25*sl,P3*e); return vec4(c,1.0); }`,
   },
   {
     id: 'exposure-blur', name: 'Exposure Blur', family: 'light', description: 'The cut blooms: exposure lifts and the picture defocuses, then resolves on the new shot.',
@@ -324,6 +324,47 @@ export const PHASE3_TRANSITIONS: TransitionDef[] = [
       { id: 'subtle-sparkle', name: 'Subtle Sparkle', description: 'Only the brightest specular pops.', params: { threshold: .85, length: 25, arms: 4, intensity: .7 } },
     ],
     glsl: `vec4 tx(vec2 uv, float p){ float e=sin(p*3.14159265); vec3 c=gmix(outg(uv).rgb,inc(uv).rgb,smoothstep(0.15,0.85,p)); float n=max(2.0,floor(P2+0.5)); vec3 glint=vec3(0.0); for(int a=0;a<8;a++){ if(float(a)>=n) break; float ang=3.14159265*float(a)/n; vec2 d=vec2(cos(ang),sin(ang))*P1/uResolution; for(int i=1;i<=6;i++){ float k=float(i)/6.0; float w=(1.0-k)*e; vec3 sa=outg(uv+d*k).rgb, sb=inc(uv+d*k).rgb; vec3 s=mix(sa,sb,smoothstep(0.15,0.85,p)); glint+=max(s-P0,0.0)*w; vec3 s2=mix(outg(uv-d*k).rgb,inc(uv-d*k).rgb,smoothstep(0.15,0.85,p)); glint+=max(s2-P0,0.0)*w; } } return vec4(c+glint*P3*0.12,1.0); }`,
+  },
+  // ── Plajah material transitions ───────────────────────────────────────────
+  {
+    id: 'plasma-iris', name: 'Plasma Iris', family: 'light', description: 'A hot volumetric aperture blooms from the frame and refracts both shots around its living rim.',
+    params: [P('turbulence', 'Turbulence', 0, 2, .75), P('rim', 'Plasma Rim', .01, .35, .09), P('refraction', 'Refraction', 0, 100, 32, 1, 'px'), P('hue', 'Spectral Hue', 0, 1, .58)],
+    presets: [
+      { id: 'aurora-eye', name: 'Aurora Eye', description: 'Cool cyan-violet plasma with a broad optical rim.', params: { turbulence: .65, rim: .12, refraction: 28, hue: .58 } },
+      { id: 'solar-gate', name: 'Solar Gate', description: 'Hot orange aperture with harder refraction.', params: { turbulence: 1.2, rim: .055, refraction: 54, hue: .06 } },
+      { id: 'soft-portal', name: 'Soft Portal', description: 'Slow atmospheric opening with a feathered boundary.', params: { turbulence: .32, rim: .22, refraction: 16, hue: .76 } },
+    ],
+    glsl: `vec4 tx(vec2 uv,float p){ float asp=uResolution.x/uResolution.y; vec2 q=(uv-.5)*vec2(asp,1.); float a=atan(q.y,q.x), r=length(q); float n=txfbm(q*vec2(3.,5.)+vec2(uTime*.13,-uTime*.09))+sin(a*7.+uTime)*.08*P0; float edge=p*length(vec2(asp,1.))*1.05; float sd=r+n*.18*P0-edge; vec2 nr=normalize(q+1e-5); vec2 bend=nr*P2/uResolution*exp(-abs(sd)*18.); vec3 A=outg(uv+bend).rgb,B=inc(uv-bend).rgb; float m=smoothstep(P1,-P1,sd); vec3 c=gmix(A,B,m); float rim=exp(-abs(sd)/max(.004,P1)); vec3 plasma=hsv2rgb(vec3(fract(P3+.16*sin(a*3.)),.82,1.)); c+=plasma*rim*(1.1+.4*sin(a*11.-uTime*2.)); return vec4(c,1.); }`,
+  },
+  {
+    id: 'fluid-shatter', name: 'Fluid Shatter', family: 'distort', description: 'The outgoing image fractures into liquid cells, curls under surface tension, then reconstructs as the incoming frame.',
+    params: [P('cells', 'Cell Scale', 3, 28, 11, 1), P('curl', 'Fluid Curl', 0, 2, .8), P('depth', 'Shatter Depth', 0, 160, 68, 1, 'px'), P('edge', 'Edge Light', 0, 2, .8)],
+    presets: [
+      { id: 'water-crystal', name: 'Water Crystal', description: 'Broad transparent cells with soft curling edges.', params: { cells: 8, curl: .55, depth: 52, edge: .65 } },
+      { id: 'bass-impact', name: 'Bass Impact', description: 'Dense hard cells thrown deep through the cut.', params: { cells: 18, curl: 1.25, depth: 120, edge: 1.3 } },
+      { id: 'mercury-fold', name: 'Mercury Fold', description: 'Large liquid-metal shards that pull back together.', params: { cells: 5, curl: 1.7, depth: 84, edge: 1.05 } },
+    ],
+    glsl: `vec4 tx(vec2 uv,float p){ float asp=uResolution.x/uResolution.y; vec2 g=vec2(uv.x*asp,uv.y)*P0,id=floor(g),f=fract(g)-.5; float h=txh(id),ang=6.28318*txh(id+9.7); vec2 dir=vec2(cos(ang),sin(ang)); float e=sin(p*3.14159265); vec2 curl=vec2(-f.y,f.x)*P1*.18*e; vec2 travel=dir*(h-.5)*P2/uResolution*e; float local=clamp((p*(1.45)-h*.45),0.,1.); vec2 qa=uv+travel+curl/uResolution*min(uResolution.x,uResolution.y); vec2 qb=uv-travel*.55-curl/uResolution*min(uResolution.x,uResolution.y)*.45; vec3 c=gmix(outg(qa).rgb,inc(qb).rgb,smoothstep(.08,.92,local)); float edge=exp(-abs(max(abs(f.x),abs(f.y))-.48)*50.)*e; c+=hsv2rgb(vec3(fract(h+.52),.35,1.))*edge*P3; return vec4(c,1.); }`,
+  },
+  {
+    id: 'tidal-fold', name: 'Tidal Fold', family: 'motion', description: 'A physically smooth water sheet rolls across the frame with refracted imagery and a moving caustic crest.',
+    params: [P('height', 'Wave Height', 0, 180, 72, 1, 'px'), P('length', 'Wavelength', 1, 12, 4.5, .1), P('refraction', 'Water Refraction', 0, 120, 46, 1, 'px'), P('caustic', 'Crest Light', 0, 2, .75)],
+    presets: [
+      { id: 'moon-tide', name: 'Moon Tide', description: 'One broad calm fold with a silver crest.', params: { height: 58, length: 2.4, refraction: 38, caustic: .55 } },
+      { id: 'storm-surge', name: 'Storm Surge', description: 'Tight high water under strong optical pressure.', params: { height: 142, length: 8.5, refraction: 92, caustic: 1.3 } },
+      { id: 'silk-water', name: 'Silk Water', description: 'Long graceful refraction with very little crest light.', params: { height: 36, length: 1.4, refraction: 64, caustic: .25 } },
+    ],
+    glsl: `vec4 tx(vec2 uv,float p){ float e=sin(p*3.14159265); float wave=sin((uv.y*P1-p*P1)*6.28318+sin(uv.y*7.+uTime*.4)*.35); float front=p+(wave*P0/uResolution.y)*e; float sd=uv.x-front; float slope=cos((uv.y*P1-p*P1)*6.28318)*P0*P1/uResolution.y; vec2 refr=vec2(P2/uResolution.x*(1.-abs(sd)*5.),-slope*P2/uResolution.y)*exp(-abs(sd)*9.); vec3 A=outg(uv+refr).rgb,B=inc(uv-refr*.65).rgb; float m=smoothstep(.035,-.035,sd); vec3 c=gmix(A,B,m); float crest=exp(-abs(sd)*90.)*P3*e; c+=vec3(.48,.78,1.)*crest*(.6+.4*pow(abs(slope),.35)); return vec4(c,1.); }`,
+  },
+  {
+    id: 'note-tunnel', name: 'Note Tunnel', family: 'graphic', description: 'Twelve harmonic lanes bend the cut into a chromatic glass tunnel ready to land on a beat or chord change.',
+    params: [P('segments', 'Harmonic Lanes', 3, 24, 12, 1), P('twist', 'Tunnel Twist', 0, 8, 2.4, .1), P('depth', 'Depth', 0, 2, .8), P('spectrum', 'Spectrum', 0, 1, .75)],
+    presets: [
+      { id: 'chroma-twelve', name: 'Chroma Twelve', description: 'Twelve vivid pitch-class lanes through a deep turn.', params: { segments: 12, twist: 2.4, depth: .9, spectrum: .9 } },
+      { id: 'minor-six', name: 'Minor Six', description: 'Six restrained violet-blue lanes.', params: { segments: 6, twist: 1.2, depth: .65, spectrum: .45 } },
+      { id: 'hyper-harmony', name: 'Hyper Harmony', description: 'Twenty-four fast spectral facets.', params: { segments: 24, twist: 5.8, depth: 1.45, spectrum: 1 } },
+    ],
+    glsl: `vec4 tx(vec2 uv,float p){ float asp=uResolution.x/uResolution.y,e=sin(p*3.14159265); vec2 q=(uv-.5)*vec2(asp,1.); float r=length(q),a=atan(q.y,q.x)+P1*e*(1.-smoothstep(0.,1.1,r)); float n=max(3.,floor(P0+.5)),lane=floor(fract(a/6.28318+1.)*n); float phase=txh(vec2(lane,3.7)); float z=1.+P2*e*(.45+.55*phase); vec2 qa=rot2(q,P1*e*(1.-r))/z/vec2(asp,1.)+.5; vec2 qb=rot2(q,-P1*e*(1.-r))*z/vec2(asp,1.)+.5; float gate=smoothstep(.22,.78,p+(.5-phase)*.28*e); vec3 c=gmix(outg(qa).rgb,inc(qb).rgb,gate); float seam=pow(1.-abs(fract(a/6.28318*n)-.5)*2.,18.)*e; vec3 spectral=hsv2rgb(vec3(fract(lane/n+.58),.85,1.)); c+=spectral*seam*P3; return vec4(c,1.); }`,
   },
 ];
 
