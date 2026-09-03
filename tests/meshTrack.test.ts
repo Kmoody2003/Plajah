@@ -150,6 +150,30 @@ describe('Tracking a frame', () => {
     assert.deepEqual(foldedVertices(2, 2, result!.sample.vertices), [], 'a clean translation must not fold');
   });
 
+  it('keeps tracking across many frames, which is what the thresholds have to allow', () => {
+    // The first calibration rejected frame ONE of a clean translation. trackPoint returns
+    // sqrt(ambiguity * quality), so a good match scores around 0.3-0.6 rather than near 1, and
+    // thresholds picked as if 1.0 were typical reject every usable frame. A single-frame test
+    // does not catch that if it only checks direction, so this walks a whole sequence.
+    const s = seq(3, 3);
+    let current = s.reference;
+    let previous = frame(160, 120, 0, 0);
+    let tracked = 0;
+    for (let f = 1; f <= 6; f++) {
+      const next = frame(160, 120, f * 3, 0);
+      const result = trackMeshFrame(s, previous, next, f, current);
+      assert.ok(result, `tracker returned nothing at frame ${f}`);
+      assert.ok(result!.accepted, `frame ${f} rejected: ${result!.reason}`);
+      current = result!.vertices;
+      previous = next;
+      tracked++;
+    }
+    assert.equal(tracked, 6);
+    const drift = current.map((p, i) => p.x - s.reference[i].x);
+    const mean = drift.reduce((t, v) => t + v, 0) / drift.length;
+    assert.ok(mean > 0.08, `six frames of 3px should accumulate real motion, got ${mean}`);
+  });
+
   it('refuses a vertex count that does not match the lattice', () => {
     const s = seq(2, 2);
     const a = frame(80, 60);

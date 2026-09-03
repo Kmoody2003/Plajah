@@ -35,7 +35,7 @@ import { createForgeTransition } from "../../services/fabula/forgeTransitions";
 import { instantiateLook, lookFromStack, saveUserLook, LOOK_CATEGORIES } from "../../services/fabula/forgeLooks";
 import { AUDIO_SOURCES } from "../plajahPixels/engine/fx/audioReact";
 import { TextOverlayCache } from "../../services/fabula/textOverlay";
-import { meshAuxElement } from "../../services/fabula/meshTrack";
+import { meshAuxElement, createMeshSequence, meshReferenceSample, trackMeshFrame, upsertMeshSample, meshTrackedRange } from "../../services/fabula/meshTrack";
 import { estimateEffectCost, TIER_LABEL, TIER_HINT } from "../../services/fabula/effectCost";
 import { expandStack, customLookup, customEffectDescriptor, isCustomEffectId, bareCustomId, createCustomInstance, customFromStack, promoteControl, validateCustomEffect, loadCustomEffects, saveCustomEffect, deleteCustomEffect } from "../../services/fabula/customEffects";
 import { masterAnalyser } from "../../services/fabula/audioGraph";
@@ -1857,6 +1857,62 @@ export default function Fabula() {
     } catch (error) { ping(error?.message || "Planar tracking failed"); }
     finally { setTrackProgress(null); video.removeAttribute("src"); video.load(); }
   };
+  // Mesh tracking reuses the SURFACE quad the planar tracker already places, so there is no
+  // second overlay to learn: put the surface on the thing that bends, then track it as a mesh.
+  const trackMesh = async (dir = 1) => {
+    const clip = getSel(); const asset = clip && (prod?.mediaPool || []).find((candidate) => candidate.id === clip.assetId);
+    if (!clip || !asset?.url || asset.type !== "video") { ping("Select a video clip to track."); return; }
+    const fx0 = ensureFx(clip);
+    if (!fx0.planarSurface?.corners) { ping("Place a surface first (SURFACE), then track the mesh."); return; }
+    if (trackProgress) { ping("A track is already running."); return; }
+    const fps = vfmt.fps || 24;
+    const density = Math.max(1, Math.min(10, Math.round(fx0.meshDensity || 4)));
+    const video = document.createElement("video"); video.crossOrigin = "anonymous"; video.muted = true; video.preload = "auto"; video.src = asset.url;
+    const wait = (event) => new Promise((resolve, reject) => { const ok = () => { clean(); resolve(); }, bad = () => { clean(); reject(new Error("Could not decode tracking source")); }, clean = () => { video.removeEventListener(event, ok); video.removeEventListener("error", bad); }; video.addEventListener(event, ok, { once: true }); video.addEventListener("error", bad, { once: true }); });
+    const seek = async (time) => { if (Math.abs(video.currentTime - time) < .001) return; video.currentTime = time; await wait("seeked"); };
+    const yieldUi = () => new Promise((resolve) => setTimeout(resolve, 0));
+    trackCancelRef.current = false;
+    setSurfaceEdit(false);
+    let seq = null;
+    try {
+      if (video.readyState < 1) await wait("loadedmetadata");
+      const scale = Math.min(1, 640 / Math.max(1, video.videoWidth)), width = Math.max(2, Math.round(video.videoWidth * scale)), height = Math.max(2, Math.round(video.videoHeight * scale));
+      const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height; const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const gray = () => { ctx.drawImage(video, 0, 0, width, height); return grayFromRgba(ctx.getImageData(0, 0, width, height).data, width, height); };
+      const startFrame = Math.max(0, Math.round((playhead - clip.start) * fps));
+      const endFrame = dir > 0 ? Math.min(Math.round(clip.duration * fps), startFrame + 600) : Math.max(0, startFrame - 600);
+      await seek((clip.srcIn || 0) + startFrame / fps);
+      let previous = gray();
+      // Resume from a good sample at the playhead, exactly as the planar runner does; otherwise
+      // start fresh with the playhead as the reference frame.
+      const existing = fx0.meshTrack;
+      const resume = existing && existing.cols === density && existing.samples.find((s) => s.frame === startFrame && !s.lost);
+      let current;
+      if (resume) { seq = { ...existing, samples: existing.samples.filter((s) => (dir > 0 ? s.frame <= startFrame : s.frame >= startFrame) && !s.lost) }; current = resume.vertices; }
+      else { seq = createMeshSequence(asset.id, fps, width, height, startFrame, fx0.planarSurface.corners, density, density, uid()); seq = upsertMeshSample(seq, meshReferenceSample(seq)); current = seq.reference; }
+      const total = Math.abs(endFrame - startFrame); let lastNote = "";
+      setTrackProgress({ frame: 0, total, confidence: 1, note: "" });
+      for (let frame = startFrame + dir; dir > 0 ? frame <= endFrame : frame >= endFrame; frame += dir) {
+        if (trackCancelRef.current) { lastNote = "stopped"; break; }
+        await seek((clip.srcIn || 0) + frame / fps);
+        const next = gray();
+        const result = trackMeshFrame(seq, previous, next, frame, current);
+        if (!result) { lastNote = "mesh does not match this clip"; break; }
+        seq = upsertMeshSample(seq, result.sample);
+        setTrackProgress({ frame: Math.abs(frame - startFrame), total, confidence: result.sample.confidence, note: result.reason || "" });
+        if (!result.accepted) { lastNote = result.reason || "lost"; break; }
+        current = result.vertices; previous = next;
+        // A mesh costs one block match per vertex, so yield more often than the planar runner.
+        await yieldUi();
+      }
+      const good = seq.samples.filter((s) => !s.lost).length;
+      updateFx(clip.id, { meshTrack: seq });
+      ping(`Mesh track \u00b7 ${good} frames${lastNote ? ` \u00b7 ${lastNote}` : ""}`);
+    } catch (error) { ping(error?.message || "Mesh tracking failed"); }
+    finally { setTrackProgress(null); video.removeAttribute("src"); video.load(); }
+  };
+  const trackMeshForward = () => trackMesh(1);
+  const trackMeshBackward = () => trackMesh(-1);
   const insertGenerator = (mode, name) => {
     // A Pixels generator scene as a pool asset: MonitorLayer plays it live (SceneView) and the
     // export renders it on the GPU (offlineRenderer) — full parity, no media file needed.
@@ -4996,6 +5052,21 @@ export default function Fabula() {
                               </div>
                               {trackProgress && <div className="dim small">tracking {trackProgress.frame}/{trackProgress.total} · confidence {(trackProgress.confidence * 100).toFixed(0)}%{trackProgress.note ? ` · ${trackProgress.note}` : ""} <button className="minibtn" style={{ marginLeft: 6 }} onClick={() => { trackCancelRef.current = true; }}>STOP</button></div>}
                               {!trackProgress && fx.planarTrack && (() => { const r = planarTrackedRange(fx.planarTrack); const last = fx.planarTrack.samples.filter((s) => !s.lost).at(-1); return <div className="dim small">{fx.planarTrack.samples.filter((s) => !s.lost).length} frames · ref {fx.planarTrack.referenceFrame} → {r.end}{r.lostAt != null ? ` · lost at ${r.lostAt}` : ""} · {fx.planarTrack.features.length} features · confidence {((last?.confidence || 0) * 100).toFixed(0)}% · {last?.inliers ?? 0} inliers</div>; })()}
+                              <div className="lbl" style={{ marginTop: 8 }}>MESH TRACK <span className="cap">NON-RIGID SURFACE</span></div>
+                              <div className="btnrow" style={{ gap: 5 }}>
+                                <span className="fxlbl" title="Cells across the surface. More cells follow finer deformation but cost a block match each.">GRID</span>
+                                <input type="range" min={1} max={10} step={1} title="Mesh density" value={fx.meshDensity || 4} disabled={!!trackProgress} onChange={(e) => updateFx(selClip.id, { meshDensity: parseInt(e.target.value, 10) })} style={{ maxWidth: 70 }} />
+                                <span className="fxval">{fx.meshDensity || 4}\u00d7{fx.meshDensity || 4}</span>
+                                <button className="minibtn" title="Track the mesh backward from the playhead" disabled={!fx.planarSurface || !!trackProgress} onClick={trackMeshBackward}>\u25c0</button>
+                                <button className="minibtn blue grow" title="Track the surface as a deformable mesh from the playhead" disabled={!fx.planarSurface || !!trackProgress} onClick={trackMeshForward}>\u25a6 MESH \u25b6</button>
+                                {fx.meshTrack && <button className="minibtn danger" onClick={() => updateFx(selClip.id, { meshTrack: undefined })}>CLEAR</button>}
+                              </div>
+                              {!trackProgress && fx.meshTrack && (() => {
+                                const r = meshTrackedRange(fx.meshTrack);
+                                const good = fx.meshTrack.samples.filter((s) => !s.lost);
+                                const last = good.at(-1);
+                                return <div className="dim small">{good.length} frames \u00b7 ref {fx.meshTrack.referenceFrame} \u2192 {r.end}{r.lostAt != null ? ` \u00b7 lost at ${r.lostAt}` : ""} \u00b7 {fx.meshTrack.cols}\u00d7{fx.meshTrack.rows} mesh \u00b7 confidence {((last?.confidence || 0) * 100).toFixed(0)}% \u00b7 {Math.round((last?.trusted || 0) * 100)}% matched \u00b7 add MESH TRACK WARP to use it</div>;
+                              })()}
                               {(() => {
                                 // Reuse a track from another clip of the SAME footage (copied + re-based to this clip's source time).
                                 const donors = clips.filter((c) => c.id !== selClip.id && c.assetId && c.assetId === selClip.assetId && (c.fx?.planarTrack || c.fx?.vectorTrack));

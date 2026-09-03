@@ -35,6 +35,12 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust shell step 1 DONE 2026-09-02 (rust/fabula-ofx: dependency-free cdylib, generated src/manifest_gen.rs, describe / describe-in-context / passthrough render; `npm run ofx:check`). Step 2 = wgpu kernel execution |
 
 ## Done this run
+- (2026-09-03, continuation 17c) MESH TRACKING RUNNER + UI — PowerMesh is now usable end to end. It reuses the SURFACE quad the planar tracker already places, so there is no second overlay to learn: put the surface on the thing that bends, set GRID, press MESH. Density 1..10, resume-from-playhead and backward tracking behave exactly as the planar runner does.
+- **The thresholds were wrong, and only a multi-frame run showed it.** The first calibration rejected frame ONE of a clean translation at "confidence 28% under 40%". `trackPoint` returns `sqrt(ambiguity * quality)`, so a GOOD match on real footage scores around 0.3-0.6, not near 1 — measured across a lattice on a translating noise field the values ran 0.09 to 0.95 with a 0.43 median. Thresholds picked as if 1.0 were typical reject every usable frame. `minVertexConfidence` is now 0.3, matching what the planar tracker already uses per feature.
+- The frame confidence formula was also wrong in kind, not just in value: multiplying the mean per-vertex score in directly CAPS a frame's confidence at a typical per-vertex score, so no sane threshold can pass. It now leads with how many vertices matched (`trustedRatio`), with match quality modulating gently and folds penalising.
+- **The unit test did not catch either problem**, because it tracked ONE frame and only asserted the direction of motion. A tracker that dies on frame two passes that. There is now a test that walks six frames and asserts every one is accepted.
+- Verified end to end on a synthetic clip that translates AND breathes: 25 frames tracked with no early stop, final confidence 96%, 96% of vertices matched on their own, mean displacement 27.7px against 28.8px expected (~4%), 6.8px of non-rigid spread that a translation-only model would have missed, zero folds. `test:forge` 144 green; vectortrack 11 green.
+- **Note on the reference harness:** it renders every effect with no aux input, so the text and mesh effects are fingerprinted with the SOURCE frame standing in for their generated input. Those fingerprints are still deterministic and still catch shader edits, but they do not exercise the real generated-aux path — that is covered by the GPU probes instead.
 - (2026-09-03, continuation 17b) MESH TRACKING (`services/fabula/meshTrack.ts`) + **meshtrackwarp** (Mesh Track Warp). 185 effects. The Mocha PowerMesh equivalent.
 - **The third mis-scoping corrected.** The log filed this as "needs dense optical flow". It does not. PowerMesh tracks a MESH of points and warps the surface between them; dense per-pixel flow is a different and much more expensive tool solving a different problem. Everything needed was already in the repo — `trackPoint` block-matches one feature and the planar tracker already lays a feature lattice inside a quad.
 - **What actually makes mesh tracking different from planar tracking** is what happens when a vertex matches badly. Planar has a global model to fall back on: throw the outlier away and the homography still says where it belongs. A mesh has no global model, so a bad vertex must be repaired from its NEIGHBOURS or the surface tears. Hence: block-match every vertex, rebuild any untrusted one by flooding trusted displacements outwards, Laplacian-smooth the field (this is what stops noise reading as boiling), then refuse any move that turns a quad inside out — a folded mesh samples back-to-front and reads as a shredded, flickering patch.
@@ -149,10 +155,9 @@ infrastructure or deferred by Kenne:
    ships on the new `effect.state` buffers. What is still unbuilt is a PARTICLE system with
    per-particle state (Trapcode Particular's model); the state buffers make it reachable, but
    it wants a particle-indexed layout rather than a screen-space field.
-4. PARTLY DONE 2026-09-03: PowerMesh needed a tracked MESH, not dense optical flow —
-   `services/fabula/meshTrack.ts` + `meshtrackwarp` ship the tracker and the warp. What
-   remains is the UI: a runner that decodes and steps frames (the planar tracker's `Track
-   Forward` equivalent) and an overlay to place and adjust the lattice.
+4. DONE 2026-09-03: PowerMesh needed a tracked MESH, not dense optical flow.
+   `services/fabula/meshTrack.ts` + `meshtrackwarp` + the MESH runner in the inspector, which
+   reuses the planar tracker's SURFACE quad rather than adding a second overlay.
 5. UNBUILT, needs a real 3D node: imported geometry (the Form/Mir/Tao LOOK is covered by the
    raymarched generators, arbitrary meshes are not). NOTE 2026-09-03: shatter was wrongly filed
    here — it needs no geometry and is now built as an inverse-mapped registry effect.
@@ -171,7 +176,7 @@ plain-clip size, with the custom effect expanded in place into the chain.
 ## Backlog (remaining gaps vs the Boris/Red Giant catalog)
 (Looks now cover the "one click to a finished result" gap; effect-level parts are broadly complete.)
 Remaining: Crossover SAM2 tracked mattes (no server endpoint, genuinely blocked), imported
-geometry (needs a real 3D node), a particle-indexed particle system, and the mesh-tracking UI.
+geometry (needs a real 3D node), and a particle-indexed particle system.
 THREE items filed here as blocked turned out to be mis-scoped and are now built: shatter (needed
 inverse mapping, not meshes), fluid dynamics (needed persistent state, not compute) and PowerMesh
 (needed a tracked mesh, not dense flow). Three for three. Read any remaining "blocked" claim as a

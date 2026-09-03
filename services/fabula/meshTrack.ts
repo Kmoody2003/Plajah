@@ -36,7 +36,11 @@ export interface MeshSettings {
 export const MESH_DEFAULTS: MeshSettings = {
   patchRadius: 7,
   searchRadius: 20,
-  minVertexConfidence: 0.45,
+  // trackPoint returns sqrt(ambiguity * quality), so a GOOD match on real footage lands around
+  // 0.3-0.6, not near 1. Measured on a translating noise field the lattice spanned 0.09 to 0.95
+  // with a 0.43 median. 0.3 matches what the planar tracker already uses per feature; anything
+  // near 0.45 rejects most of a perfectly good mesh.
+  minVertexConfidence: 0.3,
   minTrustedRatio: 0.35,
   smoothing: 0.35,
   minConfidence: 0.4,
@@ -261,7 +265,11 @@ export function trackMeshFrame(
 
   const meanConfidence = vertexConfidence.reduce((s, c) => s + c, 0) / vertexConfidence.length;
   const foldPenalty = folded.length ? 1 - Math.min(1, folded.length / vertices.length) : 1;
-  const confidence = Math.max(0, Math.min(1, meanConfidence * Math.sqrt(Math.max(0, trustedRatio)) * foldPenalty));
+  // Lead with HOW MANY vertices matched rather than how strong the raw scores were: multiplying
+  // the mean in directly caps the frame's confidence at a typical per-vertex score (~0.4) and
+  // makes any sane threshold reject every frame. Match quality still modulates, but gently.
+  const quality = 0.5 + 0.5 * Math.min(1, meanConfidence / 0.5);
+  const confidence = Math.max(0, Math.min(1, trustedRatio * quality * foldPenalty));
 
   let reason: string | undefined;
   if (trustedRatio < settings.minTrustedRatio) reason = `only ${Math.round(trustedRatio * 100)}% of the mesh matched`;
