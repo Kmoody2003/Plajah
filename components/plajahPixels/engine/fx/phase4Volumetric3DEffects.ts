@@ -12,13 +12,19 @@
 import type { FxEffect } from './effects';
 
 const V = `
-float v3h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float v3h31(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+float v3h21(vec2 p){ vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
+float v3h31(vec3 p){ vec3 q = fract(p * 0.1031); q += dot(q, q.zyx + 31.32); return fract((q.x + q.y) * q.z); }
 float v3noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(v3h21(i), v3h21(i + vec2(1,0)), f.x), mix(v3h21(i + vec2(0,1)), v3h21(i + vec2(1,1)), f.x), f.y); }
-float v3fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++){ v += a * v3noise(p); p = p * 2.03 + 11.7; a *= 0.5; } return v; }
+float v3fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 3; i++){ v += a * v3noise(p); p = p * 2.03 + 11.7; a *= 0.5; } return v; }
 vec3 v3rotY(vec3 p, float a){ float c = cos(a), s = sin(a); return vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z); }
 vec3 v3rotX(vec3 p, float a){ float c = cos(a), s = sin(a); return vec3(p.x, c * p.y - s * p.z, s * p.y + c * p.z); }
+/** Orbit + tilt + push down the z axis, with the trig hoisted out of the caller's loop. */
+vec3 v3cam(vec3 p, float ca, float sa, float cx, float sx){
+  vec3 q = vec3(ca * p.x + sa * p.z, p.y, -sa * p.x + ca * p.z);
+  q = vec3(q.x, cx * q.y - sx * q.z, sx * q.y + cx * q.z);
+  return vec3(q.x, q.y, q.z + 3.0);
+}
 `;
 
 const g = (e: Omit<FxEffect, 'category'>): FxEffect => ({ ...e, category: 'generator' });
@@ -58,7 +64,7 @@ export const PHASE4_VOLUMETRIC_EFFECTS: FxEffect[] = [
       // any particle smaller than the step, which leaves a dense field looking empty.
       float tStep = max(gap, 0.07);
       float t = 0.5;
-      for (int i = 0; i < 44; i++){
+      for (int i = 0; i < 36; i++){
         vec3 pos = ro + rd * t;
         vec3 id = floor(pos / gap);
         t += tStep;
@@ -109,15 +115,28 @@ export const PHASE4_VOLUMETRIC_EFFECTS: FxEffect[] = [
       vec3 ro = vec3(0.0, P6 + 0.6, uTime * P2);
       vec3 rd = normalize(vec3(p, 1.2));
       float t = 0.2;
+      float tPrev = 0.2;
       float hit = -1.0;
       vec3 pos = ro;
-      for (int i = 0; i < 72; i++){
+      for (int i = 0; i < 48; i++){
         pos = ro + rd * t;
         if (pos.y < v3ter(pos.xz)) { hit = t; break; }
-        t += 0.055 + t * 0.035;
+        tPrev = t;
+        t += 0.075 + t * 0.055;
         if (t > 34.0) break;
       }
       if (hit < 0.0) return b;
+      // A coarse march overshoots thin ridges and punches through to whatever is behind them,
+      // which shows up as vertical spikes. Five bisections between the last step above the
+      // surface and the first below it cost far less than marching finely everywhere.
+      float lo = tPrev, hi = hit;
+      for (int i = 0; i < 5; i++){
+        float mid = (lo + hi) * 0.5;
+        vec3 q = ro + rd * mid;
+        if (q.y < v3ter(q.xz)) hi = mid; else lo = mid;
+      }
+      hit = hi;
+      pos = ro + rd * hit;
       float hc = v3ter(pos.xz);
       float e = 0.035;
       vec3 n = normalize(vec3(hc - v3ter(pos.xz + vec2(e, 0.0)), e, hc - v3ter(pos.xz + vec2(0.0, e))));
@@ -165,13 +184,14 @@ export const PHASE4_VOLUMETRIC_EFFECTS: FxEffect[] = [
       // they sit further apart on screen than the ribbon is wide.
       float best = 0.0;
       float halo = 0.0;
-      vec3 tint = vec3(0.0);
+      float hueAcc = 0.0;
       float wsum = 0.0;
-      vec3 qPrev = v3rotX(v3rotY(v3path(0.0, P1, P2), ang), 0.35); qPrev.z += 3.0;
-      for (int i = 1; i < 72; i++){
-        float s = float(i) / 71.0;
-        vec3 q = v3rotX(v3rotY(v3path(s, P1, P2), ang), 0.35);
-        q.z += 3.0;
+      float ca = cos(ang), sa = sin(ang);
+      float cx = cos(0.35), sx = sin(0.35);
+      vec3 qPrev = v3cam(v3path(0.0, P1, P2), ca, sa, cx, sx);
+      for (int i = 1; i < 48; i++){
+        float s = float(i) / 47.0;
+        vec3 q = v3cam(v3path(s, P1, P2), ca, sa, cx, sx);
         vec3 qa = qPrev; qPrev = q;
         if (qa.z < 0.3 || q.z < 0.3) continue;
         vec2 sa = qa.xy / (qa.z * 0.62);
@@ -185,11 +205,13 @@ export const PHASE4_VOLUMETRIC_EFFECTS: FxEffect[] = [
         float fade = exp(-zMid * 0.16);
         float core = exp(-(d * d) / (r * r + 1e-6)) * fade;
         best = max(best, core);
-        halo += exp(-(d * d) / (r * r * 8.0 + 1e-6)) * fade * 0.02 * P4;
-        tint += hsv2rgb(vec3(fract(P5 + s * 0.35), 0.78, 1.0)) * core;
+        // Uniform-driven branch: coherent across the whole draw, and skips an exp per segment
+        // whenever the glow is off.
+        if (P4 > 0.002) halo += exp(-(d * d) / (r * r * 8.0 + 1e-6)) * fade * 0.02 * P4;
+        hueAcc += (P5 + s * 0.35) * core;
         wsum += core;
       }
-      vec3 col = wsum > 1e-4 ? tint / wsum : vec3(0.0);
+      vec3 col = wsum > 1e-4 ? hsv2rgb(vec3(fract(hueAcc / wsum), 0.78, 1.0)) : vec3(0.0);
       vec3 acc = col * (best + min(halo, 1.1));
       vec3 o = b.rgb + acc * P7;
       return vec4(clamp(o, 0.0, 1.0), max(b.a, clamp(dot(acc, vec3(.2126,.7152,.0722)) * P7, 0.0, 1.0)));

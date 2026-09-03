@@ -53,7 +53,8 @@ export const PHASE3_TEXT_EFFECTS: FxEffect[] = [
       float drop = 1.0 - step(1.0 - P4 * 0.28, th21(vec2(line, floor(uTime * 8.0) + 7.0)));
       cov *= drop;
       vec3 tint = aux(tuv).rgb;
-      vec3 lit = tint * cov + tint * tglow(tuv, 2.5) * P0 * drop;
+      float bloom = P0 > 0.002 ? tglow(tuv, 2.5) : 0.0;
+      vec3 lit = tint * cov + tint * bloom * P0 * drop;
       vec3 o = b.rgb + lit * P5;
       return vec4(clamp(o, 0.0, 1.0), max(b.a, clamp(tluma(lit) * P5, 0.0, 1.0)));
     }`,
@@ -78,7 +79,7 @@ export const PHASE3_TEXT_EFFECTS: FxEffect[] = [
     glsl: T + `vec4 fx(vec2 uv){
       vec4 b = inp(uv);
       float cov = aux(uv).a;
-      float halo = tglow(uv, 3.0);
+      float halo = (P3 > 0.002 || P4 > 0.002) ? tglow(uv, 3.0) : 0.0;
       vec3 col = hsv2rgb(vec3(fract(P0), 0.75, 1.0));
       float scan = 1.0 - P1 * 0.6 * (0.5 + 0.5 * sin(uv.y * uResolution.y * 3.14159));
       float flick = 1.0 - P2 * 0.5 * th21(vec2(floor(uTime * 20.0), 3.0));
@@ -110,7 +111,7 @@ export const PHASE3_TEXT_EFFECTS: FxEffect[] = [
     glsl: T + `vec4 fx(vec2 uv){
       vec4 b = inp(uv);
       float cov = aux(uv).a;
-      float halo = tglow(uv, 3.5);
+      float halo = P2 > 0.002 ? tglow(uv, 3.5) : 0.0;
       vec3 col = hsv2rgb(vec3(fract(P0), 0.7, 1.0));
       float scan = 1.0 - P1 * 0.65 * (0.5 + 0.5 * sin(uv.y * uResolution.y * 3.14159));
       float grain = 1.0 + (th21(uv * uResolution.xy + uTime) - 0.5) * P3;
