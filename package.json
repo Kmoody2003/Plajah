@@ -30,7 +30,7 @@
     "test:transcode": "npx tsx --test tests/choraTranscodeWorker.test.ts",
     "test:playback": "npx tsx --test tests/playbackHealth.test.ts",
     "test:melos": "npx tsx --test tests/melosArp.test.ts tests/melosKera.test.ts",
-    "test:forge": "npx tsx --test tests/forgeEffects.test.ts tests/forgeBindings.test.ts tests/ofxManifest.test.ts tests/titleAnimators.test.ts tests/titleDynamic.test.ts tests/fcpxmlTransform.test.ts tests/trackShare.test.ts tests/forgeTransitions.test.ts tests/forgeLooks.test.ts tests/audioReact.test.ts tests/forgeKeyframes.test.ts tests/forgeRegistryIntegrity.test.ts",
+    "test:forge": "npx tsx --test tests/forgeEffects.test.ts tests/forgeBindings.test.ts tests/ofxManifest.test.ts tests/titleAnimators.test.ts tests/titleDynamic.test.ts tests/fcpxmlTransform.test.ts tests/trackShare.test.ts tests/forgeTransitions.test.ts tests/forgeLooks.test.ts tests/audioReact.test.ts tests/forgeKeyframes.test.ts tests/forgeRegistryIntegrity.test.ts tests/textOverlay.test.ts",
     "test:vectortrack": "npx tsx --test tests/vectorTrack.test.ts tests/planarTrack.test.ts tests/planarSequence.test.ts",
     "test:fabulagen": "npx tsx --test tests/fabulaGenHandoff.test.ts tests/fabulaMagnific.test.ts",
     "academia:ingest": "npx tsx scripts/ingestOerLibrary.ts",

@@ -64,9 +64,16 @@ describe('Fabula Forge effects', () => {
   });
 
   it('publishes true auxiliary-input effects with stable asset bindings', () => {
-    const ids = FX_EFFECTS.filter((effect) => effect.auxInput).map((effect) => effect.id);
+    // Asset-bound aux only. A 'text' slot is a different contract — the host rasterises a string
+    // into it and there is no asset to bind — so those effects are asserted separately.
+    const ids = FX_EFFECTS.filter((effect) => effect.auxInput && effect.auxInput.kind !== 'text').map((effect) => effect.id);
     assert.deepEqual(ids.sort(), ['differencekey', 'displacementmap', 'externaldepthdefocus', 'lightwrap', 'referencecolormatch', 'timedisplace', 'cardflip'].sort());
     const instance = { ...createEffectInstance('differencekey', 'clean-static', 'multi-1'), auxAssetId: 'plate-asset' };
     assert.equal(instance.auxAssetId, 'plate-asset');
+  });
+
+  it('keeps text-input effects off the asset-binding path', () => {
+    const text = FX_EFFECTS.filter((effect) => effect.auxInput?.kind === 'text').map((effect) => effect.id);
+    assert.deepEqual(text.sort(), ['hudreadout', 'terminaltext', 'vhsstatus']);
   });
 });

@@ -21,6 +21,7 @@ import { PHASE3_PARTICLE_EFFECTS } from './phase3ParticleEffects';
 import { PHASE3_GRADS_TINTS_EFFECTS } from './phase3GradsTintsEffects';
 import { PHASE3_STYLIZE_VARIANT_EFFECTS } from './phase3StylizeVariantsEffects';
 import { PHASE3_GRAPHICS_EFFECTS } from './phase3GraphicsEffects';
+import { PHASE3_TEXT_EFFECTS } from './phase3TextEffects';
 import { PHASE3_LENS_FLARE_EFFECTS } from './phase3LensFlareEffects';
 import { PHASE3_DVE_EFFECTS } from './phase3DveEffects';
 import { PHASE3_CLEANUP_EFFECTS } from './phase3CleanupEffects';
@@ -37,7 +38,9 @@ export interface FxEffect {
   id: string; name: string; params: FxParam[]; glsl: string;
   category?: FxCategory; summary?: string; version?: number;
   passes?: FxPass[]; presets?: FxPreset[];
-  auxInput?: { label: string; optional?: boolean };
+  /** Secondary texture input. `kind: 'text'` means the host rasterises a string into it
+   *  (services/fabula/textOverlay.ts) rather than binding another asset. */
+  auxInput?: { label: string; optional?: boolean; kind?: 'image' | 'text' };
   /** Reads its own previous output (prev) / previous source (prevSrc); needs frame history.
    *  A number (2..4) keeps that many previous SOURCE frames (prevSrcN(n, uv), n = 1..4). */
   temporal?: boolean | number;
@@ -89,6 +92,7 @@ export const FX_EFFECTS: FxEffect[] = [
   ...PHASE3_GRADS_TINTS_EFFECTS,
   ...PHASE3_STYLIZE_VARIANT_EFFECTS,
   ...PHASE3_GRAPHICS_EFFECTS,
+  ...PHASE3_TEXT_EFFECTS,
   ...PHASE3_LENS_FLARE_EFFECTS,
   ...PHASE3_DVE_EFFECTS,
   ...PHASE3_CLEANUP_EFFECTS,

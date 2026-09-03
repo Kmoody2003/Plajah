@@ -34,6 +34,7 @@ import { createEffectInstance } from "../../services/fabula/forgeEffects";
 import { createForgeTransition } from "../../services/fabula/forgeTransitions";
 import { instantiateLook, lookFromStack, saveUserLook, LOOK_CATEGORIES } from "../../services/fabula/forgeLooks";
 import { AUDIO_SOURCES } from "../plajahPixels/engine/fx/audioReact";
+import { TextOverlayCache } from "../../services/fabula/textOverlay";
 import { masterAnalyser } from "../../services/fabula/audioGraph";
 import { parseCubeLut } from "../../services/fabula/cubeLut";
 import { createVectorTrack, stabilizationAt, trackPoint, upsertTrackSample, grayFromRgba } from "../../services/fabula/vectorTrack";
@@ -4799,7 +4800,31 @@ export default function Fabula() {
                                         {effect.presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}
                                       </select>
                                     )}
-                                    {effect.auxInput && (
+                                    {effect.auxInput?.kind === "text" && (() => {
+                                      // Text-as-input: the string, its look, and where it sits.
+                                      // Tokens resolve per frame, so a burn-in can actually run.
+                                      const spec = instance.textOverlay || { text: "" };
+                                      const setSpec = (patch) => patchStack({ textOverlay: { ...spec, ...patch } });
+                                      return (
+                                        <div className="fxtext">
+                                          <div className="fxrow"><span className="fxlbl">{effect.auxInput.label}</span></div>
+                                          <textarea className="inp xs" rows={2} value={spec.text || ""} placeholder="REC {clock}  {tc}" onChange={(e) => setSpec({ text: e.target.value })} />
+                                          <div className="fxrow tiny dim">Tokens: {"{tc} {frame} {sec} {count:1,1,3} {clock} {date}"}</div>
+                                          <div className="fxrow">
+                                            <input type="color" title="Text colour" value={spec.color || "#ffffff"} onChange={(e) => setSpec({ color: e.target.value })} />
+                                            <select className="sel xs" title="Horizontal position" value={spec.align || "left"} onChange={(e) => setSpec({ align: e.target.value })}><option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option></select>
+                                            <select className="sel xs" title="Vertical position" value={spec.valign || "top"} onChange={(e) => setSpec({ valign: e.target.value })}><option value="top">Top</option><option value="middle">Middle</option><option value="bottom">Bottom</option></select>
+                                            <select className="sel xs" title="Letter case" value={spec.caseMode || "none"} onChange={(e) => setSpec({ caseMode: e.target.value })}><option value="none">As typed</option><option value="upper">UPPER</option><option value="lower">lower</option></select>
+                                          </div>
+                                          <div className="fxrow"><span className="fxlbl">Size</span><input type="range" min={.02} max={.2} step={.002} value={spec.size ?? .055} onChange={(e) => setSpec({ size: parseFloat(e.target.value) })} /><span className="fxval">{Math.round((spec.size ?? .055) * 100)}%</span></div>
+                                          <div className="fxrow"><span className="fxlbl">Tracking</span><input type="range" min={-.1} max={.6} step={.01} value={spec.tracking ?? 0} onChange={(e) => setSpec({ tracking: parseFloat(e.target.value) })} /><span className="fxval">{(spec.tracking ?? 0).toFixed(2)}</span></div>
+                                          <div className="fxrow"><span className="fxlbl">Start TC</span><input className="inp xs" type="number" min={0} step={1} title="Frame the timecode and counters start from" value={spec.startFrame ?? 0} onChange={(e) => setSpec({ startFrame: Math.max(0, parseInt(e.target.value, 10) || 0) })} />
+                                            <button className="btn xs" title="Fix the date/clock tokens to a chosen moment — a burn-in must not drift between the monitor and the export" onClick={() => setSpec({ epochMs: spec.epochMs === undefined ? Date.now() : undefined })}>{spec.epochMs === undefined ? "Set clock origin" : "Clock pinned"}</button>
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
+                                    {effect.auxInput && effect.auxInput.kind !== "text" && (
                                       <div className="fxrow"><span className="fxlbl">{effect.auxInput.label}</span>
                                         <select className="sel xs grow" value={instance.auxSource === "depth" ? "__depth" : (instance.auxAssetId || "")} onChange={(e) => { const v = e.target.value; if (v === "__depth") patchStack({ auxSource: "depth", auxAssetId: undefined }); else patchStack({ auxSource: undefined, auxAssetId: v || undefined }); }}>
                                           <option value="">{effect.auxInput.optional ? "Source fallback" : "Choose asset…"}</option>
@@ -7532,6 +7557,8 @@ function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool,
   const timeRef = useRef(time); timeRef.current = time;
   const lutRef = useRef(cubeLut); lutRef.current = cubeLut;
   const auxRef = useRef(new Map());
+  // Rasterised text overlays, keyed by effect instance — redrawn only when the string changes.
+  const textAuxRef = useRef(new TextOverlayCache());
   useEffect(() => {
     const created = new Map();
     for (const instance of effects || []) {
@@ -7572,6 +7599,11 @@ function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool,
           if (instance.subjectMask) instance = { ...instance, maskElement: segmentSubjectLatest(video, 512, Math.max(2, Math.round(512 * srcH / srcW))) };
           if (instance.depthMask) { const d = estimateDepthLatest(video, 384, Math.max(2, Math.round(384 * srcH / srcW))); instance = { ...instance, maskElement: d ? depthRangeCanvas(d, instance.depthMask.near, instance.depthMask.far, instance.depthMask.feather) : null }; }
           if (instance.auxSource === "depth") { const d = estimateDepthLatest(video, 384, Math.max(2, Math.round(384 * srcH / srcW))); if (d) return { ...instance, auxElement: d }; }
+          // Text-as-input effects: rasterise the string for THIS frame, exactly as the export
+          // does, and hand over a blank texture when it is empty so the renderer never falls
+          // back to the source frame (which would read as full glyph coverage).
+          const textEffect = FX_EFFECTS.find((e) => e.id === instance.effectId)?.auxInput;
+          if (textEffect?.kind === "text") return { ...instance, auxElement: textAuxRef.current.resolve(instance.id, instance.textOverlay, { localT: timeRef.current, fps }, srcW, srcH) };
           if (instance.maskAssetId) { const m = auxRef.current.get(instance.id + ":mask"); if (m instanceof HTMLVideoElement && m.readyState >= 1 && Math.abs(m.currentTime - timeRef.current) > .08) m.currentTime = Math.min(timeRef.current, Math.max(0, (m.duration || timeRef.current) - .001)); if (m) instance = { ...instance, maskElement: m }; }
           const auxElement = auxRef.current.get(instance.id);
           if (auxElement instanceof HTMLVideoElement && auxElement.readyState >= 1 && Math.abs(auxElement.currentTime - timeRef.current) > .08) auxElement.currentTime = Math.min(timeRef.current, Math.max(0, (auxElement.duration || timeRef.current) - .001));
@@ -8909,6 +8941,12 @@ const CSS = `
 
 /* fx panel */
 .fxrow{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.fxtext{display:flex;flex-direction:column;gap:4px;margin:4px 0 7px;padding:6px;border-radius:6px;border:1px solid var(--w08);background:rgba(255,255,255,.02)}
+.fxtext textarea{width:100%;resize:vertical;min-height:34px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:1.4}
+.fxtext input[type=color]{width:26px;height:20px;padding:0;border:none;background:none;cursor:pointer}
+.fxtext input[type=number]{width:64px}
+.fxrow.tiny{font-size:10px;margin-bottom:0}
+.fxrow.dim{opacity:.55}
 .fxlbl{font-size:8px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--w40);width:56px;flex:none}
 .fxrow input[type=range]{flex:1;accent-color:#f97316;min-width:0}
 .fxval{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;font-size:9.5px;font-weight:700;color:#ccc;width:34px;text-align:right}

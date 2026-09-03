@@ -1,4 +1,5 @@
 import { FX_EFFECTS, FxEffect, FxPreset } from '../../components/plajahPixels/engine/fx/effects';
+import type { TextOverlaySpec } from './textOverlay';
 
 /** Portable, host-neutral instance stored by Fabula clips and translatable to OFX later. */
 export interface ForgeEffectInstance {
@@ -10,6 +11,10 @@ export interface ForgeEffectInstance {
   params: Record<string, number>;
   presetId?: string;
   auxAssetId?: string;
+  /** Where the aux texture comes from when it is not another asset. */
+  auxSource?: 'depth' | 'text';
+  /** Copy for effects whose aux input declares kind 'text'; the host rasterises it per frame. */
+  textOverlay?: TextOverlaySpec;
 }
 
 export function effectDefaults(effect: FxEffect): Record<string, number> {

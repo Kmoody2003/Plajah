@@ -32,6 +32,8 @@ import { materialShaderSource } from '../presets/materialShaders';
 import { SceneTimeline, RenderLayer, activeBlockAt, localTime } from '../timeline/sceneTimeline';
 import { normalizeVideoFrameRate, videoFrameTiming } from '../../../../services/videoFrameRate';
 import type { CubeLutData } from '../../../../services/fabula/cubeLut';
+import { getEffect } from '../fx/effects';
+import { TextOverlayCache } from '../../../../services/fabula/textOverlay';
 
 export interface RenderOptions {
   timeline?: SceneTimeline;              // single-track Pixels path (activeBlockAt)
@@ -203,6 +205,8 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
     return d;
   };
 
+  // Text-as-input overlays: rasterised once per distinct string, reused across frames.
+  const textAux = new TextOverlayCache();
   const gradeCanvases = new Map<string, HTMLCanvasElement>(); // per-layer graded-frame buffers (Fabula color page)
   const colorCanvases = new Map<string, HTMLCanvasElement>();
   const colorEl = (hex: string) => {
@@ -293,6 +297,12 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
             const maskEl = await getMedia(instance.maskUrl, instance.maskMediaType === 'video' ? 'video' : 'image');
             if (maskEl instanceof HTMLVideoElement) { const dur = maskEl.duration || 0; const seek = dur > 0 ? lt % dur : lt; if (fast) { try { maskEl.currentTime = seek; } catch { /* */ } } else await seekVideo(maskEl, seek); }
             instance = { ...instance, maskElement: maskEl };
+          }
+          const eff = getEffect(instance.effectId);
+          if (eff?.auxInput?.kind === 'text') {
+            // Text effects take a rasterised string, not an asset. Blank when empty — never the
+            // renderer's source-frame fallback, which would read as full glyph coverage.
+            return { ...instance, auxElement: textAux.resolve(instance.id, instance.textOverlay, { localT: lt, fps }, width, height) };
           }
           if (!instance.auxUrl) return instance;
           const auxElement = await getMedia(instance.auxUrl, instance.auxMediaType === 'video' ? 'video' : 'image');
