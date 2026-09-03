@@ -7557,15 +7557,21 @@ function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool,
     const tick = () => {
       raf = requestAnimationFrame(tick);
       const video = videoRef?.current;
-      if (!video || video.readyState < 2) return;
+      if (!video) return;
+      // A <video> reports readyState; an <img> reports complete/naturalWidth. Both can feed the
+      // compositor once they have pixels, so the preview accepts either.
+      const isVideo = typeof HTMLVideoElement !== "undefined" && video instanceof HTMLVideoElement;
+      if (isVideo ? video.readyState < 2 : !(video.complete && video.naturalWidth)) return;
+      const srcW = (isVideo ? video.videoWidth : video.naturalWidth) || 16;
+      const srcH = (isVideo ? video.videoHeight : video.naturalHeight) || 9;
       try {
         const trackCtx = { vectorTrack: clipFxRef.current?.vectorTrack, planarTrack: clipFxRef.current?.planarTrack, fps };
         const resolved = effectsRef.current.map((stored) => {
           // Same resolver as the export: track-bound params + rasterised mask for this frame.
-          let instance = resolveInstanceForFrame(stored, FX_EFFECTS.find((e) => e.id === stored.effectId), trackCtx, timeRef.current, { w: video.videoWidth || 16, h: video.videoHeight || 9 });
-          if (instance.subjectMask) instance = { ...instance, maskElement: segmentSubjectLatest(video, 512, Math.max(2, Math.round(512 * (video.videoHeight || 9) / (video.videoWidth || 16)))) };
-          if (instance.depthMask) { const d = estimateDepthLatest(video, 384, Math.max(2, Math.round(384 * (video.videoHeight || 9) / (video.videoWidth || 16)))); instance = { ...instance, maskElement: d ? depthRangeCanvas(d, instance.depthMask.near, instance.depthMask.far, instance.depthMask.feather) : null }; }
-          if (instance.auxSource === "depth") { const d = estimateDepthLatest(video, 384, Math.max(2, Math.round(384 * (video.videoHeight || 9) / (video.videoWidth || 16)))); if (d) return { ...instance, auxElement: d }; }
+          let instance = resolveInstanceForFrame(stored, FX_EFFECTS.find((e) => e.id === stored.effectId), trackCtx, timeRef.current, { w: srcW, h: srcH });
+          if (instance.subjectMask) instance = { ...instance, maskElement: segmentSubjectLatest(video, 512, Math.max(2, Math.round(512 * srcH / srcW))) };
+          if (instance.depthMask) { const d = estimateDepthLatest(video, 384, Math.max(2, Math.round(384 * srcH / srcW))); instance = { ...instance, maskElement: d ? depthRangeCanvas(d, instance.depthMask.near, instance.depthMask.far, instance.depthMask.feather) : null }; }
+          if (instance.auxSource === "depth") { const d = estimateDepthLatest(video, 384, Math.max(2, Math.round(384 * srcH / srcW))); if (d) return { ...instance, auxElement: d }; }
           if (instance.maskAssetId) { const m = auxRef.current.get(instance.id + ":mask"); if (m instanceof HTMLVideoElement && m.readyState >= 1 && Math.abs(m.currentTime - timeRef.current) > .08) m.currentTime = Math.min(timeRef.current, Math.max(0, (m.duration || timeRef.current) - .001)); if (m) instance = { ...instance, maskElement: m }; }
           const auxElement = auxRef.current.get(instance.id);
           if (auxElement instanceof HTMLVideoElement && auxElement.readyState >= 1 && Math.abs(auxElement.currentTime - timeRef.current) > .08) auxElement.currentTime = Math.min(timeRef.current, Math.max(0, (auxElement.duration || timeRef.current) - .001));
@@ -7846,7 +7852,14 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
   if (fx.fadeOut > 0 && tOut < fx.fadeOut) fade = Math.min(fade, Math.max(0, tOut / fx.fadeOut));
 
   const m = fx.matte;
-  const hasForge = active && asset?.type === "video" && (fx.stack.some((instance) => instance.enabled !== false) || !!activeCubeLut);
+  // Sampling a still into WebGL needs CORS; a host that refuses it would otherwise fail the
+  // image outright. Same fallback the audio graph uses: drop back to a plain element and show the
+  // picture unprocessed rather than showing nothing.
+  const [imgCors, setImgCors] = useState(true);
+  useEffect(() => { setImgCors(true); }, [asset?.url]);
+  const isStill = asset?.type === "image" || asset?.type === "graphic";
+  const forgeSource = asset?.type === "video" || (isStill && imgCors);
+  const hasForge = active && forgeSource && (fx.stack.some((instance) => instance.enabled !== false) || !!activeCubeLut);
   const clipPath = m.t === "rect"
     ? `inset(${Math.max(0, m.y - m.h / 2)}% ${Math.max(0, 100 - m.x - m.w / 2)}% ${Math.max(0, 100 - m.y - m.h / 2)}% ${Math.max(0, m.x - m.w / 2)}% round ${m.f}px)`
     : m.t === "ellipse" ? `ellipse(${m.w / 2}% ${m.h / 2}% at ${m.x}% ${m.y}%)` : "none";
@@ -7903,7 +7916,7 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
           </div>
         )}
         {asset?.url && asset.type === "lottie" && <LottieLayer url={asset.url} time={Math.max(0, playhead - clip.start + offset)} playing={playing && active} speed={clip.lottieSpeed || 1} loop={clip.lottieLoop !== false} />}
-        {asset?.url && (asset.type === "image" || asset.type === "graphic") && <img src={asset.url} className="mvid" alt="" />}
+        {asset?.url && isStill && <img key={imgCors ? "cors" : "plain"} ref={vRef} src={asset.url} className="mvid" alt="" style={hasForge ? { opacity: 0 } : undefined} crossOrigin={imgCors ? "anonymous" : undefined} onError={() => { if (imgCors) setImgCors(false); }} />}
         {asset && !asset.url && (
           <div className="sboard">
             <div className="sb-stripe gray" />
