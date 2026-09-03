@@ -35,6 +35,13 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust shell step 1 DONE 2026-09-02 (rust/fabula-ofx: dependency-free cdylib, generated src/manifest_gen.rs, describe / describe-in-context / passthrough render; `npm run ofx:check`). Step 2 = wgpu kernel execution |
 
 ## Done this run
+- (2026-09-03, continuation 11) USER-AUTHORED EFFECTS (`services/fabula/customEffects.ts`) — the S_Effect-style builder, the last unblocked backlog item. A LOOK applies a stack and steps aside, so editing it afterwards means editing every effect in it. A CUSTOM EFFECT keeps the chain but hides it behind controls the author names ("Grit", "Damage"), each wired to parameters across several steps at once, and appears in the library as one effect with its own sliders.
+- **It reaches the renderer by expanding into ordinary instances before anything else looks at the stack** (`expandStack`), called in the monitor tick and in `fabulaRender` ahead of the enabled-filter and the resolver. Nothing new arrives at the compositor, so parity is free — the same property that makes looks safe. Step instance ids derive from the parent (`<id>#<n>`) so temporal history, aux textures and rasterised masks stay keyed per step across frames.
+- `customEffectDescriptor` publishes the promoted controls as a registry-shaped `FxEffect`, which is what lets the inspector rows, the keyframe sampler and the track-binding resolver treat a user-built effect exactly like a built-in one with no special cases. Control→parameter mapping is a range remap; a target may narrow the range or invert it (min > max), which is how one knob raises noise while it lowers sharpness. Values are clamped to the PARAMETER's declared range, never the target's, so a badly authored target still cannot push a shader out of bounds.
+- Degrades rather than breaks: a step whose effect no longer exists is dropped without taking the chain with it, a control target whose parameter disappeared is ignored, and an instance whose definition was deleted drops out instead of throwing.
+- **Verified on the GPU:** a custom effect renders BYTE-IDENTICALLY to the explicit chain it stands for (same framebuffer hash), and moving a promoted control changes the picture. `tests/customEffects.test.ts` (25) added to `test:forge`, now 98 green; vectortrack 11 green.
+- UI: BUILD EFFECT beside SAVE AS LOOK captures the tuned stack; a promotion editor lists every parameter of every step and exposes the ones you pick, each keeping its current value as the control default so adding a knob never changes how the effect already looks. Definitions persist per browser like user looks.
+- **Known limit, deliberate:** promoted controls support keyframes and track links (both resolve in the shared resolver, before expansion) but NOT audio bindings, which resolve later inside the compositor against per-instance state. The Beat Reactor select is therefore not offered on custom-effect controls rather than being offered and quietly doing nothing.
 - (2026-09-03, continuation 10) TEXT AS AN EFFECT INPUT — closes three backlog items with one mechanism instead of three one-offs. The gap behind "VHS status text", "Universe HUD text variants" and W3b's open counters was the same: no way to get a string into a shader. Rather than build a glyph atlas, the host rasterises the string into the effect's EXISTING aux texture (`services/fabula/textOverlay.ts`) and the shader treats it as coverage. Any future effect that declares an aux input can consume text for free.
 - `FxEffect.auxInput` gained `kind?: 'image' | 'text'`. Three effects declare it: **vhsstatus** (tape wobble, per-line jitter, chroma smear, dropouts chewing the glyphs), **hudreadout** (tint, scanlines, flicker, glow, and a darkened backing plate derived from the glow field so it stays legible over a busy shot) and **terminaltext** (phosphor, `temporal: true` so the previous OUTPUT decays into a real persistence trail). 178 effects total, all compiling.
 - **Tokens resolve per frame, from clip-local time only:** `{tc} {frame} {sec} {ms} {count} {count:start,step,pad} {date} {clock} {ampm}`. Date and clock read from a pinned `epochMs`, never `Date.now()` — a wall-clock burn-in would drift between the monitor and the export, which is exactly the parity rule this suite exists to hold. Unknown tokens pass through verbatim so a stray brace never eats someone's text.
@@ -82,9 +89,10 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 
 ## Backlog (remaining gaps vs the Boris/Red Giant catalog)
 (Looks now cover the "one click to a finished result" gap; effect-level parts are broadly complete.)
-S_Effect-style user-authored effect builder UI on the node graph, particle fluid dynamics (needs
-compute), PowerMesh (needs dense flow). DONE 2026-09-03: VHS status text, HUD text variants and
-counters, all via the text aux input (services/fabula/textOverlay.ts).
+Remaining are all infrastructure-blocked: particle fluid dynamics (needs compute), PowerMesh
+(needs dense optical flow), Crossover SAM2 tracked mattes (no server endpoint). DONE 2026-09-03:
+VHS status text, HUD text variants and counters via the text aux input
+(services/fabula/textOverlay.ts); user-authored effects (services/fabula/customEffects.ts).
 
 ## GLSL compile sweep (browser)
 ```js

@@ -35,6 +35,7 @@ import { createForgeTransition } from "../../services/fabula/forgeTransitions";
 import { instantiateLook, lookFromStack, saveUserLook, LOOK_CATEGORIES } from "../../services/fabula/forgeLooks";
 import { AUDIO_SOURCES } from "../plajahPixels/engine/fx/audioReact";
 import { TextOverlayCache } from "../../services/fabula/textOverlay";
+import { expandStack, customLookup, customEffectDescriptor, isCustomEffectId, bareCustomId, createCustomInstance, customFromStack, promoteControl, validateCustomEffect, loadCustomEffects, saveCustomEffect, deleteCustomEffect } from "../../services/fabula/customEffects";
 import { masterAnalyser } from "../../services/fabula/audioGraph";
 import { parseCubeLut } from "../../services/fabula/cubeLut";
 import { createVectorTrack, stabilizationAt, trackPoint, upsertTrackSample, grayFromRgba } from "../../services/fabula/vectorTrack";
@@ -1711,6 +1712,37 @@ export default function Fabula() {
     saveUserLook(lookFromStack(stack, name, valid, `${stack.length} effects saved from ${clip.label || "a clip"}.`));
     ping(`◈ "${name}" saved to LOOKS`);
   };
+  // ── user-built effects ────────────────────────────────────────────────────────────────────
+  // A look applies a stack and steps aside; a custom effect keeps the chain but hides it behind
+  // controls the author names, so it behaves like one effect in the library and the inspector.
+  const buildEffectFromStack = () => {
+    const clip = getSel(); const stack = clip ? ensureFx(clip).stack : [];
+    const usable = stack.filter((i) => i.enabled !== false && !isCustomEffectId(i.effectId));
+    if (!usable.length) { ping("Add some effects first, then build one of your own from them."); return; }
+    const name = (window.prompt("Name your effect", clip.label ? `${clip.label} FX` : "My Effect") || "").trim();
+    if (!name) return;
+    const built = customFromStack(stack, name, "stylize", `${usable.length} effects built from ${clip.label || "a clip"}.`);
+    setCustomDefs(saveCustomEffect(built));
+    setBuilderId(built.id);
+    ping(`✦ "${name}" built — promote the controls you want to expose`);
+  };
+  const updateBuilder = (next) => {
+    const errors = validateCustomEffect(next);
+    if (errors.length) { ping(errors[0]); return; }
+    setCustomDefs(saveCustomEffect(next));
+  };
+  const removeCustomEffect = (id, name) => {
+    if (!window.confirm(`Delete "${name}"? Clips already using it will lose the effect.`)) return;
+    setCustomDefs(deleteCustomEffect(id));
+    if (builderId === id) setBuilderId(null);
+    ping(`✕ "${name}" deleted`);
+  };
+  const addCustomEffect = (custom) => {
+    if (!selClipId) { ping("Select a clip first."); return; }
+    const current = ensureFx(getSel());
+    updateFx(selClipId, { stack: [...current.stack, createCustomInstance(custom, uid())] });
+    ping(`✦ ${custom.name} added to the Forge stack`);
+  };
   const addForgeTransition = (transitionId, presetId) => {
     if (!selClipId) { ping("Select the incoming clip at a cut first."); return; }
     try {
@@ -1746,6 +1778,8 @@ export default function Fabula() {
   const trackCancelRef = useRef(false);
   const [trackProgress, setTrackProgress] = useState(null); // { frame, total, confidence, note }
   const [surfaceEdit, setSurfaceEdit] = useState(false);     // dragging the surface corners on the monitor
+  const [customDefs, setCustomDefs] = useState(() => loadCustomEffects());   // user-built effects
+  const [builderId, setBuilderId] = useState(null);           // custom effect whose controls are being edited
   const [maskEdit, setMaskEdit] = useState(null);             // { clipId, instanceId } — editing a Forge mask on the monitor
   const placeSurface = () => {
     const clip = getSel(); if (!clip) { ping("Select a video clip first."); return; }
@@ -4766,9 +4800,60 @@ export default function Fabula() {
                               })()}
                               <div className="lbl" style={{ marginTop: 8 }}>FORGE STACK <span className="cap">NATIVE · ORDERED · NON-DESTRUCTIVE</span></div>
                               {!fx.stack.length && <div className="dim small">Add premium effects from Effects Library → Forge, or start from a LOOK.</div>}
-                              {fx.stack.length > 1 && <div className="btnrow" style={{ gap: 5, marginBottom: 6 }}><button className="minibtn" title="Save this whole stack to the LOOKS tab" onClick={saveStackAsLook}>◈ SAVE AS LOOK</button><span className="dim small mono">{fx.stack.length} effects</span></div>}
+                              {!!customDefs.length && (
+                                <div className="fxbuilt">
+                                  <div className="fxrow"><span className="fxlbl">YOUR EFFECTS</span></div>
+                                  {customDefs.map((custom) => (
+                                    <div key={custom.id} className="fxrow">
+                                      <button className="minibtn blue" title={custom.description || `${custom.steps.length} effects`} onClick={() => addCustomEffect(custom)}>+ {custom.name}</button>
+                                      <span className="dim small mono">{custom.steps.length}× · {custom.controls.length} ctrl</span>
+                                      <button className="minibtn" title="Choose which parameters this effect exposes" onClick={() => setBuilderId(builderId === custom.id ? null : custom.id)}>{builderId === custom.id ? "DONE" : "EDIT"}</button>
+                                      <button className="minibtn danger" title="Delete this effect" onClick={() => removeCustomEffect(custom.id, custom.name)}>✕</button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {(() => {
+                                // Promotion editor: pick the parameters this effect exposes. Each
+                                // promoted control keeps its current value as the default, so
+                                // adding a knob never changes how the effect already looks.
+                                const custom = customDefs.find((c) => c.id === builderId);
+                                if (!custom) return null;
+                                return (
+                                  <div className="fxbuilder">
+                                    <div className="fxrow"><span className="fxlbl">CONTROLS FOR</span><input className="inp xs grow" value={custom.name} onChange={(e) => updateBuilder({ ...custom, name: e.target.value })} /></div>
+                                    {!custom.controls.length && <div className="fxrow tiny dim">Nothing exposed yet — promote a parameter below and it becomes a slider on this effect.</div>}
+                                    {custom.controls.map((control, ci) => (
+                                      <div key={control.key} className="fxrow">
+                                        <input className="inp xs grow" value={control.label} title="What this control is called" onChange={(e) => updateBuilder({ ...custom, controls: custom.controls.map((c, i) => i === ci ? { ...c, label: e.target.value } : c) })} />
+                                        <span className="dim small mono">{control.targets.length} target{control.targets.length === 1 ? "" : "s"}</span>
+                                        <button className="minibtn danger" title="Remove this control" onClick={() => updateBuilder({ ...custom, controls: custom.controls.filter((_, i) => i !== ci) })}>✕</button>
+                                      </div>
+                                    ))}
+                                    <div className="fxrow tiny dim">Promote a parameter:</div>
+                                    {custom.steps.map((step, si) => {
+                                      const stepEffect = FX_EFFECTS.find((e) => e.id === step.effectId);
+                                      if (!stepEffect) return <div key={si} className="fxrow tiny dim">Step {si + 1}: {step.effectId} is no longer installed.</div>;
+                                      return (
+                                        <div key={si} className="fxrow wrap">
+                                          <span className="dim small mono" style={{ minWidth: 84 }}>{si + 1}. {stepEffect.name}</span>
+                                          {stepEffect.params.map((param) => {
+                                            const taken = custom.controls.some((c) => c.targets.some((t) => t.step === si && t.param === param.key));
+                                            return <button key={param.key} className={`minibtn ${taken ? "blue" : ""}`} title={taken ? "Already exposed" : `Expose ${param.label} as a control`} disabled={taken} onClick={() => updateBuilder(promoteControl(custom, si, param.key))}>{param.label}</button>;
+                                          })}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()}
+                              {fx.stack.length > 1 && <div className="btnrow" style={{ gap: 5, marginBottom: 6 }}><button className="minibtn" title="Save this whole stack to the LOOKS tab" onClick={saveStackAsLook}>◈ SAVE AS LOOK</button><button className="minibtn" title="Turn this stack into one effect with controls you name yourself" onClick={buildEffectFromStack}>⚒ BUILD EFFECT</button><span className="dim small mono">{fx.stack.length} effects</span></div>}
                               {fx.stack.map((instance, stackIndex) => {
-                                const effect = FX_EFFECTS.find((candidate) => candidate.id === instance.effectId);
+                                // A user-built effect has no shader of its own; its descriptor
+                                // publishes the promoted controls as ordinary parameters, so every
+                                // row below (sliders, keyframes, track links) works unchanged.
+                                const customDef = isCustomEffectId(instance.effectId) ? customDefs.find((c) => c.id === bareCustomId(instance.effectId)) : null;
+                                const effect = customDef ? customEffectDescriptor(customDef) : FX_EFFECTS.find((candidate) => candidate.id === instance.effectId);
                                 if (!effect) return null;
                                 const hasTracks = !!(fx.vectorTrack || fx.planarTrack);
                                 const patchStack = (patch) => {
@@ -7593,7 +7678,9 @@ function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool,
       const srcH = (isVideo ? video.videoHeight : video.naturalHeight) || 9;
       try {
         const trackCtx = { vectorTrack: clipFxRef.current?.vectorTrack, planarTrack: clipFxRef.current?.planarTrack, fps };
-        const resolved = effectsRef.current.map((stored) => {
+        // Expand user-built effects into their chain first; everything below sees only
+        // ordinary instances, exactly as the export does.
+        const resolved = expandStack(effectsRef.current, customLookup()).map((stored) => {
           // Same resolver as the export: track-bound params + rasterised mask for this frame.
           let instance = resolveInstanceForFrame(stored, FX_EFFECTS.find((e) => e.id === stored.effectId), trackCtx, timeRef.current, { w: srcW, h: srcH });
           if (instance.subjectMask) instance = { ...instance, maskElement: segmentSubjectLatest(video, 512, Math.max(2, Math.round(512 * srcH / srcW))) };
@@ -8947,6 +9034,11 @@ const CSS = `
 .fxtext input[type=number]{width:64px}
 .fxrow.tiny{font-size:10px;margin-bottom:0}
 .fxrow.dim{opacity:.55}
+.fxrow.wrap{flex-wrap:wrap}
+.fxbuilt,.fxbuilder{display:flex;flex-direction:column;gap:3px;margin:5px 0 7px;padding:6px;border-radius:6px;border:1px solid var(--w08);background:rgba(255,255,255,.02)}
+.fxbuilder{border-color:rgba(249,115,22,.35)}
+.fxbuilt .minibtn.blue,.fxbuilder .minibtn.blue{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inp.grow{flex:1;min-width:0}
 .fxlbl{font-size:8px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--w40);width:56px;flex:none}
 .fxrow input[type=range]{flex:1;accent-color:#f97316;min-width:0}
 .fxval{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;font-size:9.5px;font-weight:700;color:#ccc;width:34px;text-align:right}

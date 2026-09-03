@@ -26,6 +26,7 @@ import { stabilizationAt } from './fabula/vectorTrack';
 import { planarStabilizeAt, cornerPinAt } from './fabula/planarSequence';
 import { isIdentityMat3 } from './fabula/planarTrack';
 import { resolveInstanceForFrame } from './fabula/forgeBindings';
+import { expandStack, customLookup } from './fabula/customEffects';
 import { dynamicText } from './fabula/titleDynamic';
 import { getEffect } from '../components/plajahPixels/engine/fx/effects';
 
@@ -351,7 +352,9 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
           ...(emitHasGrade ? { grade: emitGrade } : {}),
           ...(glGrade ? { glGrade } : {}),
           ...(glGrades ? { glGrades } : {}),
-          ...(fx?.stack?.length ? { forgeEffects: fx.stack.filter((instance: any) => instance.enabled !== false).map((instance: any) => {
+          // User-built effects expand into their underlying chain BEFORE anything resolves, so
+          // the renderer only ever sees ordinary instances — same trick that makes looks safe.
+          ...(fx?.stack?.length ? { forgeEffects: expandStack(fx.stack, customLookup()).filter((instance: any) => instance.enabled !== false).map((instance: any) => {
             // Track-bound params + rasterised mask for THIS frame (same resolver as the monitor).
             const resolved = resolveInstanceForFrame(instance, getEffect(instance.effectId), { vectorTrack: fx.vectorTrack, planarTrack: fx.planarTrack, fps: format?.fps }, kfT, { w: format?.w || 1920, h: format?.h || 1080 });
             // Beat Reactor bindings ride along untouched; the compositor resolves them against
