@@ -76,4 +76,23 @@ describe('Fabula Forge effects', () => {
     const text = FX_EFFECTS.filter((effect) => effect.auxInput?.kind === 'text').map((effect) => effect.id);
     assert.deepEqual(text.sort(), ['hudreadout', 'terminaltext', 'vhsstatus']);
   });
+
+  it('starts the fragment effects in a no-op state, so dropping one on a clip changes nothing', () => {
+    // Shatter and Card Dance are driven by a single animated control. Their shaders return the
+    // input untouched at zero, and that is only a useful guarantee if the DEFAULT is zero —
+    // otherwise the clip breaks apart the moment the effect is added.
+    for (const [id, key] of [['shatterpieces', 'progress'], ['carddance', 'amount']] as const) {
+      const effect = FX_EFFECTS.find((e) => e.id === id);
+      assert.ok(effect, `${id} is not registered`);
+      const driver = effect!.params.find((p) => p.key === key);
+      assert.ok(driver, `${id} has no ${key} parameter`);
+      assert.equal(driver!.default, 0, `${id}.${key} must default to a no-op`);
+      assert.equal(driver!.min, 0);
+      assert.equal(createEffectInstance(id, undefined, `${id}-x`).params[key], 0);
+      // Every preset ships un-triggered too: a preset is a look, not a state part-way through.
+      for (const preset of effect!.presets || []) {
+        assert.equal(preset.params[key] ?? driver!.default, 0, `${id}/${preset.id} starts part-way through`);
+      }
+    }
+  });
 });
