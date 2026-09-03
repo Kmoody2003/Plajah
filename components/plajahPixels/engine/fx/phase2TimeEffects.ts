@@ -77,7 +77,7 @@ export const PHASE2_TIME_EFFECTS: FxEffect[] = [
       { id: 'spiral', name: 'Spiral', description: 'Each echo rotates and shrinks toward the centre.', params: { decay: .82, offsetX: 0, offsetY: 0, scale: .975, rotate: 3, hue: 0, mode: 2 } },
       { id: 'prism-multiples', name: 'Prism Multiples', description: 'Additive echoes stepping through hue.', params: { decay: .78, offsetX: 6, offsetY: -4, scale: 1, rotate: 0, hue: .12, mode: 1 } },
     ],
-    glsl: `vec4 fx(vec2 uv){ vec4 c=inp(uv); if(uDeltaT<=0.0) return c; vec2 q=uv-.5; float r=radians(P4); float cs=cos(r),sn=sin(r); q=mat2(cs,-sn,sn,cs)*q; q=q/P3+.5-vec2(P1,P2)/uResolution; vec4 p=prev(q); float inb=step(0.0,q.x)*step(q.x,1.0)*step(0.0,q.y)*step(q.y,1.0); vec3 e=p.rgb*P0*inb; if(abs(P5)>1e-4){vec3 h=rgb2hsv(e);h.x=fract(h.x+P5);e=hsv2rgb(h);} float ea=p.a*P0*inb; vec3 o; if(P6<.5){ o=mix(e,c.rgb,c.a); } else if(P6<1.5){ o=c.rgb+e; } else { o=c.rgb+e-c.rgb*e; } return vec4(clamp(o,0.0,1.0),max(c.a,ea)); }`,
+    glsl: `vec4 fx(vec2 uv){ vec4 c=inp(uv); if(uDeltaT<=0.0) return c; vec2 q=uv-.5; float r=radians(P4); float cs=cos(r),sn=sin(r); q=mat2(cs,-sn,sn,cs)*q; q=q/P3+.5-vec2(P1,P2)/uResolution; vec4 p=prev(q); float inb=step(0.0,q.x)*step(q.x,1.0)*step(0.0,q.y)*step(q.y,1.0); vec3 e=p.rgb*P0*inb; if(abs(P5)>1e-4){vec3 h=rgb2hsv(e);h.x=fract(h.x+P5);e=hsv2rgb(h);} float ea=p.a*P0*inb; vec3 o; if(P6<.5){ vec3 over=mix(e,c.rgb,c.a); o=mix(over,max(c.rgb,e),step(0.999,c.a)); } else if(P6<1.5){ o=c.rgb+e; } else { o=c.rgb+e-c.rgb*e; } return vec4(clamp(o,0.0,1.0),max(c.a,ea)); }`,
   }),
   T({
     id: 'temporalblur', name: 'Temporal Blur', version: 1,

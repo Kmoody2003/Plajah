@@ -107,7 +107,7 @@ export const PHASE3_BACKLOG_EFFECTS: FxEffect[] = [
       { id: 'quantum', name: 'Quantum Trails', description: 'Long streaks and fast flow.', params: { intensity: 1.2, threshold: .55, scale: 5, speed: 1.4, streak: 50, hueA: .6, hueB: .1 } },
       { id: 'ember-fi', name: 'Ember Fi', description: 'Warm slow glow.', params: { intensity: .6, threshold: .35, scale: 2, speed: .2, streak: 8, hueA: .05, hueB: .12 } },
     ],
-    glsl: K + `vec4 fx(vec2 uv){ vec4 b=inp(uv); vec2 px=1.0/uResolution; vec3 acc=vec3(0.0); float w=0.0; for(int i=-6;i<=6;i++){ float k=float(i)/6.0; vec3 s=inp(uv+vec2(k*P4*px.x,0.0)).rgb; float g=exp(-k*k*2.0); acc+=max(s-P2,0.0)*g; w+=g; } acc/=w; float n=bfbm(uv*P2+vec2(uTime*P3*0.3,uTime*P3*0.17)); vec3 col=mix(bhue(P5),bhue(P6),n); vec3 glow=acc*col*P0*2.2*(0.5+n); vec3 o=b.rgb+glow-b.rgb*glow*0.4; return vec4(clamp(o,0.0,1.0),b.a); }`,
+    glsl: K + `vec4 fx(vec2 uv){ vec4 b=inp(uv); vec2 px=1.0/uResolution; vec3 acc=vec3(0.0); float w=0.0; for(int i=-6;i<=6;i++){ float k=float(i)/6.0; vec3 s=inp(uv+vec2(k*P4*px.x,0.0)).rgb; float g=exp(-k*k*2.0); acc+=max(s-P1,0.0)*g; w+=g; } acc/=w; float n=bfbm(uv*P2+vec2(uTime*P3*0.3,uTime*P3*0.17)); vec3 col=mix(bhue(P5),bhue(P6),n); vec3 glow=acc*col*P0*2.2*(0.5+n); vec3 o=b.rgb+glow-b.rgb*glow*0.4; return vec4(clamp(o,0.0,1.0),b.a); }`,
   }),
   d({
     id: 'heatwave', name: 'Heatwave', version: 1,
