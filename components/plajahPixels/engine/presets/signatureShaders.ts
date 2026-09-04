@@ -1,7 +1,15 @@
 // signatureShaders.ts — the Plajah Pixels Signature Series.
 //
-// Sixty original audio-reactive shaders in five series, generated from the
+// Ninety-five original audio-reactive shaders in six series, generated from the
 // showcase gallery so the two cannot drift apart. Do not hand-edit: regenerate.
+//
+// Series VI (works 61–95) adds three volumes: Flux/Ignition (plasma & fluid),
+// Refraction/Crystalline (glass & crystal), and Axiom/Manifold (mathematics &
+// topology). All use the same SIGNATURE_KIT preamble as Series I–IV.
+
+import { SERIES_VI_FLUX } from './seriesVI_flux';
+import { SERIES_VI_PRISM } from './seriesVI_prism';
+import { SERIES_VI_THEOREM } from './seriesVI_theorem';
 //
 // Every work is Shadertoy-convention GLSL (`void mainImage(out vec4, in vec2)`)
 // and compiles as a drop-in string through the existing ShaderLayer /
@@ -596,6 +604,10 @@ export const SIGNATURE_WORKS: SignatureWork[] = [
     reacts: [["sub","Height of the bodies"],["low","Warmth of the low sun"],["pres","The second sun; the sky"],["sib","Specular on stone"],["air","Dust in the low light"],["voice","Raises a column of light behind the horizon"]],
     body: "// MERIDIAN — the surrealist plane from Series I, now with the plane actually\n// there. It is a real mirror: the reflection is a second march of the same\n// scene, not a flipped copy, so the bodies occlude each other correctly in it\n// and the horizon takes the sky. Two suns, because one would be a landscape.\n// The camera dollies forward for four minutes and does nothing else.\n#define TAU 6.28318531\n\nvec3 bodyPos(int i, float t){\n  float fi = float(i);\n  return vec3(-2.9 + fi*1.45,\n              1.05 + 0.30*sin(t*0.21 + fi*1.9) + SPEC(0.006 + fi*0.075)*0.35,\n              0.6 + sin(fi*2.3)*1.1);\n}\nvec2 map(vec3 p){\n  vec2 res = vec2(p.y, 1.0);                       // the plane\n  float t = iTime*0.35;\n  for (int i = 0; i < 5; i++){\n    float r = 0.34 + float(i)*0.055;\n    res = opU(res, vec2(sdSphere(p - bodyPos(i, t), r), 2.0 + float(i)));\n  }\n  // The doorway with nothing behind it.\n  vec3 dq = p - vec3(4.6, 1.55, -1.2);\n  dq.xz = r2(-0.35)*dq.xz;\n  float frame = sdRoundBox(dq, vec3(0.62, 1.55, 0.10), 0.03);\n  frame = max(frame, -sdBox(dq, vec3(0.44, 1.30, 0.5)));\n  res = opU(res, vec2(frame, 8.0));\n  return res;\n}\n\nvec3 skyOf(vec3 rd, vec3 s1, vec3 s2, float pres, float voice){\n  float up = clamp(rd.y*0.5 + 0.5, 0.0, 1.0);\n  vec3 c = ramp(vec3(0.52,0.28,0.22), vec3(0.20,0.17,0.30), vec3(0.030,0.035,0.105), up);\n  c = mix(c, mix(c, vec3(1.00,0.80,0.62), 0.35), pres*0.5);\n  c += vec3(1.00,0.72,0.42)*pow(max(dot(rd, s1), 0.0), 20.0)*0.40;\n  c += vec3(1.00,0.86,0.62)*pow(max(dot(rd, s1), 0.0), 3000.0)*5.0;\n  c += vec3(0.62,0.78,1.00)*pow(max(dot(rd, s2), 0.0), 60.0)*(0.25 + pres*0.65);\n  c += vec3(0.85,0.92,1.00)*pow(max(dot(rd, s2), 0.0), 6000.0)*4.0;\n  // Stars, faint, in the upper sky. Two suns and stars: the impossible bit.\n  vec2 sg = floor(rd.xz/max(abs(rd.y) + 0.05, 0.05)*46.0);\n  c += step(0.9965, h21(sg))*smoothstep(0.25, 0.75, rd.y)*(0.25 + voice*0.9)*vec3(0.9,0.93,1.0);\n  return c;\n}\n\nvec3 shade(vec3 pos, vec3 n, vec3 rd, float id, vec3 s1, vec3 s2, Aud a){\n  vec3 v = -rd;\n  vec3 c1 = vec3(1.00,0.78,0.50)*(1.4 + comp(a.low, 0.30)*1.0);\n  vec3 c2 = vec3(0.55,0.72,1.00)*(0.8 + a.pres*1.1);\n  float ao = calcAO(pos, n);\n  float sh1 = softShadow(pos + n*0.01, s1, 0.03, 14.0, 8.0);\n  float sh2 = softShadow(pos + n*0.01, s2, 0.03, 14.0, 8.0);\n\n  float idx = clamp(id - 2.0, 0.0, 4.0);\n  float e = SPEC(0.006 + idx*0.075);\n  vec3 albedo = id == 8.0 ? vec3(0.06,0.06,0.08)\n              : mix(vec3(0.72,0.70,0.68), ramp(vec3(0.30,0.55,1.00), vec3(0.85,0.45,1.00),\n                                               vec3(1.00,0.80,0.45), idx*0.25), 0.35 + e*0.45);\n  float rough = 0.42;\n  float grain = triNoise(pos*6.0, n, 5.0);\n  albedo *= 0.85 + grain*0.30;\n\n  vec3 col = albedo*(c1*max(dot(n, s1), 0.0)*sh1 + c2*max(dot(n, s2), 0.0)*sh2);\n  col += albedo*vec3(0.30,0.34,0.52)*(0.35 + 0.65*max(n.y, 0.0))*ao*0.55;\n  col += c1*ggx(n, v, s1, rough)*sh1*(0.55 + a.sib*1.4);\n  col += c2*ggx(n, v, s2, rough)*sh2*(0.35 + a.sib*1.0);\n  // Each body glows a little from within, on its own bin.\n  if (id >= 2.0 && id <= 6.0)\n    col += ramp(vec3(0.30,0.55,1.00), vec3(0.85,0.45,1.00), vec3(1.00,0.80,0.45), idx*0.25)\n         * pow(e, 1.5)*1.5;\n  col *= 0.30 + 0.70*ao;\n  return col;\n}\n\nvoid mainImage(out vec4 o, in vec2 C){\n  Aud a = plajahAudio(); float pu = plajahPunch();\n  vec2 uv = (C - 0.5*iResolution.xy)/iResolution.y;\n  float t = iTime*(0.22 + iParam0*0.28);\n\n  vec3 ro = vec3(sin(t*0.05)*0.6, 1.25 + sin(t*0.037)*0.10, -6.2 + t*0.35);\n  vec3 ta = vec3(0.4, 1.05, 1.0 + t*0.35);\n  mat3 cm = camera(ro, ta, sin(t*0.031)*0.012);\n  vec3 rd = cm*normalize(vec3(uv, 1.6 - iParam1*0.30));\n\n  vec3 s1 = normalize(vec3(-0.72, 0.075, 0.68));\n  vec3 s2 = normalize(vec3( 0.62, 0.42, 0.66));\n\n  vec3 col;\n  vec2 h = raymarch(ro, rd, 60.0);\n  if (h.y > 0.0){\n    vec3 pos = ro + rd*h.x;\n    vec3 n = calcNormal(pos);\n    if (h.y == 1.0){\n      // The plane: polished, so what you see is a second march of the scene.\n      vec3 rr = reflect(rd, n);\n      vec3 rc;\n      vec2 rh = raymarch(pos + n*0.02, rr, 46.0);\n      if (rh.y > 0.0){\n        vec3 rp = pos + n*0.02 + rr*rh.x;\n        rc = shade(rp, calcNormal(rp), rr, rh.y, s1, s2, a);\n        rc = mix(rc, skyOf(rr, s1, s2, a.pres, a.voice), 1.0 - exp(-rh.x*rh.x*0.0016));\n      } else {\n        rc = skyOf(rr, s1, s2, a.pres, a.voice);\n      }\n      // Not a perfect mirror: it has a stone floor under the polish.\n      float grain = triNoise(pos*2.2, n, 3.0);\n      vec3 base = mix(vec3(0.055,0.050,0.062), vec3(0.11,0.10,0.12), grain);\n      float fr = fresnel(max(dot(n, -rd), 0.0), 0.05);\n      col = mix(base*0.55, rc, clamp(fr*8.0, 0.05, 0.92));\n      // Long shadows across it, which is what tells you the suns are low.\n      col *= 0.35 + 0.65*softShadow(pos + n*0.02, s1, 0.05, 18.0, 6.0);\n    } else {\n      col = shade(pos, n, rd, h.y, s1, s2, a);\n    }\n    col = mix(col, skyOf(rd, s1, s2, a.pres, a.voice), 1.0 - exp(-h.x*h.x*0.0011));\n  } else {\n    col = skyOf(rd, s1, s2, a.pres, a.voice);\n  }\n\n  // Vocals raise a column of light behind the horizon and align the bodies.\n  float colBeam = exp(-abs(uv.x - 0.06)*(9.0 - a.voice*3.5))*smoothstep(-0.35, 0.55, uv.y);\n  col += vec3(1.00,0.90,0.70)*a.voice*(0.55 + iParam2*0.75)*colBeam*0.85;\n  // Dust in the low light.\n  vec2 dg = floor(uv*200.0 + vec2(t*0.7, -t*0.3));\n  col += step(0.9975 - a.air*0.005, h21(dg))*(0.20 + a.air*1.1)*vec3(1.00,0.94,0.86);\n  col += vec3(1.0)*pu*0.016;\n\n  col = aces(col*0.90);\n  col *= 1.0 - smoothstep(0.60, 1.30, length(uv))*0.34;\n  o = vec4(pow(col, vec3(0.4545)), 1.0);\n}",
   },
+  // ── Series VI: Flux, Ignition, Refraction, Crystalline, Axiom, Manifold ──
+  ...SERIES_VI_FLUX,
+  ...SERIES_VI_PRISM,
+  ...SERIES_VI_THEOREM,
 ];
 
 /** Full, self-contained source for a work: preamble(s) + body. */
@@ -664,5 +676,41 @@ export const SIGNATURE_SETS: { id: string; series: string; title: string; blurb:
     "series": "V",
     "title": "Stillpoint",
     "blurb": "Six held. A room with one opening, a raked garden, a brass orrery — mostly a locked camera and light doing the work."
+  },
+  {
+    "id": "flux",
+    "series": "VI",
+    "title": "Flux",
+    "blurb": "Six tranquil. Abyssal bioluminescence, aurora nebulae, tidal caustics, mercury chrome, sumi-e ink wash, and ember convection — domain-warped fluid dynamics that breathe."
+  },
+  {
+    "id": "ignition",
+    "series": "VI",
+    "title": "Ignition",
+    "blurb": "Six detonated. Supernova plasma, cyberpunk vortex, electromagnetic storm, magma convection, solar chromosphere, and acid neon rain — energetic volumetric phenomena."
+  },
+  {
+    "id": "refraction",
+    "series": "VI",
+    "title": "Refraction",
+    "blurb": "Six raymarched. Spectral dispersion, molten glass, shatter lattice, lens array, bending monolith, and diamond fire — real geometry through real glass."
+  },
+  {
+    "id": "crystalline",
+    "series": "VI",
+    "title": "Crystalline",
+    "blurb": "Six frozen and lit. Ice cathedral pillars, stained rose window, fiber optics, liquid crystal phase, frosted aurora, and tesla discharge — light trapped in structure."
+  },
+  {
+    "id": "axiom",
+    "series": "VI",
+    "title": "Axiom",
+    "blurb": "Six proven. Quantum orbitals, Lorenz chaos, Calabi-Yau manifold, Kerr singularity, Penrose tiling, and Euler spirals — mathematics made visible and audible."
+  },
+  {
+    "id": "manifold",
+    "series": "VI",
+    "title": "Manifold",
+    "blurb": "Five topological. Julia storms, Klein twists, Riemann zeta landscapes, golden spirals, and Rössler folds — surfaces that cannot exist in three dimensions."
   }
 ];
