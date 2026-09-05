@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { estimateShaderCost, estimateEffectCost, tierFor, COST_THRESHOLDS } from '../services/fabula/effectCost';
+import { estimateShaderCost, estimateEffectCost, tierFor, COST_THRESHOLDS, stackCost, effectCostById } from '../services/fabula/effectCost';
 import { FX_EFFECTS, getEffect } from '../components/plajahPixels/engine/fx/effects';
 
 const score = (glsl: string) => estimateShaderCost(glsl).score;
@@ -95,3 +95,47 @@ describe('Cost tiers', () => {
     assert.ok(heavy < FX_EFFECTS.length * 0.12, `${heavy} of ${FX_EFFECTS.length} effects flagged heavy`);
   });
 });
+
+describe('Stack cost aggregation', () => {
+  const glslOf = (id: string) => { const e = getEffect(id); if (!e) throw new Error(`missing ${id}`); return e; };
+
+  it('sums the loop-weighted score of every effect in the stack', () => {
+    const invert = estimateEffectCost(glslOf('invert')).score;
+    const blur = estimateEffectCost(glslOf('problur')).score;
+    const total = stackCost([glslOf('invert'), glslOf('problur')]);
+    assert.equal(total.entries.length, 2);
+    assert.ok(Math.abs(total.score - (invert + blur)) < 1e-6, `stack total should be the sum, got ${total.score}`);
+  });
+
+  it('a stack of moderate effects reads heavier than any one of them', () => {
+    // The whole reason to show a stack total: five things that are each "fine on their own" are
+    // not fine together, and the per-effect badge cannot say so.
+    const one = stackCost([glslOf('problur')]);
+    const many = stackCost([glslOf('problur'), glslOf('problur'), glslOf('problur'), glslOf('problur'), glslOf('problur'), glslOf('problur')]);
+    assert.ok(many.score > one.score * 5.5, 'six blurs must cost about six blurs');
+    assert.ok(many.score > one.score, 'the total must exceed a single step');
+  });
+
+  it('names the heaviest step and counts the heavy ones', () => {
+    const total = stackCost([glslOf('invert'), glslOf('terrain3d'), glslOf('problur')]);
+    assert.equal(total.heaviest?.effectId, 'terrain3d', 'the raymarcher is the one to disable first');
+    assert.equal(total.heavyCount, 1, 'only terrain3d is individually heavy here');
+    assert.ok(total.entries.map(e => e.effectId).includes('invert'));
+  });
+
+  it('skips broken references instead of throwing mid-render', () => {
+    // A custom effect a lookup could not resolve, or a disabled step, arrives as null.
+    const total = stackCost([glslOf('invert'), null, undefined, glslOf('problur')]);
+    assert.equal(total.entries.length, 2, 'nulls are skipped, not counted');
+    assert.equal(stackCost([]).score, 0);
+    assert.equal(stackCost([null, undefined]).tier, 'light');
+  });
+
+  it('memoises per effect id — same object, same cost, no re-parse cost drift', () => {
+    const a = effectCostById(glslOf('terrain3d'));
+    const b = effectCostById(glslOf('terrain3d'));
+    assert.strictEqual(a, b, 'a second read of the same id returns the cached object');
+    assert.deepEqual(a, estimateEffectCost(glslOf('terrain3d')));
+  });
+});
+

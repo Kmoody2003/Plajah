@@ -198,6 +198,59 @@ export function estimateEffectCost(effect: { glsl?: string; passes?: { glsl: str
   return { score, samples, transcendentals, maxLoopWeight, tier: tierFor(score) };
 }
 
+/**
+ * Per-effect cost, memoised by id. An effect's shader never changes at runtime, so the same id
+ * always yields the same estimate; the inspector re-reads the whole stack on every render, and
+ * re-parsing every shader each time is wasted work. Callers that have an id should use this.
+ */
+const _costCache = new Map<string, EffectCost>();
+export function effectCostById(effect: { id: string; glsl?: string; passes?: { glsl: string }[] }): EffectCost {
+  const hit = _costCache.get(effect.id);
+  if (hit) return hit;
+  const cost = estimateEffectCost(effect);
+  _costCache.set(effect.id, cost);
+  return cost;
+}
+
+export interface StackCostEntry { effectId: string; cost: EffectCost }
+export interface StackCost {
+  /** Summed loop-weighted score across every enabled effect in the stack. */
+  score: number;
+  /** Tier of the TOTAL — five moderate effects should read heavy, which is the whole point. */
+  tier: CostTier;
+  /** Per-effect breakdown, in stack order. */
+  entries: StackCostEntry[];
+  /** The single most expensive step, if any — what to disable first. */
+  heaviest?: StackCostEntry;
+  /** How many individual effects are themselves in the heavy tier. */
+  heavyCount: number;
+}
+
+/**
+ * Cost of a whole stack. The caller passes the effects a stack RESOLVES to — enabled only, with
+ * any custom effect already expanded into its built-in steps (both hosts expand before rendering,
+ * so passing the pre-expansion stack would undercount). Keeping this module dependency-free means
+ * the caller does the registry lookup and the expansion; this only sums.
+ *
+ * A custom effect that a lookup could not resolve, or a disabled step, is passed as null/undefined
+ * and skipped — a broken reference costs nothing rather than throwing mid-render.
+ */
+export function stackCost(effects: Array<{ id: string; glsl?: string; passes?: { glsl: string }[] } | null | undefined>): StackCost {
+  const entries: StackCostEntry[] = [];
+  let score = 0, heavyCount = 0;
+  let heaviest: StackCostEntry | undefined;
+  for (const effect of effects) {
+    if (!effect) continue;
+    const cost = effectCostById(effect);
+    const entry: StackCostEntry = { effectId: effect.id, cost };
+    entries.push(entry);
+    score += cost.score;
+    if (cost.tier === 'heavy') heavyCount++;
+    if (!heaviest || cost.score > heaviest.cost.score) heaviest = entry;
+  }
+  return { score, tier: tierFor(score), entries, heaviest, heavyCount };
+}
+
 export const TIER_LABEL: Record<CostTier, string> = { light: '', moderate: 'HEAVY', heavy: 'VERY HEAVY' };
 
 export const TIER_HINT: Record<CostTier, string> = {

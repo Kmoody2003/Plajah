@@ -36,7 +36,7 @@ import { instantiateLook, lookFromStack, saveUserLook, LOOK_CATEGORIES } from ".
 import { AUDIO_SOURCES } from "../plajahPixels/engine/fx/audioReact";
 import { TextOverlayCache } from "../../services/fabula/textOverlay";
 import { meshAuxElement, createMeshSequence, meshReferenceSample, trackMeshFrame, upsertMeshSample, meshTrackedRange } from "../../services/fabula/meshTrack";
-import { estimateEffectCost, TIER_LABEL, TIER_HINT } from "../../services/fabula/effectCost";
+import { estimateEffectCost, stackCost, TIER_LABEL, TIER_HINT } from "../../services/fabula/effectCost";
 import { expandStack, customLookup, customEffectDescriptor, isCustomEffectId, bareCustomId, createCustomInstance, customFromStack, promoteControl, validateCustomEffect, loadCustomEffects, saveCustomEffect, deleteCustomEffect } from "../../services/fabula/customEffects";
 import { masterAnalyser } from "../../services/fabula/audioGraph";
 import { parseCubeLut } from "../../services/fabula/cubeLut";
@@ -4905,7 +4905,17 @@ export default function Fabula() {
                                   </div>
                                 );
                               })()}
-                              {fx.stack.length > 1 && <div className="btnrow" style={{ gap: 5, marginBottom: 6 }}><button className="minibtn" title="Save this whole stack to the LOOKS tab" onClick={saveStackAsLook}>◈ SAVE AS LOOK</button><button className="minibtn" title="Turn this stack into one effect with controls you name yourself" onClick={buildEffectFromStack}>⚒ BUILD EFFECT</button><span className="dim small mono">{fx.stack.length} effects</span></div>}
+                              {fx.stack.length > 1 && <div className="btnrow" style={{ gap: 5, marginBottom: 6 }}><button className="minibtn" title="Save this whole stack to the LOOKS tab" onClick={saveStackAsLook}>◈ SAVE AS LOOK</button><button className="minibtn" title="Turn this stack into one effect with controls you name yourself" onClick={buildEffectFromStack}>⚒ BUILD EFFECT</button><span className="dim small mono">{fx.stack.length} effects</span>{(() => {
+                                // Stack total, not per-effect: five things each "fine on their own"
+                                // are not fine together, and the per-effect badges cannot say so.
+                                // Expand custom effects and drop disabled ones — the same stack the
+                                // compositor actually renders — then sum.
+                                const resolved = expandStack(fx.stack.filter((i) => i.enabled !== false), customLookup()).map((i) => FX_EFFECTS.find((e) => e.id === i.effectId));
+                                const total = stackCost(resolved);
+                                if (total.tier === "light") return null;
+                                const worst = total.heaviest && FX_EFFECTS.find((e) => e.id === total.heaviest.effectId);
+                                return <span className={`fxcost ${total.tier}`} title={`Estimated total for this stack of ${resolved.filter(Boolean).length} effects.${worst ? ` Heaviest: ${worst.name} — disable it first if the preview slows.` : ""}`}>STACK · {TIER_LABEL[total.tier]}</span>;
+                              })()}</div>}
                               {fx.stack.map((instance, stackIndex) => {
                                 // A user-built effect has no shader of its own; its descriptor
                                 // publishes the promoted controls as ordinary parameters, so every

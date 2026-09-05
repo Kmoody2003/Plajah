@@ -35,6 +35,34 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust shell step 1 DONE 2026-09-02 (rust/fabula-ofx: dependency-free cdylib, generated src/manifest_gen.rs, describe / describe-in-context / passthrough render; `npm run ofx:check`). Step 2 = wgpu kernel execution |
 
 ## Done this run
+- (2026-09-05, continuation 19) STACK-LEVEL COST TOTAL — the last of the two "unblocked ideas" the
+  log left for a continuation. The per-effect cost badge already warned that a raymarcher is not a
+  colour tweak, but it could not say the thing that actually bites: five effects each labelled
+  "fine on their own" are not fine together. `stackCost()` in `services/fabula/effectCost.ts` sums
+  the loop-weighted score across a stack and tiers the TOTAL, so six moderate blurs read heavy even
+  though no single one does.
+- **The stack it sums is the stack the compositor renders, not the stored one.** The inspector
+  passes `expandStack(enabled-only, customLookup())` mapped to registry effects, so a custom effect
+  is counted as the built-in steps it expands into (a user effect hiding four raymarchers must not
+  read as one cheap step) and a disabled step costs nothing. A broken/deleted reference arrives as
+  null and is skipped, never thrown — a dangling id costs nothing rather than crashing mid-render.
+- `effectCostById()` memoises per effect id: an effect's shader never changes at runtime, and the
+  inspector re-reads the whole stack every render, so re-parsing each shader every frame was waste.
+  Kept the module dependency-free — the caller does the registry lookup and the expansion, this
+  only sums — so nothing new couples to `effects.ts` or `customEffects.ts`.
+- UI: a `STACK · HEAVY / VERY HEAVY` badge beside the "N effects" line in the FX inspector, shown
+  only for a 2+ stack whose total clears light; its tooltip names the heaviest step to disable
+  first. Same `fxcost` class and tier words as the per-effect badge, so the two read as one system.
+- `tests/effectCost.test.ts` +5 (16 total): the sum matches, a repeated effect scales, the heaviest
+  is named and heavy effects counted, nulls are skipped, and the per-id cache returns the same
+  object. `test:forge` 149 green; `test:vectortrack` 11 green; esbuild clean on effectCost.ts and
+  Fabula.jsx. Not driven in the browser — reaching a 2+ stack in the live editor headlessly is not
+  practical, and the aggregation is a pure, unit-tested function rendered exactly like the existing
+  per-effect badge.
+- NOTE for the next continuation: the OTHER unblocked idea (preview-resolution scaling when a
+  stack's cost is high) is now the more useful one, since `stackCost().score` gives the trigger it
+  needs — but heed the caution already logged: pixel-unit effects (scanlines, grain) look different
+  at reduced size, so it must be explicit and labelled, never silent, to keep monitor==export.
 - (2026-09-04, continuation 18) PARTICLES WITH STATE (`phase4ParticleStateEffects.ts`): **particleforge**. 186 effects. This closes the last item that the persistent state buffers made reachable.
 - The suite already had particle FIELDS (phase3ParticleEffects), but those are closed form: every frame recomputes where a particle "would" be from a hash and the clock, so nothing that happens to a particle can persist. It cannot be pushed, slowed, born or killed — only follow the formula it was always going to follow. Each particle now owns two texels in the effect's `state` buffers and integrates the forces acting on it, so a gust is still visible in its motion seconds later and a particle that runs out of life is genuinely replaced.
 - **Precision is the whole design constraint, and it is why the effect declares TWO buffers.** The buffers are 8-bit; a position in one byte moves in 0.4%-of-frame steps, which reads as a stutter. Position therefore takes two channels per axis as 16-bit fixed point in state0; velocity is coarser but only feeds an integration, so its quantisation never shows directly. Three passes: position → state0, velocity → state1, then the visible draw.
@@ -177,7 +205,7 @@ Unblocked ideas if a continuation wants one:
   exists to drive it). CAUTION: effects that read `uResolution` — scanlines, grain, anything in
   pixel units — look different at a reduced preview size, so this trades against the monitor==export
   ground rule. Make it explicit and labelled, not silent.
-- A stack-level cost total in the inspector (the per-effect badge is already there).
+- A stack-level cost total in the inspector — DONE 2026-09-05 (continuation 19).
 
 Integration verified 2026-09-03: one export exercising a keyframed parameter, a shape-masked
 effect, a tokenised text overlay and a user-built effect together produced a valid MP4 at ~3.7x the
