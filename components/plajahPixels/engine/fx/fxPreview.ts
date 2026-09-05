@@ -1,21 +1,23 @@
-// fxPreview.ts — a single shared GL engine that renders live, animated thumbnail
-// previews of the real FX library, so the FX page shows what an effect DOES
-// instead of a generic gradient chip.
+// fxPreview.ts — the shared live-preview engine behind the app's animated
+// thumbnail galleries (Fabula FX + looks + transitions + generators, and Plajah
+// Pixels shaders + generators). It is the universal preview primitive.
 //
-// One WebGL2 context runs the same FxRenderer the timeline uses, over an animated
-// reference scene (fxReference.referenceSource), and presents each effect into a
-// per-tile 2D canvas via drawImage — the same "one context → many canvases"
-// pattern the shader gallery uses, so hundreds of tiles never hit the browser's
-// ~16 live-context cap. Only on-screen tiles (IntersectionObserver) render, at a
-// ~30fps budget, and the loop sleeps when the tab is hidden or nothing is visible.
+// One WebGL2 context runs the real renderers (FxRenderer / ShaderRenderer /
+// GeneratorRenderer / ForgeTransitionRenderer) and presents each into a per-tile
+// 2D canvas via drawImage — the "one context → many canvases" pattern, so
+// hundreds of tiles never hit the browser's ~16 live-context cap. Only on-screen
+// tiles (IntersectionObserver) render, at a ~30fps budget, and the loop sleeps
+// when the tab is hidden or nothing is visible.
 import { FxRenderer } from './fxRenderer';
 import { AudioTexture } from '../core/audioTexture';
 import { GeneratorRenderer, hasGenerator } from '../core/generators';
+import { ShaderRenderer } from '../core/shaderRenderer';
 import { ForgeTransitionRenderer } from './transitionRenderer';
 import { createGL, createProgram, createFullscreenQuad, makeSourceTexture, uploadElement, type GL } from '../core/glUtil';
 import { referenceSource } from './fxReference';
 
 const PW = 320, PH = 180; // internal render size; tiles downscale from this
+const MAX_PER_FRAME = 10; // cap GPU work per frame; extra visible tiles render round-robin
 
 const VS = `#version 300 es
 layout(location=0) in vec2 aPos; out vec2 vUv; void main(){ vUv = aPos*0.5+0.5; gl_Position = vec4(aPos,0.0,1.0); }`;
@@ -24,11 +26,12 @@ precision highp float; in vec2 vUv; out vec4 o; uniform sampler2D uTex; void mai
 
 export interface FxPreviewTileRef {
   canvas: HTMLCanvasElement; visible: boolean;
-  kind?: 'fx' | 'gen' | 'trans' | 'look'; // default 'fx'
-  effectId?: string; params?: number[];    // fx (P0..Pn) / gen (iParam0..3)
+  kind?: 'fx' | 'gen' | 'trans' | 'look' | 'shader'; // default 'fx'
+  effectId?: string; params?: number[];    // fx (P0..Pn) / gen (iParam0..3) / shader (iParam0..3)
   mode?: string; colors?: number[][];      // gen
   transId?: string; transParams?: Record<string, number>; // trans
   look?: { effectId: string; params: number[]; mix?: number }[]; // look = resolved effect stack
+  shaderSrc?: string;                       // shader (generative GLSL: void mainImage(out vec4, in vec2))
 }
 
 class FxPreviewEngine {
@@ -36,6 +39,7 @@ class FxPreviewEngine {
   private glCanvas!: HTMLCanvasElement;
   private renderer!: FxRenderer;
   private gen?: GeneratorRenderer;
+  private shader?: ShaderRenderer;
   private trans?: ForgeTransitionRenderer;
   private audio!: AudioTexture;
   private srcTex!: WebGLTexture;
@@ -44,7 +48,7 @@ class FxPreviewEngine {
   private srcCanvas2!: HTMLCanvasElement;
   private blit!: WebGLProgram; private quad!: WebGLVertexArrayObject; private uTex!: WebGLUniformLocation | null;
   private tiles = new Set<FxPreviewTileRef>();
-  private raf = 0; private t0 = 0; private lastFrame = 0;
+  private raf = 0; private t0 = 0; private lastFrame = 0; private rr = 0;
   private freq = new Uint8Array(256); private wave = new Uint8Array(256);
   private failed = false;
 
@@ -84,14 +88,24 @@ class FxPreviewEngine {
     const gl = this.gl; if (!gl) return;
     const time = (now - this.t0) / 1000;
 
-    const visible = [...this.tiles].filter(t => t.visible && t.canvas.isConnected);
-    if (!visible.length) return; // nothing on screen — idle (RAF still armed, but no GPU work)
+    const allVisible = [...this.tiles].filter(t => t.visible && t.canvas.isConnected);
+    if (!allVisible.length) return; // nothing on screen — idle (RAF still armed, but no GPU work)
+    // Budget: render at most MAX_PER_FRAME tiles per frame, round-robin, so a dense
+    // grid of heavy shaders degrades to a lower per-tile fps instead of stalling.
+    let visible = allVisible;
+    if (allVisible.length > MAX_PER_FRAME) {
+      const start = this.rr % allVisible.length;
+      visible = [];
+      for (let i = 0; i < MAX_PER_FRAME; i++) visible.push(allVisible[(start + i) % allVisible.length]);
+      this.rr = (this.rr + MAX_PER_FRAME) % allVisible.length;
+    }
 
     // One animated source frame + synthetic audio, shared by every tile this frame.
     // referenceSource returns a NEW canvas unless the one passed already matches PW×PH,
     // so capture the return — otherwise the first frame uploads a blank canvas forever.
-    this.srcCanvas = referenceSource(PW, PH, Math.floor(time * 24), this.srcCanvas);
-    uploadElement(gl, this.srcTex, this.srcCanvas);
+    // The reference source is only needed by tiles that transform a source (fx/look/trans).
+    const needSrc = visible.some(t => !t.kind || t.kind === 'fx' || t.kind === 'look' || t.kind === 'trans');
+    if (needSrc) { this.srcCanvas = referenceSource(PW, PH, Math.floor(time * 24), this.srcCanvas); uploadElement(gl, this.srcTex, this.srcCanvas); }
     // A visibly different "incoming" frame, only needed when a transition tile is on screen.
     const needTrans = visible.some(t => t.kind === 'trans');
     if (needTrans) { this.srcCanvas2 = referenceSource(PW, PH, Math.floor(time * 24) + 47, this.srcCanvas2); uploadElement(gl, this.srcTex2, this.srcCanvas2); }
@@ -107,6 +121,9 @@ class FxPreviewEngine {
         if (tile.kind === 'gen' && tile.mode && hasGenerator(tile.mode)) {
           if (!this.gen) this.gen = new GeneratorRenderer(gl);
           out = this.gen.render('fxprev:' + tile.mode, tile.mode, PW, PH, { time, audio: this.audio, colors: tile.colors || [], params: tile.params || [] });
+        } else if (tile.kind === 'shader' && tile.shaderSrc) {
+          if (!this.shader) this.shader = new ShaderRenderer(gl);
+          out = this.shader.render('fxprev:shader:' + (tile.effectId || ''), tile.shaderSrc, PW, PH, { time, audio: this.audio, params: tile.params || [] });
         } else if (tile.kind === 'trans' && tile.transId) {
           if (!this.trans) this.trans = new ForgeTransitionRenderer(gl);
           const progress = Math.sin(time * 1.4) * 0.5 + 0.5; // ping-pong so both directions read
