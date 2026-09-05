@@ -15,7 +15,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FX_EFFECTS } from "../plajahPixels/engine/fx/effects";
-import FxPreviewTile, { GenPreviewTile, TransPreviewTile } from "./FxPreviewTile";
+import FxPreviewTile, { GenPreviewTile, TransPreviewTile, LookPreviewTile } from "./FxPreviewTile";
 import { FORGE_TRANSITIONS } from "../../services/fabula/forgeTransitions";
 import { FORGE_LOOKS, LOOK_CATEGORIES, allLooks, deleteUserLook } from "../../services/fabula/forgeLooks";
 import { FABULA_LOTTIE_LIBRARY, fabulaLottieAsMediaAsset } from "../../services/fabulaLottieLibrary";
@@ -80,18 +80,18 @@ export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onApplyLook, on
               ))}
               <span className="dim small mono">{looks.filter((l) => lookCat === "all" || l.category === lookCat).length}/{looks.length}</span>
             </div>
-            {looks.filter((look) => lookCat === "all" || look.category === lookCat).map((look) => (
-              <div key={look.id} className="forgefx" style={{ marginBottom: 8 }}>
-                <div className="fxrow">
-                  <button className="fxrowbtn grow" disabled={!selClipId} onClick={() => onApplyLook(look)} title={look.description}>
-                    <span className="fxdot">◈</span><span className="fxrowname">{look.name}</span><span className="dim small">{look.steps.length} FX</span>
+            <div className="fxgrid">
+              {looks.filter((look) => lookCat === "all" || look.category === lookCat).map((look) => (
+                <div key={look.id} style={{ position: "relative" }}>
+                  <button className="fxcard" disabled={!selClipId} onClick={() => onApplyLook(look)} title={`${look.name} — ${look.description}`}>
+                    <LookPreviewTile look={look} className="fxthumb" />
+                    <span className="fxname">{look.name}</span>
+                    <span className="dim small mono" style={{ fontSize: 8, opacity: .6 }}>{look.steps.length} FX · {look.steps.map((s) => s.effectId).join(" › ")}</span>
                   </button>
-                  {!look.builtIn && <button className="minibtn danger" title="Delete this saved look" onClick={() => setLooks(() => { deleteUserLook(look.id); return allLooks(); })}>✕</button>}
+                  {!look.builtIn && <button className="minibtn danger" style={{ position: "absolute", top: 4, right: 4, fontSize: 8, padding: "1px 5px" }} title="Delete this saved look" onClick={() => setLooks(() => { deleteUserLook(look.id); return allLooks(); })}>✕</button>}
                 </div>
-                <div className="dim small" style={{ padding: "2px 2px 0" }}>{look.description}</div>
-                <div className="dim small mono" style={{ padding: "2px 2px 0", opacity: .7 }}>{look.steps.map((s) => s.effectId).join(" › ")}</div>
-              </div>
-            ))}
+              ))}
+            </div>
           </>
         )}
         {tab === "forge" && (

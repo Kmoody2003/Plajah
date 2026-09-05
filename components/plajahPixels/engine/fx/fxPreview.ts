@@ -24,10 +24,11 @@ precision highp float; in vec2 vUv; out vec4 o; uniform sampler2D uTex; void mai
 
 export interface FxPreviewTileRef {
   canvas: HTMLCanvasElement; visible: boolean;
-  kind?: 'fx' | 'gen' | 'trans';        // default 'fx'
-  effectId?: string; params?: number[]; // fx (P0..Pn) / gen (iParam0..3)
-  mode?: string; colors?: number[][];   // gen
+  kind?: 'fx' | 'gen' | 'trans' | 'look'; // default 'fx'
+  effectId?: string; params?: number[];    // fx (P0..Pn) / gen (iParam0..3)
+  mode?: string; colors?: number[][];      // gen
   transId?: string; transParams?: Record<string, number>; // trans
+  look?: { effectId: string; params: number[]; mix?: number }[]; // look = resolved effect stack
 }
 
 class FxPreviewEngine {
@@ -110,6 +111,14 @@ class FxPreviewEngine {
           if (!this.trans) this.trans = new ForgeTransitionRenderer(gl);
           const progress = Math.sin(time * 1.4) * 0.5 + 0.5; // ping-pong so both directions read
           out = this.trans.render(this.srcTex, this.srcTex2, PW, PH, { id: tile.transId, progress, time, params: tile.transParams });
+        } else if (tile.kind === 'look' && tile.look?.length) {
+          // A look is a stack: chain each effect onto the previous output, honouring per-step mix.
+          let tex: WebGLTexture = this.srcTex;
+          for (let i = 0; i < tile.look.length; i++) {
+            const st = tile.look[i];
+            tex = this.renderer.render('fxprev:look:' + (tile.effectId || '') + ':' + i, st.effectId, st.params, tex, PW, PH, { time, audio: this.audio }, undefined, st.mix != null ? { mix: st.mix } : undefined);
+          }
+          out = tex;
         } else {
           out = this.renderer.render('fxprev:' + tile.effectId, tile.effectId!, tile.params || [], this.srcTex, PW, PH, { time, audio: this.audio });
         }
