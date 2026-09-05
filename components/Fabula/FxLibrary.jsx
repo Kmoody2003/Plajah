@@ -15,7 +15,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FX_EFFECTS } from "../plajahPixels/engine/fx/effects";
-import FxPreviewTile from "./FxPreviewTile";
+import FxPreviewTile, { GenPreviewTile, TransPreviewTile } from "./FxPreviewTile";
 import { FORGE_TRANSITIONS } from "../../services/fabula/forgeTransitions";
 import { FORGE_LOOKS, LOOK_CATEGORIES, allLooks, deleteUserLook } from "../../services/fabula/forgeLooks";
 import { FABULA_LOTTIE_LIBRARY, fabulaLottieAsMediaAsset } from "../../services/fabulaLottieLibrary";
@@ -137,7 +137,7 @@ export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onApplyLook, on
                 <div className="fxgrid" style={{ marginTop: 5 }}>
                   {transition.presets.map((preset) => (
                     <button key={preset.id} className="fxcard" disabled={!selClipId} onClick={() => onAddTransition(transition.id, preset.id)} title={transition.description}>
-                      <span className="fxthumb gen" style={{ background: "linear-gradient(120deg,#24174b 0 46%,#ff8c42 54% 100%)" }}>⇄</span>
+                      <TransPreviewTile transId={transition.id} transParams={preset.params} className="fxthumb" />
                       <span className="fxname">{preset.name}</span>
                     </button>
                   ))}
@@ -165,7 +165,7 @@ export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onApplyLook, on
             <div className="fxgrid">
               {GENERATOR_LIST.map(([mode, name], i) => (
                 <button key={mode} className="fxcard" onClick={() => onInsertGenerator(mode, name)} title={`Insert ${name} generator`}>
-                  <span className="fxthumb gen" style={{ background: `radial-gradient(circle at 30% 30%, ${GEN_TINTS[i % GEN_TINTS.length]}, #0a0a12 75%)` }}>▶</span>
+                  <GenPreviewTile mode={mode} className="fxthumb" />
                   <span className="fxname">{name}</span>
                 </button>
               ))}
