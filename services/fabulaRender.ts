@@ -438,7 +438,7 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
     for (const c of titleClips) {
       if (!(t >= c.start && t < c.start + c.duration)) continue;
       // titler overrides (font/color/size/position) ride along so the export matches the monitor
-      out.push({ id: `title:${c.id}`, clip: { type: 'title', text: dynamicText(c.text, t - c.start, c.tDynamic, c.duration), subtitle: c.subtitle, titleStyle: c.titleStyle, tFont: c.tFont, tColor: c.tColor, tSubColor: c.tSubColor, tSize: c.tSize, tx: c.tx, ty: c.ty, tAnim: c.tAnim, tDur: c.duration, tGraphic: c.tGraphic, tag: c.tag, rawText: c.text } as any, blendMode: c.tGraphic ? 'normal' : 'screen', opacity: 1, time: t - c.start });
+      out.push({ id: `title:${c.id}`, clip: { type: 'title', text: dynamicText(c.text, t - c.start, c.tDynamic, c.duration), subtitle: c.subtitle, titleStyle: c.titleStyle, tFont: c.tFont, tColor: c.tColor, tSubColor: c.tSubColor, tSize: c.tSize, tx: c.tx, ty: c.ty, tAnim: c.tAnim, tDur: c.duration, tGraphic: c.tGraphic, bGraphic: c.bGraphic, tag: c.tag, rawText: c.text } as any, blendMode: (c.tGraphic || c.bGraphic) ? 'normal' : 'screen', opacity: 1, time: t - c.start });
     }
     return out;
   };

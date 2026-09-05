@@ -29,6 +29,7 @@ import { AudioDriverSampler } from '../audioDrivers';
 import { getTextCanvas } from './textLayer';
 import { getTitleCanvas } from './titleLayer';
 import { getLowerThirdCanvas } from './lowerThirdLayer';
+import { getBroadcastGraphicCanvas, ensureBroadcastGraphic } from './broadcastGraphicLayer';
 import { findLowerThird } from '../../../../services/fabula/lowerThirdRegistry';
 import { materialShaderSource } from '../presets/materialShaders';
 import { SceneTimeline, RenderLayer, activeBlockAt, localTime } from '../timeline/sceneTimeline';
@@ -387,6 +388,15 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
             inputs.push({ texture: tex, opacity: opacity * fusion.opacity, blendMode: fusion.blend, transform: layer.transform, homography: (layer as any).homography });
           }
           inputs.push({ element: getLowerThirdCanvas({ spec, ref: tc.tGraphic, title: tc.rawText ?? clip.text ?? '', subtitle: clip.subtitle, tag: tc.tag, t: layer.time ?? 0, duration: tc.tDur ?? Infinity, origin: tc.tx != null && tc.ty != null ? { x: tc.tx, y: tc.ty } : undefined, width, height }), opacity, blendMode: 'normal', transform: layer.transform, homography: (layer as any).homography });
+        } else if (clip.type === 'title' && (clip as any).bGraphic) {
+          // Broadcast template graphic — the identity's held still + a deterministic motion
+          // envelope, same renderer as Fabula's monitor. Rasterize the still once (with the
+          // pack's fonts embedded), then the frame is a cheap enveloped draw.
+          const tc = clip as any;
+          const texts = { title: tc.rawText ?? clip.text ?? '', subtitle: clip.subtitle };
+          await ensureBroadcastGraphic(tc.bGraphic, texts);
+          const cnv = getBroadcastGraphicCanvas({ ref: tc.bGraphic, title: texts.title, subtitle: texts.subtitle, t: layer.time ?? 0, duration: tc.tDur ?? Infinity, width, height });
+          if (cnv) inputs.push({ element: cnv, opacity, blendMode: 'normal', transform: layer.transform, homography: (layer as any).homography });
         } else if (clip.type === 'title' && clip.text) {
           const tc = clip as any; // Fabula titler overrides ride along on the clip
           inputs.push({ element: getTitleCanvas(clip.text, clip.subtitle, clip.titleStyle, clip.fillColor, { font: tc.tFont, color: tc.tColor, subColor: tc.tSubColor, size: tc.tSize, x: tc.tx, y: tc.ty }, { anim: tc.tAnim, t: layer.time ?? 0, duration: tc.tDur }), opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });

@@ -56,7 +56,6 @@ import { Compositor as PixelsCompositor } from "../plajahPixels/engine/core/comp
 import NodeGraphEditor from "./NodeGraphEditor";
 import DataVizBuilder from "./DataVizBuilder";
 import BroadcastSystemsLibrary from "./BroadcastSystemsLibrary";
-import { broadcastTemplateDataUrl } from "../../services/fabula/broadcastTemplateFactory";
 import TelaChart from "../tela/TelaChart";
 import ColorScopes from "./ColorScopes";
 import GradePreview from "./GradePreview";
@@ -95,6 +94,7 @@ import { CREATIVE_LOOKS, DEFAULT_PHOTO_ADJUSTMENTS, photoAdjustmentsToEffects } 
 import LowerThirdMonitor from "./LowerThirdMonitor";
 import LowerThirdGallery from "./LowerThirdGallery";
 import LowerThirdInspector from "./LowerThirdInspector";
+import BroadcastGraphicMonitor from "./BroadcastGraphicMonitor";
 import { findLowerThird } from "../../services/fabula/lowerThirdRegistry";
 import { openLowerThirdInTela } from "../../services/fabula/lowerThirdToTela";
 
@@ -3131,6 +3131,25 @@ export default function Fabula() {
     updateProd((p) => { ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
     setClips(nc); setSelClipId(clip.id);
   };
+  // Broadcast template graphic as a duration-aware timeline clip. Like a lower third it
+  // carries a reference (pack + format + control overrides); the monitor and export share
+  // one renderer and the entrance/exit is driven by the clip's own duration — drag the clip
+  // handles and the animation retimes. The identity's held still is rasterized once; a
+  // deterministic motion envelope (services/fabula/graphicMotion) animates it.
+  const addBroadcastGraphic = (template) => {
+    const sid = subTrackId();
+    const dur = Math.max(1.5, (template.durationMs || 6000) / 1000);
+    const clip = { id: uid(), trackId: sid, start: playhead, duration: dur, kind: "title",
+      text: template.controls?.title || template.packName || template.name,
+      subtitle: template.controls?.subtitle || "",
+      bGraphic: { packId: template.packId, kind: template.kind, controls: template.controls },
+      label: `${template.name}`, srcIn: 0, fx: { ...SUB_FX, blend: "normal", fadeIn: 0, fadeOut: 0 } };
+    const nc = [...clips, clip];
+    updateProd((p) => { ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
+    setClips(nc); setSelClipId(clip.id);
+    ping(`${template.name} placed on the timeline — drag the clip handles to set its duration.`);
+  };
+
   // Motion lower third: a title clip carrying a tGraphic (template id + overrides). The
   // monitor + export share one canvas renderer, so the template stays editable and exact.
   const addLowerThird = (spec) => {
@@ -4483,6 +4502,9 @@ export default function Fabula() {
                           return <LowerThirdMonitor key={tc.id} clip={tc} playhead={playhead} selected={selClipId === tc.id} onSelect={() => setSelClipId(tc.id)}
                             onMove={(tx, ty, commit) => { setClips((cur) => { const n = cur.map((c) => (c.id === tc.id ? { ...c, tx: Math.round(tx * 10) / 10, ty: Math.round(ty * 10) / 10 } : c)); if (commit) commitClips(n); return n; }); }} />;
                         }
+                        if (tc.bGraphic) {
+                          return <BroadcastGraphicMonitor key={tc.id} clip={tc} playhead={playhead} selected={selClipId === tc.id} onSelect={() => setSelClipId(tc.id)} />;
+                        }
                         const cls = tc.titleStyle || "modern";
                         const x = tc.tx != null ? tc.tx : (cls === "classic" ? 50 : 12);
                         const y = tc.ty != null ? tc.ty : 78;
@@ -4671,7 +4693,17 @@ export default function Fabula() {
                             <div className="dim small">Duration, position on the timeline and the FX stack below work like any title clip. IN plays from the clip start, OUT ends at the clip end — trim the clip to retime the whole graphic.</div>
                           </>
                         )}
-                        {selClip.kind === "title" && !selClip.tGraphic && (
+                        {selClip.kind === "title" && selClip.bGraphic && (
+                          <>
+                            <div className="insp-div" />
+                            <div className="lbl">BROADCAST GRAPHIC · {String(selClip.bGraphic.kind || "").replace("_", " ")}</div>
+                            <input className="in" value={selClip.text || ""} placeholder="Title…" onChange={(e) => updateClip(selClip.id, { text: e.target.value, label: e.target.value.slice(0, 40) })} />
+                            <div className="lbl" style={{ marginTop: 6 }}>SUBTITLE</div>
+                            <input className="in" value={selClip.subtitle || ""} placeholder="Secondary line…" onChange={(e) => updateClip(selClip.id, { subtitle: e.target.value })} />
+                            <div className="dim small">A broadcast identity placed on the timeline. Its entrance and exit are driven by the clip's duration — drag the clip handles to retime the animation. Reopen the Broadcast Systems panel to add a different identity or format.</div>
+                          </>
+                        )}
+                        {selClip.kind === "title" && !selClip.tGraphic && !selClip.bGraphic && (
                           <>
                             <div className="insp-div" />
                             <div className="lbl">TITLE</div>
@@ -7074,7 +7106,7 @@ export default function Fabula() {
                           )}
                           {vfxTab === "lottie" && <LottieBuilder onAddToPool={addLottieBlobToPool} />}
                           {vfxTab === "data" && <DataVizBuilder ping={ping} onAddToPool={(chart,nm) => { const asset={id:uid(),name:nm+' (data)',type:'graphic',generated:true,duration:8,bin:'data motion',chart};updateProd(p=>{p.mediaPool.push(asset)}); }} />}
-                          {vfxTab === "systems" && <BroadcastSystemsLibrary ping={ping} onAddTemplate={(template, url) => { const asset={id:uid(),name:template.name,type:'image',generated:true,duration:template.durationMs/1000,bin:'broadcast systems',url:url||broadcastTemplateDataUrl(template),broadcastTemplate:template};updateProd(p=>{p.mediaPool.push(asset)}); }} />}
+                          {vfxTab === "systems" && <BroadcastSystemsLibrary ping={ping} onAddTemplate={(template) => addBroadcastGraphic(template)} />}
                           {vfxTab === "capture" && <PerformCapture onTake={addTakeToPool} ping={ping} />}
                         </div>
                       </div>
