@@ -40,7 +40,7 @@ async function hydrateDocSamples(doc: GrooveDoc): Promise<void> {
   const refs = [
     ...doc.kit.filter((p) => p.sample).map((p) => p.sample!),
     ...doc.arrangement.flatMap((t) => t.clips.filter((c) => c.audio).map((c) => ({
-      key: c.audio!.sampleKey, name: c.audio!.name, durationSec: c.audio!.durationSec,
+      key: c.audio!.sampleKey, name: c.audio!.name, durationSec: c.audio!.durationSec, lockerUrl: c.audio!.lockerUrl,
     }))),
   ];
   await Promise.all(refs.map(async (ref) => {

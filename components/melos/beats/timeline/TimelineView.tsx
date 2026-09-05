@@ -455,7 +455,9 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
         audio: { sampleKey: result.ref.key, name, offsetSec: 0, gainDb: 0, durationSec: result.buffer.duration },
       });
     });
-    void backupToLocker(result.ref);
+    void backupToLocker(result.ref).then((lockerUrl) => {
+      if (lockerUrl) p.onMutate((d) => { const c = d.arrangement.find((t) => t.id === trackId)?.clips.find((x) => x.audio?.sampleKey === result.ref.key); if (c?.audio) c.audio.lockerUrl = lockerUrl; });
+    });
   }, [p.onMutate, p.doc.bpm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Drop audio onto empty space → one NEW labelled audio track per file, at the drop point. The
@@ -480,7 +482,6 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
       const result = await ingestSample(file, name, ctx);
       if (!result) continue;
       engine.setSampleBuffer(result.ref.key, result.buffer);
-      void backupToLocker(result.ref);
       made.push({ name, key: result.ref.key, dur: result.buffer.duration, peaks: audioPeaks(result.buffer), bpm: detectTempo(result.buffer) });
       setIngest({ done: fileIdx + 1, total: audio.length, name: file.name });
     }
@@ -497,6 +498,9 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
           }],
         });
       });
+    });
+    for (const m of made) void backupToLocker({ key: m.key, name: m.name, durationSec: m.dur }).then((lockerUrl) => {
+      if (lockerUrl) p.onMutate((d) => { for (const t of d.arrangement) for (const c of t.clips) if (c.audio?.sampleKey === m.key) c.audio.lockerUrl = lockerUrl; });
     });
     const tempos = made.map((m) => m.bpm).filter((x): x is number => x !== null);
     if (made.length > 1 && tempos.length === made.length && Math.max(...tempos) - Math.min(...tempos) <= 1) {

@@ -135,6 +135,8 @@ export interface TimelineClip {
   notes?: NoteEvent[];
   audio?: { sampleKey: string; name: string; offsetSec: number; gainDb: number;
             durationSec: number; stretch?: number /* simple linear rate only */;
+            /** Durable private-locker fallback for reopening on another device. */
+            lockerUrl?: string;
             /** Downsampled channel peak envelope used by every timeline renderer. */
             peaks?: number[]; detectedBpm?: number };
 }

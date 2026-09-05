@@ -55,7 +55,7 @@ export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose, docked = 
   const projectRows: Row[] = useMemo(() => {
     const out: Row[] = [];
     doc.kit.forEach((pad) => { if (pad.source === 'sample' && pad.sample) out.push({ id: `p:pad:${pad.id}`, kind: 'sample', name: pad.sample.name, source: 'project', ref: { sampleKey: pad.sample.key, lockerUrl: pad.sample.lockerUrl }, tags: ['pad'], category: 'Samples' }); });
-    for (const t of doc.arrangement) for (const c of t.clips) if (c.audio) out.push({ id: `p:clip:${c.id}`, kind: 'audio', name: c.audio.name, source: 'project', ref: { sampleKey: c.audio.sampleKey }, tags: ['clip'], category: 'Audio files' });
+    for (const t of doc.arrangement) for (const c of t.clips) if (c.audio) out.push({ id: `p:clip:${c.id}`, kind: 'audio', name: c.audio.name, source: 'project', ref: { sampleKey: c.audio.sampleKey, lockerUrl: c.audio.lockerUrl }, tags: ['clip'], category: 'Audio files' });
     for (const t of doc.arrangement) if (t.kind === 'instrument' && t.instrument) out.push({ id: `p:inst:${t.id}`, kind: 'instrument', name: t.name, source: 'project', ref: { presetName: t.instrument.presetName }, tags: [t.instrument.type], category: 'Instruments' });
     return out;
   }, [doc]);

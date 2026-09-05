@@ -701,7 +701,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         { id: 'copy', label: 'Save a copy', onSelect: handleSaveCopy },
         'sep',
         { id: 'open-melos', label: 'Open Melos Project…', hint: '.melos', onSelect: () => melosFileRef.current?.click() },
-        { id: 'save-melos', label: 'Save Melos Project', hint: '.melos', onSelect: () => { exportGrooveFile(doc); } },
+        { id: 'save-melos', label: 'Save Melos Project', hint: '.melos + audio', onSelect: () => { void exportGrooveFile(doc); } },
         'sep',
         { id: 'import-song', label: 'Import Melos Song…', hint: '.dawproject', onSelect: () => dawFileRef.current?.click() },
         { id: 'export-song', label: 'Export Melos Song', hint: '.dawproject', disabled: !!busy, onSelect: () => { void handleExportDawproject(); } },
@@ -868,7 +868,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                 <FilePlus2 size={10} /> Save a copy
               </button>
               <div className="flex gap-1 px-1 pb-1.5 mb-1 border-b border-white/10">
-                <button onClick={() => { exportGrooveFile(doc); }} className="flex-1 h-7 rounded-lg text-[10px] border border-white/12 text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-center gap-1.5" title="Save this groove as a local .melos file">
+                <button onClick={() => { void exportGrooveFile(doc); }} className="flex-1 h-7 rounded-lg text-[10px] border border-white/12 text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-center gap-1.5" title="Save this groove and its audio as a portable .melos file">
                   <Download size={10} /> Save as file
                 </button>
                 <button onClick={() => melosFileRef.current?.click()} className="flex-1 h-7 rounded-lg text-[10px] border border-white/12 text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-center gap-1.5" title="Open a .melos file as a new groove">
