@@ -15,6 +15,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FX_EFFECTS } from "../plajahPixels/engine/fx/effects";
+import FxPreviewTile from "./FxPreviewTile";
 import { FORGE_TRANSITIONS } from "../../services/fabula/forgeTransitions";
 import { FORGE_LOOKS, LOOK_CATEGORIES, allLooks, deleteUserLook } from "../../services/fabula/forgeLooks";
 import { FABULA_LOTTIE_LIBRARY, fabulaLottieAsMediaAsset } from "../../services/fabulaLottieLibrary";
@@ -106,14 +107,21 @@ export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onApplyLook, on
                 <button className="fxrowbtn" disabled={!selClipId} onClick={() => onAddForge(effect.id)} title={effect.summary || `Add ${effect.name}`}>
                   <span className="fxdot">✦</span><span className="fxrowname">{effect.name}</span><span className="dim small">ADD</span>
                 </button>
-                {!!effect.presets?.length && (
+                {!!effect.presets?.length ? (
                   <div className="fxgrid" style={{ marginTop: 5 }}>
                     {effect.presets.map((preset) => (
                       <button key={preset.id} className="fxcard" disabled={!selClipId} onClick={() => onAddForge(effect.id, preset.id)} title={preset.description}>
-                        <span className="fxthumb gen" style={{ background: "radial-gradient(circle at 36% 32%, rgba(255,190,112,.82), rgba(93,54,132,.46) 42%, #0a0a12 78%)" }}>✦</span>
+                        <FxPreviewTile effect={effect} preset={preset} className="fxthumb" />
                         <span className="fxname">{preset.name}</span>
                       </button>
                     ))}
+                  </div>
+                ) : (
+                  <div className="fxgrid" style={{ marginTop: 5 }}>
+                    <button className="fxcard" disabled={!selClipId} onClick={() => onAddForge(effect.id)} title={effect.summary || `Add ${effect.name}`}>
+                      <FxPreviewTile effect={effect} className="fxthumb" />
+                      <span className="fxname">Default</span>
+                    </button>
                   </div>
                 )}
               </div>
