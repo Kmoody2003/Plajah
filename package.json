@@ -116,7 +116,13 @@
     "vite": "^6.2.0"
   },
   "overrides": {
-    "node-domexception": "file:./mocks/node-domexception"
+    "node-domexception": "file:./mocks/node-domexception",
+    "qs": "^6.16.0",
+    "fast-uri": "^3.1.6",
+    "mysql2": "^3.22.0",
+    "three-stdlib": {
+      "fflate": "0.6.11"
+    }
   },
   "devDependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
