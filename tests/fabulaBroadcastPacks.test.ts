@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { FABULA_BROADCAST_PACKS, FABULA_COUNTERCULTURE_PACKS, FABULA_GLOBAL_PACKS, FABULA_IMAGE_MATTE_PACKS, FABULA_SPORTS_PACKS } from '../services/fabula/broadcastPacks';
 import { systemBoardSvg } from '../services/fabula/systemBoardSvg';
-import { FABULA_BROADCAST_TEMPLATES, renderBroadcastTemplateSvg, motifFor } from '../services/fabula/broadcastTemplateFactory';
+import { FABULA_BROADCAST_TEMPLATES, renderBroadcastTemplateSvg, motifFor, emphasisFor } from '../services/fabula/broadcastTemplateFactory';
 import { DATA_VIZ_ART_DIRECTIONS } from '../services/fabula/dataVizArtDirection';
 
 test('broadcast expansion has complete, distinct production stacks',()=>{
@@ -83,4 +83,43 @@ test('the council actually drives structure, rather than a hash',()=>{
     assert.match(svg,/feDisplacementMap/,`${pack.id} declares GLASS but never refracts`);
     assert.ok(!/<rect[^>]*filter="url\(#surface\)"/.test(svg),`${pack.id} applies a displacement map as a flat overlay`);
   }
+});
+
+test('the pack\'s own subject drives a second composition axis', () => {
+  const packs = FABULA_BROADCAST_PACKS;
+  const tally = new Map<string, number>();
+  for (const p of packs) tally.set(emphasisFor(p), (tally.get(emphasisFor(p)) ?? 0) + 1);
+
+  // All four arrangements have to be reachable, or the axis is decoration.
+  for (const e of ['INSET', 'PORTRAIT', 'PANORAMA', 'COMPARISON']) {
+    assert.ok((tally.get(e) ?? 0) > 0, `no identity uses the ${e} arrangement`);
+  }
+
+  // The trap this axis was born from: an unanchored /table/ matches the word "editable", which
+  // appears in nearly every imageTreatment, and it swept two thirds of the library into a single
+  // arrangement while looking like it was reading the copy. No arrangement may dominate.
+  for (const [e, n] of tally) {
+    assert.ok(n <= packs.length * 0.7, `${e} claims ${n}/${packs.length} identities — check for a substring match`);
+  }
+
+  // Packs that share a council motif must still be separable, since motif alone cannot tell
+  // Arena Carbon from Tale of the Tape.
+  const byMotif = new Map<string, Set<string>>();
+  for (const p of packs) {
+    const m = motifFor(DATA_VIZ_ART_DIRECTIONS[p.councilStyle]);
+    if (!byMotif.has(m)) byMotif.set(m, new Set());
+    byMotif.get(m)!.add(emphasisFor(p));
+  }
+  const combinations = [...byMotif.values()].reduce((n, set) => n + set.size, 0);
+  assert.ok(combinations >= 18, `only ${combinations} motif x arrangement combinations`);
+
+  // Spot-check the reading against packs whose subject is unambiguous in their own copy.
+  assert.equal(emphasisFor(packs.find(p => p.id === 'tale-of-tape')!), 'COMPARISON');
+  assert.equal(emphasisFor(packs.find(p => p.id === 'arena-carbon')!), 'PANORAMA');
+  assert.equal(emphasisFor(packs.find(p => p.id === 'prism-portrait')!), 'PORTRAIT');
+
+  // And the arrangement must actually reach the artwork, not just the metadata.
+  const opener = (id: string) =>
+    renderBroadcastTemplateSvg(FABULA_BROADCAST_TEMPLATES.find(t => t.packId === id && t.kind === 'OPENER')!);
+  assert.notEqual(opener('tale-of-tape'), opener('arena-carbon'));
 });

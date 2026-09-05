@@ -83,6 +83,28 @@ function inkOn(ground:string,pack:FabulaBroadcastPack,min=3.6){
  * Grid says how space is organised; mark disambiguates where one grid can go two ways — RULES
  * with a TICK is a column series, RULES with anything else is a set of frames.
  */
+/**
+ * The second composition axis: what the frame is *of*.
+ *
+ * The motif comes from the council and answers "what geometry". It cannot answer "what is this
+ * shot", and two packs that land on the same director with a similar palette were coming out as
+ * near-identical frames — Arena Carbon and Tale of the Tape differed only in hex. So the pack's
+ * own words decide the arrangement: a comparison format sets two picture zones against each
+ * other, a portrait format gives the figure a tall column, a panorama lets the picture run full
+ * bleed under a band. Nothing here is random; it is read from copy the pack already carries.
+ */
+export type BroadcastEmphasis='COMPARISON'|'PORTRAIT'|'PANORAMA'|'INSET';
+export function emphasisFor(pack:FabulaBroadcastPack):BroadcastEmphasis{
+  const t=`${pack.premise} ${pack.imageTreatment} ${pack.motionGrammar}`.toLowerCase();
+  // Word boundaries are not optional here: an unanchored /table/ matched the word "editable",
+  // which appears in almost every imageTreatment, and swept two thirds of the library into one
+  // arrangement. Every token below is anchored and unambiguous.
+  if(/\bversus\b|\bvs\b|head[- ]to[- ]head|match[- ]?up|\bcompar|tale of the tape|\bbracket|\bstandings\b|side[- ]by[- ]side|two[- ]up|\bopponent|\brival/.test(t)) return 'COMPARISON';
+  if(/\bportrait|\bprofile\b|\bface\b|\bfigure\b|\bcast\b|\bcharacter|\bhost\b|\binterview|\btalent\b|player card|\bbust\b|\bsilhouette|\bsubject\b/.test(t)) return 'PORTRAIT';
+  if(/\barena\b|\bstadium\b|\bspectacle\b|\bpanoram|\blandscape\b|\bhorizon\b|\bvista\b|establishing|wide shot|\bexpanse\b|\bskyline\b|\baerial\b|\bscenery\b|\bterrain\b/.test(t)) return 'PANORAMA';
+  return 'INSET';
+}
+
 export function motifFor(ad:DataVizArtDirection):BroadcastMotif{
   switch(ad.grid){
     case 'RADIAL':    return ad.mark==='DOT'||ad.mark==='ROUNDED'?'circles':'orbit';
@@ -280,6 +302,19 @@ function imageZone(t:FabulaBroadcastTemplate,pack:FabulaBroadcastPack,x:number,y
   return `<defs><clipPath id="imageClip">${clip}</clipPath>${imageDefs(pack)}</defs>${body}`;
 }
 
+/** Two picture zones under one clip path, for the comparison arrangement. */
+function imageZone2(t:FabulaBroadcastTemplate,pack:FabulaBroadcastPack,boxes:[number,number,number,number][],shape='rect'){
+  const treated=imageDefs(pack)?' filter="url(#imgfx)"':'';
+  const r=shape==='soft'?Math.min(boxes[0][2],boxes[0][3])*.1:0;
+  const clip=boxes.map(([x,y,bw,bh])=>`<rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="${r}"/>`).join('');
+  const body=t.controls.imageUrl
+    ? boxes.map(([x,y,bw,bh])=>`<image href="${esc(t.controls.imageUrl!)}" x="${x}" y="${y}" width="${bw}" height="${bh}" preserveAspectRatio="xMidYMid slice" clip-path="url(#imageClip)"${treated}/>`).join('')
+    : `<g clip-path="url(#imageClip)"${treated}>`+boxes.map(([x,y,bw,bh],i)=>
+        `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="${t.controls.secondary}" opacity="${i?'.30':'.38'}"/>`
+        +`<path d="M${x} ${y+bh}L${x+bw*.38} ${y+bh*.3} ${x+bw*.63} ${y+bh*.7} ${x+bw} ${y+bh*.16}V${y+bh}Z" fill="${t.controls.foreground}" opacity="${i?'.22':'.28'}"/>`).join('')+`</g>`;
+  return `<defs><clipPath id="imageClip">${clip}</clipPath>${imageDefs(pack)}</defs>${body}`;
+}
+
 /* ─── Render ──────────────────────────────────────────────────────────────────────────────── */
 
 type TextFn=(x:number,y:number,size:number,anchor?:string)=>string;
@@ -298,6 +333,29 @@ type SubFn=(x:number,y:number,anchor?:string)=>string;
 function openerFor(t:FabulaBroadcastTemplate,pack:FabulaBroadcastPack,ad:DataVizArtDirection,g:string,dur:number,text:TextFn,sub:SubFn){
   const {width:w,height:h}=t,{accent:a,secondary:b,background:d}=t.controls;
   const enter=(inner:string,dx=w*.035)=>`<g><animateTransform attributeName="transform" type="translate" values="-${dx} 0;0 0" dur="${dur}s" fill="freeze"/>${inner}</g>`;
+  const line=Math.max(2,ad.lineWidth);
+  // The pack's own subject wins over the council's default arrangement, because two identities on
+  // the same director must still read as two identities.
+  switch(emphasisFor(pack)){
+    case 'COMPARISON':   // two zones argue across a centre rule; type sits under the argument
+      return `<g opacity=".72">${g}</g>`
+        +imageZone2(t,pack,[[w*.055,h*.14,w*.4,h*.5],[w*.545,h*.14,w*.4,h*.5]],ad.mark==='ROUNDED'?'soft':'rect')
+        +`<path d="M${w/2} ${h*.1}V${h*.68}" stroke="${a}" stroke-width="${line}" opacity=".85"/>`
+        +`<rect y="${h*.7}" width="${w}" height="${h*.3}" fill="${d}" opacity=".93"/>`
+        +enter(`${text(w/2,h*.85,h*.078,'middle')}${sub(w/2,h*.92,'middle')}`,w*.015);
+    case 'PORTRAIT':     // a tall column for the figure, the type stacked beside it
+      return `<g opacity=".8">${g}</g>`
+        +`<rect x="${w*.06}" y="${h*.1}" width="${w*.46}" height="${h*.8}" fill="${d}" opacity=".9"/>`
+        +imageZone(t,pack,w*.57,h*.08,w*.37,h*.84,ad.mark==='ROUNDED'||ad.mark==='CAPSULE'?'soft':'rect')
+        +`<path d="M${w*.1} ${h*.55}h${w*.34}" stroke="${a}" stroke-width="${line}"/>`
+        +enter(`${text(w*.1,h*.5,h*.088)}${sub(w*.103,h*.63)}`);
+    case 'PANORAMA':     // the picture runs the full width; type rides a band at the foot
+      return `${imageZone(t,pack,0,0,w,h*.72,'rect')}<g opacity=".55">${g}</g>`
+        +`<rect y="${h*.66}" width="${w}" height="${h*.34}" fill="${d}" opacity=".94"/>`
+        +`<path d="M0 ${h*.66}H${w}" stroke="${a}" stroke-width="${line*1.5}"/>`
+        +enter(`${text(w*.06,h*.83,h*.092)}${sub(w*.063,h*.91)}`);
+    default: break;
+  }
   switch(motifFor(ad)){
     case 'circles': case 'orbit':   // centre the subject and let the structure turn around it
       return `<g opacity=".8">${g}</g>${imageZone(t,pack,w*.34,h*.1,w*.32,h*.56,'circle')}`
