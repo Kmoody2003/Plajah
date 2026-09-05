@@ -26,6 +26,7 @@ const LANE_H = 44;
 const PAD_LANE_H = 28;
 const STEPS_PER_BEAT = 4;
 const TRACK_COLORS = ['#00DAF3', '#FF8C00', '#B84DFF', '#06D6A0', '#FF4D8D', '#FFD166', '#5B8CFF', '#F78C6C'];
+const CLIP_SWATCHES = ['#00DAF3', '#FF8C00', '#B84DFF', '#06D6A0', '#FF4D8D', '#FFD166', '#5B8CFF', '#F78C6C', '#EAEAEA', '#6B7280'];
 
 const audioPeaks = (buffer: AudioBuffer, count = 320): number[] => {
   const channels = Array.from({ length: buffer.numberOfChannels }, (_, i) => buffer.getChannelData(i));
@@ -206,6 +207,8 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const [selectedClip, setSelectedClip] = useState<string | null>(null);
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
   const clipboardRef = useRef<{ trackId: string; clip: TimelineClip } | null>(null);
+  const colorInputRef = useRef<HTMLInputElement>(null);
+  const colorTargetRef = useRef<{ trackId: string; clipId: string } | null>(null);
   const [showMixer, setShowMixer] = useState(true);
   const [showPads, setShowPads] = useState(true);
   const [followPlayhead, setFollowPlayhead] = useState(() => localStorage.getItem('melos:timeline:follow') !== '0');
@@ -409,6 +412,12 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     }
     items.push(
       { id: 'dup', label: 'Duplicate', onSelect: () => p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); const c = t?.clips.find((x) => x.id === clipId); if (!t || !c) return; const copy = JSON.parse(JSON.stringify(c)); copy.id = grooveUid() + grooveUid(); copy.startBeats = c.startBeats + c.lengthBeats; t.clips.push(copy); setSelectedClip(copy.id); }) },
+      { id: 'color', label: 'Clip color', submenu: [
+        ...CLIP_SWATCHES.map((color) => ({ id: `color-${color}`, label: <span className="flex items-center gap-2"><span className="block w-3 h-3 rounded-full border border-white/25" style={{ background: color }} />{color.toUpperCase()}{clip.color === color ? ' ✓' : ''}</span>, onSelect: () => p.onMutate((d) => { const c = d.arrangement.find((t) => t.id === trackId)?.clips.find((x) => x.id === clipId); if (c) c.color = color; }) })),
+        { kind: 'separator' as const },
+        { id: 'color-custom', label: 'Choose any color…', onSelect: () => { colorTargetRef.current = { trackId, clipId }; colorInputRef.current?.click(); } },
+        { id: 'color-inherit', label: 'Use track color', checked: !clip.color, onSelect: () => p.onMutate((d) => { const c = d.arrangement.find((t) => t.id === trackId)?.clips.find((x) => x.id === clipId); if (c) delete c.color; }) },
+      ] },
       { kind: 'separator' },
       { id: 'del', label: 'Delete', danger: true, onSelect: () => { p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); if (t) t.clips = t.clips.filter((c) => c.id !== clipId); }); if (selectedClip === clipId) setSelectedClip(null); } },
     );
@@ -608,6 +617,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   return (
     <div className="flex-1 min-h-0 flex flex-col p-4 pt-3 gap-0">
       {clipMenu.node}
+      <input ref={colorInputRef} type="color" className="sr-only" aria-label="Choose a custom clip color" onChange={(e) => { const target = colorTargetRef.current; if (!target) return; const color = e.target.value; p.onMutate((d) => { const c = d.arrangement.find((t) => t.id === target.trackId)?.clips.find((x) => x.id === target.clipId); if (c) c.color = color; }); colorTargetRef.current = null; }} />
       {padHeaderMenu.node}
       {trackMenu.node}
       <div className={`${glassPanel} flex-1 min-h-0 overflow-hidden flex flex-col`}>
@@ -847,6 +857,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                     {track.clips.map((clip) => {
                       const pat = p.doc.patterns.find((x) => x.id === clip.patternId);
                       const selected = clip.id === selectedClip;
+                      const clipColor = clip.color || track.color;
                       return (
                         <div
                           key={clip.id}
@@ -894,9 +905,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                             width: Math.max(10, clip.lengthBeats * pxPerBeat - 2),
                             background: track.foreign
                               ? 'rgba(208,188,255,0.08)'
-                              : clip.audio ? 'rgba(0,218,243,0.14)'
-                              : clip.notes ? 'rgba(208,188,255,0.15)'
-                              : 'linear-gradient(135deg, #6B0099, #D40055)',
+                              : `${clipColor}24`,
                             border: track.foreign
                               ? '1px dashed rgba(208,188,255,0.4)'
                               : clip.audio ? '1px solid rgba(0,218,243,0.45)'
@@ -911,7 +920,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                           }}
                           title={track.foreign ? 'Preserved for re-export — not played in browser' : `${pat?.name || clip.audio?.name || 'Clip'} · drag to move (bar snap), right edge to trim, Delete to remove`}
                         >
-                          {clip.audio && !track.foreign && <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none" aria-hidden="true"><path d={(clip.audio.peaks?.length ? clip.audio.peaks : [0.2,0.5,0.3,0.7,0.4]).map((v, i, a) => `${i ? 'L' : 'M'} ${(i / Math.max(1, a.length - 1)) * 100} ${50 - v * 42}`).join(' ') + ' ' + (clip.audio.peaks?.length ? [...clip.audio.peaks].reverse() : [0.4,0.7,0.3,0.5,0.2]).map((v, i, a) => `L ${100 - (i / Math.max(1, a.length - 1)) * 100} ${50 + v * 42}`).join(' ') + ' Z'} fill={`${track.color}55`} stroke={track.color} strokeWidth="0.8" vectorEffect="non-scaling-stroke" /></svg>}
+                          {clip.audio && !track.foreign && <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none" aria-hidden="true"><path d={(clip.audio.peaks?.length ? clip.audio.peaks : [0.2,0.5,0.3,0.7,0.4]).map((v, i, a) => `${i ? 'L' : 'M'} ${(i / Math.max(1, a.length - 1)) * 100} ${50 - v * 42}`).join(' ') + ' ' + (clip.audio.peaks?.length ? [...clip.audio.peaks].reverse() : [0.4,0.7,0.3,0.5,0.2]).map((v, i, a) => `L ${100 - (i / Math.max(1, a.length - 1)) * 100} ${50 + v * 42}`).join(' ') + ' Z'} fill={`${clipColor}55`} stroke={clipColor} strokeWidth="0.8" vectorEffect="non-scaling-stroke" /></svg>}
                           {/* MIDI clips draw their notes, so the arrangement shows the music. */}
                           {clip.notes && clip.notes.length > 0 && !track.foreign && (() => {
                             const keys = clip.notes.map((n) => n.key);
@@ -931,7 +940,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                               </span>
                             );
                           })()}
-                          <span className="relative text-[10px] font-semibold truncate" style={{ color: track.foreign ? '#D0BCFF' : clip.audio ? PLAYHEAD : clip.notes ? '#D0BCFF' : '#fff' }}>
+                          <span className="relative text-[10px] font-semibold truncate" style={{ color: track.foreign ? '#D0BCFF' : clipColor }}>
                             {track.foreign ? track.name : pat?.name || clip.audio?.name || (clip.notes ? `${clip.notes.length} notes` : 'Clip')}
                           </span>
                           {!track.foreign && <span className="absolute right-0 top-0 bottom-0 w-[8px] cursor-ew-resize" style={{ background: 'rgba(255,255,255,0.12)' }} />}

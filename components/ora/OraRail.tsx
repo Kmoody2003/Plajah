@@ -95,6 +95,7 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
     holdTimer.current = window.setTimeout(() => { holdTimer.current = null; onOpenRoom(); }, 450);
   };
   const endHold = () => {
+    if (floating.didDragRef.current) { if (holdTimer.current !== null) window.clearTimeout(holdTimer.current); holdTimer.current = null; return; }
     if (holdTimer.current === null) return; // hold already fired
     window.clearTimeout(holdTimer.current);
     holdTimer.current = null;

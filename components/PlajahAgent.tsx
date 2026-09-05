@@ -849,11 +849,9 @@ const PlajahAgent: React.FC<Props> = ({
 // ── Floating trigger button ────────────────────────────────────────────────────
 export const AriaButton: React.FC<{ onClick: () => void; isOpen: boolean; hasUnread?: boolean }> = ({ onClick, isOpen, hasUnread }) => {
   const floating = usePersistentFloating('plajah:floating:aria', () => ({ x: window.innerWidth - 64, y: window.innerHeight - 144 }));
-  const dragged = useRef(false);
-  useEffect(() => { const mark = () => { dragged.current = true; requestAnimationFrame(() => { dragged.current = false; }); }; window.addEventListener('plajah:floating-drag-ended', mark); return () => window.removeEventListener('plajah:floating-drag-ended', mark); }, []);
   return <div className="fixed z-[250]" style={{ left: floating.pos.x, top: floating.pos.y, touchAction: 'none' }} {...floating.dragProps}>
   <motion.button
-    onClick={() => { if (!dragged.current) onClick(); }}
+    onClick={onClick}
     whileHover={{ scale: 1.08 }}
     whileTap={{ scale: 0.94 }}
     className="relative w-12 h-12 rounded-[1rem] flex items-center justify-center shadow-2xl shadow-purple-600/30 transition-all"
@@ -862,7 +860,7 @@ export const AriaButton: React.FC<{ onClick: () => void; isOpen: boolean; hasUnr
       border: isOpen ? '1px solid rgba(167,139,250,0.6)' : '1px solid rgba(139,92,246,0.4)',
       backdropFilter: 'blur(16px)',
     }}
-    title="Open Aria — your private creative agent"
+    title={floating.pinned ? 'Aria is pinned — use the pin control to move it' : 'Open Aria · drag to move · pin to lock position'}
   >
     {isOpen ? <X size={18} className="text-white" /> : <AriaMark size={30} petals={false} />}
     {hasUnread && !isOpen && (

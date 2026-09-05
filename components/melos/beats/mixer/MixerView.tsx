@@ -49,6 +49,7 @@ export const MixerView: React.FC<MixerViewProps> = ({ doc, meters, limiterReduct
   const resize = useRef<{ y: number; h: number } | null>(null);
   const sendBuses = doc.mixer.sendBuses ?? defaultSendBuses();
   const eng = BeatsEngine.get();
+  const visibleTracks = doc.arrangement.filter((t) => !t.padOwned && (!t.folderId || !doc.arrangement.find((f) => f.id === t.folderId)?.collapsed));
 
   const selKey = `${sel.kind}:${sel.id}`;
   const isSel = (kind: Sel['kind'], id: number | string) => sel.kind === kind && sel.id === id;
@@ -199,13 +200,13 @@ export const MixerView: React.FC<MixerViewProps> = ({ doc, meters, limiterReduct
             ))}
           </div>
 
-          {doc.arrangement.some((t) => !t.padOwned) && <div className="w-px bg-white/[0.16] flex-none" />}
+          {visibleTracks.length > 0 && <div className="w-px bg-white/[0.16] flex-none" />}
 
           {/* arrangement tracks — each a channel with sends + inserts. padOwned instrument
               tracks are already the PAD strip on the left; showing them twice gave every pad
               instrument two mixer channels. */}
           <div className="flex gap-1.5">
-            {doc.arrangement.filter((t) => !t.padOwned).map((t) => (
+            {visibleTracks.map((t) => (
               <div
                 key={t.id}
                 onPointerDown={() => !t.foreign && setSel({ kind: 'track', id: t.id })}
@@ -220,13 +221,13 @@ export const MixerView: React.FC<MixerViewProps> = ({ doc, meters, limiterReduct
                 style={isSel('track', t.id) ? { outline: `1px solid ${SELECT}`, outlineOffset: 1 } : undefined}
               >
                 <ChannelStrip
-                  label={t.name} color={t.kind === 'audio' ? PLAYHEAD : '#B84DFF'} gainDb={t.gainDb} pan={t.pan} mute={t.mute} solo={t.solo}
+                  label={t.name} color={t.isFolder ? t.color : t.kind === 'audio' ? PLAYHEAD : '#B84DFF'} routeTag={t.isFolder ? 'GROUP' : undefined} gainDb={t.gainDb} pan={t.pan} mute={t.mute} solo={t.solo}
                   meter={t.kind === 'audio' ? eng.trackMeter(t.id) : 0} dimmed={!!t.foreign}
                   sends={t.foreign ? undefined : sendsFor(t.sends ?? [], (s, v) => onMutate((d) => { const x = findTrack(d, t.id); if (x) { const arr = [...(x.sends ?? [])]; arr[s] = v; x.sends = arr; } }))}
-                  onGain={t.foreign ? undefined : (db) => onMutate((d) => { const x = findTrack(d, t.id); if (x) x.gainDb = db; })}
+                  onGain={t.foreign ? undefined : (db) => onMutate((d) => { const x = findTrack(d, t.id); if (!x) return; if (x.isFolder) { const delta = db - x.gainDb; for (const child of d.arrangement) if (child.folderId === x.id) child.gainDb = Math.max(-60, Math.min(12, child.gainDb + delta)); } x.gainDb = db; })}
                   onPan={t.foreign ? undefined : (v) => onMutate((d) => { const x = findTrack(d, t.id); if (x) x.pan = v; })}
-                  onMute={t.foreign ? undefined : () => onMutate((d) => { const x = findTrack(d, t.id); if (x) x.mute = !x.mute; })}
-                  onSolo={t.foreign ? undefined : () => onMutate((d) => { const x = findTrack(d, t.id); if (x) x.solo = !x.solo; })}
+                  onMute={t.foreign ? undefined : () => onMutate((d) => { const x = findTrack(d, t.id); if (!x) return; const next = !x.mute; x.mute = next; if (x.isFolder) for (const child of d.arrangement) if (child.folderId === x.id) child.mute = next; })}
+                  onSolo={t.foreign ? undefined : () => onMutate((d) => { const x = findTrack(d, t.id); if (!x) return; const next = !x.solo; x.solo = next; if (x.isFolder) for (const child of d.arrangement) if (child.folderId === x.id) child.solo = next; })}
                 >
                   {!t.foreign && (t.inserts?.filter((f) => f.on).length ?? 0) > 0 && (
                     <span className="text-[7px] px-1 rounded mx-auto text-[#00DAF3] border border-[#00DAF3]/40">{t.inserts!.filter((f) => f.on).length} FX</span>

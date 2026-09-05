@@ -124,6 +124,8 @@ export interface TimelineClip {
   id: string;
   startBeats: number;
   lengthBeats: number;
+  /** Optional clip-local color. Unset clips inherit their track color. */
+  color?: string;
   patternId?: string;                              // kind 'pattern'
   /** kind 'pattern' — per-pad loop-length override IN 16th STEPS inside this clip. MEKA's
    *  pattern length is the default; a pad listed here loops its own shorter cycle instead

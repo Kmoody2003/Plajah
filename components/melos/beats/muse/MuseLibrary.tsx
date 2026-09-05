@@ -19,7 +19,7 @@ import { listCloudAssets, resolveCloudFile, cloudSupported } from '../../../../s
 import { coverCss, accentFor } from '../../../../services/melos/instruments/presetArt';
 import { PLAYHEAD, SELECT, SURFACE } from '../theme';
 
-interface Props { doc: GrooveDoc; onMutate: (fn: (d: GrooveDoc) => void) => void; onClose: () => void; }
+interface Props { doc: GrooveDoc; onMutate: (fn: (d: GrooveDoc) => void) => void; onClose: () => void; docked?: boolean; }
 
 interface Row extends MuseAsset {
   getFile?: () => Promise<File | null>;   // local files
@@ -29,7 +29,8 @@ interface Row extends MuseAsset {
 const AUDIO_RE = /\.(wav|mp3|ogg|flac|m4a|aif|aiff)$/i;
 const kindOfName = (name: string, dur: number): MuseKind => (dur >= 1 && dur <= 8 ? 'loop' : 'sample');
 
-export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose }) => {
+export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose, docked = false }) => {
+  const [dockW, setDockW] = useState(() => Number(localStorage.getItem('melos:media-library-width')) || 520);
   const [sourceW, setSourceW] = useState(() => Number(localStorage.getItem('media-library:source-width')) || 176);
   const [inspectorW, setInspectorW] = useState(() => Number(localStorage.getItem('media-library:inspector-width')) || 232);
   const [source, setSource] = useState<MuseSource>('factory');
@@ -175,8 +176,12 @@ export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose }) => {
   );
 
   return (
-    <div className="absolute inset-0 z-50 grid place-items-center pointer-events-none p-4">
-      <div className="pointer-events-auto w-[min(1000px,82vw)] rounded-[20px] border border-white/[0.16] overflow-hidden shadow-2xl flex flex-col" style={{ background: SURFACE, height: '72vh' }}>
+    <div className={docked ? 'relative flex-none h-full min-h-0 border-l border-white/10' : 'absolute inset-0 z-50 grid place-items-center pointer-events-none p-4'} style={docked ? { width: dockW } : undefined}>
+      {docked && <div className="absolute left-0 inset-y-0 w-2 -translate-x-1/2 z-10 cursor-col-resize hover:bg-[#00DAF3]/25 touch-none" title="Drag to resize Media Library"
+        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); e.currentTarget.dataset.x = String(e.clientX); e.currentTarget.dataset.w = String(dockW); }}
+        onPointerMove={(e) => { if (e.currentTarget.hasPointerCapture(e.pointerId)) setDockW(Math.max(360, Math.min(900, Number(e.currentTarget.dataset.w) + Number(e.currentTarget.dataset.x) - e.clientX))); }}
+        onPointerUp={(e) => { const next = Math.max(360, Math.min(900, Number(e.currentTarget.dataset.w) + Number(e.currentTarget.dataset.x) - e.clientX)); setDockW(next); try { localStorage.setItem('melos:media-library-width', String(next)); } catch { /* */ } e.currentTarget.releasePointerCapture(e.pointerId); }} />}
+      <div className={`${docked ? 'w-full h-full' : 'pointer-events-auto w-[min(1000px,82vw)] h-[72vh] rounded-[20px] shadow-2xl'} border border-white/[0.16] overflow-hidden flex flex-col`} style={{ background: SURFACE }}>
         <div className="flex items-center gap-3 px-4 h-12 border-b border-white/10 flex-none" style={{ background: '#0C0C10' }}>
           <span className="font-black text-[13px] tracking-[0.08em]" style={{ color: PLAYHEAD }}>MEDIA LIBRARY</span>
           <div className="relative ml-2">

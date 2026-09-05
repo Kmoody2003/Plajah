@@ -827,6 +827,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         </div>
       )}
 
+      <div className="flex-1 min-h-0 flex">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
       {/* The pattern bar belongs to the pattern-editing pages — Mixer and Project have no
           business showing pattern chips. */}
       {view !== 'mixer' && view !== 'project' && (
@@ -1047,6 +1049,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           onEditPadInstrument={(padIdx) => { const id = doc.kit[padIdx]?.instrumentTrackId; if (id) setOpenInstrumentId(id); }}
         />
       )}
+      </div>
+      {showLibrary && <MuseLibrary docked doc={doc} onMutate={mutate} onClose={() => setShowLibrary(false)} />}
+      </div>
 
       {showDiagnostics && (
         <DiagnosticsReadout snap={snap} hidStatus={hid.status} onConnectHid={() => { void hid.connect(); }} />
@@ -1086,8 +1091,6 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       )}
 
       {showEq && <SpectraPanel doc={doc} onMutate={mutate} onClose={() => setShowEq(false)} />}
-      {showLibrary && <MuseLibrary doc={doc} onMutate={mutate} onClose={() => setShowLibrary(false)} />}
-
       {/* Pad → instrument: the picker targets a specific pad. On pick we mint a padOwned instrument
           track, link it to the pad, and open its editor — the same panels a track instrument uses. */}
       {padPickerFor !== null && (

@@ -13,6 +13,7 @@ export function usePersistentFloating(storageKey: string, fallback: () => Positi
   const [pos, setPos] = useState<Position>({ x: initial.current.x, y: initial.current.y });
   const [pinned, setPinned] = useState(initial.current.pinned);
   const state = useRef({ pos, pinned }); state.current = { pos, pinned };
+  const didDragRef = useRef(false);
   const persist = useCallback((nextPos = state.current.pos, nextPinned = state.current.pinned) => {
     try { localStorage.setItem(storageKey, JSON.stringify({ ...nextPos, pinned: nextPinned })); } catch {}
   }, [storageKey]);
@@ -21,12 +22,18 @@ export function usePersistentFloating(storageKey: string, fallback: () => Positi
   const dragProps = {
     onPointerDown: (e: React.PointerEvent) => {
       if (state.current.pinned || e.button !== 0) return;
+      didDragRef.current = false;
       const origin = { x: e.clientX, y: e.clientY, pos: state.current.pos }; let moved = false;
-      const move = (ev: PointerEvent) => { moved ||= Math.hypot(ev.clientX - origin.x, ev.clientY - origin.y) > 4; if (moved) setPos(clamp({ x: origin.pos.x + ev.clientX - origin.x, y: origin.pos.y + ev.clientY - origin.y })); };
-      const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); persist(); if (moved) window.setTimeout(() => window.dispatchEvent(new CustomEvent('plajah:floating-drag-ended')), 0); };
+      let finalPos = origin.pos;
+      const move = (ev: PointerEvent) => { moved ||= Math.hypot(ev.clientX - origin.x, ev.clientY - origin.y) > 4; if (moved) { didDragRef.current = true; finalPos = clamp({ x: origin.pos.x + ev.clientX - origin.x, y: origin.pos.y + ev.clientY - origin.y }); setPos(finalPos); } };
+      const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); if (moved) persist(finalPos); };
       window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+    },
+    onClickCapture: (e: React.MouseEvent) => {
+      if (!didDragRef.current) return;
+      e.preventDefault(); e.stopPropagation(); didDragRef.current = false;
     },
   };
   const togglePinned = () => setPinned((v) => { persist(state.current.pos, !v); return !v; });
-  return { pos, pinned, togglePinned, dragProps };
+  return { pos, pinned, togglePinned, dragProps, didDragRef };
 }
