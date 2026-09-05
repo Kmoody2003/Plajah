@@ -4,6 +4,9 @@ import { FABULA_BROADCAST_PACKS, FABULA_COUNTERCULTURE_PACKS, FABULA_GLOBAL_PACK
 import { systemBoardSvg } from '../services/fabula/systemBoardSvg';
 import { FABULA_BROADCAST_TEMPLATES, renderBroadcastTemplateSvg, motifFor, emphasisFor } from '../services/fabula/broadcastTemplateFactory';
 import { DATA_VIZ_ART_DIRECTIONS } from '../services/fabula/dataVizArtDirection';
+import { BROADCAST_DESIGNS } from '../services/fabula/broadcastDesigns';
+import { FONTS } from '../services/tela/telaFonts';
+import { stillBroadcastSvg } from '../services/fabula/broadcastTemplateFactory';
 
 test('broadcast expansion has complete, distinct production stacks',()=>{
   assert.equal(FABULA_SPORTS_PACKS.length,18);
@@ -31,8 +34,8 @@ test('every identity generates its own authored SVG board',()=>{
     assert.match(board,/<svg/);
     assert.ok(board.includes(FABULA_BROADCAST_PACKS[i].name.replaceAll('&','&amp;')));
   }
-  const structuralVocabulary=new Set(boards.map(board=>board.includes('stroke-dasharray')?'rhythmic':board.includes('<ellipse')?'orbital':board.includes('<polygon')?'faceted':board.includes('<path')?'drawn':'grid'));
-  assert.ok(structuralVocabulary.size>=4);
+  // The board is the identity's own opener held still: no animation left in it, no zero-width wipe clips.
+  for(const board of boards){ assert.ok(!/<animate/.test(board)); assert.ok(!/<clipPath id="w\d+"><rect[^>]*width="0"/.test(board)); }
 });
 
 test('all 74 identities ship a complete nine-format editable motion stack',()=>{
@@ -122,4 +125,38 @@ test('the pack\'s own subject drives a second composition axis', () => {
   const opener = (id: string) =>
     renderBroadcastTemplateSvg(FABULA_BROADCAST_TEMPLATES.find(t => t.packId === id && t.kind === 'OPENER')!);
   assert.notEqual(opener('tale-of-tape'), opener('arena-carbon'));
+});
+
+test('every identity is hand-authored: its own idea, type pairing, composition and marks', () => {
+  const packs = FABULA_BROADCAST_PACKS;
+  // No pack may fall through to the parametric fallback.
+  for (const p of packs) assert.ok(BROADCAST_DESIGNS[p.id], `${p.id} has no hand-authored design`);
+
+  // The brief: "Nothing that could be produced by swapping colours on a neighbour." The opener
+  // markup with every colour removed must still be unique per identity.
+  const strip = (svg: string) => svg.replace(/#[0-9a-fA-F]{6}/g, '#').replace(/rgba?\([^)]*\)/g, 'c').replace(/id="[^"]+"/g, '').replace(/url\(#[^)]+\)/g, 'u');
+  const openers = packs.map(p => strip(stillBroadcastSvg(renderBroadcastTemplateSvg(FABULA_BROADCAST_TEMPLATES.find(t => t.packId === p.id && t.kind === 'OPENER')!))));
+  assert.equal(new Set(openers).size, packs.length, 'two identities share an opener composition');
+
+  // Real type, by FontKey, from the open-licensed library — never a raw system stack.
+  const trios = new Set<string>();
+  for (const p of packs) {
+    const d = BROADCAST_DESIGNS[p.id];
+    for (const k of Object.values(d.type)) assert.ok(k in FONTS, `${p.id} names an unknown face ${k}`);
+    assert.ok(d.idea.length > 40, `${p.id} has no idea worth a sentence`);
+    trios.add(`${d.type.display}/${d.type.text}`);
+  }
+  assert.ok(trios.size >= packs.length * .8, `only ${trios.size} distinct display/text pairings across ${packs.length} identities`);
+  const displays = new Set(packs.map(p => BROADCAST_DESIGNS[p.id].type.display));
+  assert.ok(displays.size >= 45, `only ${displays.size} distinct display faces`);
+
+  // Every rendered format carries the identity's own faces, not the previous Arial/Georgia/Impact set.
+  const svgs = FABULA_BROADCAST_TEMPLATES.map(renderBroadcastTemplateSvg);
+  const system = svgs.filter(svg => /font-family=['"](Arial|Georgia|Impact|Courier New)/.test(svg));
+  assert.equal(system.length, 0, `${system.length} formats still set a system face`);
+  for (const t of FABULA_BROADCAST_TEMPLATES) {
+    if (t.kind === 'TRANSITION') continue; // a transition is mark and field only; it carries no type
+    const d = BROADCAST_DESIGNS[t.packId]; const svg = renderBroadcastTemplateSvg(t);
+    assert.ok(svg.includes(FONTS[d.type.display].family) || svg.includes(FONTS[d.type.text].family) || svg.includes(FONTS[d.type.utility].family), `${t.id} does not use its own type`);
+  }
 });

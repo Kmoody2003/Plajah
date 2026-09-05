@@ -7018,6 +7018,8 @@ export default function Fabula() {
                   // The wheels/curves/qualifier/windows tabs edit whichever layer is selected.
                   const gLayers = fx ? [{ base: true }, ...(fx.grades || [])] : [];
                   const gi = Math.min(gradeLayer, gLayers.length - 1);
+                          {vfxTab === "data" && <DataVizBuilder ping={ping} onAddToPool={(chart,nm) => { const asset={id:uid(),name:nm+' (data)',type:'graphic',generated:true,duration:8,bin:'data motion',chart};updateProd(p=>{p.mediaPool.push(asset)}); }} />}
+                          {vfxTab === "systems" && <BroadcastSystemsLibrary ping={ping} onAddTemplate={(template, url) => { const asset={id:uid(),name:template.name,type:'image',generated:true,duration:template.durationMs/1000,bin:'broadcast systems',url:url||broadcastTemplateDataUrl(template),broadcastTemplate:template};updateProd(p=>{p.mediaPool.push(asset)}); }} />}
                   const layerData = fx ? (gi === 0 ? fx : (fx.grades?.[gi - 1] || {})) : {};
                   const setLayer = (patch) => {
                     if (!selClip) return;

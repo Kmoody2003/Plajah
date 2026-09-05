@@ -23,6 +23,8 @@ import {
   type FabulaBroadcastPack,
 } from './broadcastPacks';
 import { DATA_VIZ_ART_DIRECTIONS, type DataVizArtDirection } from './dataVizArtDirection';
+import { designFor, renderDesign, fontKeysFor } from './broadcastDesigns';
+export { fontKeysFor };
 
 export interface FabulaBroadcastTemplateControls {
   title:string; subtitle:string; eyebrow:string; scoreHome:string; scoreAway:string;
@@ -417,6 +419,11 @@ function fullPageFor(t:FabulaBroadcastTemplate,pack:FabulaBroadcastPack,ad:DataV
 
 export function renderBroadcastTemplateSvg(t:FabulaBroadcastTemplate){
   const pack=FABULA_BROADCAST_PACKS.find(p=>p.id===t.packId)!;
+  // Every shipped identity is authored by hand in ./broadcastDesigns. The parametric path below
+  // is kept only as a fallback for a pack that has no designer yet, and a test asserts that
+  // none of the 74 reach it.
+  const design=designFor(t.packId);
+  if(design) return renderDesign(t,pack,design);
   const ad=council(pack);
   const {width:w,height:h}=t,{accent:a,secondary:b,foreground:c,background:d}=t.controls;
   const font=fontFor(pack);
@@ -448,4 +455,18 @@ export function renderBroadcastTemplateSvg(t:FabulaBroadcastTemplate){
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}"><defs>${filter}</defs><rect width="${w}" height="${h}" fill="${d}"/>${artwork}${overlay}</svg>`;
 }
 
+/**
+ * The held state of an animated template, for thumbnails and proofs. Strips the SMIL and opens
+ * the wipe clips — a stripped wipe would otherwise leave its clip rectangle at zero width and
+ * the whole element invisible, which is exactly what happened to the first proof sheets.
+ */
+export function stillBroadcastSvg(svg:string){
+  return svg
+    .replace(/<animate(Transform|Motion)?\b[^>]*\/>/g,'')
+    .replace(/<animate(Transform|Motion)?\b[^>]*>[\s\S]*?<\/animate(Transform|Motion)?>/g,'')
+    .replace(/(<clipPath id="w\d+"><rect[^>]*?)width="0"/g,'$1width="4000"')
+    .replace(/(<clipPath id="w\d+"><rect[^>]*?)height="0"/g,'$1height="4000"')
+    .replace(/(<clipPath id="w\d+"><rect[^>]*?)x="4000"/g,'$1x="-2000"')
+    .replace(/(<clipPath id="w\d+"><rect[^>]*?)y="4000"/g,'$1y="-2000"');
+}
 export const broadcastTemplateDataUrl=(template:FabulaBroadcastTemplate)=>`data:image/svg+xml;charset=utf-8,${encodeURIComponent(renderBroadcastTemplateSvg(template))}`;
