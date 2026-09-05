@@ -269,6 +269,22 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 - (2026-09-02) W2b masks (ellipse/rect/poly, feather, invert, follow point/planar) + W2c track-bound params via one resolver (resolveInstanceForFrame) used by ForgeClipPreview and fabulaRender. Verified by GL readback in the browser.
 - (2026-09-02) VectorTrack planar tracker end to end — see `plajah-vectortrack` memory / build matrix.
 
+## Saved for the next phase (deferred 2026-09-05, entering a prove-it-out / QA-in-production phase)
+The Fabula FX suite is feature-complete across all six waves; what remains is polish and real-data
+proving, not new foundations:
+1. PREVIEW-RESOLUTION SCALING — `stackCost().score` now gives the trigger. Build it EXPLICIT and
+   LABELLED (never silent) so pixel-unit effects (scanlines, grain) that look different at reduced
+   size don't quietly break monitor==export.
+2. 3D NODE follow-ups (the foundation is in and GPU-verified): a material editor, per-clip
+   animation-clip selection, camera keyframing beyond auto-rotate, and LIVE Forge-on-3D (export
+   already applies the stack; the live preview shows the raw render).
+3. SAM real-data pass: the runtime API is verified but the model download + on-GPU segment on a real
+   clip is still browser-verified-later.
+4. STILL DEFERRED by Kenne: OFX host / wgpu kernel execution, until the desktop/Crossover build
+   compiles (needs MSVC Build Tools; the manifest + Rust shell stay as-is).
+5. STILL BLOCKED: Crossover SAM2 *video-memory* tracking (the client SAM+tracked-prompt covers the
+   feature; SAM2's learned video memory would need a server or the desktop app).
+
 ## Next up (in order)
 Every unblocked item in the six waves is now done (2026-09-03). What remains is either blocked on
 infrastructure or deferred by Kenne:
