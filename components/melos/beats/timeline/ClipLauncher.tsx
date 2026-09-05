@@ -9,6 +9,7 @@ import { Play, Square, ArrowRight, Plus } from 'lucide-react';
 import type { GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { grooveUid, defaultPattern } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
+import { DrumPatternThumb } from '../PatternThumb';
 import { PLAYHEAD, SELECT } from '../theme';
 
 interface Props {
