@@ -15,7 +15,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FX_EFFECTS } from "../plajahPixels/engine/fx/effects";
-import FxPreviewTile, { GenPreviewTile, TransPreviewTile, LookPreviewTile } from "./FxPreviewTile";
+import FxPreviewTile, { GenPreviewTile, TransPreviewTile, LookPreviewTile, FilterPreviewTile } from "./FxPreviewTile";
 import { FORGE_TRANSITIONS } from "../../services/fabula/forgeTransitions";
 import { FORGE_LOOKS, LOOK_CATEGORIES, allLooks, deleteUserLook } from "../../services/fabula/forgeLooks";
 import { FABULA_LOTTIE_LIBRARY, fabulaLottieAsMediaAsset } from "../../services/fabulaLottieLibrary";
@@ -152,7 +152,7 @@ export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onApplyLook, on
             <div className="fxgrid">
               {FILTER_PRESETS.map((p) => (
                 <button key={p.id} className="fxcard" onClick={() => onApplyFilter(p)} title={`Apply ${p.name}`}>
-                  <span className="fxthumb" style={{ filter: p.css === "none" ? undefined : p.css }} />
+                  <FilterPreviewTile css={p.css} className="fxthumb" />
                   <span className="fxname">{p.name}</span>
                 </button>
               ))}

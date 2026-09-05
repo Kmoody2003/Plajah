@@ -4,7 +4,17 @@
 import React, { useEffect, useRef } from 'react';
 import { fxPreview, type FxPreviewTileRef } from '../plajahPixels/engine/fx/fxPreview';
 import { FX_EFFECTS, type FxEffect, type FxPreset } from '../plajahPixels/engine/fx/effects';
+import { referenceSource } from '../plajahPixels/engine/fx/fxReference';
 import type { ForgeLook } from '../../services/fabula/forgeLooks';
+
+// A still of the shared reference scene, for CSS-filter previews (a colour grade
+// isn't a GL effect, so it just shows the filter applied to a real frame).
+let _refThumb: string | null = null;
+function referenceThumb(): string {
+  if (_refThumb != null) return _refThumb;
+  try { _refThumb = referenceSource(320, 180, 8).toDataURL('image/jpeg', 0.82); } catch { _refThumb = ''; }
+  return _refThumb;
+}
 
 export function paramsFor(effect: FxEffect, preset?: FxPreset | null): number[] {
   return effect.params.map((p) => (preset?.params?.[p.key] ?? p.default));
@@ -56,6 +66,11 @@ export const TransPreviewTile: React.FC<{ transId: string; transParams?: Record<
   const ref = usePreviewTile(() => ({ kind: 'trans', transId, transParams }), [transId, JSON.stringify(transParams || {})], height);
   return <canvas ref={ref} className={className} style={tileStyle(height, 'linear-gradient(120deg,#24174b 0 46%,#ff8c42 54% 100%)')} aria-label={`${transId} transition preview`} />;
 };
+
+export const FilterPreviewTile: React.FC<{ css: string; className?: string; height?: number }> = ({ css, className, height = 44 }) => (
+  <img src={referenceThumb()} className={className} draggable={false}
+    style={{ ...tileStyle(height), filter: css && css !== 'none' ? css : undefined }} alt="filter preview" />
+);
 
 export const LookPreviewTile: React.FC<{ look: ForgeLook; className?: string; height?: number }> = ({ look, className, height = 44 }) => {
   const ref = usePreviewTile(() => ({ kind: 'look', effectId: look.id, look: resolveLook(look.steps) }), [look.id], height);
