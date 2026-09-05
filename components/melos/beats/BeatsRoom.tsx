@@ -11,6 +11,7 @@ import { useContextMenu, type MenuNode } from '../../ui/ContextMenu';
 import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveTools';
 import { GENRE_PRESETS, applyGenrePreset, type GenrePreset } from '../../../services/melos/beats/genrePresets';
 import { BASSLINES, applyBassline, type BasslinePreset } from '../../../services/melos/beats/bassLines';
+import { DrumPatternThumb, BasslineThumb, cachedPattern } from './PatternThumb';
 import { useAriaSurface } from '../../../services/aria/useAriaSurface';
 import { ingestSample, backupToLocker } from '../../../services/melos/beats/sampleStore';
 import { renderGroove, publishGroove, downloadBlob } from '../../../services/melos/beats/render';
@@ -903,12 +904,13 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                 <div className="px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-white/30">Genre patterns</div>
                 {GENRE_PRESETS.map(g => (
                   <button key={g.id} onClick={() => applyGenre(g)}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/8 transition-colors">
-                    <div className="flex items-center justify-between gap-2">
+                    className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/8 transition-colors">
+                    <DrumPatternThumb pattern={cachedPattern(g.id, g.make)} bpm={g.bpm} style={{ marginBottom: 6 }} />
+                    <div className="flex items-center justify-between gap-2 px-1">
                       <span className="text-[12px] font-bold text-white">{g.name}</span>
                       <span className="text-[9px] font-mono text-white/35 shrink-0">{g.bpm} BPM</span>
                     </div>
-                    <div className="text-[10px] text-white/45 leading-snug mt-0.5">{g.hint}</div>
+                    <div className="text-[10px] text-white/45 leading-snug mt-0.5 px-1">{g.hint}</div>
                   </button>
                 ))}
               </div>
@@ -927,12 +929,13 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                 <div className="px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-white/30">MIDI basslines · adds a BAJO</div>
                 {BASSLINES.map(b => (
                   <button key={b.id} onClick={() => applyBass(b)}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/8 transition-colors">
-                    <div className="flex items-center justify-between gap-2">
+                    className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/8 transition-colors">
+                    <BasslineThumb notes={b.notes} bpm={b.bpm} style={{ marginBottom: 6 }} />
+                    <div className="flex items-center justify-between gap-2 px-1">
                       <span className="text-[12px] font-bold text-white">{b.name}</span>
                       <span className="text-[9px] font-mono text-white/35 shrink-0">{b.genre}</span>
                     </div>
-                    <div className="text-[10px] text-white/45 leading-snug mt-0.5">{b.hint}</div>
+                    <div className="text-[10px] text-white/45 leading-snug mt-0.5 px-1">{b.hint}</div>
                   </button>
                 ))}
               </div>
