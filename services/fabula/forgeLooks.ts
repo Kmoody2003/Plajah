@@ -10,6 +10,7 @@
 // real effect, a real preset, and parameter values inside the declared range.
 import { FX_EFFECTS } from '../../components/plajahPixels/engine/fx/effects';
 import { createEffectInstance, type ForgeEffectInstance } from './forgeEffects';
+import type { TelaChartStyle } from '../../types';
 
 export type LookCategory = 'cinematic' | 'vintage' | 'music' | 'documentary' | 'genre' | 'graphic';
 export const LOOK_CATEGORIES: { id: LookCategory; label: string }[] = [
@@ -29,87 +30,88 @@ export interface ForgeLook {
   id: string; name: string; category: LookCategory; description: string;
   steps: LookStep[];
   builtIn?: boolean;
+  councilStyle?: TelaChartStyle;
   /** Epoch ms; user looks only. */
   saved?: number;
 }
 
 export const FORGE_LOOKS: ForgeLook[] = [
   // ── cinematic ────────────────────────────────────────────────────────────────────────────
-  { id: 'prestige-drama', name: 'Prestige Drama', category: 'cinematic', builtIn: true,
+  { id: 'prestige-drama', name: 'Prestige Drama', category: 'cinematic', builtIn: true, councilStyle: 'BAROQUE',
     description: 'Dense blacks, restrained colour and a whisper of halation — the streaming-drama house style.',
     steps: [{ effectId: 'looksdesigner', presetId: 'prestige' }, { effectId: 'filmhalation', presetId: 'subtle-stock', mix: .7 }, { effectId: 'mistdiffusion', presetId: 'black-mist-quarter', mix: .6 }, { effectId: 'regrain', presetId: 'fine-35' }] },
-  { id: 'teal-amber', name: 'Teal & Amber', category: 'cinematic', builtIn: true,
+  { id: 'teal-amber', name: 'Teal & Amber', category: 'cinematic', builtIn: true, councilStyle: 'EDITORIAL',
     description: 'Controlled complementary separation with a premium bloom — the blockbuster trailer grade.',
     steps: [{ effectId: 'cinematiccolor', presetId: 'teal-amber' }, { effectId: 'opticalglow', presetId: 'premium', mix: .5 }, { effectId: 'mistdiffusion', presetId: 'black-mist-quarter', mix: .5 }, { effectId: 'regrain', presetId: 'fine-35' }] },
-  { id: 'golden-hour', name: 'Golden Hour', category: 'cinematic', builtIn: true,
+  { id: 'golden-hour', name: 'Golden Hour', category: 'cinematic', builtIn: true, councilStyle: 'CLASSICAL',
     description: 'Low warm sun, glowing skin and soft atmosphere, whatever time you actually shot.',
     steps: [{ effectId: 'atmosphericglow', presetId: 'morning' }, { effectId: 'cineglow', presetId: 'golden-hour', mix: .8 }, { effectId: 'skinrefine', presetId: 'golden' }, { effectId: 'filmhalation', presetId: '35mm', mix: .6 }] },
-  { id: 'dream-portrait', name: 'Dream Portrait', category: 'cinematic', builtIn: true,
+  { id: 'dream-portrait', name: 'Dream Portrait', category: 'cinematic', builtIn: true, councilStyle: 'CLASSICAL',
     description: 'Silk diffusion and a gentle beauty pass — flattering without turning plastic.',
     steps: [{ effectId: 'silkdiffusion', presetId: 'silk-heavy', mix: .75 }, { effectId: 'beautyblur', presetId: 'soft-glam', mix: .6 }, { effectId: 'skinrefine', presetId: 'natural' }, { effectId: 'cineglow', presetId: 'silk', mix: .5 }] },
-  { id: 'anamorphic-night', name: 'Anamorphic Night', category: 'cinematic', builtIn: true,
+  { id: 'anamorphic-night', name: 'Anamorphic Night', category: 'cinematic', builtIn: true, councilStyle: 'NEON',
     description: 'Blue streak flares on the practicals, deep mist and a cool falloff.',
     steps: [{ effectId: 'looksdesigner', presetId: 'night-neon' }, { effectId: 'flarerig', presetId: 'anamorphic-blue', mix: .8 }, { effectId: 'mistdiffusion', presetId: 'black-mist-1', mix: .7 }, { effectId: 'regrain', presetId: 'fine-35' }] },
   // ── vintage ──────────────────────────────────────────────────────────────────────────────
-  { id: 'super8-memory', name: 'Super 8 Memory', category: 'vintage', builtIn: true,
+  { id: 'super8-memory', name: 'Super 8 Memory', category: 'vintage', builtIn: true, councilStyle: 'INK',
     description: 'Gate weave, faded dye and warm halation — a home movie found in the attic.',
     steps: [{ effectId: 'retrograde', presetId: 'super8' }, { effectId: 'filmhalation', presetId: 'super8', mix: .8 }, { effectId: 'softdiffusion', presetId: 'vintage-glass', mix: .6 }, { effectId: 'regrain', presetId: 'organic-16' }] },
-  { id: 'vhs-rewind', name: 'VHS Rewind', category: 'vintage', builtIn: true,
+  { id: 'vhs-rewind', name: 'VHS Rewind', category: 'vintage', builtIn: true, councilStyle: 'INK',
     description: 'Worn tape, chroma bleed and tracking damage from a cassette played too often.',
     steps: [{ effectId: 'vhscrt', presetId: 'worn-tape' }, { effectId: 'analogdamage', presetId: 'broken-tape', mix: .7 }, { effectId: 'chromaticfringe', presetId: 'music-split', mix: .5 }] },
-  { id: 'kodachrome-slide', name: 'Kodachrome Slide', category: 'vintage', builtIn: true,
+  { id: 'kodachrome-slide', name: 'Kodachrome Slide', category: 'vintage', builtIn: true, councilStyle: 'WORLD_ATLAS',
     description: 'Cardboard slide mount, rich reds and projector dust.',
     steps: [{ effectId: 'carousel', presetId: 'kodachrome' }, { effectId: 'filmhalation', presetId: '35mm', mix: .6 }, { effectId: 'regrain', presetId: 'fine-35' }] },
-  { id: 'sixteen-doc', name: '16 mm Documentary', category: 'vintage', builtIn: true,
+  { id: 'sixteen-doc', name: '16 mm Documentary', category: 'vintage', builtIn: true, councilStyle: 'INK',
     description: 'Clean reversal stock with organic grain and just enough gate movement.',
     steps: [{ effectId: 'retrograde', presetId: 'sixteen' }, { effectId: 'regrain', presetId: 'organic-16' }, { effectId: 'parametriccurve', presetId: 'rich-print', mix: .8 }] },
   // ── music ────────────────────────────────────────────────────────────────────────────────
-  { id: 'music-punch', name: 'Music Video Punch', category: 'music', builtIn: true,
+  { id: 'music-punch', name: 'Music Video Punch', category: 'music', builtIn: true, councilStyle: 'PLAJAH',
     description: 'Saturated split-tone, hard glow and a chromatic streak on every highlight.',
     steps: [{ effectId: 'prismgrade', presetId: 'royal-citrus' }, { effectId: 'ultraglow', presetId: 'energy', mix: .7 }, { effectId: 'rgbseparationpro', presetId: 'music-streak', mix: .6 }] },
-  { id: 'neon-club', name: 'Neon Club', category: 'music', builtIn: true,
+  { id: 'neon-club', name: 'Neon Club', category: 'music', builtIn: true, councilStyle: 'NEON',
     description: 'Aurora glow over neon contours with a heavy black mist — late-night performance.',
     steps: [{ effectId: 'looksdesigner', presetId: 'night-neon' }, { effectId: 'glofi', presetId: 'aurora-glow', mix: .65 }, { effectId: 'neoncontours', presetId: 'electric-violet', mix: .45 }, { effectId: 'mistdiffusion', presetId: 'black-mist-1', mix: .6 }] },
-  { id: 'strobe-cut', name: 'Strobe Cut', category: 'music', builtIn: true,
+  { id: 'strobe-cut', name: 'Strobe Cut', category: 'music', builtIn: true, councilStyle: 'REBEL',
     description: 'Stop-motion cadence with light trails — performance footage on the beat.',
     steps: [{ effectId: 'strobefreeze', presetId: 'stop-motion' }, { effectId: 'trails', presetId: 'light-paint', mix: .6 }, { effectId: 'ultraglow', presetId: 'neon', mix: .5 }] },
   // ── documentary ──────────────────────────────────────────────────────────────────────────
-  { id: 'doc-clean', name: 'Documentary Clean', category: 'documentary', builtIn: true,
+  { id: 'doc-clean', name: 'Documentary Clean', category: 'documentary', builtIn: true, councilStyle: 'SWISS',
     description: 'Neutral balance, noise cleaned up and detail recovered — honest and broadcast-safe.',
     steps: [{ effectId: 'autobalance', presetId: 'warm-fix' }, { effectId: 'spatialdenoise', presetId: 'clean-iso' }, { effectId: 'detailsharpen', presetId: 'clean-detail', mix: .8 }, { effectId: 'parametriccurve', presetId: 'gentle-s' }] },
-  { id: 'interview-beauty', name: 'Interview Beauty', category: 'documentary', builtIn: true,
+  { id: 'interview-beauty', name: 'Interview Beauty', category: 'documentary', builtIn: true, councilStyle: 'SWISS',
     description: 'A flattering sit-down: soft skin, protected detail and a gentle centre spot.',
     steps: [{ effectId: 'beautyblur', presetId: 'natural' }, { effectId: 'skinrefine', presetId: 'natural' }, { effectId: 'softdiffusion', presetId: 'clean-skin', mix: .6 }, { effectId: 'centerspot', presetId: 'portrait', mix: .5 }] },
-  { id: 'archive-restore', name: 'Archive Restore', category: 'documentary', builtIn: true,
+  { id: 'archive-restore', name: 'Archive Restore', category: 'documentary', builtIn: true, councilStyle: 'WORLD_ATLAS',
     description: 'Steadies exposure, removes dust and lifts detail out of old footage.',
     steps: [{ effectId: 'deflicker', presetId: 'archive-film' }, { effectId: 'temporalrepair', presetId: 'film-dust' }, { effectId: 'spatialdenoise', presetId: 'gentle' }, { effectId: 'detailsharpen', presetId: 'soft-source', mix: .7 }] },
   // ── genre ────────────────────────────────────────────────────────────────────────────────
-  { id: 'noir', name: 'Noir', category: 'genre', builtIn: true,
+  { id: 'noir', name: 'Noir', category: 'genre', builtIn: true, councilStyle: 'MONO',
     description: 'Silver bleach, deep mist and a tight pool of light on the subject.',
     steps: [{ effectId: 'bleachbypass', presetId: 'fashion-silver' }, { effectId: 'mistdiffusion', presetId: 'black-mist-1', mix: .7 }, { effectId: 'centerspot', presetId: 'tight', mix: .6 }, { effectId: 'regrain', presetId: 'organic-16' }] },
-  { id: 'sci-fi-hologram', name: 'Sci-Fi Hologram', category: 'genre', builtIn: true,
+  { id: 'sci-fi-hologram', name: 'Sci-Fi Hologram', category: 'genre', builtIn: true, councilStyle: 'FUTURIST',
     description: 'Scanned signal, violet edge contours and a quantum glow — projected, not filmed.',
     steps: [{ effectId: 'analogtv', presetId: 'lost-signal', mix: .6 }, { effectId: 'neoncontours', presetId: 'electric-violet' }, { effectId: 'glofi', presetId: 'quantum', mix: .6 }, { effectId: 'chromaticfringe', presetId: 'prism-edge', mix: .5 }] },
-  { id: 'winter-blizzard', name: 'Winter Blizzard', category: 'genre', builtIn: true,
+  { id: 'winter-blizzard', name: 'Winter Blizzard', category: 'genre', builtIn: true, councilStyle: 'TOPOGRAPHIC',
     description: 'Driving snow over a cold silver grade with white mist in the air.',
     steps: [{ effectId: 'dayfornight', presetId: 'silver-night', mix: .7 }, { effectId: 'particlefield', presetId: 'blizzard' }, { effectId: 'mistdiffusion', presetId: 'white-mist', mix: .6 }] },
-  { id: 'campfire', name: 'Campfire', category: 'genre', builtIn: true,
+  { id: 'campfire', name: 'Campfire', category: 'genre', builtIn: true, councilStyle: 'CEREMONIAL',
     description: 'Embers drifting up through warm stage haze and gentle halation.',
     steps: [{ effectId: 'atmosphericglow', presetId: 'stage' }, { effectId: 'particlefield', presetId: 'embers' }, { effectId: 'filmhalation', presetId: '35mm', mix: .7 }] },
-  { id: 'heat-mirage', name: 'Heat Mirage', category: 'genre', builtIn: true,
+  { id: 'heat-mirage', name: 'Heat Mirage', category: 'genre', builtIn: true, councilStyle: 'TOPOGRAPHIC',
     description: 'Air shimmering off hot ground with a bleached, sun-punished grade.',
     steps: [{ effectId: 'heatwave', presetId: 'road' }, { effectId: 'bleachbypass', presetId: 'war-drama', mix: .6 }, { effectId: 'doublefog', presetId: 'double-fog-1', mix: .5 }] },
   // ── graphic ──────────────────────────────────────────────────────────────────────────────
-  { id: 'comic-ink', name: 'Comic Ink', category: 'graphic', builtIn: true,
+  { id: 'comic-ink', name: 'Comic Ink', category: 'graphic', builtIn: true, councilStyle: 'REBEL',
     description: 'Flat inked cells with a four-colour rosette screen — a panel, not a photograph.',
     steps: [{ effectId: 'graphiccartoon', presetId: 'bold-comic' }, { effectId: 'editorialprint', presetId: 'comic-ink', mix: .7 }, { effectId: 'halftonepro', presetId: 'cmyk-comic', mix: .5 }] },
-  { id: 'terminal-feed', name: 'Terminal Feed', category: 'graphic', builtIn: true,
+  { id: 'terminal-feed', name: 'Terminal Feed', category: 'graphic', builtIn: true, councilStyle: 'MONO',
     description: 'Green ASCII on a dying signal with a targeting overlay — surveillance fiction.',
     steps: [{ effectId: 'symbolmapper', presetId: 'terminal' }, { effectId: 'analogtv', presetId: 'lost-signal', mix: .5 }, { effectId: 'hudrings', presetId: 'targeting', mix: .7 }] },
-  { id: 'blueprint', name: 'Blueprint', category: 'graphic', builtIn: true,
+  { id: 'blueprint', name: 'Blueprint', category: 'graphic', builtIn: true, councilStyle: 'TOPOGRAPHIC',
     description: 'White line work on drafting blue — technical, schematic, deliberate.',
     steps: [{ effectId: 'sketchify', presetId: 'blueprint' }, { effectId: 'neoncontours', presetId: 'subtle-edge', mix: .4 }] },
-  { id: 'handheld-console', name: 'Handheld Console', category: 'graphic', builtIn: true,
+  { id: 'handheld-console', name: 'Handheld Console', category: 'graphic', builtIn: true, councilStyle: 'RADICAL_MINIMAL',
     description: 'Four-tone dithered pixels — a cartridge running on a scratched screen.',
     steps: [{ effectId: 'ditherpalettes', presetId: 'gameboy' }, { effectId: 'vhscrt', presetId: 'clean-vhs', mix: .35 }] },
 ];

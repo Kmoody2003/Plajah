@@ -19,6 +19,9 @@ export type { SurfaceLevel, SurfaceShape } from './Surface';
 
 export { Input, Textarea, Chip } from './Field';
 
+export { default as MediaThumb } from './MediaThumb';
+export type { MediaThumbProps } from './MediaThumb';
+
 export { default as ChipRail } from './ChipRail';
 export type { ChipRailItem } from './ChipRail';
 
@@ -33,3 +36,5 @@ export {
   TouchTarget,
   useSafeArea,
 } from '../../src/lib/designSystem';
+
+export { GoogleIcon, FacebookIcon, MicrosoftIcon, XIcon, PROVIDER_ICON } from './ProviderIcons';

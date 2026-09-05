@@ -2,6 +2,7 @@
 // production shader underneath the vector/type system. The same shader id is
 // resolved by the live monitor and offline renderer, keeping preview/export exact.
 import { anim, mo, type LowerThirdSpec, type LTLayer, type LTTextRole } from './lowerThirds';
+import type { TelaChartStyle } from '../../types';
 
 const lesson = (principle: string, history: string, tryThis: string, interestTag: string) => ({
   principle, history, tryThis, interestTag, related: ['motion graphics', 'audio reactive', 'shader typography'],
@@ -20,7 +21,7 @@ const commonHistory = 'Contemporary broadcast systems increasingly combine realt
 
 export const SHADER_MOTION_TEMPLATES: LowerThirdSpec[] = [
   {
-    id: 'shader-tidal-identity', name: 'Tidal Identity', group: 'SHADER FUSION', family: 'Living Volumes', format: 'lower-third',
+    id: 'shader-tidal-identity', councilStyle: 'GLASS', name: 'Tidal Identity', group: 'SHADER FUSION', family: 'Living Volumes', format: 'lower-third',
     tagline: 'A pearl-water identity plate whose living field breathes with chord energy.',
     shaderFusion: { shaderId: 'pearl-tides', opacity: .24, blend: 'screen', params: [.30, .44, .40, .42] },
     colors: { accent: '#4EECE1', ink: '#EFFFFD', paper: '#071B22', secondary: '#D9A6FF' }, origin: { x: 5, y: 75 },
@@ -36,7 +37,7 @@ export const SHADER_MOTION_TEMPLATES: LowerThirdSpec[] = [
     lesson: lesson('Let the reactive field carry emotion while a restrained plate protects legibility and hierarchy.', commonHistory, 'Replace the aqua accent with one brand colour, then lower shader opacity until the type remains dominant.', 'shader-fusion-titles'), tags: ['fluid', 'tranquil', 'identity', 'music', 'lower third'],
   },
   {
-    id: 'shader-signal-bloom', name: 'Signal Bloom', group: 'SHADER FUSION', family: 'Living Volumes', format: 'lower-third',
+    id: 'shader-signal-bloom', councilStyle: 'PLAJAH', name: 'Signal Bloom', group: 'SHADER FUSION', family: 'Living Volumes', format: 'lower-third',
     tagline: 'An energetic neon name system that blooms on summed notes rather than raw loudness.',
     shaderFusion: { shaderId: 'neon-maelstrom', opacity: .19, blend: 'add', params: [.66, .55, .36, .46] },
     colors: { accent: '#FF2C93', ink: '#FFFFFF', paper: '#10051D', secondary: '#31E6FF' }, origin: { x: 6, y: 72 },
@@ -52,7 +53,7 @@ export const SHADER_MOTION_TEMPLATES: LowerThirdSpec[] = [
     lesson: lesson('Use asymmetry and a loud index block to create energy; keep descriptive copy on a quiet baseline.', commonHistory, 'Try a two-note chord and watch the maelstrom colour change without forcing the text animation faster.', 'energetic-lower-thirds'), tags: ['neon', 'energetic', 'artist', 'music', 'lower third'],
   },
   {
-    id: 'shader-prism-ledger', name: 'Prism Ledger', group: 'SHADER FUSION', family: 'Glass Harmonics', format: 'lower-third',
+    id: 'shader-prism-ledger', councilStyle: 'EDITORIAL', name: 'Prism Ledger', group: 'SHADER FUSION', family: 'Glass Harmonics', format: 'lower-third',
     tagline: 'Optical glass, fine rules and editorial typography for premium information.',
     shaderFusion: { shaderId: 'prism-choir', opacity: .21, blend: 'screen', params: [.28, .58, .52, .48] },
     colors: { accent: '#F6D88A', ink: '#FFFDF7', paper: '#071018', secondary: '#8EDCFF' }, origin: { x: 7, y: 73 },
@@ -68,7 +69,7 @@ export const SHADER_MOTION_TEMPLATES: LowerThirdSpec[] = [
     lesson: lesson('Pair expressive serif display type with precise utility text to make experimental imagery feel authoritative.', commonHistory, 'Keep the prism shader subtle, then increase only the gold rule contrast to test hierarchy.', 'editorial-motion'), tags: ['glass', 'editorial', 'luxury', 'prism', 'lower third'],
   },
   {
-    id: 'shader-deep-current', name: 'Deep Current', group: 'SHADER FUSION', family: 'Living Volumes', format: 'lower-third',
+    id: 'shader-deep-current', councilStyle: 'BAROQUE', name: 'Deep Current', group: 'SHADER FUSION', family: 'Living Volumes', format: 'lower-third',
     tagline: 'A cinematic location card hovering above a slow celestial lagoon.',
     shaderFusion: { shaderId: 'celestial-lagoon', opacity: .18, blend: 'overlay', params: [.22, .48, .38, .40] },
     colors: { accent: '#7FDBFF', ink: '#F4FAFF', paper: '#030A18', secondary: '#D4B36A' }, origin: { x: 8, y: 76 },
@@ -83,7 +84,7 @@ export const SHADER_MOTION_TEMPLATES: LowerThirdSpec[] = [
     lesson: lesson('A narrow location tab provides orientation before the more emotional title arrives.', commonHistory, 'Move the anchor upward for portrait footage and preserve the long empty right edge as breathing room.', 'cinematic-locations'), tags: ['ocean', 'cinematic', 'location', 'tranquil', 'lower third'],
   },
   {
-    id: 'shader-nebula-manifesto', name: 'Nebula Manifesto', group: 'FULL PAGE', family: 'Living Volumes', format: 'full-page',
+    id: 'shader-nebula-manifesto', councilStyle: 'FUTURIST', name: 'Nebula Manifesto', group: 'FULL PAGE', family: 'Living Volumes', format: 'full-page',
     tagline: 'A complete title page suspended inside slow three-dimensional moonmilk.',
     shaderFusion: { shaderId: 'moonmilk', opacity: .78, blend: 'normal', params: [.24, .62, .48, .56] },
     colors: { accent: '#E6C7FF', ink: '#FFFFFF', paper: '#090513', secondary: '#F2C985' }, origin: { x: 0, y: 0 },
@@ -99,7 +100,7 @@ export const SHADER_MOTION_TEMPLATES: LowerThirdSpec[] = [
     lesson: lesson('Scale contrast turns the title into architecture while the shader supplies atmosphere and depth.', commonHistory, 'Replace the two-line manifesto with a six-word statement and preserve the deliberate lower-left alignment.', 'full-page-titles'), tags: ['full page', 'nebula', 'manifesto', 'tranquil', 'title card'],
   },
   {
-    id: 'shader-ocean-index', name: 'Ocean Index', group: 'FULL PAGE', family: 'Living Volumes', format: 'full-page',
+    id: 'shader-ocean-index', councilStyle: 'WORLD_ATLAS', name: 'Ocean Index', group: 'FULL PAGE', family: 'Living Volumes', format: 'full-page',
     tagline: 'A scientific chapter index over a responsive submerged glass reef.',
     shaderFusion: { shaderId: 'glass-reef', opacity: .72, blend: 'normal', params: [.27, .55, .44, .50] },
     colors: { accent: '#55E8D4', ink: '#EFFFFB', paper: '#03131B', secondary: '#FFB86C' }, origin: { x: 0, y: 0 },
@@ -114,7 +115,7 @@ export const SHADER_MOTION_TEMPLATES: LowerThirdSpec[] = [
     lesson: lesson('A strong vertical datum can organize a whole frame while translucent coverage protects footage and shader detail.', commonHistory, 'Use the index line to align every text box; change content without changing the underlying grid.', 'information-motion'), tags: ['full page', 'ocean', 'science', 'index', 'title card'],
   },
   {
-    id: 'shader-constellation-grid', name: 'Constellation Grid', group: 'FULL PAGE', family: 'Glass Harmonics', format: 'full-page',
+    id: 'shader-constellation-grid', councilStyle: 'CEREMONIAL', name: 'Constellation Grid', group: 'FULL PAGE', family: 'Glass Harmonics', format: 'full-page',
     tagline: 'A precision grid fractured by a brilliant chromatic monolith.',
     shaderFusion: { shaderId: 'chromatic-monolith', opacity: .82, blend: 'normal', params: [.34, .72, .55, .62] },
     colors: { accent: '#FF4DA8', ink: '#FFFFFF', paper: '#080513', secondary: '#66ECFF' }, origin: { x: 0, y: 0 },
@@ -129,7 +130,7 @@ export const SHADER_MOTION_TEMPLATES: LowerThirdSpec[] = [
     lesson: lesson('A visible modular grid makes a chaotic optical field feel intentional and designed.', commonHistory, 'Duplicate one grid rule and align a new metadata label to it; resist centering the composition.', 'grid-motion'), tags: ['full page', 'glass', 'grid', 'energetic', 'title card'],
   },
   {
-    id: 'shader-liquid-monolith', name: 'Liquid Monolith', group: 'FULL PAGE', family: 'Glass Harmonics', format: 'full-page',
+    id: 'shader-liquid-monolith', councilStyle: 'GLASS', name: 'Liquid Monolith', group: 'FULL PAGE', family: 'Glass Harmonics', format: 'full-page',
     tagline: 'An extreme performance opener forged from molten glass and monumental type.',
     shaderFusion: { shaderId: 'molten-aria', opacity: .88, blend: 'normal', params: [.62, .68, .58, .68] },
     colors: { accent: '#FF5A18', ink: '#FFF4E8', paper: '#110201', secondary: '#FFD35A' }, origin: { x: 0, y: 0 },

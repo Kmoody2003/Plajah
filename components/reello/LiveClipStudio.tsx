@@ -21,6 +21,7 @@ import {
   clipSourceUrl, clipThumbnailUrl, getClipsByUser, MIN_CLIP_SEC, MAX_CLIP_SEC,
 } from '../../services/liveClipService';
 import { auth } from '../../services/firebase';
+import MediaThumb from '../ui/MediaThumb';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Clip composer
@@ -346,7 +347,7 @@ export const MyClipsSection: React.FC<{ onPlay?: (v: Partial<Video>) => void }> 
             style={{ aspectRatio: '16 / 9' }}
           >
             {t
-              ? <img src={t} alt={c.title} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
+              ? <MediaThumb src={t} alt={c.title} loading="lazy" decoding="async" />
               : <div className="absolute inset-0 bg-white/5" />}
             <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, transparent 60%)' }} />
             <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[8px] font-black uppercase tracking-widest text-white/70">

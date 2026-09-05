@@ -22,8 +22,8 @@ gcloud run deploy plajah-story-worker \
   --platform managed \
   --no-allow-unauthenticated \
   --port 8080 \
-  --memory 2Gi \
-  --cpu 2 \
+  --memory 4Gi \
+  --cpu 4 \
   --no-cpu-throttling \
   --concurrency 1 \
   --timeout 3600 \
@@ -110,3 +110,31 @@ gcloud run services logs read plajah-story-worker --region us-west1 --limit 50
 - **Queued (not yet started) jobs die with the instance.** In-process FIFO, like demucs.
 - **Costs are estimates.** Blended Gemini input pricing (see pipeline.ts header comment); the
   `STORY_MAX_USD` guard works on the estimate, not the invoice.
+
+## Perception has three tiers (added 2026-08-30)
+
+Native video is tried first; per-chunk it falls through to cheaper/more-available paths rather
+than failing outright the moment video is unavailable or (confirmed live) silently reports
+seeing nothing:
+
+1. **Native video** — `gemini-3.6-flash` (+ 2 fallback models), full retry ladder.
+2. **Cloud audio+stills** — same models, the chunk's audio track plus up to 6 still frames,
+   when tier 1 exhausts or comes back empty. Tried because tier 1 and tier 2 fail
+   independently (different Gemini capacity pools) even against the SAME API key.
+3. **Fully offline (local models)** — `localModels.ts`: Whisper (`onnx-community/whisper-base`)
+   for dialogue, Florence-2 (`onnx-community/Florence-2-base-ft`) for a caption per still, both
+   via `@huggingface/transformers` on the container's own CPU (onnxruntime-node backend) — zero
+   cloud dependency, zero per-call cost, immune to Gemini capacity entirely. Tried only when
+   tiers 1 and 2 both fail. No continuous motion understanding, no speaker attribution — the
+   deliberately-least-rich last resort, not a primary path.
+
+**Dockerfile must stay glibc, not Alpine.** `onnxruntime-node`'s prebuilt native addon has no
+musl build — `node:20-alpine` installs cleanly but the addon fails to LOAD at runtime the first
+time tier 3 actually fires. Use `node:20-slim` (or any glibc base) — already the case in this
+directory's Dockerfile; do not "optimize" it back to Alpine.
+
+**First tier-3 call on a fresh instance is slow** — Whisper + Florence-2 weights (~450MB
+combined) download once per container instance into `os.tmpdir()/story-worker-model-cache` and
+stay warm for that instance's life (scale-to-zero loses the cache, next cold instance re-pays
+it). `--memory 4Gi --cpu 4` accounts for holding both models plus ffmpeg; do not shrink this
+back to the tier-1/2-only 2Gi/2cpu sizing.

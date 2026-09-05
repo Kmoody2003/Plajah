@@ -63,3 +63,4 @@ filler-descriptions-backup-*.json
 
 # Rust OFX shell build output
 rust/fabula-ofx/target/
+.tela-proofs/

@@ -40,6 +40,7 @@ import { collection, doc, getDoc, getDocs, addDoc, updateDoc, query, orderBy, li
 import { onSnapshot } from './safeSnapshot';
 import { db } from './firebase';
 import type { AriaContextSnapshot } from './aria/ariaContext';
+import type { DesignReferenceStudy } from './aria/designReferenceStudy';
 
 /** An action Aria decided to perform on the active surface (executed client-side). */
 export interface AriaActionCall {
@@ -374,9 +375,9 @@ export interface AgentMessage {
   attachmentNames?: string[];
   error?: boolean;
   servedLocally?: boolean;  // true when Phi-4 answered this without server round-trip
-}
   /** Set when Aria convened the Council of Art Directors for this reply; stored as JSON text. */
   councilSession?: string;
+}
 
 export interface AgentSession {
   id: string;
@@ -481,6 +482,7 @@ export interface SendMessageResult {
   toolCalls?: AgentToolCall[];
   buildOutput?: AgentBuildOutput;
   actionCalls?: AriaActionCall[];
+  designStudy?: DesignReferenceStudy;
   usage?: AgentUsage;
   error?: string;
   limitReached?: boolean;

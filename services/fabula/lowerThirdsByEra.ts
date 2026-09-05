@@ -13,6 +13,7 @@
 //  - growX pivots on the layer's left edge, so a centred rule that "grows from
 //    the middle" is two halves: the left half wipeL, the right half wipeR.
 import { mo, anim, type LowerThirdSpec, type LTLayer } from './lowerThirds';
+import type { TelaChartStyle } from '../../types';
 import {
   polygonPath, starPath, eightStarPath, fanPath, zigzagPath, wavePath, sineOpenPath,
   pointedArchPath, whiplashPath, scallopPath, blobPath, boomerangPath, tornEdgePath, brushStrokePath,
@@ -52,7 +53,7 @@ function crownRings(cx: number, cy: number, radii: number[], colors: string[], s
 export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
   // ── Industrial modern ───────────────────────────────────────────────────────
   {
-    id: 'lt-bauhaus', name: 'Bauhaus', group: G, family: 'bauhaus', tagline: 'Circle, rule, triangle: the three primaries arrive one at a time and a lowercase name reads across them.',
+    id: 'lt-bauhaus', councilStyle: 'BAUHAUS', name: 'Bauhaus', group: G, family: 'bauhaus', tagline: 'Circle, rule, triangle: the three primaries arrive one at a time and a lowercase name reads across them.',
     colors: { accent: '#D93A2F', ink: '#171717', paper: '#F2EBDD', secondary: '#1E5AA8' }, origin: { x: 6, y: 80 }, duration: 6,
     layers: [
       L({ id: 'card', label: 'Cream card', kind: 'rect', x: -20, y: -60, w: 820, h: 176, fill: 'paper', in: mo('wipeR', .5, 0, 'expo'), out: mo('wipeR', .35, 0, 'inOut') }),
@@ -68,7 +69,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['bauhaus', 'geometric', 'primary colours', 'lowercase'],
   },
   {
-    id: 'lt-swiss', name: 'Swiss Grid', group: G, family: 'swiss', tagline: 'Three hairlines, one red square and a flush-left name — the grid is the graphic.',
+    id: 'lt-swiss', councilStyle: 'SWISS', name: 'Swiss Grid', group: G, family: 'swiss', tagline: 'Three hairlines, one red square and a flush-left name — the grid is the graphic.',
     colors: { accent: '#E12D2D', ink: '#F7F7F3', paper: '#161616', secondary: '#B9B9B2' }, origin: { x: 6, y: 80 }, duration: 6,
     layers: [
       L({ id: 'rule-top', label: 'Top hairline', kind: 'rect', x: 0, y: -6, w: 560, h: 2, fill: 'ink', opacity: .7, in: mo('wipeR', .5, 0, 'expo'), out: mo('wipeR', .4, 0, 'inOut') }),
@@ -84,7 +85,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['swiss', 'grid', 'minimal', 'sans'],
   },
   {
-    id: 'lt-constructivist', name: 'Constructivist', group: G, family: 'constructivist', tagline: 'A red diagonal slams in, a black wedge follows, and a condensed name drops like a headline being shouted.',
+    id: 'lt-constructivist', councilStyle: 'REBEL', name: 'Constructivist', group: G, family: 'constructivist', tagline: 'A red diagonal slams in, a black wedge follows, and a condensed name drops like a headline being shouted.',
     colors: { accent: '#C9252D', ink: '#171717', paper: '#E8DDC6', secondary: '#8B8374' }, origin: { x: 6, y: 80 }, duration: 5,
     layers: [
       L({ id: 'band', label: 'Red diagonal band', kind: 'rect', x: -40, y: -20, w: 780, h: 110, rotation: -12, fill: 'accent', in: mo('slideL', .5, 0, 'expo', 1.2), out: mo('slideR', .4, 0, 'inOut', 1.3) }),
@@ -99,7 +100,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['constructivist', 'diagonal', 'red', 'poster'],
   },
   {
-    id: 'lt-de-stijl', name: 'De Stijl', group: G, family: 'de-stijl', tagline: 'Black rules divide a cream field, primaries fill three cells, and the name sits alone in the largest one.',
+    id: 'lt-de-stijl', councilStyle: 'BAUHAUS', name: 'De Stijl', group: G, family: 'de-stijl', tagline: 'Black rules divide a cream field, primaries fill three cells, and the name sits alone in the largest one.',
     colors: { accent: '#D72B2B', ink: '#111111', paper: '#F6F3E8', secondary: '#1D4E9E' }, origin: { x: 6, y: 78 }, duration: 6,
     layers: [
       L({ id: 'field', label: 'Cream field', kind: 'rect', x: 0, y: -60, w: 820, h: 200, fill: 'paper', in: mo('fade', .35, 0, 'out'), out: mo('fade', .3, 0, 'out') }),
@@ -117,7 +118,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['de-stijl', 'grid', 'primary colours', 'orthogonal'],
   },
   {
-    id: 'lt-art-deco', name: 'Art Deco ID', group: G, family: 'art-deco', tagline: 'A stepped plate, gold hairlines and a quarter-sunburst crowning the initial — the marquee turned into a name tag.',
+    id: 'lt-art-deco', councilStyle: 'BAROQUE', name: 'Art Deco ID', group: G, family: 'art-deco', tagline: 'A stepped plate, gold hairlines and a quarter-sunburst crowning the initial — the marquee turned into a name tag.',
     colors: { accent: '#D4AF37', ink: '#F4E8D0', paper: '#101820', secondary: '#8C2143' }, origin: { x: 6, y: 80 }, duration: 6,
     layers: [
       L({ id: 'fan', label: 'Sunburst quarter', kind: 'path', path: fanPath(7), x: -10, y: -86, w: 170, h: 78, fill: 'accent', opacity: .38, in: mo('growY', .6, .15, 'expo'), out: mo('fade', .3, 0, 'out') }),
@@ -134,7 +135,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['art-deco', 'gold', 'stepped', 'marquee'],
   },
   {
-    id: 'lt-art-nouveau', name: 'Art Nouveau', group: G, family: 'art-nouveau', tagline: 'A whiplash tendril draws itself, a soft plate blooms beneath it, and a hand-lettered name follows the curve.',
+    id: 'lt-art-nouveau', councilStyle: 'CLASSICAL', name: 'Art Nouveau', group: G, family: 'art-nouveau', tagline: 'A whiplash tendril draws itself, a soft plate blooms beneath it, and a hand-lettered name follows the curve.',
     colors: { accent: '#A76A76', ink: '#315D55', paper: '#E5DDB9', secondary: '#C49A45' }, origin: { x: 6, y: 80 }, duration: 6,
     layers: [
       L({ id: 'whip', label: 'Whiplash tendril', kind: 'path', path: whiplashPath(), x: -40, y: -112, w: 250, h: 236, fill: 'none', stroke: 'secondary', strokeWidth: 5, in: mo('wipeR', .8, 0, 'expo'), out: mo('fade', .35, 0, 'out') }),
@@ -145,11 +146,11 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     title: { font: 'yeseva', weight: 400, size: 46, color: 'ink', x: 44, y: 40, w: 640, align: 'left', anim: anim('fadeUp', .6, .55, .3, .6), maxLines: 1 },
     subtitle: { font: 'lora', weight: 400, size: 22, color: 'accent', italic: true, x: 44, y: 102, w: 340, align: 'left', anim: anim('fadeIn', .5, .85, .3, .3), maxLines: 1 },
     defaults: { title: 'Élodie Vautrin', subtitle: 'Glass artist · Nancy' },
-    lesson: { principle: 'Organic motion is drawn, not placed: the tendril reveals along its own length like a pen stroke, and everything after it grows or fades softly — no hard edges arrive, because Nouveau has none.', history: 'Art Nouveau (c. 1890–1910) — Mucha’s posters, Guimard’s Métro entrances, Horta’s Brussels houses, Tiffany and Gallé in glass — pulled its “whiplash” line from plant stems and Japanese prints, and refused the straight line wherever it could. Its posters were the first mass advertising to treat lettering as drawing; that hand-lettered, curve-following title survived into the psychedelic posters of the 1960s and returns in broadcast whenever a period drama, perfume or garden programme needs a caption that appears to have grown there.', tryThis: 'Change the tendril’s IN from wipeR to fade. It now simply appears — the drawn quality, and most of the era, disappears with the wipe.', interestTag: 'Art Nouveau', related: ['Mucha', 'ornament', 'Belle Époque'] },
+    lesson: { principle: 'Organic motion is drawn, not placed: the tendril reveals along its own length like a pen stroke, and everything after it grows or fades softly — no hard edges arrive, because Nouveau has none.', history: 'Art Nouveau (c. 1910–1910) — Mucha’s posters, Guimard’s Métro entrances, Horta’s Brussels houses, Tiffany and Gallé in glass — pulled its “whiplash” line from plant stems and Japanese prints, and refused the straight line wherever it could. Its posters were the first mass advertising to treat lettering as drawing; that hand-lettered, curve-following title survived into the psychedelic posters of the 1960s and returns in broadcast whenever a period drama, perfume or garden programme needs a caption that appears to have grown there.', tryThis: 'Change the tendril’s IN from wipeR to fade. It now simply appears — the drawn quality, and most of the era, disappears with the wipe.', interestTag: 'Art Nouveau', related: ['Mucha', 'ornament', 'Belle Époque'] },
     tags: ['art-nouveau', 'organic', 'curve', 'serif'],
   },
   {
-    id: 'lt-victorian', name: 'Victorian Playbill', group: G, family: 'victorian', tagline: 'A scalloped card unrolls from the top, rules spread from the centre, and the name is set as wood type.',
+    id: 'lt-victorian', councilStyle: 'CLASSICAL', name: 'Victorian Playbill', group: G, family: 'victorian', tagline: 'A scalloped card unrolls from the top, rules spread from the centre, and the name is set as wood type.',
     colors: { accent: '#8A3034', ink: '#31251E', paper: '#E8D7B5', secondary: '#C18D32' }, origin: { x: 50, y: 80 }, duration: 6,
     layers: [
       L({ id: 'scallop', label: 'Scalloped header', kind: 'path', path: scallopPath(10), x: -380, y: -60, w: 760, h: 46, fill: 'paper', in: mo('wipeD', .4, 0, 'expo'), out: mo('wipeD', .3, .1, 'inOut') }),
@@ -167,7 +168,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['victorian', 'playbill', 'centered', 'letterpress'],
   },
   {
-    id: 'lt-gothic', name: 'Gothic Window', group: G, family: 'gothic', tagline: 'A gold pointed arch rises, a wine-coloured pane fills it, and blackletter appears on a dark plate beside it.',
+    id: 'lt-gothic', councilStyle: 'BAROQUE', name: 'Gothic Window', group: G, family: 'gothic', tagline: 'A gold pointed arch rises, a wine-coloured pane fills it, and blackletter appears on a dark plate beside it.',
     colors: { accent: '#D8B55B', ink: '#EFE3C8', paper: '#14131C', secondary: '#6E153C' }, origin: { x: 6, y: 80 }, duration: 7,
     layers: [
       L({ id: 'arch', label: 'Pointed arch (gold)', kind: 'path', path: pointedArchPath(.16), x: 0, y: -150, w: 130, h: 270, fill: 'accent', in: mo('growY', .6, 0, 'expo'), out: mo('growY', .4, 0, 'inOut') }),
@@ -185,7 +186,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
 
   // ── Counterculture ──────────────────────────────────────────────────────────
   {
-    id: 'lt-memphis', name: 'Memphis', group: G, family: 'memphis', tagline: 'Confetti bounces in, a black block wipes under a pink squiggle, and a chunky name lands last.',
+    id: 'lt-memphis', councilStyle: 'NEON', name: 'Memphis', group: G, family: 'memphis', tagline: 'Confetti bounces in, a black block wipes under a pink squiggle, and a chunky name lands last.',
     colors: { accent: '#EF5C79', ink: '#1A1A1E', paper: '#F4E36D', secondary: '#27A9A1' }, origin: { x: 6, y: 80 }, duration: 5,
     layers: [
       L({ id: 'tri', label: 'Confetti triangle', kind: 'path', path: polygonPath(3), x: 724, y: -44, w: 40, h: 36, fill: 'accent', in: mo('pop', .45, 0, 'bounce'), out: mo('pop', .25, .3, 'inOut') }),
@@ -203,7 +204,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['memphis', 'confetti', 'playful', '1980s'],
   },
   {
-    id: 'lt-punk', name: 'Punk Xerox', group: G, family: 'punk', tagline: 'A torn strip slaps down, black tape spins on, and the name scrambles into place like a ransom note.',
+    id: 'lt-punk', councilStyle: 'REBEL', name: 'Punk Xerox', group: G, family: 'punk', tagline: 'A torn strip slaps down, black tape spins on, and the name scrambles into place like a ransom note.',
     colors: { accent: '#D71920', ink: '#111111', paper: '#EEE9DB', secondary: '#74706A' }, origin: { x: 6, y: 80 }, duration: 5,
     layers: [
       L({ id: 'strip', label: 'Torn paper strip', kind: 'path', path: tornEdgePath(7, 12), x: -30, y: -24, w: 820, h: 132, rotation: -1.5, fill: 'paper', in: mo('slideU', .45, 0, 'expo', .7), out: mo('slideD', .35, 0, 'inOut', .8) }),
@@ -218,7 +219,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['punk', 'torn', 'zine', 'collage'],
   },
   {
-    id: 'lt-vaporwave', name: 'Vaporwave', group: G, family: 'vaporwave', tagline: 'A gradient sun rises behind chromatic plates while a perspective floor fades in below.',
+    id: 'lt-vaporwave', councilStyle: 'FUTURIST', name: 'Vaporwave', group: G, family: 'vaporwave', tagline: 'A gradient sun rises behind chromatic plates while a perspective floor fades in below.',
     colors: { accent: '#F66BC5', ink: '#F8F2FF', paper: '#19123A', secondary: '#61DCEB' }, origin: { x: 6, y: 80 }, duration: 6,
     layers: [
       L({ id: 'grid1', label: 'Floor line', kind: 'rect', x: 0, y: 108, w: 820, h: 1.5, fill: 'secondary', opacity: .35, in: mo('fade', .35, 0, 'out'), out: mo('fade', .3, 0, 'out') }),
@@ -238,7 +239,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['vaporwave', 'gradient', 'retro', 'glitch'],
   },
   {
-    id: 'lt-y2k', name: 'Y2K Chrome', group: G, family: 'y2k', tagline: 'A translucent pill pops, a chrome bar grows beneath it and bubbles float up — the millennium as a name tag.',
+    id: 'lt-y2k', councilStyle: 'FUTURIST', name: 'Y2K Chrome', group: G, family: 'y2k', tagline: 'A translucent pill pops, a chrome bar grows beneath it and bubbles float up — the millennium as a name tag.',
     colors: { accent: '#4D68FF', ink: '#FFFFFF', paper: '#DDEBFF', secondary: '#A7FFEA' }, origin: { x: 6, y: 80 }, duration: 5,
     layers: [
       L({ id: 'pill', label: 'Translucent pill', kind: 'rect', rx: 50, x: 0, y: -10, w: 680, h: 100, fill: '#FFFFFF', opacity: .14, stroke: '#FFFFFF', strokeWidth: 1.5, in: mo('pop', .5, 0, 'back'), out: mo('pop', .35, 0, 'inOut') }),
@@ -255,7 +256,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['y2k', 'chrome', 'bubbles', 'translucent'],
   },
   {
-    id: 'lt-new-wave', name: 'New Wave', group: G, family: 'new-wave', tagline: 'Stepped rules climb, a colour field drops in over its own ghost, and the name slides in word by word.',
+    id: 'lt-new-wave', councilStyle: 'EDITORIAL', name: 'New Wave', group: G, family: 'new-wave', tagline: 'Stepped rules climb, a colour field drops in over its own ghost, and the name slides in word by word.',
     colors: { accent: '#E34877', ink: '#24203B', paper: '#F5EAD7', secondary: '#1D9CAB' }, origin: { x: 6, y: 80 }, duration: 5,
     layers: [
       L({ id: 'step1', label: 'Stepped rule', kind: 'rect', x: 0, y: -70, w: 300, h: 6, fill: 'paper', in: mo('growX', .4, 0, 'expo'), out: mo('growX', .3, .2, 'inOut') }),
@@ -271,7 +272,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['new-wave', 'layered', 'stepped', 'postmodern'],
   },
   {
-    id: 'lt-psychedelic', name: 'Psychedelic', group: G, family: 'psychedelic', tagline: 'Three ribbons of colour roll in, a blob swells over them and a rounded name floats up.',
+    id: 'lt-psychedelic', councilStyle: 'NEON', name: 'Psychedelic', group: G, family: 'psychedelic', tagline: 'Three ribbons of colour roll in, a blob swells over them and a rounded name floats up.',
     colors: { accent: '#F04B9B', ink: '#FFF6E8', paper: '#351060', secondary: '#27B6A5' }, origin: { x: 6, y: 80 }, duration: 6,
     layers: [
       L({ id: 'wave-m', label: 'Magenta ribbon', kind: 'path', path: wavePath(2.5, 24, 20, 0), x: -40, y: -34, w: 900, h: 124, fill: 'accent', opacity: .92, in: mo('slideL', .6, 0, 'expo', .55), out: mo('slideL', .45, 0, 'inOut', .6) }),
@@ -286,7 +287,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['psychedelic', 'waves', 'colour', '1960s'],
   },
   {
-    id: 'lt-grunge', name: 'Grunge', group: G, family: 'grunge', tagline: 'A khaki brush stroke swipes across, a misregistered second ink lands on it, and a heavy name fades through the mess.',
+    id: 'lt-grunge', councilStyle: 'INK', name: 'Grunge', group: G, family: 'grunge', tagline: 'A khaki brush stroke swipes across, a misregistered second ink lands on it, and a heavy name fades through the mess.',
     colors: { accent: '#7A2C2A', ink: '#171817', paper: '#B7AD91', secondary: '#445248' }, origin: { x: 6, y: 80 }, duration: 6,
     layers: [
       L({ id: 'stroke2', label: 'Misregistered red underprint', kind: 'path', path: brushStrokePath(5), x: -12, y: -32, w: 820, h: 170, rotation: -1.5, fill: 'accent', opacity: .85, in: mo('wipeR', .5, 0, 'expo'), out: mo('wipeR', .4, .05, 'inOut') }),
@@ -298,13 +299,13 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     title: { font: 'oswald', weight: 700, size: 58, color: 'ink', upper: true, tracking: .01, x: 30, y: 2, w: 700, align: 'left', anim: anim('fadeIn', .5, .35, .3, .6), maxLines: 1 },
     subtitle: { font: 'specialElite', weight: 400, size: 20, color: 'paper', x: 34, y: 78, w: 700, align: 'left', anim: anim('typeOn', .5, .7, .2, 1), shadow: true, maxLines: 1 },
     defaults: { title: 'Kurt Delacroix', subtitle: 'guitar / vocals — Mudhoney tour, 1992' },
-    lesson: { principle: 'Grunge is overprint out of register: the red underprint lands first and the khaki stroke lands on it eight pixels off, so a rim of the wrong ink shows along every edge like a misfed press, and the type fades through rather than arriving — nothing here is allowed to be crisp.', history: 'Grunge design belongs to the early 1990s Pacific Northwest — Art Chantry’s posters for Seattle bands, the Sub Pop sleeves, and David Carson’s Ray Gun (1992–2000), where distressed type, layered photocopies and deliberate illegibility answered the slick corporate look of the 1980s. MTV’s 120 Minutes and Alternative Nation graphics carried the aesthetic to television, and the misregistered plate with a typewriter caption is still how a broadcast signals “underground music”, thirty years on.', tryThis: 'Set the red underprint’s x and y to match the khaki stroke exactly. The two strokes fuse into one clean shape and the red vanishes — the texture was the misalignment.', interestTag: 'Grunge design', related: ['David Carson', '1990s', 'distressed type'] },
+    lesson: { principle: 'Grunge is overprint out of register: the red underprint lands first and the khaki stroke lands on it eight pixels off, so a rim of the wrong ink shows along every edge like a misfed press, and the type fades through rather than arriving — nothing here is allowed to be clean.', history: 'Grunge typography (Seattle and Portland, c. 1990–1996) — Ray Gun magazine, David Carson, Art Chantry, Sub Pop covers — broke grid rules entirely, using distressed typefaces, muddy overprints and illegibility as a rejection of corporate slickness. Television absorbed it in MTV and skate-video graphics, where the texture of degraded video replaced the texture of bad printing; the misregistered brush strokes and typewriter caption here are the broadcast translation of a gig poster.', tryThis: 'Set both strokes’ rotation to 0 and their x/y offsets to be identical. The mess vanishes and it becomes a tidy corporate paint swoosh — grunge requires the mistake.', interestTag: 'Grunge typography', related: ['David Carson', '1990s', 'Sub Pop'] },
     tags: ['grunge', 'brush', 'distressed', 'multiply'],
   },
 
   // ── Modernism late ──────────────────────────────────────────────────────────
   {
-    id: 'lt-brutalist', name: 'Brutalist', group: G, family: 'brutalist', tagline: 'A concrete slab, an L-shaped black frame, exposed grid coordinates and a name too big for the plate.',
+    id: 'lt-brutalist', councilStyle: 'MONO', name: 'Brutalist', group: G, family: 'brutalist', tagline: 'A concrete slab, an L-shaped black frame, exposed grid coordinates and a name too big for the plate.',
     colors: { accent: '#0047FF', ink: '#101010', paper: '#F2F0E8', secondary: '#FF3B30' }, origin: { x: 6, y: 78 }, duration: 6,
     layers: [
       L({ id: 'slab', label: 'Concrete slab', kind: 'rect', x: 0, y: -110, w: 900, h: 260, fill: 'paper', in: mo('wipeD', .4, 0, 'expo'), out: mo('wipeD', .3, 0, 'inOut') }),
@@ -321,7 +322,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['brutalist', 'oversized', 'mono', 'frame'],
   },
   {
-    id: 'lt-minimalist', name: 'Minimalist', group: G, family: 'minimalist', tagline: 'One hairline, one light name, one small grey square. Nothing else happens, slowly.',
+    id: 'lt-minimalist', councilStyle: 'RADICAL_MINIMAL', name: 'Minimalist', group: G, family: 'minimalist', tagline: 'One hairline, one light name, one small grey square. Nothing else happens, slowly.',
     colors: { accent: '#B8B5AE', ink: '#F6F5F0', paper: '#171717', secondary: '#9A3E35' }, origin: { x: 6, y: 80 }, duration: 7,
     layers: [
       L({ id: 'hair', label: 'Hairline', kind: 'rect', x: 0, y: 60, w: 480, h: 1, fill: 'accent', in: mo('growX', 1.2, 0, 'expo'), out: mo('fade', .6, 0, 'out') }),
@@ -334,7 +335,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['minimalist', 'hairline', 'quiet', 'light'],
   },
   {
-    id: 'lt-midcentury', name: 'Mid-Century', group: G, family: 'midcentury', tagline: 'A teal boomerang glides in, atomic dots pop beside a mustard plate, and a friendly name rises.',
+    id: 'lt-midcentury', councilStyle: 'BAUHAUS', name: 'Mid-Century', group: G, family: 'midcentury', tagline: 'A teal boomerang glides in, atomic dots pop beside a mustard plate, and a friendly name rises.',
     colors: { accent: '#D65A3A', ink: '#252B35', paper: '#F2D9A7', secondary: '#29726B' }, origin: { x: 6, y: 80 }, duration: 6,
     layers: [
       L({ id: 'plate', label: 'Mustard plate', kind: 'rect', rx: 30, x: 0, y: -10, w: 680, h: 110, fill: 'paper', in: mo('slideR', .5, .15, 'expo', .3), out: mo('slideR', .35, 0, 'inOut', .3) }),
@@ -352,7 +353,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['midcentury', 'boomerang', 'atomic', 'rounded'],
   },
   {
-    id: 'lt-space-age', name: 'Space Age', group: G, family: 'space-age', tagline: 'Two orbits spin into alignment around a small orange planet; a capsule plate extends from it.',
+    id: 'lt-space-age', councilStyle: 'FUTURIST', name: 'Space Age', group: G, family: 'space-age', tagline: 'Two orbits spin into alignment around a small orange planet; a capsule plate extends from it.',
     colors: { accent: '#EF603B', ink: '#E9EDF2', paper: '#0D1830', secondary: '#55B8C8' }, origin: { x: 6, y: 80 }, duration: 6,
     layers: [
       L({ id: 'orbit1', label: 'Orbit ring', kind: 'ellipse', x: -30, y: -40, w: 200, h: 70, rotation: -20, fill: 'none', stroke: 'secondary', strokeWidth: 3, in: mo('spin', .7, 0, 'expo', 120), out: mo('spin', .45, 0, 'inOut', 90) }),
@@ -370,7 +371,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
 
   // ── Global traditions ───────────────────────────────────────────────────────
   {
-    id: 'lt-harlem', name: 'Harlem Renaissance', group: G, family: 'harlem', tagline: 'A spotlight opens, four rules land on a syncopated beat, and a heavy serif name rises under a jazz kicker.',
+    id: 'lt-harlem', councilStyle: 'BAROQUE', name: 'Harlem Renaissance', group: G, family: 'harlem', tagline: 'A spotlight opens, four rules land on a syncopated beat, and a heavy serif name rises under a jazz kicker.',
     colors: { accent: '#9D3A30', ink: '#2A201D', paper: '#E9D7B0', secondary: '#C69C43' }, origin: { x: 6, y: 80 }, duration: 6,
     layers: [
       L({ id: 'spot', label: 'Spotlight', kind: 'ellipse', x: -60, y: -170, w: 360, h: 360, fill: 'paper', opacity: .22, in: mo('pop', .6, 0, 'expo'), out: mo('fade', .4, 0, 'out') }),
@@ -387,7 +388,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['harlem', 'jazz', 'serif', 'rhythm'],
   },
   {
-    id: 'lt-ukiyoe', name: 'Ukiyo-e', group: G, family: 'ukiyoe', tagline: 'A flat indigo wave sweeps in from the right, a cream cartouche follows and a red seal stamps the corner.',
+    id: 'lt-ukiyoe', councilStyle: 'INK', name: 'Ukiyo-e', group: G, family: 'ukiyoe', tagline: 'A flat indigo wave sweeps in from the right, a cream cartouche follows and a red seal stamps the corner.',
     colors: { accent: '#B94335', ink: '#244C5A', paper: '#E8D8B4', secondary: '#D2A33A' }, origin: { x: 6, y: 80 }, duration: 6,
     layers: [
       L({ id: 'wave', label: 'Wave band', kind: 'path', path: wavePath(2, 36, 30, .6), x: -40, y: -66, w: 900, h: 170, fill: 'ink', in: mo('slideR', .6, 0, 'expo', .5), out: mo('slideR', .45, 0, 'inOut', .55) }),
@@ -403,7 +404,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['ukiyoe', 'wave', 'seal', 'japan'],
   },
   {
-    id: 'lt-islamic-geometry', name: 'Islamic Geometry', group: G, family: 'islamic-geometry', tagline: 'An eight-point star turns into alignment, a frieze of small stars follows and a gold hairline underlines the name.',
+    id: 'lt-islamic-geometry', councilStyle: 'CEREMONIAL', name: 'Islamic Geometry', group: G, family: 'islamic-geometry', tagline: 'An eight-point star turns into alignment, a frieze of small stars follows and a gold hairline underlines the name.',
     colors: { accent: '#B98A32', ink: '#243B73', paper: '#F1E5C8', secondary: '#155A63' }, origin: { x: 6, y: 80 }, duration: 6,
     layers: [
       L({ id: 'star', label: 'Eight-point star', kind: 'path', path: eightStarPath(), x: 0, y: -30, w: 120, h: 120, fill: 'secondary', in: mo('spin', .6, 0, 'expo', 45), out: mo('spin', .4, 0, 'inOut', 45) }),
@@ -421,7 +422,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['islamic-geometry', 'star', 'gold', 'pattern'],
   },
   {
-    id: 'lt-mexican-modern', name: 'Mexican Modern', group: G, family: 'mexican-modern', tagline: 'A teal field, an ochre sun with hand-cut rays, a heavy woodcut rule and a pink name that drops like a headline.',
+    id: 'lt-mexican-modern', councilStyle: 'REBEL', name: 'Mexican Modern', group: G, family: 'mexican-modern', tagline: 'A teal field, an ochre sun with hand-cut rays, a heavy woodcut rule and a pink name that drops like a headline.',
     colors: { accent: '#C83A2A', ink: '#28221F', paper: '#F0D6A4', secondary: '#176B61' }, origin: { x: 6, y: 78 }, duration: 6,
     layers: [
       L({ id: 'field', label: 'Teal field', kind: 'rect', x: 0, y: -40, w: 800, h: 160, fill: 'secondary', in: mo('wipeR', .4, 0, 'expo'), out: mo('wipeR', .3, 0, 'inOut') }),
@@ -436,7 +437,7 @@ export const LOWER_THIRDS_BY_ERA: LowerThirdSpec[] = [
     tags: ['mexican-modern', 'sun', 'woodcut', 'flat colour'],
   },
   {
-    id: 'lt-afrofuturist', name: 'Afrofuturist', group: G, family: 'afrofuturist', tagline: 'A radiant crown of five rings expands from the centre, an indigo plate settles beside it and a wide name tracks in.',
+    id: 'lt-afrofuturist', councilStyle: 'CEREMONIAL', name: 'Afrofuturist', group: G, family: 'afrofuturist', tagline: 'A radiant crown of five rings expands from the centre, an indigo plate settles beside it and a wide name tracks in.',
     colors: { accent: '#E6B84A', ink: '#F4EEFF', paper: '#15102B', secondary: '#18A6A6' }, origin: { x: 6, y: 80 }, duration: 6,
     layers: [
       ...crownRings(70, 30, [18, 34, 50, 66, 82], ['accent', 'secondary'], .08),

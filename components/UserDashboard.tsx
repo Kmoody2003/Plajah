@@ -30,11 +30,12 @@ import {
   CreditCard, Globe, Shield, Bell, LogOut, Save, Plus, Trash2, X,
   ExternalLink, Play, Sparkles, Radio, Tv, Search, Notebook, Mail,
   CheckSquare, Square, Check, FolderPlus, LayoutGrid, Eye, EyeOff, ChevronUp, ChevronDown, Building2, ShoppingBag, Pen, Box, Heart, HeartHandshake, Trophy, Baby, DollarSign, UploadCloud, LayoutTemplate, Share2, ArrowRight,
-  Film, BarChart2, FileText, Users, Activity, ChevronLeft, Fingerprint,
+  Film, BarChart2, FileText, Users, Activity, ChevronLeft, Fingerprint, KeyRound,
 } from 'lucide-react';
 import { useViewport } from '../hooks/useViewport';
 import MobileSettingsMenu, { SETTINGS_TAB_LABELS } from './MobileSettingsMenu';
 import FediverseSettings from './FediverseSettings';
+import ConnectedServicesSettings from './ConnectedServicesSettings';
 import FediverseHub from './FediverseHub';
 import { motion } from 'motion/react';
 
@@ -92,7 +93,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
   const [activeTab, setActiveTab] = useState<
     'ACCOUNT' | 'ASSETS' | 'PHOTOS' | 'BROADCAST' | 'PAYMENTS' | 'INTERESTS' |
     'MAILING_LIST' | 'SIDEBAR' | 'ALIASES' | 'STORE_MANAGEMENT' | 'REVENUE' |
-    'WORLDS' | 'RADIO_MANAGER' | 'THEMES' | 'NETWORKS' |
+    'WORLDS' | 'RADIO_MANAGER' | 'THEMES' | 'NETWORKS' | 'CONNECTED_SERVICES' |
     'FILM_STUDIO' | 'FILM_RIGHTS' | 'FILM_ANALYTICS' |
     'MUSIC_STUDIO' | 'ARTIST_RADIO' | 'PODCAST_HUB' | 'AUDIO_HEALTH' |
     'BOOKS_STUDIO' | 'SERIAL_SCHEDULER' | 'BOOK_CLUBS' |
@@ -352,6 +353,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             { id: 'SIDEBAR', label: 'Sidebar Config', icon: LayoutGrid },
             { id: 'THEMES', label: 'Theme Presets', icon: LayoutTemplate },
             { id: 'NETWORKS', label: 'Social Networks', icon: Share2 },
+            { id: 'CONNECTED_SERVICES', label: 'Connected Services', icon: KeyRound },
           ] as { id: string; label: string; icon: any; cap?: Capability }[])
             .filter(item => !item.cap || hasCapability(profile, item.cap))
             .map(item => (
@@ -2108,6 +2110,20 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30 mb-6">Connect / Manage Accounts</h2>
                 <FediverseSettings />
               </div>
+            </motion.div>
+          )}
+
+          {/* ── Connected Services — API keys for external creative services (Fabula generation) ── */}
+          {activeTab === 'CONNECTED_SERVICES' && (
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div>
+                <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30 mb-2">Connected Services</h2>
+                <p className="text-[11px] text-white/40 leading-relaxed max-w-xl">
+                  Link your own accounts at external creative services so Fabula can generate on them.
+                  Work runs on your account and your credits — Plajah never uses a shared key.
+                </p>
+              </div>
+              <ConnectedServicesSettings />
             </motion.div>
           )}
 

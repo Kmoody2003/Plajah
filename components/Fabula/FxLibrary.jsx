@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { FX_EFFECTS } from "../plajahPixels/engine/fx/effects";
 import { FORGE_TRANSITIONS } from "../../services/fabula/forgeTransitions";
 import { FORGE_LOOKS, LOOK_CATEGORIES, allLooks, deleteUserLook } from "../../services/fabula/forgeLooks";
+import { FABULA_LOTTIE_LIBRARY, fabulaLottieAsMediaAsset } from "../../services/fabulaLottieLibrary";
 
 /* ─────────────── FILTER PRESETS (map to the clip fx model: bri/con/sat/blur/op) ─────────────── */
 export const FILTER_PRESETS = [
@@ -169,7 +170,16 @@ export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onApplyLook, on
               <button className="minibtn grow" onClick={onImportLottie} title="Import .lottie / Lottie .json files">＋ IMPORT</button>
               <button className="minibtn blue grow" onClick={onOpenFxPage} title="Open the Lottie Builder on the FX page">🛠 BUILD NEW</button>
             </div>
-            {!lotties.length && <div className="dim small" style={{ padding: 6 }}>No Lottie animations yet. Import .lottie/.json files (thousands of free ones at lottiefiles.com), or build your own on the FX page.</div>}
+            <div className="lbl" style={{ margin: "8px 2px 4px" }}>FABULA ORIGINALS · CC0</div>
+            <div className="fxgrid" style={{ marginBottom: 8 }}>
+              {FABULA_LOTTIE_LIBRARY.map((item) => (
+                <button key={item.id} className="fxcard" onClick={() => onInsertLottie(fabulaLottieAsMediaAsset(item))} title={`${item.description} · ${item.styleEra} · CC0`}>
+                  <span className="fxthumb gen" style={{ background: `radial-gradient(circle at 35% 30%, ${item.colors[1]}, ${item.colors[0]} 72%)`, color: item.colors[2] }}>◈</span>
+                  <span className="fxname">{item.name}</span>
+                </button>
+              ))}
+            </div>
+            {!lotties.length && <div className="dim small" style={{ padding: 6 }}>No imported animations yet. Add a licensed .lottie/.json file, or build your own on the FX page.</div>}
             {lottieBins.map((bin) => (
               <div key={bin}>
                 <div className="lbl" style={{ margin: "8px 2px 4px" }}>{bin.toUpperCase()}</div>

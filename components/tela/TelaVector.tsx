@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import type { TelaVectorDevice, TelaVectorObject, TelaVectorObjectKind } from '../../types';
 import { pathDataFromNodes } from '../../services/telaImageTrace';
+import { layoutTextLines } from '../../services/tela/telaText';
 
 export type VectorTool = 'select' | 'direct' | 'marquee' | 'rect' | 'ellipse' | 'line' | 'pen' | 'text';
 
@@ -65,7 +66,7 @@ function makeObject(kind: TelaVectorObjectKind, x: number, y: number): TelaVecto
 function textLines(o: TelaVectorObject, writerTexts?: Record<string, string>): string[] {
   const bound = o.boundWriterDeviceId ? writerTexts?.[o.boundWriterDeviceId] : undefined;
   const src = (bound !== undefined && bound !== '') ? bound : (o.text ?? '');
-  return src.split('\n');
+  return layoutTextLines(o, src);
 }
 
 const ObjectEl: React.FC<{
@@ -85,24 +86,38 @@ const ObjectEl: React.FC<{
   const gradientDef = o.gradient ? <defs>{o.gradient.kind === 'RADIAL'
     ? <radialGradient id={gradientId}>{o.gradient.stops.map((stop, index) => <stop key={index} offset={`${stop.offset * 100}%`} stopColor={stop.color} stopOpacity={stop.opacity ?? 1}/>)}</radialGradient>
     : <linearGradient id={gradientId} x1={`${50 - Math.cos(angle) * 50}%`} y1={`${50 - Math.sin(angle) * 50}%`} x2={`${50 + Math.cos(angle) * 50}%`} y2={`${50 + Math.sin(angle) * 50}%`}>{o.gradient.stops.map((stop, index) => <stop key={index} offset={`${stop.offset * 100}%`} stopColor={stop.color} stopOpacity={stop.opacity ?? 1}/>)}</linearGradient>}</defs> : null;
-  const decorate = (node: React.ReactNode) => <>{gradientDef}{node}</>;
+  // Finish: drop shadow and/or gaussian blur become one SVG filter per object.
+  const filterId = `tela_filter_${o.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+  const hasFilter = !!o.shadow || !!(o.blur && o.blur > 0);
+  const filterDef = hasFilter ? <defs><filter id={filterId} x="-40%" y="-40%" width="180%" height="180%" colorInterpolationFilters="sRGB">
+    {o.blur && o.blur > 0 ? <feGaussianBlur stdDeviation={o.blur} /> : null}
+    {o.shadow ? <feDropShadow dx={o.shadow.x} dy={o.shadow.y} stdDeviation={o.shadow.blur} floodColor={o.shadow.color} /> : null}
+  </filter></defs> : null;
+  const decorate = (node: React.ReactNode) => <>{gradientDef}{filterDef}{node}</>;
+  const finish: React.SVGProps<any> = {
+    filter: hasFilter ? `url(#${filterId})` : undefined,
+    strokeDasharray: o.strokeDash && o.strokeDash.length ? o.strokeDash.join(' ') : undefined,
+  };
+  const blendStyle: React.CSSProperties = o.blendMode && o.blendMode !== 'normal' ? { mixBlendMode: o.blendMode as any } : {};
   const common: React.SVGProps<any> = {
     fill: o.gradient ? `url(#${gradientId})` : o.fill, stroke: o.stroke, strokeWidth: o.strokeWidth, opacity: o.opacity,
     transform: o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined,
-    onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onContextMenu, style: { cursor: interactive ? 'move' : 'default' },
-    strokeLinecap: 'round', strokeLinejoin: 'round',
+    onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onContextMenu, style: { cursor: interactive ? 'move' : 'default', ...blendStyle },
+    strokeLinecap: 'round', strokeLinejoin: 'round', ...finish,
   };
-  if (o.kind === 'RECT') return decorate(<rect x={o.x} y={o.y} width={Math.max(0, o.w)} height={Math.max(0, o.h)} rx={2} {...common} />);
+  if (o.kind === 'RECT') return decorate(<rect x={o.x} y={o.y} width={Math.max(0, o.w)} height={Math.max(0, o.h)} rx={o.rx ?? 2} {...common} />);
   if (o.kind === 'ELLIPSE') return decorate(<ellipse cx={o.x + o.w / 2} cy={o.y + o.h / 2} rx={Math.max(0, o.w / 2)} ry={Math.max(0, o.h / 2)} {...common} />);
   if (o.kind === 'LINE' && o.points) return <line x1={o.points[0]} y1={o.points[1]} x2={o.points[2]} y2={o.points[3]} {...common} />;
   if (o.kind === 'IMAGE' && o.sourceImageSrc && o.sourceCrop) {
     const c = o.sourceCrop;
-    return <g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default' }} opacity={o.opacity}><svg x={o.x} y={o.y} width={o.w} height={o.h} viewBox={`${c.x} ${c.y} ${c.width} ${c.height}`} preserveAspectRatio="none" style={{ overflow: 'hidden' }}><image href={o.sourceImageSrc} x={0} y={0} width={c.sourceWidth} height={c.sourceHeight} preserveAspectRatio="none" /></svg></g>;
+    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', ...blendStyle }} opacity={o.opacity} {...finish}><svg x={o.x} y={o.y} width={o.w} height={o.h} viewBox={`${c.x} ${c.y} ${c.width} ${c.height}`} preserveAspectRatio="none" style={{ overflow: 'hidden' }}><image href={o.sourceImageSrc} x={0} y={0} width={c.sourceWidth} height={c.sourceHeight} preserveAspectRatio="none" /></svg></g>);
   }
   if (o.kind === 'PATH' && o.svgPathData) {
     const ox = o.pathOriginX ?? o.x, oy = o.pathOriginY ?? o.y;
     const sx = o.w / Math.max(1, o.pathOriginW ?? o.w), sy = o.h / Math.max(1, o.pathOriginH ?? o.h);
-    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default' }} opacity={o.opacity}><path d={o.svgPathData} fill={o.gradient ? `url(#${gradientId})` : o.fill} stroke={o.stroke} strokeWidth={o.strokeWidth} strokeLinecap="round" strokeLinejoin="round" transform={`translate(${o.x} ${o.y}) scale(${sx} ${sy}) translate(${-ox} ${-oy})`} /></g>);
+    // Stroke width is specified in artboard px; undo the origin-box scale so it stays even.
+    const strokeScale = Math.max(.0001, Math.sqrt(Math.abs(sx * sy)));
+    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', ...blendStyle }} opacity={o.opacity} {...finish}><path d={o.svgPathData} fill={o.gradient ? `url(#${gradientId})` : o.fill} stroke={o.stroke} strokeWidth={o.strokeWidth / strokeScale} strokeLinecap="round" strokeLinejoin="round" fillRule="evenodd" transform={`translate(${o.x} ${o.y}) scale(${sx} ${sy}) translate(${-ox} ${-oy})`} /></g>);
   }
   if (o.kind === 'PATH' && o.points) {
     const pts = [];
@@ -112,15 +127,24 @@ const ObjectEl: React.FC<{
   if (o.kind === 'TEXT') {
     const size = o.fontSize || 24;
     const lines = textLines(o, writerTexts);
-    return (
+    const align = o.textAlign || 'left';
+    const ax = align === 'center' ? o.x + o.w / 2 : align === 'right' ? o.x + o.w : o.x;
+    const leading = size * (o.lineHeight ?? 1.22);
+    const outlined = o.stroke !== 'none' && o.strokeWidth > 0;
+    return decorate(
       <text
-        x={o.x} y={o.y + size} fill={o.fill} opacity={o.opacity}
+        x={ax} y={o.y + size} fill={o.gradient ? `url(#${gradientId})` : o.fill} opacity={o.opacity}
         fontSize={size} fontFamily={o.fontFamily || 'system-ui, sans-serif'} fontWeight={o.fontWeight || 400}
+        fontStyle={o.fontStyle === 'italic' ? 'italic' : undefined}
+        letterSpacing={o.letterSpacing ? o.letterSpacing * size : undefined}
+        textAnchor={align === 'center' ? 'middle' : align === 'right' ? 'end' : 'start'}
+        stroke={outlined ? o.stroke : undefined} strokeWidth={outlined ? o.strokeWidth : undefined} paintOrder="stroke" strokeLinejoin="round"
         transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}
-        onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', userSelect: 'none' }}
+        onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', userSelect: 'none', ...blendStyle }}
+        {...finish}
       >
         {lines.map((ln, i) => (
-          <tspan key={i} x={o.x} dy={i === 0 ? 0 : size * 1.22}>{ln === '' ? ' ' : ln}</tspan>
+          <tspan key={i} x={ax} dy={i === 0 ? 0 : leading}>{ln === '' ? ' ' : ln}</tspan>
         ))}
       </text>
     );
@@ -185,9 +209,37 @@ export const TelaVectorObjectProps: React.FC<{
             <div>
               <div style={lbl}>Weight</div>
               <select value={o.fontWeight || 400} onChange={e => onUpdate({ fontWeight: +e.target.value })} style={{ ...numStyle, width: 74 }}>
-                {[300, 400, 500, 600, 700, 800, 900].map(w => <option key={w} value={w}>{w}</option>)}
+                {[100, 200, 300, 400, 500, 600, 700, 800, 900].map(w => <option key={w} value={w}>{w}</option>)}
               </select>
             </div>
+            <div>
+              <div style={lbl}>Style</div>
+              <button title="Italic" onClick={() => onUpdate({ fontStyle: o.fontStyle === 'italic' ? 'normal' : 'italic' })} style={{ ...numStyle, width: 34, fontStyle: 'italic', fontWeight: 700, cursor: 'pointer', color: o.fontStyle === 'italic' ? 'var(--pj-cyan,#00DAF3)' : '#fff' }}>I</button>
+            </div>
+          </div>
+          <div className="flex items-center gap-2" style={{ marginTop: 8 }}>
+            <div>
+              <div style={lbl}>Align</div>
+              <div className="flex" style={{ gap: 2 }}>
+                {(['left', 'center', 'right'] as const).map(a => <button key={a} title={a} onClick={() => onUpdate({ textAlign: a })} style={{ ...numStyle, width: 30, padding: 0, cursor: 'pointer', fontSize: 10, fontWeight: 800, color: (o.textAlign || 'left') === a ? 'var(--pj-cyan,#00DAF3)' : 'rgba(255,255,255,.6)' }}>{a === 'left' ? '⫷' : a === 'center' ? '☰' : '⫸'}</button>)}
+              </div>
+            </div>
+            <div>
+              <div style={lbl} title="Tracking (letter-spacing) in % of size">Track</div>
+              <input type="number" step={1} value={Math.round((o.letterSpacing || 0) * 100)} onChange={e => onUpdate({ letterSpacing: (+e.target.value || 0) / 100 })} style={{ ...numStyle, width: 52 }} />
+            </div>
+            <div>
+              <div style={lbl} title="Leading (line-height) multiple">Lead</div>
+              <input type="number" step={0.05} value={o.lineHeight ?? 1.22} onChange={e => onUpdate({ lineHeight: Math.max(.6, +e.target.value || 1.22) })} style={{ ...numStyle, width: 56 }} />
+            </div>
+          </div>
+          <div className="flex items-center gap-2" style={{ marginTop: 8 }}>
+            <select value={o.textTransform || 'none'} onChange={e => onUpdate({ textTransform: e.target.value as any })} style={{ ...numStyle, width: 96 }} title="Case">
+              <option value="none">As typed</option><option value="uppercase">UPPERCASE</option><option value="lowercase">lowercase</option><option value="capitalize">Capitalize</option>
+            </select>
+            <label className="flex items-center gap-1.5" style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
+              <input type="checkbox" checked={!!o.wrap} onChange={e => onUpdate({ wrap: e.target.checked })} /> Wrap to box
+            </label>
           </div>
         </div>
       )}
@@ -240,6 +292,28 @@ export const TelaVectorObjectProps: React.FC<{
         <input type="range" min={-180} max={180} step={1} value={o.rotation} onChange={e => onUpdate({ rotation: +e.target.value })} style={{ width: '100%', accentColor: 'var(--pj-magenta,#D40055)' }} />
       </div>
 
+      {/* Finish — radius, shadow, blur, blend. Shared by every kind so templates stay editable. */}
+      <div style={{ marginBottom: 8, padding: 8, borderRadius: 9, background: 'rgba(255,255,255,.035)', border: '1px solid rgba(255,255,255,.08)' }}>
+        <div className="flex items-center gap-2">
+          {o.kind === 'RECT' && <div><div style={lbl}>Radius</div><input type="number" min={0} value={o.rx ?? 2} onChange={e => onUpdate({ rx: Math.max(0, +e.target.value || 0) })} style={{ ...numStyle, width: 54 }} /></div>}
+          <div><div style={lbl}>Blur</div><input type="number" min={0} step={0.5} value={o.blur || 0} onChange={e => onUpdate({ blur: Math.max(0, +e.target.value || 0) || undefined })} style={{ ...numStyle, width: 54 }} /></div>
+          <div style={{ flex: 1 }}><div style={lbl}>Blend</div>
+            <select value={o.blendMode || 'normal'} onChange={e => onUpdate({ blendMode: e.target.value === 'normal' ? undefined : e.target.value as any })} style={{ ...numStyle, width: '100%' }}>
+              {['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'].map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="flex items-center gap-2" style={{ marginTop: 6 }}>
+          <div style={{ ...lbl, marginBottom: 0 }}>Shadow</div>
+          <button onClick={() => onUpdate({ shadow: o.shadow ? undefined : { x: 0, y: 6, blur: 10, color: 'rgba(0,0,0,.35)' } })} className="h-6 px-2 rounded-[7px] text-[9px] font-extrabold" style={{ color: o.shadow ? '#8ff5ff' : 'rgba(255,255,255,.55)', background: o.shadow ? 'rgba(0,218,243,.12)' : 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', cursor: 'pointer' }}>{o.shadow ? 'On' : 'Add'}</button>
+          {o.shadow && <>
+            <input title="X" type="number" value={o.shadow.x} onChange={e => onUpdate({ shadow: { ...o.shadow!, x: +e.target.value || 0 } })} style={{ ...numStyle, width: 46 }} />
+            <input title="Y" type="number" value={o.shadow.y} onChange={e => onUpdate({ shadow: { ...o.shadow!, y: +e.target.value || 0 } })} style={{ ...numStyle, width: 46 }} />
+            <input title="Softness" type="number" min={0} value={o.shadow.blur} onChange={e => onUpdate({ shadow: { ...o.shadow!, blur: Math.max(0, +e.target.value || 0) } })} style={{ ...numStyle, width: 46 }} />
+          </>}
+        </div>
+      </div>
+
       <div className="flex items-center gap-1.5" style={{ marginTop: compact ? 6 : 10 }}>
         <button title="Bring forward" onClick={onForward} className="flex-1" style={{ display: 'grid', placeItems: 'center', height: 30, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', color: '#fff', cursor: 'pointer' }}><ChevronUp size={15} /></button>
         <button title="Send back" onClick={onBack} className="flex-1" style={{ display: 'grid', placeItems: 'center', height: 30, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', color: '#fff', cursor: 'pointer' }}><ChevronDown size={15} /></button>
@@ -248,6 +322,15 @@ export const TelaVectorObjectProps: React.FC<{
     </div>
   );
 };
+
+// ── Static render (thumbnails, galleries, previews) ───────────────────────────
+// The exact same ObjectEl the editor uses, so a gallery card IS the template —
+// never a CSS approximation of it.
+export const TelaStaticSvg: React.FC<{ objects: TelaVectorObject[]; width: number; height: number; className?: string; style?: React.CSSProperties; writerTexts?: Record<string, string> }> = ({ objects, width, height, className, style, writerTexts }) => (
+  <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="100%" preserveAspectRatio="xMidYMid meet" className={className} style={{ display: 'block', ...style }} aria-hidden>
+    {objects.map(o => <ObjectEl key={o.id} o={o} writerTexts={writerTexts} interactive={false} />)}
+  </svg>
+);
 
 // ── The device ────────────────────────────────────────────────────────────────
 

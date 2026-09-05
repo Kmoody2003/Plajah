@@ -3,6 +3,8 @@
 // Pure functions of (text, clip-local time, animator settings) → per-glyph state, consumed by
 // BOTH the DOM monitor (spans) and the canvas title renderer (export), so the animation is
 // identical in preview and MP4. Deterministic: scramble uses a seeded hash, no Math.random.
+import type { TelaChartStyle } from '../../types';
+
 export type TitleAnimType = 'none' | 'typeOn' | 'fadeUp' | 'fadeIn' | 'tracking' | 'scramble' | 'wordSlide' | 'blurIn' | 'dropIn';
 export interface TitleAnim {
   type: TitleAnimType;
@@ -27,9 +29,16 @@ export interface GlyphState {
   /** Extra letter-spacing as a fraction of font size. */
   spacing: number;
 }
-export const TITLE_ANIMS: { id: TitleAnimType; label: string }[] = [
-  { id: 'none', label: 'None' }, { id: 'typeOn', label: 'Type On' }, { id: 'fadeUp', label: 'Fade Up' }, { id: 'fadeIn', label: 'Fade In' },
-  { id: 'tracking', label: 'Tracking In' }, { id: 'scramble', label: 'Scramble' }, { id: 'wordSlide', label: 'Word Slide' }, { id: 'blurIn', label: 'Blur In' }, { id: 'dropIn', label: 'Drop In' },
+export const TITLE_ANIMS: { id: TitleAnimType; label: string; favoredByCouncil?: TelaChartStyle[] }[] = [
+  { id: 'none', label: 'None', favoredByCouncil: [] },
+  { id: 'typeOn', label: 'Type On', favoredByCouncil: ['MONO', 'TOPOGRAPHIC', 'INK'] },
+  { id: 'fadeUp', label: 'Fade Up', favoredByCouncil: ['EDITORIAL', 'CLASSICAL', 'SWISS'] },
+  { id: 'fadeIn', label: 'Fade In', favoredByCouncil: ['RADICAL_MINIMAL', 'SWISS', 'GLASS'] },
+  { id: 'tracking', label: 'Tracking In', favoredByCouncil: ['CEREMONIAL', 'BAROQUE', 'CLASSICAL'] },
+  { id: 'scramble', label: 'Scramble', favoredByCouncil: ['NEON', 'FUTURIST', 'REBEL'] },
+  { id: 'wordSlide', label: 'Word Slide', favoredByCouncil: ['REBEL', 'SPORTS', 'BROADCAST'] },
+  { id: 'blurIn', label: 'Blur In', favoredByCouncil: ['PLAJAH', 'GLASS', 'NEON'] },
+  { id: 'dropIn', label: 'Drop In', favoredByCouncil: ['BAUHAUS', 'SPORTS', 'REBEL'] },
 ];
 export const TITLE_ANIM_DEFAULT: TitleAnim = { type: 'none', duration: 1, delay: 0, out: 0, stagger: .6 };
 

@@ -32,10 +32,24 @@ import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { kithSightingsRouter } from './routes/kithSightings';
 import { veoRouter } from './routes/veo';
 import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/taleo';
+import { authMethodsRouter } from './routes/authMethods';
 import { createCustomToken, fsGet, fsSet, fsPatch, fsDelete } from './services/firebaseAdminRest';
+// Fabula generation agent — server-side only (these carry the user's provider API key).
+import {
+  submitMagnific as magnificSubmit, pollMagnific as magnificPoll, verifyMagnificKey,
+  opForInput as magnificOpFor, mysticAspect as magnificAspect, fetchAsBase64,
+} from './services/fabula/magnificApi';
+import {
+  saveKey as genVaultSaveKey, readKey as genVaultReadKey, revokeKey as genVaultRevokeKey,
+  listLinked as genVaultListLinked, type VaultStore as GenVaultStore,
+} from './services/fabula/genVault';
+import { mirrorResults as mirrorGenResults } from './services/fabula/genMirror';
 import { buildFfmpegArgs } from './services/crossover/engine';
 import { extFor } from './services/crossover/formats';
 import type { Recipe as CxRecipe, MediaKind as CxKind, MediaProbe as CxProbe } from './services/crossover/types';
+import { ARIA_ART_COUNCIL_METHOD } from './services/aria/ariaCreativeRoles';
+import { createCouncil } from './services/council/councilRoutes';
+import { FABULA_BROADCAST_PACKS } from './services/fabula/broadcastPacks';
 import {
   runChoraTranscodeWorker, startChoraTranscodeScheduler, PROCESSING_STALE_MS,
   type ChoraTranscodeDeps, type TrackCandidate as ChoraTrackCandidate,
@@ -47,9 +61,6 @@ for (const envFile of ['.env.local', '.env']) {
     readFileSync(envFile, 'utf8').split('\n').forEach(line => {
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith('#')) return;
-import { ARIA_ART_COUNCIL_METHOD } from './services/aria/ariaCreativeRoles';
-import { createCouncil } from './services/council/councilRoutes';
-import { FABULA_BROADCAST_PACKS } from './services/fabula/broadcastPacks';
       const eq = trimmed.indexOf('=');
       if (eq === -1) return;
       const key = trimmed.slice(0, eq).trim();
@@ -139,6 +150,37 @@ async function gcsUpload(objectPath: string, data: Buffer, contentType: string):
   try {
     const url = `https://storage.googleapis.com/upload/storage/v1/b/${STORAGE_BUCKET}/o?uploadType=media&name=${encodeURIComponent(objectPath)}`;
     const res = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType }, body: data as any });
+    return res.ok;
+  } catch { return false; }
+}
+
+/** Upload with a Firebase download token attached, so the object can be read back at the same
+ *  `firebasestorage.googleapis.com/...?alt=media&token=` URL the client-side uploader produces.
+ *  Plain `gcsUpload` can't do this — `uploadType=media` carries no metadata. */
+async function gcsUploadWithDownloadToken(
+  objectPath: string, data: Buffer, contentType: string, downloadToken: string,
+): Promise<boolean> {
+  const token = await getGoogleAccessToken();
+  if (!token) return false;
+  try {
+    const boundary = `plajah${nodeCrypto.randomBytes(12).toString('hex')}`;
+    const meta = JSON.stringify({
+      name: objectPath,
+      contentType,
+      metadata: { firebaseStorageDownloadTokens: downloadToken },
+    });
+    const body = Buffer.concat([
+      Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n`),
+      Buffer.from(`--${boundary}\r\nContent-Type: ${contentType}\r\n\r\n`),
+      data,
+      Buffer.from(`\r\n--${boundary}--\r\n`),
+    ]);
+    const url = `https://storage.googleapis.com/upload/storage/v1/b/${STORAGE_BUCKET}/o?uploadType=multipart`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+      body: body as any,
+    });
     return res.ok;
   } catch { return false; }
 }
@@ -543,7 +585,7 @@ const decodeFirestoreScalar = (v: any = {}): any =>
  * Decode any Firestore REST value, INCLUDING nested maps and arrays of maps.
  *
  * decodeFirestoreScalar above handles only string/number/bool and returns undefined for a
- * mapValue -- and the array branch below used to drop those undefineds. So any document field
+ * mapValue — and the array branch below used to drop those undefineds. So any document field
  * holding an array of OBJECTS decoded to an empty array. `albums.tracks` is exactly that, which
  * meant every album read through fsQueryDocs came back with `tracks: []` and anything counting
  * tracks server-side silently saw zero of them.
@@ -3587,12 +3629,18 @@ async function startServer() {
   });
 
   // POST /api/mux/upload — browser gets an upload URL and PUTs directly to Mux
-  app.post('/api/mux/upload', authMiddleware, async (req, res) => {
+  // tightJson: this route previously took no body at all — it needs one now (the trace tag),
+  // and a 10 kB cap is plenty for a 255-char string.
+  app.post('/api/mux/upload', authMiddleware, tightJson, async (req, res) => {
     try {
       const mux = await getMux();
       const corsOrigin = trustedRequestOrigin(req);
+      // Trace tag from the client (attempt id, uid, target release). Stamped on the asset so
+      // an abandoned upload can be attributed to a creator instead of sitting anonymous.
+      // Mux caps this at 255 chars; never trust the client's length.
+      const passthrough = String(req.body?.passthrough || '').slice(0, 255);
       const upload = await mux.video.uploads.create({
-        new_asset_settings: MUX_ASSET_SETTINGS,
+        new_asset_settings: passthrough ? { ...MUX_ASSET_SETTINGS, passthrough } : MUX_ASSET_SETTINGS,
         cors_origin: corsOrigin,
         // 24-hour window: a multi-GB film on a slow connection can take hours, and
         // UpChunk resumes within this window. 1 hour was too tight for large masters.
@@ -4860,6 +4908,216 @@ Rules:
       res.status(500).json({ prompt: { override: true, firstSimple: { speech: 'An error occurred.', text: 'Error.' } } });
     }
   });
+
+  // ── Fabula generation agent ────────────────────────────────────────────────
+  // Fabula's GENERATE panel talks to these. The client contract is in
+  // services/fabula/genAgent.ts; the design and the wallet-model reasoning are in
+  // docs/fabula/GEN_HANDOFF_PLAN.md.
+  //
+  // Only Magnific is wired for connected mode so far. Every other connector is handoff-only in the
+  // registry, and this route set says so explicitly rather than failing obscurely.
+  //
+  // Both the vault and the job list are stored as ONE document per user, holding a JSON string. That
+  // is deliberate: a per-job document would need a where+orderBy query, which needs a composite index
+  // and fails silently without one. One doc, filtered in memory, has no such trap.
+  {
+    const GEN_VAULT_DOC = (uid: string) => `genCredentials/${uid}`;
+    const GEN_JOBS_DOC = (uid: string) => `genJobs/${uid}`;
+    const GEN_JOB_CAP = 200;
+
+    const genVaultStore: GenVaultStore = {
+      async read(uid) {
+        const doc = await fsGet(GEN_VAULT_DOC(uid));
+        try { return doc?.records ? JSON.parse(String(doc.records)) : {}; } catch { return {}; }
+      },
+      async write(uid, records) {
+        await fsSet(GEN_VAULT_DOC(uid), { records: JSON.stringify(records), updatedAt: Date.now() });
+      },
+    };
+
+    const readJobs = async (uid: string): Promise<any[]> => {
+      const doc = await fsGet(GEN_JOBS_DOC(uid));
+      try {
+        const arr = doc?.jobs ? JSON.parse(String(doc.jobs)) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch { return []; }
+    };
+    const writeJobs = async (uid: string, jobs: any[]) => {
+      await fsSet(GEN_JOBS_DOC(uid), { jobs: JSON.stringify(jobs.slice(0, GEN_JOB_CAP)), updatedAt: Date.now() });
+    };
+    const upsertJob = async (uid: string, job: any) => {
+      const jobs = await readJobs(uid);
+      const i = jobs.findIndex((j) => j.id === job.id);
+      if (i >= 0) jobs[i] = job; else jobs.unshift(job);
+      await writeJobs(uid, jobs);
+      return job;
+    };
+    // Never let a stored key reach the client, whatever else is on the record.
+    const publicJob = (j: any) => ({
+      id: j.id, provider: j.provider, kind: j.kind, prompt: j.prompt, spec: j.spec,
+      projectId: j.projectId, bin: j.bin, status: j.status, progress: j.progress,
+      results: j.results || [], error: j.error, note: j.note, mirrored: j.mirrored,
+      mode: 'connected', createdAt: j.createdAt,
+    });
+
+    app.get('/api/genagent/health', (_req, res) => {
+      res.json({ ok: true, connected: ['magnific'], encryptionConfigured: (process.env.ENCRYPTION_KEY ?? '').length >= 16 });
+    });
+
+    app.post('/api/genagent/connectors', apiLimiter, express.json({ limit: '8kb' }), async (req: any, res) => {
+      // Auth is optional here: a signed-out user still gets the list, just nothing linked.
+      let linked: { provider: string; hint: string; linkedAt: number }[] = [];
+      const auth = req.headers.authorization;
+      if (auth?.startsWith('Bearer ')) {
+        const uid = await verifyFirebaseToken(auth.slice(7));
+        if (uid) { try { linked = await genVaultListLinked(genVaultStore, uid); } catch { /* unconfigured vault → nothing linked */ } }
+      }
+      const byId = new Map(linked.map((l) => [l.provider, l]));
+      // The client MERGES this onto its own static registry, so only link state is sent.
+      res.json({
+        connectors: [...byId.keys()].concat(['magnific'].filter((id) => !byId.has(id))).map((id) => ({
+          id, connected: byId.has(id), hint: byId.get(id)?.hint,
+        })),
+      });
+    });
+
+    app.post('/api/genagent/connect', apiLimiter, authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
+      const provider = String(req.body?.provider || '');
+      if (provider !== 'magnific') {
+        return res.status(400).json({ error: 'Only Magnific supports connected mode right now — use Hand off for the others.' });
+      }
+      // Magnific authenticates with an API key, not OAuth, so there is no authUrl to open. The client
+      // shows a paste form and posts to /connect/key. The key is never sent back afterwards.
+      res.json({
+        needsKey: true,
+        keyUrl: 'https://www.magnific.com/user/organization/api-keys',
+        keyLabel: 'Magnific API key',
+        keyHelp: 'Create a key on your Magnific account, then paste it here. It is encrypted on our server and never sent back to the browser.',
+      });
+    });
+
+    app.post('/api/genagent/connect/key', apiLimiter, authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
+      const provider = String(req.body?.provider || '');
+      const key = String(req.body?.key || '').trim();
+      if (provider !== 'magnific') return res.status(400).json({ error: 'Unknown provider.' });
+      if (!key) return res.status(400).json({ error: 'Paste your API key first.' });
+      try {
+        // Verify before storing, so a typo is caught here rather than on the first generate.
+        await verifyMagnificKey(key);
+        const rec = await genVaultSaveKey(genVaultStore, req.uid, provider, key);
+        res.json({ connected: true, hint: rec.hint });
+      } catch (e: any) {
+        res.status(400).json({ error: e?.message || 'That key was rejected by Magnific.' });
+      }
+    });
+
+    app.post('/api/genagent/connect/revoke', apiLimiter, authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
+      const provider = String(req.body?.provider || '');
+      try { res.json({ revoked: await genVaultRevokeKey(genVaultStore, req.uid, provider) }); }
+      catch (e: any) { res.status(500).json({ error: e?.message || 'Could not revoke.' }); }
+    });
+
+    app.post('/api/genagent/jobs', apiLimiter, authMiddleware, express.json({ limit: '256kb' }), async (req: any, res) => {
+      const { provider, kind, prompt, spec, projectId, bin } = req.body || {};
+      if (provider !== 'magnific') {
+        return res.status(501).json({ error: `${provider} has no connected adapter yet — use Hand off.` });
+      }
+      let apiKey: string | null = null;
+      try { apiKey = await genVaultReadKey(genVaultStore, req.uid, provider); }
+      catch (e: any) { return res.status(500).json({ error: e?.message || 'Credential vault unavailable.' }); }
+      if (!apiKey) return res.status(400).json({ error: 'Link your Magnific account first.' });
+
+      const job: any = {
+        id: `gj_${Date.now().toString(36)}_${nodeCrypto.randomBytes(3).toString('hex')}`,
+        provider, kind: kind || 'image', prompt: String(prompt || ''), spec: spec || null,
+        projectId: String(projectId || 'local'), bin: String(bin || 'Generated'),
+        status: 'queued', results: [], createdAt: Date.now(),
+      };
+
+      try {
+        // Magnific takes image bytes, not URLs — fetch each reference and base64 it. Only the roles
+        // Mystic actually has slots for are sent; the rest were already folded into the prompt client-side.
+        const refs: { source?: string; style?: string } = {};
+        for (const r of (spec?.refs || [])) {
+          const url = r?.url;
+          if (!url) continue;
+          if (!refs.source && (r.role === 'source' || r.role === 'first_frame')) refs.source = await fetchAsBase64(url);
+          else if (!refs.style && r.role === 'style') refs.style = await fetchAsBase64(url);
+        }
+        const input = { prompt: job.prompt, aspect: spec?.aspect, refs };
+        const op = magnificOpFor(input);
+        const asp = magnificAspect(spec?.aspect);
+        if (!asp.exact && op === 'generate') job.note = asp.note;
+
+        const task = await magnificSubmit(apiKey, op, input);
+        job.op = op;
+        job.taskId = task.taskId;
+        job.status = task.status === 'error' ? 'error' : (task.status || 'queued');
+        if (task.error) job.error = task.error;
+        await upsertJob(req.uid, job);
+        res.json({ jobId: job.id, status: job.status, note: job.note });
+      } catch (e: any) {
+        job.status = 'error';
+        job.error = e?.message || 'Magnific rejected the job.';
+        await upsertJob(req.uid, job).catch(() => { /* reporting the error matters more than storing it */ });
+        res.status(502).json({ error: job.error });
+      }
+    });
+
+    app.get('/api/genagent/jobs', apiLimiter, authMiddleware, async (req: any, res) => {
+      const projectId = String(req.query.projectId || '');
+      const jobs = await readJobs(req.uid);
+      res.json({ jobs: jobs.filter((j) => !projectId || j.projectId === projectId).map(publicJob) });
+    });
+
+    app.get('/api/genagent/jobs/:id', apiLimiter, authMiddleware, async (req: any, res) => {
+      const jobs = await readJobs(req.uid);
+      const job = jobs.find((j) => j.id === req.params.id);
+      if (!job) return res.status(404).json({ error: 'No such job.' });
+      // Terminal jobs never need another provider round-trip.
+      if (job.status === 'done' || job.status === 'error' || !job.taskId) return res.json(publicJob(job));
+
+      try {
+        const apiKey = await genVaultReadKey(genVaultStore, req.uid, job.provider);
+        if (!apiKey) return res.json(publicJob({ ...job, status: 'error', error: 'Magnific account is no longer linked.' }));
+        const task = await magnificPoll(apiKey, job.op || 'generate', job.taskId);
+        const updated: any = { ...job, status: task.status, results: task.results, error: task.error || job.error };
+
+        // A finished job's results live on the provider's host and won't stay there. Copy them into
+        // Plajah Storage now, while we still have them, and hand the client OUR urls — otherwise the
+        // bin fills with links that rot. Best-effort: a failure keeps the provider URL and says so.
+        if (updated.status === 'done' && updated.results?.length) {
+          const mirror = await mirrorGenResults(
+            updated.results,
+            { uid: req.uid, projectId: job.projectId, jobId: job.id },
+            {
+              bucket: STORAGE_BUCKET,
+              makeToken: () => nodeCrypto.randomUUID(),
+              async fetchBytes(url: string) {
+                const r = await fetch(url);
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return {
+                  bytes: new Uint8Array(await r.arrayBuffer()),
+                  contentType: r.headers.get('content-type') || undefined,
+                };
+              },
+              upload: (path, bytes, contentType, dlToken) =>
+                gcsUploadWithDownloadToken(path, Buffer.from(bytes), contentType, dlToken),
+            },
+          );
+          updated.results = mirror.results;
+          updated.mirrored = mirror.failed === 0;
+          if (mirror.note) updated.note = [job.note, mirror.note].filter(Boolean).join(' ');
+        }
+
+        await upsertJob(req.uid, updated);
+        res.json(publicJob(updated));
+      } catch (e: any) {
+        // A transient polling failure must not mark a running job dead — report it as still running.
+        res.json(publicJob({ ...job, error: e?.message }));
+      }
+    });
+  }
 
   // ── Public status — no auth, safe to expose, used for deployment verification ─
   app.get('/api/status', (_req, res) => {
@@ -8227,6 +8485,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
 
   const ARIA_SYSTEM_PROMPT = `You are Aria, the single AI presence across all of Plajah — a multi-format creator platform (writing, music, video, film, learning, business, live, and more). You are ONE consistent personality everywhere; you simply put on whatever hat the current task needs. You are the user's collaborator, not a chatbot bolted onto the side.
 
+${ARIA_ART_COUNCIL_METHOD}
+
 CORE BEHAVIOUR — BE CONTEXT-AWARE:
 A message may include a "[LIVE CONTEXT]" block describing exactly what the user is doing right now: which surface they're on, the document or project they're working on, their current selection, and the ACTIONS you're allowed to take there. Treat this as your working memory. Ground every answer in it. Never echo the context back verbatim — use it.
 
@@ -8235,6 +8495,16 @@ YOU CAN DO REAL WORK IN EACH DOMAIN:
 - MUSIC: help with the actual music process — suggest chords/progressions/basslines/drum patterns, explain and adjust instrument or effect parameters, propose arrangement or mix moves. Use any offered actions to change the project when asked.
 - LEARNING / FILM / BUSINESS / etc.: assist with that domain's real work using the live context and offered actions.
 - GENERAL: answer any question directly and well. Not every message is about the current surface — if the user just asks a question, answer it.
+
+CREATIVE DIRECTION PHILOSOPHY:
+Aria may work through an Art Director, Writing Director, or Music Director expert lens, but these are roles within Aria — never separate egos. Guide, do not commandeer. Understand the user's audience, feeling, and intended outcome. Offer a small number of purposeful directions and explain their tradeoffs. Recommend honestly without pretending there is one correct answer. In critique, notice what works, then identify the highest-leverage improvement. Teach the craft while helping finish the work. Preserve the user's voice and taste; never replace them with generic polish. Be warm, lightly whimsical when fitting, candid about uncertainty, and never pushy. Ask before sweeping changes; perform clearly requested or easily reversible actions directly.
+
+DESIGN REFERENCE STUDIES:
+When asked to analyze an attached design, inspect the actual image. Separate visible evidence from interpretation. Describe hierarchy, grid, spacing, type classification, color relationships, imagery, texture/material, rhythm, symbols, and likely production constraints. Relate it to relevant art and design histories and to useful search paths through Plajah's art, architecture, fashion, photography, poster, comic, film, and cultural museum collections. Label analogies and confidence; never claim a provenance, artist, movement, or date from appearance alone. Extract 3–8 representative HEX colors with functional roles, approximate proportions, and contrast cautions. Produce a design-language system and an original editable template direction based on transferable principles—not a trace, replica, logo, character, trademark, or near-duplicate composition. For recognizable brands or living artists, stay broad and transform substantially. Call out uncertainty from lighting, white balance, crop, glare, perspective, and resolution.
+
+When a full study is requested, include a concise readable explanation and exactly one machine-readable block using this protocol:
+<DESIGN_STUDY>{"title":"…","accurateDescription":"…","observedEvidence":["…"],"artisticInterpretation":"…","historicalContexts":[{"movement":"…","relationship":"analogy, influence candidate, or contrast","confidence":"HIGH|MEDIUM|LOW"}],"museumConnections":[{"collection":"Plajah museum or wing","connection":"…","searchTerms":["…"]}],"palette":[{"hex":"#RRGGBB","name":"…","role":"BACKGROUND|SURFACE|PRIMARY|ACCENT|TEXT|MUTED","proportion":0.0,"contrastNote":"…"}],"designLanguage":{"principles":["…"],"typography":"…","composition":"…","shapeAndImage":"…","textureAndMaterial":"…","motion":"…","accessibility":["…"],"avoid":["elements that would copy rather than transform"]},"template":{"name":"…","category":"DOCUMENT|POSTER|LOWER_THIRD|MENU|PRESENTATION|SOCIAL|WEB","width":816,"height":1056,"tone":"BOLD|EDITORIAL|MINIMAL|PLAYFUL","creativeBrief":"…"},"uncertainty":["…"]}</DESIGN_STUDY>
+If the active surface offers createInspiredTemplate, invoke it with the same study object after explaining what will be created.
 
 TAKING ACTIONS (the ARIA_ACTION protocol):
 When the LIVE CONTEXT lists actions and the user's intent calls for one, DO it. Emit one action per block:
@@ -8248,11 +8518,20 @@ Rules:
 PLATFORM BUILDS (existing protocol, still supported):
 - BUILD MODULE / GALLERY / PLAYLIST / CURATION experiences via <BUILD_MODULE>{...}</BUILD_MODULE> etc. Always include type, title, description, layout, theme (colorPalette, gradient), sections[], tags[]. Precede every build block with a human-readable explanation.
 
+THE COUNCIL (the team behind you):
+Six art directors work as a team behind you — the Classical Mind, the Rebellious Hand, the Futurist, the World-Eclectic Traveller, the Baroque Dramatist and the Radical Minimalist. They are real agents with their own evolving taste, not roles you play. You are the only one who speaks to the user. Refer to them as "the council" or "the team"; name an individual only to credit a position or quote a line. When the user asks for visual direction, a look, an identity, a design system, art direction for a piece, or says "ask the council" / "take it to the team", convene them by emitting exactly one block:
+<COUNCIL_CONVENE>{"ask":"the brief in one or two sentences, in the user's terms","audience":"…","feeling":"…"}</COUNCIL_CONVENE>
+Write one short human sentence before it ("Let me take this to the council."). The team's synthesis is appended to your reply for you; do not invent their positions yourself. Do not convene for small edits, questions of fact, or anything that is not a design direction.
+
 RESEARCH: When web search is available, use it for current facts, biographies, and public-domain material.
 
 PRIVACY: Never reveal other users' data. This is a private 1:1 session. Only the current user's own context is ever shared with you.
 
 TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a request is genuinely ambiguous, ask ONE sharp clarifying question — otherwise just do the work.`;
+
+  // ── The Council of Art Directors — a working team behind Aria ──────────────
+  const council = createCouncil({ authMiddleware, apiLimiter, firestoreAuthHeaders, libraries: { packs: FABULA_BROADCAST_PACKS.map(p => ({ id: p.id, name: p.name, councilStyle: p.councilStyle })) } });
+  council.register(app);
 
   app.post('/api/agent/chat', authMiddleware, express.json({ limit: '10mb' }), async (req: any, res) => {
     try {
@@ -8347,6 +8626,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 
       // Append current user message (include attachment text inline)
       let userContent = message;
+      const visionAttachments: Array<{ name: string; mimeType: string; dataUrl: string; base64: string }> = [];
 
       // ── Rich live-context injection ──────────────────────────────────────────
       // `context.surface` is an AriaContextSnapshot published by whatever the user
@@ -8357,6 +8637,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       if (surface && surface.surface) {
         const parts: string[] = [];
         parts.push(`SURFACE: ${surface.surface}${surface.domain ? ` (domain: ${surface.domain})` : ''}`);
+        if (surface.creativeRole) parts.push(`EXPERT LENS: ${surface.creativeRole.label} — ${surface.creativeRole.promise}${Array.isArray(surface.creativeRole.disciplines) ? `\nCRAFT DEPTH: ${surface.creativeRole.disciplines.join(', ')}` : ''}`);
         if (surface.title)   parts.push(`WHAT THE USER IS DOING: ${surface.title}`);
         if (surface.summary) parts.push(`STATE: ${surface.summary}`);
         if (surface.selection) parts.push(`USER'S CURRENT SELECTION:\n"""\n${String(surface.selection).slice(0, 2000)}\n"""`);
@@ -8386,7 +8667,15 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
           const text = Buffer.from(att.dataUrl.split(',')[1] || att.dataUrl, 'base64').toString('utf8').slice(0, 6000);
           userContent += `\n\n[Attached: "${att.name}"]\n${text}`;
         } else if (att.type?.startsWith('image/')) {
-          userContent += `\n[Image attached: "${att.name}" — describe it if relevant]`;
+          const mimeType = String(att.type).toLowerCase();
+          const dataUrl = String(att.dataUrl || '');
+          const base64 = dataUrl.includes(',') ? dataUrl.slice(dataUrl.indexOf(',') + 1) : dataUrl;
+          if (/^image\/(png|jpe?g|webp|gif|avif)$/.test(mimeType) && base64.length > 0 && base64.length <= 14_000_000) {
+            visionAttachments.push({ name: String(att.name || 'reference image'), mimeType, dataUrl, base64 });
+            userContent += `\n[Visual reference attached: "${att.name}". Inspect the image itself; note camera/lighting uncertainty.]`;
+          } else {
+            userContent += `\n[Image attachment "${att.name}" could not be inspected because its format or size is unsupported.]`;
+          }
         }
       }
       chatHistory.push({ role: 'user', content: userContent });
@@ -8416,6 +8705,13 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
         replyText = String(localReply);
       } else if (MAI_KEY && !MAI_ENDPOINT.includes('TODO')) {
         // ── Microsoft MAI (primary) ──────────────────────────────────────────────
+        const maiMessages: any[] = chatHistory.map((entry, index) => {
+          if (index !== chatHistory.length - 1 || entry.role !== 'user' || !visionAttachments.length) return entry;
+          return { ...entry, content: [
+            { type: 'text', text: entry.content },
+            ...visionAttachments.map(image => ({ type: 'image_url', image_url: { url: image.dataUrl, detail: 'high' } })),
+          ] };
+        });
         const maiRes = await fetch(`${MAI_ENDPOINT}/chat/completions?api-version=2025-05-15-preview`, {
           method: 'POST',
           headers: {
@@ -8426,7 +8722,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
           },
           body: JSON.stringify({
             model: MAI_MODEL,
-            messages: chatHistory,
+            messages: maiMessages,
             // Thinking model params — ignored by non-thinking models, so safe to always send.
             // When the MAI thinking model is active it applies chain-of-thought reasoning
             // before producing its final reply.  The thinking budget controls cost/depth.
@@ -8506,7 +8802,10 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
           config: { systemInstruction: ARIA_SYSTEM_PROMPT, tools: geminiTools, maxOutputTokens: 2048, temperature: 0.8, thinkingConfig: { thinkingLevel: 'minimal' } },
           history: geminiHistory,
         });
-        const geminiRes = await chat.sendMessage({ message: [{ text: userContent }] });
+        const geminiRes = await chat.sendMessage({ message: [
+          { text: userContent },
+          ...visionAttachments.map(image => ({ inlineData: { data: image.base64, mimeType: image.mimeType } })),
+        ] });
         replyText = geminiRes.text || '';
         usedSearch = !!(geminiRes as any).candidates?.[0]?.groundingMetadata?.webSearchQueries?.length;
         if (usedSearch) toolCalls.push({ name: 'search_web', label: 'Searched the web', status: 'done' });
@@ -8518,26 +8817,40 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       }
       } catch (llmErr: any) {
         console.error('[Aria] LLM call failed:', llmErr?.message);
-THE COUNCIL (the team behind you):
-Six art directors work as a team behind you — the Classical Mind, the Rebellious Hand, the Futurist, the World-Eclectic Traveller, the Baroque Dramatist and the Radical Minimalist. They are real agents with their own evolving taste, not roles you play. You are the only one who speaks to the user. Refer to them as "the council" or "the team"; name an individual only to credit a position or quote a line. When the user asks for visual direction, a look, an identity, a design system, art direction for a piece, or says "ask the council" / "take it to the team", convene them by emitting exactly one block:
-<COUNCIL_CONVENE>{"ask":"the brief in one or two sentences, in the user's terms","audience":"…","feeling":"…"}</COUNCIL_CONVENE>
-Write one short human sentence before it ("Let me take this to the council."). The team's synthesis is appended to your reply for you; do not invent their positions yourself. Do not convene for small edits, questions of fact, or anything that is not a design direction.
-
         replyText = "I'm having trouble reaching my AI service right now — please try again in a moment.";
         replyError = true;
       }
       // Never leave the user staring at silence — always surface *something*.
       if (!replyText.trim()) {
         replyText = "I couldn't generate a response just now. Please try again.";
-  // ── The Council of Art Directors — a working team behind Aria ──────────────
-  const council = createCouncil({ authMiddleware, apiLimiter, firestoreAuthHeaders, libraries: { packs: FABULA_BROADCAST_PACKS.map(p => ({ id: p.id, name: p.name, councilStyle: p.councilStyle })) } });
-  council.register(app);
-
         replyError = true;
       }
 
       // ── Parse build outputs ──
       let buildOutput: any = null;
+      // ── The council convenes (the <COUNCIL_CONVENE> protocol) ──
+      // Aria never invents the team's positions: the block is replaced by the synthesis the six
+      // directors actually reached, and the session id travels with the reply so the client can
+      // open the room. QUICK depth inside chat; the full room lives in the Council Room.
+      let councilSession: any = undefined;
+      const conveneMatch = replyText.match(/<COUNCIL_CONVENE>([\s\S]*?)<\/COUNCIL_CONVENE>/);
+      if (conveneMatch && !isLocalTurn) {
+        try {
+          const b = JSON.parse(conveneMatch[1]);
+          const surfaceCtx = (context as any)?.surface || {};
+          const d = await council.deliberate(uid, { ask: String(b.ask || message).slice(0, 2000), audience: b.audience ? String(b.audience).slice(0, 300) : undefined, feeling: b.feeling ? String(b.feeling).slice(0, 300) : undefined, surface: surfaceCtx.surface, domain: surfaceCtx.domain }, { depth: 'QUICK' });
+          if (d.status === 'DONE' && d.synthesis) {
+            councilSession = { id: d.id, lead: d.synthesis.lead, counterpoint: d.synthesis.counterpoint, editor: d.synthesis.editor, openDecision: d.synthesis.openDecision };
+            replyText = replyText.replace(conveneMatch[0], `\n\n${d.synthesis.ariaSummary}\n\n${d.synthesis.quotes.map(q => `"${q.line}" — ${q.directorId.replace('_', ' ').toLowerCase()}`).join('\n')}`);
+          } else {
+            replyText = replyText.replace(conveneMatch[0], '\n\nThe council could not finish this one just now — ask me again in a moment and I will bring it back to them.');
+          }
+        } catch (e: any) {
+          console.warn('[Aria] council convene failed:', e?.message || e);
+          replyText = replyText.replace(conveneMatch[0], '');
+        }
+      }
+
       const buildMatch = replyText.match(/<BUILD_(MODULE|GALLERY|PLAYLIST|CURATION)>([\s\S]*?)<\/BUILD_\1>/);
       if (buildMatch) {
         try {
@@ -8573,10 +8886,29 @@ Write one short human sentence before it ("Let me take this to the council."). T
         } catch { /* skip malformed action block */ }
       }
 
+      // A design study is kept as structured data for Tela and future style-guide
+      // renderers while the readable interpretation remains in the chat reply.
+      let designStudy: any = null;
+      const designStudyMatch = replyText.match(/<DESIGN_STUDY>([\s\S]*?)<\/DESIGN_STUDY>/);
+      if (designStudyMatch) {
+        try {
+          const candidate = JSON.parse(designStudyMatch[1].trim());
+          const colors = Array.isArray(candidate?.palette)
+            ? candidate.palette.filter((color: any) => /^#[0-9a-f]{6}$/i.test(String(color?.hex || ''))).slice(0, 8)
+            : [];
+          if (candidate?.title && candidate?.accurateDescription && candidate?.designLanguage && candidate?.template && colors.length >= 3) {
+            designStudy = { ...candidate, palette: colors };
+            toolCalls.push({ name: 'design_reference_study', label: 'Created design-language study', status: 'done' });
+          }
+        } catch { /* malformed studies stay visible as ordinary prose only */ }
+      }
+
       // Strip raw build + action blocks from reply text for cleaner display
       const cleanReply = replyText
         .replace(/<BUILD_\w+>[\s\S]*?<\/BUILD_\w+>/g, '')
         .replace(/<ARIA_ACTION>[\s\S]*?<\/ARIA_ACTION>/g, '')
+        .replace(/<DESIGN_STUDY>[\s\S]*?<\/DESIGN_STUDY>/g, '')
+        .replace(/<COUNCIL_CONVENE>[\s\S]*?<\/COUNCIL_CONVENE>/g, '')
         .trim();
 
       // ── Persist message to Firestore ──
@@ -8596,6 +8928,7 @@ Write one short human sentence before it ("Let me take this to the council."). T
               ...( extra.buildOutput ? { buildOutput: { stringValue: JSON.stringify(extra.buildOutput) } } : {} ),
               ...( extra.toolCalls?.length ? { toolCalls: { stringValue: JSON.stringify(extra.toolCalls) } } : {} ),
               ...( extra.error ? { error: { booleanValue: true } } : {} ),
+              ...( extra.councilSession ? { councilSession: { stringValue: JSON.stringify(extra.councilSession) } } : {} ),
               ...( attachments.length ? { attachmentNames: { stringValue: JSON.stringify(attachments.map((a: any) => a.name)) } } : {} ),
             },
           }),
@@ -8638,6 +8971,8 @@ Write one short human sentence before it ("Let me take this to the council."). T
         toolCalls: toolCalls.length ? toolCalls : undefined,
         buildOutput: buildOutput || undefined,
         actionCalls: actionCalls.length ? actionCalls : undefined,
+        designStudy: designStudy || undefined,
+        councilSession,
         usage: {
           dailyMessages: newDaily,
           dailySearches: newSearches,
@@ -8796,6 +9131,12 @@ Write one short human sentence before it ("Let me take this to the council."). T
   // Taleo Story Intelligence enqueue (worker poke; see routes/taleo.ts + worker/story/).
   app.use('/api/taleo', express.json({ limit: '16kb' }), taleoRouter);
 
+  // "Which way did I sign up?" — the sign-in form asks this when an email/password attempt
+  // fails, so a Google/Facebook user gets told to use their button instead of bouncing off
+  // "Invalid email or password." authLimiter because it takes an unauthenticated email.
+  app.use('/api/auth-methods', authLimiter);
+  app.use('/api/auth-methods', express.json({ limit: '2kb' }), authMethodsRouter);
+
   if (process.env.SPORTS_INGESTION_WORKER !== 'false') {
     const intervalMs = Number(process.env.SPORTS_INGESTION_INTERVAL_MS) || undefined;
     const { startSportsIngestionScheduler } = await import('./services/sportsIngestionWorker.js');
@@ -8828,29 +9169,6 @@ Write one short human sentence before it ("Let me take this to the council."). T
     console.log('[Config] ENCRYPTION_KEY:', encKey.length >= 16 ? `set (${encKey.length} chars)` : 'MISSING');
     console.log('[Config] FIREBASE_API_KEY:', fbKey.length > 0 ? 'set' : 'MISSING');
     const aiKey = process.env.GOOGLE_AI_API_KEY ?? process.env.VITE_GOOGLE_AI_API_KEY ?? '';
-      // ── The council convenes (the <COUNCIL_CONVENE> protocol) ──
-      // Aria never invents the team's positions: the block is replaced by the synthesis the six
-      // directors actually reached, and the session id travels with the reply so the client can
-      // open the room. QUICK depth inside chat; the full room lives in the Council Room.
-      let councilSession: any = undefined;
-      const conveneMatch = replyText.match(/<COUNCIL_CONVENE>([\s\S]*?)<\/COUNCIL_CONVENE>/);
-      if (conveneMatch && !isLocalTurn) {
-        try {
-          const b = JSON.parse(conveneMatch[1]);
-          const surfaceCtx = (context as any)?.surface || {};
-          const d = await council.deliberate(uid, { ask: String(b.ask || message).slice(0, 2000), audience: b.audience ? String(b.audience).slice(0, 300) : undefined, feeling: b.feeling ? String(b.feeling).slice(0, 300) : undefined, surface: surfaceCtx.surface, domain: surfaceCtx.domain }, { depth: 'QUICK' });
-          if (d.status === 'DONE' && d.synthesis) {
-            councilSession = { id: d.id, lead: d.synthesis.lead, counterpoint: d.synthesis.counterpoint, editor: d.synthesis.editor, openDecision: d.synthesis.openDecision };
-            replyText = replyText.replace(conveneMatch[0], `\n\n${d.synthesis.ariaSummary}\n\n${d.synthesis.quotes.map(q => `"${q.line}" — ${q.directorId.replace('_', ' ').toLowerCase()}`).join('\n')}`);
-          } else {
-            replyText = replyText.replace(conveneMatch[0], '\n\nThe council could not finish this one just now — ask me again in a moment and I will bring it back to them.');
-          }
-        } catch (e: any) {
-          console.warn('[Aria] council convene failed:', e?.message || e);
-          replyText = replyText.replace(conveneMatch[0], '');
-        }
-      }
-
     console.log('[Config] GOOGLE_AI_API_KEY (Aria fallback):', aiKey.length > 0 ? 'set' : 'not set');
     const maiKey      = process.env.MAI_API_KEY ?? '';
     const maiEp       = process.env.MAI_ENDPOINT ?? '';
@@ -8869,8 +9187,3 @@ Write one short human sentence before it ("Let me take this to the council."). T
 }
 
 startServer();
-        .replace(/<DESIGN_STUDY>[\s\S]*?<\/DESIGN_STUDY>/g, '')
-        .replace(/<COUNCIL_CONVENE>[\s\S]*?<\/COUNCIL_CONVENE>/g, '')
-              ...( extra.councilSession ? { councilSession: { stringValue: JSON.stringify(extra.councilSession) } } : {} ),
-        designStudy: designStudy || undefined,
-        councilSession,

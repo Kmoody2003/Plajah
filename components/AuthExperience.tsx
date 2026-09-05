@@ -7,17 +7,28 @@ import {
 import {
   registerWithEmail, loginWithEmail, sendPasswordReset,
   loginWithGoogle, loginWithFacebook, loginWithMicrosoft, loginWithTwitter,
+  WrongProviderError, auth,
 } from '../services/backendService';
 import Logo from './Logo';
+import { GoogleIcon, FacebookIcon, MicrosoftIcon, XIcon } from './ui/ProviderIcons';
 
 // A beautiful email-first sign-up / sign-in experience that also showcases the platform's
 // major capabilities while the visitor creates their account. Uses Firebase email auth
-// (registerWithEmail / loginWithEmail / sendPasswordReset). On success the app's
-// onAuthUpdate listener takes over — we just close.
+// (registerWithEmail / loginWithEmail / sendPasswordReset). On success we call
+// onAuthenticated() and close — see the prop's note for why we can't rely on the auth
+// listener alone.
 
 interface Props {
   onClose: () => void;
   initialMode?: 'REGISTER' | 'SIGN_IN';
+  /**
+   * Called after a successful sign-in, in addition to onClose. Firebase only fires
+   * onAuthStateChanged when the USER changes, so signing in again as the account you're
+   * already in resolves silently and the app never routes anywhere — the modal closed onto
+   * a landing page the person was already stuck on. The host passes its "enter the app"
+   * handler here so entry never depends on the listener firing.
+   */
+  onAuthenticated?: () => void;
 }
 
 const FEATURES = [
@@ -29,7 +40,16 @@ const FEATURES = [
   { icon: Heart, name: 'Get Paid', tag: 'Monetize', color: '#FF4D8D', desc: 'Sanctuary support, stores and direct fan connection — keep more of what you earn.' },
 ];
 
-const AuthExperience: React.FC<Props> = ({ onClose, initialMode = 'REGISTER' }) => {
+// Keyed by Firebase providerId so a "you signed up with Google" error can offer the exact
+// button that will actually work.
+const OAUTH = [
+  { id: 'google.com',    label: 'Google',    Icon: GoogleIcon,    fn: () => loginWithGoogle(), bg: 'bg-white text-black' },
+  { id: 'facebook.com',  label: 'Facebook',  Icon: FacebookIcon,  fn: loginWithFacebook,       bg: 'bg-[#1877F2] text-white' },
+  { id: 'microsoft.com', label: 'Microsoft', Icon: MicrosoftIcon, fn: loginWithMicrosoft,      bg: 'bg-[#2f2f2f] border border-white/15 text-white' },
+  { id: 'twitter.com',   label: 'X',         Icon: XIcon,         fn: loginWithTwitter,        bg: 'bg-black border border-white/20 text-white' },
+] as const;
+
+const AuthExperience: React.FC<Props> = ({ onClose, initialMode = 'REGISTER', onAuthenticated }) => {
   const [mode, setMode] = useState<'REGISTER' | 'SIGN_IN' | 'RESET'>(initialMode);
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -39,6 +59,10 @@ const AuthExperience: React.FC<Props> = ({ onClose, initialMode = 'REGISTER' }) 
   const [error, setError] = useState('');
   const [resetSent, setResetSent] = useState(false);
   const [featureIdx, setFeatureIdx] = useState(0);
+  // When the failure is "this address belongs to Google, not a password", we don't just print
+  // it — we surface the provider's own button right under the message so it's one tap out.
+  const [suggestProviders, setSuggestProviders] = useState<string[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
 
   // Auto-rotate the capability showcase.
   useEffect(() => {
@@ -46,14 +70,23 @@ const AuthExperience: React.FC<Props> = ({ onClose, initialMode = 'REGISTER' }) 
     return () => clearInterval(t);
   }, []);
 
+  const fail = (err: any, fallback: string) => {
+    const msg = err?.message || fallback;
+    // A WrongProviderError carries the providerIds that DO work — hand them to the UI.
+    setSuggestProviders(err instanceof WrongProviderError ? err.providers.filter((p: string) => p !== 'password') : []);
+    setError(/operation-not-allowed/i.test(msg) ? 'Email sign-up isn’t enabled yet. Please try a social login for now.' : msg);
+  };
+
+  const succeed = () => { onAuthenticated?.(); onClose(); };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError(''); setSuggestProviders([]);
     if (mode === 'RESET') {
       if (!email.trim()) { setError('Enter your email to reset your password.'); return; }
       setLoading(true);
       try { await sendPasswordReset(email.trim()); setResetSent(true); }
-      catch (err: any) { setError(err?.message || 'Could not send reset email.'); }
+      catch (err: any) { fail(err, 'Could not send reset email.'); }
       finally { setLoading(false); }
       return;
     }
@@ -63,17 +96,26 @@ const AuthExperience: React.FC<Props> = ({ onClose, initialMode = 'REGISTER' }) 
     try {
       if (mode === 'REGISTER') await registerWithEmail(email.trim(), password, displayName.trim());
       else await loginWithEmail(email.trim(), password);
-      onClose(); // onAuthUpdate handles entry
+      succeed();
     } catch (err: any) {
-      const msg = err?.message || 'Something went wrong.';
-      // Firebase email/password not enabled in the console → clearer guidance.
-      setError(/operation-not-allowed/i.test(msg) ? 'Email sign-up isn’t enabled yet. Please try a social login for now.' : msg);
+      fail(err, 'Something went wrong.');
     } finally {
       setLoading(false);
     }
   };
 
-  const oauth = (fn: () => Promise<any>) => async () => { setError(''); try { await fn(); onClose(); } catch (e: any) { setError(e?.message || 'Sign-in failed.'); } };
+  const oauth = (id: string, fn: () => Promise<any>) => async () => {
+    setError(''); setSuggestProviders([]); setBusy(id);
+    try {
+      await fn();
+      // Only enter if a session actually exists — a cancelled popup resolves to null.
+      if (auth.currentUser) succeed();
+    } catch (e: any) {
+      setError(e?.message || 'Sign-in failed.');
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const field = 'w-full bg-white/[0.06] border border-white/12 rounded-2xl px-4 py-3.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-small-orange/60 transition-colors';
   const F = FEATURES[featureIdx];
@@ -174,8 +216,24 @@ const AuthExperience: React.FC<Props> = ({ onClose, initialMode = 'REGISTER' }) 
                 )}
 
                 {error && (
-                  <div className="flex items-start gap-2 text-[11px] text-red-300 bg-red-500/10 border border-red-500/25 rounded-xl px-3 py-2.5">
-                    <AlertCircle size={14} className="shrink-0 mt-0.5" /><span>{error}</span>
+                  <div className="flex flex-col gap-2.5 text-[11px] text-red-300 bg-red-500/10 border border-red-500/25 rounded-xl px-3 py-2.5">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle size={14} className="shrink-0 mt-0.5" /><span>{error}</span>
+                    </div>
+                    {/* The way out, not just the diagnosis. */}
+                    {suggestProviders.map(pid => {
+                      const o = OAUTH.find(x => x.id === pid);
+                      if (!o) return null;
+                      return (
+                        <button
+                          key={pid} type="button" onClick={oauth(o.id, o.fn)} disabled={!!busy}
+                          className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-60 ${o.bg}`}
+                        >
+                          {busy === o.id ? <Loader2 size={14} className="animate-spin" /> : <o.Icon size={14} />}
+                          Continue with {o.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -184,10 +242,27 @@ const AuthExperience: React.FC<Props> = ({ onClose, initialMode = 'REGISTER' }) 
                 </button>
 
                 {mode === 'SIGN_IN' && (
-                  <button type="button" onClick={() => { setMode('RESET'); setError(''); }} className="w-full text-center text-[10px] font-bold uppercase tracking-widest text-white/35 hover:text-white transition-colors pt-1">Forgot password?</button>
+                  <>
+                    <button type="button" onClick={() => { setMode('RESET'); setError(''); setSuggestProviders([]); }} className="w-full text-center text-[10px] font-bold uppercase tracking-widest text-white/35 hover:text-white transition-colors pt-1">Forgot password?</button>
+                    {/* The single most common way people lock themselves out: an account made
+                        with Google has no password to type here, and no amount of retrying
+                        will change that. Say it before they try. */}
+                    <p className="text-[10px] text-white/35 leading-relaxed text-center pt-1">
+                      This form is for accounts created with an email &amp; password. If you joined
+                      with Google, Facebook, Microsoft or X, use that button below — there’s no
+                      password on your account to type here.
+                    </p>
+                  </>
                 )}
                 {mode === 'RESET' && (
-                  <button type="button" onClick={() => { setMode('SIGN_IN'); setError(''); }} className="w-full text-center text-[10px] font-bold uppercase tracking-widest text-white/35 hover:text-white transition-colors pt-1">Back to sign in</button>
+                  <>
+                    <button type="button" onClick={() => { setMode('SIGN_IN'); setError(''); setSuggestProviders([]); }} className="w-full text-center text-[10px] font-bold uppercase tracking-widest text-white/35 hover:text-white transition-colors pt-1">Back to sign in</button>
+                    <p className="text-[10px] text-white/35 leading-relaxed text-center pt-1">
+                      Reset only works for accounts created with an email &amp; password. Signed up
+                      with Google, Facebook, Microsoft or X? There’s no password to reset — use
+                      that button instead.
+                    </p>
+                  </>
                 )}
               </form>
             )}
@@ -200,13 +275,15 @@ const AuthExperience: React.FC<Props> = ({ onClose, initialMode = 'REGISTER' }) 
                   <div className="h-px flex-1 bg-white/10" />
                 </div>
                 <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { label: 'Google', fn: loginWithGoogle, bg: 'bg-white text-black' },
-                    { label: 'Facebook', fn: loginWithFacebook, bg: 'bg-[#1877F2] text-white' },
-                    { label: 'Microsoft', fn: loginWithMicrosoft, bg: 'bg-[#0078D4] text-white' },
-                    { label: 'X', fn: loginWithTwitter, bg: 'bg-black border border-white/20 text-white' },
-                  ].map(o => (
-                    <button key={o.label} onClick={oauth(o.fn)} title={o.label} className={`py-3 rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all ${o.bg}`}>{o.label}</button>
+                  {OAUTH.map(o => (
+                    <button
+                      key={o.id} onClick={oauth(o.id, o.fn)} disabled={!!busy}
+                      title={`Continue with ${o.label}`} aria-label={`Continue with ${o.label}`}
+                      className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-60 disabled:hover:scale-100 ${o.bg}`}
+                    >
+                      {busy === o.id ? <Loader2 size={15} className="animate-spin" /> : <o.Icon size={15} />}
+                      {o.label}
+                    </button>
                   ))}
                 </div>
               </>

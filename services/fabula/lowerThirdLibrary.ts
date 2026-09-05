@@ -6,12 +6,13 @@
 // can carry one design language from a document into a film.
 import { mo, anim, type LowerThirdSpec, type LTLayer } from './lowerThirds';
 import { sunburstPath, zigzagPath, chevronPath, polygonPath } from '../tela/ornaments';
+import type { TelaChartStyle } from '../../types';
 
 const L = (l: Omit<LTLayer, 'in'> & { in?: LTLayer['in'] }): LTLayer => ({ in: mo('fade', .4), ...l });
 
 export const LOWER_THIRDS_BROADCAST: LowerThirdSpec[] = [
   {
-    id: 'newsline', name: 'Newsline', group: 'BROADCAST', tagline: 'A hard news plate: red kicker bar, white name plate, wiped rule — the grammar every viewer already knows.',
+    id: 'newsline', councilStyle: 'BROADCAST', name: 'Newsline', group: 'BROADCAST', tagline: 'A hard news plate: red kicker bar, white name plate, wiped rule — the grammar every viewer already knows.',
     colors: { accent: '#D40055', ink: '#0A1325', paper: '#FFFFFF', secondary: '#1B2B47' }, origin: { x: 6, y: 80 }, duration: 6,
     layers: [
       L({ id: 'plate', label: 'Name plate', kind: 'rect', x: 0, y: -8, w: 760, h: 92, fill: 'paper', in: mo('wipeR', .5, .12, 'expo'), out: mo('wipeR', .35, 0, 'inOut') }),
@@ -27,7 +28,7 @@ export const LOWER_THIRDS_BROADCAST: LowerThirdSpec[] = [
     tags: ['news', 'broadcast', 'interview'],
   },
   {
-    id: 'documentary-id', name: 'Documentary ID', group: 'DOCUMENTARY', tagline: 'Quiet serif identification with a single hairline — the graphic that trusts the footage.',
+    id: 'documentary-id', councilStyle: 'EDITORIAL', name: 'Documentary ID', group: 'DOCUMENTARY', tagline: 'Quiet serif identification with a single hairline — the graphic that trusts the footage.',
     colors: { accent: '#B58B4B', ink: '#F3EBDD', paper: '#181A1D', secondary: '#8F8A80' }, origin: { x: 7, y: 82 }, duration: 6,
     layers: [
       L({ id: 'rule', label: 'Hairline', kind: 'rect', x: 0, y: 62, w: 520, h: 2, fill: 'accent', in: mo('growX', .9, .1, 'expo'), out: mo('growX', .5, 0, 'inOut') }),
@@ -40,7 +41,7 @@ export const LOWER_THIRDS_BROADCAST: LowerThirdSpec[] = [
     tags: ['documentary', 'interview', 'minimal', 'serif'],
   },
   {
-    id: 'sports-velocity', name: 'Sports Velocity', group: 'SPORTS', tagline: 'Skewed plates, chevrons and a slam — speed you can read at a glance.',
+    id: 'sports-velocity', councilStyle: 'SPORTS', name: 'Sports Velocity', group: 'SPORTS', tagline: 'Skewed plates, chevrons and a slam — speed you can read at a glance.',
     colors: { accent: '#D40055', ink: '#FFFFFF', paper: '#07090D', secondary: '#00DAF3' }, origin: { x: 5, y: 78 }, duration: 5,
     layers: [
       L({ id: 'back', label: 'Back plate', kind: 'path', path: 'M6 0 L100 0 L94 100 L0 100 Z', x: 0, y: 0, w: 820, h: 96, fill: 'paper', opacity: .92, in: mo('slideL', .38, 0, 'expo', 1.1), out: mo('slideL', .3, 0, 'inOut', 1.1) }),
@@ -57,7 +58,7 @@ export const LOWER_THIRDS_BROADCAST: LowerThirdSpec[] = [
     tags: ['sports', 'stats', 'bold'],
   },
   {
-    id: 'warm-interview', name: 'Warm Interview', group: 'INTERVIEW', tagline: 'A soft rounded plate in warm tones — for conversations, podcasts on video, and testimonials.',
+    id: 'warm-interview', councilStyle: 'GLASS', name: 'Warm Interview', group: 'INTERVIEW', tagline: 'A soft rounded plate in warm tones — for conversations, podcasts on video, and testimonials.',
     colors: { accent: '#FF8A00', ink: '#FFF3D8', paper: '#24120A', secondary: '#7A4A2A' }, origin: { x: 6, y: 80 }, duration: 6,
     layers: [
       L({ id: 'plate', label: 'Rounded plate', kind: 'rect', rx: 26, x: 0, y: -14, w: 700, h: 132, fill: 'paper', opacity: .86, in: mo('pop', .55, 0, 'back'), out: mo('fade', .35) }),
@@ -71,7 +72,7 @@ export const LOWER_THIRDS_BROADCAST: LowerThirdSpec[] = [
     tags: ['interview', 'podcast', 'warm'],
   },
   {
-    id: 'gallery-caption', name: 'Gallery Caption', group: 'CULTURE', tagline: 'A museum wall label — title, artist, medium — set in the corner where a placard would hang.',
+    id: 'gallery-caption', councilStyle: 'CLASSICAL', name: 'Gallery Caption', group: 'CULTURE', tagline: 'A museum wall label — title, artist, medium — set in the corner where a placard would hang.',
     colors: { accent: '#6B0099', ink: '#1B1523', paper: '#F6F1E8', secondary: '#8B8391' }, origin: { x: 6, y: 74 }, duration: 7,
     layers: [
       L({ id: 'card', label: 'Wall label', kind: 'rect', x: 0, y: 0, w: 560, h: 190, fill: 'paper', in: mo('slideU', .6, 0, 'expo', .25), out: mo('fade', .4) }),
@@ -85,7 +86,7 @@ export const LOWER_THIRDS_BROADCAST: LowerThirdSpec[] = [
     tags: ['culture', 'museum', 'caption', 'serif'],
   },
   {
-    id: 'creator-interview', name: 'Creator Handle', group: 'CREATOR', tagline: 'Name, handle and a live pill — for streams, collabs and vlogs.',
+    id: 'creator-interview', councilStyle: 'NEON', name: 'Creator Handle', group: 'CREATOR', tagline: 'Name, handle and a live pill — for streams, collabs and vlogs.',
     colors: { accent: '#D40055', ink: '#F8F2FF', paper: '#12091B', secondary: '#7A55FF' }, origin: { x: 6, y: 80 }, duration: 5,
     layers: [
       L({ id: 'plate', label: 'Plate', kind: 'rect', rx: 18, x: 0, y: 0, w: 640, h: 108, fill: 'paper', opacity: .8, in: mo('slideR', .45, 0, 'expo', .3), out: mo('slideL', .3, 0, 'inOut', .3) }),
@@ -101,7 +102,7 @@ export const LOWER_THIRDS_BROADCAST: LowerThirdSpec[] = [
     tags: ['creator', 'stream', 'handle'],
   },
   {
-    id: 'signal-bar', name: 'Signal Bar', group: 'BROADCAST', tagline: 'A gradient signal sweeps in under the name — Plajah’s house lower third.',
+    id: 'signal-bar', councilStyle: 'PLAJAH', name: 'Signal Bar', group: 'BROADCAST', tagline: 'A gradient signal sweeps in under the name — Plajah’s house lower third.',
     colors: { accent: '#6B0099', ink: '#FFFFFF', paper: '#08050D', secondary: '#00DAF3' }, origin: { x: 6, y: 80 }, duration: 6,
     layers: [
       L({ id: 'bar', label: 'Signal bar', kind: 'rect', rx: 4, x: 0, y: 66, w: 720, h: 8, fill: 'accent', gradient: { angle: 0, from: 'accent', to: 'secondary' }, in: mo('growX', .7, 0, 'expo'), out: mo('growX', .4, 0, 'inOut') }),
@@ -115,7 +116,7 @@ export const LOWER_THIRDS_BROADCAST: LowerThirdSpec[] = [
     tags: ['brand', 'plajah', 'gradient'],
   },
   {
-    id: 'deco-marquee', name: 'Deco Marquee', group: 'EVENT', tagline: 'Gold sunburst and a stepped plate — a 1920s premiere announcing a name.',
+    id: 'deco-marquee', councilStyle: 'BAROQUE', name: 'Deco Marquee', group: 'EVENT', tagline: 'Gold sunburst and a stepped plate — a 1920s premiere announcing a name.',
     colors: { accent: '#D4AF37', ink: '#F4E8D0', paper: '#101820', secondary: '#8C2143' }, origin: { x: 50, y: 82 }, duration: 6,
     layers: [
       L({ id: 'burst', label: 'Sunburst', kind: 'path', path: sunburstPath(13, 170, .5, 50, 100, 100), x: -420, y: -150, w: 840, h: 150, fill: 'accent', opacity: .28, in: mo('growY', .9, 0, 'expo'), out: mo('fade', .4) }),

@@ -54,6 +54,10 @@ import { dynamicText, DYNAMIC_TYPES, DYNAMIC_DEFAULT } from "../../services/fabu
 import { trackFrameOffset, canShareTrack, rebaseVectorTrack, rebasePlanarTrack } from "../../services/fabula/trackShare";
 import { Compositor as PixelsCompositor } from "../plajahPixels/engine/core/compositor";
 import NodeGraphEditor from "./NodeGraphEditor";
+import DataVizBuilder from "./DataVizBuilder";
+import BroadcastSystemsLibrary from "./BroadcastSystemsLibrary";
+import { broadcastTemplateDataUrl } from "../../services/fabula/broadcastTemplateFactory";
+import TelaChart from "../tela/TelaChart";
 import ColorScopes from "./ColorScopes";
 import GradePreview from "./GradePreview";
 import MixConsole from "./MixConsole";
@@ -1636,16 +1640,16 @@ export default function Fabula() {
       const clip = { id: uid(), trackId: dropType === "audio" ? opts.trackId : aTrack, start, duration, srcIn: srcInVal, kind: "media", assetId: asset.id, label: asset.name };
       const next = [...clips, clip]; setClips(next); commitClips(next); setSelClipId(clip.id); return;
     }
-    // Multicam / stills / Lottie animations → single picture clip (no linked audio).
-    if (isMc || asset.type === "image" || asset.type === "graphic" || asset.type === "lottie") {
-      const trackId = opts.trackId && dropType === "video" ? opts.trackId : "v1";
-      const clip = { id: uid(), trackId, start, duration, srcIn: srcInVal, kind: isMc ? "multicam" : "media", assetId: asset.id, label: asset.name, ...(isMc ? { angle: 0 } : {}) };
     // Imported 3D model → a model3d clip (three.js render; camera/lighting live on clip.model3d).
     if (asset.type === "model") {
       const trackId = opts.trackId && dropType === "video" ? opts.trackId : "v1";
       const clip = { id: uid(), trackId, start, duration, srcIn: 0, kind: "model3d", assetId: asset.id, model3dUrl: asset.url, model3d: { ...MODEL3D_DEFAULT }, label: asset.name };
       const next = [...clips, clip]; setClips(next); commitClips(next); setSelClipId(clip.id); return;
     }
+    // Multicam / stills / Lottie animations → single picture clip (no linked audio).
+    if (isMc || asset.type === "image" || asset.type === "graphic" || asset.type === "lottie") {
+      const trackId = opts.trackId && dropType === "video" ? opts.trackId : "v1";
+      const clip = { id: uid(), trackId, start, duration, srcIn: srcInVal, kind: isMc ? "multicam" : "media", assetId: asset.id, label: asset.name, ...(isMc ? { angle: 0 } : {}) };
       const next = [...clips, clip]; setClips(next); commitClips(next); setSelClipId(clip.id); return;
     }
     // Video → linked picture + audio pair (the clip's sound rides an audio track so
@@ -4620,10 +4624,6 @@ export default function Fabula() {
                             </>
                           );
                         })()}
-                        {selClip.kind === "subtitle" && (
-                          <>
-                            <div className="insp-div" />
-                            <div className="lbl">SUBTITLE TEXT</div>
                         {selClip.kind === "model3d" && (() => {
                           const m3 = { ...MODEL3D_DEFAULT, ...(selClip.model3d || {}) };
                           const setM3 = (patch) => updateClip(selClip.id, { model3d: { ...m3, ...patch } });
@@ -4650,6 +4650,10 @@ export default function Fabula() {
                             </>
                           );
                         })()}
+                        {selClip.kind === "subtitle" && (
+                          <>
+                            <div className="insp-div" />
+                            <div className="lbl">SUBTITLE TEXT</div>
                             <textarea className="in" rows={2} value={selClip.text || ""} placeholder="Subtitle / caption line…"
                               onChange={(e) => updateClip(selClip.id, { text: e.target.value, label: e.target.value.slice(0, 40) })} />
                           </>
@@ -4767,6 +4771,17 @@ export default function Fabula() {
                               <div className="dim small">Transform/opacity/blend below apply like any picture clip. Razor + trim work normally.</div>
                             </>
                           );
+                        })()}
+                        {(() => {
+                          const asset = selClip.assetId ? prod.mediaPool.find((x) => x.id === selClip.assetId) : null;
+                          if (!asset?.chart) return null;
+                          const setChart = (patch) => updateProd((p) => { const target=p.mediaPool.find((x)=>x.id===asset.id); if(target?.chart) target.chart={...target.chart,...patch}; });
+                          return <><div className="insp-div"/><div className="lbl">EDITABLE DATA VISUALIZATION</div>
+                            <input className="in" value={asset.chart.title||''} onChange={(e)=>setChart({title:e.target.value})}/>
+                            <div className="btnrow" style={{gap:5,marginTop:5}}><select className="sel grow" value={asset.chart.kind} onChange={(e)=>setChart({kind:e.target.value})}>{['BAR','LINE','AREA','DONUT','SCATTER','RADAR','WATERFALL','FUNNEL','GAUGE','BAR_3D','SCATTER_3D','SURFACE_3D'].map(x=><option key={x}>{x}</option>)}</select><select className="sel grow" value={asset.chart.style} onChange={(e)=>setChart({style:e.target.value})}>{['PLAJAH','SWISS','BAUHAUS','EDITORIAL','NEON','GLASS','INK','TOPOGRAPHIC','SPORTS','BROADCAST','MONO','CEREMONIAL'].map(x=><option key={x}>{x}</option>)}</select></div>
+                            <div className="btnrow" style={{gap:5,marginTop:5}}><select className="sel grow" value={asset.chart.animation?.preset||'CASCADE'} onChange={(e)=>setChart({animation:{...asset.chart.animation,preset:e.target.value}})}>{['NONE','RISE','DRAW','CASCADE','ORBIT','MORPH'].map(x=><option key={x}>{x}</option>)}</select><button className={`minibtn grow ${asset.chart.interactive?'blue':''}`} onClick={()=>setChart({interactive:!asset.chart.interactive})}>INTERACTIVE {asset.chart.interactive?'ON':'OFF'}</button></div>
+                            <div className="dim small">Open Data Motion to replace the dataset or reconnect a Tela Grid/Base. Timeline transforms, blend, trim and FX remain live below.</div>
+                          </>;
                         })()}
                         {selShot && (
                           <>
@@ -5072,6 +5087,9 @@ export default function Fabula() {
                                           </select>
                                         </div>
                                       )}
+                                      {instance.mask.kind === "sam" && (
+                                        <div className="dim small">Drag the marker onto the object to matte it. Point at ONE thing — SAM segments what you point at, not "the person". Turn on FOLLOW to keep it selected as it moves.</div>
+                                      )}
                                       {instance.mask.kind === "depth" && (<>
                                         <div className="fxrow"><span className="fxlbl">NEAR</span><input type="range" min={0} max={1} step={.01} value={instance.mask.near ?? 1} onChange={(e) => patchStack({ mask: { ...instance.mask, near: parseFloat(e.target.value) } })} /><span className="fxval">{Number(instance.mask.near ?? 1).toFixed(2)}</span></div>
                                         <div className="fxrow"><span className="fxlbl">FAR</span><input type="range" min={0} max={1} step={.01} value={instance.mask.far ?? .55} onChange={(e) => patchStack({ mask: { ...instance.mask, far: parseFloat(e.target.value) } })} /><span className="fxval">{Number(instance.mask.far ?? .55).toFixed(2)}</span></div>
@@ -5093,9 +5111,6 @@ export default function Fabula() {
                               </div>
                               {fx.vectorTrack && <div className="dim small">{fx.vectorTrack.samples.length} samples · {fx.vectorTrack.width}×{fx.vectorTrack.height} analysis · confidence {(fx.vectorTrack.samples.at(-1)?.confidence * 100 || 0).toFixed(0)}%</div>}
                               <div className="lbl" style={{ marginTop: 8 }}>VECTORTRACK <span className="cap">PLANAR · SURFACE</span></div>
-                                      {instance.mask.kind === "sam" && (
-                                        <div className="dim small">Drag the marker onto the object to matte it. Point at ONE thing — SAM segments what you point at, not "the person". Turn on FOLLOW to keep it selected as it moves.</div>
-                                      )}
                               <div className="btnrow" style={{ gap: 5 }}>
                                 <button className={`minibtn ${surfaceEdit ? "on" : ""}`} onClick={() => (surfaceEdit ? setSurfaceEdit(false) : placeSurface())}>{surfaceEdit ? "✓ DONE" : "▢ SURFACE"}</button>
                                 <button className="minibtn" title="Track backward from the playhead" disabled={!fx.planarSurface || !!trackProgress} onClick={trackPlanarBackward}>◀</button>
@@ -7001,7 +7016,10 @@ export default function Fabula() {
                           onAddTransition={addForgeTransition}
                           onApplyLook={applyForgeLook}
                           onInsertGenerator={insertGenerator}
-                          onInsertLottie={(a) => insertAssetClip(a)}
+                          onInsertLottie={(a) => {
+                            if (!(prod?.mediaPool || []).some((item) => item.id === a.id)) addAssetToPool(a);
+                            insertAssetClip(a);
+                          }}
                           onImportLottie={() => fileRef.current?.click()}
                           onOpenFxPage={() => setEditWs("vfx")}
                           onClose={() => { setFxLibOpen(false); try { localStorage.setItem("fabula:fxlib", "0"); } catch { /* */ } }} />
@@ -7020,7 +7038,7 @@ export default function Fabula() {
                 {editWs === "vfx" && (() => {
                   // Four-band VFX/COMP: monitor + inspector reference surface; the three authoring
                   // tools (comp / lottie / capture) become a tabbed control band.
-                  const VTABS = [["nodes", "NODE GRAPH"], ["comp", "AI COMPOSITE"], ["lottie", "LOTTIE"], ["capture", "PERFORM CAPTURE"]];
+                  const VTABS = [["nodes", "NODE GRAPH"], ["comp", "AI COMPOSITE"], ["data", "DATA MOTION"], ["systems", "BROADCAST SYSTEMS"], ["lottie", "LOTTIE"], ["capture", "PERFORM CAPTURE"]];
                   return (
                     <div className="vfxroom">
                       <div className="vfxstage edit-upper">
@@ -7055,6 +7073,8 @@ export default function Fabula() {
                               }} />
                           )}
                           {vfxTab === "lottie" && <LottieBuilder onAddToPool={addLottieBlobToPool} />}
+                          {vfxTab === "data" && <DataVizBuilder ping={ping} onAddToPool={(chart,nm) => { const asset={id:uid(),name:nm+' (data)',type:'graphic',generated:true,duration:8,bin:'data motion',chart};updateProd(p=>{p.mediaPool.push(asset)}); }} />}
+                          {vfxTab === "systems" && <BroadcastSystemsLibrary ping={ping} onAddTemplate={(template, url) => { const asset={id:uid(),name:template.name,type:'image',generated:true,duration:template.durationMs/1000,bin:'broadcast systems',url:url||broadcastTemplateDataUrl(template),broadcastTemplate:template};updateProd(p=>{p.mediaPool.push(asset)}); }} />}
                           {vfxTab === "capture" && <PerformCapture onTake={addTakeToPool} ping={ping} />}
                         </div>
                       </div>
@@ -7073,8 +7093,6 @@ export default function Fabula() {
                   // The wheels/curves/qualifier/windows tabs edit whichever layer is selected.
                   const gLayers = fx ? [{ base: true }, ...(fx.grades || [])] : [];
                   const gi = Math.min(gradeLayer, gLayers.length - 1);
-                          {vfxTab === "data" && <DataVizBuilder ping={ping} onAddToPool={(chart,nm) => { const asset={id:uid(),name:nm+' (data)',type:'graphic',generated:true,duration:8,bin:'data motion',chart};updateProd(p=>{p.mediaPool.push(asset)}); }} />}
-                          {vfxTab === "systems" && <BroadcastSystemsLibrary ping={ping} onAddTemplate={(template, url) => { const asset={id:uid(),name:template.name,type:'image',generated:true,duration:template.durationMs/1000,bin:'broadcast systems',url:url||broadcastTemplateDataUrl(template),broadcastTemplate:template};updateProd(p=>{p.mediaPool.push(asset)}); }} />}
                   const layerData = fx ? (gi === 0 ? fx : (fx.grades?.[gi - 1] || {})) : {};
                   const setLayer = (patch) => {
                     if (!selClip) return;
@@ -7821,6 +7839,7 @@ function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool,
           // Same resolver as the export: track-bound params + rasterised mask for this frame.
           let instance = resolveInstanceForFrame(stored, FX_EFFECTS.find((e) => e.id === stored.effectId), trackCtx, timeRef.current, { w: srcW, h: srcH });
           if (instance.subjectMask) instance = { ...instance, maskElement: segmentSubjectLatest(video, 512, Math.max(2, Math.round(512 * srcH / srcW))) };
+          if (instance.samMask) instance = { ...instance, maskElement: segmentSamLatest(video, instance.samMask, 512, Math.max(2, Math.round(512 * srcH / srcW)), instance.samMask.feather) };
           if (instance.depthMask) { const d = estimateDepthLatest(video, 384, Math.max(2, Math.round(384 * srcH / srcW))); instance = { ...instance, maskElement: d ? depthRangeCanvas(d, instance.depthMask.near, instance.depthMask.far, instance.depthMask.feather) : null }; }
           if (instance.auxSource === "depth") { const d = estimateDepthLatest(video, 384, Math.max(2, Math.round(384 * srcH / srcW))); if (d) return { ...instance, auxElement: d }; }
           // Text-as-input effects: rasterise the string for THIS frame, exactly as the export
@@ -7846,7 +7865,6 @@ function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool,
         comp.render([{ id: "timeline-preview", element: video, opacity: 1, blendMode: "normal", effects: resolved, time: timeRef.current }], undefined, undefined, lutRef.current);
       }
       catch { /* source frame not ready */ }
-          if (instance.samMask) instance = { ...instance, maskElement: segmentSamLatest(video, instance.samMask, 512, Math.max(2, Math.round(512 * srcH / srcW)), instance.samMask.feather) };
     };
     raf = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(raf); try { comp?.dispose(); } catch { /* */ } };
@@ -7960,24 +7978,6 @@ function SurfaceOverlay({ clip, playhead, screenRef, videoRef, editing, onChange
   );
 }
 
-function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, vol = 1, mute = false, active = true, gpuMode = false, gpuReg = null, pinSource = null }) {
-  const localRef = useRef(null);
-  const wrapRef = useRef(null);
-  const [playbackSrc, setPlaybackSrc] = useState(null);
-  const [loadState, setLoadState] = useState({ phase: "idle", pct: 0 });
-  const fxBase = ensureFx(clip);
-  const activeCubeLut = (prod?.design?.luts || []).find((lut) => lut.id === prod?.design?.activeLutId) || null;
-  // KEYFRAMES: transform + opacity sampled at the playhead so scrubbing/stepping
-  // shows the animation. (Static clips return fxBase untouched — zero overhead.)
-  const fx = kfIsAnimated(fxBase) ? (() => {
-    const lt = playhead - clip.start;
-    return { ...fxBase,
-      x: kfSample(fxBase, "x", lt, fxBase.x), y: kfSample(fxBase, "y", lt, fxBase.y),
-      sc: kfSample(fxBase, "sc", lt, fxBase.sc), rot: kfSample(fxBase, "rot", lt, fxBase.rot),
-      op: kfSample(fxBase, "op", lt, fxBase.op),
-      bri: kfSample(fxBase, "bri", lt, fxBase.bri), con: kfSample(fxBase, "con", lt, fxBase.con),
-      sat: kfSample(fxBase, "sat", lt, fxBase.sat), hue: kfSample(fxBase, "hue", lt, fxBase.hue),
-      blur: kfSample(fxBase, "blur", lt, fxBase.blur) };
 // A live preview of a 3D-model clip: three.js renders the loaded mesh to a canvas each frame and
 // we blit it here. The export (offlineRenderer) applies the clip's Forge stack + grade on top;
 // this live view shows the raw 3D render, which is enough to frame, orbit and time the shot.
@@ -8016,8 +8016,26 @@ function Model3DLayer({ clip, prod, playhead, playing, active, z }) {
   );
 }
 
-  })() : fxBase;
+function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, vol = 1, mute = false, active = true, gpuMode = false, gpuReg = null, pinSource = null }) {
   if (clip.kind === "model3d") return <Model3DLayer clip={clip} prod={prod} playhead={playhead} playing={playing} active={active} z={z} />;
+  const localRef = useRef(null);
+  const wrapRef = useRef(null);
+  const [playbackSrc, setPlaybackSrc] = useState(null);
+  const [loadState, setLoadState] = useState({ phase: "idle", pct: 0 });
+  const fxBase = ensureFx(clip);
+  const activeCubeLut = (prod?.design?.luts || []).find((lut) => lut.id === prod?.design?.activeLutId) || null;
+  // KEYFRAMES: transform + opacity sampled at the playhead so scrubbing/stepping
+  // shows the animation. (Static clips return fxBase untouched — zero overhead.)
+  const fx = kfIsAnimated(fxBase) ? (() => {
+    const lt = playhead - clip.start;
+    return { ...fxBase,
+      x: kfSample(fxBase, "x", lt, fxBase.x), y: kfSample(fxBase, "y", lt, fxBase.y),
+      sc: kfSample(fxBase, "sc", lt, fxBase.sc), rot: kfSample(fxBase, "rot", lt, fxBase.rot),
+      op: kfSample(fxBase, "op", lt, fxBase.op),
+      bri: kfSample(fxBase, "bri", lt, fxBase.bri), con: kfSample(fxBase, "con", lt, fxBase.con),
+      sat: kfSample(fxBase, "sat", lt, fxBase.sat), hue: kfSample(fxBase, "hue", lt, fxBase.hue),
+      blur: kfSample(fxBase, "blur", lt, fxBase.blur) };
+  })() : fxBase;
   const trackMotion = fx.trackMode === "stabilize" && fx.vectorTrack ? stabilizationAt(fx.vectorTrack, Math.max(0, Math.round((playhead - clip.start) * (fx.vectorTrack.fps || 24)))) : { x: 0, y: 0, confidence: 0 };
   // PLANAR (VectorTrack): one SAMPLING matrix for this frame — the clip's own track (stabilise:
   // output(p) = src(H·p)) or another clip's surface (corner pin: inv(H·Q)). The export computes the
@@ -8198,7 +8216,9 @@ function Model3DLayer({ clip, prod, playhead, playing, active, z }) {
 
   return (
     <div style={style} ref={wrapRef}>
-      {asset?.pixels ? (
+      {asset?.chart ? (
+        <TelaChart device={asset.chart} devices={{}} readOnly onUpdate={() => {}} />
+      ) : asset?.pixels ? (
         // Pixels scene — render its live GL composite (the per-clip CSS fx on the
         // wrapping div still apply to this canvas for free).
         <SceneView snapshot={asset.pixels} palette={prod?.pixelsConfig?.colorPalette}

@@ -432,7 +432,9 @@ const PlajahAgent: React.FC<Props> = ({
     // On-device lane: generate the reply locally (free, private), then hand it to
     // the server to persist + parse actions. Any failure falls through to cloud.
     let localReply: string | undefined;
-    if (onDevice && ariaLocalModel.ready) {
+    // Reference photos require a vision-capable cloud model; the local text
+    // model must not answer from the filename while pretending it saw pixels.
+    if (onDevice && ariaLocalModel.ready && attachments.length === 0) {
       try {
         setThinkingLabel('Thinking on-device…');
         const out = await ariaLocalModel.chat(
@@ -505,8 +507,6 @@ const PlajahAgent: React.FC<Props> = ({
 
   return (
     <AnimatePresence>
-      {isOpen && (
-        <motion.div
       {councilSessionId && (
         <div key="council-room" style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(5,4,10,.8)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 16 }} onClick={e => { if (e.target === e.currentTarget) setCouncilSessionId(null); }}>
           <div style={{ width: 'min(1240px,100%)', height: 'min(860px,100%)' }}>
@@ -514,6 +514,8 @@ const PlajahAgent: React.FC<Props> = ({
           </div>
         </div>
       )}
+      {isOpen && (
+        <motion.div
           initial={isMobile ? { opacity: 0, y: 20 } : { opacity: 0, y: 24, scale: 0.97 }}
           animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0, scale: 1 }}
           exit={isMobile ? { opacity: 0, y: 20 } : { opacity: 0, y: 24, scale: 0.97 }}

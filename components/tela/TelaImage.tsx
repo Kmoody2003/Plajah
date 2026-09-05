@@ -14,6 +14,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ImagePlus, Link as LinkIcon, Eye, EyeOff, ChevronUp, ChevronDown, Trash2, Loader2 } from 'lucide-react';
 import type { TelaImageDevice, TelaImageLayer, TelaImageAdjust, TelaBlendMode, TelaLayerMask } from '../../types';
 import { uploadTelaImage } from '../../services/telaAssets';
+import { classifyTelaAsset } from '../../services/telaCreativeEngine';
 
 export const NEUTRAL_ADJUST: TelaImageAdjust = { brightness: 1, contrast: 1, saturate: 1, exposure: 0, blur: 0 };
 
@@ -179,8 +180,15 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
   const addFromFile = async (file: File) => {
     setBusy(true);
     try {
+      const assetKind = classifyTelaAsset(file);
+      if (assetKind !== 'RASTER' && assetKind !== 'VIDEO' && assetKind !== 'LOTTIE') throw new Error(`${file.name} is not a supported image, video, or .lottie layer.`);
       const r = await uploadTelaImage(file);
-      onAddLayer(makeImageLayer(r.src, file.name.replace(/\.[^.]+$/, ''), { storagePath: r.storagePath, sessionOnly: r.sessionOnly }));
+      onAddLayer(makeImageLayer(r.src, file.name.replace(/\.[^.]+$/, ''), {
+        storagePath: r.storagePath, sessionOnly: r.sessionOnly,
+        mediaKind: assetKind === 'RASTER' ? 'IMAGE' : assetKind,
+        intrinsicWidth: assetKind === 'LOTTIE' ? 512 : undefined,
+        intrinsicHeight: assetKind === 'LOTTIE' ? 512 : undefined,
+      }));
     } catch (e) {
       console.error('[TelaImage] upload failed', e);
     } finally {
@@ -315,7 +323,7 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
               <button onClick={addFromUrl} style={{ padding: '0 10px', borderRadius: 7, background: 'var(--pj-cyan,#00DAF3)', color: '#062', border: 'none', fontWeight: 800, cursor: 'pointer', fontSize: 12 }}>Add</button>
             </div>
           )}
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) void addFromFile(f); e.target.value = ''; }} />
+          <input ref={fileRef} type="file" accept="image/*,video/*,.lottie,application/zip+dotlottie,application/vnd.lottie" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) void addFromFile(f); e.target.value = ''; }} />
         </div>
       )}
 

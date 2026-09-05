@@ -1,4 +1,6 @@
 import type { TelaGradientPaint, TelaVectorObject } from '../types';
+import { CREATIVE_DESIGNS } from './tela/designs/creative';
+import { frame } from './tela/templateKit';
 
 export type TelaCreativeToolKind = 'SELECT' | 'DIRECT' | 'MARQUEE' | 'BRUSH' | 'PENCIL' | 'INK' | 'MARKER' | 'AIRBRUSH' | 'ERASER' | 'MAGIC_ERASER' | 'SHAPE' | 'TEXT' | 'GRADIENT' | 'MASK' | 'SEGMENT';
 
@@ -64,21 +66,23 @@ export function makeShapeObject(shape: TelaShapePreset, x = 80, y = 80, w = 220,
   return { id: creativeId('shape'), kind:'PATH', x, y, w, h, fill:'#6B0099', stroke:'#17121d', strokeWidth:1.5, rotation:0, opacity:1, svgPathData:shape.path, pathOriginX:0, pathOriginY:0, pathOriginW:100, pathOriginH:100, pathClosed:true, objectLabel:shape.name };
 }
 
-export type TelaTemplateCategory = 'POSTER' | 'LOWER_THIRD' | 'MENU' | 'PRESENTATION' | 'SOCIAL' | 'WEB';
+export type TelaTemplateCategory = 'DOCUMENT' | 'POSTER' | 'LOWER_THIRD' | 'MENU' | 'PRESENTATION' | 'SOCIAL' | 'WEB';
 export interface TelaCreativeTemplate { id: string; name: string; category: TelaTemplateCategory; width: number; height: number; palette: [string,string,string]; tone: 'BOLD' | 'EDITORIAL' | 'MINIMAL' | 'PLAYFUL'; }
 
 const templateNames: Array<[string,TelaTemplateCategory,number,number,[string,string,string],TelaCreativeTemplate['tone']]> = [
+  ['Quiet Report','DOCUMENT',816,1056,['#FAF8F3','#1C1930','#6B0099'],'EDITORIAL'], ['Civic Brief','DOCUMENT',816,1056,['#F5F7FA','#17243A','#D40055'],'EDITORIAL'], ['Field Journal','DOCUMENT',816,1056,['#F2EAD9','#263829','#B66A2C'],'EDITORIAL'], ['Studio Proposal','DOCUMENT',816,1056,['#100B18','#F4EFFF','#D40055'],'BOLD'], ['Playful Worksheet','DOCUMENT',816,1056,['#FFF8DD','#432A67','#00A8BC'],'PLAYFUL'], ['Research Paper','DOCUMENT',816,1056,['#FFFFFF','#171717','#6B0099'],'MINIMAL'], ['Annual Review','DOCUMENT',816,1056,['#071B22','#E8FDFF','#00DAF3'],'BOLD'], ['Literary Manuscript','DOCUMENT',816,1056,['#FBF7EF','#2B2118','#9A5639'],'MINIMAL'], ['Lesson Plan','DOCUMENT',816,1056,['#F7FBFF','#183653','#FF8A00'],'PLAYFUL'], ['Creative Résumé','DOCUMENT',816,1056,['#F8F5FF','#241438','#D40055'],'EDITORIAL'], ['Press Kit','DOCUMENT',816,1056,['#0C0C0F','#FFFFFF','#FF8A00'],'BOLD'], ['Community Newsletter','DOCUMENT',816,1056,['#FFF4E8','#44225E','#D40055'],'PLAYFUL'],
   ['Midnight Premiere','POSTER',816,1056,['#130020','#D40055','#FF8A00'],'BOLD'], ['Museum Editorial','POSTER',816,1056,['#F5F0E8','#1B1523','#6B0099'],'EDITORIAL'], ['Science Field Notes','POSTER',816,1056,['#071B22','#00A8BC','#E8FDFF'],'EDITORIAL'], ['Neighborhood Festival','POSTER',816,1056,['#FFF3D8','#D40055','#6B0099'],'PLAYFUL'], ['Monochrome Type','POSTER',816,1056,['#F7F7F2','#111111','#C7C7C0'],'MINIMAL'],
   ['Signal Bar','LOWER_THIRD',1920,1080,['#08050D','#6B0099','#00DAF3'],'BOLD'], ['Newsline','LOWER_THIRD',1920,1080,['#0A1325','#D40055','#FFFFFF'],'EDITORIAL'], ['Warm Interview','LOWER_THIRD',1920,1080,['#24120A','#FF8A00','#FFF3D8'],'MINIMAL'], ['Sports Velocity','LOWER_THIRD',1920,1080,['#07090D','#D40055','#00DAF3'],'BOLD'], ['Gallery Caption','LOWER_THIRD',1920,1080,['#F6F1E8','#1B1523','#6B0099'],'EDITORIAL'],
   ['Bistro Fold','MENU',816,1056,['#20150E','#FF8A00','#FFF2D6'],'EDITORIAL'], ['Modern Café','MENU',816,1056,['#F8F4EB','#1B1523','#D40055'],'MINIMAL'], ['Night Market','MENU',816,1056,['#0B0712','#6B0099','#FF8A00'],'BOLD'], ['Kids Lunch','MENU',816,1056,['#FFF8D8','#00A8BC','#D40055'],'PLAYFUL'],
   ['Spatial Keynote','PRESENTATION',1920,1080,['#08050D','#6B0099','#00DAF3'],'BOLD'], ['Research Brief','PRESENTATION',1920,1080,['#F7F4EE','#1B1523','#6B0099'],'EDITORIAL'], ['Product Story','PRESENTATION',1920,1080,['#101015','#D40055','#FF8A00'],'BOLD'], ['Classroom Canvas','PRESENTATION',1920,1080,['#FFF9EE','#00A8BC','#6B0099'],'PLAYFUL'], ['Black Type','PRESENTATION',1920,1080,['#0B0B0D','#F5F5EF','#777777'],'MINIMAL'],
   ['Creator Drop','SOCIAL',1080,1080,['#0E0616','#D40055','#FF8A00'],'BOLD'], ['Quote Prism','SOCIAL',1080,1080,['#10001A','#6B0099','#00DAF3'],'EDITORIAL'], ['Album Notice','SOCIAL',1080,1080,['#F1E8DC','#1B1523','#D40055'],'MINIMAL'], ['Learning Card','SOCIAL',1080,1080,['#F6FDFF','#00A8BC','#6B0099'],'PLAYFUL'],
   ['Portfolio Hero','WEB',1440,900,['#0A0710','#6B0099','#D40055'],'BOLD'], ['Editorial Landing','WEB',1440,900,['#F5F1E9','#1B1523','#FF8A00'],'EDITORIAL'], ['Course Launch','WEB',1440,900,['#08171D','#00A8BC','#D40055'],'BOLD'], ['Local Business','WEB',1440,900,['#FFF4E6','#6B0099','#FF8A00'],'PLAYFUL'], ['Quiet Product','WEB',1440,900,['#F8F8F6','#111111','#A2A2A0'],'MINIMAL'],
+  ['Exhibition Opening','POSTER',816,1056,['#0D0A0F','#F6EBDD','#D40055'],'EDITORIAL'], ['Book Launch','POSTER',816,1056,['#EDE4D2','#2C1B42','#FF8A00'],'EDITORIAL'], ['Youth Workshop','POSTER',816,1056,['#ECFFFA','#006B72','#D40055'],'PLAYFUL'], ['Creator Interview','LOWER_THIRD',1920,1080,['#12091B','#F8F2FF','#D40055'],'EDITORIAL'], ['Documentary ID','LOWER_THIRD',1920,1080,['#181A1D','#F3EBDD','#B58B4B'],'MINIMAL'], ['Tasting Notes','MENU',816,1056,['#F6EFE3','#30241A','#8A2F45'],'EDITORIAL'], ['Pop-up Menu','MENU',816,1056,['#171022','#F9F2FF','#00DAF3'],'PLAYFUL'], ['Investor Narrative','PRESENTATION',1920,1080,['#F8FAFC','#152238','#00A8BC'],'EDITORIAL'], ['Portfolio Review','PRESENTATION',1920,1080,['#120D18','#F5EEF8','#D40055'],'MINIMAL'], ['Live Show Deck','PRESENTATION',1920,1080,['#08050D','#FF8A00','#D40055'],'BOLD'], ['Event Countdown','SOCIAL',1080,1080,['#170820','#FFFFFF','#FF8A00'],'BOLD'], ['Reading List','SOCIAL',1080,1080,['#F3EBDC','#2E2340','#6B0099'],'EDITORIAL'], ['Community Prompt','SOCIAL',1080,1080,['#EDFCFF','#004E59','#D40055'],'PLAYFUL'], ['Artist Archive','WEB',1440,900,['#F2EBDD','#201A16','#6B0099'],'EDITORIAL'], ['Magazine Feature','WEB',1440,900,['#111113','#F5F1E9','#D40055'],'BOLD'], ['Learning Hub','WEB',1440,900,['#F7FCFF','#173653','#FF8A00'],'PLAYFUL'],
 ];
 
 export const TELA_CREATIVE_TEMPLATES: TelaCreativeTemplate[] = templateNames.map(([name,category,width,height,palette,tone], index) => ({ id:`template_${index + 1}`, name, category, width, height, palette, tone }));
 
-export function instantiateTelaTemplate(template: TelaCreativeTemplate): TelaVectorObject[] {
+function legacyTelaTemplate(template: TelaCreativeTemplate): TelaVectorObject[] {
   const [ground, primary, accent] = template.palette;
   const gradient: TelaGradientPaint = { kind:'LINEAR', angle: template.tone === 'BOLD' ? 135 : 90, stops:[{ offset:0, color:ground }, { offset:1, color:primary }] };
   const margin = Math.round(Math.min(template.width, template.height) * .07);
@@ -104,13 +108,23 @@ export const telaGenerativeRegistry = {
 export type TelaAssetKind = 'RASTER' | 'VECTOR' | 'DOCUMENT' | 'LOTTIE' | 'VIDEO' | 'BRUSH' | 'SHAPE' | 'PALETTE' | 'UNKNOWN';
 export function classifyTelaAsset(file: File): TelaAssetKind {
   const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  const mime = file.type.toLowerCase();
   if (['abr'].includes(ext)) return 'BRUSH';
   if (['csh','asl'].includes(ext)) return 'SHAPE';
   if (['ase','aco'].includes(ext)) return 'PALETTE';
-  if (['lottie'].includes(ext) || (ext === 'json' && /lottie/i.test(file.name))) return 'LOTTIE';
+  if (ext === 'lottie' || mime === 'application/zip+dotlottie' || mime === 'application/vnd.lottie' || (ext === 'json' && /lottie/i.test(file.name))) return 'LOTTIE';
   if (['svg','ai','eps'].includes(ext)) return 'VECTOR';
   if (['pdf','doc','docx','ppt','pptx','xls','xlsx'].includes(ext)) return 'DOCUMENT';
   if (file.type.startsWith('video/') || ['mp4','webm','mov','m4v'].includes(ext)) return 'VIDEO';
   if (file.type.startsWith('image/') || ['png','jpg','jpeg','webp','avif','gif','bmp','tif','tiff','heic','heif','psd'].includes(ext)) return 'RASTER';
   return 'UNKNOWN';
 }
+
+/** Hand-designed template when a designer exists for the name; legacy composer otherwise. */
+export function instantiateTelaTemplate(template: TelaCreativeTemplate): TelaVectorObject[] {
+  const designer = CREATIVE_DESIGNS[template.name];
+  if (!designer) return legacyTelaTemplate(template);
+  const [ground, primary, accent] = template.palette; const W = template.width, H = template.height;
+  return designer({ template, W, H, fr: frame(W, H, Math.round(Math.min(W, H) * .07)), ground, primary, accent, seed: [...template.name].reduce((a, c) => a + c.charCodeAt(0), 11) });
+}
+export const hasCreativeDesign = (name: string) => !!CREATIVE_DESIGNS[name];
