@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-03",
+  "generated": "2026-09-04",
   "note": "Rendered fingerprints for every Forge effect. Regenerate with sweepReferenceHashes() in components/plajahPixels/engine/fx/fxReference.ts and diff with compareHashes(). Comparable only on the same machine and browser: another driver rounds differently.",
   "settings": {
     "width": 192,
@@ -129,6 +129,7 @@
     "particleburst": "87ef5d15-aa75de79-c81b7ef5",
     "particlefield": "105e14cd-594e8cbd-052a1e9d",
     "particlefield3d": "6f1daa8d-03b25519-ba2d24c5",
+    "particleforge": "0f2f00e5-f05b4055-3e0c0955",
     "pathextrude3d": "2b0d9a3d-b0309949-f2900ef9",
     "pencilstudio": "b5fe6721-c029afad-30c75661",
     "perspectivewarp": "ac2efd25-2e114501-adfd8ced",

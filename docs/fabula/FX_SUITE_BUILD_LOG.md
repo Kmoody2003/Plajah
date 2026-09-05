@@ -35,6 +35,15 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust shell step 1 DONE 2026-09-02 (rust/fabula-ofx: dependency-free cdylib, generated src/manifest_gen.rs, describe / describe-in-context / passthrough render; `npm run ofx:check`). Step 2 = wgpu kernel execution |
 
 ## Done this run
+- (2026-09-04, continuation 18) PARTICLES WITH STATE (`phase4ParticleStateEffects.ts`): **particleforge**. 186 effects. This closes the last item that the persistent state buffers made reachable.
+- The suite already had particle FIELDS (phase3ParticleEffects), but those are closed form: every frame recomputes where a particle "would" be from a hash and the clock, so nothing that happens to a particle can persist. It cannot be pushed, slowed, born or killed — only follow the formula it was always going to follow. Each particle now owns two texels in the effect's `state` buffers and integrates the forces acting on it, so a gust is still visible in its motion seconds later and a particle that runs out of life is genuinely replaced.
+- **Precision is the whole design constraint, and it is why the effect declares TWO buffers.** The buffers are 8-bit; a position in one byte moves in 0.4%-of-frame steps, which reads as a stutter. Position therefore takes two channels per axis as 16-bit fixed point in state0; velocity is coarser but only feeds an integration, so its quantisation never shows directly. Three passes: position → state0, velocity → state1, then the visible draw.
+- **Three faults, all found by looking at the picture rather than the numbers:**
+  1. `fx()` receives a y-UP coordinate, and the emitter was hard-coded at 0.82 — so it sat near the top and every preset read upside down. The origin is now a parameter (it earned its slot ahead of drag, which is a constant nobody reaches for first) and the launch direction throws away from whichever edge the emitter sits nearest.
+  2. Particles piled along the frame edges instead of recycling. Position is stored clamped into 0..1, so a particle that flies past the edge is written back as exactly 1.0 and can NEVER test as out of bounds — it sits there fully lit until old age takes it. The death bound now sits just inside the storable range.
+  3. Death is computed identically in both simulation passes from the same previous state, so position and velocity can never disagree about whether a particle is alive.
+- Verified on the GPU: populations reach equilibrium rather than growing without bound (embers 32869 → 29987 → 31607 lit pixels over seven seconds), and the reference sweep is deterministic across two consecutive runs, which matters far more for a simulation that accumulates than for a stateless shader. Baseline regenerated at 186 (1 added, 0 changed). `test:forge` 144 green; vectortrack 11 green.
+- **Repaired two of another session's in-flight files** on the way past: `services/fabula/forgeLooks.ts` and `services/fabula/forgeTransitions.ts` had every backtick written escaped (`\``), which is a syntax error, and it took `test:forge` from 144 green to 4 failing suites. Both files contained ZERO real backticks, so the repair was unambiguous and semantic content was untouched. LEFT UNCOMMITTED — that session owns the commit. This is the same over-escaping class as the Series VI shader bodies; a generator somewhere is escaping template delimiters.
 - (2026-09-03, continuation 17c) MESH TRACKING RUNNER + UI — PowerMesh is now usable end to end. It reuses the SURFACE quad the planar tracker already places, so there is no second overlay to learn: put the surface on the thing that bends, set GRID, press MESH. Density 1..10, resume-from-playhead and backward tracking behave exactly as the planar runner does.
 - **The thresholds were wrong, and only a multi-frame run showed it.** The first calibration rejected frame ONE of a clean translation at "confidence 28% under 40%". `trackPoint` returns `sqrt(ambiguity * quality)`, so a GOOD match on real footage scores around 0.3-0.6, not near 1 — measured across a lattice on a translating noise field the values ran 0.09 to 0.95 with a 0.43 median. Thresholds picked as if 1.0 were typical reject every usable frame. `minVertexConfidence` is now 0.3, matching what the planar tracker already uses per feature.
 - The frame confidence formula was also wrong in kind, not just in value: multiplying the mean per-vertex score in directly CAPS a frame's confidence at a typical per-vertex score, so no sane threshold can pass. It now leads with how many vertices matched (`trustedRatio`), with match quality modulating gently and folds penalising.
@@ -151,10 +160,11 @@ infrastructure or deferred by Kenne:
 1. DEFERRED by Kenne 2026-09-02: OFX host work, until the desktop/Crossover version compiles. Keep
    the manifest + Rust shell as-is; do NOT regenerate them, even though the registry has grown.
 2. BLOCKED, no server endpoint: Crossover SAM2 tracked mattes.
-3. PARTLY DONE 2026-09-03: fluid dynamics needed persistent state, not compute — `fluidflow`
-   ships on the new `effect.state` buffers. What is still unbuilt is a PARTICLE system with
-   per-particle state (Trapcode Particular's model); the state buffers make it reachable, but
-   it wants a particle-indexed layout rather than a screen-space field.
+3. DONE 2026-09-04: fluid dynamics needed persistent state, not compute (`fluidflow`), and the
+   particle-indexed system that state made reachable is now `particleforge` — 96 particles, each
+   owning two texels of the effect's state buffers. A Particular-class count (100k) still needs
+   point-sprite rendering, which a single-pass quad renderer cannot do; that is a real limit, not
+   a mis-scoping.
 4. DONE 2026-09-03: PowerMesh needed a tracked MESH, not dense optical flow.
    `services/fabula/meshTrack.ts` + `meshtrackwarp` + the MESH runner in the inspector, which
    reuses the planar tracker's SURFACE quad rather than adding a second overlay.
