@@ -35,6 +35,25 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust shell step 1 DONE 2026-09-02 (rust/fabula-ofx: dependency-free cdylib, generated src/manifest_gen.rs, describe / describe-in-context / passthrough render; `npm run ofx:check`). Step 2 = wgpu kernel execution |
 
 ## Done this run
+- (2026-09-05, continuation 22) QA SWEEP across the whole FX suite after the SAM + 3D-node builds.
+  Test surface all green: test:forge 152, test:vectortrack 11, test:fabulagen 57, test:signature 10,
+  model3dNode 7, council 6. GLSL COMPILE SWEEP on the GPU: **186 effects, 0 compile failures** — the
+  registry is clean. Every new module (samMatte, model3d, model3dNode, forgeBindings, effectCost)
+  imports in the browser with the expected exports, and stackCost / the model3d camera math produce
+  the same numbers in the browser as in the unit tests.
+- **The 3D node is now GPU-VERIFIED end to end, not just browser-verified-later.** Rendered a real
+  .obj through `renderModel3d` on the GPU: the mesh draws (12,585 lit px) over a transparent
+  background (opaque == lit), orbiting the camera changes the image (4,063 px at 0→20°, 3,461 at
+  20→45°), EXPOSURE changes it (11,444 px), and — the parity-critical property — AUTO-ROTATE
+  advances the picture deterministically from clip-local time (7,235 px between t=0 and t=1). A
+  first pass reported "0 changed" on a 35→125° orbit; that was the cube's exact 90° symmetry, not a
+  bug — an asymmetric angle moves thousands of pixels. SAM's runtime API (SamModel/AutoProcessor)
+  and three.js's (PMREMGenerator/ACES + all four loaders + RoomEnvironment) are both confirmed
+  present, so the only piece still unexercised on real data is SAM's model download + segment.
+- **One finding that is NOT ours:** test:tela reports 3 failures (comic panels, historical-style
+  document, Hokusai provenance string). They belong to a CONCURRENT session actively editing Tela —
+  its new test files are still untracked and its source is uncommitted, so the test and the copy
+  disagree mid-flight. Not a Fabula FX regression; left untouched per the shared-checkout rule.
 - (2026-09-05, continuation 21) THE 3D NODE — imported geometry, the last genuinely-unbuilt item.
   A raymarcher covers the LOOK of a particle field or terrain but cannot load a mesh; this loads a
   real .glb/.gltf/.obj/.fbx/.stl and renders it with three.js.
@@ -63,9 +82,9 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
   timeline branch (`model` asset → model3d clip), and a full camera/light/background inspector.
 - **Verified:** 7 pure-maths tests green; three.js 0.184 confirmed to load with PMREMGenerator +
   ACES, and all four example loaders + RoomEnvironment resolve on disk, so the runtime API is real;
-  esbuild clean on all five touched files; test:forge 152, test:vectortrack 11. A full in-editor
-  render (drop a real .glb, watch it orbit and export) is browser-verified-later — the standard the
-  log set for the GPU/ML features — because it needs a model file and the live editor.
+  esbuild clean on all five touched files; test:forge 152, test:vectortrack 11. A full in-editor render is browser-verified-later, but the RENDERER itself is now GPU-verified
+  (continuation 22): a real .obj rendered through renderModel3d draws, orbits, exposes and
+  auto-rotates deterministically over clip time.
 - **Honest scope of "start".** This is a working node end to end — load, frame, light, orbit,
   animate, composite, export — but it is a FIRST version: no material editor, no per-clip animation-
   clip selection, no camera keyframing beyond auto-rotate, and the live preview shows the raw 3D
