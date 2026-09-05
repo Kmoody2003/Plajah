@@ -17,6 +17,7 @@ import { Compositor, LayerInput, ShakeParams } from './compositor';
 import { segmentSubject } from '../../../../services/fabula/subjectMatte';
 import { estimateDepth, depthRangeCanvas } from '../../../../services/fabula/depthMatte';
 import { segmentSam } from '../../../../services/fabula/samMatte';
+import { renderModel3d } from './model3d';
 import { GeneratorRenderer, hasGenerator, hexToRgb } from './generators';
 import { ShaderRenderer } from './shaderRenderer';
 import { createMilkdropDriver, MilkdropDriver } from './milkdropDriver';
@@ -324,6 +325,12 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
         if (clip.type === 'generator' && clip.sceneMode && hasGenerator(clip.sceneMode)) {
           const tex = gen.render(layer.id, clip.sceneMode, width, height, { time: lt, audio: audioTex, colors: palette, params: clip.params || [] });
           inputs.push({ texture: tex, opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });
+        } else if (clip.type === 'model3d' && (clip.model3dUrl || (clip as any).model3d?.url)) {
+          // A loaded mesh rendered by three.js to a canvas the compositor uploads like an image —
+          // so Forge effects, grade and masks apply on top, and the model's own animation is driven
+          // to clip-local time (lt), which is why the export matches the monitor.
+          const canvas = await renderModel3d(clip.model3dUrl || (clip as any).model3d.url, (clip as any).model3d || {}, width, height, lt);
+          if (canvas) inputs.push({ element: canvas, opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography, grade: (layer as any).glGrade, grades: (layer as any).glGrades, effects: forgeEffects, time: layer.time, wipe: (layer as any).wipe, transition: (layer as any).forgeTransition });
         } else if (clip.type === 'media' && clip.mediaUrl) {
           const el = await getMedia(clip.mediaUrl, clip.mediaType ?? 'video');
           // Per-clip GRADE (Fabula color page): bake the clip's grade into the frame via a cached

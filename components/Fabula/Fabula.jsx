@@ -46,6 +46,8 @@ import { invertHomography, toPixelSpace, mat3ToCssMatrix3d, isIdentityMat3, cont
 import { resolveInstanceForFrame, maskOutlineAt, MASK_DEFAULT, BINDING_SOURCES } from "../../services/fabula/forgeBindings";
 import { segmentSubjectLatest } from "../../services/fabula/subjectMatte";
 import { segmentSamLatest } from "../../services/fabula/samMatte";
+import { renderModel3dLatest } from "../plajahPixels/engine/core/model3d";
+import { MODEL3D_DEFAULT } from "../../services/fabula/model3dNode";
 import { estimateDepthLatest, depthRangeCanvas } from "../../services/fabula/depthMatte";
 import { glyphStates, TITLE_ANIMS, TITLE_ANIM_DEFAULT } from "../../services/fabula/titleAnimators";
 import { dynamicText, DYNAMIC_TYPES, DYNAMIC_DEFAULT } from "../../services/fabula/titleDynamic";
@@ -1638,6 +1640,12 @@ export default function Fabula() {
     if (isMc || asset.type === "image" || asset.type === "graphic" || asset.type === "lottie") {
       const trackId = opts.trackId && dropType === "video" ? opts.trackId : "v1";
       const clip = { id: uid(), trackId, start, duration, srcIn: srcInVal, kind: isMc ? "multicam" : "media", assetId: asset.id, label: asset.name, ...(isMc ? { angle: 0 } : {}) };
+    // Imported 3D model → a model3d clip (three.js render; camera/lighting live on clip.model3d).
+    if (asset.type === "model") {
+      const trackId = opts.trackId && dropType === "video" ? opts.trackId : "v1";
+      const clip = { id: uid(), trackId, start, duration, srcIn: 0, kind: "model3d", assetId: asset.id, model3dUrl: asset.url, model3d: { ...MODEL3D_DEFAULT }, label: asset.name };
+      const next = [...clips, clip]; setClips(next); commitClips(next); setSelClipId(clip.id); return;
+    }
       const next = [...clips, clip]; setClips(next); commitClips(next); setSelClipId(clip.id); return;
     }
     // Video → linked picture + audio pair (the clip's sound rides an audio track so
@@ -4616,6 +4624,32 @@ export default function Fabula() {
                           <>
                             <div className="insp-div" />
                             <div className="lbl">SUBTITLE TEXT</div>
+                        {selClip.kind === "model3d" && (() => {
+                          const m3 = { ...MODEL3D_DEFAULT, ...(selClip.model3d || {}) };
+                          const setM3 = (patch) => updateClip(selClip.id, { model3d: { ...m3, ...patch } });
+                          const sld = (label, key, min, max, step, fmt = (v) => v.toFixed(2)) => (
+                            <div className="fxrow"><span className="fxlbl">{label}</span><input type="range" min={min} max={max} step={step} value={m3[key]} onChange={(e) => setM3({ [key]: parseFloat(e.target.value) })} /><span className="fxval">{fmt(m3[key])}</span></div>
+                          );
+                          return (
+                            <>
+                              <div className="insp-div" />
+                              <div className="lbl">3D MODEL · CAMERA</div>
+                              {sld("ORBIT YAW", "yaw", -180, 180, 1, (v) => v.toFixed(0) + "°")}
+                              {sld("PITCH", "pitch", -89, 89, 1, (v) => v.toFixed(0) + "°")}
+                              {sld("DISTANCE", "distanceScale", 0.4, 4, 0.05)}
+                              {sld("FOV", "fov", 10, 80, 1, (v) => v.toFixed(0) + "°")}
+                              <div className="fxrow"><span className="fxlbl">AUTO-ROTATE</span><button className={`minibtn ${m3.autoRotate ? "on" : ""}`} onClick={() => setM3({ autoRotate: !m3.autoRotate })}>{m3.autoRotate ? "ON" : "OFF"}</button>{m3.autoRotate && <><span className="fxlbl" style={{ marginLeft: 8 }}>DEG/S</span><input type="range" min={-180} max={180} step={1} value={m3.rotateSpeed} onChange={(e) => setM3({ rotateSpeed: parseFloat(e.target.value) })} /><span className="fxval">{m3.rotateSpeed.toFixed(0)}</span></>}</div>
+                              <div className="lbl" style={{ marginTop: 6 }}>3D MODEL · LIGHT</div>
+                              {sld("KEY", "keyIntensity", 0, 8, 0.1)}
+                              {sld("FILL", "fillIntensity", 0, 6, 0.1)}
+                              {sld("RIM", "rimIntensity", 0, 8, 0.1)}
+                              {sld("ENVIRONMENT", "envIntensity", 0, 3, 0.05)}
+                              {sld("EXPOSURE", "exposure", 0.2, 3, 0.05)}
+                              <div className="fxrow"><span className="fxlbl">BACKGROUND</span><button className={`minibtn ${m3.transparent ? "on" : ""}`} onClick={() => setM3({ transparent: !m3.transparent })}>{m3.transparent ? "TRANSPARENT" : "SOLID"}</button>{!m3.transparent && <input type="color" value={m3.background} onChange={(e) => setM3({ background: e.target.value })} style={{ marginLeft: 6, width: 28, height: 20, padding: 0, border: "none", background: "none" }} />}<span className="fxlbl" style={{ marginLeft: 8 }}>GROUND</span><button className={`minibtn ${m3.ground ? "on" : ""}`} onClick={() => setM3({ ground: !m3.ground })}>{m3.ground ? "ON" : "OFF"}</button></div>
+                              <div className="dim small">A loaded mesh (.glb/.gltf/.obj/.fbx/.stl), rendered live and in export. Auto-rotate and any baked animation run on clip time, so trimming retimes them. Effects and grade below apply on top.</div>
+                            </>
+                          );
+                        })()}
                             <textarea className="in" rows={2} value={selClip.text || ""} placeholder="Subtitle / caption line…"
                               onChange={(e) => updateClip(selClip.id, { text: e.target.value, label: e.target.value.slice(0, 40) })} />
                           </>
@@ -7944,7 +7978,46 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
       bri: kfSample(fxBase, "bri", lt, fxBase.bri), con: kfSample(fxBase, "con", lt, fxBase.con),
       sat: kfSample(fxBase, "sat", lt, fxBase.sat), hue: kfSample(fxBase, "hue", lt, fxBase.hue),
       blur: kfSample(fxBase, "blur", lt, fxBase.blur) };
+// A live preview of a 3D-model clip: three.js renders the loaded mesh to a canvas each frame and
+// we blit it here. The export (offlineRenderer) applies the clip's Forge stack + grade on top;
+// this live view shows the raw 3D render, which is enough to frame, orbit and time the shot.
+// Animation is driven to clip-local time, so scrubbing moves the model deterministically.
+function Model3DLayer({ clip, prod, playhead, playing, active, z }) {
+  const canvasRef = useRef(null);
+  const fx = ensureFx(clip);
+  const asset = clip.assetId ? (prod?.mediaPool || []).find((a) => a.id === clip.assetId) : null;
+  const url = clip.model3dUrl || clip.model3d?.url || asset?.url || "";
+  const spec = { ...MODEL3D_DEFAULT, ...(clip.model3d || {}) };
+  const playheadRef = useRef(playhead); playheadRef.current = playhead;
+  useEffect(() => {
+    let raf = 0; let alive = true;
+    const draw = () => {
+      if (!alive) return;
+      const cv = canvasRef.current;
+      if (cv) {
+        const host = cv.parentElement;
+        const w = Math.max(2, host?.clientWidth || 640), h = Math.max(2, host?.clientHeight || 360);
+        if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+        const src = renderModel3dLatest(url, spec, w, h, Math.max(0, playheadRef.current - clip.start));
+        const ctx = cv.getContext("2d");
+        if (ctx) { ctx.clearRect(0, 0, w, h); if (src) ctx.drawImage(src, 0, 0, w, h); }
+      }
+      // Keep rendering while playing or the model is still loading/orbiting; a paused static
+      // model still needs a couple of frames after load, so we always request the next one.
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => { alive = false; cancelAnimationFrame(raf); };
+  }, [url, clip.start, JSON.stringify(spec), playing]);
+  return (
+    <div style={{ position: "absolute", inset: 0, zIndex: z, opacity: fx.op ?? 1, transform: `translate(${(fx.x || 0) * 100}%, ${(fx.y || 0) * 100}%) scale(${fx.sc ?? 1}) rotate(${fx.rot || 0}deg)`, pointerEvents: "none" }}>
+      <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
+    </div>
+  );
+}
+
   })() : fxBase;
+  if (clip.kind === "model3d") return <Model3DLayer clip={clip} prod={prod} playhead={playhead} playing={playing} active={active} z={z} />;
   const trackMotion = fx.trackMode === "stabilize" && fx.vectorTrack ? stabilizationAt(fx.vectorTrack, Math.max(0, Math.round((playhead - clip.start) * (fx.vectorTrack.fps || 24)))) : { x: 0, y: 0, confidence: 0 };
   // PLANAR (VectorTrack): one SAMPLING matrix for this frame — the clip's own track (stabilise:
   // output(p) = src(H·p)) or another clip's surface (corner pin: inv(H·Q)). The export computes the

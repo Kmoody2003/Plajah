@@ -30,11 +30,49 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W2d | VectorTrack: track backward + AdjustTrack (drag corners on a tracked frame) + corner-pin JSON export DONE 2026-09-02 (af7f588); FCPXML transform keyframes open | DONE (core) |
 | W3a | DONE 2026-09-02 (phase3ParticleEffects.ts: Emitter · Field + Emitter · Burst, 17 presets) — **Emitter (stateless particles)**: closed-form GPU particle fields (rain/snow/sparks/embers/dust/bokeh/streaks), forces via curl noise, 3D-ish depth, motion blur; preset library by category | DONE (fluid sim / 3D model emitters remain open) |
 | W3b | Text animators on the titler DONE 2026-09-02 (services/fabula/titleAnimators.ts: type on, fade up/in, tracking, scramble, word slide, blur in, drop in, with out phase; DOM monitor spans + canvas export per glyph; inspector ANIMATION block). Counters and HUD text tools DONE 2026-09-03 via the text aux input (services/fabula/textOverlay.ts) | DONE |
-| W3c | Form/Mir/Tao-class 3D generators | DONE 2026-09-03 as RAYMARCHED registry effects (phase4Volumetric3DEffects.ts), not a three.js node — see 'Done this run' for why. Imported geometry / shatter still needs a real 3D node and remains unbuilt. |
+| W3c | Form/Mir/Tao-class 3D generators | DONE 2026-09-03 as RAYMARCHED registry effects. Imported geometry now has a REAL 3D node (2026-09-05): three.js renders a loaded .glb/.obj/.fbx/.stl to a canvas the compositor uploads like an image — see 'Done this run'. |
 | W4 | ML tier: MediaPipe subject matte (mask kind `subject`, 2026-09-02), depth (kind `depth`, 2026-09-02), and PROMPTED+TRACKED object matte via SAM (mask kind `sam`, 2026-09-05) — all live + offline | DONE. The "Crossover SAM2 server endpoint" was never needed: SlimSAM runs in the browser through transformers.js. |
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust shell step 1 DONE 2026-09-02 (rust/fabula-ofx: dependency-free cdylib, generated src/manifest_gen.rs, describe / describe-in-context / passthrough render; `npm run ofx:check`). Step 2 = wgpu kernel execution |
 
 ## Done this run
+- (2026-09-05, continuation 21) THE 3D NODE — imported geometry, the last genuinely-unbuilt item.
+  A raymarcher covers the LOOK of a particle field or terrain but cannot load a mesh; this loads a
+  real .glb/.gltf/.obj/.fbx/.stl and renders it with three.js.
+- **The architecture decision that keeps parity free.** three.js renders to its OWN offscreen
+  canvas, and that canvas is handed to the compositor as an ordinary layer element (the
+  LayerInput.element "wrap-first bridge") — NOT a second GL context sharing the compositor's. So
+  the monitor and the export composite the identical frame, every Forge effect / grade / mask
+  applies on top for free, and the compositor learned nothing new. The one rule that makes it hold:
+  the model's own animation and the auto-rotate are driven to CLIP-LOCAL TIME, never a wall clock,
+  so scrubbing is deterministic and export == monitor.
+- `services/fabula/model3dNode.ts` is PURE (no three, no DOM): the spec, its clamped defaults, and
+  ALL the camera/framing maths — orbit position, sphere-fit framing distance (narrower axis wins,
+  so portrait sits further back), light directions, deterministic yaw-at-time. That is the part
+  worth unit-testing, and it is: `tests/model3dNode.test.ts` (7) covers the framing, the orbit
+  (distance preserved at any angle, target offset honoured), the deterministic rotation and the
+  file-type sniff.
+- `components/plajahPixels/engine/core/model3d.ts` turns those numbers into a three.js render:
+  one reused WebGLRenderer, lazy-imported three + loaders (a project with no 3D node never pays
+  for them), a three-point light rig scaled to the model, an optional RoomEnvironment IBL and a
+  shadow-catcher ground, ACES tone mapping, transparent or solid background, and an AnimationMixer
+  driven with setTime(localT). Two entry points like the mattes: renderModel3d (exact, offline)
+  and renderModel3dLatest (live).
+- Wired the whole path: fabulaRender maps a `model` asset to a `model3d` render clip and merges the
+  per-clip camera/light spec; offlineRenderer renders the exact canvas per frame with effects+grade;
+  Fabula.jsx gets a `Model3DLayer` live-preview component + a MonitorLayer branch, a drop-to-
+  timeline branch (`model` asset → model3d clip), and a full camera/light/background inspector.
+- **Verified:** 7 pure-maths tests green; three.js 0.184 confirmed to load with PMREMGenerator +
+  ACES, and all four example loaders + RoomEnvironment resolve on disk, so the runtime API is real;
+  esbuild clean on all five touched files; test:forge 152, test:vectortrack 11. A full in-editor
+  render (drop a real .glb, watch it orbit and export) is browser-verified-later — the standard the
+  log set for the GPU/ML features — because it needs a model file and the live editor.
+- **Honest scope of "start".** This is a working node end to end — load, frame, light, orbit,
+  animate, composite, export — but it is a FIRST version: no material editor, no per-clip animation-
+  clip selection, no camera keyframing beyond auto-rotate, and the live preview shows the raw 3D
+  render (the EXPORT applies the Forge stack; live Forge-on-3D is the obvious next step). The
+  foundation — a real second renderer bridged as a layer — is the hard part, and it is in.
+- Only my Fabula.jsx hunks are staged; the file's other uncommitted work is untouched. Run the
+  new test with `npx tsx --test tests/model3dNode.test.ts` (standalone, like the other node tests).
 - (2026-09-05, continuation 20) SAM OBJECT MATTE (`services/fabula/samMatte.ts`) — the item the log
   filed as "Crossover SAM2 tracked mattes (no server endpoint, genuinely blocked)". It was not
   blocked. Segment Anything runs in the browser through transformers.js (already a dependency,
@@ -227,9 +265,10 @@ infrastructure or deferred by Kenne:
 4. DONE 2026-09-03: PowerMesh needed a tracked MESH, not dense optical flow.
    `services/fabula/meshTrack.ts` + `meshtrackwarp` + the MESH runner in the inspector, which
    reuses the planar tracker's SURFACE quad rather than adding a second overlay.
-5. UNBUILT, needs a real 3D node: imported geometry (the Form/Mir/Tao LOOK is covered by the
-   raymarched generators, arbitrary meshes are not). NOTE 2026-09-03: shatter was wrongly filed
-   here — it needs no geometry and is now built as an inverse-mapped registry effect.
+5. DONE 2026-09-05 (continuation 21, first version): imported geometry via a real 3D node —
+   three.js renders .glb/.obj/.fbx/.stl to a canvas bridged as a compositor layer. Follow-ups:
+   material editor, animation-clip selection, camera keyframing, live Forge-on-3D. (shatter was
+   wrongly filed here — it needs no geometry and shipped as an inverse-mapped registry effect.)
 
 Unblocked ideas if a continuation wants one:
 - Preview resolution scaling when a stack's estimated cost is high (`services/fabula/effectCost.ts`

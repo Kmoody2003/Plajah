@@ -56,6 +56,11 @@ function itemToSnapshot(item: any, label: string): SceneSnapshot {
       }],
     };
   }
+  // An imported 3D model: three.js renders it to a canvas the compositor uploads (see model3d.ts).
+  // The per-clip camera/lighting spec is merged onto this clip in emitClip.
+  if (item?.url && item.type === 'model') {
+    return { name: item.name || label, layers: [{ id: 'v1', blendMode: 'normal', opacity: 1, clip: { type: 'model3d', model3dUrl: item.url, opacity: 1 } }] };
+  }
   return { name: label || 'clip', layers: [] };                 // unresolved → black
 }
 
@@ -343,6 +348,9 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
         const layer = snap.layers[layerIndex];
         out.push({
           ...layer,
+          // A 3D-model layer carries the clip's own camera/lighting/rotation spec so the export
+          // frames and animates it exactly as the monitor does.
+          ...(layer.clip?.type === 'model3d' ? { clip: { ...layer.clip, model3d: clip.model3d || {} } } : {}),
           id: `${clip.trackId}:${clip.id}:${layer.id}`,   // unique per clip (two clips can co-exist mid-transition)
           blendMode: clipBlend || layer.blendMode,
           opacity: (layer.opacity ?? 1) * clipOp,
