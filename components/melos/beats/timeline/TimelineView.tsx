@@ -1,7 +1,7 @@
 // The Timeline — Bitwig Arranger / Studio One arrangement paradigm (approved mockup 05):
 // track headers left, clip lanes over a bar ruler right, cyan playhead, H-zoom, snap, and the
-// docked mixer underneath. Edits the SAME GrooveDoc.arrangement the Glass Sequence strip
-// renders compactly; imported .dawproject tracks land here, preserved plugin tracks dimmed.
+// docked mixer underneath. Edits GrooveDoc.arrangement directly; imported .dawproject tracks
+// land here, with preserved plugin tracks dimmed.
 // Grammar: double-click empty lane = paint the active pattern · drag = move (bar snap) ·
 // right-edge grip = trim (beat snap) · click = select · Delete = remove · drop audio = clip.
 
@@ -18,12 +18,10 @@ import { PianoRoll } from './PianoRoll';
 import { TimelineEditPanel } from './TimelineEditPanel';
 import { InstrumentPanel } from '../instrument/InstrumentPanel';
 import { ClipLauncher } from './ClipLauncher';
-import { SequenceStrip } from '../glass/SequenceStrip';
 
 import { PLAYHEAD, SELECT, glassPanel } from '../theme';
 
 const BEATS_PER_BAR = 4;
-const HEADER_W = 172;
 const LANE_H = 44;
 const PAD_LANE_H = 28;
 const STEPS_PER_BEAT = 4;
@@ -203,9 +201,11 @@ interface TimelineViewProps {
 }
 
 export const TimelineView: React.FC<TimelineViewProps> = (p) => {
+  const [headerW, setHeaderW] = useState(() => Math.max(132, Math.min(360, Number(localStorage.getItem('melos:timeline:header-width')) || 172)));
   const [pxPerBeat, setPxPerBeat] = useState(14);
   const [selectedClip, setSelectedClip] = useState<string | null>(null);
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
+  const clipboardRef = useRef<{ trackId: string; clip: TimelineClip } | null>(null);
   const [showMixer, setShowMixer] = useState(true);
   const [showPads, setShowPads] = useState(true);
   const [followPlayhead, setFollowPlayhead] = useState(() => localStorage.getItem('melos:timeline:follow') !== '0');
@@ -247,16 +247,16 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const totalBars = Math.ceil(contentBeats / BEATS_PER_BAR);
   const contentW = contentBeats * pxPerBeat;
   const fitToView = useCallback(() => {
-    const width = Math.max(180, (viewportRef.current?.clientWidth || window.innerWidth) - HEADER_W - 24);
+    const width = Math.max(180, (viewportRef.current?.clientWidth || window.innerWidth) - headerW - 24);
     setPxPerBeat(Math.max(1, Math.min(48, width / Math.max(1, contentBeats))));
     if (viewportRef.current) viewportRef.current.scrollLeft = 0;
-  }, [contentBeats]);
+  }, [contentBeats, headerW]);
 
   useEffect(() => {
     if (!followPlayhead || !p.running || p.playMode !== 'song' || !viewportRef.current) return;
-    const el = viewportRef.current; const x = HEADER_W + p.beats * pxPerBeat;
-    if (x < el.scrollLeft + HEADER_W + 40 || x > el.scrollLeft + el.clientWidth - 80) el.scrollTo({ left: Math.max(0, x - el.clientWidth * 0.35), behavior: 'smooth' });
-  }, [followPlayhead, p.running, p.playMode, p.beats, pxPerBeat]);
+    const el = viewportRef.current; const x = headerW + p.beats * pxPerBeat;
+    if (x < el.scrollLeft + headerW + 40 || x > el.scrollLeft + el.clientWidth - 80) el.scrollTo({ left: Math.max(0, x - el.clientWidth * 0.35), behavior: 'smooth' });
+  }, [followPlayhead, p.running, p.playMode, p.beats, pxPerBeat, headerW]);
 
   // Every pattern clip in the arrangement, resolved — the windows the pad lanes draw inside.
   const patternClips = p.doc.arrangement
@@ -370,9 +370,20 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el?.matches('input, textarea, select, [contenteditable="true"]')) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key.toLowerCase() === 'c' && selectedClip) {
+        for (const t of p.doc.arrangement) { const clip = t.clips.find((c) => c.id === selectedClip); if (clip) { clipboardRef.current = { trackId: t.id, clip: JSON.parse(JSON.stringify(clip)) }; e.preventDefault(); return; } }
+      }
+      if (mod && e.key.toLowerCase() === 'v' && clipboardRef.current) {
+        const saved = clipboardRef.current;
+        let pastedId = '';
+        p.onMutate((d) => { const track = d.arrangement.find((t) => t.id === (selectedTrack || saved.trackId)) || d.arrangement.find((t) => t.id === saved.trackId); if (!track || track.foreign) return; const copy = JSON.parse(JSON.stringify(saved.clip)); copy.id = grooveUid() + grooveUid(); copy.startBeats += copy.lengthBeats; track.clips.push(copy); pastedId = copy.id; });
+        if (pastedId) setSelectedClip(pastedId);
+        e.preventDefault(); return;
+      }
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       if (!selectedClip) return;
       p.onMutate((d) => {
         for (const t of d.arrangement) t.clips = t.clips.filter((c) => c.id !== selectedClip);
@@ -381,7 +392,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedClip, p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedClip, selectedTrack, p.doc, p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Right-click a clip — the shared design-system menu. Clips are draggable, so we
   // wire only onContextMenu (not the touch long-press bind, which would fight the drag).
@@ -611,10 +622,25 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
           />
         )}
         <div ref={viewportRef} className="flex-1 min-h-0 overflow-auto">
-          <div style={{ width: HEADER_W + contentW, minWidth: '100%' }}>
+          <div style={{ width: headerW + contentW, minWidth: '100%' }}>
             {/* ruler */}
             <div className="sticky top-0 z-20 flex bg-[#100A18]/95 backdrop-blur border-b border-white/10" style={{ height: 26 }}>
-              <div className="sticky left-0 z-10 flex items-center px-3 text-[9px] uppercase tracking-[0.18em] text-white/30 font-semibold bg-[#100A18]" style={{ width: HEADER_W, minWidth: HEADER_W }}>Tracks</div>
+              <div className="sticky left-0 z-10 flex items-center px-3 text-[9px] uppercase tracking-[0.18em] text-white/30 font-semibold bg-[#100A18] relative" style={{ width: headerW, minWidth: headerW }}>Tracks
+                <span
+                  className="absolute right-0 inset-y-0 w-2 cursor-col-resize hover:bg-[#00DAF3]/25 touch-none"
+                  title="Drag to resize track headers"
+                  onPointerDown={(e) => {
+                    e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId);
+                    e.currentTarget.dataset.startX = String(e.clientX); e.currentTarget.dataset.startW = String(headerW);
+                  }}
+                  onPointerMove={(e) => {
+                    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+                    const next = Math.max(132, Math.min(360, Number(e.currentTarget.dataset.startW) + e.clientX - Number(e.currentTarget.dataset.startX)));
+                    setHeaderW(next);
+                  }}
+                  onPointerUp={(e) => { const next = Math.max(132, Math.min(360, Number(e.currentTarget.dataset.startW) + e.clientX - Number(e.currentTarget.dataset.startX))); setHeaderW(next); e.currentTarget.releasePointerCapture(e.pointerId); try { localStorage.setItem('melos:timeline:header-width', String(next)); } catch { /* */ } }}
+                />
+              </div>
               <div
                 className="relative flex-1 cursor-pointer"
                 title="Click to play the song from this bar"
@@ -647,11 +673,11 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
             {/* lanes */}
             <div className="relative">
               {playheadX >= 0 && (
-                <div className="absolute top-0 bottom-0 w-[2px] z-20 pointer-events-none" style={{ left: HEADER_W + playheadX, background: PLAYHEAD, boxShadow: `0 0 12px ${PLAYHEAD}88` }} />
+                <div className="absolute top-0 bottom-0 w-[2px] z-20 pointer-events-none" style={{ left: headerW + playheadX, background: PLAYHEAD, boxShadow: `0 0 12px ${PLAYHEAD}88` }} />
               )}
               {/* MEKA pads — the SAME channels the mixer and Glass drive, surfaced as tracks so
                   every view shares one track list. Lanes mirror (and edit) the step grid. */}
-              <div className="flex items-center gap-2 px-3 border-b border-white/[0.06] bg-[#0C0714] sticky left-0" style={{ height: 22, width: HEADER_W + contentW }}>
+              <div className="flex items-center gap-2 px-3 border-b border-white/[0.06] bg-[#0C0714] sticky left-0" style={{ height: 22, width: headerW + contentW }}>
                 <button onClick={() => setShowPads((v) => !v)} className="flex items-center gap-1 text-[9px] uppercase tracking-[0.16em] text-white/45 hover:text-white font-semibold">
                   {showPads ? <ChevronDown size={11} /> : <ChevronUp size={11} />} MEKA pads
                 </button>
@@ -664,7 +690,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                   <div key={pad.id} className="flex border-b border-white/[0.05]" style={{ height: PAD_LANE_H, opacity: pad.mute ? 0.5 : 1 }}>
                     <div
                       className="sticky left-0 z-10 flex items-center gap-1.5 px-3 bg-[#0C0714] border-r border-white/10"
-                      style={{ width: HEADER_W, minWidth: HEADER_W }}
+                      style={{ width: headerW, minWidth: headerW }}
                       {...padHeaderMenu.bind(padIdx)}
                     >
                       {pad.instrumentTrackId && p.onOpenInstrument ? (
@@ -722,7 +748,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                   <div
                     className="sticky left-0 z-10 flex items-center gap-2 px-3 bg-[#0E0916] border-r border-white/10"
                     style={{
-                      width: HEADER_W, minWidth: HEADER_W,
+                      width: headerW, minWidth: headerW,
                       boxShadow: selectedTrack === track.id ? `inset 2px 0 0 ${SELECT}` : undefined,
                     }}
                     onClick={() => setSelectedTrack(track.id)}
@@ -919,13 +945,26 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
               <div
                 className="flex items-center gap-2 px-3 transition-colors"
                 style={{ height: 40, background: dropHot ? 'rgba(0,218,243,0.10)' : 'transparent', outline: dropHot ? '1.5px dashed rgba(0,218,243,0.5)' : 'none', outlineOffset: -3 }}
-                onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDropHot(true); } }}
+                onDragOver={(e) => { if (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/x-plajah-media-asset')) { e.preventDefault(); setDropHot(true); } }}
                 onDragLeave={() => setDropHot(false)}
                 onDrop={(e) => {
                   e.preventDefault(); setDropHot(false);
+                  const shared = e.dataTransfer.getData('application/x-plajah-media-asset');
+                  if (shared) {
+                    try {
+                      const asset = JSON.parse(shared) as { context?: string; name?: string; sampleKey?: string };
+                      if (asset.context === 'melos' && asset.sampleKey) {
+                        const source = p.doc.arrangement.flatMap((t) => t.clips).find((c) => c.audio?.sampleKey === asset.sampleKey)?.audio;
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        const at = Math.max(0, Math.floor(((e.clientX - rect.left - headerW + (e.currentTarget.parentElement?.parentElement?.scrollLeft || 0)) / pxPerBeat) / BEATS_PER_BAR) * BEATS_PER_BAR);
+                        if (source) p.onMutate((d) => d.arrangement.push({ id: grooveUid(), kind: 'audio', name: asset.name || source.name, color: TRACK_COLORS[d.arrangement.length % TRACK_COLORS.length], mute: false, solo: false, gainDb: 0, pan: 0, clips: [{ id: grooveUid(), startBeats: at, lengthBeats: Math.max(1, source.durationSec / (60 / d.bpm)), audio: JSON.parse(JSON.stringify(source)) }] }));
+                      }
+                    } catch { /* malformed external drag */ }
+                    return;
+                  }
                   const files = Array.from(e.dataTransfer.files || []);
                   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                  const atBeats = Math.max(0, (e.clientX - rect.left - HEADER_W + (e.currentTarget.parentElement?.parentElement?.scrollLeft || 0)) / pxPerBeat);
+                  const atBeats = Math.max(0, (e.clientX - rect.left - headerW + (e.currentTarget.parentElement?.parentElement?.scrollLeft || 0)) / pxPerBeat);
                   if (files.length) void dropNewTracks(files, atBeats);
                 }}
               >
@@ -989,21 +1028,6 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
       </div>
 
       {ingest && <div className="absolute left-1/2 top-20 -translate-x-1/2 z-50 w-[min(440px,86vw)] rounded-xl border border-white/15 bg-[#100A18]/95 backdrop-blur-xl p-3 shadow-2xl" role="status" aria-live="polite"><div className="flex justify-between text-[10px] text-white/70"><span className="truncate pr-4">Loading {ingest.name}</span><b>{ingest.done}/{ingest.total}</b></div><div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#00DAF3] transition-[width]" style={{ width: `${(ingest.done / Math.max(1, ingest.total)) * 100}%` }} /></div></div>}
-
-      {/* The Sequence strip — Song mode only, and only here on the arranger page: the compact
-          bar-painter for sketching the arrangement without leaving the timeline. */}
-      {p.playMode === 'song' && (
-        <div className="mt-2 flex-none">
-          <SequenceStrip
-            doc={p.doc}
-            activePattern={p.activePattern}
-            beats={p.beats}
-            running={p.running}
-            playMode={p.playMode}
-            onMutate={p.onMutate}
-          />
-        </div>
-      )}
 
       {showMixer && <div className="rounded-b-[18px] overflow-hidden -mt-px"><MixerPanel doc={p.doc} meters={p.meters} onMutate={p.onMutate} /></div>}
 

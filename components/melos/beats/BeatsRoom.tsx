@@ -79,7 +79,7 @@ interface BeatsRoomProps {
 const AVAILABLE_VIEWS: BeatsViewId[] = ['machine', 'glass', 'timeline', 'mixer', 'project'];
 
 const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, embedded, melosSamples, onRenderTake, takeTargetName }) => {
-  const { doc, saveState, grooves, mutate, replace, saveNow, openGroove, newGroove, removeGroove } =
+  const { doc, saveState, grooves, mutate, undo, redo, canUndo, canRedo, replace, saveNow, openGroove, newGroove, removeGroove } =
     useBeatsDoc(payload?.grooveId, production?.prodId || payload?.productionId);
   const snap = useEngineBridge();
   const vp = useViewport();
@@ -125,6 +125,18 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const [showLibrary, setShowLibrary] = useState(false);
   const [showMidi, setShowMidi] = useState(false);
   const [midiConnected, setMidiConnected] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el?.matches('input, textarea, select, [contenteditable="true"]')) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      if (e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+      else if (e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
   // Poll the WebMIDI device list so the transport dot lights when a controller is present.
   useEffect(() => { const t = setInterval(() => setMidiConnected(midiStatus().connected.length > 0), 2000); return () => clearInterval(t); }, []);
 
@@ -702,6 +714,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     {
       label: 'Edit',
       items: [
+        { id: 'undo', label: 'Undo', hint: 'Ctrl+Z', disabled: !canUndo, onSelect: undo },
+        { id: 'redo', label: 'Redo', hint: 'Ctrl+Shift+Z / Ctrl+Y', disabled: !canRedo, onSelect: redo },
+        'sep',
         { id: 'quantize', label: 'Quantize pattern', disabled: !pattern, onSelect: () => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) quantizePattern(p, 1); }); } },
         { id: 'fill', label: 'Auto-fill last bar', disabled: !pattern, onSelect: () => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) autoFill(d, p, 4); }); } },
         { id: 'clear', label: 'Clear pattern steps', danger: true, disabled: !pattern, onSelect: () => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) p.steps = {}; }); } },
