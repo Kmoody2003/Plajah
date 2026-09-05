@@ -132,7 +132,9 @@ export interface TimelineClip {
   /** kind 'instrument' — a MIDI clip. */
   notes?: NoteEvent[];
   audio?: { sampleKey: string; name: string; offsetSec: number; gainDb: number;
-            durationSec: number; stretch?: number /* simple linear rate only */ };
+            durationSec: number; stretch?: number /* simple linear rate only */;
+            /** Downsampled channel peak envelope used by every timeline renderer. */
+            peaks?: number[]; detectedBpm?: number };
 }
 
 /** The meditation suite (vela/cantus/ison/pneuma) shares one engine and one editor; they are
@@ -177,6 +179,10 @@ export interface ArrangeTrack {
   // Mixer channel: this track's own insert chain + aux sends.
   inserts?: FxInstance[];
   sends?: number[];
+  /** Optional DAW folder hierarchy. Folder tracks contain no clips and collapse their children. */
+  folderId?: string;
+  isFolder?: boolean;
+  collapsed?: boolean;
 }
 
 import type { FxInstance } from './fx/devices';

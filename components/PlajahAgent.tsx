@@ -23,8 +23,9 @@ import {
   ChevronDown, ChevronRight, RefreshCw, Layers, Music2,
   Film, GraduationCap, Search, Image as ImageIcon, FileText,
   Zap, Star, Check, AlertTriangle, Trash2, MessageSquare,
-  Settings, ChevronLeft, ExternalLink, Maximize2, Minimize2, Cpu,
+  Settings, ChevronLeft, ExternalLink, Maximize2, Minimize2, Cpu, Pin, PinOff,
 } from 'lucide-react';
+import { usePersistentFloating } from '../hooks/usePersistentFloating';
 import {
   AGENT_TIERS, AgentTier, AgentMessage, AgentSession, AgentBuildOutput,
   AgentUsage, sendAgentMessage, createSession, listSessions,
@@ -844,12 +845,16 @@ const PlajahAgent: React.FC<Props> = ({
 };
 
 // ── Floating trigger button ────────────────────────────────────────────────────
-export const AriaButton: React.FC<{ onClick: () => void; isOpen: boolean; hasUnread?: boolean }> = ({ onClick, isOpen, hasUnread }) => (
+export const AriaButton: React.FC<{ onClick: () => void; isOpen: boolean; hasUnread?: boolean }> = ({ onClick, isOpen, hasUnread }) => {
+  const floating = usePersistentFloating('plajah:floating:aria', () => ({ x: window.innerWidth - 64, y: window.innerHeight - 144 }));
+  const dragged = useRef(false);
+  useEffect(() => { const mark = () => { dragged.current = true; requestAnimationFrame(() => { dragged.current = false; }); }; window.addEventListener('plajah:floating-drag-ended', mark); return () => window.removeEventListener('plajah:floating-drag-ended', mark); }, []);
+  return <div className="fixed z-[250]" style={{ left: floating.pos.x, top: floating.pos.y, touchAction: 'none' }} {...floating.dragProps}>
   <motion.button
-    onClick={onClick}
+    onClick={() => { if (!dragged.current) onClick(); }}
     whileHover={{ scale: 1.08 }}
     whileTap={{ scale: 0.94 }}
-    className="fixed bottom-24 right-4 z-[250] w-12 h-12 rounded-[1rem] flex items-center justify-center shadow-2xl shadow-purple-600/30 transition-all"
+    className="relative w-12 h-12 rounded-[1rem] flex items-center justify-center shadow-2xl shadow-purple-600/30 transition-all"
     style={{
       background: isOpen ? 'rgba(139,92,246,0.9)' : 'rgba(8,4,20,0.9)',
       border: isOpen ? '1px solid rgba(167,139,250,0.6)' : '1px solid rgba(139,92,246,0.4)',
@@ -862,6 +867,8 @@ export const AriaButton: React.FC<{ onClick: () => void; isOpen: boolean; hasUnr
       <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-small-orange border-2 border-[#08041a]" />
     )}
   </motion.button>
-);
+  <button onPointerDown={(e) => e.stopPropagation()} onClick={floating.togglePinned} aria-label={floating.pinned ? 'Unpin Aria' : 'Pin Aria here'} aria-pressed={floating.pinned} className="absolute -left-2 -top-2 w-5 h-5 rounded-full grid place-items-center bg-[#10081d] border border-white/20 text-white/70">{floating.pinned ? <Pin size={10} /> : <PinOff size={10} />}</button>
+  </div>;
+};
 
 export default PlajahAgent;

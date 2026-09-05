@@ -60,7 +60,7 @@ const ROOMS: RoomMeta[] = [
   { id: 'board',     label: 'Board',     icon: <LayoutGrid size={13} />, tier: 'paper' },
   // The instrument tier: matte #0A0A0D in every skin, inheriting only the accent (blueprint §6).
   // Crossing this door should read as a lamp swinging over, not a different app opening.
-  { id: 'beats',     label: 'Beats',     icon: <Drum size={13} />,       tier: 'instrument' },
+  { id: 'beats',     label: 'Melos Studio', icon: <Drum size={13} />,    tier: 'instrument' },
 ];
 
 // ─── Context ────────────────────────────────────────────────────────────────

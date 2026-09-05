@@ -697,6 +697,8 @@ export default function Fabula() {
   const [tlMarquee, setTlMarquee] = useState(null); // live marquee rect over the timeline
   const [toolMode, setToolMode] = useState("select"); // select | razor
   const [zoom, setZoom] = useState(1);
+  const [followPlayhead, setFollowPlayhead] = useState(() => { try { return localStorage.getItem('fabula:timeline:follow') !== '0'; } catch { return true; } });
+  const followPlayheadRef = useRef(followPlayhead); followPlayheadRef.current = followPlayhead;
   /* edit toolset: snapping, clipboard, markers, in/out, undo history, shortcuts */
   const [snapOn, setSnapOn] = useState(true);
   const [trimMode, setTrimMode] = useState("normal"); // normal | ripple | roll | slip
@@ -1013,6 +1015,10 @@ export default function Fabula() {
       clockRef.current = cur;
       syncLiveVideos(cur, rateRef.current);
       if (phlineRef.current) phlineRef.current.style.left = (128 + cur * pxPerSecRef.current) + "px";
+      if (followPlayheadRef.current && tlScrollRef.current) {
+        const el = tlScrollRef.current, x = 128 + cur * pxPerSecRef.current;
+        if (x < el.scrollLeft + 150 || x > el.scrollLeft + el.clientWidth - 90) el.scrollLeft = Math.max(0, x - el.clientWidth * .35);
+      }
       if (tcRef.current) tcRef.current.textContent = fmtTc(cur, vfmt);
       const lo = Math.min(prev, cur), hi = Math.max(prev, cur);
       let crossed = false;
@@ -5590,6 +5596,7 @@ export default function Fabula() {
                         <span className="dim small">ZOOM</span>
                         <input type="range" min="0.1" max="4" step="0.05" value={zoom} onChange={(e) => setZoom(parseFloat(e.target.value))} />
                         <button className="minibtn" title="Zoom to fit the whole sequence" onClick={zoomFit}>FIT</button>
+                        <button className={`minibtn ${followPlayhead ? "blue" : ""}`} title="Automatically keep the playhead in view" onClick={() => setFollowPlayhead((v) => { const n = !v; try { localStorage.setItem('fabula:timeline:follow', n ? '1' : '0'); } catch {} return n; })}>FOLLOW</button>
                       </div>
                     </div>
                   </div>

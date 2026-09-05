@@ -1602,13 +1602,16 @@ export class FxChainHost {
   readonly output: GainNode;
   private ctx: BaseAudioContext;
   private live = new Map<string, { node: FxNode; type: string }>();
+  private bypass: GainNode;
   private bpm = 120;
 
   constructor(ctx: BaseAudioContext) {
     this.ctx = ctx;
     this.input = ctx.createGain();
     this.output = ctx.createGain();
-    this.input.connect(this.output);
+    this.bypass = ctx.createGain();
+    this.bypass.gain.value = 1;
+    this.input.connect(this.bypass); this.bypass.connect(this.output);
   }
 
   /** Transport tempo for synced devices (Gater, Beatmasher). Safe to call any time. */
@@ -1638,17 +1641,22 @@ export class FxChainHost {
       entry.node.setParams(inst.params);
     }
     // Rewire input → active devices in order → output.
-    try { this.input.disconnect(); } catch { /* */ }
+    try { this.input.disconnect(); this.bypass.disconnect(); } catch { /* */ }
     for (const { node } of this.live.values()) { try { node.output.disconnect(); } catch { /* */ } }
+    // Keep an always-audible safety path until at least one valid device is wired. This prevents
+    // unknown/failed plug-ins from turning an insert or send into a silent channel.
     let node: AudioNode = this.input;
+    let connected = 0;
     for (const inst of instances) {
       if (!inst.on) continue;
       const entry = this.live.get(inst.id);
       if (!entry) continue;
       node.connect(entry.node.input);
       node = entry.node.output;
+      connected++;
     }
-    node.connect(this.output);
+    if (connected) node.connect(this.output);
+    else { this.input.connect(this.bypass); this.bypass.connect(this.output); }
     // Disconnecting each output above also severed its post-analyser tap — restore them, or
     // every device's "after" scope goes silent the first time the chain is rebuilt.
     for (const { node: dev } of this.live.values()) {
@@ -1668,6 +1676,6 @@ export class FxChainHost {
   dispose(): void {
     for (const { node } of this.live.values()) node.dispose();
     this.live.clear();
-    try { this.input.disconnect(); this.output.disconnect(); } catch { /* */ }
+    try { this.input.disconnect(); this.bypass.disconnect(); this.output.disconnect(); } catch { /* */ }
   }
 }

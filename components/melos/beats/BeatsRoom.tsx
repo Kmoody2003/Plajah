@@ -683,7 +683,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       items: [
         { id: 'new', label: 'New project', onSelect: newGroove },
         // The projects drawer is anchored in the pattern bar, which Mixer/Project don't show.
-        { id: 'open', label: 'Open…', hint: 'projects', onSelect: () => { if (view === 'mixer' || view === 'project') setView('machine'); setShowGrooves(true); } },
+        { id: 'open', label: 'My Productions…', hint: 'projects', onSelect: () => { if (view === 'mixer' || view === 'project') setView('machine'); setShowGrooves(true); } },
         { id: 'save', label: 'Save now', onSelect: () => { void saveNow(); } },
         { id: 'copy', label: 'Save a copy', onSelect: handleSaveCopy },
         'sep',

@@ -6,7 +6,8 @@
 // right-edge grip = trim (beat snap) · click = select · Delete = remove · drop audio = clip.
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Music2, AudioWaveform, Piano, Circle, MousePointer2, Pencil, Scissors, Combine, Eraser } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Music2, AudioWaveform, Piano, Circle, MousePointer2, Pencil, Scissors, Combine, Eraser, Scan, LocateFixed, FolderPlus } from 'lucide-react';
+import { unzipSync } from 'fflate';
 import type { GrooveDoc, Pattern, TimelineClip } from '../../../../services/melos/beats/grooveDoc';
 import { grooveUid } from '../../../../services/melos/beats/grooveDoc';
 import { useContextMenu, type MenuNode } from '../../../ui/ContextMenu';
@@ -26,6 +27,51 @@ const HEADER_W = 172;
 const LANE_H = 44;
 const PAD_LANE_H = 28;
 const STEPS_PER_BEAT = 4;
+const TRACK_COLORS = ['#00DAF3', '#FF8C00', '#B84DFF', '#06D6A0', '#FF4D8D', '#FFD166', '#5B8CFF', '#F78C6C'];
+
+const audioPeaks = (buffer: AudioBuffer, count = 320): number[] => {
+  const channels = Array.from({ length: buffer.numberOfChannels }, (_, i) => buffer.getChannelData(i));
+  const step = Math.max(1, Math.floor(buffer.length / count));
+  return Array.from({ length: Math.min(count, Math.ceil(buffer.length / step)) }, (_, i) => {
+    let peak = 0;
+    const end = Math.min(buffer.length, (i + 1) * step);
+    for (let x = i * step; x < end; x += Math.max(1, Math.floor(step / 24))) {
+      for (const ch of channels) peak = Math.max(peak, Math.abs(ch[x] || 0));
+    }
+    return Math.round(peak * 1000) / 1000;
+  });
+};
+
+/** Lightweight onset autocorrelation. It is intentionally conservative: uncertain files return
+ * null, so Melos never offers to change the master tempo from a weak guess. */
+const detectTempo = (buffer: AudioBuffer): number | null => {
+  const data = buffer.getChannelData(0); const rate = buffer.sampleRate;
+  const hop = Math.max(128, Math.round(rate / 200)); const energy: number[] = [];
+  for (let i = 0; i < Math.min(data.length, rate * 90); i += hop) {
+    let e = 0; for (let j = i; j < Math.min(data.length, i + hop); j++) e += data[j] * data[j];
+    energy.push(Math.sqrt(e / hop));
+  }
+  const onset = energy.map((v, i) => Math.max(0, v - (energy[i - 1] || 0)));
+  let best = 0, bestBpm = 0;
+  for (let bpm = 60; bpm <= 190; bpm++) {
+    const lag = Math.round((60 / bpm) * rate / hop); let score = 0;
+    for (let i = lag; i < onset.length; i++) score += onset[i] * onset[i - lag];
+    if (score > best) { best = score; bestBpm = bpm; }
+  }
+  return bestBpm && best > 0.00001 ? bestBpm : null;
+};
+
+const expandDroppedFiles = async (files: File[]): Promise<File[]> => {
+  const out: File[] = [];
+  for (const file of files) {
+    if (!/\.zip$/i.test(file.name)) { out.push(file); continue; }
+    const entries = unzipSync(new Uint8Array(await file.arrayBuffer()));
+    for (const [name, bytes] of Object.entries(entries)) {
+      if (/\.(wav|mp3|ogg|flac|m4a|aif|aiff)$/i.test(name) && !name.endsWith('/')) out.push(new File([bytes], name.split('/').pop() || name));
+    }
+  }
+  return out;
+};
 
 /** One pattern clip projected onto a pad lane: where it sits, which pattern it plays, and this
  *  pad's own loop length inside it (`clip.padLens[padIdx]`, defaulting to the pattern length). */
@@ -162,6 +208,9 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
   const [showMixer, setShowMixer] = useState(true);
   const [showPads, setShowPads] = useState(true);
+  const [followPlayhead, setFollowPlayhead] = useState(() => localStorage.getItem('melos:timeline:follow') !== '0');
+  const [ingest, setIngest] = useState<{ done: number; total: number; name: string } | null>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const [showEditor, setShowEditor] = useState(true);
   const [showLauncher, setShowLauncher] = useState(() => localStorage.getItem('plajah_beats_launcher') !== '0');
   const toggleLauncher = () => setShowLauncher((v) => { try { localStorage.setItem('plajah_beats_launcher', v ? '0' : '1'); } catch { /* */ } return !v; });
@@ -197,6 +246,17 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   );
   const totalBars = Math.ceil(contentBeats / BEATS_PER_BAR);
   const contentW = contentBeats * pxPerBeat;
+  const fitToView = useCallback(() => {
+    const width = Math.max(180, (viewportRef.current?.clientWidth || window.innerWidth) - HEADER_W - 24);
+    setPxPerBeat(Math.max(1, Math.min(48, width / Math.max(1, contentBeats))));
+    if (viewportRef.current) viewportRef.current.scrollLeft = 0;
+  }, [contentBeats]);
+
+  useEffect(() => {
+    if (!followPlayhead || !p.running || p.playMode !== 'song' || !viewportRef.current) return;
+    const el = viewportRef.current; const x = HEADER_W + p.beats * pxPerBeat;
+    if (x < el.scrollLeft + HEADER_W + 40 || x > el.scrollLeft + el.clientWidth - 80) el.scrollTo({ left: Math.max(0, x - el.clientWidth * 0.35), behavior: 'smooth' });
+  }, [followPlayhead, p.running, p.playMode, p.beats, pxPerBeat]);
 
   // Every pattern clip in the arrangement, resolved — the windows the pad lanes draw inside.
   const patternClips = p.doc.arrangement
@@ -250,6 +310,11 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     const track = p.doc.arrangement.find((t) => t.id === trackId);
     if (!track) return [];
     const items: MenuNode<string>[] = [{ kind: 'header', label: track.name }];
+    if (track.isFolder) items.push({ id: 'collapse', label: track.collapsed ? 'Expand folder' : 'Collapse folder', checked: !!track.collapsed, keepOpen: true, onSelect: () => p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); if (t) t.collapsed = !t.collapsed; }) });
+    else {
+      const folder = p.doc.arrangement.find((t) => t.isFolder);
+      if (folder) items.push({ id: 'folder', label: track.folderId === folder.id ? 'Remove from folder' : `Move into ${folder.name}`, onSelect: () => p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); if (t) t.folderId = t.folderId === folder.id ? undefined : folder.id; }) });
+    }
     if (track.kind === 'instrument' && !track.foreign) {
       items.push(
         { id: 'open', label: 'Open instrument', onSelect: () => requestOpen(trackId) },
@@ -377,37 +442,48 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   // Bitwig / Studio One behaviour: no manual track creation, no renaming.
   const [dropHot, setDropHot] = useState(false);
   const dropNewTracks = useCallback(async (files: File[], atBeats: number) => {
-    const audio = files.filter((f) => f.type.startsWith('audio/') || /\.(wav|mp3|ogg|flac|m4a|aif|aiff)$/i.test(f.name));
+    let expanded: File[];
+    try { expanded = await expandDroppedFiles(files); } catch { setIngest(null); return; }
+    const audio = expanded.filter((f) => f.type.startsWith('audio/') || /\.(wav|mp3|ogg|flac|m4a|aif|aiff)$/i.test(f.name));
     if (!audio.length) return;
+    setIngest({ done: 0, total: audio.length, name: audio[0].name });
     const engine = BeatsEngine.get();
     await engine.init();
     const ctx = engine.getContext();
     if (!ctx) return;
     const spb = 60 / p.doc.bpm;
     const startBar = Math.max(0, Math.floor(atBeats / BEATS_PER_BAR) * BEATS_PER_BAR);
-    const made: { name: string; key: string; dur: number }[] = [];
-    for (const file of audio) {
+    const made: { name: string; key: string; dur: number; peaks: number[]; bpm: number | null }[] = [];
+    for (let fileIdx = 0; fileIdx < audio.length; fileIdx++) {
+      const file = audio[fileIdx]; setIngest({ done: fileIdx, total: audio.length, name: file.name });
       const name = file.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'Audio';
       const result = await ingestSample(file, name, ctx);
       if (!result) continue;
       engine.setSampleBuffer(result.ref.key, result.buffer);
       void backupToLocker(result.ref);
-      made.push({ name, key: result.ref.key, dur: result.buffer.duration });
+      made.push({ name, key: result.ref.key, dur: result.buffer.duration, peaks: audioPeaks(result.buffer), bpm: detectTempo(result.buffer) });
+      setIngest({ done: fileIdx + 1, total: audio.length, name: file.name });
     }
     if (!made.length) return;
     p.onMutate((d) => {
-      for (const m of made) {
+      made.forEach((m, index) => {
         d.arrangement.push({
-          id: grooveUid(), kind: 'audio', name: m.name, color: '#00DAF3',
+          id: grooveUid(), kind: 'audio', name: m.name, color: TRACK_COLORS[(d.arrangement.length + index) % TRACK_COLORS.length],
           mute: false, solo: false, gainDb: 0, pan: 0,
           clips: [{
             id: grooveUid(), startBeats: startBar,
             lengthBeats: Math.max(1, Math.round((m.dur / spb) * 4) / 4),
-            audio: { sampleKey: m.key, name: m.name, offsetSec: 0, gainDb: 0, durationSec: m.dur },
+            audio: { sampleKey: m.key, name: m.name, offsetSec: 0, gainDb: 0, durationSec: m.dur, peaks: m.peaks, detectedBpm: m.bpm ?? undefined },
           }],
         });
-      }
+      });
     });
+    const tempos = made.map((m) => m.bpm).filter((x): x is number => x !== null);
+    if (made.length > 1 && tempos.length === made.length && Math.max(...tempos) - Math.min(...tempos) <= 1) {
+      const tempo = Math.round(tempos.reduce((a, b) => a + b, 0) / tempos.length);
+      if (window.confirm(`All ${made.length} stems appear to be ${tempo} BPM. Set the production master tempo to ${tempo} BPM?`)) p.onMutate((d) => { d.bpm = tempo; });
+    }
+    window.setTimeout(() => setIngest(null), 500);
   }, [p.onMutate, p.doc.bpm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addTrack = useCallback((kind: 'pattern' | 'audio') => {
@@ -534,7 +610,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
             onMutate={p.onMutate}
           />
         )}
-        <div className="flex-1 min-h-0 overflow-auto">
+        <div ref={viewportRef} className="flex-1 min-h-0 overflow-auto">
           <div style={{ width: HEADER_W + contentW, minWidth: '100%' }}>
             {/* ruler */}
             <div className="sticky top-0 z-20 flex bg-[#100A18]/95 backdrop-blur border-b border-white/10" style={{ height: 26 }}>
@@ -641,7 +717,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                 );
               })}
 
-              {p.doc.arrangement.filter((track) => !track.padOwned).map((track) => (
+              {p.doc.arrangement.filter((track) => !track.padOwned && (!track.folderId || !p.doc.arrangement.find((f) => f.id === track.folderId)?.collapsed)).map((track) => (
                 <div key={track.id} className="flex border-b border-white/[0.06]" style={{ height: LANE_H, opacity: track.foreign ? 0.65 : 1 }}>
                   <div
                     className="sticky left-0 z-10 flex items-center gap-2 px-3 bg-[#0E0916] border-r border-white/10"
@@ -652,7 +728,9 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                     onClick={() => setSelectedTrack(track.id)}
                     {...trackMenu.bind(track.id)}
                   >
-                    {track.kind === 'instrument' && !track.foreign ? (
+                    {track.isFolder ? (
+                      <button onClick={(e) => { e.stopPropagation(); p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === track.id); if (t) t.collapsed = !t.collapsed; }); }} className="w-4 h-6 grid place-items-center text-white/50" aria-label={track.collapsed ? `Expand ${track.name}` : `Collapse ${track.name}`}>{track.collapsed ? <ChevronUp size={12} /> : <ChevronDown size={12} />}</button>
+                    ) : track.kind === 'instrument' && !track.foreign ? (
                       <button
                         onClick={() => requestOpen(track.id)}
                         className="w-[4px] h-6 rounded-[2px] flex-none hover:h-7 transition-all"
@@ -807,13 +885,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                           }}
                           title={track.foreign ? 'Preserved for re-export — not played in browser' : `${pat?.name || clip.audio?.name || 'Clip'} · drag to move (bar snap), right edge to trim, Delete to remove`}
                         >
-                          {clip.audio && !track.foreign && (
-                            <span className="absolute inset-0 pointer-events-none" style={{
-                              background: 'repeating-linear-gradient(90deg, rgba(0,218,243,0.35) 0 2px, transparent 2px 5px)',
-                              WebkitMask: 'linear-gradient(180deg, transparent 0 30%, #000 45% 55%, transparent 70% 100%)',
-                              mask: 'linear-gradient(180deg, transparent 0 30%, #000 45% 55%, transparent 70% 100%)',
-                            }} />
-                          )}
+                          {clip.audio && !track.foreign && <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none" aria-hidden="true"><path d={(clip.audio.peaks?.length ? clip.audio.peaks : [0.2,0.5,0.3,0.7,0.4]).map((v, i, a) => `${i ? 'L' : 'M'} ${(i / Math.max(1, a.length - 1)) * 100} ${50 - v * 42}`).join(' ') + ' ' + (clip.audio.peaks?.length ? [...clip.audio.peaks].reverse() : [0.4,0.7,0.3,0.5,0.2]).map((v, i, a) => `L ${100 - (i / Math.max(1, a.length - 1)) * 100} ${50 + v * 42}`).join(' ') + ' Z'} fill={`${track.color}55`} stroke={track.color} strokeWidth="0.8" vectorEffect="non-scaling-stroke" /></svg>}
                           {/* MIDI clips draw their notes, so the arrangement shows the music. */}
                           {clip.notes && clip.notes.length > 0 && !track.foreign && (() => {
                             const keys = clip.notes.map((n) => n.key);
@@ -859,6 +931,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
               >
                 <button onClick={() => addTrack('pattern')} className="h-6 px-2 rounded-lg border border-white/10 text-white/40 hover:text-white text-[10px] flex items-center gap-1"><Plus size={10} /><Music2 size={10} /> Pattern track</button>
                 <button onClick={() => addTrack('audio')} className="h-6 px-2 rounded-lg border border-white/10 text-white/40 hover:text-white text-[10px] flex items-center gap-1"><Plus size={10} /><AudioWaveform size={10} /> Audio track</button>
+                <button onClick={() => p.onMutate((d) => d.arrangement.push({ id: grooveUid(), kind: 'pattern', isFolder: true, collapsed: false, name: 'Track Folder', color: '#8B8194', mute: false, solo: false, gainDb: 0, pan: 0, clips: [] }))} className="h-6 px-2 rounded-lg border border-white/10 text-white/40 hover:text-white text-[10px] flex items-center gap-1"><FolderPlus size={10} /> Folder</button>
                 <button
                   onClick={() => p.onAddInstrument?.()}
                   className="h-6 px-2 rounded-lg border text-[10px] flex items-center gap-1"
@@ -898,8 +971,10 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
           </div>
           <span>Snap: <b className="text-white/60">1 bar</b> (trim: 1 beat)</span>
           <label className="flex items-center gap-1.5">Zoom
-            <input type="range" min={6} max={48} value={pxPerBeat} onChange={(e) => setPxPerBeat(Number(e.target.value))} className="w-28 accent-[#D0BCFF]" />
+            <input type="range" min={1} max={48} step="0.5" value={pxPerBeat} onChange={(e) => setPxPerBeat(Number(e.target.value))} className="w-28 accent-[#D0BCFF]" />
           </label>
+          <button onClick={fitToView} className="flex items-center gap-1 hover:text-white" title="Fit the complete production in view"><Scan size={12} /> Fit</button>
+          <button onClick={() => setFollowPlayhead((v) => { const next = !v; try { localStorage.setItem('melos:timeline:follow', next ? '1' : '0'); } catch {} return next; })} aria-pressed={followPlayhead} className="flex items-center gap-1 hover:text-white" style={{ color: followPlayhead ? PLAYHEAD : 'rgba(255,255,255,0.45)' }} title="Automatically keep the playhead in view"><LocateFixed size={12} /> Follow</button>
           <span className="flex-1" />
           <button onClick={toggleLauncher} className="flex items-center gap-1 hover:text-white" style={{ color: showLauncher ? PLAYHEAD : 'rgba(255,255,255,0.45)' }}>
             {showLauncher ? <ChevronDown size={11} /> : <ChevronUp size={11} />} Launcher
@@ -912,6 +987,8 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
           </button>
         </div>
       </div>
+
+      {ingest && <div className="absolute left-1/2 top-20 -translate-x-1/2 z-50 w-[min(440px,86vw)] rounded-xl border border-white/15 bg-[#100A18]/95 backdrop-blur-xl p-3 shadow-2xl" role="status" aria-live="polite"><div className="flex justify-between text-[10px] text-white/70"><span className="truncate pr-4">Loading {ingest.name}</span><b>{ingest.done}/{ingest.total}</b></div><div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#00DAF3] transition-[width]" style={{ width: `${(ingest.done / Math.max(1, ingest.total)) * 100}%` }} /></div></div>}
 
       {/* The Sequence strip — Song mode only, and only here on the arranger page: the compact
           bar-painter for sketching the arrangement without leaving the timeline. */}
