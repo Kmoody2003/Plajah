@@ -43,7 +43,7 @@ void mainImage(out vec4 o, in vec2 C){
   for(int i=0; i<40; i++){
     vec3 p = ro + rd * float(i)*0.4;
     float psi2 = Ylm(l, m, p) * 15.0;
-    float psi2_other = Ylm(l+1.0, m-1.0, p*rot(iTime)) * (10.0 + a.voice*20.0);
+    float psi2_other = Ylm(l+1.0, m-1.0, vec3(p.xz*rot(iTime), p.y).xzy) * (10.0 + a.voice*20.0);
     d += (psi2 + psi2_other) * 0.05 * (0.5 + a.pres*1.5);
   }
   
@@ -68,6 +68,13 @@ vec3 lzInk(float t){ return ramp(vec3(0.01,0.05,0.1), vec3(0.8,0.2,0.1), vec3(1.
 vec3 lorenz(vec3 p, float s, float r, float b){
   return vec3(s*(p.y-p.x), p.x*(r-p.z)-p.y, p.x*p.y - b*p.z);
 }
+// Centre the attractor, spin it about the vertical, and flatten to the x-z plane, which is
+// the view the butterfly actually reads in.
+vec2 lzProj(vec3 q, mat2 rt, float sc){
+  vec3 c = q - vec3(0.0, 0.0, 25.0);
+  vec2 sp = c.xy * rt;
+  return vec2(sp.x, c.z) * sc;
+}
 
 void mainImage(out vec4 o, in vec2 C){
   Aud a = plajahAudio(); float pu = plajahPunch();
@@ -76,30 +83,30 @@ void mainImage(out vec4 o, in vec2 C){
   float s = 10.0 + comp(a.sub, 0.4)*10.0 + iParam0*5.0;
   float r = 28.0;
   float b = 2.666 + a.low*1.5;
-  float dt = 0.005 + a.voice*0.005;
+  float dt = 0.013 + a.voice*0.006;
   
   vec3 p = vec3(0.1, 0.0, 0.0);
   float sum = 0.0;
   
-  vec3 ro = vec3(0.0, 0.0, -80.0);
-  vec3 rd = normalize(vec3(uv, 1.0));
   mat2 rt = rot(iTime*0.2);
-  ro.xz *= rt; rd.xz *= rt;
+  float sc = 0.016;
+  // Trail widens the glow rather than lengthening the path, so the step budget stays fixed.
+  float soft = 0.00022 + (1.0 - iParam1)*0.0016;
+  vec2 sa = lzProj(p, rt, sc);
   
   for(int i=0; i<150; i++){
-    vec3 dp = lorenz(p, s, r, b);
-    vec3 nxt = p + dp * dt;
+    vec3 nxt = p + lorenz(p, s, r, b) * dt;
+    vec2 sb = lzProj(nxt, rt, sc);
     
-    vec2 pa = (ro - p).xy; // orthographic approx
-    vec2 ba = (nxt - p).xy;
-    float h = clamp(dot(pa, ba)/dot(ba, ba), 0.0, 1.0);
+    vec2 pa = uv - sa, ba = sb - sa;
+    float h = clamp(dot(pa, ba)/max(dot(ba, ba), 1e-9), 0.0, 1.0);
     float d = length(pa - ba*h);
     
-    sum += 0.5 / (0.1 + d*d) * (0.5 + a.pres);
-    p = nxt;
+    sum += 0.00045 * (0.6 + a.pres*1.4) / (d*d + soft);
+    p = nxt; sa = sb;
   }
   
-  vec3 col = lzInk(sum * 0.02 * (0.5 + iParam1)) * sum * 0.02 * (1.0 + pu);
+  vec3 col = lzInk(sum * 0.30) * sum * 0.30 * (1.0 + pu);
   col = max(col, 0.0); col = col/(1.0+col*0.72);
   o = vec4(pow(col, vec3(0.88)), 1.0);
 }`
@@ -480,6 +487,13 @@ vec3 rfInk(float t){ return ramp(vec3(0.0,0.1,0.2), vec3(0.2,0.4,0.8), vec3(0.9,
 vec3 rossler(vec3 p, float a, float b, float c){
   return vec3(-p.y-p.z, p.x + a*p.y, b + p.z*(p.x-c));
 }
+// Centre the band and spin it on two axes; the z lift is what exposes the fold.
+vec2 rfProj(vec3 q, mat2 rx, mat2 ry){
+  vec3 c = q - vec3(0.0, 0.0, 6.0);
+  vec2 xz = c.xz * rx;
+  vec2 yz = vec2(c.y, xz.y) * ry;
+  return vec2(xz.x, yz.x);
+}
 
 void mainImage(out vec4 o, in vec2 C){
   Aud au = plajahAudio(); float pu = plajahPunch();
@@ -489,29 +503,26 @@ void mainImage(out vec4 o, in vec2 C){
   float c = 5.7 + iParam0*2.0 + comp(au.sub, 0.4)*2.0;
   float dt = 0.04 + iParam1*0.02 + au.voice*0.01;
   
-  vec3 ro = vec3(0.0, 10.0, -25.0);
-  vec3 rd = normalize(vec3(uv, 1.0));
   mat2 rx = rot(iTime*0.3), ry = rot(0.2 + au.low*0.2);
-  ro.xz *= rx; rd.xz *= rx;
-  ro.yz *= ry; rd.yz *= ry;
   
   vec3 p = vec3(0.1, 0.0, 0.0);
   float sum = 0.0;
+  // uv is already scaled by 30, so the attractor projects at roughly unit scale.
+  vec2 sa = rfProj(p, rx, ry);
   
   for(int i=0; i<200; i++){
-    vec3 dp = rossler(p, a, b, c);
-    vec3 nxt = p + dp*dt;
+    vec3 nxt = p + rossler(p, a, b, c)*dt;
+    vec2 sb = rfProj(nxt, rx, ry);
     
-    vec2 pa = (ro - p).xy; 
-    vec2 ba = (nxt - p).xy;
-    float h = clamp(dot(pa, ba)/dot(ba, ba), 0.0, 1.0);
+    vec2 pa = uv - sa, ba = sb - sa;
+    float h = clamp(dot(pa, ba)/max(dot(ba, ba), 1e-9), 0.0, 1.0);
     float d = length(pa - ba*h);
     
-    sum += 1.0 / (0.1 + d*d*5.0) * (0.5 + au.pres*0.5);
-    p = nxt;
+    sum += 0.55 / (0.30 + d*d*1.6) * (0.5 + au.pres*0.5);
+    p = nxt; sa = sb;
   }
   
-  vec3 col = rfInk(p.z*0.1 + iTime + au.pres) * sum * 0.015 * (1.0 + pu);
+  vec3 col = rfInk(fract(sum*0.05 + au.pres*0.3)) * sum * 0.020 * (1.0 + pu);
   col = max(col, 0.0); col = col/(1.0+col*0.72);
   o = vec4(pow(col, vec3(0.88)), 1.0);
 }`
