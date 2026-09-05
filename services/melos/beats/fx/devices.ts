@@ -94,6 +94,11 @@ export interface FxInstance {
 const fxUid = () => `fx${Math.random().toString(36).slice(2, 9)}`;
 const dbToGain = (db: number) => Math.pow(10, db / 20);
 const clampHz = (v: number) => Math.max(16, Math.min(22000, v));
+const equalPowerMix = (dry: GainNode, wet: GainNode, mix: number, wetTrim = 1) => {
+  const x = Math.max(0, Math.min(1, mix));
+  dry.gain.value = Math.cos(x * Math.PI * 0.5);
+  wet.gain.value = Math.sin(x * Math.PI * 0.5) * wetTrim;
+};
 
 // ── shared shaper curves ────────────────────────────────────────────────────
 function driveCurve(amount: number, asym: number, n = 2048): Float32Array {
@@ -219,9 +224,10 @@ class SaturatorDevice extends FxBase {
     const mix = Math.max(0, Math.min(1, p.mix ?? 0.5));
     const key = `${drive.toFixed(3)}:${asym.toFixed(3)}`;
     if (key !== this.lastKey) { this.lastKey = key; this.shaper.curve = drive < 0.005 ? null : driveCurve(drive, asym); }
-    this.preG.gain.value = 0.9;
-    this.dry.gain.value = 1 - mix;
-    this.wet.gain.value = mix * dbToGain(p.output ?? 0);
+    // Drive must increase level into the non-linearity; changing only the curve made the first
+    // half of the control feel nearly static on normal programme material.
+    this.preG.gain.value = dbToGain(drive * 24);
+    equalPowerMix(this.dry, this.wet, mix, dbToGain((p.output ?? 0) - drive * 9));
   }
 }
 
@@ -334,7 +340,8 @@ class ReverbDevice extends FxBase {
   }
   private makeIR(seconds: number, decay: number): AudioBuffer {
     const sr = this.ctx.sampleRate;
-    const len = Math.max(1, Math.floor(seconds * sr));
+    const rt60 = Math.max(0.15, decay);
+    const len = Math.max(1, Math.floor(Math.min(12, Math.max(seconds, rt60 * 1.15)) * sr));
     const buf = this.ctx.createBuffer(2, len, sr);
     for (let ch = 0; ch < 2; ch++) {
       const d = buf.getChannelData(ch);
@@ -345,9 +352,9 @@ class ReverbDevice extends FxBase {
         // the tail spacious without phasey channel duplication.
         const noise = Math.random() * 2 - 1;
         last = last * (ch ? 0.31 : 0.27) + noise * (ch ? 0.69 : 0.73);
-        const tail = last * Math.exp(-6.91 * t / Math.max(0.12, seconds * (0.35 + decay * 0.12)));
-        const early = ([0.011, 0.019, 0.031, 0.047, 0.071].some((x) => Math.abs(t - x * (ch ? 1.13 : 1)) < 1 / sr)) ? (1 - progress) * 0.8 : 0;
-        d[i] = tail * 0.48 + early;
+        const tail = last * Math.exp(-6.91 * t / rt60);
+        const early = ([0.011, 0.019, 0.031, 0.047, 0.071].some((x) => Math.abs(t - x * Math.max(0.35, seconds / 1.8) * (ch ? 1.13 : 1)) < 1 / sr)) ? (1 - progress) * 0.9 : 0;
+        d[i] = tail * 0.62 + early;
       }
     }
     return buf;
@@ -362,8 +369,7 @@ class ReverbDevice extends FxBase {
     this.lowCut.frequency.value = clampHz(p.lowCut ?? 90);
     const mix = Math.max(0, Math.min(1, (p.mix ?? 25) / 100));
     // Equal-power crossfade: 50% no longer creates the perceived level dip of a linear fade.
-    this.dry.gain.value = Math.cos(mix * Math.PI * 0.5);
-    this.wet.gain.value = Math.sin(mix * Math.PI * 0.5) * dbToGain(p.wetGain ?? 3);
+    equalPowerMix(this.dry, this.wet, mix, dbToGain(p.wetGain ?? 3));
   }
 }
 
@@ -397,8 +403,7 @@ class DelayDevice extends FxBase {
     this.tone.frequency.value = clampHz(p.tone ?? 4000);
     this.toneR.frequency.value = clampHz((p.tone ?? 4000) * 0.92);
     const mix = Math.max(0, Math.min(1, (p.mix ?? 25) / 100));
-    this.dry.gain.value = Math.cos(mix * Math.PI * 0.5);
-    this.wet.gain.value = Math.sin(mix * Math.PI * 0.5) * dbToGain(p.wetGain ?? 0);
+    equalPowerMix(this.dry, this.wet, mix, dbToGain(p.wetGain ?? 0));
   }
 }
 
@@ -766,7 +771,7 @@ class ChorusDevice extends FxBase {
     const spread = Math.max(0, Math.min(1, p.spread ?? 0.7));
     this.p1.pan.value = -spread; this.p2.pan.value = spread;
     const mix = Math.max(0, Math.min(1, (p.mix ?? 50) / 100));
-    this.dry.gain.value = 1 - mix * 0.5; this.wet.gain.value = mix * 0.75;
+    equalPowerMix(this.dry, this.wet, mix, 0.5); // two wet voices sum at the bus
   }
   dispose(): void { this.lfo.dispose(); super.dispose(); }
 }
@@ -792,7 +797,7 @@ class FlangerDevice extends FxBase {
     // Negative feedback flips the comb — the "jet" flavour switch.
     this.fb.gain.value = Math.max(-0.92, Math.min(0.92, (p.feedback ?? 55) / 100));
     const mix = Math.max(0, Math.min(1, (p.mix ?? 50) / 100));
-    this.dry.gain.value = 1 - mix * 0.5; this.wet.gain.value = mix;
+    equalPowerMix(this.dry, this.wet, mix);
   }
   dispose(): void { this.lfo.dispose(); super.dispose(); }
 }
@@ -826,7 +831,7 @@ class PhaserDevice extends FxBase {
     this.lfo.set(p.rate ?? 0.4, Math.max(0, Math.min(1, p.depth ?? 0.6)) * center * 0.8);
     this.fb.gain.value = Math.max(0, Math.min(0.85, (p.feedback ?? 30) / 100));
     const mix = Math.max(0, Math.min(1, (p.mix ?? 50) / 100));
-    this.dry.gain.value = 1 - mix * 0.5; this.wet.gain.value = mix;
+    equalPowerMix(this.dry, this.wet, mix);
   }
   dispose(): void { this.lfo.dispose(); super.dispose(); }
 }
@@ -927,7 +932,7 @@ class CombDevice extends FxBase {
     // Signed feedback: + rings at f, − rings at f/2 odd harmonics (the hollow flavour).
     this.fb.gain.value = Math.max(-0.95, Math.min(0.95, (p.feedback ?? 70) / 100));
     const mix = Math.max(0, Math.min(1, (p.mix ?? 50) / 100));
-    this.dry.gain.value = 1 - mix; this.wet.gain.value = mix;
+    equalPowerMix(this.dry, this.wet, mix);
   }
 }
 
@@ -946,7 +951,7 @@ class RingModDevice extends FxBase {
   setParams(p: Record<string, number>): void {
     this.osc.frequency.value = Math.max(1, Math.min(8000, p.freq ?? 300));
     const mix = Math.max(0, Math.min(1, (p.mix ?? 100) / 100));
-    this.dry.gain.value = 1 - mix; this.wet.gain.value = mix;
+    equalPowerMix(this.dry, this.wet, mix);
   }
   dispose(): void { try { this.osc.stop(); this.osc.disconnect(); } catch { /* */ } super.dispose(); }
 }
@@ -1062,20 +1067,25 @@ class BeatmasherDevice extends FxBase {
 // ═══════════════════════════════════════════════════════════════════════════
 
 class LimiterDevice extends FxBase {
+  private drive: GainNode;
   private comp: DynamicsCompressorNode;
   private ceilingG: GainNode;
   constructor(ctx: BaseAudioContext) {
     super(ctx);
+    this.drive = this.own(ctx.createGain());
     this.comp = this.own(ctx.createDynamicsCompressor());
     this.comp.knee.value = 0; this.comp.ratio.value = 20; this.comp.attack.value = 0.001;
     this.ceilingG = this.own(ctx.createGain());
-    this.input.connect(this.comp); this.comp.connect(this.ceilingG); this.ceilingG.connect(this.output);
+    this.input.connect(this.drive); this.drive.connect(this.comp); this.comp.connect(this.ceilingG); this.ceilingG.connect(this.output);
   }
   setParams(p: Record<string, number>): void {
     const ceiling = Math.max(-12, Math.min(0, p.ceiling ?? -0.3));
-    this.comp.threshold.value = ceiling - Math.max(0, p.gain ?? 0);
+    this.drive.gain.value = dbToGain(Math.max(0, p.gain ?? 0));
+    this.comp.threshold.value = ceiling;
     this.comp.release.value = Math.max(0.01, (p.release ?? 80) / 1000);
-    this.ceilingG.gain.value = dbToGain(Math.max(0, p.gain ?? 0));
+    // DynamicsCompressor is not a true look-ahead brickwall, but this final trim guarantees the
+    // ceiling control never becomes an accidental second input-gain stage.
+    this.ceilingG.gain.value = dbToGain(Math.min(0, ceiling));
   }
   gr(): number { return this.comp.reduction; }
 }
@@ -1085,6 +1095,7 @@ class TransientDevice extends FxBase {
   private punch: DynamicsCompressorNode;
   private punchMix: GainNode;
   private body: GainNode;
+  private polarity: GainNode;
   constructor(ctx: BaseAudioContext) {
     super(ctx);
     this.punch = this.own(ctx.createDynamicsCompressor());
@@ -1092,15 +1103,17 @@ class TransientDevice extends FxBase {
     this.punch.attack.value = 0.02; this.punch.release.value = 0.14;
     this.punchMix = this.own(ctx.createGain());
     this.body = this.own(ctx.createGain());
+    this.polarity = this.own(ctx.createGain()); this.polarity.gain.value = -1;
     this.input.connect(this.body); this.body.connect(this.output);
-    this.input.connect(this.punch); this.punch.connect(this.punchMix); this.punchMix.connect(this.output);
+    // original minus its slow/strongly-compressed body approximates an attack-only residual.
+    this.input.connect(this.punchMix); this.input.connect(this.punch); this.punch.connect(this.polarity); this.polarity.connect(this.punchMix); this.punchMix.connect(this.output);
   }
   setParams(p: Record<string, number>): void {
     const attack = Math.max(-1, Math.min(1, p.attack ?? 0.4));
     const sustain = Math.max(-1, Math.min(1, p.sustain ?? 0));
     // +attack: add the clamped-tail branch (attack pokes through). −attack: duck the body.
-    this.punchMix.gain.value = Math.max(0, attack) * 1.2;
-    this.body.gain.value = (1 - Math.max(0, attack) * 0.25) * (1 + sustain * 0.5) * (1 + Math.min(0, attack) * 0.4);
+    this.punchMix.gain.value = Math.max(0, attack) * 1.5;
+    this.body.gain.value = (1 + sustain * 0.65) * (1 + Math.min(0, attack) * 0.65);
   }
   gr(): number { return this.punch.reduction; }
 }
@@ -1133,7 +1146,7 @@ class BitcrushDevice extends FxBase {
     // "Rate" as a resonant lowpass — the downsample aliasing flavour without a worklet.
     this.rate.frequency.value = clampHz(p.rateHz ?? 12000);
     const mix = Math.max(0, Math.min(1, (p.mix ?? 100) / 100));
-    this.dry.gain.value = 1 - mix; this.wet.gain.value = mix;
+    equalPowerMix(this.dry, this.wet, mix);
   }
 }
 
@@ -1257,7 +1270,7 @@ class SpacesDevice extends FxBase {
     if (key !== this.lastKey) { this.lastKey = key; this.conv.buffer = makeSpaceIR(this.ctx, space, size, damp, width); }
     this.preDelay.delayTime.value = Math.max(0, Math.min(0.25, (p.preDelay ?? 15) / 1000));
     const mix = Math.max(0, Math.min(1, (p.mix ?? 30) / 100));
-    this.dry.gain.value = 1 - mix; this.wet.gain.value = mix;
+    equalPowerMix(this.dry, this.wet, mix);
   }
 }
 
