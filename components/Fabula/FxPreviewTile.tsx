@@ -67,6 +67,26 @@ export const TransPreviewTile: React.FC<{ transId: string; transParams?: Record<
   return <canvas ref={ref} className={className} style={tileStyle(height, 'linear-gradient(120deg,#24174b 0 46%,#ff8c42 54% 100%)')} aria-label={`${transId} transition preview`} />;
 };
 
+// Real Lottie thumbnail via the dotLottie player, mounted only while on screen
+// and destroyed when it leaves — bounds the number of live WASM players.
+export const LottiePreviewTile: React.FC<{ src: string; className?: string; height?: number }> = ({ src, className, height = 44 }) => {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current; if (!canvas) return;
+    let inst: any = null, alive = true;
+    const mount = async () => {
+      if (inst) return;
+      try { const mod: any = await import('@lottiefiles/dotlottie-web'); if (!alive || inst) return; canvas.width = 192; canvas.height = 108; inst = new mod.DotLottie({ canvas, src, loop: true, autoplay: true }); }
+      catch { /* dotLottie optional */ }
+    };
+    const unmount = () => { try { inst?.destroy?.(); } catch { /* */ } inst = null; };
+    const io = new IntersectionObserver((es) => { for (const e of es) e.isIntersecting ? mount() : unmount(); }, { rootMargin: '160px' });
+    io.observe(canvas);
+    return () => { alive = false; io.disconnect(); unmount(); };
+  }, [src]);
+  return <canvas ref={ref} className={className} style={tileStyle(height, '#0d0b12')} aria-label="lottie preview" />;
+};
+
 export const FilterPreviewTile: React.FC<{ css: string; className?: string; height?: number }> = ({ css, className, height = 44 }) => (
   <img src={referenceThumb()} className={className} draggable={false}
     style={{ ...tileStyle(height), filter: css && css !== 'none' ? css : undefined }} alt="filter preview" />

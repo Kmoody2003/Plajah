@@ -15,7 +15,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FX_EFFECTS } from "../plajahPixels/engine/fx/effects";
-import FxPreviewTile, { GenPreviewTile, TransPreviewTile, LookPreviewTile, FilterPreviewTile } from "./FxPreviewTile";
+import FxPreviewTile, { GenPreviewTile, TransPreviewTile, LookPreviewTile, FilterPreviewTile, LottiePreviewTile } from "./FxPreviewTile";
 import { FORGE_TRANSITIONS } from "../../services/fabula/forgeTransitions";
 import { FORGE_LOOKS, LOOK_CATEGORIES, allLooks, deleteUserLook } from "../../services/fabula/forgeLooks";
 import { FABULA_LOTTIE_LIBRARY, fabulaLottieAsMediaAsset } from "../../services/fabulaLottieLibrary";
@@ -182,7 +182,7 @@ export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onApplyLook, on
             <div className="fxgrid" style={{ marginBottom: 8 }}>
               {FABULA_LOTTIE_LIBRARY.map((item) => (
                 <button key={item.id} className="fxcard" onClick={() => onInsertLottie(fabulaLottieAsMediaAsset(item))} title={`${item.description} · ${item.styleEra} · CC0`}>
-                  <span className="fxthumb gen" style={{ background: `radial-gradient(circle at 35% 30%, ${item.colors[1]}, ${item.colors[0]} 72%)`, color: item.colors[2] }}>◈</span>
+                  <LottiePreviewTile src={item.url} className="fxthumb" />
                   <span className="fxname">{item.name}</span>
                 </button>
               ))}
