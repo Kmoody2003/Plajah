@@ -38,6 +38,7 @@ import {
 } from '../services/aria/ariaContext';
 import { ariaLocalModel, AriaLocalModel } from '../services/aria/ariaLocalModel';
 import { buildLocalChatMessages } from '../services/aria/ariaLocalPrompt';
+import CouncilRoom from './council/CouncilRoom';
 
 interface Props {
   isOpen: boolean;
@@ -203,6 +204,21 @@ const MessageBubble: React.FC<{ msg: AgentMessage; onApplyBuild?: (b: AgentBuild
           </div>
         )}
 
+        {/* The council met for this reply — open the room to see every director's proposal */}
+        {msg.councilSession && (() => {
+          let cs: any = null; try { cs = JSON.parse(msg.councilSession); } catch { cs = null; }
+          if (!cs?.id) return null;
+          return (
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('plajah:openCouncil', { detail: { sessionId: cs.id } }))}
+              className="text-left rounded-xl border border-violet-400/40 bg-violet-500/10 px-3 py-2 text-[11px] text-violet-100 hover:bg-violet-500/20"
+            >
+              <span className="block text-[8px] font-black uppercase tracking-widest text-violet-300/80">The council met</span>
+              <span className="block">Lead {String(cs.lead).replace('_', ' ').toLowerCase()} · counterpoint {String(cs.counterpoint).replace('_', ' ').toLowerCase()} — open the room</span>
+            </button>
+          );
+        })()}
+
         <span className="text-[7px] text-white/20 px-1">
           {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
@@ -282,6 +298,13 @@ const PlajahAgent: React.FC<Props> = ({
   const [attachments, setAttachments] = useState<Array<{ name: string; dataUrl: string; type: string }>>([]);
   const [showSessions, setShowSessions] = useState(false);
   const [expanded, setExpanded] = useState(false); // Atrium — full-workspace mode
+  // The Council Room opens over the dock when a reply's chip is pressed (see MessageBubble).
+  const [councilSessionId, setCouncilSessionId] = useState<string | null>(null);
+  useEffect(() => {
+    const open = (e: Event) => setCouncilSessionId((e as CustomEvent).detail?.sessionId || null);
+    window.addEventListener('plajah:openCouncil', open);
+    return () => window.removeEventListener('plajah:openCouncil', open);
+  }, []);
   const [showUsage, setShowUsage] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(tier !== 'FREE' && tier !== 'CREATOR');
   const [limitBanner, setLimitBanner] = useState<string | null>(null);
@@ -483,6 +506,13 @@ const PlajahAgent: React.FC<Props> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
+      {councilSessionId && (
+        <div key="council-room" style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(5,4,10,.8)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 16 }} onClick={e => { if (e.target === e.currentTarget) setCouncilSessionId(null); }}>
+          <div style={{ width: 'min(1240px,100%)', height: 'min(860px,100%)' }}>
+            <CouncilRoom onClose={() => setCouncilSessionId(null)} sessionId={councilSessionId} tier={tier} />
+          </div>
+        </div>
+      )}
           initial={isMobile ? { opacity: 0, y: 20 } : { opacity: 0, y: 24, scale: 0.97 }}
           animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0, scale: 1 }}
           exit={isMobile ? { opacity: 0, y: 20 } : { opacity: 0, y: 24, scale: 0.97 }}

@@ -47,6 +47,9 @@ for (const envFile of ['.env.local', '.env']) {
     readFileSync(envFile, 'utf8').split('\n').forEach(line => {
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith('#')) return;
+import { ARIA_ART_COUNCIL_METHOD } from './services/aria/ariaCreativeRoles';
+import { createCouncil } from './services/council/councilRoutes';
+import { FABULA_BROADCAST_PACKS } from './services/fabula/broadcastPacks';
       const eq = trimmed.indexOf('=');
       if (eq === -1) return;
       const key = trimmed.slice(0, eq).trim();
@@ -8515,12 +8518,21 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       }
       } catch (llmErr: any) {
         console.error('[Aria] LLM call failed:', llmErr?.message);
+THE COUNCIL (the team behind you):
+Six art directors work as a team behind you — the Classical Mind, the Rebellious Hand, the Futurist, the World-Eclectic Traveller, the Baroque Dramatist and the Radical Minimalist. They are real agents with their own evolving taste, not roles you play. You are the only one who speaks to the user. Refer to them as "the council" or "the team"; name an individual only to credit a position or quote a line. When the user asks for visual direction, a look, an identity, a design system, art direction for a piece, or says "ask the council" / "take it to the team", convene them by emitting exactly one block:
+<COUNCIL_CONVENE>{"ask":"the brief in one or two sentences, in the user's terms","audience":"…","feeling":"…"}</COUNCIL_CONVENE>
+Write one short human sentence before it ("Let me take this to the council."). The team's synthesis is appended to your reply for you; do not invent their positions yourself. Do not convene for small edits, questions of fact, or anything that is not a design direction.
+
         replyText = "I'm having trouble reaching my AI service right now — please try again in a moment.";
         replyError = true;
       }
       // Never leave the user staring at silence — always surface *something*.
       if (!replyText.trim()) {
         replyText = "I couldn't generate a response just now. Please try again.";
+  // ── The Council of Art Directors — a working team behind Aria ──────────────
+  const council = createCouncil({ authMiddleware, apiLimiter, firestoreAuthHeaders, libraries: { packs: FABULA_BROADCAST_PACKS.map(p => ({ id: p.id, name: p.name, councilStyle: p.councilStyle })) } });
+  council.register(app);
+
         replyError = true;
       }
 
@@ -8591,7 +8603,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       };
 
       await persistMsg('user', message);
-      await persistMsg('muse', cleanReply, { buildOutput, toolCalls: toolCalls.length ? toolCalls : undefined, error: replyError });
+      await persistMsg('muse', cleanReply, { buildOutput, toolCalls: toolCalls.length ? toolCalls : undefined, error: replyError, councilSession });
 
       // ── Update daily usage counters ──
       // On-device turns are free — don't count them against the daily cap.
@@ -8816,6 +8828,29 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     console.log('[Config] ENCRYPTION_KEY:', encKey.length >= 16 ? `set (${encKey.length} chars)` : 'MISSING');
     console.log('[Config] FIREBASE_API_KEY:', fbKey.length > 0 ? 'set' : 'MISSING');
     const aiKey = process.env.GOOGLE_AI_API_KEY ?? process.env.VITE_GOOGLE_AI_API_KEY ?? '';
+      // ── The council convenes (the <COUNCIL_CONVENE> protocol) ──
+      // Aria never invents the team's positions: the block is replaced by the synthesis the six
+      // directors actually reached, and the session id travels with the reply so the client can
+      // open the room. QUICK depth inside chat; the full room lives in the Council Room.
+      let councilSession: any = undefined;
+      const conveneMatch = replyText.match(/<COUNCIL_CONVENE>([\s\S]*?)<\/COUNCIL_CONVENE>/);
+      if (conveneMatch && !isLocalTurn) {
+        try {
+          const b = JSON.parse(conveneMatch[1]);
+          const surfaceCtx = (context as any)?.surface || {};
+          const d = await council.deliberate(uid, { ask: String(b.ask || message).slice(0, 2000), audience: b.audience ? String(b.audience).slice(0, 300) : undefined, feeling: b.feeling ? String(b.feeling).slice(0, 300) : undefined, surface: surfaceCtx.surface, domain: surfaceCtx.domain }, { depth: 'QUICK' });
+          if (d.status === 'DONE' && d.synthesis) {
+            councilSession = { id: d.id, lead: d.synthesis.lead, counterpoint: d.synthesis.counterpoint, editor: d.synthesis.editor, openDecision: d.synthesis.openDecision };
+            replyText = replyText.replace(conveneMatch[0], `\n\n${d.synthesis.ariaSummary}\n\n${d.synthesis.quotes.map(q => `"${q.line}" — ${q.directorId.replace('_', ' ').toLowerCase()}`).join('\n')}`);
+          } else {
+            replyText = replyText.replace(conveneMatch[0], '\n\nThe council could not finish this one just now — ask me again in a moment and I will bring it back to them.');
+          }
+        } catch (e: any) {
+          console.warn('[Aria] council convene failed:', e?.message || e);
+          replyText = replyText.replace(conveneMatch[0], '');
+        }
+      }
+
     console.log('[Config] GOOGLE_AI_API_KEY (Aria fallback):', aiKey.length > 0 ? 'set' : 'not set');
     const maiKey      = process.env.MAI_API_KEY ?? '';
     const maiEp       = process.env.MAI_ENDPOINT ?? '';
@@ -8834,3 +8869,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 }
 
 startServer();
+        .replace(/<DESIGN_STUDY>[\s\S]*?<\/DESIGN_STUDY>/g, '')
+        .replace(/<COUNCIL_CONVENE>[\s\S]*?<\/COUNCIL_CONVENE>/g, '')
+              ...( extra.councilSession ? { councilSession: { stringValue: JSON.stringify(extra.councilSession) } } : {} ),
+        designStudy: designStudy || undefined,
+        councilSession,

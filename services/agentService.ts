@@ -375,6 +375,8 @@ export interface AgentMessage {
   error?: boolean;
   servedLocally?: boolean;  // true when Phi-4 answered this without server round-trip
 }
+  /** Set when Aria convened the Council of Art Directors for this reply; stored as JSON text. */
+  councilSession?: string;
 
 export interface AgentSession {
   id: string;

@@ -5,6 +5,8 @@ import { fontKeysFor, makeBroadcastTemplate, renderBroadcastTemplateSvg } from '
 import { BROADCAST_DESIGNS } from '../../services/fabula/broadcastDesigns';
 import { embedBroadcastFonts } from '../../services/fabula/broadcastFontEmbed';
 import { ensureFontsLoaded, FONTS } from '../../services/tela/telaFonts';
+import { useAriaSurface } from '../../services/aria/useAriaSurface';
+import CouncilRoom from '../council/CouncilRoom';
 
 const FAMILIES=[['ALL','ALL SYSTEMS'],['GLOBAL_TRADITIONS','GLOBAL'],['SPORTS','SPORTS'],['IMAGE_MATTE','CUTOUT + MATTE'],['COUNTERCULTURE','PUNK / POSTMODERN']];
 const familyName={GLOBAL_TRADITIONS:'Authored traditions',SPORTS:'Sports',IMAGE_MATTE:'User media',COUNTERCULTURE:'Counterculture'};
@@ -18,7 +20,15 @@ export default function BroadcastSystemsLibrary({onAddTemplate,ping}){
   const [selected,setSelected]=useState(FABULA_BROADCAST_PACKS[0]?.id);
   const [kind,setKind]=useState('LOWER_THIRD');
   const [busy,setBusy]=useState(false);
+  const [council,setCouncil]=useState(null); // null | {ask}
   const packs=useMemo(()=>family==='ALL'?FABULA_BROADCAST_PACKS:FABULA_BROADCAST_PACKS.filter(p=>p.family===family),[family]);
+  // Aria can see this library and open the council room from chat ("ask the council").
+  useAriaSurface({
+    surface:'fabula-broadcast-systems', domain:'video', title:'Broadcast Systems',
+    summary:`Choosing a broadcast identity. ${FABULA_BROADCAST_PACKS.length} hand-authored identities across four families; ${packs.length} in view.`,
+    actions:[{id:'convene_council',label:'Take a brief to the Council of Art Directors',description:'Open the council room with a design brief when the user wants a look, an identity or art direction for their programme. The six directors propose, disagree, and Aria synthesises.',params:{ask:'the brief, one or two sentences in the user\'s terms',audience:'who it is for (optional)',feeling:'the feeling it should leave (optional)'}}],
+    handlers:{convene_council:(params)=>{setCouncil({ask:String(params?.ask||''),audience:params?.audience,feeling:params?.feeling});return {ok:true,message:'The council room is open.'};}},
+  },[packs.length]);
   const active=FABULA_BROADCAST_PACKS.find(p=>p.id===selected)||packs[0];
   const baseTemplate=useMemo(()=>active?makeBroadcastTemplate(active,kind):null,[active,kind]);
   const [draft,setDraft]=useState(baseTemplate);
@@ -40,7 +50,11 @@ export default function BroadcastSystemsLibrary({onAddTemplate,ping}){
   };
   return <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) minmax(260px,330px)',gap:10,height:'100%',minHeight:420}}>
     <section className="glass-dark" style={{padding:10,overflow:'hidden',display:'flex',flexDirection:'column'}}>
-      <div className="btnrow" style={{marginBottom:9,flexWrap:'wrap'}}>{FAMILIES.map(([id,name])=><button key={id} className={`minibtn ${family===id?'blue':''}`} onClick={()=>setFamily(id)}>{name}</button>)}</div>
+      <div className="btnrow" style={{marginBottom:9,flexWrap:'wrap'}}>{FAMILIES.map(([id,name])=><button key={id} className={`minibtn ${family===id?'blue':''}`} onClick={()=>setFamily(id)}>{name}</button>)}
+        <button className="minibtn" style={{marginLeft:'auto',borderColor:'#8b5cf6',color:'#d0bcff'}} title="Aria takes your brief to the six art directors" onClick={()=>setCouncil({ask:''})}>ASK THE COUNCIL</button></div>
+      {council&&<div style={{position:'fixed',inset:0,zIndex:80,background:'rgba(5,4,10,.78)',backdropFilter:'blur(6px)',display:'grid',placeItems:'center',padding:20}} onClick={e=>{if(e.target===e.currentTarget)setCouncil(null);}}>
+        <div style={{width:'min(1240px,100%)',height:'min(860px,100%)'}}><CouncilRoom onClose={()=>setCouncil(null)} initialBrief={council} surface="fabula-broadcast-systems" domain="video" /></div>
+      </div>}
       <div style={{overflow:'auto',display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(185px,1fr))',gap:7,paddingRight:3}}>
         {packs.map(pack=><button key={pack.id} onClick={()=>setSelected(pack.id)} style={{padding:0,textAlign:'left',background:selected===pack.id?'rgba(255,255,255,.1)':'rgba(0,0,0,.26)',border:`1px solid ${selected===pack.id?pack.palette[1]:'rgba(255,255,255,.08)'}`,color:'inherit',cursor:'pointer',overflow:'hidden'}}>
           <div style={{aspectRatio:'16/9',position:'relative',overflow:'hidden',background:pack.palette[0]}}>
