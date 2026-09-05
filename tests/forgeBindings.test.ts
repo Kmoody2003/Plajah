@@ -68,3 +68,35 @@ describe('Forge subject matte', () => {
     assert.equal(r.subjectMask, true); assert.equal(r.maskInvert, true); assert.equal(r.maskElement, undefined);
   });
 });
+
+describe('Forge SAM object matte', () => {
+  it('flags a sam mask with its prompt point instead of rasterising a shape', async () => {
+    const { resolveInstanceForFrame } = await import('../services/fabula/forgeBindings');
+    const inst: any = { id: 'i', effectId: 'invert', version: 1, enabled: true, mix: 1, params: { amt: 1 }, mask: { kind: 'sam', shape: 'ellipse', cx: .42, cy: .6, w: .12, h: .12, rotation: 0, feather: .03, invert: true, track: 'none', enabled: true } };
+    const r: any = resolveInstanceForFrame(inst, undefined, {}, 0, { w: 16, h: 9 });
+    assert.ok(r.samMask, 'sam mask must be flagged for the renderer');
+    assert.ok(Math.abs(r.samMask.x - .42) < 1e-9 && Math.abs(r.samMask.y - .6) < 1e-9, 'the prompt point is cx,cy at the reference frame');
+    assert.equal(r.samMask.feather, .03);
+    assert.equal(r.maskInvert, true);
+    assert.equal(r.maskElement, undefined, 'a sam mask must not rasterise a shape');
+    assert.equal(r.subjectMask, undefined); assert.equal(r.depthMask, undefined);
+  });
+
+  it('moves the prompt point along a point track, so the object stays selected as it moves', async () => {
+    const { resolveInstanceForFrame } = await import('../services/fabula/forgeBindings');
+    // Prompt placed at the tracked point's reference position (frame 0 = .3,.4); the track moves
+    // to .5,.6 by frame 24, so at t=1s the prompt must have moved by the same delta.
+    const inst: any = { id: 'i', effectId: 'invert', version: 1, enabled: true, mix: 1, params: { amt: 1 }, mask: { kind: 'sam', shape: 'ellipse', cx: .3, cy: .4, w: .12, h: .12, rotation: 0, feather: 0, track: 'point', refFrame: 0, enabled: true } };
+    const at0: any = resolveInstanceForFrame(inst, undefined, tracks(), 0, { w: 16, h: 9 });
+    const at1: any = resolveInstanceForFrame(inst, undefined, tracks(), 1, { w: 16, h: 9 });
+    assert.ok(Math.abs(at0.samMask.x - .3) < 1e-6 && Math.abs(at0.samMask.y - .4) < 1e-6, 'at the reference frame the point is unmoved');
+    assert.ok(Math.abs(at1.samMask.x - .5) < 1e-6 && Math.abs(at1.samMask.y - .6) < 1e-6, 'the prompt follows the point track');
+  });
+
+  it('a disabled sam mask resolves to nothing', async () => {
+    const { resolveInstanceForFrame } = await import('../services/fabula/forgeBindings');
+    const inst: any = { id: 'i', effectId: 'invert', version: 1, enabled: true, mix: 1, params: { amt: 1 }, mask: { kind: 'sam', shape: 'ellipse', cx: .5, cy: .5, w: .1, h: .1, rotation: 0, feather: 0, enabled: false } };
+    const r: any = resolveInstanceForFrame(inst, undefined, {}, 0, { w: 16, h: 9 });
+    assert.equal(r.samMask, undefined);
+  });
+});

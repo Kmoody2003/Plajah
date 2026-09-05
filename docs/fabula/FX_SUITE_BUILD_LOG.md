@@ -31,10 +31,40 @@ artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
 | W3a | DONE 2026-09-02 (phase3ParticleEffects.ts: Emitter · Field + Emitter · Burst, 17 presets) — **Emitter (stateless particles)**: closed-form GPU particle fields (rain/snow/sparks/embers/dust/bokeh/streaks), forces via curl noise, 3D-ish depth, motion blur; preset library by category | DONE (fluid sim / 3D model emitters remain open) |
 | W3b | Text animators on the titler DONE 2026-09-02 (services/fabula/titleAnimators.ts: type on, fade up/in, tracking, scramble, word slide, blur in, drop in, with out phase; DOM monitor spans + canvas export per glyph; inspector ANIMATION block). Counters and HUD text tools DONE 2026-09-03 via the text aux input (services/fabula/textOverlay.ts) | DONE |
 | W3c | Form/Mir/Tao-class 3D generators | DONE 2026-09-03 as RAYMARCHED registry effects (phase4Volumetric3DEffects.ts), not a three.js node — see 'Done this run' for why. Imported geometry / shatter still needs a real 3D node and remains unbuilt. |
-| W4 | ML tier: MediaPipe subject matte as a mask source (live + offline) DONE 2026-09-02 (services/fabula/subjectMatte.ts, mask kind = subject); depth ONNX + Crossover SAM2 | partial |
+| W4 | ML tier: MediaPipe subject matte (mask kind `subject`, 2026-09-02), depth (kind `depth`, 2026-09-02), and PROMPTED+TRACKED object matte via SAM (mask kind `sam`, 2026-09-05) — all live + offline | DONE. The "Crossover SAM2 server endpoint" was never needed: SlimSAM runs in the browser through transformers.js. |
 | W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust shell step 1 DONE 2026-09-02 (rust/fabula-ofx: dependency-free cdylib, generated src/manifest_gen.rs, describe / describe-in-context / passthrough render; `npm run ofx:check`). Step 2 = wgpu kernel execution |
 
 ## Done this run
+- (2026-09-05, continuation 20) SAM OBJECT MATTE (`services/fabula/samMatte.ts`) — the item the log
+  filed as "Crossover SAM2 tracked mattes (no server endpoint, genuinely blocked)". It was not
+  blocked. Segment Anything runs in the browser through transformers.js (already a dependency,
+  the same runtime as depthMatte), so no server is needed — the block was an assumption, and this
+  makes four wrongly-"blocked" items that turned out mis-scoped.
+- **What it adds that subjectMatte could not.** The MediaPipe matte answers one question, "person
+  or background". SAM is PROMPTED: you point at ONE object and it mattes THAT object. Mask kind
+  `sam` stores the prompt as the mask's existing `cx,cy` (a point, not a shape), so it reuses the
+  ellipse-marker overlay and every mask control — feather, invert, follow — for free.
+- **Tracked comes free from W2c.** The prompt point is moved to each frame by the SAME
+  `maskTransformAt` a shape mask uses, so binding it to a VectorTrack point or planar surface keeps
+  the object selected as it moves, and it resolves identically in monitor and export. Honest
+  naming: this is SAM-image + a tracked prompt, not SAM2's learned video memory — but the
+  user-facing result (point at an object, it's matted across the clip) is the same, with no server.
+- SlimSAM (`Xenova/slimsam-77-uniform`, a 77M distillation) on WebGPU→wasm, the house lazy-load
+  pattern. Two entry points like the other mattes: `segmentSam` (exact, per frame, offline) and
+  `segmentSamLatest` (throttled last-known, live, ~4 fps since SAM's encoder is heavier than the
+  selfie segmenter). Picks the highest-IoU of SAM's three candidate masks (whole-object far more
+  often than not); optional feather in the matte canvas.
+- Wired through the full parity chain: `forgeBindings` (kind + `samMask` on ResolvedInstance +
+  resolver), `offlineRenderer` (exact per seeked frame, video + image), `Fabula.jsx` MonitorLayer
+  (live) and the mask inspector (a `object (SAM · AI)` kind, a hint, the marker overlay).
+- **Verified:** the resolver flags a sam mask with its prompt point, moves it along a point track
+  (prompt at .3,.4 → .5,.6 across the clip, matching the track), and drops a disabled one —
+  `tests/forgeBindings.test.ts` +3 (8 in the file). transformers.js 4.2.0 confirmed to export
+  `SamModel` / `AutoProcessor` / `RawImage`, so the runtime API is real. test:forge 152 green,
+  test:vectortrack 11 green, esbuild clean on all touched files. Model download + on-GPU segment
+  is browser-verified-later, the same standard the log set for the subject and depth mattes.
+- Only my Fabula.jsx hunks (the sam import, the live line, and the four mask-UI edits) are staged;
+  the file's other uncommitted work is untouched.
 - (2026-09-05, continuation 19) STACK-LEVEL COST TOTAL — the last of the two "unblocked ideas" the
   log left for a continuation. The per-effect cost badge already warned that a raymarcher is not a
   colour tweak, but it could not say the thing that actually bites: five effects each labelled
@@ -187,7 +217,8 @@ Every unblocked item in the six waves is now done (2026-09-03). What remains is 
 infrastructure or deferred by Kenne:
 1. DEFERRED by Kenne 2026-09-02: OFX host work, until the desktop/Crossover version compiles. Keep
    the manifest + Rust shell as-is; do NOT regenerate them, even though the registry has grown.
-2. BLOCKED, no server endpoint: Crossover SAM2 tracked mattes.
+2. DONE 2026-09-05 (continuation 20): SAM tracked mattes — client-side SlimSAM via transformers.js,
+   no server endpoint needed. Mask kind `sam`, prompt point tracked by the existing maskTransformAt.
 3. DONE 2026-09-04: fluid dynamics needed persistent state, not compute (`fluidflow`), and the
    particle-indexed system that state made reachable is now `particleforge` — 96 particles, each
    owning two texels of the effect's state buffers. A Particular-class count (100k) still needs
@@ -213,8 +244,9 @@ plain-clip size, with the custom effect expanded in place into the chain.
 
 ## Backlog (remaining gaps vs the Boris/Red Giant catalog)
 (Looks now cover the "one click to a finished result" gap; effect-level parts are broadly complete.)
-Remaining: Crossover SAM2 tracked mattes (no server endpoint, genuinely blocked), imported
-geometry (needs a real 3D node), and a particle-indexed particle system.
+Remaining: imported geometry (needs a real 3D node — IN PROGRESS 2026-09-05). SAM tracked
+mattes are DONE 2026-09-05 (client-side SlimSAM, no server) — a FOURTH "blocked" item that was
+mis-scoped. The particle-indexed system shipped earlier as `particleforge`.
 THREE items filed here as blocked turned out to be mis-scoped and are now built: shatter (needed
 inverse mapping, not meshes), fluid dynamics (needed persistent state, not compute) and PowerMesh
 (needed a tracked mesh, not dense flow). Three for three. Read any remaining "blocked" claim as a

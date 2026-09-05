@@ -21,8 +21,10 @@ export type MaskShape = 'ellipse' | 'rect' | 'poly';
 export type MaskTrack = 'none' | 'point' | 'planar';
 export interface EffectMask {
   /** 'shape' (default) rasterises the geometry below; 'subject' asks the ML subject matte
-   *  (MediaPipe person segmentation) for this frame — the renderer fills the element in. */
-  kind?: 'shape' | 'subject' | 'depth' | 'aux';
+   *  (MediaPipe person segmentation) for this frame; 'sam' asks SAM to matte the ONE object
+   *  under the prompt point (cx,cy), which follows the clip's track like a shape mask's centre —
+   *  the renderer fills the element in for all three. */
+  kind?: 'shape' | 'subject' | 'depth' | 'aux' | 'sam';
   /** Pool asset id whose luma is the mask (kind = 'aux'). */
   assetId?: string;
   shape: MaskShape;
@@ -184,7 +186,7 @@ export function rasterizeMask(outline: Point2[], w: number, h: number, feather: 
   return c;
 }
 
-export interface ResolvedInstance extends ForgeEffectInstance { maskElement?: HTMLCanvasElement | null; maskInvert?: boolean; /** Renderer must supply maskElement from the frame's subject matte. */ subjectMask?: boolean; /** Renderer must supply maskElement from the frame's depth map through this window. */ depthMask?: { near: number; far: number; feather: number }; /** Renderer must supply maskElement from this pool asset (luma). */ maskAssetId?: string; }
+export interface ResolvedInstance extends ForgeEffectInstance { maskElement?: HTMLCanvasElement | null; maskInvert?: boolean; /** Renderer must supply maskElement from the frame's subject matte. */ subjectMask?: boolean; /** Renderer must supply maskElement by asking SAM to matte the object at this tracked prompt point (normalized image space). */ samMask?: { x: number; y: number; feather: number }; /** Renderer must supply maskElement from the frame's depth map through this window. */ depthMask?: { near: number; far: number; feather: number }; /** Renderer must supply maskElement from this pool asset (luma). */ maskAssetId?: string; }
 
 /** Turn a stored instance into the per-frame instance the renderer consumes (params bound,
  *  mask rasterised). Mask raster size defaults to a 512-wide analysis raster in the frame's aspect. */
@@ -201,6 +203,12 @@ export function resolveInstanceForFrame(instance: ForgeEffectInstance, effect: F
   const mask = (instance as any).mask as EffectMask | undefined;
   if (mask && mask.enabled !== false && mask.kind === 'subject') {
     return { ...out, subjectMask: true, maskInvert: !!mask.invert };
+  }
+  if (mask && mask.enabled !== false && mask.kind === 'sam') {
+    // The prompt point (cx,cy) was placed at refFrame; move it to this frame the same way a
+    // tracked shape mask moves, so SAM re-prompts the object at its current position.
+    const p = transformPoint(maskTransformAt(mask, ctx, localT), { x: mask.cx, y: mask.cy });
+    return { ...out, samMask: { x: p.x, y: p.y, feather: mask.feather ?? 0 }, maskInvert: !!mask.invert };
   }
   if (mask && mask.enabled !== false && mask.kind === 'aux') {
     return mask.assetId ? { ...out, maskAssetId: mask.assetId, maskInvert: !!mask.invert } : out;
