@@ -6223,6 +6223,7 @@ export interface TelaVectorNode {
   smooth?: boolean;
 }
 
+export interface TelaShadow { x: number; y: number; blur: number; color: string; }
 export interface TelaGradientStop { offset: number; color: string; opacity?: number; }
 export interface TelaGradientPaint {
   kind: 'LINEAR' | 'RADIAL';
@@ -6252,6 +6253,26 @@ export interface TelaVectorObject {
   fontSize?: number;
   fontFamily?: string;
   fontWeight?: number;
+  // ── Typography controls (template engine) ──
+  fontStyle?: 'normal' | 'italic';
+  textAlign?: 'left' | 'center' | 'right';
+  /** Tracking as a fraction of the font size (0.12 = 12%). */
+  letterSpacing?: number;
+  /** Leading as a multiple of the font size (default 1.22). */
+  lineHeight?: number;
+  textTransform?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+  /** Word-wrap the text inside the object's width (explicit \n still breaks). */
+  wrap?: boolean;
+  // ── Shape finish ──
+  /** Corner radius for RECT (px). */
+  rx?: number;
+  shadow?: TelaShadow;
+  blendMode?: TelaBlendMode;
+  /** Gaussian blur radius (px). */
+  blur?: number;
+  strokeDash?: number[];
+  /** Template semantics — galleries, Aria and "replace image" affordances read this. */
+  templateRole?: 'GROUND' | 'IMAGE_SLOT' | 'HEADLINE' | 'DECK' | 'BODY' | 'CAPTION' | 'LABEL' | 'FOLIO' | 'ORNAMENT' | 'RULE' | 'LOGO';
   /**
    * When set, a TEXT object renders the plain text of that Writer device live
    * (the binding-graph "text" edge). The object's own `text` is kept as a
@@ -6397,9 +6418,88 @@ export interface TelaImageDevice {
   groups?: TelaImageLayerGroup[];
 }
 
+// ── Chart device — live 2D/3D data visualization (P3) ───────────────────────
+
+export type TelaChartKind =
+  | 'BAR' | 'LINE' | 'AREA' | 'DONUT' | 'SCATTER' | 'RADAR'
+  | 'WATERFALL' | 'FUNNEL' | 'GAUGE' | 'BAR_3D' | 'SCATTER_3D' | 'SURFACE_3D';
+
+export type TelaChartStyle =
+  | 'PLAJAH' | 'SWISS' | 'BAUHAUS' | 'EDITORIAL' | 'NEON' | 'GLASS'
+  | 'INK' | 'TOPOGRAPHIC' | 'SPORTS' | 'BROADCAST' | 'MONO' | 'CEREMONIAL'
+  | 'CLASSICAL' | 'REBEL' | 'FUTURIST' | 'WORLD_ATLAS' | 'BAROQUE' | 'RADICAL_MINIMAL';
+
+export interface TelaChartSeries {
+  id: string;
+  name: string;
+  /** GRID source: A1 range such as B2:B12. Formula cells are evaluated live. */
+  range?: string;
+  /** BASE source: field id containing numeric values. */
+  fieldId?: string;
+  /** INLINE source or durable fallback when a source is detached. */
+  values?: number[];
+  color?: string;
+}
+
+export interface TelaChartDataBinding {
+  sourceType: 'INLINE' | 'GRID' | 'BASE';
+  sourceDeviceId?: string;
+  /** GRID label range (A2:A12). */
+  labelRange?: string;
+  /** BASE field id used for labels. */
+  labelFieldId?: string;
+  labels?: string[];
+  series: TelaChartSeries[];
+}
+
+export interface TelaChartDevice {
+  id: string;
+  type: 'CHART';
+  name?: string;
+  title: string;
+  subtitle?: string;
+  width: number;
+  height: number;
+  kind: TelaChartKind;
+  style: TelaChartStyle;
+  binding: TelaChartDataBinding;
+  showLegend: boolean;
+  showValues: boolean;
+  interactive: boolean;
+  animation: {
+    preset: 'NONE' | 'RISE' | 'DRAW' | 'CASCADE' | 'ORBIT' | 'MORPH';
+    durationMs: number;
+    staggerMs: number;
+    loop?: boolean;
+  };
+  transition: {
+    in: 'NONE' | 'FADE' | 'WIPE' | 'ZOOM' | 'FLIP';
+    out: 'NONE' | 'FADE' | 'WIPE' | 'ZOOM' | 'FLIP';
+  };
+  camera?: { yaw: number; pitch: number; depth: number };
+}
+
+export type TelaMediaKind = 'IMAGE' | 'AUDIO' | 'VIDEO' | 'MODEL_3D' | 'PDF' | 'FONT' | 'ARCHIVE' | 'FILE';
+
+/** A portable asset placed on any Tela canvas. The URL is durable for signed-in
+ * users and may be session-only for guests (mirroring image-layer behavior). */
+export interface TelaMediaDevice {
+  id: string;
+  type: 'MEDIA';
+  kind: TelaMediaKind;
+  name: string;
+  src: string;
+  mimeType: string;
+  size: number;
+  width: number;
+  height: number;
+  storagePath?: string;
+  sessionOnly?: boolean;
+}
+
 export type TelaDevice =
   | TelaWriterDevice | TelaGridDevice | TelaBaseDevice | TelaFormDevice
-  | TelaVectorDevice | TelaImageDevice | TelaNotesDevice;
+  | TelaVectorDevice | TelaImageDevice | TelaChartDevice | TelaNotesDevice | TelaMediaDevice;
 
 // ── The binding graph — typed, directional links between devices (P1) ─────────
 // A binding is `source device · selector → target device · role`. Edits flow

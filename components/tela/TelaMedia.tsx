@@ -1,0 +1,16 @@
+import React from 'react';
+import { Box, Download, File, FileArchive, FileType2, Music2 } from 'lucide-react';
+import type { TelaMediaDevice } from '../../types';
+
+const shell: React.CSSProperties = { width: '100%', height: '100%', minHeight: 180, display: 'grid', placeItems: 'center', overflow: 'hidden', background: '#111018', color: '#fff' };
+
+export default function TelaMedia({ device }: { device: TelaMediaDevice; readOnly?: boolean }) {
+  const common = { src: device.src, title: device.name };
+  if (device.kind === 'IMAGE') return <div style={shell}><img {...common} alt={device.name} draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /></div>;
+  if (device.kind === 'AUDIO') return <div style={{ ...shell, padding: 28, background: 'radial-gradient(circle at 50% 20%,#312044,#111018 62%)' }}><div style={{ width: 'min(560px,90%)', textAlign: 'center' }}><Music2 size={48} style={{ margin: '0 auto 18px', color: '#D0BCFF' }}/><strong style={{ display: 'block', marginBottom: 18, overflow: 'hidden', textOverflow: 'ellipsis' }}>{device.name}</strong><audio {...common} controls preload="metadata" style={{ width: '100%' }}/></div></div>;
+  if (device.kind === 'VIDEO') return <div style={shell}><video {...common} controls preload="metadata" playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }}/></div>;
+  if (device.kind === 'MODEL_3D' && /\.(glb|gltf)(?:$|[?#])/i.test(device.name)) return <div style={{ ...shell, position: 'relative' }}>{React.createElement('model-viewer', { src: device.src, alt: device.name, 'camera-controls': true, 'auto-rotate': true, 'shadow-intensity': '1', style: { width: '100%', height: '100%', background: 'radial-gradient(circle,#30283d,#111018 70%)' } })}<div style={{ position: 'absolute', left: 12, bottom: 10, display: 'flex', gap: 6, alignItems: 'center', fontSize: 11, opacity: .7 }}><Box size={13}/>Drag to orbit · scroll to zoom</div></div>;
+  if (device.kind === 'PDF') return <object data={device.src} type="application/pdf" aria-label={device.name} style={{ width: '100%', height: '100%', minHeight: 420 }}><a href={device.src} download={device.name}>Open {device.name}</a></object>;
+  const Icon = device.kind === 'MODEL_3D' ? Box : device.kind === 'ARCHIVE' ? FileArchive : device.kind === 'FONT' ? FileType2 : File;
+  return <div style={{ ...shell, padding: 30 }}><div style={{ textAlign: 'center', maxWidth: 420 }}><Icon size={54} style={{ margin: '0 auto 18px', color: '#D0BCFF' }}/><strong style={{ display: 'block', overflowWrap: 'anywhere' }}>{device.name}</strong><span style={{ display: 'block', margin: '8px 0 20px', opacity: .55, fontSize: 12 }}>{device.mimeType || 'File'} · {(device.size / 1048576).toFixed(device.size > 1048576 ? 1 : 2)} MB</span><a href={device.src} download={device.name} style={{ display: 'inline-flex', gap: 8, alignItems: 'center', padding: '9px 14px', borderRadius: 9, color: '#fff', background: 'linear-gradient(135deg,#6B0099,#D40055)', textDecoration: 'none', fontWeight: 700, fontSize: 12 }}><Download size={14}/>Download asset</a>{device.sessionOnly && <small style={{ display: 'block', marginTop: 12, color: '#FBBF24' }}>Sign in to keep this asset after this session.</small>}</div></div>;
+}
