@@ -166,12 +166,32 @@ class CompDevice extends FxBase {
 // DEVICE: Gate / Expander (RX-adjacent noise gate; downward expansion)
 // ═══════════════════════════════════════════════════════════════════════════
 class GateDevice extends FxBase {
-  // Native passthrough for now; the worklet-backed downward expander lands with the repair set.
+  private detector: AnalyserNode; private amp: GainNode; private buf: Float32Array;
+  private threshold = -50; private range = 40; private attack = 0.001; private release = 0.12;
+  private timer: ReturnType<typeof setInterval>;
   constructor(ctx: BaseAudioContext) {
     super(ctx);
-    this.input.connect(this.output);
+    this.detector = this.own(ctx.createAnalyser()); this.detector.fftSize = 256; this.detector.smoothingTimeConstant = 0;
+    this.amp = this.own(ctx.createGain()); this.buf = new Float32Array(this.detector.fftSize);
+    this.input.connect(this.detector); this.input.connect(this.amp); this.amp.connect(this.output);
+    // Control-rate detector with AudioParam smoothing: the detector makes the decision, while
+    // Web Audio performs the gain ramp on the render thread without zipper noise.
+    this.timer = setInterval(() => {
+      this.detector.getFloatTimeDomainData(this.buf); let sum = 0;
+      for (let i = 0; i < this.buf.length; i++) sum += this.buf[i] * this.buf[i];
+      const rms = Math.sqrt(sum / this.buf.length); const db = rms > 1e-7 ? 20 * Math.log10(rms) : -140;
+      const target = db >= this.threshold ? 1 : dbToGain(-this.range * Math.min(1, (this.threshold - db) / 18));
+      const tc = target > this.amp.gain.value ? this.attack : this.release;
+      this.amp.gain.setTargetAtTime(target, this.ctx.currentTime, Math.max(0.001, tc));
+    }, 8);
   }
-  setParams(_p: Record<string, number>): void { /* worklet-backed gate lands with the repair set */ }
+  setParams(p: Record<string, number>): void {
+    this.threshold = Math.max(-80, Math.min(0, p.threshold ?? -50));
+    this.range = Math.max(0, Math.min(80, p.range ?? 40));
+    this.attack = Math.max(0.0002, (p.attack ?? 1) / 1000);
+    this.release = Math.max(0.01, (p.release ?? 120) / 1000);
+  }
+  dispose(): void { clearInterval(this.timer); super.dispose(); }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -299,15 +319,18 @@ class DeessDevice extends FxBase {
 class ReverbDevice extends FxBase {
   private conv: ConvolverNode;
   private dry: GainNode; private wet: GainNode;
-  private preDelay: DelayNode;
+  private preDelay: DelayNode; private damp: BiquadFilterNode; private lowCut: BiquadFilterNode;
   private lastKey = '';
   constructor(ctx: BaseAudioContext) {
     super(ctx);
     this.conv = this.own(ctx.createConvolver());
     this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
     this.preDelay = this.own(ctx.createDelay(0.5));
+    this.lowCut = this.own(ctx.createBiquadFilter()); this.lowCut.type = 'highpass'; this.lowCut.frequency.value = 90;
+    this.damp = this.own(ctx.createBiquadFilter()); this.damp.type = 'lowpass'; this.damp.frequency.value = 9000;
     this.input.connect(this.dry); this.dry.connect(this.output);
-    this.input.connect(this.preDelay); this.preDelay.connect(this.conv); this.conv.connect(this.wet); this.wet.connect(this.output);
+    this.input.connect(this.preDelay); this.preDelay.connect(this.lowCut); this.lowCut.connect(this.conv);
+    this.conv.connect(this.damp); this.damp.connect(this.wet); this.wet.connect(this.output);
   }
   private makeIR(seconds: number, decay: number): AudioBuffer {
     const sr = this.ctx.sampleRate;
@@ -315,7 +338,17 @@ class ReverbDevice extends FxBase {
     const buf = this.ctx.createBuffer(2, len, sr);
     for (let ch = 0; ch < 2; ch++) {
       const d = buf.getChannelData(ch);
-      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+      let last = 0;
+      for (let i = 0; i < len; i++) {
+        const t = i / sr, progress = i / len;
+        // Exponential late field plus discrete early reflections. Separate channel seeds make
+        // the tail spacious without phasey channel duplication.
+        const noise = Math.random() * 2 - 1;
+        last = last * (ch ? 0.31 : 0.27) + noise * (ch ? 0.69 : 0.73);
+        const tail = last * Math.exp(-6.91 * t / Math.max(0.12, seconds * (0.35 + decay * 0.12)));
+        const early = ([0.011, 0.019, 0.031, 0.047, 0.071].some((x) => Math.abs(t - x * (ch ? 1.13 : 1)) < 1 / sr)) ? (1 - progress) * 0.8 : 0;
+        d[i] = tail * 0.48 + early;
+      }
     }
     return buf;
   }
@@ -325,8 +358,12 @@ class ReverbDevice extends FxBase {
     const key = `${size.toFixed(2)}:${decay.toFixed(2)}`;
     if (key !== this.lastKey) { this.lastKey = key; this.conv.buffer = this.makeIR(size, decay); }
     this.preDelay.delayTime.value = Math.max(0, Math.min(0.2, (p.preDelay ?? 20) / 1000));
+    this.damp.frequency.value = clampHz(p.damping ?? 9000);
+    this.lowCut.frequency.value = clampHz(p.lowCut ?? 90);
     const mix = Math.max(0, Math.min(1, (p.mix ?? 25) / 100));
-    this.dry.gain.value = 1 - mix; this.wet.gain.value = mix;
+    // Equal-power crossfade: 50% no longer creates the perceived level dip of a linear fade.
+    this.dry.gain.value = Math.cos(mix * Math.PI * 0.5);
+    this.wet.gain.value = Math.sin(mix * Math.PI * 0.5) * dbToGain(p.wetGain ?? 3);
   }
 }
 
@@ -334,23 +371,34 @@ class ReverbDevice extends FxBase {
 // DEVICE: Delay — feedback delay with tone in the loop (delay)
 // ═══════════════════════════════════════════════════════════════════════════
 class DelayDevice extends FxBase {
-  private delay: DelayNode; private fb: GainNode; private tone: BiquadFilterNode;
+  private delay: DelayNode; private delayR: DelayNode; private fb: GainNode; private fbR: GainNode;
+  private tone: BiquadFilterNode; private toneR: BiquadFilterNode;
   private dry: GainNode; private wet: GainNode;
   constructor(ctx: BaseAudioContext) {
     super(ctx);
-    this.delay = this.own(ctx.createDelay(2)); this.fb = this.own(ctx.createGain());
+    this.delay = this.own(ctx.createDelay(2)); this.delayR = this.own(ctx.createDelay(2));
+    this.fb = this.own(ctx.createGain()); this.fbR = this.own(ctx.createGain());
     this.tone = this.own(ctx.createBiquadFilter()); this.tone.type = 'lowpass'; this.tone.frequency.value = 4000;
+    this.toneR = this.own(ctx.createBiquadFilter()); this.toneR.type = 'lowpass'; this.toneR.frequency.value = 4000;
     this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
     this.input.connect(this.dry); this.dry.connect(this.output);
-    this.input.connect(this.delay); this.delay.connect(this.tone); this.tone.connect(this.wet); this.wet.connect(this.output);
+    const merge = this.own(ctx.createChannelMerger(2));
+    this.input.connect(this.delay); this.delay.connect(this.tone); this.tone.connect(merge, 0, 0);
+    this.input.connect(this.delayR); this.delayR.connect(this.toneR); this.toneR.connect(merge, 0, 1);
+    merge.connect(this.wet); this.wet.connect(this.output);
     this.tone.connect(this.fb); this.fb.connect(this.delay);
+    this.toneR.connect(this.fbR); this.fbR.connect(this.delayR);
   }
   setParams(p: Record<string, number>): void {
-    this.delay.delayTime.value = Math.max(0.001, Math.min(2, (p.time ?? 350) / 1000));
-    this.fb.gain.value = Math.max(0, Math.min(0.95, (p.feedback ?? 35) / 100));
+    const time = Math.max(0.001, Math.min(2, (p.time ?? 350) / 1000));
+    const spread = Math.max(0, Math.min(0.5, (p.spread ?? 12) / 100));
+    this.delay.delayTime.value = time; this.delayR.delayTime.value = Math.min(2, time * (1 + spread));
+    this.fb.gain.value = this.fbR.gain.value = Math.max(0, Math.min(0.985, (p.feedback ?? 35) / 100));
     this.tone.frequency.value = clampHz(p.tone ?? 4000);
+    this.toneR.frequency.value = clampHz((p.tone ?? 4000) * 0.92);
     const mix = Math.max(0, Math.min(1, (p.mix ?? 25) / 100));
-    this.dry.gain.value = 1 - mix; this.wet.gain.value = mix;
+    this.dry.gain.value = Math.cos(mix * Math.PI * 0.5);
+    this.wet.gain.value = Math.sin(mix * Math.PI * 0.5) * dbToGain(p.wetGain ?? 0);
   }
 }
 
@@ -1223,15 +1271,15 @@ export const DEVICES: FxDescriptor[] = [
     params: [
       { key: 'hp', label: 'HP', min: 16, max: 500, default: 20, unit: 'Hz', curve: 'log' },
       { key: 'f1', label: 'Low', min: 30, max: 400, default: 120, unit: 'Hz', curve: 'log' },
-      { key: 'g1', label: 'Low dB', min: -18, max: 18, default: 0, unit: 'dB' },
+      { key: 'g1', label: 'Low dB', min: -24, max: 24, default: 0, unit: 'dB' },
       { key: 'f2', label: 'Lo-Mid', min: 100, max: 2000, default: 500, unit: 'Hz', curve: 'log' },
-      { key: 'g2', label: 'Lo-Mid dB', min: -18, max: 18, default: 0, unit: 'dB' },
+      { key: 'g2', label: 'Lo-Mid dB', min: -24, max: 24, default: 0, unit: 'dB' },
       { key: 'q2', label: 'Lo-Mid Q', min: 0.2, max: 8, default: 1 },
       { key: 'f3', label: 'Hi-Mid', min: 800, max: 8000, default: 3000, unit: 'Hz', curve: 'log' },
-      { key: 'g3', label: 'Hi-Mid dB', min: -18, max: 18, default: 0, unit: 'dB' },
+      { key: 'g3', label: 'Hi-Mid dB', min: -24, max: 24, default: 0, unit: 'dB' },
       { key: 'q3', label: 'Hi-Mid Q', min: 0.2, max: 8, default: 1 },
       { key: 'f4', label: 'Air', min: 4000, max: 20000, default: 12000, unit: 'Hz', curve: 'log' },
-      { key: 'g4', label: 'Air dB', min: -18, max: 18, default: 0, unit: 'dB' },
+      { key: 'g4', label: 'Air dB', min: -24, max: 24, default: 0, unit: 'dB' },
       { key: 'lp', label: 'LP', min: 2000, max: 22000, default: 20000, unit: 'Hz', curve: 'log' },
     ],
     create: (ctx) => new EqDevice(ctx),
@@ -1307,6 +1355,9 @@ export const DEVICES: FxDescriptor[] = [
       { key: 'size', label: 'Size', min: 0.1, max: 6, default: 1.8, unit: 's' },
       { key: 'decay', label: 'Decay', min: 0.5, max: 8, default: 3 },
       { key: 'preDelay', label: 'Pre', min: 0, max: 200, default: 20, unit: 'ms' },
+      { key: 'damping', label: 'Damping', min: 1000, max: 20000, default: 9000, unit: 'Hz', curve: 'log' },
+      { key: 'lowCut', label: 'Low Cut', min: 20, max: 1000, default: 90, unit: 'Hz', curve: 'log' },
+      { key: 'wetGain', label: 'Wet Trim', min: -12, max: 12, default: 3, unit: 'dB' },
       { key: 'mix', label: 'Mix', min: 0, max: 100, default: 25, unit: '%' },
     ],
     create: (ctx) => new ReverbDevice(ctx),
@@ -1318,6 +1369,8 @@ export const DEVICES: FxDescriptor[] = [
       { key: 'time', label: 'Time', min: 1, max: 2000, default: 350, unit: 'ms' },
       { key: 'feedback', label: 'Feedback', min: 0, max: 95, default: 35, unit: '%' },
       { key: 'tone', label: 'Tone', min: 500, max: 12000, default: 4000, unit: 'Hz', curve: 'log' },
+      { key: 'spread', label: 'Stereo', min: 0, max: 50, default: 12, unit: '%' },
+      { key: 'wetGain', label: 'Wet Trim', min: -12, max: 12, default: 0, unit: 'dB' },
       { key: 'mix', label: 'Mix', min: 0, max: 100, default: 25, unit: '%' },
     ],
     create: (ctx) => new DelayDevice(ctx),

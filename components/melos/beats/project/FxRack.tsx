@@ -107,7 +107,9 @@ export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#
         {instances.map((inst, i) => {
           const d = deviceByType(inst.type);
           if (!d) return null;
-          const open = openId === inst.id;
+          // A horizontal device row is the whole signal chain, not an accordion: every device
+          // stays visible while another is edited (Bitwig-style left-to-right workflow).
+          const open = !!horizontal || openId === inst.id;
           const gr = reductionOf ? reductionOf(inst.id) : 0; // de-ess reports GR too, not just dynamics
           // In a horizontal chain, a wide card for the amp rack, standard otherwise; the signal
           // flows left-to-right with an arrow between devices.
@@ -118,7 +120,7 @@ export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#
             <div className={`rounded-[10px] border ${horizontal ? 'flex-none' : ''}`} style={{ borderColor: open ? `${d.color}66` : 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', width: cardW }}>
               <div className="flex items-center gap-2 px-2 py-1.5">
                 <span className="w-1.5 h-1.5 rounded-full flex-none" style={{ background: inst.on ? d.color : 'rgba(255,255,255,0.2)' }} />
-                <button onClick={() => setOpenId(open ? null : inst.id)} className="flex-1 min-w-0 text-left">
+                <button onClick={() => { if (!horizontal) setOpenId(open ? null : inst.id); }} className="flex-1 min-w-0 text-left">
                   <div className="text-[11.5px] font-bold text-white truncate" style={{ opacity: inst.on ? 1 : 0.4 }}>{d.label}</div>
                 </button>
                 {gr < -0.1 && <span className="font-mono text-[8.5px] text-[#FF8C00]">GR {gr.toFixed(1)}</span>}
@@ -149,6 +151,7 @@ export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#
                     color={d.color}
                     category={d.category}
                     gr={gr}
+                    onParamsChange={(params) => patch(inst.id, (x) => ({ ...x, params: { ...x.params, ...params } }))}
                   />
                   {/* The amp rack gets a backline, not a knob grid. */}
                   {inst.type === 'amprig' ? (
