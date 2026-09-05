@@ -287,95 +287,86 @@ void mainImage(out vec4 o, in vec2 C){
       ['pres', 'Line 4 trace'],
       ['voice', 'Selective color trigger']
     ],
-    body: `// Measured Poise - EDITORIAL voice
-// Fine rules, generous margins, footnotes, and selective color make evidence feel considered.
+    body: `vec3 hx(int c){ return vec3(float((c>>16)&255), float((c>>8)&255), float(c&255))/255.0; }
 
-vec3 hex(int c) {
-    return vec3(float((c>>16)&255), float((c>>8)&255), float(c&255))/255.0;
+float mpRule(vec2 p, float y, float w){ return smoothstep(w, 0.0, abs(p.y - y)); }
+float mpTick(vec2 p, float x, float y0, float y1, float w){
+  return smoothstep(w, 0.0, abs(p.x - x)) * step(y0, p.y) * step(p.y, y1);
 }
 
-void mainImage(out vec4 o, in vec2 C) {
-    vec2 uv = C / iResolution.xy;
-    vec2 centered = (C - 0.5 * iResolution.xy) / iResolution.y;
-    Aud a = plajahAudio();
-    
-    vec3 bg = hex(0xF2EFE8); // Cream paper
-    vec3 ink = hex(0x211D20); // Fine ink
-    vec3 accent = hex(0x7B2CBF); // Editorial purple
-    
-    // Paper texture
-    float grain = vnoise(centered * 500.0);
-    bg -= grain * 0.03;
-    
-    vec3 col = bg;
-    
-    // Generous margins
-    float marginX = 0.15;
-    float marginY = 0.15;
-    
-    if(uv.x > marginX && uv.x < 1.0 - marginX && uv.y > marginY && uv.y < 1.0 - marginY) {
-        
-        float speed = mix(0.5, 2.0, iParam0);
-        float ampScale = mix(0.01, 0.05, iParam1);
-        
-        // Find loudest band for selective color
-        float bands[6];
-        bands[0] = comp(a.sub, 0.5);
-        bands[1] = comp(a.low, 0.5);
-        bands[2] = comp(a.voice, 0.5);
-        bands[3] = comp(a.pres, 0.5);
-        bands[4] = comp(a.sib, 0.5);
-        bands[5] = comp(a.air, 0.5);
-        
-        int maxId = 0;
-        float maxVal = bands[0];
-        for(int j=1; j<6; j++) {
-            if(bands[j] > maxVal) {
-                maxVal = bands[j];
-                maxId = j;
-            }
-        }
-        
-        // 6 horizontal ruled lines
-        for(int i=0; i<6; i++) {
-            float fi = float(i);
-            // Modular scale spacing
-            float baseY = marginY + (1.0 - 2.0*marginY) * (fi / 5.0);
-            
-            // Seismograph displacement
-            // We use fbm combined with audio
-            float trackX = uv.x * 10.0 - iTime * speed;
-            float noiseT = fbm(vec2(trackX, fi * 10.0), 3);
-            
-            float displacement = (noiseT - 0.5) * bands[i] * ampScale * 5.0;
-            float lineY = baseY + displacement;
-            
-            float dist = abs(uv.y - lineY);
-            // Fine rule thickness
-            float thickness = 0.001;
-            float lineAlpha = smoothstep(thickness + 0.002, thickness, dist);
-            
-            vec3 lineCol = (i == maxId) ? accent : ink;
-            col = mix(col, lineCol, lineAlpha);
-            
-            // Dot markers at peaks
-            float peakCheck = fbm(vec2(trackX * 5.0, fi * 10.0), 3);
-            if (peakCheck > 0.8 && bands[i] > 0.3) {
-                float dotDist = length(vec2(uv.x, uv.y) - vec2(uv.x, lineY));
-                float dotAlpha = smoothstep(0.004, 0.002, dotDist);
-                col = mix(col, lineCol, dotAlpha);
-            }
-        }
-        
-        // Margin bounding box lines
-        float boxAlpha = 0.0;
-        boxAlpha += smoothstep(0.002, 0.0, abs(uv.x - marginX));
-        boxAlpha += smoothstep(0.002, 0.0, abs(uv.x - (1.0 - marginX)));
-        col = mix(col, ink, boxAlpha * 0.2); // Subtle bounds
-    }
-    
-    col = max(col, 0.0);
-    o = vec4(pow(col, vec3(0.88)), 1.0);
+void mainImage(out vec4 o, in vec2 C){
+  Aud a = plajahAudio(); float pu = plajahPunch();
+  vec2 uv = (C - 0.5*iResolution.xy)/iResolution.y;
+  float asp = iResolution.x/iResolution.y;
+  vec3 paper = hx(0xF2EFE8), ink = hx(0x211D20), muted = hx(0x756D73),
+       purple = hx(0x7B2CBF), teal = hx(0x00A7B5), rose = hx(0xC84C58), ochre = hx(0xC79B32);
+  float px = 1.0/iResolution.y;
+
+  // A warm sheet with a little tooth, and a page edge rather than a bleed.
+  vec3 col = paper - vec3(0.014, 0.012, 0.010)*fbm(uv*9.0, 3);
+  col -= vec3(0.012)*vnoise(C*1.9);
+
+  // Generous margins. The measure is narrow on purpose: this desk sets short lines.
+  float mL = -asp*0.5 + 0.34, mR = asp*0.5 - 0.20;
+  float inMeasure = step(mL, uv.x)*step(uv.x, mR);
+
+  // The baseline grid the whole page hangs from — hairlines, never a heavy rule.
+  for (int i = 0; i < 7; i++){
+    float y = 0.30 - float(i)*0.075;
+    col = mix(col, muted, mpRule(uv, y, px*0.9)*0.30*inMeasure);
+  }
+  // One heavy rule under the head, and one at the foot above the notes.
+  col = mix(col, ink, mpRule(uv, 0.355, px*2.2)*inMeasure);
+  col = mix(col, muted, mpRule(uv, -0.315, px*1.1)*inMeasure*0.75);
+
+  // The evidence: a tick series along the measure, each answering its own bin. TICK is this
+  // council's mark, so the data is a set of rules, not bars.
+  float lead = 0.0; float leadX = 0.0;
+  for (int i = 0; i < 26; i++){
+    float fi = float(i);
+    float t = fi/25.0;
+    float x = mix(mL + 0.02, mR - 0.02, t);
+    float e = comp(SPEC(0.005 + fi*0.012), 0.32);
+    float h = 0.02 + e*0.26;
+    col = mix(col, ink, mpTick(uv, x, -0.30, -0.30 + h, px*1.3)*0.88);
+    if (e > lead){ lead = e; leadX = x; }
+  }
+  // Selective colour: exactly one measure is picked out, and a hairline leader points at it.
+  float leadH = 0.02 + comp(lead, 0.32)*0.26;
+  col = mix(col, purple, mpTick(uv, leadX, -0.30, -0.30 + leadH + 0.012, px*2.0));
+  col = mix(col, purple, mpRule(uv, -0.30 + leadH + 0.012, px*1.0)*step(uv.x, leadX)*step(mL, uv.x)*0.55);
+
+  // Set text: the head, a standfirst, and a body column. Blocks stand in for setting, sized so
+  // the page reads as a page rather than as a diagram of one.
+  for (int i = 0; i < 3; i++){
+    float y = 0.245 - float(i)*0.052;
+    float w = i == 0 ? 0.52 : (i == 1 ? 0.44 : 0.48);
+    float bar = step(mL + 0.02, uv.x)*step(uv.x, mL + 0.02 + w)*step(y, uv.y)*step(uv.y, y + 0.028);
+    col = mix(col, ink, bar*(i == 0 ? 0.92 : 0.30));
+  }
+  for (int i = 0; i < 6; i++){
+    float y = 0.06 - float(i)*0.036;
+    float w = 0.40 + 0.14*fract(sin(float(i)*7.13)*43758.5453);
+    float bar = step(mL + 0.02, uv.x)*step(uv.x, mL + 0.02 + w)*step(y, uv.y)*step(uv.y, y + 0.013);
+    col = mix(col, muted, bar*0.55);
+  }
+
+  // Footnotes in the lower margin, and a marginal note in the outer one.
+  for (int i = 0; i < 3; i++){
+    float y = -0.345 - float(i)*0.026;
+    float w = 0.26 - float(i)*0.05;
+    float bar = step(mL + 0.02, uv.x)*step(uv.x, mL + 0.02 + w)*step(y, uv.y)*step(uv.y, y + 0.009);
+    vec3 c = i == 0 ? rose : muted;
+    col = mix(col, c, bar*0.6);
+  }
+  float marginal = step(mL - 0.26, uv.x)*step(uv.x, mL - 0.06)
+                 * step(0.11, uv.y)*step(uv.y, 0.125);
+  col = mix(col, teal, marginal*(0.35 + comp(a.voice, 0.4)*0.5));
+
+  // A transient lifts one ochre reference mark in the outer margin. Nothing else moves.
+  col = mix(col, ochre, mpTick(uv, mR + 0.06, 0.0, 0.0 + 0.05 + pu*0.06, px*2.4)*0.8);
+
+  o = vec4(clamp(col, 0.0, 1.0), 1.0);
 }`
   },
   {
@@ -476,75 +467,76 @@ void mainImage(out vec4 o, in vec2 C){
       ['pres', 'Terrain peaks'],
       ['voice', 'Prominent singular mountain']
     ],
-    body: `// Terrain Signal - TOPOGRAPHIC voice
-// Contour, elevation, and layered terrain make relationships feel geographic.
+    body: `vec3 hx(int c){ return vec3(float((c>>16)&255), float((c>>8)&255), float(c&255))/255.0; }
 
-vec3 hex(int c) {
-    return vec3(float((c>>16)&255), float((c>>8)&255), float(c&255))/255.0;
+// Elevation. Ridged noise gives the land a spine instead of the soft blobs plain fbm produces.
+float tsElev(vec2 p, float lift){
+  float e = 0.0, amp = 0.5;
+  for (int i = 0; i < 5; i++){
+    float n = vnoise(p);
+    n = 1.0 - abs(n*2.0 - 1.0);          // ridged
+    e += amp*n*n;
+    p = p*2.03 + 11.7;
+    amp *= 0.5;
+  }
+  return e*(0.75 + lift*0.5);
 }
 
-void mainImage(out vec4 o, in vec2 C) {
-    vec2 uv = (C - 0.5 * iResolution.xy) / iResolution.y;
-    Aud a = plajahAudio();
-    
-    vec3 bg = hex(0x102924); // Dark green background
-    vec3 contourCol = hex(0xA8D59B); // Green-tinted lines
-    vec3 warmPeak = hex(0xE7C76E); // Warm peaks
-    vec3 riverCol = hex(0x65B4A4); // Blue-green rivers
-    
-    float density = mix(10.0, 40.0, iParam0);
-    float speed = mix(0.1, 0.5, iParam1);
-    
-    // Drifting landscape
-    vec2 pos = uv * 2.0 + vec2(iTime * speed * 0.5, iTime * speed * 0.3);
-    
-    // Base FBM terrain
-    float h = fbm(pos, 4);
-    h += fbm(pos * 2.0, 3) * 0.5;
-    h += fbm(pos * 4.0, 2) * 0.25;
-    h *= 0.5; // Normalize somewhat
-    
-    // Audio influences elevation
-    float subVol = comp(a.sub, 0.5);
-    float presVol = comp(a.pres, 0.5);
-    float voiceVol = comp(a.voice, 0.5);
-    
-    h += subVol * 0.2; // Sub raises overall elevation
-    h += presVol * 0.3 * smoothstep(0.4, 0.8, fbm(pos*3.0, 3)); // Presence adds peaks
-    
-    // Voice mountain
-    float mountain = 1.0 - smoothstep(0.0, 0.5, length(uv));
-    h += mountain * voiceVol * 0.5;
-    
-    vec3 col = bg;
-    
-    // Contour lines
-    float contourVal = h * density;
-    float line = fract(contourVal);
-    
-    // Calculate gradient for line thickness (steep = close = thin)
-    // We approximate derivative via fwidth or finite difference (fwidth not available in pure shader without extension, using manual offset)
-    vec2 eps = vec2(0.01, 0.0);
-    float hx = (fbm(pos + eps, 4) - h) / eps.x;
-    float hy = (fbm(pos + eps.yx, 4) - h) / eps.x;
-    float slope = length(vec2(hx, hy)) + 0.1;
-    
-    float thickness = 0.1 / slope; // Thicker where flat
-    thickness = clamp(thickness, 0.02, 0.15);
-    
-    float contourAlpha = smoothstep(thickness, 0.0, min(line, 1.0-line));
-    
-    // Elevation color shift
-    vec3 currentLineCol = mix(contourCol, warmPeak, smoothstep(0.3, 1.0, h));
-    col = mix(col, currentLineCol, contourAlpha);
-    
-    // Rivers form in deep valleys (where h is low)
-    float valley = smoothstep(0.2, 0.0, h) * smoothstep(0.8, 1.0, fbm(pos*5.0, 3));
-    col = mix(col, riverCol, valley * 0.6);
-    
-    col = max(col, 0.0);
-    col = aces(col * 0.90);
-    o = vec4(pow(col, vec3(0.88)), 1.0);
+void mainImage(out vec4 o, in vec2 C){
+  Aud a = plajahAudio(); float pu = plajahPunch();
+  vec2 uv = (C - 0.5*iResolution.xy)/iResolution.y;
+  vec3 deep = hx(0x102924), pale = hx(0xEAF3DA), green = hx(0xA8D59B),
+       ochre = hx(0xE7C76E), teal = hx(0x65B4A4), coral = hx(0xD78062);
+
+  // The survey drifts slowly north; the low band lifts the whole landmass.
+  vec2 p = uv*(2.6 - iParam0*1.2) + vec2(iTime*0.035, -iTime*0.018);
+  float lift = comp(a.low, 0.35);
+  float h = tsElev(p, lift);
+
+  // Hypsometric tint: sea, lowland, upland, ridge — the reading a real elevation map gives.
+  vec3 col = deep;
+  col = mix(col, teal*0.55,  smoothstep(0.16, 0.30, h));
+  col = mix(col, green*0.85, smoothstep(0.30, 0.50, h));
+  col = mix(col, ochre,      smoothstep(0.50, 0.70, h));
+  col = mix(col, pale,       smoothstep(0.70, 0.88, h));
+
+  // Relief shading from the gradient of the field, so the land has a light direction.
+  vec2 e = vec2(2.0/iResolution.y, 0.0);
+  float hx1 = tsElev(p + e.xy, lift), hy1 = tsElev(p + e.yx, lift);
+  vec3 n = normalize(vec3(h - hx1, 0.014, h - hy1));
+  float lam = clamp(dot(n, normalize(vec3(-0.55, 0.7, -0.45))), 0.0, 1.0);
+  col *= 0.62 + 0.55*lam;
+
+  // Contours. fwidth keeps every line one pixel wide however steep the ground is — without it
+  // flat country grows fat bands and cliffs lose their lines entirely.
+  float bands = 16.0 + floor(iParam1*18.0);
+  float band = h*bands;
+  float line = abs(fract(band) - 0.5)/max(fwidth(band), 1e-4);
+  col = mix(col, pale, (1.0 - smoothstep(0.6, 1.4, line))*0.34);
+  // Index contours: every fifth line is heavier, the way a printed map marks its counting.
+  float idx = band/5.0;
+  float major = abs(fract(idx) - 0.5)/max(fwidth(idx), 1e-4);
+  col = mix(col, pale, (1.0 - smoothstep(0.5, 1.2, major))*0.55);
+
+  // A survey traverse crossing the sheet, with stations on it — the geographic relationship the
+  // premise is actually about, rather than terrain for its own sake.
+  float route = abs(uv.y - (sin(uv.x*2.1 + iTime*0.12)*0.13 - 0.04));
+  col = mix(col, coral, (1.0 - smoothstep(0.004, 0.010, route))*(0.5 + comp(a.pres, 0.3)*0.5));
+  for (int i = 0; i < 7; i++){
+    float fi = float(i);
+    float sx = -0.72 + fi*0.24;
+    vec2 st = vec2(sx, sin(sx*2.1 + iTime*0.12)*0.13 - 0.04);
+    float d = length(uv - st);
+    float ev = comp(SPEC(0.01 + fi*0.03), 0.3);
+    col = mix(col, pale, (1.0 - smoothstep(0.008, 0.013, d))*(0.6 + ev*0.4));
+    col += coral*(0.0016 + ev*0.006)/(d + 0.05);
+  }
+
+  // Air lifts a haze over the low ground; a transient flares the ridges.
+  col = mix(col, col + teal*0.10, comp(a.air, 0.4)*smoothstep(0.5, 0.0, h));
+  col += pale*pu*0.10*smoothstep(0.62, 0.9, h);
+
+  o = vec4(clamp(col, 0.0, 1.0), 1.0);
 }`
   }
 ];

@@ -73,7 +73,66 @@ void mainImage(out vec4 o, in vec2 C){
     line: "No decoration, no chromatic hierarchy: scale, weight, and rhythm carry the entire argument.",
     params: [{name: "Complexity", def: 0.35}],
     reacts: [["sub","Warps the domain noise"], ["pres","Shifts the black/white threshold"], ["voice","Forces bilateral symmetry"], ["hit","Sudden shape transformation"]],
-    body: "// ABSOLUTE CONTRAST — No decoration, no chromatic hierarchy: scale, weight, and rhythm carry the entire argument.\nvoid mainImage(out vec4 o, in vec2 C) {\n  Aud a = plajahAudio();\n  float pu = plajahPunch();\n  int OCT = plajahOct();\n  vec2 uv = (C - 0.5*iResolution.xy)/iResolution.y;\n  \n  // Voice introduces bilateral symmetry\n  vec2 p = uv;\n  p.x = mix(p.x, abs(p.x), smoothstep(0.1, 0.6, a.voice));\n  \n  // Domain warp\n  float timeBase = iTime * 0.15 + pu * 2.0;\n  vec2 q = p * (2.0 + iParam0*2.0);\n  q += fbm(q + timeBase, OCT) * (0.2 + a.sub * 1.5);\n  \n  float val = fbm(q * 3.0 - timeBase*0.5, OCT);\n  \n  // Threshold shifts with presence\n  float th = 0.5 + a.pres * 0.15 - a.sub * 0.1;\n  float mask = step(th, val);\n  \n  vec3 col = mix(vec3(0.067), vec3(0.957), mask);\n  \n  col = max(col, 0.0); col = col/(1.0 + col*0.72);\n  o = vec4(pow(col, vec3(0.88)), 1.0);\n}"
+    body: `vec3 hx(int c){ return vec3(float((c>>16)&255), float((c>>8)&255), float(c&255))/255.0; }
+
+float acBar(vec2 p, vec2 c, vec2 half_){ vec2 d = abs(p - c) - half_; return step(max(d.x, d.y), 0.0); }
+
+void mainImage(out vec4 o, in vec2 C){
+  Aud a = plajahAudio(); float pu = plajahPunch();
+  vec2 uv = (C - 0.5*iResolution.xy)/iResolution.y;
+  float asp = iResolution.x/iResolution.y;
+  vec3 ink = hx(0x111111), w1 = hx(0xF4F4F4), w2 = hx(0xA9A9A9), w3 = hx(0x686868), w4 = hx(0x393939);
+  vec3 col = ink;
+
+  // Everything is rectilinear and everything is one of four values. No hue, no curve, no glow.
+  // Rank the spectrum so the argument is ordered rather than merely loud.
+  float lead = 0.0;
+  for (int i = 0; i < 12; i++) lead = max(lead, SPEC(0.006 + float(i)*0.02));
+
+  // The masthead slab: the largest element on the page, and the only one at full value.
+  float head = comp(SPEC(0.008), 0.3);
+  col = mix(col, w1, acBar(uv, vec2(-asp*0.5 + 0.44 + 0.0, 0.34), vec2(0.42, 0.045 + head*0.030)));
+
+  // The argument: twelve measures, weight and SCALE carrying the reading. Bars share a baseline
+  // and grow up; their VALUE steps down by rank, which is the only hierarchy this office allows.
+  for (int i = 0; i < 12; i++){
+    float fi = float(i);
+    float x = -asp*0.5 + 0.30 + fi*0.135;
+    float e = comp(SPEC(0.006 + fi*0.02), 0.30);
+    float h = 0.03 + e*0.42*(0.55 + iParam0);
+    vec3 v = fi < 3.0 ? w1 : (fi < 6.0 ? w2 : (fi < 9.0 ? w3 : w4));
+    col = mix(col, v, acBar(uv, vec2(x, -0.16 + h*0.5), vec2(0.048, h*0.5)));
+    // A tick under each, always the same size: the rhythm the bars are measured against.
+    col = mix(col, w4, acBar(uv, vec2(x, -0.20), vec2(0.048, 0.004)));
+  }
+
+  // A counter-rhythm above: fixed blocks, present or absent, never scaled. Presence is the datum.
+  for (int i = 0; i < 24; i++){
+    float fi = float(i);
+    float x = -asp*0.5 + 0.24 + fi*0.068;
+    float on = step(0.34, SPEC(0.004 + fi*0.011));
+    col = mix(col, w3, acBar(uv, vec2(x, 0.19), vec2(0.022, 0.016))*on);
+  }
+
+  // Two rules, both the council's line weight, dividing head from argument from foot.
+  float px = 1.0/iResolution.y;
+  col = mix(col, w2, acBar(uv, vec2(0.0, 0.255), vec2(asp*0.46, px*2.0)));
+  col = mix(col, w2, acBar(uv, vec2(0.0, -0.245), vec2(asp*0.46, px*2.0)));
+
+  // Foot: fixed-width slugs standing in for set metadata, all one value.
+  for (int i = 0; i < 5; i++){
+    float fi = float(i);
+    col = mix(col, w4, acBar(uv, vec2(-asp*0.5 + 0.34 + fi*0.30, -0.32), vec2(0.10, 0.012)));
+  }
+
+  // A transient inverts the leading measure. Contrast is the only device available.
+  float flash = step(0.5, pu)*step(0.30, lead);
+  col = mix(col, w1 - col, flash*acBar(uv, vec2(-asp*0.5 + 0.30, -0.16), vec2(0.048, 0.24)));
+
+  // SCAN: the surface of a monitor, not a texture applied for taste.
+  col *= 1.0 - 0.16*step(0.5, fract(C.y*0.5));
+  o = vec4(clamp(col, 0.0, 1.0), 1.0);
+}`
   },
   {
     id: "index-intervention", n: 105, name: "Index Intervention",

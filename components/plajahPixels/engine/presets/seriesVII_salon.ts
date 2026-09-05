@@ -304,86 +304,75 @@ void mainImage(out vec4 o, in vec2 C){
     line: "An illuminated manuscript page where the marginalia are holographic data readouts.",
     params: [{name: "Glitch threshold", def: 0.35}],
     reacts: [["pres", "Ripples main text lines"], ["voice", "Footnote markers"], ["hit", "FUTURIST glitch effect"]],
-    body: `// ELECTRIC MANUSCRIPT — An illuminated manuscript page with holographic marginalia.
-// EDITORIAL measured poise meets FUTURIST spatial lattice.
+    body: `vec3 hx(int c){ return vec3(float((c>>16)&255), float((c>>8)&255), float(c&255))/255.0; }
+
 void mainImage(out vec4 o, in vec2 C){
-  Aud a = plajahAudio();
-  float pu = plajahPunch();
+  Aud a = plajahAudio(); float pu = plajahPunch();
   vec2 uv = (C - 0.5*iResolution.xy)/iResolution.y;
-  
-  vec3 paper = vec3(0.95, 0.94, 0.91); // Cream #F2EFE8
-  
-  // Beat glitch effect turns page into pure FUTURIST
-  float glitchLine = step(0.9 - iParam0*0.2, h21(vec2(floor(iTime * 15.0), floor(uv.y * 10.0))));
-  float glitch = pu * glitchLine;
-  vec3 glitchBg = vec3(0.01, 0.04, 0.07); // Dark background #030B12
-  
-  vec3 col = mix(paper, glitchBg, glitch);
-  
-  float marginX = -0.3;
-  
-  // Thin purple editorial accent line
-  float sep = smoothstep(0.002, 0.001, abs(uv.x - marginX));
-  vec3 edPurp = vec3(0.48, 0.17, 0.75); // #7B2CBF
-  col = mix(col, edPurp, sep * (1.0 - glitch));
-  
-  if(uv.x > marginX) {
-      // Main text area: horizontal ruled lines
-      float lineSpace = 0.06;
-      float ly = fract(uv.y / lineSpace);
-      float id = floor(uv.y / lineSpace);
-      
-      // Ripple like seismograph trace
-      float band = fract(abs(id) * 0.08);
-      float e = SPEC(band) * 1.5;
-      
-      float wave = sin(uv.x * 25.0 + iTime * 2.5 + id) * e * 0.025 * a.pres;
-      float line = smoothstep(0.02, 0.01, abs(ly - 0.5 + wave / lineSpace));
-      
-      vec3 lineCol = mix(vec3(0.13, 0.11, 0.12), vec3(0.0, 0.94, 1.0), glitch); // Cyan on glitch
-      col = mix(col, lineCol, line * (0.6 + e*0.4));
-      
-      // Voice causes footnote markers (numbered dots)
-      if (a.voice > 0.15) {
-          vec2 fnPos = vec2(0.4, id * lineSpace + 0.015);
-          float d = length(uv - fnPos);
-          if (d < 0.006) col = vec3(0.78, 0.30, 0.35); // #C84C58
-      }
-      
-  } else {
-      // Marginalia: FUTURIST data
-      float gridY = floor(uv.y * 40.0);
-      float gridX = floor(uv.x * 40.0);
-      float hash = h21(vec2(gridX, gridY));
-      
-      vec3 futCyan = vec3(0.0, 0.94, 1.0); // #00F0FF
-      vec3 futPurp = vec3(0.54, 0.36, 1.0); // #8B5CFF
-      vec3 futGrn = vec3(0.3, 1.0, 0.61); // #4DFF9B
-      
-      // Tiny bar graphs
-      float barVal = SPEC(fract(gridX * 0.15)) * 30.0;
-      float isBar = step(gridY - floor(-0.3*40.0), barVal) * step(-0.3*40.0, gridY);
-      isBar *= step(-0.65, uv.x) * step(uv.x, -0.35);
-      
-      if(isBar > 0.0 && hash > 0.1) {
-          vec3 cellCol = mix(futCyan, futGrn, hash);
-          col = mix(col, cellCol, 0.85 + 0.15*a.air);
-      }
-      
-      // Dot matrix sparklines
-      float isDot = step(0.85 - a.sib*0.3, hash) * step(uv.x, -0.7);
-      if(isDot > 0.0) {
-          col = mix(col, futPurp, 0.9);
-      }
+  float asp = iResolution.x/iResolution.y;
+  vec3 vellum = hx(0xEEE8D8), ink = hx(0x22201D), wine = hx(0x7A263A), gold = hx(0x9A793A),
+       navy = hx(0x344D69), cyan = hx(0x00F0FF), violet = hx(0x8B5CFF), green = hx(0x4DFF9B);
+  float px = 1.0/iResolution.y;
+
+  // The page occupies the left two thirds; the margin is the lit half of the duet.
+  float split = -asp*0.5 + asp*0.62;
+  float onPage = step(uv.x, split);
+
+  vec3 col = mix(vec3(0.02, 0.03, 0.05), vellum, onPage);
+  col = mix(col, col - vec3(0.035, 0.032, 0.026)*fbm(uv*7.0, 3), onPage*0.8);
+
+  // Ruled text block, written in a serif hand: two columns of set lines with a decorated initial.
+  float colL = -asp*0.5 + 0.10;
+  for (int i = 0; i < 14; i++){
+    float fi = float(i);
+    float y = 0.34 - fi*0.049;
+    float indent = (i < 4) ? 0.16 : 0.0;                     // the initial pushes the first lines in
+    float w = (0.30 - indent) + 0.06*fract(sin(fi*5.1)*43758.5453);
+    float line = step(colL + indent, uv.x)*step(uv.x, colL + indent + w)
+               * step(y, uv.y)*step(uv.y, y + 0.014);
+    col = mix(col, ink, line*0.72*onPage);
   }
-  
-  // Glitch pure futurist grid overlay
-  if (glitch > 0.0) {
-      float grid = step(0.95, fract(uv.x * 20.0)) + step(0.95, fract(uv.y * 20.0));
-      col += vec3(0.0, 0.94, 1.0) * clamp(grid, 0.0, 1.0) * 0.5;
+  // The rubricated initial, gilded.
+  float initBox = step(colL, uv.x)*step(uv.x, colL + 0.14)*step(0.155, uv.y)*step(uv.y, 0.355);
+  col = mix(col, wine, initBox*0.9);
+  col = mix(col, gold, initBox*smoothstep(0.055, 0.030, length((uv - vec2(colL + 0.07, 0.255))*vec2(1.0, 0.9)))*0.85);
+  // Gold ruling around the block.
+  float frame = max(smoothstep(0.0035, 0.0, abs(uv.x - (colL - 0.035))), smoothstep(0.0035, 0.0, abs(uv.x - (split - 0.06))))
+              * step(-0.38, uv.y)*step(uv.y, 0.40);
+  col = mix(col, gold, frame*0.75*onPage);
+
+  // ── the margin: a holographic readout, not decoration ──
+  float onMargin = 1.0 - onPage;
+  // DOTS lattice, the futurist's grid, glowing rather than printed.
+  vec2 g = fract(uv*22.0) - 0.5;
+  col += vec3(0.05, 0.14, 0.20)*smoothstep(0.12, 0.0, length(g))*onMargin*(0.35 + comp(a.air, 0.35)*1.2);
+
+  // Live traces: three stacked readouts answering their own bands.
+  for (int i = 0; i < 3; i++){
+    float fi = float(i);
+    float base = 0.26 - fi*0.24;
+    float band = i == 0 ? a.pres : i == 1 ? a.low : a.voice;
+    vec3 ci = i == 0 ? cyan : i == 1 ? violet : green;
+    float x0 = split + 0.05;
+    float t = clamp((uv.x - x0)/(asp*0.5 - 0.06 - x0), 0.0, 1.0);
+    float e = comp(SPEC(0.01 + t*0.5), 0.28);
+    float y = base + (e - 0.35)*0.16 + sin(t*22.0 + iTime*1.6 + fi)*0.010*band;
+    float d = abs(uv.y - y);
+    float inCol = step(x0, uv.x)*step(uv.x, asp*0.5 - 0.06);
+    col += ci*(0.0022/(d + 0.006))*inCol*onMargin*(0.5 + band*1.6);
+    col += vec3(1.0)*smoothstep(0.0022, 0.0, d)*inCol*onMargin*(0.25 + band*0.9);
+    // Numerals stand in as a bar of ticks under each trace — a readout has a scale.
+    float tick = step(0.5, fract(t*26.0))*step(base - 0.055, uv.y)*step(uv.y, base - 0.046);
+    col += ci*tick*inCol*onMargin*0.5;
   }
-  
-  o = vec4(col, 1.0);
+  // Scanline on the lit half only; the vellum must not acquire a monitor surface.
+  col *= 1.0 - 0.10*onMargin*step(0.5, fract(C.y*0.5));
+  // The seam between the two worlds, and a transient that jumps the gap.
+  col += cyan*smoothstep(0.004, 0.0, abs(uv.x - split))*(0.35 + pu*0.9);
+  col = mix(col, col + gold*0.35, onPage*pu*0.25*initBox);
+
+  col = col/(1.0 + col*0.55);
+  o = vec4(clamp(col, 0.0, 1.0), 1.0);
 }`
   },
   {

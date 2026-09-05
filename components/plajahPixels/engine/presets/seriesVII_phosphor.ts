@@ -8,7 +8,56 @@ export const SERIES_VII_PHOSPHOR: SignatureWork[] = [
     line: "Marks emit light, trails retain musical memory, and the grid feels like an instrument.",
     params: [{name: "Decay", def: 0.35}, {name: "Jitter", def: 0.4}],
     reacts: [["sub","Cyan tube intensity and glow"],["low","Magenta tube intensity"],["pres","Purple tube presence"],["sib","Tube flicker and spark jitter"],["air","Cyan highs and crosshair pop"],["voice","Pulsing unison expansion"],["hit","Floor reflection flash"]],
-    body: "// NIGHT CURRENT — Neon tube simulation. Six curved tubes bend across the frame,\n// each one a different audio band. The tube is a thin core of pure white surrounded\n// by colored glow that falls off with distance. Phosphor persistence is simulated\n// by layering multiple time-stepped samples of the same curve, so fast movements\n// leave a glowing trail. Additive color mixing happens where tubes cross.\n\nvec3 neonCyan = vec3(0.22, 0.95, 1.00); // #38F2FF\nvec3 neonMag  = vec3(1.00, 0.24, 0.82); // #FF3CD1\nvec3 neonPurp = vec3(0.55, 0.36, 1.00); // #8D5BFF\nvec3 neonGold = vec3(1.00, 0.82, 0.40); // #FFD166\n\nfloat tubeCurve(vec2 p, float t, float fi, float band) {\n  float off = fi * 1.3 + t * 0.35;\n  // A complex parametric curve for the tube to follow\n  float y = sin(p.x * 2.5 + off) * (0.2 + 0.08 * fi) \n          + cos(p.x * 1.2 - off * 1.5) * 0.15 \n          + 0.12 * fi - 0.3;\n  // Voice expands the amplitude\n  y *= 1.0 + band * 0.4;\n  return abs(p.y - y);\n}\n\nvoid mainImage(out vec4 o, in vec2 C){\n  Aud a = plajahAudio();\n  float pu = plajahPunch();\n  vec2 uv = (C - 0.5*iResolution.xy)/iResolution.y;\n  float t = iTime * (0.8 + iParam0 * 1.2);\n\n  // Background near-black with subtle glow\n  vec3 col = vec3(0.027, 0.035, 0.102); // #07091A\n  \n  // Crosshair grid barely visible\n  vec2 g = fract(uv * 12.0) - 0.5;\n  float gridLines = smoothstep(0.03, 0.01, abs(g.x)) * smoothstep(0.4, 0.0, abs(g.y))\n                  + smoothstep(0.03, 0.01, abs(g.y)) * smoothstep(0.4, 0.0, abs(g.x));\n  col += vec3(0.05, 0.07, 0.15) * gridLines * (0.2 + a.air * 1.5);\n\n  // Reflection on a wet floor below the tubes\n  float floorMask = smoothstep(-0.1, -0.3, uv.y);\n  vec2 p = uv;\n  float isFloor = step(uv.y, -0.15);\n  if (isFloor > 0.5) {\n    p.y = -0.15 - (uv.y + 0.15) * 0.6; // mirror and compress\n    p.x += fbm(p * 5.0 + t, 3) * 0.05; // wet ripple\n  }\n\n  for (int i = 0; i < 6; i++) {\n    float fi = float(i);\n    float band = (i==0) ? a.sub : (i==1) ? a.low : (i==2) ? a.pres : (i==3) ? a.sib : (i==4) ? a.air : a.voice;\n    vec3 cInk = (i==0||i==4) ? neonCyan : (i==1) ? neonMag : (i==2||i==5) ? neonPurp : neonGold;\n    \n    // Flicker and high-frequency jitter\n    float flick = 1.0 + 0.3 * sin(t * 30.0 + fi * 11.0) * a.sib * (0.5 + iParam1);\n    float intensity = 0.15 + comp(band, 0.2) * 2.5 * flick + a.voice * 1.2;\n    \n    // Phosphor persistence via multiple time samples\n    vec3 tubeAccum = vec3(0.0);\n    for (int j = 0; j < 4; j++) {\n      float dt = t - float(j) * 0.03;\n      float d = tubeCurve(p, dt, fi, a.voice);\n      \n      float core = smoothstep(0.006, 0.0, d);\n      float glow = 0.008 / (d + 0.004);\n      // Glow radius expands on peaks\n      glow += 0.02 / (d + 0.02) * intensity;\n      \n      float decay = 1.0 - float(j)*0.25;\n      vec3 tubeColor = cInk * glow * intensity + vec3(1.0) * core * intensity * 0.8;\n      tubeAccum += tubeColor * decay;\n    }\n    \n    col += tubeAccum * mix(1.0, 0.2, isFloor); // Floor is dimmer\n  }\n\n  // Transient flashes the floor reflection\n  col += pu * 0.8 * floorMask * neonCyan * fbm(uv*10.0, 2);\n  \n  col = max(col, 0.0); col = col/(1.0 + col*0.72);\n  o = vec4(pow(col, vec3(0.88)), 1.0);\n}"
+    body: `vec3 hx(int c){ return vec3(float((c>>16)&255), float((c>>8)&255), float(c&255))/255.0; }
+
+// A tube is a thin core inside a falloff. Keeping the core and the glow as SEPARATE terms is what
+// stops six of them summing into a white field.
+float ncTube(vec2 p, float y, float w){ float d = abs(p.y - y); return w/(d + w); }
+
+void mainImage(out vec4 o, in vec2 C){
+  Aud a = plajahAudio(); float pu = plajahPunch();
+  vec2 uv = (C - 0.5*iResolution.xy)/iResolution.y;
+  vec3 bg = hx(0x07091A), cyan = hx(0x38F2FF), mag = hx(0xFF3CD1), purp = hx(0x8D5BFF), gold = hx(0xFFD166);
+  float t = iTime*(0.5 + iParam0*0.9);
+
+  vec3 col = bg;
+  // CROSSHAIR: the instrument the marks are read against, lit faintly from behind.
+  vec2 g = abs(fract(uv*7.0) - 0.5);
+  float grid = smoothstep(0.03, 0.0, min(g.x, g.y));
+  col += vec3(0.05, 0.09, 0.16)*grid*(0.25 + comp(a.air, 0.35)*1.1);
+  col += vec3(0.06, 0.10, 0.18)*(smoothstep(0.006, 0.0, abs(uv.y)) + smoothstep(0.006, 0.0, abs(uv.x)))*0.6;
+
+  // Six tubes, one per channel. Each keeps its own colour because the terms are bounded.
+  vec3 emit = vec3(0.0);
+  for (int i = 0; i < 6; i++){
+    float fi = float(i);
+    float band = i == 0 ? a.sub : i == 1 ? a.low : i == 2 ? a.pres : i == 3 ? a.sib : i == 4 ? a.air : a.voice;
+    float e = comp(band, 0.28);
+    vec3 ink = i == 0 || i == 4 ? cyan : i == 1 ? mag : i == 2 || i == 5 ? purp : gold;
+    float flick = 1.0 - 0.22*step(0.5, fract(sin(floor(t*24.0) + fi*7.0)*4137.5))*a.sib*(0.4 + iParam1);
+
+    // Persistence: three time-shifted copies, each dimmer. The trail is a memory, not a smear.
+    for (int j = 0; j < 3; j++){
+      float dt = t - float(j)*0.055;
+      float y = sin(uv.x*2.4 + dt*0.8 + fi*1.3)*(0.16 + fi*0.035)
+              + cos(uv.x*1.1 - dt*1.2)*0.09 + fi*0.055 - 0.16;
+      float w = 0.0032 + e*0.004;
+      float decay = 1.0 - float(j)*0.34;
+      float tube = ncTube(uv, y, w);
+      emit += ink*tube*tube*(0.06 + e*0.42)*decay*flick;                     // the falloff
+      emit += vec3(1.0)*smoothstep(w*1.6, 0.0, abs(uv.y - y))*(0.10 + e*0.55)*decay*flick;  // the core
+    }
+  }
+  // A wet floor under the tubes, which is what makes neon read as being in a place.
+  float floorMask = smoothstep(-0.16, -0.42, uv.y);
+  emit += emit*floorMask*0.30*(0.6 + 0.4*fbm(uv*6.0 + t*0.3, 2));
+  col += emit;
+  col += cyan*pu*0.10*floorMask;
+
+  // Bounded, so a loud passage saturates towards the tube colour rather than towards white.
+  col = col/(1.0 + col*0.85);
+  o = vec4(pow(clamp(col, 0.0, 1.0), vec3(0.88)), 1.0);
+}`
   },
   {
     id: "predictive-lattice", n: 109, name: "Predictive Lattice",
@@ -119,6 +168,78 @@ void mainImage(out vec4 o, in vec2 C){
     line: "Mapped routes, field notes, multilingual labels, and material samples situate every number in a specific place.",
     params: [{name: "Scroll", def: 0.3}, {name: "Contours", def: 0.5}],
     reacts: [["sub","Route trace Y-coordinate"],["pres","Route trace X-coordinate"],["air","Field note marker details"],["voice","Draws a prominent mountain peak"],["hit","Impact flashes high elevation areas"]],
-    body: "// FIELD ATLAS — A living topographic cartographic map. Domain-warped FBM creates\n// the base terrain, with contour lines drawn at regular height intervals. A ROUTE\n// traces across the map, its waypoints driven by audio (sub and presence). Terrain\n// colors map to elevations. Field notes appear at peaks. The map feels like it is\n// being drawn by the music in real-time.\n\nvec3 atlPap = vec3(0.86, 0.82, 0.73); // #DCD2BB\nvec3 atlRed = vec3(0.71, 0.29, 0.20); // #B44932\nvec3 atlTea = vec3(0.18, 0.44, 0.41); // #2E6F68\nvec3 atlOch = vec3(0.76, 0.55, 0.21); // #C18D35\n\nvoid mainImage(out vec4 o, in vec2 C){\n  Aud a = plajahAudio();\n  float pu = plajahPunch();\n  int OCT = plajahOct();\n  vec2 uv = (C - 0.5*iResolution.xy)/iResolution.y;\n  float t = iTime * (0.15 + iParam0 * 0.5);\n\n  // Terrain generation via domain warping\n  vec2 warp = vec2(fbm(uv * 2.0 + vec2(t * 0.2, 0.0), 3), \n                   fbm(uv * 2.0 - vec2(0.0, t * 0.15), 3));\n  vec2 q = uv + warp * 0.4;\n  float h = fbm(q * 2.5, OCT);\n  \n  // Voice adds a prominent peak (mountain rising)\n  float peak = exp(-length(uv + vec2(0.2, -0.1)) * 4.0) * a.voice * 0.6;\n  h = clamp(h + peak, 0.0, 1.0);\n  \n  // Base paper with subtle grain texture\n  float grain = h21(uv * 200.0 + t * 5.0);\n  vec3 col = atlPap * (0.92 + 0.08 * grain);\n  \n  // Elevation coloring\n  if (h < 0.35) {\n    col = mix(atlTea, atlPap, smoothstep(0.15, 0.35, h));\n  } else if (h < 0.65) {\n    col = mix(atlPap, atlOch, smoothstep(0.35, 0.65, h));\n  } else {\n    col = mix(atlOch, atlRed, smoothstep(0.65, 0.95, h));\n  }\n  \n  // Contour lines\n  float contourInterval = 20.0 + iParam1 * 10.0;\n  float contourF = fract(h * contourInterval);\n  float contour = smoothstep(0.06, 0.0, min(contourF, 1.0 - contourF));\n  // Thicker index contours\n  float indexContour = step(fract(h * contourInterval / 5.0), 0.1);\n  col = mix(col, vec3(0.15, 0.18, 0.17), contour * (0.3 + 0.3 * indexContour));\n  \n  // Map grid overlay (thin lines)\n  float gridX = smoothstep(0.015, 0.0, abs(fract(uv.x * 8.0) - 0.5));\n  float gridY = smoothstep(0.015, 0.0, abs(fract(uv.y * 8.0) - 0.5));\n  col = mix(col, vec3(0.5, 0.45, 0.4), max(gridX, gridY) * 0.3);\n  \n  // The ROUTE: a dotted line path tracing audio\n  // Sub determines Y, presence determines X\n  float routeX = (comp(a.pres, 0.3) * 2.0 - 1.0) * 0.6;\n  float routeY = (comp(a.sub, 0.3) * 2.0 - 1.0) * 0.4;\n  vec2 routeP = vec2(routeX, routeY);\n  \n  float rDist = length(uv - routeP);\n  // Dotted trail leaving history\n  float trailDot = step(0.6, fract(length(uv * 15.0) - t * 2.0));\n  float trailAlpha = exp(-rDist * 8.0) * trailDot;\n  col = mix(col, atlRed, trailAlpha * (0.6 + a.pres * 0.8));\n  \n  // Field note markers at peaks\n  if (h > 0.7) {\n    float noteCirc = smoothstep(0.02, 0.015, abs(rDist - 0.05));\n    float noteTick = step(0.9, fract(atan(uv.y - routeY, uv.x - routeX) * 2.0));\n    col = mix(col, vec3(0.1), noteCirc * noteTick * 0.5 * (0.5 + a.air));\n  }\n  \n  // Transient impact flashes the highest elevations\n  col += pu * 0.25 * atlPap * smoothstep(0.6, 0.9, h);\n\n  col = max(col, 0.0); col = col/(1.0 + col*0.72);\n  o = vec4(pow(col, vec3(0.88)), 1.0);\n}"
+    body: `vec3 hx(int c){ return vec3(float((c>>16)&255), float((c>>8)&255), float(c&255))/255.0; }
+
+float faLine(float d, float w){ return smoothstep(w, 0.0, abs(d)); }
+
+void mainImage(out vec4 o, in vec2 C){
+  Aud a = plajahAudio(); float pu = plajahPunch();
+  vec2 uv = (C - 0.5*iResolution.xy)/iResolution.y;
+  float asp = iResolution.x/iResolution.y;
+  vec3 paper = hx(0xDCD2BB), ink = hx(0x26302D), rust = hx(0xB44932),
+       teal = hx(0x2E6F68), ochre = hx(0xC18D35), blue = hx(0x4D5E87);
+  float px = 1.0/iResolution.y;
+
+  // Laid paper, printed rather than lit.
+  vec3 col = paper - vec3(0.030, 0.028, 0.024)*fbm(uv*8.0, 3)*0.7 - vec3(0.018)*vnoise(C*2.0);
+
+  // Graticule: the frame every reading is placed on.
+  vec2 gr = abs(fract(uv*4.0 + 0.5) - 0.5)/max(fwidth(uv*4.0), 1e-4);
+  col = mix(col, blue, (1.0 - smoothstep(0.5, 1.4, min(gr.x, gr.y)))*0.16);
+
+  // Landmass: a contoured coast, drawn not blurred. fwidth keeps the isolines one pixel wide.
+  float h = fbm(uv*1.9 + vec2(iTime*0.012, 0.0), 4);
+  float land = smoothstep(0.48, 0.52, h);
+  col = mix(col, mix(paper, teal, 0.20), land*0.55);
+  float bands = h*13.0;
+  float iso = abs(fract(bands) - 0.5)/max(fwidth(bands), 1e-4);
+  col = mix(col, teal, (1.0 - smoothstep(0.6, 1.5, iso))*0.34*land);
+  col = mix(col, ink, faLine(h - 0.50, 0.004)*0.8);                    // the coastline itself
+
+  // The traverse, and its stations: the route the field notes were taken along.
+  float ry = sin(uv.x*1.8 + 0.4)*0.15 + 0.02;
+  col = mix(col, rust, faLine(uv.y - ry, 0.0035)*0.9);
+  for (int i = 0; i < 8; i++){
+    float fi = float(i);
+    float sx = -asp*0.42 + fi*(asp*0.84/7.0);
+    vec2 st = vec2(sx, sin(sx*1.8 + 0.4)*0.15 + 0.02);
+    float e = comp(SPEC(0.008 + fi*0.026), 0.3);
+    float d = length(uv - st);
+    col = mix(col, paper, smoothstep(0.016, 0.012, d));               // knocked-out halo
+    col = mix(col, i == 3 ? rust : ink, smoothstep(0.011, 0.007, d)); // the station dot
+    // A field reading rising off each station, in the DOT vocabulary this council uses.
+    for (int k = 0; k < 4; k++){
+      float fk = float(k);
+      float dd = length(uv - (st + vec2(0.0, 0.030 + fk*0.026)));
+      col = mix(col, ochre, smoothstep(0.0075, 0.004, dd)*step(fk, e*4.0));
+    }
+  }
+
+  // Field notes in the margin: ruled slugs, the way a surveyor's book actually looks.
+  for (int i = 0; i < 7; i++){
+    float fi = float(i);
+    float y = 0.34 - fi*0.030;
+    float w = 0.13 + 0.07*fract(sin(fi*3.7)*43758.5453);
+    float slug = step(-asp*0.5 + 0.03, uv.x)*step(uv.x, -asp*0.5 + 0.03 + w)
+               * step(y, uv.y)*step(uv.y, y + 0.010);
+    col = mix(col, ink, slug*0.45);
+  }
+  // Material samples: the swatch strip that ties the sheet to a real place.
+  for (int i = 0; i < 4; i++){
+    float fi = float(i);
+    vec3 sw = i == 0 ? rust : i == 1 ? teal : i == 2 ? ochre : blue;
+    float box = step(asp*0.5 - 0.20, uv.x)*step(uv.x, asp*0.5 - 0.20 + 0.040)
+              * step(-0.36 + fi*0.052, uv.y)*step(uv.y, -0.36 + fi*0.052 + 0.038);
+    col = mix(col, sw, box*(0.75 + comp(a.pres, 0.35)*0.25));
+  }
+  // Scale bar, and a north mark.
+  float bar = step(-asp*0.5 + 0.03, uv.x)*step(uv.x, -asp*0.5 + 0.19)
+            * step(-0.40, uv.y)*step(uv.y, -0.392);
+  col = mix(col, ink, bar*0.8);
+  col = mix(col, ink, faLine(length(uv - vec2(asp*0.5 - 0.06, 0.40)) - 0.020, 0.003)*0.7);
+  col = mix(col, rust, smoothstep(0.008, 0.004, length(uv - vec2(asp*0.5 - 0.06, 0.415)))*(0.6 + pu*0.4));
+
+  o = vec4(clamp(col, 0.0, 1.0), 1.0);
+}`
   }
 ];
