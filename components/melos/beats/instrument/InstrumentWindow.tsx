@@ -5,9 +5,10 @@
 // The panel bodies render inside as children (with their own deep editors overlaying the window).
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { X, ChevronLeft, ChevronRight, Circle, Save, Trash2 } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Circle, Save, Trash2, LayoutGrid } from 'lucide-react';
 import type { ArrangeTrack, GrooveDoc, InstrumentType } from '../../../../services/melos/beats/grooveDoc';
 import { instrumentLabel, instrumentColor } from '../../../../services/melos/beats/instrumentFactory';
+import { PresetGallery } from './PresetGallery';
 import {
   listPresets, applyPresetToDoc, pushTrackPatch, saveUserPreset, deleteUserPreset, type PresetEntry,
 } from '../../../../services/melos/beats/presetHub';
@@ -53,6 +54,7 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
   const type = (track.instrument?.type ?? 'onda') as InstrumentType;
   const accent = instrumentColor(type);
   const label = instrumentLabel(type);
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   const [geo, setGeo] = useState<Geometry>(() => {
     const saved = loadGeo(type);
@@ -209,6 +211,14 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
             <button onClick={() => stepPreset(1)} className="w-5 h-6 grid place-items-center text-white/40 hover:text-white" aria-label="Next preset"><ChevronRight size={12} /></button>
           </div>
         )}
+        {presets.length > 0 && (
+          <button
+            onClick={() => setGalleryOpen(true)}
+            className="w-7 h-7 grid place-items-center rounded-lg border border-white/10 text-white/45 hover:text-white"
+            title="Browse presets with covers"
+            aria-label="Browse preset library"
+          ><LayoutGrid size={12} /></button>
+        )}
         <button
           onClick={savePreset}
           className="w-7 h-7 grid place-items-center rounded-lg border border-white/10 text-white/45 hover:text-white"
@@ -265,6 +275,16 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
         style={{ background: 'linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.22) 50%)' }}
         aria-label="Resize window"
       />
+
+      {galleryOpen && (
+        <PresetGallery
+          presets={presets}
+          engineLabel={label}
+          currentName={track.instrument?.presetName}
+          onPick={(pp) => { if (pp.id) applyPreset(pp.id); }}
+          onClose={() => setGalleryOpen(false)}
+        />
+      )}
     </div>
   );
 };
