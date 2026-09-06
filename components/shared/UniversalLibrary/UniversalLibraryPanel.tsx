@@ -10,7 +10,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { LibraryTile } from './LibraryTile';
 import {
   presetShelf, filterItems, LIBRARY_SOURCES, LIBRARY_FILTERS,
-  type LibraryItem, type LibrarySourceId, type LibraryFilter,
+  type LibraryItem, type LibrarySourceId, type LibraryFilter, type LibraryKind,
 } from '../../../services/universalLibrary/libraryModel';
 import { listHqAssets, type OrgAsset, type OwnerScope } from '../../../services/orgAssets';
 
@@ -21,8 +21,14 @@ export interface UniversalLibraryProps {
   storageKey?: string;
   /** Optional DAM scopes; when present, Personal/Org/Business load real assets. */
   scopes?: { personal?: OwnerScope; org?: OwnerScope; business?: OwnerScope };
+  /** Restrict the Presets shelf to the kinds this host app can use (e.g. Pixels = shader/gen). */
+  accepts?: LibraryKind[];
   /** What "Use / Add" does in the host app. */
   onUse?: (item: LibraryItem) => void;
+  /** Optional import affordance (e.g. Pixels ISF import) shown in the toolbar. */
+  onImport?: () => void;
+  /** Extra control rendered in the title bar (e.g. a switch back to a classic view). */
+  headerExtra?: React.ReactNode;
   onClose?: () => void;
 }
 
@@ -44,7 +50,7 @@ function orgAssetToItem(a: OrgAsset, source: LibrarySourceId): LibraryItem {
   };
 }
 
-export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent = '#D40055', side = 'right', storageKey, scopes, onUse, onClose }) => {
+export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent = '#D40055', side = 'right', storageKey, scopes, accepts, onUse, onImport, headerExtra, onClose }) => {
   const [geo, setGeo] = useState<Geo>(() => loadGeo(storageKey));
   const [source, setSource] = useState<LibrarySourceId>('presets');
   const [filter, setFilter] = useState<LibraryFilter>('all');
@@ -70,10 +76,10 @@ export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent 
   }, [source, scopes, assets]);
 
   const raw: LibraryItem[] | 'loading' | 'later' = useMemo(() => {
-    if (source === 'presets') return presetShelf();
+    if (source === 'presets') { const all = presetShelf(); return accepts && accepts.length ? all.filter((it) => accepts.includes(it.kind)) : all; }
     if (source === 'community' || source === 'stock') return 'later';
     return assets[source] === 'loading' ? 'loading' : (assets[source] || []);
-  }, [source, assets]);
+  }, [source, assets, accepts]);
 
   const items = useMemo(() => (Array.isArray(raw) ? filterItems(raw, filter, query) : []), [raw, filter, query]);
 
@@ -134,7 +140,8 @@ export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent 
         <span style={{ width: 26, height: 26, borderRadius: 8, background: `linear-gradient(135deg,#6B0099,${accent})`, display: 'grid', placeItems: 'center', fontSize: 13, flex: 'none' }}>▦</span>
         <b style={{ fontFamily: 'var(--disp,"Space Grotesk",sans-serif)', fontWeight: 700, fontSize: 13 }}>Library</b>
         <span style={{ fontFamily: 'var(--mono,monospace)', fontSize: 9, color: 'var(--pj-muted,#877E9B)' }}>// {source}</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 3 }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 3, alignItems: 'center' }}>
+          {headerExtra}
           {([['docked', '▐', 'Dock'], ['floating', '❐', 'Float'], ['collapsed', '⟨', 'Collapse']] as const).map(([st, ic, tt]) => (
             <button key={st} onClick={() => setDock(st)} title={tt} style={winBtn(geo.dock === st, accent)}>{ic}</button>
           ))}
@@ -165,12 +172,13 @@ export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent 
             ))}
           </div>
           {/* search */}
-          <div style={{ padding: '6px 9px', flex: 'none' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 28, padding: '0 9px', borderRadius: 8, background: 'var(--ground-2,#0B0910)', border: '1px solid var(--pj-border,rgba(255,255,255,.09))' }}>
+          <div style={{ padding: '6px 9px', flex: 'none', display: 'flex', gap: 6 }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, height: 28, padding: '0 9px', borderRadius: 8, background: 'var(--ground-2,#0B0910)', border: '1px solid var(--pj-border,rgba(255,255,255,.09))' }}>
               <span style={{ color: 'var(--pj-muted,#877E9B)', fontSize: 12 }}>⌕</span>
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search the library…"
                 style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', color: 'var(--ink,#F5F2F9)', fontSize: 11.5 }} />
             </div>
+            {onImport && <button onClick={onImport} title="Import" style={{ flex: 'none', height: 28, padding: '0 10px', borderRadius: 8, border: `1px solid ${accent}`, background: 'transparent', color: '#fff', fontSize: 11, cursor: 'pointer' }}>＋</button>}
           </div>
           {/* grid / empty states */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '2px 9px 9px', minHeight: 0 }}>
