@@ -113,7 +113,7 @@ export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent 
   if (geo.dock === 'collapsed') {
     return (
       <div className="ul-collrail" onClick={() => setDock('docked')} title="Expand the library"
-        style={{ width: 46, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '14px 0', cursor: 'pointer', background: 'var(--pj-glass-2, rgba(255,255,255,.05))', [side === 'right' ? 'borderLeft' : 'borderRight']: '1px solid var(--pj-border, rgba(255,255,255,.09))' }}>
+        style={{ width: 46, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '14px 0', cursor: 'pointer', background: '#141019', [side === 'right' ? 'borderLeft' : 'borderRight']: '1px solid var(--pj-border, rgba(255,255,255,.09))' }}>
         <span style={{ width: 26, height: 26, borderRadius: 8, background: `linear-gradient(135deg,#6B0099,${accent})`, display: 'grid', placeItems: 'center', fontSize: 12 }}>▦</span>
         <span style={{ writingMode: 'vertical-rl', fontFamily: 'var(--mono, monospace)', fontSize: 9, letterSpacing: '.18em', color: 'var(--pj-muted,#877E9B)', textTransform: 'uppercase' }}>Library</span>
         {['#D40055', '#00DAF3', '#FF8C00'].map((c) => <span key={c} style={{ width: 7, height: 7, borderRadius: 4, background: c }} />)}
@@ -129,7 +129,7 @@ export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent 
   return (
     <div ref={rootRef} className="ul-panel" style={{
       ...shellStyle, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden',
-      background: 'linear-gradient(180deg, var(--pj-glass-2,rgba(255,255,255,.05)), var(--ground-2,#0B0910))',
+      background: 'linear-gradient(180deg, #17121f 0%, #0b0910 100%)',
       color: 'var(--ink,#F5F2F9)', fontFamily: 'var(--body,Inter,system-ui,sans-serif)', fontSize: 13,
       // @ts-ignore custom prop
       '--ul-accent': accent,
