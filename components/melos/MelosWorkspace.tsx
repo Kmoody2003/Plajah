@@ -29,6 +29,8 @@ import {
 } from '../../services/melosService';
 
 import { auth } from '../../services/firebase';
+import { newGrooveDoc } from '../../services/melos/beats/grooveDoc';
+import { saveGroove } from '../../services/melos/beats/grooveStore';
 import { uploadFile } from '../../services/backendService';
 import { isDemoMode, subscribeDemoMode } from '../../services/demoMode';
 import { useViewport } from '../../hooks/useViewport';
@@ -160,9 +162,11 @@ const BeatsHost: React.FC = () => {
     <div className="relative h-full">
       <Suspense fallback={<div className="h-full grid place-items-center" style={{ background: '#0A0A0D' }}><Loader2 size={20} className="animate-spin text-white/40" /></div>}>
         <BeatsRoom
+          key={selectedSong?.grooveId || selectedSong?.id || 'blank'}
           embedded
           onClose={() => { /* the shell's own rail owns navigation */ }}
           production={{ prodId }}
+          payload={selectedSong?.grooveId ? { grooveId: selectedSong.grooveId, productionId: prodId } : null}
           melosSamples={melosSamples}
           onRenderTake={selectedSong ? (t) => { void onRenderTake(t); } : undefined}
           takeTargetName={selectedSong?.title}
@@ -283,10 +287,14 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
   const dropSong = useCallback((id: string) => { if (canWrite(prodId)) removeSong(prodId, id); }, [prodId, DEMO_ID]);
   const addSong = useCallback(() => {
     if (!canWrite(prodId)) return;
-    const s = newSong(songs.length, { title: 'Untitled' });
+    // Every song owns its own blank .dawproject (GrooveDoc). Create it now and link it, so
+    // opening the song in Melos Studio loads THIS project — never another song's clips.
+    const groove = newGrooveDoc(auth.currentUser?.uid || '', 'Untitled');
+    const s = newSong(songs.length, { title: 'Untitled', grooveId: groove.id });
     putSong(prodId, s);
+    void saveGroove(prodId, groove);
     setSelectedSongId(s.id);
-    setRoom('pad');
+    setRoom('beats');
   }, [prodId, songs.length, DEMO_ID]);
 
   const saveArrangement = useCallback((a: MelosArrangement) => { if (canWrite(prodId)) putArrangement(prodId, a); }, [prodId, DEMO_ID]);

@@ -164,7 +164,13 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
       // previous session's clips. Saved grooves are still one click away in the groove list.
       if (launchGrooveId) {
         const loaded = await loadGroove(prodIdRef.current, launchGrooveId);
-        if (!cancelled && loaded) { replace(loaded); setSaveState('saved'); return; }
+        if (cancelled) return;
+        if (loaded) { replace(loaded); setSaveState('saved'); return; }
+        // A brand-new song's project may not have finished its first save yet. Start blank but
+        // UNDER the linked id, so the very first edit autosaves back to the song's project.
+        const blank = newGrooveDoc(auth.currentUser?.uid || '', 'Untitled');
+        blank.id = launchGrooveId;
+        replace(blank); setSaveState('unsaved'); return;
       }
       setSaveState('unsaved'); // fresh blank doc, autosaves on first edit
     };
