@@ -9045,15 +9045,15 @@ const CSS = `
 .tl-commandbar{flex:0 0 auto;flex-wrap:wrap;position:relative;z-index:5;background:var(--panel,#17161c);border-bottom:1px solid var(--w08)}
 .zoomer{display:flex;align-items:center;gap:8px}
 .zoomer input{width:110px;accent-color:#f97316}
-.tl-scroll{flex:1 1 auto;overflow-x:auto;overflow-y:auto;position:relative;min-height:0}
+.tl-scroll{isolation:isolate;flex:1 1 auto;overflow-x:auto;overflow-y:auto;position:relative;min-height:0}
 .tl-scroll::-webkit-scrollbar{width:12px;height:12px}
 .tl-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:6px;border:3px solid transparent;background-clip:padding-box}
 .tl-scroll::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.4);background-clip:padding-box}
 .tl-inner{position:relative;min-height:min-content}
-.ruler{display:flex;height:22px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(16,16,22,.82);backdrop-filter:blur(8px);z-index:6}
+.ruler{display:flex;height:22px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#16161c;z-index:20}
 .trackhead{width:128px;min-width:128px;max-width:128px;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:3px;
   padding:4px 8px;font-size:9px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;position:sticky;left:0;
-  background:rgba(22,22,28,.94);z-index:5;overflow:hidden}
+  background:#16161c;z-index:10;overflow:hidden}
 .trackhead.video{color:var(--blue);--tab:var(--blue)} .trackhead.audio{color:var(--green);--tab:var(--green)}
 .trackhead.subtitle{color:var(--blue);--tab:var(--blue)}
 .trackhead::before{content:"";position:absolute;left:0;top:5px;bottom:5px;width:3px;border-radius:0 2px 2px 0;
@@ -9144,7 +9144,7 @@ const CSS = `
 .track{display:flex;height:50px;border-bottom:1px solid var(--line-2)}
 .track.audio{height:66px}
 .track.primary .trackbody{background:rgba(255,255,255,.025)}
-.trackbody{flex:1;position:relative;background-image:linear-gradient(to right,var(--line-2) 1px,transparent 1px);background-size:46px 100%}
+.trackbody{flex:1;min-width:0;position:relative;isolation:isolate;z-index:0;background-image:linear-gradient(to right,var(--line-2) 1px,transparent 1px);background-size:46px 100%}
 .clip{position:absolute;top:4px;bottom:4px;border-radius:6px;overflow:hidden;cursor:grab;user-select:none;contain:layout paint;
   display:flex;flex-direction:column;justify-content:center;padding:0 8px;border:1px solid}
 .clip.script{background:linear-gradient(180deg,rgba(249,115,22,.34),rgba(249,115,22,.2));border-color:rgba(249,140,60,.7);border-style:dashed}
@@ -9361,7 +9361,7 @@ const CSS = `
 /* keyframe LANE under the selected clip's track (Mockup C) */
 .kflane{display:flex;background:rgba(168,85,247,.05);border-bottom:1px solid var(--line-2, rgba(255,255,255,.08))}
 .kflhead{width:128px;min-width:128px;max-width:128px;border-right:1px solid var(--line, rgba(255,255,255,.13));
-  padding:5px 8px;display:flex;flex-direction:column;gap:3px;position:sticky;left:0;background:rgba(22,22,28,.94);z-index:5}
+  padding:5px 8px;display:flex;flex-direction:column;gap:3px;position:sticky;left:0;background:#16161c;z-index:10}
 .kflbody{flex:1;position:relative;padding:3px 0}
 .kflrow{height:16px;position:relative}
 .kflrow em{position:absolute;left:6px;top:2px;font-style:normal;font-size:6.5px;font-weight:900;
