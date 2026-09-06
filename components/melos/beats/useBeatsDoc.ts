@@ -159,12 +159,14 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
       const list = await listGrooves(prodIdRef.current);
       if (cancelled) return;
       setGrooves(list);
-      const target = launchGrooveId || list[0]?.id;
-      if (target) {
-        const loaded = await loadGroove(prodIdRef.current, target);
+      // Only open a groove the caller explicitly asked for. A fresh Studio session (or a New
+      // Song) must be a BLANK timeline — do NOT auto-resume list[0], which showed the user a
+      // previous session's clips. Saved grooves are still one click away in the groove list.
+      if (launchGrooveId) {
+        const loaded = await loadGroove(prodIdRef.current, launchGrooveId);
         if (!cancelled && loaded) { replace(loaded); setSaveState('saved'); return; }
       }
-      setSaveState('unsaved'); // fresh doc, will autosave on first edit
+      setSaveState('unsaved'); // fresh blank doc, autosaves on first edit
     };
     if (auth.currentUser) void attach();
     const unsub = auth.onAuthStateChanged((u) => { if (u && !prodIdRef.current) void attach(); });
