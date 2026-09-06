@@ -28,6 +28,7 @@ import {
   getMasterInput, getFxSends, needsCors,
 } from './audioGraph';
 import { resolveMediaSource } from './mediaSource';
+import { FxChainHost } from './audioFx';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -256,6 +257,7 @@ export function warmAudio(clips: any[], mediaPool: any[]) {
 
 interface TrackBus {
   input: GainNode; eq: BiquadFilterNode[]; comp: DynamicsCompressorNode; mk: GainNode;
+  insertHost: FxChainHost;  // Melos-shared FX insert chain (empty = passthrough)
   pan: StereoPannerNode | null; gain: GainNode; analyser: AnalyserNode;
   sendR: GainNode; sendD: GainNode; meterBuf: Float32Array;
 }
@@ -286,13 +288,18 @@ function getTrackBus(trackId: string): TrackBus | null {
   const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
   const gain = ctx.createGain();
   const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.2;
-  const chain: AudioNode[] = [input, ...eq, comp, mk, ...(pan ? [pan] : []), gain, analyser, master];
-  for (let i = 0; i < chain.length - 1; i++) chain[i].connect(chain[i + 1]);
+  // Per-track FX insert chain (Melos's shared devices). Sits post-EQ/comp, pre-fader.
+  // Empty by default → internal passthrough, so this is a no-op until inserts are set.
+  const insertHost = new FxChainHost(ctx);
+  const head: AudioNode[] = [input, ...eq, comp, mk, insertHost.input];
+  const tail: AudioNode[] = [insertHost.output, ...(pan ? [pan] : []), gain, analyser, master];
+  for (let i = 0; i < head.length - 1; i++) head[i].connect(head[i + 1]);
+  for (let i = 0; i < tail.length - 1; i++) tail[i].connect(tail[i + 1]);
   const fx = getFxSends();
   const sendR = ctx.createGain(); sendR.gain.value = 0;
   const sendD = ctx.createGain(); sendD.gain.value = 0;
   if (fx) { gain.connect(sendR); sendR.connect(fx.reverbSend); gain.connect(sendD); sendD.connect(fx.delaySend); }
-  const bus: TrackBus = { input, eq, comp, mk, pan, gain, analyser, sendR, sendD, meterBuf: new Float32Array(analyser.fftSize) };
+  const bus: TrackBus = { input, eq, comp, mk, insertHost, pan, gain, analyser, sendR, sendD, meterBuf: new Float32Array(analyser.fftSize) };
   trackBuses.set(trackId, bus);
   // this bus owns the track's meter from now on (created lazily — register here, not at start)
   meterRegistry.set(trackId, () => {
@@ -304,6 +311,7 @@ function getTrackBus(trackId: string): TrackBus | null {
 function applyTrack(bus: TrackBus, ts: any) {
   applyBand(bus.eq, ts?.eq);
   applyComp(bus.comp, bus.mk, ts?.comp);
+  bus.insertHost.setChain(Array.isArray(ts?.inserts) ? ts.inserts : []);
   if (bus.pan) bus.pan.pan.value = clamp(ts?.pan || 0, -1, 1);
   const muted = !!ts?.mute;
   bus.gain.gain.value = muted ? 0 : Math.max(0, ts?.vol == null ? 1 : ts.vol);
