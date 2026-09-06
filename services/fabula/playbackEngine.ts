@@ -155,13 +155,7 @@ function evictLRU(needed: number) {
   }
 }
 
-async function fetchBytes(url: string): Promise<ArrayBuffer> {
-  // A hung fetch (cold cloud URL) must not leave a clip silently "pending" forever —
-  // time out and hand the clip to the element fallback, which streams progressively.
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 20000);
-  try {
-  const res = await fetch(url, { ...(needsCors(url) ? { mode: 'cors' as RequestMode } : {}), signal: ac.signal });
+async function readStream(res: Response): Promise<ArrayBuffer> {
   if (!res.ok) throw new Error('http ' + res.status);
   const len = Number(res.headers.get('content-length') || 0);
   if (len > MAX_FETCH_BYTES) throw new Error('Streaming audio: source exceeds in-memory budget');
@@ -178,6 +172,27 @@ async function fetchBytes(url: string): Promise<ArrayBuffer> {
   const bytes = new Uint8Array(size); let offset = 0;
   for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
   return bytes.buffer;
+}
+
+async function fetchBytes(url: string): Promise<ArrayBuffer> {
+  // A hung fetch (cold cloud URL) must not leave a clip silently "pending" forever —
+  // time out and hand the clip to the element fallback, which streams progressively.
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 20000);
+  try {
+    try {
+      const res = await fetch(url, { ...(needsCors(url) ? { mode: 'cors' as RequestMode } : {}), signal: ac.signal });
+      return await readStream(res);
+    } catch (err) {
+      // A cross-origin source whose bucket sends no CORS headers can't be read
+      // directly (and would taint an <audio> element to silence too). Retry once
+      // through our own same-origin proxy so it still decodes to a BUFFER and plays
+      // THROUGH the mixer — metered/faded/muteable — instead of dropping out of the
+      // mix. The proxy is same-origin, so this branch can never recurse on itself.
+      if (!needsCors(url) || ac.signal.aborted) throw err;
+      const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`, { signal: ac.signal });
+      return await readStream(res);
+    }
   } finally { clearTimeout(timer); }
 }
 
