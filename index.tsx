@@ -37,6 +37,7 @@ const PrompterScreen = React.lazy(() => import('./components/teleprompter/Prompt
 // OWN minimal entry — BEFORE <App/> and its auth gate — so a logged-out external reviewer
 // lands straight on the review UI and never flashes the marketing/login screen.
 const HqReviewPublic = React.lazy(() => import('./components/HqReviewPublic'));
+const UniversalLibraryLab = React.lazy(() => import('./components/shared/UniversalLibrary/UniversalLibraryLab'));
 const reviewMatch = window.location.pathname.match(/^\/review\/([A-Za-z0-9_-]+)\/?$/);
 const reviewToken = new URLSearchParams(window.location.search).get('t') || '';
 
@@ -309,6 +310,7 @@ function dismissBootSplash(): void {
 
 const search = new URLSearchParams(window.location.search);
 const isProgramOut = search.get('programOut') === '1';
+const isUlLab = search.get('ullab') === '1';
 const isPrompterWindow = search.get('role') === 'prompter';
 
 if (isProgramOut) {
@@ -317,6 +319,15 @@ if (isProgramOut) {
     <ErrorBoundary>
         <React.Suspense fallback={<div style={{ width: '100vw', height: '100vh', background: '#000' }} />}>
           <ProgramOutView />
+        </React.Suspense>
+      </ErrorBoundary>
+  );
+} else if (isUlLab) {
+  // Dev harness for the Universal Library — no platform shell, no auth.
+  root.render(
+    <ErrorBoundary>
+        <React.Suspense fallback={<div style={{ width: '100vw', height: '100vh', background: '#08070C' }} />}>
+          <UniversalLibraryLab />
         </React.Suspense>
       </ErrorBoundary>
   );
