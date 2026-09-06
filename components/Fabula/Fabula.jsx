@@ -1,3 +1,6 @@
+import MediaRepair from './MediaRepair';
+import { reportMediaHealth } from '../../services/fabula/mediaHealth';
+import { buildEditingProxy } from '../../services/fabula/proxyBuilder';
 import IndexedVideoCanvas from './IndexedVideoCanvas';
 import { indexedVideoAvailable } from '../../services/mediaEngine/indexedVideo';
 import PanelDivider from "./PanelDivider";
@@ -691,6 +694,9 @@ export default function Fabula() {
   const [wipeStill, setWipeStill] = useState(null);   // still id wiped against the grade monitor
   const [wipePos, setWipePos] = useState(0.5);        // wipe divider 0..1
   const [binFilter, setBinFilter] = useState("all");
+  const sourceLeaseRef = useRef(null);
+  const sourceRequestRef = useRef(0);
+  useEffect(()=>()=>sourceLeaseRef.current?.release(),[]);
   const [previewAsset, setPreviewAsset] = useState(null); // source viewer (dual canvas, à la resolve)
   const [srcPlaying, setSrcPlaying] = useState(false);
   const [srcTc, setSrcTc] = useState(0);
@@ -722,6 +728,7 @@ export default function Fabula() {
   const [folderSyncing, setFolderSyncing] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(null);   // top menu bar: 'File' | 'Edit' | 'View' | 'Clip' | 'Help'
+  const [repairTab, setRepairTab] = useState(false);
   const [poolSel, setPoolSel] = useState([]);       // selected media-pool asset ids (multi-select)
   const [poolCtx, setPoolCtx] = useState(null);     // media-pool right-click menu { x, y }
   const [marquee, setMarquee] = useState(null);     // rubber-band selection rect { x0, y0, x1, y1 }
@@ -746,6 +753,10 @@ export default function Fabula() {
       { id: "split", label: "Split at playhead", icon: <Scissors size={14} />, onSelect: bladeAtPlayhead },
       { id: "dup", label: "Duplicate", icon: <Plus size={14} />, onSelect: duplicateSel },
     ];
+    if (c.assetId) items.push(
+      {id:"relink",label:"Relink source file…",onSelect:()=>openRelink(c.assetId)},
+      {id:"repair",label:"Show in Media repair",onSelect:()=>{setPoolSel([c.assetId]);setRepairTab(true);setEditWs("media");const a=prod.mediaPool.find(x=>x.id===c.assetId);if(a)openInViewer(a,false);}}
+    );
     if (c.assetId && c.trackId?.startsWith("v") && !c.av) {
       items.push({ id: "detach", label: "Split audio to track", icon: <Music size={14} />, shortcut: (selIds.length > 1 && selIds.includes(c.id)) ? `×${selIds.length}` : undefined, onSelect: () => detachAudio(c.id) });
     }
@@ -1981,15 +1992,32 @@ export default function Fabula() {
     return null;
   };
   // Load an asset into the source viewer; `play` = double-click behaviour (start playing).
-  const openInViewer = (a, play) => {
-    activeViewerRef.current = "source";
-    setPreviewAsset(a); setSrcTc(0);
-    const playable = play && a?.url && (a.type === "video" || a.type === "audio");
-    srcWantPlayRef.current = !!playable;
-    setSrcPlaying(!!playable);
+  const openInViewer = async (a, play) => {
+    activeViewerRef.current="source";
+    const request=++sourceRequestRef.current;sourceLeaseRef.current?.release();sourceLeaseRef.current=null;
+    setPreviewAsset(a ? {...a,url:null}:null);setSrcTc(0);setSrcPlaying(false);srcWantPlayRef.current=false;
+    if(!a)return;
+    try {const source=await resolveMediaSource(a);if(request!==sourceRequestRef.current){source.release();return;}
+      sourceLeaseRef.current=source;setPreviewAsset({...a,url:source.url});srcWantPlayRef.current=!!play;setSrcPlaying(!!play);
+    }catch(error){reportMediaHealth(a.id,error.message);ping(error.message);}
   };
   // Relink an offline/missing asset to a local file (re-point its url).
-  const openRelink = (assetId) => { relinkTargetRef.current = assetId; relinkRef.current?.click(); };
+  const openRelink = (assetId) => {
+    const input=document.createElement("input");input.type="file";input.accept="video/*,audio/*,image/*,.wav,.mp4,.mov,.mkv,.flac";
+    input.onchange=async()=>{
+      const file=input.files?.[0];if(!file)return;
+      const previous=prod.mediaPool.find(a=>a.id===assetId);
+      const type=file.type.startsWith("audio") || /\.(wav|mp3|flac|aiff?|m4a|ogg)$/i.test(file.name) ? "audio" : file.type.startsWith("video") || /\.(mp4|mov|mkv|webm|m4v|avi)$/i.test(file.name) ? "video" : previous?.type || "image";
+      if(!await mediaPutBytes("studio:blob:"+assetId,file)){ping("Relink could not be saved locally. Free browser storage and retry.");return;}
+      await stDel("studio:proxy:"+assetId);
+      setProxies(current=>{const next=new Map(current);next.delete(assetId);return next;});
+      setPlaying(false);stopPlayback();
+      const url=URL.createObjectURL(file);
+      updateProd(p=>{const a=p.mediaPool.find(a=>a.id===assetId);if(a){a.url=url;a.name=file.name;a.type=type;a.size=file.size;a.offline=false;a.session=true;delete a.folderId;delete a.diskPath;delete a.diskName;}});
+      setPreviewAsset(a=>a?.id===assetId?{...a,url,type,name:file.name}:a);
+      ping("Source relinked and saved locally; outdated proxy removed.");
+    };input.click();
+  };
   // Media resolution hierarchy on load — LOCAL-FIRST. If this machine holds the original bytes
   // (IndexedDB stash), edit from them: frame-accurate, zero-network, full-res scrubbing. The
   // cloud copy (a.cloudUrl) is kept for portability; a machine WITHOUT the bytes (tablet/phone/
@@ -2032,10 +2060,10 @@ export default function Fabula() {
         const b = await stGet("studio:proxy:" + a.id);
         if (b && b.size) { try { found.push([a.id, URL.createObjectURL(b)]); } catch { /* */ } }
       }
-      if (alive && found.length) setProxies((cur) => new Map([...cur, ...found]));
+      if (alive) setProxies(new Map(found));
     })();
     return () => { alive = false; };
-  }, [prod?.id]);
+  }, [prod?.id, prod?.mediaPool?.map(a=>a.id).join("|")]);
   // Convert one asset to a proxy on the CROSSOVER CLOUD (server-side ffmpeg) — the path for
   // browsers without WebCodecs H.264 (phones/tablets) or when the local encode fails.
   const crossoverProxy = async (a) => {
@@ -2056,16 +2084,14 @@ export default function Fabula() {
     const webOk = await canTranscode();
     let n = 0, made = 0;
     for (const a of vids) {
+      if (editBusyRef.current) break;
       n++; setProxyBusy(`${n}/${vids.length} · ${a.name}`);
       try {
         if (await stGet("studio:proxy:" + a.id)) { n--; continue; } // raced another pass
         let proxy = null;
-        if (webOk) {
-          let blob = null;
-          try { const r = await fetch(a.url); blob = r.ok ? await r.blob() : null; } catch { blob = null; }
-          if (!blob || !blob.size) blob = await stGet("studio:blob:" + a.id);
-          if (blob && blob.size) proxy = await transcodeToProxy(blob, { maxW: 960, maxH: 540, fps: 30, gopSeconds: 0.5, maxSeconds: 300 });
-        }
+        let original=null;
+        try {original=await resolveMediaSource(a);const blob=original.blob || await (await fetch(original.url)).blob();proxy=await buildEditingProxy(blob);}
+        finally {original?.release();}
         if (!proxy) proxy = await crossoverProxy(a); // server-side ffmpeg (phones/tablets/long clips)
         if (proxy) {
           await stSet("studio:proxy:" + a.id, proxy);
@@ -2083,7 +2109,7 @@ export default function Fabula() {
   // asset (no local bytes on this machine — the tablet/phone/other-desk case). Local originals
   // never need proxies: they already play full-res with frame-accurate seeking.
   useEffect(() => {
-    if (!prod?.id || !proxyOn) return undefined;
+    if (!prod?.id || !proxyOn || playing) return undefined;
     const t = setTimeout(async () => {
       const remote = [];
       for (const a of (prod.mediaPool || [])) {
@@ -2095,7 +2121,7 @@ export default function Fabula() {
       if (remote.length) buildProxiesFor(remote, { silent: true });
     }, 4000);
     return () => clearTimeout(t);
-  }, [prod?.id, proxyOn]);
+  }, [prod?.id, proxyOn, playing]);
   // Source-viewer waveform scrubber: click/drag across the waveform to seek the source.
   const startSrcScrub = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -2232,7 +2258,7 @@ export default function Fabula() {
   // Batch relink from a folder: pick a folder, match each target asset by filename, re-point it.
   // targets = asset ids (null = all offline assets). "finds the clips again" workflow.
   const openFolderRelink = (targets) => { folderRelinkTargetsRef.current = targets && targets.length ? targets : null; folderRelinkRef.current?.click(); };
-  const relinkFromFolderFiles = (fileList) => {
+  const relinkFromFolderFiles = async (fileList) => {
     const files = Array.from(fileList || []);
     if (!files.length) return;
     const byName = new Map(); for (const f of files) byName.set((f.name || "").toLowerCase(), f);
@@ -2241,8 +2267,9 @@ export default function Fabula() {
     if (!targets.length) { ping("Nothing to relink — all selected media is already online."); folderRelinkTargetsRef.current = null; return; }
     const relinks = targets.map((a) => { const f = byName.get((a.name || "").toLowerCase()); return f ? { id: a.id, f, url: URL.createObjectURL(f) } : null; }).filter(Boolean);
     if (!relinks.length) { ping("No matching filenames found in that folder."); folderRelinkTargetsRef.current = null; return; }
-    for (const r of relinks) stSet("studio:blob:" + r.id, r.f); // stash bytes for reload + cloud sync
-    updateProd((p) => { for (const r of relinks) { const x = p.mediaPool.find((y) => y.id === r.id); if (x) { x.url = r.url; x.offline = false; x.session = true; } } });
+    for (const r of relinks) { if(!await mediaPutBytes("studio:blob:"+r.id,r.f)){ping("Relink could not persist local files");return;} await stDel("studio:proxy:"+r.id); } // stash bytes for reload + cloud sync
+    updateProd((p) => { for (const r of relinks) { const x = p.mediaPool.find((y) => y.id === r.id); if (x) { x.url = r.url; x.offline = false; x.session = true; delete x.folderId;delete x.diskPath;delete x.diskName; } } });
+    setProxies(current=>{const next=new Map(current);relinks.forEach(r=>next.delete(r.id));return next;});setPlaying(false);stopPlayback();
     ping(`🔗 Relinked ${relinks.length} of ${targets.length} clip${targets.length === 1 ? "" : "s"} from the folder.`);
     folderRelinkTargetsRef.current = null;
   };
@@ -4049,7 +4076,7 @@ export default function Fabula() {
     let changed = false;
     const mp = prod.mediaPool.map((a) => {
       const p = policy.proxies.get(a.id);
-      if (p && a.type === "video" && /^https?:/i.test(a.url || "")) { changed = true; return { ...a, url: p }; }
+      if (p && a.type === "video") { changed = true; return { ...a, previewProxy: true }; }
       return a;
     });
     return changed ? { ...prod, mediaPool: mp } : prod;
@@ -5809,7 +5836,7 @@ export default function Fabula() {
                                   className={`clip ${c.kind} ${tr.type === "video" ? "vid" : ""} ${sel ? "sel" : ""} ${shot?.status === "ready" ? "rdy" : ""} ${noMedia ? "nomedia" : ""}`}
                                   style={{ left: c.start * pxPerSec, width: Math.max(8, c.duration * pxPerSec), opacity: c.disabled ? 0.4 : 1, cursor: toolMode === "razor" ? "crosshair" : undefined }}
                                   onMouseDown={(e) => { if (toolMode === "razor") { e.stopPropagation(); razorAt(e, c.id); return; } onClipDown(e, c.id, "move"); }}
-                                  onClick={(e) => { e.stopPropagation(); if (toolMode !== "razor") setSelClipId(c.id); }}
+                                  onClick={(e) => { e.stopPropagation(); if (toolMode !== "razor") { setSelClipId(c.id); if(cAsset) { setPoolSel([cAsset.id]); openInViewer(cAsset,false); } } }}
                                   onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelClipId(c.id); clipMenu.openAt(e.clientX, e.clientY, c.id); }}
                                   onDoubleClick={(e) => { e.stopPropagation(); if (toolMode !== "razor") openNested(c); }}>
                                   {shot?.frameUrl && c.kind !== "voice" && <img className="clipframe" src={shot.frameUrl} alt="" />}
@@ -6880,7 +6907,9 @@ export default function Fabula() {
             {prod && container && (
               <>
                 {renderRoomToolbar()}
-                {editWs === "media" && (
+                {editWs === "media" && <div className="btnrow"><button className="minibtn" onClick={()=>setRepairTab(false)}>MEDIA POOL</button><button className="minibtn" onClick={()=>setRepairTab(true)}>MEDIA REPAIR</button></div>}
+                {editWs === "media" && repairTab && <MediaRepair assets={prod.mediaPool} selected={poolSel} onSelect={a=>{setPoolSel([a.id]);openInViewer(a,false);}} onRelink={openRelink} onReconnect={()=>rescanAll(true,true)} onBuildProxies={()=>buildProxiesFor()} />}
+                {editWs === "media" && !repairTab && (
                   <div className="mediaws glass-dark"
                     onDragOver={(e) => { if (e.dataTransfer?.types?.includes("Files")) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } }}
                     onDrop={async (e) => {
@@ -8159,14 +8188,14 @@ function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playin
     let alive = true; let source = null;
     setPlaybackSrc(null);
     setLoadState({ phase: "loading", pct: 0 });
-    if (asset?.type === "video") resolveMediaSource(asset, sourceRetry > 0).then((resolved) => {
+    if (asset?.type === "video") resolveMediaSource(asset, sourceRetry > 0, true).then((resolved) => {
       if (!alive) { resolved.release(); return; }
       source = resolved;
       setPlaybackSrc(resolved.url);
       setLoadState({ phase: "loading", pct: 0 });
-    }).catch(error => { if (alive) setLoadState({ phase: "error", pct: 0, message: error.message }); });
+    }).catch(error => { if (alive) {setLoadState({ phase: "error", pct: 0, message: error.message });reportMediaHealth(asset?.id,error.message);} });
     return () => { alive = false; source?.release(); };
-  }, [asset?.id, asset?.url, asset?.type, sourceRetry]);
+  }, [asset?.id, asset?.url, asset?.type, asset?.previewProxy, sourceRetry]);
 
   // Bound loading recovery. A seek finishing can produce a frame without a
   // playing event, so buffering must not remain latched after that frame arrives.
@@ -8300,6 +8329,7 @@ function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playin
         {hasForge && <ForgeClipPreview videoRef={renderRef} effects={fx.stack} mediaPool={prod?.mediaPool || []} cubeLut={activeCubeLut} time={Math.max(0, playhead - clip.start)} active={active} clipFx={fx} fps={prod?.defaults?.format?.fps || 24} />}
         {!indexedReady && playbackSrc && asset.type === "video" && <video ref={vRef} src={playbackSrc} className="mvid" style={hasForge ? { opacity: 0 } : undefined} muted={!active || !!mute || !!clip.disabled || !!clip.av || engineOwnsAudio || useIndexed} playsInline preload="auto" crossOrigin={needsCors(playbackSrc) ? "anonymous" : undefined} onLoadStart={() => setLoadState({ phase: "loading", pct: 0 })} onWaiting={() => setLoadState({ phase: "buffering", pct: 0 })} onPlaying={() => setLoadState({ phase: "ready", pct: 100 })} onLoadedData={() => { doSeek(); setLoadState({ phase: "ready", pct: 100 }); }} onCanPlay={() => { doSeek(); setLoadState({ phase: "ready", pct: 100 }); }} onSeeked={() => { if (!playing) doSeek(); if (vRef.current?.readyState >= 2) setLoadState({phase:"ready",pct:100}); }}
           onError={() => {
+            reportMediaHealth(asset?.id,vRef.current?.error?.code===3?"Video decode failed":"Video source unavailable or unsupported");
             if (sourceRetry === 0) setSourceRetry(1);
             else setLoadState({ phase: "error", pct: 0, message: vRef.current?.error?.code === 3 ? "VIDEO DECODE FAILED — file loaded, but the browser rejected its video stream" : "VIDEO SOURCE UNAVAILABLE — reconnect local folder or relink media" });
           }} />}
@@ -8412,7 +8442,7 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
     resolveMediaSource(asset, sourceRetry > 0).then((s) => {
       if (!alive) { s.release(); return; }
       source = s; setResolvedAudio({ id: asset?.id, original: asset?.url, url: s.url });
-    }).catch(error => { if (alive) setAudioError(error.message); });
+    }).catch(error => { if (alive) {setAudioError(error.message);reportMediaHealth(asset?.id,error.message);} });
     return () => { alive = false; source?.release(); };
   }, [asset?.id, asset?.url, sourceRetry]);
   const url = resolvedAudio?.id === asset?.id && resolvedAudio?.original === asset?.url ? resolvedAudio?.url : null;
@@ -8442,7 +8472,7 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
       if (!a.paused) a.pause();
       try { if (Math.abs(a.currentTime - offset) > 0.05) a.currentTime = Math.max(0, offset); } catch { /* seeking */ }
     }
-  }, [active, playhead, playing, url, clip.start, offset]);
+  }, [active, playhead, playing, url, clip.start, offset, wantCors]);
   // DSP strip: gain / pan / 5-band EQ / compressor at clip + track stage. Crucially, only route
   // through Web Audio ONCE THE CONTEXT IS RUNNING — a MediaElementSource on a suspended context is
   // silent, which killed all mixer-routed audio. Until running, the bare <audio> plays directly.
@@ -8467,7 +8497,7 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
       a.volume = Math.max(0, Math.min(1, cv * tv));
       a.muted = !!track.mute || !!clip.disabled;
     } else { a.muted = true; } // warm buffer — silent
-  }, [active, url, clipAudioKey, trackKey, clip.disabled, trackId, ctxTick]);
+  }, [active, url, clipAudioKey, trackKey, clip.disabled, trackId, ctxTick, wantCors]);
   // Release the meter when this track's clip goes silent/unmounts.
   useEffect(() => () => { if (trackId && meterRegistry.get(trackId) === graphRef.current?.level) meterRegistry.delete(trackId); }, [trackId]);
   const failure = active && audioError ? <div role="status" style={{position:"absolute",bottom:4,left:8,zIndex:100,color:"#ffbc80",background:"#171717",padding:6,fontSize:11}}>{asset?.name || "Audio"}: {audioError}</div> : null;
@@ -8486,6 +8516,7 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
     }}
     onError={() => {
       const code = aRef.current?.error?.code;
+      reportMediaHealth(asset?.id,code===3?"Audio decode failed":"Audio source unavailable or unsupported");
       if (sourceRetry === 0) { setSourceRetry(1); return; }
       if (wantCors && code !== 3) { setCorsFail(true); return; }
       setAudioError(code === 3 ? "DECODE FAILED — bytes loaded, but the browser rejected the audio stream" : "SOURCE UNAVAILABLE OR UNSUPPORTED — reconnect local folder or relink/convert this file");

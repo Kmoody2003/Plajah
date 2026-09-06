@@ -238,7 +238,10 @@ function applyBand(nodes: BiquadFilterNode[], eq: number[] | undefined) {
 function applyClean(hpf: BiquadFilterNode, lpf: BiquadFilterNode, hum: BiquadFilterNode, trim: GainNode, c: CleanSettings | undefined) {
   hpf.frequency.value = c && c.hpf > 0 ? clamp(c.hpf, 10, 2000) : 10;
   lpf.frequency.value = c && c.lpf > 0 ? clamp(c.lpf, 1000, 22000) : 22000;
-  if (c && c.hum) { hum.frequency.value = c.hum; hum.Q.value = 8; } else { hum.Q.value = 0.0001; }
+  // Q approaching zero broadens a notch across the audible spectrum; it is
+  // not a bypass. A zero-frequency notch has unity response above DC.
+  hum.frequency.value = c?.hum || 0;
+  hum.Q.value = 8;
   trim.gain.value = dbToGain(clamp(c?.trim || 0, -24, 24));
 }
 function applyComp(comp: DynamicsCompressorNode, makeup: GainNode, c: Partial<CompSettings> | undefined) {
@@ -283,7 +286,7 @@ export function attachAudioGraph(el: HTMLMediaElement): Graph | null {
   // Non-destructive cleanup pre-stage (AudioEditor). Start bypassed (extreme corners / notch off).
   const hpf = ctx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = 10; hpf.Q.value = 0.707;
   const lpf = ctx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 22000; lpf.Q.value = 0.707;
-  const hum = ctx.createBiquadFilter(); hum.type = 'notch'; hum.frequency.value = 60; hum.Q.value = 0.0001;
+  const hum = ctx.createBiquadFilter(); hum.type = 'notch'; hum.frequency.value = 0; hum.Q.value = 8;
   const trim = ctx.createGain(); trim.gain.value = 1;
   const clipEq = mkEq(), trackEq = mkEq();
   const clipComp = ctx.createDynamicsCompressor(), clipMk = ctx.createGain();

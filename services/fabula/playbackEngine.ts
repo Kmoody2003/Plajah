@@ -375,7 +375,7 @@ function scheduleEntry(e: PlanEntry, buf: AudioBuffer, lateBy = 0) {
   if (e.clean) {
     const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = clamp(e.clean.hpf || 10, 10, 2000); hp.Q.value = 0.707;
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = clamp(e.clean.lpf || 22000, 1000, 22000); lp.Q.value = 0.707;
-    const hum = ctx.createBiquadFilter(); hum.type = 'notch'; hum.frequency.value = e.clean.hum || 60; hum.Q.value = e.clean.hum ? 8 : 0.0001;
+    const hum = ctx.createBiquadFilter(); hum.type = 'notch'; hum.frequency.value = e.clean.hum || 0; hum.Q.value = 8;
     const trim = ctx.createGain(); trim.gain.value = Math.pow(10, clamp(e.clean.trim || 0, -24, 24) / 20);
     for (const n of [hp, hum, lp, trim]) { head.connect(n); head = n; nodes.push(n); }
   }
