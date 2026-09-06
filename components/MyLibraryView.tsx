@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { get, set } from 'idb-keyval';
 import { 
   Music, 
@@ -1167,7 +1168,8 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
         />
       )}
 
-      {/* Floating bulk-selection action bar */}
+      {/* Floating bulk-selection action bar — portaled so its fixed position tracks the viewport, not a transformed ancestor */}
+      {createPortal(
       <AnimatePresence>
         {selectMode && selectedTracks.length > 0 && !playlistPickerTracks && (
           <motion.div
@@ -1201,9 +1203,10 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
             </button>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
 
-      {/* Create Playlist Modal */}
+      {/* Create Playlist Modal — portaled so the fixed overlay centers in the viewport */}
+      {createPortal(
       <AnimatePresence>
         {isCreatePlaylistOpen && (
           <motion.div 
@@ -1249,7 +1252,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
     </div>
   );
 };

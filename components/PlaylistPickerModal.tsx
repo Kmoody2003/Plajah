@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Plus, Check, Minus, ListMusic, Loader2 } from 'lucide-react';
 import { Track, Playlist } from '../types';
@@ -96,7 +97,10 @@ const PlaylistPickerModal: React.FC<PlaylistPickerModalProps> = ({ track, tracks
     ? `${items.length} songs`
     : items[0]?.title || 'Track';
 
-  return (
+  // Portal to <body> so the fixed overlay is anchored to the viewport, not to any
+  // transformed ancestor (the locker's slide-in transform would otherwise trap it
+  // and drop it at the top of the scrolled page). Platform rule: overlays open in view.
+  return createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
@@ -214,7 +218,8 @@ const PlaylistPickerModal: React.FC<PlaylistPickerModalProps> = ({ track, tracks
           )}
         </motion.div>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 };
 
