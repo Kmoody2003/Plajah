@@ -13,6 +13,7 @@ import {
   type LibraryItem, type LibrarySourceId, type LibraryFilter, type LibraryKind,
 } from '../../../services/universalLibrary/libraryModel';
 import { listHqAssets, type OrgAsset, type OwnerScope } from '../../../services/orgAssets';
+import { auth } from '../../../services/firebase';
 
 export type DockState = 'docked' | 'floating' | 'collapsed';
 export interface UniversalLibraryProps {
@@ -68,7 +69,9 @@ export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent 
   useEffect(() => {
     if (source === 'presets' || source === 'community' || source === 'stock') return;
     if (assets[source] !== undefined) return;
-    const scope = scopes?.[source as 'personal' | 'org' | 'business'];
+    let scope = scopes?.[source as 'personal' | 'org' | 'business'];
+    // Personal falls back to the signed-in user's own DAM so it works in every host with no wiring.
+    if (!scope && source === 'personal' && auth.currentUser) scope = { kind: 'user', id: auth.currentUser.uid };
     if (!scope) { setAssets((m) => ({ ...m, [source]: [] })); return; }
     setAssets((m) => ({ ...m, [source]: 'loading' }));
     let alive = true;
