@@ -1,3 +1,8 @@
+import IndexedVideoCanvas from './IndexedVideoCanvas';
+import { indexedVideoAvailable } from '../../services/mediaEngine/indexedVideo';
+import PanelDivider from "./PanelDivider";
+import { timelineBoundaries, crossedTimelineBoundary } from "../../services/fabula/timelineBoundaries";
+import { resolveMediaSource } from "../../services/fabula/mediaSource";
 import { useState, useEffect, useRef, useMemo, memo, Fragment } from "react";
 import {
   Film, Music, Clapperboard, Layers, Play, Pause, SkipBack, Plus, Upload,
@@ -782,11 +787,16 @@ export default function Fabula() {
   const tlScrollRef = useRef(null);          // the scrolling timeline viewport (for zoom-to-fit width)
   const [tlHeight, setTlHeight] = useState(320); // resizable timeline height (drag the divider)
   // Resizable work sections (persisted): media-pool + inspector widths, pool view mode.
+  const [panelSizes, setPanelSizes] = useState(() => { try { return JSON.parse(localStorage.getItem("fabula:panels") || "{}"); } catch { return {}; } });
+  const panelSize = (key, fallback) => Number.isFinite(panelSizes[key]) ? panelSizes[key] : fallback;
+  const divider = (key, fallback, props = {}) => <PanelDivider label={"Resize " + key} value={panelSize(key, fallback)} onChange={(value) => setPanelSizes((old) => ({ ...old, [key]: value }))} {...props} />;
+  useEffect(() => { try { localStorage.setItem("fabula:panels", JSON.stringify(panelSizes)); } catch { /* optional */ } }, [panelSizes]);
   const [poolW, setPoolW] = useState(() => parseInt(localStorage.getItem("fabula:poolw"), 10) || 230);
   const [inspW, setInspW] = useState(() => parseInt(localStorage.getItem("fabula:inspw"), 10) || 262);
   const [poolView, setPoolView] = useState(() => localStorage.getItem("fabula:poolview") || "list"); // list | thumbs
   // Proxy media: 540p short-GOP instant-seek H.264 proxies per video asset (WebCodecs), stored in
   // IndexedDB. The MONITOR plays proxies (Resolve-style scrub perf); EXPORT always uses full-res.
+  const [indexedMode, setIndexedMode] = useState(() => localStorage.getItem("fabula:decoder") === "indexed");
   const [proxyOn, setProxyOn] = useState(() => (localStorage.getItem("fabula:proxy") ?? "1") === "1");
   const [proxies, setProxies] = useState(() => new Map()); // assetId → object URL of proxy blob
   const [proxyBusy, setProxyBusy] = useState(null);        // "2/7 · name" while building
@@ -993,14 +1003,7 @@ export default function Fabula() {
     // re-render), and setPlayhead only when the clock crosses a boundary. Editor re-renders
     // during playback drop from ~30/sec to roughly one per cut — the difference between
     // "web app scrubbing along" and native-feeling playback.
-    const marks = new Set([0]);
-    for (const c of clips) {
-      marks.add(+c.start.toFixed(3)); marks.add(+(c.start + c.duration).toFixed(3));
-      const fx = c.fx || {};
-      if (fx.fadeIn > 0) for (let t = 0.1; t <= fx.fadeIn; t += 0.1) marks.add(+(c.start + t).toFixed(3));
-      if (fx.fadeOut > 0) for (let t = 0.1; t <= fx.fadeOut; t += 0.1) marks.add(+(c.start + c.duration - t).toFixed(3));
-    }
-    const bounds = [...marks].sort((a, b) => a - b);
+    const bounds = timelineBoundaries(clips);
     // ── AUDIO-MASTERED TRANSPORT. At 1× the playhead derives from the playback
     // ENGINE's AudioContext clock (sample-accurate, immune to main-thread jank);
     // scheduled-buffer audio makes dropouts structurally impossible. The wall
@@ -1029,10 +1032,9 @@ export default function Fabula() {
         if (x < el.scrollLeft + 150 || x > el.scrollLeft + el.clientWidth - 90) el.scrollLeft = Math.max(0, x - el.clientWidth * .35);
       }
       if (tcRef.current) tcRef.current.textContent = fmtTc(cur, vfmt);
-      const lo = Math.min(prev, cur), hi = Math.max(prev, cur);
-      let crossed = false;
-      for (const b of bounds) { if (b > lo && b <= hi) { crossed = true; break; } if (b > hi) break; }
-      if (crossed) setPlayhead(Math.round(cur * fps) / fps);
+      // Clip membership uses the actual clock. Rounding here can select the
+      // outgoing clip and leave it active until the NEXT cut several seconds later.
+      if (crossedTimelineBoundary(bounds, prev, cur)) setPlayhead(cur);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -4037,16 +4039,21 @@ export default function Fabula() {
   // REMOTE URL. A local original (blob:) is already the best editing source: full-res,
   // frame-accurate, zero network — the proxy would be a downgrade. AudioLayer + the MP4 render
   // keep the ORIGINAL pool — proxies can be video-only and export must be full-res.
+  // A proxy finishing in the background must not replace a decoder's source
+  // mid-play. Adopt the new proxy map when transport is paused.
+  const previewSourcePolicy = useRef({ proxyOn, proxies });
+  if (!playing) previewSourcePolicy.current = { proxyOn, proxies };
   const monitorProd = useMemo(() => {
-    if (!proxyOn || !proxies.size || !prod?.mediaPool?.length) return prod;
+    const policy = previewSourcePolicy.current;
+    if (!policy.proxyOn || !policy.proxies.size || !prod?.mediaPool?.length) return prod;
     let changed = false;
     const mp = prod.mediaPool.map((a) => {
-      const p = proxies.get(a.id);
+      const p = policy.proxies.get(a.id);
       if (p && a.type === "video" && /^https?:/i.test(a.url || "")) { changed = true; return { ...a, url: p }; }
       return a;
     });
     return changed ? { ...prod, mediaPool: mp } : prod;
-  }, [prod, proxies, proxyOn]);
+  }, [prod, proxies, proxyOn, playing]);
 
   const selClip = clips.find((c) => c.id === selClipId);
   const selShot = selClip?.shotId ? scene?.shots.find((s) => s.id === selClip.shotId) : null;
@@ -4477,13 +4484,13 @@ export default function Fabula() {
                         const idxs = new Set();
                         // +2 lookahead: the clip after next starts decoding a full clip early, so even
                         // short clips cut to a warm buffer (black frames at cuts came from cold loads).
-                        if (curIdx >= 0) { idxs.add(curIdx - 1); idxs.add(curIdx); idxs.add(curIdx + 1); idxs.add(curIdx + 2); }
+                        if (curIdx >= 0) { idxs.add(curIdx); idxs.add(curIdx + (rateRef.current < 0 ? -1 : 1)); }
                         else { const nx = tclips.findIndex((c) => c.start >= playhead); if (nx >= 0) { idxs.add(nx - 1); idxs.add(nx); idxs.add(nx + 1); } else idxs.add(tclips.length - 1); }
                         const ts = (container.timeline?.trackSettings || {})[tr.id] || { vol: 1, mute: false };
                         return [...idxs].filter((idx) => idx >= 0 && idx < tclips.length).map((idx) => {
                           const c = tclips[idx];
                           const isActive = curIdx >= 0 && idx === curIdx;
-                          return <MonitorLayer key={c.id} clip={c} active={isActive} prod={monitorProd} scene={scene} playhead={playhead} playing={playing} top={i > 0} z={(i + 1) * 10 + (isActive ? 5 : 0)} videoRef={(i === 0 && isActive) ? videoRef : undefined} vol={ts.vol} mute={ts.mute} gpuMode={gpuMonitor} gpuReg={gpuRegRef.current} pinSource={c.fx?.pinTo?.clipId ? clips.find((x) => x.id === c.fx.pinTo.clipId) || null : null} />;
+                          return <MonitorLayer key={c.id} indexedMode={indexedMode && editWs === "edit"} clip={c} active={isActive} prod={monitorProd} scene={scene} playhead={playhead} playing={playing} top={i > 0} z={(i + 1) * 10 + (isActive ? 5 : 0)} videoRef={(i === 0 && isActive) ? videoRef : undefined} vol={ts.vol} mute={ts.mute} gpuMode={gpuMonitor} gpuReg={gpuRegRef.current} pinSource={c.fx?.pinTo?.clipId ? clips.find((x) => x.id === c.fx.pinTo.clipId) || null : null} />;
                         });
                       })}
                       {/* Audio bed — mount the live clip + the next one per track (double-buffered, gapless) */}
@@ -4505,7 +4512,7 @@ export default function Fabula() {
                           // decode — mounting an element too would double the sound. Elements remain only
                           // as the fallback for sources the engine marked unplayable (or no Web Audio).
                           const aAsset = prod.mediaPool.find((x) => x.id === c.assetId);
-                          if (typeof AudioContext !== "undefined" && enginePlayable(aAsset?.url)) return null;
+                          if (typeof AudioContext !== "undefined" && enginePlayable(aAsset?.url, c.id)) return null;
                           return <AudioLayer key={c.id} clip={c} active={isActive} prod={prod} playhead={playhead} playing={playing} track={ts} trackId={tr.id} />;
                         });
                       })}
@@ -5703,6 +5710,30 @@ export default function Fabula() {
                       </div>
                     </div>
                   </div>
+                      <div className="tl-commandbar" role="toolbar" aria-label="Timeline editing tools" style={{ display: "flex", gap: 6, padding: "5px 8px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <button className="minibtn" onClick={() => addTrack("video")} title="Add a video track (no limit)"><Film size={10} /> + VIDEO</button>
+                        <button className="minibtn" onClick={() => addTrack("audio")} title="Add an audio track (no limit)"><Music size={10} /> + AUDIO</button>
+                        <button className="minibtn" onClick={() => addTrack("subtitle")} title="Add a subtitle/caption track"><Captions size={10} /> + SUBS</button>
+                        <button className="minibtn" onClick={addSubtitle} title="Add a subtitle clip at the playhead"><Type size={10} /> + SUBTITLE</button>
+                        <button className="minibtn" onClick={addTitle} title="Add a plain title at the playhead"><Type size={10} /> + TITLE</button>
+                        <button className="minibtn" onClick={() => setLtGallery("add")} title="Add an editable lower third or full-page shader motion graphic"><Type size={10} /> + MOTION GFX</button>
+                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
+                        {["normal", "ripple", "roll", "slip"].map((m) => (
+                          <button key={m} className="minibtn" onClick={() => setTrimMode(m)} title={`Trim mode: ${m} — ripple shifts downstream, roll moves the cut, slip shifts content`} style={{ opacity: trimMode === m ? 1 : 0.5, color: trimMode === m ? "#FF8C00" : undefined }}>{m.toUpperCase()}</button>
+                        ))}
+                        <button className="minibtn" onClick={() => setSnapOn((s) => !s)} title="Toggle snapping (N)" style={{ opacity: snapOn ? 1 : 0.45 }}><Box size={10} /> SNAP {snapOn ? "ON" : "OFF"}</button>
+                        <button className="minibtn" onClick={() => setShowShortcuts(true)} title="Keyboard shortcuts — map your own (Ctrl+Alt+K)"><Keyboard size={10} /> KEYS</button>
+                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
+                        <button className="minibtn" title="Preview indexed worker decoding; unsupported sources automatically use compatibility playback" onClick={() => { setIndexedMode(!indexedMode); localStorage.setItem("fabula:decoder", indexedMode ? "compat" : "indexed"); }}>DECODER {indexedMode ? "INDEXED · PREVIEW" : "COMPAT"}</button>
+                        <button className="minibtn" title="Monitor plays 540p instant-seek proxies (export always full-res)" style={{ opacity: proxyOn ? 1 : 0.45, color: proxyOn && proxies.size ? "#7ee2a8" : undefined }}
+                          onClick={() => { const nv = !proxyOn; setProxyOn(nv); try { localStorage.setItem("fabula:proxy", nv ? "1" : "0"); } catch { /* */ } }}>PROXY {proxyOn ? "ON" : "OFF"}{proxies.size ? ` · ${proxies.size}✓` : ""}</button>
+                        {(() => { const missing = (prod?.mediaPool || []).filter((a) => a.type === "video" && /^https?:/i.test(a.url || "") && !proxies.has(a.id)).length; return (
+                          <button className="minibtn" disabled={!!proxyBusy || !missing} title="Build instant-seek proxies for REMOTE video (local originals already play full-res). Runs automatically in the background too."
+                            onClick={() => buildProxiesFor((prod?.mediaPool || []).filter((a) => a.type === "video" && /^https?:/i.test(a.url || "")))}>{proxyBusy ? `⚙ ${proxyBusy}` : `BUILD PROXIES${missing ? ` (${missing})` : " ✓"}`}</button>
+                        ); })()}
+                        <button className="minibtn" disabled={scriptBuilding || !clips.length} title="Reverse-engineer the screenplay from this edit: every clip is watched (computer vision) + transcribed, dialogue is tagged to your cast, and the scene + SLATE shot list are rebuilt from the cut"
+                          onClick={buildScriptFromTimeline} style={{ color: scriptBuilding ? "#FF8C00" : undefined }}>{scriptBuilding ? "📜 BUILDING…" : "📜 BUILD SCRIPT FROM TIMELINE"}</button>
+                      </div>
                   <div className="tl-scroll" ref={tlScrollRef}>
                     <div className="tl-inner" style={{ width: Math.max(900, (seqEnd + 20) * pxPerSec + 128) }} onMouseDown={startTlMarquee}>
                       {/* ruler */}
@@ -5871,29 +5902,6 @@ export default function Fabula() {
                         })()}
                         </Fragment>
                       ))}
-                      <div className="track addtrackrow" style={{ display: "flex", gap: 6, padding: "5px 8px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                        <button className="minibtn" onClick={() => addTrack("video")} title="Add a video track (no limit)"><Film size={10} /> + VIDEO</button>
-                        <button className="minibtn" onClick={() => addTrack("audio")} title="Add an audio track (no limit)"><Music size={10} /> + AUDIO</button>
-                        <button className="minibtn" onClick={() => addTrack("subtitle")} title="Add a subtitle/caption track"><Captions size={10} /> + SUBS</button>
-                        <button className="minibtn" onClick={addSubtitle} title="Add a subtitle clip at the playhead"><Type size={10} /> + SUBTITLE</button>
-                        <button className="minibtn" onClick={addTitle} title="Add a plain title at the playhead"><Type size={10} /> + TITLE</button>
-                        <button className="minibtn" onClick={() => setLtGallery("add")} title="Add an editable lower third or full-page shader motion graphic"><Type size={10} /> + MOTION GFX</button>
-                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
-                        {["normal", "ripple", "roll", "slip"].map((m) => (
-                          <button key={m} className="minibtn" onClick={() => setTrimMode(m)} title={`Trim mode: ${m} — ripple shifts downstream, roll moves the cut, slip shifts content`} style={{ opacity: trimMode === m ? 1 : 0.5, color: trimMode === m ? "#FF8C00" : undefined }}>{m.toUpperCase()}</button>
-                        ))}
-                        <button className="minibtn" onClick={() => setSnapOn((s) => !s)} title="Toggle snapping (N)" style={{ opacity: snapOn ? 1 : 0.45 }}><Box size={10} /> SNAP {snapOn ? "ON" : "OFF"}</button>
-                        <button className="minibtn" onClick={() => setShowShortcuts(true)} title="Keyboard shortcuts — map your own (Ctrl+Alt+K)"><Keyboard size={10} /> KEYS</button>
-                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
-                        <button className="minibtn" title="Monitor plays 540p instant-seek proxies (export always full-res)" style={{ opacity: proxyOn ? 1 : 0.45, color: proxyOn && proxies.size ? "#7ee2a8" : undefined }}
-                          onClick={() => { const nv = !proxyOn; setProxyOn(nv); try { localStorage.setItem("fabula:proxy", nv ? "1" : "0"); } catch { /* */ } }}>PROXY {proxyOn ? "ON" : "OFF"}{proxies.size ? ` · ${proxies.size}✓` : ""}</button>
-                        {(() => { const missing = (prod?.mediaPool || []).filter((a) => a.type === "video" && /^https?:/i.test(a.url || "") && !proxies.has(a.id)).length; return (
-                          <button className="minibtn" disabled={!!proxyBusy || !missing} title="Build instant-seek proxies for REMOTE video (local originals already play full-res). Runs automatically in the background too."
-                            onClick={() => buildProxiesFor((prod?.mediaPool || []).filter((a) => a.type === "video" && /^https?:/i.test(a.url || "")))}>{proxyBusy ? `⚙ ${proxyBusy}` : `BUILD PROXIES${missing ? ` (${missing})` : " ✓"}`}</button>
-                        ); })()}
-                        <button className="minibtn" disabled={scriptBuilding || !clips.length} title="Reverse-engineer the screenplay from this edit: every clip is watched (computer vision) + transcribed, dialogue is tagged to your cast, and the scene + SLATE shot list are rebuilt from the cut"
-                          onClick={buildScriptFromTimeline} style={{ color: scriptBuilding ? "#FF8C00" : undefined }}>{scriptBuilding ? "📜 BUILDING…" : "📜 BUILD SCRIPT FROM TIMELINE"}</button>
-                      </div>
                       {showShortcuts && <KeyboardShortcutsEditor onClose={() => setShowShortcuts(false)} onChange={setShortcutPrefs} />}
                       {clipMenu.node}
                     </div>
@@ -5906,7 +5914,8 @@ export default function Fabula() {
   return (
     <div className="studio" onMouseMove={onTimelineMove} onMouseUp={onTimelineUp}>
       <style>{CSS}</style>
-      {prod && page === "edit" && <MediaWarmer prod={monitorProd} clips={clips} />}
+      {/* MonitorLayer owns the upcoming decoder. Extra hidden warmers competed
+          with it for decode resources without supplying reusable decoded frames. */}
       {audioEdit && (
         <AudioEditor clip={audioEdit.clip} url={audioEdit.url} blob={audioEdit.blob}
           clipAudio={clips.find((c) => c.id === audioEdit.clip.id)?.audio || ensureAudio(audioEdit.clip)}
@@ -7064,7 +7073,7 @@ export default function Fabula() {
                       {renderPool()}
                       <div className="hsplit" title="Drag to resize the media pool" onMouseDown={(e) => startPanelResize(e, "pool")} />
                       {fxLibOpen && (
-                        <FxLibraryPanel prod={prod} selClipId={selClipId}
+                        <div className="resizable-fx" style={{ width: panelSize("effects", 224) }}><FxLibraryPanel prod={prod} selClipId={selClipId}
                           onApplyFilter={applyFxPreset}
                           onAddForge={addForgeEffect}
                           onAddTransition={addForgeTransition}
@@ -7076,10 +7085,12 @@ export default function Fabula() {
                           }}
                           onImportLottie={() => fileRef.current?.click()}
                           onOpenFxPage={() => setEditWs("vfx")}
-                          onClose={() => { setFxLibOpen(false); try { localStorage.setItem("fabula:fxlib", "0"); } catch { /* */ } }} />
+                          onClose={() => { setFxLibOpen(false); try { localStorage.setItem("fabula:fxlib", "0"); } catch { /* */ } }} /></div>
                       )}
-                      <div className="dualview">
+                      {fxLibOpen && divider("effects", 224, { max: 600 })}
+                      <div className="dualview" style={{ gridTemplateColumns: `minmax(120px, ${panelSize("viewers", 45)}fr) 8px minmax(120px, ${100 - panelSize("viewers", 45)}fr)` }}>
                         {renderSource()}
+                        <PanelDivider percent label="Resize source and program viewers" value={panelSize("viewers", 45)} min={15} max={85} onChange={(n) => setPanelSizes((old) => ({ ...old, viewers: n }))} />
                         {renderMonitor()}
                       </div>
                       <div className="hsplit" title="Drag to resize the inspector" onMouseDown={(e) => startPanelResize(e, "insp")} />
@@ -7095,10 +7106,12 @@ export default function Fabula() {
                   const VTABS = [["nodes", "NODE GRAPH"], ["comp", "AI COMPOSITE"], ["data", "DATA MOTION"], ["systems", "BROADCAST SYSTEMS"], ["lottie", "LOTTIE"], ["capture", "PERFORM CAPTURE"]];
                   return (
                     <div className="vfxroom">
-                      <div className="vfxstage edit-upper">
+                      <div className="vfxstage edit-upper" style={{ height: panelSize("vfx viewer height", 280) }}>
                         {renderMonitor()}
+                        <div className="hsplit" title="Resize VFX inspector" onMouseDown={(e) => startPanelResize(e, "insp")} />
                         {renderInspector()}
                       </div>
+                      {divider("vfx viewer height", 280, { vertical: true, max: 700 })}
                       <div className="vfxctrl glass-dark">
                         <div className="vfxtabs">
                           <span className="troom">VFX</span>
@@ -7248,7 +7261,7 @@ export default function Fabula() {
                       </div>
                       <div className="colorstage">
                         <div className="colormon">{renderMonitor()}</div>
-                        <aside className="colorscopes glass-dark">
+                        {divider("color scopes", 300, { reverse: true, max: 700 })}<aside className="colorscopes glass-dark" style={{ width: panelSize("color scopes", 300), minWidth: 150 }}>
                           <div className="paneltitle">GRADE MONITOR <span className="cap">GPU &middot; EXPORT-EXACT</span>
                             {eyedrop && <span className="chip amb" style={{ marginLeft: "auto" }}>CLICK TO SAMPLE</span>}</div>
                           <div style={{ position: "relative", cursor: eyedrop ? "crosshair" : "default" }}
@@ -7321,7 +7334,7 @@ export default function Fabula() {
                         )}
                       </div>
 
-                      <div className="colorctrl glass-dark">
+                      {divider("color controls", 260, { vertical: true, reverse: true, max: 650 })}<div className="colorctrl glass-dark" style={{ height: panelSize("color controls", 260), maxHeight: "none" }}>
                         <div className="colortabs">
                           <span className="troom">COLOR</span>
                           <span className="tdiv" />
@@ -7882,9 +7895,11 @@ function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool,
       // A <video> reports readyState; an <img> reports complete/naturalWidth. Both can feed the
       // compositor once they have pixels, so the preview accepts either.
       const isVideo = typeof HTMLVideoElement !== "undefined" && video instanceof HTMLVideoElement;
-      if (isVideo ? video.readyState < 2 : !(video.complete && video.naturalWidth)) return;
-      const srcW = (isVideo ? video.videoWidth : video.naturalWidth) || 16;
-      const srcH = (isVideo ? video.videoHeight : video.naturalHeight) || 9;
+      const isCanvas = video instanceof HTMLCanvasElement;
+      if (isVideo ? video.readyState < 2 : isCanvas ? !video.dataset.frameReady : !(video.complete && video.naturalWidth)) return;
+      if (isCanvas && Number.isFinite(video.__clipTime)) timeRef.current = video.__clipTime;
+      const srcW = (isVideo ? video.videoWidth : isCanvas ? video.width : video.naturalWidth) || 16;
+      const srcH = (isVideo ? video.videoHeight : isCanvas ? video.height : video.naturalHeight) || 9;
       try {
         const trackCtx = { vectorTrack: clipFxRef.current?.vectorTrack, planarTrack: clipFxRef.current?.planarTrack, fps };
         // Expand user-built effects into their chain first; everything below sees only
@@ -7922,7 +7937,7 @@ function ForgeClipPreview({ videoRef, effects, time, active, cubeLut, mediaPool,
     };
     raf = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(raf); try { comp?.dispose(); } catch { /* */ } };
-  }, [active]); // eslint-disable-line
+  }, [active, videoRef]); // eslint-disable-line
   return <canvas ref={canvasRef} className="mvid" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" }} />;
 }
 
@@ -7938,7 +7953,7 @@ function MaskOverlay({ clip, instance, playhead, screenRef, videoRef, fps, onCha
   const W = el?.clientWidth || 0, H = el?.clientHeight || 0;
   const maskRef = useRef(mask); maskRef.current = mask;
   if (!clip || !mask || !W || !H) return null;
-  const vw = videoRef?.current?.videoWidth || 16, vh = videoRef?.current?.videoHeight || 9;
+  const vw = videoRef?.current?.videoWidth || videoRef?.current?.width || 16, vh = videoRef?.current?.videoHeight || videoRef?.current?.height || 9;
   const box = containBox(vw, vh, W, H);
   const localT = playhead - clip.start;
   const ctxT = { vectorTrack: clip.fx?.vectorTrack, planarTrack: clip.fx?.planarTrack, fps };
@@ -7991,7 +8006,7 @@ function SurfaceOverlay({ clip, playhead, screenRef, videoRef, editing, onChange
   const el = screenRef?.current;
   const W = el?.clientWidth || 0, H = el?.clientHeight || 0;
   if (!clip || !W || !H) return null;
-  const vw = videoRef?.current?.videoWidth || seq?.width || 16, vh = videoRef?.current?.videoHeight || seq?.height || 9;
+  const vw = videoRef?.current?.videoWidth || videoRef?.current?.width || seq?.width || 16, vh = videoRef?.current?.videoHeight || videoRef?.current?.height || seq?.height || 9;
   const box = containBox(vw, vh, W, H);
   const frame = Math.max(0, Math.round((playhead - clip.start) * ((seq?.fps) || 24)));
   let quad = null, conf = 1, live = false, features = null;
@@ -8070,11 +8085,13 @@ function Model3DLayer({ clip, prod, playhead, playing, active, z }) {
   );
 }
 
-function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, vol = 1, mute = false, active = true, gpuMode = false, gpuReg = null, pinSource = null }) {
+function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playing, top, z, videoRef, vol = 1, mute = false, active = true, gpuMode = false, gpuReg = null, pinSource = null }) {
   if (clip.kind === "model3d") return <Model3DLayer clip={clip} prod={prod} playhead={playhead} playing={playing} active={active} z={z} />;
   const localRef = useRef(null);
   const wrapRef = useRef(null);
   const [playbackSrc, setPlaybackSrc] = useState(null);
+  const [sourceRetry, setSourceRetry] = useState(0);
+  useEffect(() => { setSourceRetry(0); }, [clip.assetId, prod?.id]);
   const [loadState, setLoadState] = useState({ phase: "idle", pct: 0 });
   const fxBase = ensureFx(clip);
   const activeCubeLut = (prod?.design?.luts || []).find((lut) => lut.id === prod?.design?.activeLutId) || null;
@@ -8105,7 +8122,7 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
     const place = invertHomography(planarSampling);
     const host = wrapRef.current; const W = host?.clientWidth || 0, Hh = host?.clientHeight || 0;
     const vEl = videoRef?.current || localRef.current;
-    const vw = vEl?.videoWidth || fx.planarTrack?.width || pinSource?.fx?.planarTrack?.width || W, vh = vEl?.videoHeight || fx.planarTrack?.height || pinSource?.fx?.planarTrack?.height || Hh;
+    const vw = vEl?.videoWidth || vEl?.width || fx.planarTrack?.width || pinSource?.fx?.planarTrack?.width || W, vh = vEl?.videoHeight || vEl?.height || fx.planarTrack?.height || pinSource?.fx?.planarTrack?.height || Hh;
     if (place && W && Hh) planarCss = mat3ToCssMatrix3d(toPixelSpace(place, containBox(vw, vh, W, Hh)));
   }
   // TRANSITION preview: ramp the incoming clip's opacity across its window so you see
@@ -8125,47 +8142,31 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
   }
   const shot = clip.shotId ? scene?.shots.find((s) => s.id === clip.shotId) : null;
   const vRef = videoRef || localRef;
-
-  // Portable projects stream immediately from cloud, but also promote that source into the
-  // on-device original cache. The next mount/session resolves locally through rehydrateBlobs.
-  // Progress is exposed over the actual picture so a slow remote clip is never a mystery black frame.
+  const frameRef = useRef(null);
+  const [indexedState, setIndexedState] = useState({ url: null, phase: "idle" });
+  const useIndexed = indexedMode && asset?.type === "video" && !!playbackSrc && indexedVideoAvailable()
+    && !(indexedState.url === playbackSrc && indexedState.phase === "failed");
+  const indexedReady = useIndexed && indexedState.url === playbackSrc && indexedState.phase === "ready";
+  const renderRef = indexedReady ? frameRef : vRef;
   useEffect(() => {
-    let alive = true; let objectUrl = null; let controller = null;
-    const source = asset?.url;
-    setPlaybackSrc(source || null);
-    setLoadState({ phase: /^https?:/i.test(source || "") ? "cloud" : "local", pct: 0 });
-    if (asset?.type !== "video" || !asset?.id || !/^https?:/i.test(source || "")) return () => { alive = false; };
-    controller = new AbortController();
-    (async () => {
-      try {
-        const cached = await mediaGetBytes("studio:blob:" + asset.id);
-        if (cached?.size) {
-          objectUrl = URL.createObjectURL(cached);
-          if (alive) { setPlaybackSrc(objectUrl); setLoadState({ phase: "cached", pct: 100 }); }
-          return;
-        }
-        const response = await fetch(source, { signal: controller.signal });
-        if (!response.ok) throw new Error("HTTP " + response.status);
-        const total = Number(response.headers.get("content-length")) || 0;
-        const reader = response.body?.getReader();
-        if (!reader) return;
-        const chunks = []; let received = 0;
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value); received += value.byteLength;
-          if (alive) setLoadState({ phase: "cloud", pct: total ? Math.min(99, Math.round(received / total * 100)) : 0 });
-        }
-        const blob = new Blob(chunks, { type: response.headers.get("content-type") || "video/mp4" });
-        await mediaPutBytes("studio:blob:" + asset.id, blob);
-        objectUrl = URL.createObjectURL(blob);
-        if (alive) { setPlaybackSrc(objectUrl); setLoadState({ phase: "cached", pct: 100 }); }
-      } catch (error) {
-        if (error?.name !== "AbortError" && alive) setLoadState({ phase: "streaming", pct: 0 });
-      }
-    })();
-    return () => { alive = false; controller?.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [asset?.id, asset?.url, asset?.type]);
+    if (!indexedReady || !videoRef) return;
+    const canvas = frameRef.current; videoRef.current = canvas;
+    return () => { if (videoRef.current === canvas) videoRef.current = null; };
+  }, [indexedReady, videoRef]);
+
+  // Resolve local bytes BEFORE mounting; never swap a running stream for a full download.
+  useEffect(() => {
+    let alive = true; let source = null;
+    setPlaybackSrc(null);
+    setLoadState({ phase: "loading", pct: 0 });
+    if (asset?.type === "video") resolveMediaSource(asset, sourceRetry > 0).then((resolved) => {
+      if (!alive) { resolved.release(); return; }
+      source = resolved;
+      setPlaybackSrc(resolved.url);
+      setLoadState({ phase: "loading", pct: 0 });
+    }).catch(() => { if (alive) setLoadState({ phase: "error", pct: 0 }); });
+    return () => { alive = false; source?.release(); };
+  }, [asset?.id, asset?.url, asset?.type, sourceRetry]);
 
   // Target source-time for the current playhead, held in a ref so the video's own
   // load/seek events can re-apply it (fixes: a freshly-swapped clip renders black or a
@@ -8173,8 +8174,11 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
   const seekRef = useRef(0);
   const doSeek = () => {
     const v = vRef.current;
-    if (!v || asset?.type !== "video") return;
-    const t = seekRef.current;
+    if (!(v instanceof HTMLVideoElement) || asset?.type !== "video") return;
+    // Media readiness can arrive long after React's last cut update. Never seek
+    // a late-loaded decoder back to that stale UI position while transport runs.
+    const target = active && playing && engineRunning() ? Math.max(0, engineClock() - clip.start + offset) : seekRef.current;
+    const t = Number.isFinite(v.duration) ? Math.min(target, Math.max(0, v.duration - 0.001)) : target;
     if (!Number.isFinite(t)) return;
     // Seek ~1 frame-tight when paused (accurate trim/in-out preview); loose while playing (no stutter).
     if (Math.abs(v.currentTime - t) > (playing ? 1.0 : 0.034)) {
@@ -8184,16 +8188,16 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
   // Slave this element to the transport clock while it's the live picture: the engine's
   // sync pass (playbackRate nudges) replaces per-render seek yanks — smooth, drift-free.
   useEffect(() => {
-    if (!(active && playing && asset?.type === "video" && vRef.current)) return undefined;
+    if (indexedReady || !(active && playing && asset?.type === "video" && vRef.current instanceof HTMLVideoElement)) return undefined;
     registerLiveVideo(clip.id, { el: vRef.current, clipStart: clip.start, offset, srcDur: asset.duration || 0 });
     return () => unregisterLiveVideo(clip.id);
-  }, [active, playing, asset?.url, clip.start, offset]); // eslint-disable-line
+  }, [active, playing, playbackSrc, asset?.url, clip.id, clip.start, offset, indexedReady]); // eslint-disable-line
   useEffect(() => {
     const v = vRef.current;
-    if (!v || asset?.type !== "video") return;
+    if (!(v instanceof HTMLVideoElement) || asset?.type !== "video") return;
     if (active) {
       seekRef.current = Math.max(0, playhead - clip.start + offset);
-      doSeek();
+      if (!playing || !engineRunning()) doSeek();
       // Never restart an element parked at its own end — the sync pass froze it there
       // (clip longer than its source); replaying it caused a few-frame stutter at bounds.
       const atEnd = Number.isFinite(v.duration) && v.duration > 0.2 && v.currentTime >= v.duration - 0.1;
@@ -8207,18 +8211,18 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
       if (!v.paused) v.pause();
       doSeek();
     }
-  }, [active, playhead, playing, asset?.url, clip.start, offset]);
+  }, [active, playhead, playing, playbackSrc, asset?.url, clip.start, offset, indexedReady]);
   // Live audio: honor the track's mixer vol/mute (was hardcoded `muted`, so nothing played).
   // av === linked-audio clip present → the picture is muted here and its sound plays through the
   // audio track (AudioLayer). Warm (inactive) buffers stay muted.
   // While the ENGINE plays this source's audio (decoded + scheduled, mixer-routed), the
   // element must stay muted or the sound doubles; the element unmutes only for sources
   // the engine can't decode (its element fallback) or when the transport is stopped.
-  const engineOwnsAudio = playing && !clip.av && enginePlayable(asset?.url);
+  const engineOwnsAudio = playing && !clip.av && enginePlayable(asset?.url, clip.id);
   useEffect(() => {
     const v = vRef.current;
-    if (v && asset?.type === "video") { v.volume = Math.max(0, Math.min(1, vol)); v.muted = !active || !!mute || !!clip.disabled || !!clip.av || engineOwnsAudio; }
-  }, [vol, mute, clip.disabled, clip.av, asset?.url, active, engineOwnsAudio]);
+    if (v instanceof HTMLVideoElement && asset?.type === "video") { v.volume = Math.max(0, Math.min(1, vol)); v.muted = !active || !!mute || !!clip.disabled || !!clip.av || engineOwnsAudio || useIndexed; }
+  }, [vol, mute, clip.disabled, clip.av, asset?.url, active, engineOwnsAudio, useIndexed, indexedReady]);
 
   // fades
   const tIn = playhead - clip.start, tOut = clip.start + clip.duration - playhead;
@@ -8248,7 +8252,7 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
     && !hasForge && (fx.blur || 0) === 0 && (fx.matte?.t || "none") === "none" && (fx.blend || "normal") === "normal";
   useEffect(() => {
     if (!gpuReg) return undefined;
-    if (gpuEligible && active) gpuReg.set(clip.id, { el: vRef.current, fx, fade, z: z ?? 0, track: trackMotion, homography: planarSampling });
+    if (gpuEligible && active) gpuReg.set(clip.id, { el: renderRef.current, fx, fade, z: z ?? 0, track: trackMotion, homography: planarSampling });
     else gpuReg.delete(clip.id);
     return undefined;
   });
@@ -8278,17 +8282,17 @@ function MonitorLayer({ clip, prod, scene, playhead, playing, top, z, videoRef, 
         <SceneView snapshot={asset.pixels} palette={prod?.pixelsConfig?.colorPalette}
           playing={playing} time={playhead - clip.start + offset} className="mvid" />
       ) : <>
-        {hasForge && <ForgeClipPreview videoRef={vRef} effects={fx.stack} mediaPool={prod?.mediaPool || []} cubeLut={activeCubeLut} time={Math.max(0, playhead - clip.start)} active={active} clipFx={fx} fps={prod?.defaults?.format?.fps || 24} />}
-        {playbackSrc && asset.type === "video" && <video ref={vRef} src={playbackSrc} className="mvid" style={hasForge ? { opacity: 0 } : undefined} muted={!active || !!mute || !!clip.disabled || !!clip.av || engineOwnsAudio} playsInline preload="auto" onLoadStart={() => setLoadState((s) => ({ ...s, phase: s.phase === "local" ? "loading" : s.phase }))} onWaiting={() => setLoadState((s) => ({ ...s, phase: s.phase === "local" ? "buffering" : s.phase }))} onPlaying={() => setLoadState((s) => ({ ...s, phase: s.phase === "cached" ? "cached" : s.phase === "local" ? "local" : "streaming" }))} onLoadedData={doSeek} onCanPlay={doSeek} onSeeked={() => { if (!playing) doSeek(); }}
+        {useIndexed && <IndexedVideoCanvas key={playbackSrc} url={playbackSrc} sourceRef={frameRef} playing={playing} active={active} time={playhead} offset={offset} clipStart={clip.start} fps={prod?.defaults?.format?.fps || 24} hidden={!indexedReady || hasForge} onReady={() => { setIndexedState({url:playbackSrc,phase:"ready"}); setLoadState({phase:"ready",pct:100}); }} onError={(error) => { console.warn("[Fabula] indexed decoder fallback", error); setIndexedState({url:playbackSrc,phase:"failed"}); }} />}
+        {useIndexed && !clip.av && !engineOwnsAudio && <AudioLayer clip={{...clip,assetId:asset.id,srcIn:offset}} prod={prod} playhead={playhead} playing={playing} active={active} track={{vol,mute}} trackId={clip.trackId} />}
+        {hasForge && <ForgeClipPreview videoRef={renderRef} effects={fx.stack} mediaPool={prod?.mediaPool || []} cubeLut={activeCubeLut} time={Math.max(0, playhead - clip.start)} active={active} clipFx={fx} fps={prod?.defaults?.format?.fps || 24} />}
+        {!indexedReady && playbackSrc && asset.type === "video" && <video ref={vRef} src={playbackSrc} className="mvid" style={hasForge ? { opacity: 0 } : undefined} muted={!active || !!mute || !!clip.disabled || !!clip.av || engineOwnsAudio || useIndexed} playsInline preload="auto" crossOrigin={needsCors(playbackSrc) ? "anonymous" : undefined} onLoadStart={() => setLoadState({ phase: "loading", pct: 0 })} onWaiting={() => setLoadState({ phase: "buffering", pct: 0 })} onPlaying={() => setLoadState({ phase: "ready", pct: 100 })} onLoadedData={() => { doSeek(); setLoadState({ phase: "ready", pct: 100 }); }} onCanPlay={() => { doSeek(); setLoadState({ phase: "ready", pct: 100 }); }} onSeeked={() => { if (!playing) doSeek(); }}
           onError={() => {
-            // Dead source (revoked/evicted blob URL) used to mean a permanently black clip.
-            // Heal in place: fall to the durable cloud copy on this element, then re-seek.
-            const v = vRef.current;
-            if (v && asset?.cloudUrl && v.src !== asset.cloudUrl) { v.src = asset.cloudUrl; try { v.load(); } catch { /* */ } doSeek(); }
+            if (sourceRetry === 0) setSourceRetry(1);
+            else setLoadState({ phase: "error", pct: 0 });
           }} />}
-        {active && asset?.type === "video" && ["cloud", "loading", "buffering"].includes(loadState.phase) && (
+        {active && asset?.type === "video" && ["error", "loading", "buffering"].includes(loadState.phase) && (
           <div style={{ position: "absolute", left: "6%", right: "6%", bottom: "7%", zIndex: 90, padding: "8px 10px", borderRadius: 8, background: "rgba(0,0,0,.74)", color: "white", fontSize: 9, letterSpacing: ".12em" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}><span>{loadState.phase === "cloud" ? "CACHING ORIGINAL" : loadState.phase.toUpperCase()}</span><span>{loadState.pct ? loadState.pct + "%" : "PREPARING"}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}><span>{loadState.phase === "error" ? "MEDIA UNAVAILABLE — RELINK OR CONVERT SOURCE" : loadState.phase.toUpperCase()}</span><span>{loadState.pct ? loadState.pct + "%" : "PREPARING"}</span></div>
             <div style={{ height: 3, borderRadius: 4, overflow: "hidden", background: "rgba(255,255,255,.18)" }}><div style={{ width: (loadState.pct || 12) + "%", height: "100%", background: "#ff8c00", transition: "width .2s" }} /></div>
           </div>
         )}
@@ -8385,7 +8389,17 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
   // element errors instead; we then rebuild it plain and play it DIRECT (no DSP, but audible).
   const [corsFail, setCorsFail] = useState(false);
   const asset = clip.assetId ? prod.mediaPool.find((a) => a.id === clip.assetId) : null;
-  const url = asset?.url;
+  const [resolvedAudio, setResolvedAudio] = useState(null);
+  useEffect(() => {
+    let alive = true, source = null;
+    setResolvedAudio(null);
+    resolveMediaSource(asset).then((s) => {
+      if (!alive) { s.release(); return; }
+      source = s; setResolvedAudio({ id: asset?.id, original: asset?.url, url: s.url });
+    }).catch(() => {});
+    return () => { alive = false; source?.release(); };
+  }, [asset?.id, asset?.url]);
+  const url = resolvedAudio?.id === asset?.id && resolvedAudio?.original === asset?.url ? resolvedAudio?.url : null;
   const wantCors = needsCors(url) && !corsFail;
   const offset = clip.srcIn || 0;
   useEffect(() => { setCorsFail(false); }, [url]); // new source, new chance
@@ -8404,7 +8418,7 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
     if (!a || !url) return;
     if (active) {
       resumeAudioCtx();
-      const t = playhead - clip.start + offset;
+      const t = (playing && engineRunning() ? engineClock() : playhead) - clip.start + offset;
       if (!playing || Math.abs(a.currentTime - t) > 0.25) { try { a.currentTime = Math.max(0, t); } catch { /* seeking */ } }
       if (playing && a.paused) a.play().catch(() => {});
       if (!playing && !a.paused) a.pause();
@@ -8447,7 +8461,7 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
       // Element just became ready — if we are mid-play and it missed its start, join now.
       const a = aRef.current;
       if (a && active && playing && a.paused) {
-        const t = playhead - clip.start + offset;
+        const t = (engineRunning() ? engineClock() : playhead) - clip.start + offset;
         try { if (Math.abs(a.currentTime - Math.max(0, t)) > 0.25) a.currentTime = Math.max(0, t); } catch { /* */ }
         a.play().catch(() => {});
       }
@@ -9008,6 +9022,7 @@ const CSS = `
 .tl-resize::after{content:"";width:44px;height:3px;border-radius:2px;background:rgba(255,255,255,.18)}
 .tl-resize:hover::after{background:var(--accent,#FF8C00)}
 .tl-tools{height:32px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--w08)}
+.tl-commandbar{flex:0 0 auto;flex-wrap:wrap;position:relative;z-index:5;background:var(--panel,#17161c);border-bottom:1px solid var(--w08)}
 .zoomer{display:flex;align-items:center;gap:8px}
 .zoomer input{width:110px;accent-color:#f97316}
 .tl-scroll{flex:1 1 auto;overflow-x:auto;overflow-y:auto;position:relative;min-height:0}
@@ -9338,6 +9353,7 @@ const CSS = `
 .gennote{background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.35);border-radius:8px;padding:8px;margin-top:6px;display:flex;flex-direction:column;gap:5px;align-items:flex-start}
 
 /* dual canvas — source + program viewers */
+.panel-divider{width:8px;flex:0 0 8px;cursor:col-resize;touch-action:none;background:rgba(255,255,255,.06);border-radius:4px;min-height:0}.panel-divider:hover,.panel-divider:focus{background:var(--org)}.panel-divider.horizontal{width:auto;height:8px;cursor:row-resize}.resizable-fx{flex:none;min-width:150px;display:flex;overflow:hidden}.resizable-fx .fxlib{width:100%;min-width:0;box-sizing:border-box}.nglib,.ngright,.gpanel{resize:both;overflow:auto}.cgallery,.cgradetl{resize:vertical;overflow:auto;min-height:60px}
 .dualview{flex:1;display:grid;grid-template-columns:1fr 1.2fr;gap:8px;min-width:0;min-height:0}
 .viewer{display:flex;flex-direction:column;border:1px solid var(--w08);border-radius:10px;overflow:hidden;
   background:rgba(0,0,0,.35);backdrop-filter:blur(12px);position:relative;min-height:0}
@@ -9589,7 +9605,7 @@ const CSS = `
 .ngport.in.a{top:calc(35% - 5px)} .ngport.in.b{top:calc(65% - 5px)}
 .ngright{width:250px;flex:none;display:flex;flex-direction:column;gap:8px;min-height:0}
 .ngviewer{border-radius:10px;overflow:hidden;flex:none}
-.ngpreview{aspect-ratio:16/9;background:#000}
+.ngpreview{aspect-ratio:16/9;background:#000;flex:1;min-height:0;overflow:hidden}
 .ngpreview>*{width:100%;height:100%}
 .ngviewbar{display:flex;align-items:center;gap:6px;padding:6px 9px;border-top:1px solid var(--line-2)}
 .nginsp{flex:1;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:7px;overflow-y:auto;min-height:0}

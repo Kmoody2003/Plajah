@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { gridSrc } from '../services/imageDerivatives';
 import { Photo, UserProfile, PhotoGallery } from '../types';
 import { useContextMenu, type MenuNode } from './ui/ContextMenu';
+import AnchoredPopover from './ui/AnchoredPopover';
 import PageHeader from './PageHeader';
 import { 
   Heart, 
@@ -80,6 +81,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
   const [photographers, setPhotographers] = useState<{ uid: string; name: string; photo: string; count: number }[]>([]);
   const [followed, setFollowed] = useState<Set<string>>(new Set());
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreTrigger = React.useRef<HTMLButtonElement>(null);
   const [query, setQuery] = useState('');
 
   // ── Plajah Galleries (shareable gallery experiences) ─────────────────────────
@@ -973,6 +975,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
           <div className="relative shrink-0">
               <button
                 onClick={() => setMoreOpen(o => !o)}
+                ref={moreTrigger}
                 aria-haspopup="menu"
                 aria-expanded={moreOpen}
                 className={`inline-flex items-center gap-1 px-3.5 h-9 rounded-full text-[13px] font-bold whitespace-nowrap transition ${moreActive || moreOpen ? 'text-white' : 'text-white/55 hover:text-white'}`}
@@ -980,12 +983,11 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
               >
                 <MoreHorizontal size={14} /> More <ChevronDown size={12} className={`transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
               </button>
-              {moreOpen && (
+              {moreOpen && moreTrigger.current && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
-                  <div
+                  <AnchoredPopover anchor={moreTrigger.current} onClose={() => setMoreOpen(false)} align="end"
                     role="menu"
-                    className="absolute right-0 mt-2 z-50 w-52 p-1.5 rounded-2xl border shadow-2xl pj-surface--3"
+                    className="w-52 p-1.5 rounded-2xl border shadow-2xl pj-surface--3"
                     style={{ background: 'var(--pj-glass-3, rgba(20,16,25,0.95))', borderColor: 'var(--pj-border-strong, rgba(255,255,255,0.15))' }}
                   >
                     {moreItems.map(item => {
@@ -1007,7 +1009,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                         </button>
                       );
                     })}
-                  </div>
+                  </AnchoredPopover>
                 </>
               )}
             </div>

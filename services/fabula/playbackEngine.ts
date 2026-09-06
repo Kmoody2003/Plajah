@@ -7,21 +7,20 @@
 // churn, a MediaElementSource on a suspended context, or a cold load at a cut
 // meant silence or black — permanently, because nothing watched or retried.
 //
-// THE MODEL NOW (how every serious browser NLE works):
+// CURRENT MODEL:
 //   1. ONE AudioContext is the master clock.
-//   2. Every audio source on the timeline (a-track clips AND the embedded audio
-//      of v-track video clips) is DECODED ONCE into an AudioBuffer and scheduled
-//      sample-accurately with AudioBufferSourceNodes — gapless by construction.
+//   2. Bounded audio sources in a rolling look-ahead window are decoded into
+//      cached AudioBuffers and scheduled using AudioBufferSourceNodes.
 //      Fades and clip volume are gain ramps; each track has a full mixer strip
 //      (EQ → comp → pan → fader → analyser → master) matching audioGraph's
-//      element strips, so meters/sends/limiter behave identically.
+//      element strips for meters/sends/limiter.
 //   3. The transport playhead DERIVES from ctx.currentTime (see clock()).
 //   4. <video> elements are slaved to that clock with playbackRate micro-nudges
-//      (no visible seeks) and clamped at their source's end (no wrap/loop).
+//      and hard resync for large drift, clamped at source end (no wrap/loop).
 //
 // Anything the engine cannot decode (exotic codec, oversized file, no CORS)
-// lands in `unplayable` and the old element path takes over for just that clip —
-// reliability first, never silence.
+// stays on progressive element audio. Pending decodes also retain that fallback
+// until a source is scheduled. Unsupported browser codecs still need conversion.
 // ═══════════════════════════════════════════════════════════════════════════
 
 import {
@@ -48,6 +47,7 @@ export interface PlanEntry {
   fadeOut: number;   // fade-out length at the clip's tail
   eq?: number[];
   comp?: any;
+  clean?: any;
 }
 
 /** Everything audible from t0 onward. Pure — shared by the engine and its tests. */
@@ -82,10 +82,10 @@ export function planPlayback(clips: any[], mediaPool: any[], t0: number): PlanEn
       fadeIn: Math.max(0, fadeIn - skip),
       fadeInFrom: fadeIn > 0 ? clamp(skip / fadeIn, 0, 1) : 1,
       fadeOut: c.fx?.fadeOut || 0,
-      eq: c.audio?.eq, comp: c.audio?.comp,
+      eq: c.audio?.eq, comp: c.audio?.comp, clean: c.audio?.clean,
     });
   }
-  return out;
+  return out.sort((a, b) => a.when - b.when);
 }
 
 /** Solo derives to mute: if ANY track is soloed, non-soloed tracks mute (pure, tested). */
@@ -97,14 +97,25 @@ export function effectiveTrack(trackId: string, settings: Record<string, any>): 
 
 // ── decoded-buffer cache ─────────────────────────────────────────────────────
 
-const MAX_CACHE_BYTES = 384 * 1024 * 1024;   // decoded PCM budget (~16 min stereo @48k)
-const MAX_FETCH_BYTES = 220 * 1024 * 1024;   // don't pull giant video files just for audio
+const MAX_CACHE_BYTES = 128 * 1024 * 1024;   // leave room for GPU textures and the editor on shared-memory devices
+const MAX_FETCH_BYTES = 64 * 1024 * 1024;    // larger sources use progressive element audio
 
 interface CacheEntry { buf: AudioBuffer; bytes: number; at: number; }
 const bufCache = new Map<string, CacheEntry>();
 const decoding = new Map<string, Promise<AudioBuffer | null>>();
 const unplayable = new Set<string>();
 const unplayableWhy = new Map<string, string>();
+const ownedClips = new Set<string>();
+let decodeWorkers = 0;
+const decodeWaiters: Array<() => void> = [];
+async function acquireDecode() {
+  if (decodeWorkers >= 2) await new Promise<void>((resolve) => decodeWaiters.push(resolve));
+  else decodeWorkers++;
+}
+function releaseDecode() {
+  const next = decodeWaiters.shift();
+  if (next) next(); else decodeWorkers--;
+}
 
 // ── ENGINE WATCHDOG ──────────────────────────────────────────────────────────
 // On some machines (Windows + Bluetooth/USB audio, device switches, exclusive-
@@ -149,15 +160,25 @@ async function fetchBytes(url: string): Promise<ArrayBuffer> {
   // time out and hand the clip to the element fallback, which streams progressively.
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), 20000);
-  let res: Response;
-  try { res = await fetch(url, { ...(needsCors(url) ? { mode: 'cors' as RequestMode } : {}), signal: ac.signal }); }
-  finally { clearTimeout(timer); }
+  try {
+  const res = await fetch(url, { ...(needsCors(url) ? { mode: 'cors' as RequestMode } : {}), signal: ac.signal });
   if (!res.ok) throw new Error('http ' + res.status);
   const len = Number(res.headers.get('content-length') || 0);
   if (len > MAX_FETCH_BYTES) throw new Error('too large to decode');
-  const bytes = await res.arrayBuffer();
-  if (bytes.byteLength > MAX_FETCH_BYTES) throw new Error('too large to decode');
-  return bytes;
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error('no response body');
+  const chunks: Uint8Array[] = []; let size = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_FETCH_BYTES) { await reader.cancel(); throw new Error('too large to decode'); }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size); let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+  return bytes.buffer;
+  } finally { clearTimeout(timer); }
 }
 
 async function decodeUrl(url: string, assetId?: string): Promise<AudioBuffer | null> {
@@ -167,26 +188,34 @@ async function decodeUrl(url: string, assetId?: string): Promise<AudioBuffer | n
   const pending = decoding.get(url);
   if (pending) return pending;
   const p = (async () => {
+    await acquireDecode();
+    try {
     const ctx = getAudioCtx();
     if (!ctx) return null;
     let firstErr: any = null;
-    // Stage 1: fetch the asset's URL and decode it.
+    let attemptedLocal = false;
+    // Local storage precedes all network I/O. Blob URLs include direct disk files.
     try {
-      const bytes = await fetchBytes(url);
-      const buf = await ctx.decodeAudioData(bytes.slice(0));
+      const local = assetId && !url.startsWith('blob:') ? await mediaGetBytes('studio:blob:' + assetId) : null;
+      attemptedLocal = !!local?.size;
+      if (local && local.size > MAX_FETCH_BYTES) throw new Error('too large to decode');
+      const bytes = local?.size ? await local.arrayBuffer() : await fetchBytes(url);
+      const buf = await ctx.decodeAudioData(bytes);
       const pcm = buf.length * buf.numberOfChannels * 4;
+      if (pcm > MAX_CACHE_BYTES) throw new Error('decoded audio exceeds budget');
       evictLRU(pcm);
       bufCache.set(url, { buf, bytes: pcm, at: Date.now() });
       return buf;
     } catch (e) { firstErr = e; }
     // Stage 2 (rescue): decode straight from the LOCAL bytes in the media substrate —
     // sidesteps every fetch-level failure (CORS, tokens, dead blob URLs, network).
-    if (assetId) {
+    if (assetId && !attemptedLocal) {
       try {
         const blob = await mediaGetBytes('studio:blob:' + assetId);
         if (blob && blob.size && blob.size <= MAX_FETCH_BYTES) {
           const buf = await ctx.decodeAudioData(await blob.arrayBuffer());
           const pcm = buf.length * buf.numberOfChannels * 4;
+          if (pcm > MAX_CACHE_BYTES) throw new Error('decoded audio exceeds budget');
           evictLRU(pcm);
           bufCache.set(url, { buf, bytes: pcm, at: Date.now() });
           console.info('[playbackEngine] rescued from local bytes:', url);
@@ -200,19 +229,19 @@ async function decodeUrl(url: string, assetId?: string): Promise<AudioBuffer | n
     unplayableWhy.set(url, why);
     notify();                                   // let React mount the element fallback
     return null;
+    } finally { releaseDecode(); }
   })().finally(() => { decoding.delete(url); });
   decoding.set(url, p);
   return p;
 }
 
-/** True when the ENGINE owns this url's audio (decoded or in flight). The element
- *  path should stand down for these; unplayable urls stay on elements. */
-export function enginePlayable(url: string | null | undefined): boolean {
+/** A fallback stands down only after this clip has actually been scheduled. */
+export function enginePlayable(url: string | null | undefined, clipId?: string): boolean {
   if (!url || engineDead) return false;
-  return !unplayable.has(url);
+  return state.running && (clipId ? ownedClips.has(clipId) : bufCache.has(url));
 }
 
-/** Background-decode every audio source the timeline references (project open / edits). */
+/** Warm a bounded pair of initial sources on project open / edits. */
 export function warmAudio(clips: any[], mediaPool: any[]) {
   try {
     const seen = new Set<string>();
@@ -220,7 +249,7 @@ export function warmAudio(clips: any[], mediaPool: any[]) {
       if (seen.has(e.url)) continue;
       seen.add(e.url);
       void decodeUrl(e.url, e.assetId);
-      if (seen.size >= 32) break;
+      if (seen.size >= 2) break;
     }
   } catch { /* warm is best-effort */ }
 }
@@ -286,7 +315,8 @@ function applyTrack(bus: TrackBus, ts: any) {
 
 // ── the transport engine ─────────────────────────────────────────────────────
 
-interface LiveSource { node: AudioBufferSourceNode; gain: GainNode; }
+interface LiveSource { node: AudioBufferSourceNode; gain: GainNode; nodes: AudioNode[]; }
+let scheduleTimer: ReturnType<typeof setInterval> | null = null;
 
 const state = {
   running: false,
@@ -302,10 +332,24 @@ const state = {
 /** Diagnostics for the current/last playback session — what got scheduled vs stuck. */
 export function engineStats() {
   const soloed = Object.entries(state.trackSettings || {}).filter(([, t]: any) => t && t.solo).map(([k]) => k);
+  const timelineTime = state.running ? engineClock() : state.t0;
   return {
-    running: state.running, dead: engineDead, planned: state.planned, scheduled: state.scheduled,
+    running: state.running, dead: engineDead, timelineTime, planned: state.planned, scheduled: state.scheduled,
     pending: state.pending, unplayable: [...unplayable], soloed,
     reasons: [...unplayableWhy.entries()].map(([u, why]) => `${why} ← ${u.slice(0, 120)}`),
+    decodedCacheBytes: cacheBytes(), activeAudioSources: state.sources.length,
+    decodingSources: decoding.size,
+    video: [...liveVideos].map(([clipId, v]) => {
+      const el = v.el;
+      const quality = el.getVideoPlaybackQuality?.();
+      return { clipId, source: el.currentSrc?.startsWith('blob:') ? 'local' : 'remote',
+        readyState: el.readyState, networkState: el.networkState, seeking: el.seeking,
+        paused: el.paused, sourceTime: el.currentTime, sourceDuration: el.duration,
+        driftSeconds: el.currentTime - Math.max(0, timelineTime - v.clipStart + v.offset),
+        droppedFrames: quality?.droppedVideoFrames, totalFrames: quality?.totalVideoFrames,
+        buffered: Array.from({length: el.buffered.length}, (_, i) => [el.buffered.start(i), el.buffered.end(i)]),
+        error: el.error?.code ?? null };
+    }),
   };
 }
 
@@ -315,19 +359,22 @@ export function engineRunning(): boolean { return state.running; }
  *  If the context clock stalls (see watchdog), the clock GLIDES on wall time instead of
  *  freezing — the transport and video sync never see the stall (audio may rejoin late;
  *  a sustained stall demotes the engine entirely). Monotone by construction. */
-const clockGlide = { wall: 0, val: 0 };
+const clockGlide = { wall: 0, val: 0, raw: -1, changed: 0 };
 export function engineClock(): number {
   const ctx = getAudioCtx();
   if (!ctx || !state.running) return state.t0;
   const raw = state.t0 + Math.max(0, ctx.currentTime - state.ctxStart);
   const now = performance.now();
-  if (clockGlide.wall > 0 && raw <= clockGlide.val + 0.0005) {
+  if (raw !== clockGlide.raw) { clockGlide.raw = raw; clockGlide.changed = now; }
+  // Audio clocks advance in render quanta. Repeated reads within a quantum (or
+  // scheduling headroom) are not a stalled device and must not select wall time.
+  if (clockGlide.wall > 0 && now - clockGlide.changed > 250) {
     clockGlide.val += Math.min(0.25, (now - clockGlide.wall) / 1000);
     clockGlide.wall = now;
     return clockGlide.val;
   }
-  clockGlide.wall = now; clockGlide.val = raw;
-  return raw;
+  clockGlide.wall = now; clockGlide.val = Math.max(clockGlide.val, raw);
+  return clockGlide.val;
 }
 
 function scheduleEntry(e: PlanEntry, buf: AudioBuffer, lateBy = 0) {
@@ -339,18 +386,28 @@ function scheduleEntry(e: PlanEntry, buf: AudioBuffer, lateBy = 0) {
   const src = ctx.createBufferSource();
   src.buffer = buf;
   const cg = ctx.createGain();
+  const nodes: AudioNode[] = [src, cg];
   // clip stage: gain (vol + fades) → clip EQ → clip comp → track bus
   let head: AudioNode = cg;
+  if (e.clean) {
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = clamp(e.clean.hpf || 10, 10, 2000); hp.Q.value = 0.707;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = clamp(e.clean.lpf || 22000, 1000, 22000); lp.Q.value = 0.707;
+    const hum = ctx.createBiquadFilter(); hum.type = 'notch'; hum.frequency.value = e.clean.hum || 60; hum.Q.value = e.clean.hum ? 8 : 0.0001;
+    const trim = ctx.createGain(); trim.gain.value = Math.pow(10, clamp(e.clean.trim || 0, -24, 24) / 20);
+    for (const n of [hp, hum, lp, trim]) { head.connect(n); head = n; nodes.push(n); }
+  }
   if (e.eq && e.eq.some((v) => v)) {
     const eq = EQ_BANDS.map((b) => { const f = ctx.createBiquadFilter(); f.type = b.type; f.frequency.value = b.f; f.Q.value = b.q || 1; return f; });
     applyBand(eq, e.eq);
-    let prev: AudioNode = cg;
+    nodes.push(...eq);
+    let prev: AudioNode = head;
     for (const f of eq) { prev.connect(f); prev = f; }
     head = prev;
   }
   if (e.comp?.on) {
     const c = ctx.createDynamicsCompressor(); const mk = ctx.createGain();
     applyComp(c, mk, e.comp);
+    nodes.push(c, mk);
     head.connect(c); c.connect(mk); head = mk;
   }
   src.connect(cg); head.connect(bus.input);
@@ -366,12 +423,21 @@ function scheduleEntry(e: PlanEntry, buf: AudioBuffer, lateBy = 0) {
     g.setValueAtTime(vol, at + e.dur - e.fadeOut);
     g.linearRampToValueAtTime(0, at + e.dur);
   }
-  const offset = clamp(e.offset, 0, Math.max(0, buf.duration - 0.01));
-  const dur = Math.min(e.dur, Math.max(0.01, buf.duration - offset));
+  const offset = Math.max(0, e.offset);
+  const dur = Math.min(e.dur, buf.duration - offset);
+  if (dur <= 0) { nodes.forEach((n) => n.disconnect()); return; }
   try {
     src.start(Math.max(at, ctx.currentTime), offset, dur);
-    state.sources.push({ node: src, gain: cg });
-  } catch { /* start in the past / bad params — skip this one, never crash playback */ }
+    const live = { node: src, gain: cg, nodes };
+    state.sources.push(live);
+    ownedClips.add(e.clipId);
+    notify();
+    src.onended = () => {
+      nodes.forEach((n) => { try { n.disconnect(); } catch { /* */ } });
+      state.sources = state.sources.filter((s) => s !== live);
+      // Keep ownership until transport stop: don't replay an exhausted source's tail.
+    };
+  } catch { nodes.forEach((n) => n.disconnect()); }
 }
 
 /** Start scheduled playback of the whole timeline from t0 (idempotent while running). */
@@ -391,7 +457,7 @@ export function startPlayback(opts: { clips: any[]; mediaPool: any[]; trackSetti
   resumeAudioCtx();
   if (ctx.state !== 'running') return false;           // no gesture yet — tick will retry
   watchdog.lastWall = 0; watchdog.stallMs = 0;
-  clockGlide.wall = 0; clockGlide.val = 0;
+  clockGlide.wall = 0; clockGlide.val = 0; clockGlide.raw = -1; clockGlide.changed = performance.now();
   const session = ++state.session;
   state.running = true;
   state.t0 = Math.max(0, opts.t0);
@@ -400,9 +466,16 @@ export function startPlayback(opts: { clips: any[]; mediaPool: any[]; trackSetti
   state.sources = [];
   const plan = planPlayback(opts.clips, opts.mediaPool, state.t0);
   state.planned = plan.length; state.scheduled = 0; state.pending = 0;
+  const requested = new Set<string>();
+  const pump = () => {
+  if (!state.running || state.session !== session) return;
+  const elapsed = Math.max(0, engineClock() - state.t0);
   for (const e of plan) {
+    if (requested.has(e.clipId) || e.when > elapsed + 12) continue;
+    requested.add(e.clipId);
+    if (e.when + e.dur <= elapsed) continue;
     const cached = bufCache.get(e.url);
-    if (cached) { cached.at = Date.now(); scheduleEntry(e, cached.buf); state.scheduled++; continue; }
+    if (cached && e.when >= elapsed) { cached.at = Date.now(); scheduleEntry(e, cached.buf); state.scheduled++; continue; }
     state.pending++;
     // late-join: decode now, then splice in at the correct source offset for the CURRENT clock
     void decodeUrl(e.url, e.assetId).then((buf) => {
@@ -412,21 +485,27 @@ export function startPlayback(opts: { clips: any[]; mediaPool: any[]; trackSetti
       const nowTl = engineClock();
       const startTl = state.t0 + e.when;
       if (nowTl < startTl - 0.05) { scheduleEntry(e, buf); return; }         // still ahead — schedule as planned
-      const missed = nowTl - startTl;
+      const missed = Math.max(0, nowTl - startTl);
       if (missed >= e.dur - 0.05) return;                                     // clip already over
-      scheduleEntry({ ...e, when: nowTl - state.t0, offset: e.offset + missed, dur: e.dur - missed, fadeIn: Math.max(0, e.fadeIn - missed), fadeInFrom: e.fadeIn > 0 ? clamp(missed / e.fadeIn, 0, 1) : 1 }, buf);
+      scheduleEntry({ ...e, when: Math.max(e.when, nowTl - state.t0), offset: e.offset + missed, dur: e.dur - missed, fadeIn: Math.max(0, e.fadeIn - missed), fadeInFrom: e.fadeIn > 0 ? e.fadeInFrom + (1 - e.fadeInFrom) * clamp(missed / e.fadeIn, 0, 1) : 1 }, buf);
     });
   }
+  };
+  pump();
+  scheduleTimer = setInterval(pump, 1000);
   return true;
 }
 
 export function stopPlayback() {
+  if (scheduleTimer) { clearInterval(scheduleTimer); scheduleTimer = null; }
+  ownedClips.clear();
   if (!state.running) return;
   state.t0 = engineClock();                            // freeze the clock where we stopped
   state.running = false;
   state.session++;
-  for (const s of state.sources) { try { s.node.stop(); } catch { /* */ } try { s.node.disconnect(); s.gain.disconnect(); } catch { /* */ } }
+  for (const s of state.sources) { try { s.node.stop(); } catch { /* */ } for (const n of s.nodes) { try { n.disconnect(); } catch { /* */ } } }
   state.sources = [];
+  notify();
 }
 
 /** Live mixer changes while playing (fader/pan/mute/solo/eq/comp/sends). */
@@ -456,7 +535,7 @@ export function syncLiveVideos(clock: number, rate: number) {
       if (watchdog.lastWall > 0) {
         const wallDt = now - watchdog.lastWall;
         const ctxDt = (ctx.currentTime - watchdog.lastCtx) * 1000;
-        if (wallDt > 40 && ctxDt < wallDt * 0.5) {
+    if (wallDt > 0 && ctxDt < wallDt * 0.5) {
           watchdog.stallMs += wallDt;
           if (watchdog.stallMs > 700) resumeAudioCtx();
           if (watchdog.stallMs > 2500) declareEngineDead('clock stalled ' + Math.round(watchdog.stallMs) + 'ms; state=' + ctx.state);
@@ -469,12 +548,12 @@ export function syncLiveVideos(clock: number, rate: number) {
   lastSync = now;
   for (const [, v] of liveVideos) {
     const el = v.el;
-    if (!el || el.readyState < 2) continue;
+    if (!el || el.readyState < 2 || el.seeking) continue;
     // The element's own duration is the ONLY truth. mediaPool durations are frequently
     // placeholders (imports default to 5s) — clamping on those pause/seek-looped real
     // clips at the fake end: the "few frames repeating like a jump cut" glitch.
     const srcDur = (Number.isFinite(el.duration) && el.duration > 0.2) ? el.duration : 0;
-    let expected = clock - v.clipStart + v.offset;
+    let expected = Math.max(0, clock - v.clipStart + v.offset);
     if (srcDur > 0 && expected >= srcDur - 0.05) {     // past the source's end → freeze, never loop
       if (!el.paused) { try { el.pause(); } catch { /* */ } }
       if (Math.abs(el.currentTime - (srcDur - 0.05)) > 0.1) { try { el.currentTime = Math.max(0, srcDur - 0.05); } catch { /* */ } }

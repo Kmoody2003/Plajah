@@ -10,6 +10,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import SceneView from "../plajahPixels/components/SceneView";
+import PanelDivider from "./PanelDivider";
 import { FX_EFFECTS } from "../plajahPixels/engine/fx/effects";
 
 const uid = () => Math.random().toString(36).slice(2, 8);
@@ -36,6 +37,9 @@ function defaultGraph() {
 }
 
 export default function NodeGraphEditor({ onAddToPool, ping, palette }) {
+  const [libraryWidth, setLibraryWidth] = useState(150);
+  const [rightWidth, setRightWidth] = useState(250);
+  const [viewerHeight, setViewerHeight] = useState(180);
   const [graph, setGraph] = useState(defaultGraph);
   const [sel, setSel] = useState(null);
   const [linkFrom, setLinkFrom] = useState(null);
@@ -123,7 +127,7 @@ export default function NodeGraphEditor({ onAddToPool, ping, palette }) {
     <div className="ngeditor">
       <div className="ngbody">
         {/* ── node LIBRARY (Mockup B #2) ── */}
-        <aside className="nglib glass-dark">
+        <aside className="nglib glass-dark" style={{ width: libraryWidth }}>
           <div className="paneltitle">NODES</div>
           <div className="nglibscroll">
             {LIB.map((grp) => (
@@ -140,6 +144,7 @@ export default function NodeGraphEditor({ onAddToPool, ping, palette }) {
         </aside>
 
         {/* ── the CANVAS, dominant (Mockup B #1) ── */}
+        <PanelDivider label="Resize node library" value={libraryWidth} onChange={setLibraryWidth} min={120} max={450} />
         <div className="ngcanvas" ref={areaRef} onMouseDown={() => { setSel(null); setLinkFrom(null); }}>
           <svg className="ngwires" aria-hidden="true">
             {wires.map((w, i) => (
@@ -190,14 +195,16 @@ export default function NodeGraphEditor({ onAddToPool, ping, palette }) {
         </div>
 
         {/* ── right column: live viewer + real inspector (Mockup B #4/#5) ── */}
-        <div className="ngright">
-          <div className="ngviewer glass-dark">
+        <PanelDivider label="Resize node viewer and inspector" value={rightWidth} onChange={setRightWidth} reverse max={650} />
+        <div className="ngright" style={{ width: rightWidth }}>
+          <div className="ngviewer glass-dark" style={{ height: viewerHeight, display: 'flex', flexDirection: 'column' }}>
             <div className="ngpreview"><SceneView snapshot={previewSnap} palette={palette} playing /></div>
             <div className="ngviewbar">
               <span className="cap">VIEWING · OUTPUT</span>
               <span className="chip green" style={{ marginLeft: "auto" }}>LIVE · EXPORT-EXACT</span>
             </div>
           </div>
+          <PanelDivider label="Resize node viewer height" value={viewerHeight} onChange={setViewerHeight} vertical min={100} max={500} />
           <aside className="nginsp glass-dark">
             <div className="isec"><span className="paneltitle" style={{ flex: 1 }}>{selNode ? `NODE · ${NODE_NAME(selNode)}` : "NODE"}</span>
               {selNode && <span className="chip amb">{selNode.type.toUpperCase()}</span>}</div>

@@ -5,6 +5,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
+import AnchoredPopover from '../../../ui/AnchoredPopover';
 
 export interface MenuItem {
   id: string;
@@ -27,16 +28,13 @@ export interface MenuGroup {
 export const MenuBar: React.FC<{ menus: MenuGroup[] }> = ({ menus }) => {
   const [open, setOpen] = useState<number | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggers = useRef(new Map<number, HTMLButtonElement>());
 
   useEffect(() => {
     if (open === null) return;
-    const close = (e: PointerEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(null);
-    };
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(null); };
-    window.addEventListener('pointerdown', close, true);
     window.addEventListener('keydown', esc);
-    return () => { window.removeEventListener('pointerdown', close, true); window.removeEventListener('keydown', esc); };
+    return () => { window.removeEventListener('keydown', esc); };
   }, [open]);
 
   return (
@@ -44,12 +42,14 @@ export const MenuBar: React.FC<{ menus: MenuGroup[] }> = ({ menus }) => {
       {menus.map((menu, i) => (
         <div key={menu.label} className="relative">
           <button
+            ref={(el) => { if (el) triggers.current.set(i, el); else triggers.current.delete(i); }}
+            aria-expanded={open === i}
             onClick={() => setOpen((v) => (v === i ? null : i))}
             onPointerEnter={() => { if (open !== null && open !== i) setOpen(i); }}
             className={`h-7 px-2.5 rounded-lg text-[11.5px] transition-colors ${open === i ? 'bg-white/12 text-white' : 'text-white/55 hover:text-white hover:bg-white/[0.06]'}`}
           >{menu.label}</button>
-          {open === i && (
-            <div className="absolute top-8 left-0 z-[80] min-w-[230px] rounded-xl border border-white/15 bg-[#0B0B0F]/98 backdrop-blur-xl shadow-2xl p-1">
+          {open === i && triggers.current.get(i) && (
+            <AnchoredPopover anchor={triggers.current.get(i)!} onClose={() => setOpen(null)} className="w-[230px] rounded-xl border border-white/15 bg-[#0B0B0F]/98 backdrop-blur-xl shadow-2xl p-1">
               {menu.items.map((item, j) => item === 'sep' ? (
                 <div key={`s${j}`} className="h-px my-1 bg-white/10" />
               ) : (
@@ -64,7 +64,7 @@ export const MenuBar: React.FC<{ menus: MenuGroup[] }> = ({ menus }) => {
                   {item.hint && <span className="text-[10px] text-white/30 font-mono flex-none">{item.hint}</span>}
                 </button>
               ))}
-            </div>
+            </AnchoredPopover>
           )}
         </div>
       ))}

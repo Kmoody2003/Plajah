@@ -36,16 +36,14 @@ export const COMP_DEFAULT: CompSettings = { on: false, threshold: -24, ratio: 3,
 export const CLEAN_DEFAULT: CleanSettings = { hpf: 0, lpf: 0, hum: 0, trim: 0, denoise: 0, normalize: false };
 export const CLIP_AUDIO_DEFAULT: ClipAudio = { vol: 1, eq: [0, 0, 0, 0, 0], comp: { ...COMP_DEFAULT } };
 
+import { platformAudio } from '../mediaEngine/audioRuntime';
 let _ctx: AudioContext | null = null;
 export function getAudioCtx(): AudioContext | null {
   if (_ctx) return _ctx;
   try {
-    const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
-    if (!Ctx) return null;
     // DAW-grade context: 48kHz pro rate + interactive latency hint (smallest safe buffer the
     // browser will give us → lowest round-trip). Falls back to defaults if the UA rejects them.
-    try { _ctx = new Ctx({ latencyHint: 'interactive', sampleRate: 48000 }); }
-    catch { _ctx = new Ctx(); }
+    _ctx = platformAudio.getContext();
     installResumeOnGesture(_ctx);
     return _ctx;
   } catch { return null; }
@@ -136,7 +134,7 @@ function getMasterBus(ctx: AudioContext) {
   limiter.threshold.value = -1.0; limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.05; limiter.knee.value = 0;
   const makeup = ctx.createGain(); makeup.gain.value = 1;
   const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.2;
-  input.connect(gain); gain.connect(limiter); limiter.connect(makeup); makeup.connect(analyser); analyser.connect(ctx.destination);
+  input.connect(gain); gain.connect(limiter); limiter.connect(makeup); makeup.connect(analyser); analyser.connect(platformAudio.output('fabula'));
   const buf = new Float32Array(analyser.fftSize);
   meterRegistry.set('master', () => {
     try { analyser.getFloatTimeDomainData(buf); let p = 0; for (let i = 0; i < buf.length; i++) { const a = Math.abs(buf[i]); if (a > p) p = a; } return p; } catch { return 0; }

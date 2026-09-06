@@ -93,6 +93,7 @@
     "konva": "^10.2.3",
     "leaflet": "^1.9.4",
     "lucide-react": "0.460.0",
+    "mediabunny": "1.55.7",
     "motion": "^12.38.0",
     "mp4-muxer": "^5.2.2",
     "onnxruntime-web": "^1.27.0",

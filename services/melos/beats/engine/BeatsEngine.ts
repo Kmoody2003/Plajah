@@ -4,6 +4,7 @@
 // resumed on every gesture + visibilitychange (recipe: services/fabula/audioGraph.ts:40-104).
 
 import clockUrl from './clockProcessor.worklet.js?url';
+import { platformAudio } from '../../../mediaEngine/audioRuntime';
 import loudnessUrl from './loudnessProcessor.worklet.js?url';
 import type { ArrangeTrack, GrooveDoc, PadConfig, TimelineClip } from '../grooveDoc';
 import { newGrooveDoc } from '../grooveDoc';
@@ -60,6 +61,8 @@ export class BeatsEngine {
   private voices: VoiceBank | null = null;
   private scheduler: StepScheduler | null = null;
   private clock: AudioWorkletNode | null = null;
+  private clockSink: GainNode | null = null;
+  private initTask: Promise<void> | null = null;
   private doc: GrooveDoc = newGrooveDoc('');
   private liveClipSources: LiveClipSource[] = [];
 
@@ -101,28 +104,33 @@ export class BeatsEngine {
 
   /** Gesture-gated: call from a pointer/key handler. Idempotent. */
   async init(): Promise<void> {
+    if (this.initTask) return this.initTask;
+    this.initTask = this.initialize().catch(error => { if (this.ctx) this.dispose(); throw error; }).finally(() => { this.initTask = null; });
+    return this.initTask;
+  }
+  private async initialize(): Promise<void> {
     if (this.ctx) { this.resume(); return; }
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    let ctx: AudioContext;
-    try { ctx = new Ctx({ latencyHint: 'interactive', sampleRate: 48000 }); }
-    catch { ctx = new Ctx(); }
+    const ctx = platformAudio.getContext();
     this.ctx = ctx;
     this.installResumeOnGesture(ctx);
 
     await ctx.audioWorklet.addModule(clockUrl);
+    if (this.ctx !== ctx) return;
     const clock = new AudioWorkletNode(ctx, 'beats-clock', { numberOfInputs: 0, numberOfOutputs: 1 });
     // The node must be in the graph or process() never runs — a zero-gain sink keeps it silent.
     const sink = ctx.createGain(); sink.gain.value = 0;
-    clock.connect(sink).connect(ctx.destination);
+    this.clockSink = sink;
+    clock.connect(sink).connect(platformAudio.output('melos'));
     clock.port.onmessage = (e) => this.onTick(e.data as { t: number; f: number });
     this.clock = clock;
 
-    this.graph = buildGraph(ctx, 16);
+    this.graph = buildGraph(ctx, 16, platformAudio.output('melos'));
 
     // Loudness meter (BS.1770) tapped off the very end of the master chain — it measures what
     // actually leaves the app, limiter and all. Same keep-alive sink trick as the clock.
     try {
       await ctx.audioWorklet.addModule(loudnessUrl);
+      if (this.ctx !== ctx) return;
       const loud = new AudioWorkletNode(ctx, 'beats-loudness', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 2 });
       this.graph.master.makeup.connect(loud);
       loud.connect(sink);
@@ -867,7 +875,7 @@ export class BeatsEngine {
     osc.frequency.value = accent ? 1568 : 1046.5;
     g.gain.setValueAtTime(accent ? 0.4 : 0.24, t);
     g.gain.exponentialRampToValueAtTime(0.0008, t + 0.05);
-    osc.connect(g).connect(this.ctx.destination);
+    osc.connect(g).connect(platformAudio.output('melos'));
     osc.start(t);
     osc.stop(t + 0.06);
   }
@@ -973,9 +981,11 @@ export class BeatsEngine {
     this.stepFxHosts.forEach((h) => h.dispose()); this.stepFxHosts.clear();
     this.graph?.dispose();
     this.voices?.clearBuffers();
-    try { this.ctx?.close(); } catch { /* */ }
+    try { this.clockSink?.disconnect(); } catch { /* */ }
+    this.clockSink = null;
+    if (this.ctx) platformAudio.releaseOutput('melos');
     this.ctx = null; this.graph = null; this.voices = null; this.scheduler = null; this.clock = null;
-    BeatsEngine._inst = null;
+    if (BeatsEngine._inst === this) BeatsEngine._inst = null;
   }
 
   // ---- internals ----

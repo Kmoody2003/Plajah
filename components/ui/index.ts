@@ -26,6 +26,7 @@ export { default as ChipRail } from './ChipRail';
 export type { ChipRailItem } from './ChipRail';
 
 export { useContextMenu } from './ContextMenu';
+export { default as AnchoredPopover } from './AnchoredPopover';
 export type { MenuNode, MenuItemNode, MenuBuilder, ContextMenuApi } from './ContextMenu';
 
 export {

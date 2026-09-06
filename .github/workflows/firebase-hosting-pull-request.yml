@@ -25,6 +25,8 @@ jobs:
         run: npm ci
 
       - name: Build
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
         run: npm run build
 
       - name: Authenticate to Google Cloud
@@ -35,6 +37,7 @@ jobs:
       - name: Deploy preview channel
         id: preview
         run: |
+          set -euo pipefail
           PREVIEW_URL=$(npx firebase-tools hosting:channel:deploy "pr-${{ github.event.number }}" \
             --project gen-lang-client-0665118474 \
             --expires 7d \
