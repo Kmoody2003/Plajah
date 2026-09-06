@@ -12,6 +12,7 @@ import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveT
 import { GENRE_PRESETS, applyGenrePreset, type GenrePreset } from '../../../services/melos/beats/genrePresets';
 import { BASSLINES, applyBassline, type BasslinePreset } from '../../../services/melos/beats/bassLines';
 import { DrumPatternThumb, BasslineThumb, cachedPattern } from './PatternThumb';
+import { UniversalLibraryPanel } from '../../shared/UniversalLibrary/UniversalLibraryPanel';
 import { useAriaSurface } from '../../../services/aria/useAriaSurface';
 import { ingestSample, backupToLocker } from '../../../services/melos/beats/sampleStore';
 import { renderGroove, publishGroove, downloadBlob } from '../../../services/melos/beats/render';
@@ -499,6 +500,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
 
   // Genre drum presets — drop a ready-made pattern in and set its tempo/swing.
   const [showGenres, setShowGenres] = useState(false);
+  const [ulOpen, setUlOpen] = useState(false);
   const applyGenre = useCallback((preset: GenrePreset) => {
     let id = '';
     mutate((d: GrooveDoc) => { id = applyGenrePreset(d, preset); });
@@ -959,6 +961,16 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
             </>
           )}
         </div>
+        <button onClick={() => setUlOpen((v) => !v)} title="Universal Library — grooves, basslines and your assets"
+          className="h-6 px-2.5 rounded-lg text-[10px] border border-[#8B5CFF]/40 text-[#D0BCFF] hover:bg-[#8B5CFF]/12 flex items-center gap-1">▦ Library</button>
+        {ulOpen && (
+          <UniversalLibraryPanel accent="#FF8C00" defaultDock="floating" storageKey="melos.ullib.geo.v1" accepts={['groove', 'bassline']}
+            onClose={() => setUlOpen(false)}
+            onUse={(it) => {
+              if (it.kind === 'groove') { const g = GENRE_PRESETS.find((x) => 'groove:' + x.id === it.id); if (g) applyGenre(g); }
+              else if (it.kind === 'bassline') { const b = BASSLINES.find((x) => 'bass:' + x.id === it.id); if (b) applyBass(b); }
+            }} />
+        )}
         <div className="flex-1" />
         <button
           onClick={() => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) autoFill(d, p, 4); }); }}

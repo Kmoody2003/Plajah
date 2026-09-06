@@ -29,6 +29,8 @@ export interface UniversalLibraryProps {
   onImport?: () => void;
   /** Extra control rendered in the title bar (e.g. a switch back to a classic view). */
   headerExtra?: React.ReactNode;
+  /** Initial dock when nothing is persisted (overlay mounts pass 'floating'). */
+  defaultDock?: DockState;
   onClose?: () => void;
 }
 
@@ -50,8 +52,8 @@ function orgAssetToItem(a: OrgAsset, source: LibrarySourceId): LibraryItem {
   };
 }
 
-export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent = '#D40055', side = 'right', storageKey, scopes, accepts, onUse, onImport, headerExtra, onClose }) => {
-  const [geo, setGeo] = useState<Geo>(() => loadGeo(storageKey));
+export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent = '#D40055', side = 'right', storageKey, scopes, accepts, onUse, onImport, headerExtra, defaultDock, onClose }) => {
+  const [geo, setGeo] = useState<Geo>(() => { const g = loadGeo(storageKey); return defaultDock && (!storageKey || typeof localStorage === 'undefined' || !localStorage.getItem(storageKey)) ? { ...g, dock: defaultDock } : g; });
   const [source, setSource] = useState<LibrarySourceId>('presets');
   const [filter, setFilter] = useState<LibraryFilter>('all');
   const [query, setQuery] = useState('');

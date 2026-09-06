@@ -59,6 +59,8 @@ import TelaPublicationLibrary from './TelaPublicationLibrary';
 import { instantiatePublicationPage, type TelaPublicationTemplate } from '../../services/telaPublicationTemplates';
 import TelaTemplateGallery from './TelaTemplateGallery';
 import type { TelaDesignTemplate } from '../../services/tela/telaTemplateRegistry';
+import { TELA_TEMPLATE_GALLERY } from '../../services/tela/telaTemplateRegistry';
+import { UniversalLibraryPanel } from '../shared/UniversalLibrary/UniversalLibraryPanel';
 import { ensureFontsForObjects } from '../../services/tela/telaFonts';
 import { makeTelaNoteEntry } from './TelaNotes';
 import { useContextMenu } from '../ui/ContextMenu';
@@ -317,6 +319,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
   const [studioSafeArea, setStudioSafeArea] = useState<StudioSafeArea>('NONE');
   const [studioGuides, setStudioGuides] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
   const [studioCreativeLibraryOpen, setStudioCreativeLibraryOpen] = useState(false);
+  const [ulOpen, setUlOpen] = useState(false);
   const [studioTemplateCategory, setStudioTemplateCategory] = useState<TelaTemplateCategory>('DOCUMENT');
   const [studioPaintOpen, setStudioPaintOpen] = useState(false);
   const [writerSelection, setWriterSelection] = useState<TelaWriterSelection | null>(null);
@@ -2022,14 +2025,14 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
               {isVec
                 ? <>{STUDIO_VEC_TOOLS.map(t => (
                     <button key={t.id} title={t.label} style={railBtn(studioTool === t.id)} onClick={() => setStudioTool(t.id)}>{t.icon}</button>
-                  ))}<div className="w-7 my-1" style={{ borderTop:'1px solid rgba(255,255,255,.1)' }}/><button title="Turn selected text into an interactive question" style={railBtn(assignmentBuilderOpen)} onClick={() => openAssignmentBuilder()}><CircleHelp size={17}/></button><button title="Shapes and design templates" style={railBtn(studioCreativeLibraryOpen)} onClick={() => setStudioCreativeLibraryOpen(true)}><Shapes size={17}/></button></>
+                  ))}<div className="w-7 my-1" style={{ borderTop:'1px solid rgba(255,255,255,.1)' }}/><button title="Turn selected text into an interactive question" style={railBtn(assignmentBuilderOpen)} onClick={() => openAssignmentBuilder()}><CircleHelp size={17}/></button><button title="Shapes and design templates" style={railBtn(studioCreativeLibraryOpen)} onClick={() => setStudioCreativeLibraryOpen(true)}><Shapes size={17}/></button><button title="Universal Library" style={railBtn(ulOpen)} onClick={() => setUlOpen(v => !v)}>▦</button></>
                 : (
                   <>
                     <button title="Select / move" style={railBtn(true)} onClick={() => {}}><MousePointer2 size={17} /></button>
                     <button title="Upload image layer" style={railBtn(false)} disabled={studioImgBusy} onClick={() => studioFileRef.current?.click()}>{studioImgBusy ? <Loader2 size={17} className="animate-spin" /> : <ImagePlus size={17} />}</button>
                     <button title="Open Lorea pressure paint engine" style={railBtn(studioPaintOpen)} onClick={() => setStudioPaintOpen(true)}><Brush size={17}/></button>
                     <button title="Build assignment properties" style={railBtn(assignmentBuilderOpen)} onClick={() => openAssignmentBuilder()}><CircleHelp size={17}/></button>
-                    <button title="Design templates" style={railBtn(studioCreativeLibraryOpen)} onClick={() => setStudioCreativeLibraryOpen(true)}><Shapes size={17}/></button>
+                    <button title="Design templates" style={railBtn(studioCreativeLibraryOpen)} onClick={() => setStudioCreativeLibraryOpen(true)}><Shapes size={17}/></button><button title="Universal Library" style={railBtn(ulOpen)} onClick={() => setUlOpen(v => !v)}>▦</button>
                   </>
                 )}
             </div>
@@ -2446,6 +2449,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
         </div>
       )}
 
+      {ulOpen && <UniversalLibraryPanel accent="#8B5CFF" defaultDock="floating" storageKey="tela.ullib.geo.v1" accepts={['template']} onClose={() => setUlOpen(false)} onUse={(it) => { const t = TELA_TEMPLATE_GALLERY.find((x) => 'tela:' + x.id === it.id); if (t) { addTemplateFrames(t); setUlOpen(false); } }} />}
       {studioCreativeLibraryOpen && createPortal(
         <div className="fixed inset-0 z-[270] flex items-center justify-center p-3 sm:p-6" style={{ background:'rgba(5,3,9,.86)', backdropFilter:'blur(10px)' }} onPointerDown={event => { if (event.target === event.currentTarget) setStudioCreativeLibraryOpen(false); }}>
           <div className="w-full max-w-[1120px] max-h-[88vh] overflow-hidden rounded-[22px] flex flex-col" style={{ background:'linear-gradient(160deg,#181220,#0e0b14)', border:'1px solid rgba(255,255,255,.14)', boxShadow:'0 28px 90px rgba(0,0,0,.7)' }}>

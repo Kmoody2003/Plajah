@@ -29,10 +29,11 @@ import Waveform from "./Waveform";
 import { attachAudioGraph, getAudioCtx, meterRegistry, needsCors, resumeAudioCtx, CLIP_AUDIO_DEFAULT, COMP_DEFAULT, EQ_LABELS } from "../../services/fabula/audioGraph";
 import { transcodeToProxy, canTranscode } from "../plajahPixels/engine/core/proxyTranscoder";
 import { FxLibraryPanel, LottieBuilder, PerformCapture, CompBuilder } from "./FxLibrary";
+import { UniversalLibraryPanel } from "../shared/UniversalLibrary/UniversalLibraryPanel";
 import { FX_EFFECTS } from "../plajahPixels/engine/fx/effects";
 import { createEffectInstance } from "../../services/fabula/forgeEffects";
 import { createForgeTransition } from "../../services/fabula/forgeTransitions";
-import { instantiateLook, lookFromStack, saveUserLook, LOOK_CATEGORIES } from "../../services/fabula/forgeLooks";
+import { instantiateLook, lookFromStack, saveUserLook, LOOK_CATEGORIES, FORGE_LOOKS } from "../../services/fabula/forgeLooks";
 import { AUDIO_SOURCES } from "../plajahPixels/engine/fx/audioReact";
 import { TextOverlayCache } from "../../services/fabula/textOverlay";
 import { meshAuxElement, createMeshSequence, meshReferenceSample, trackMeshFrame, upsertMeshSample, meshTrackedRange } from "../../services/fabula/meshTrack";
@@ -791,6 +792,7 @@ export default function Fabula() {
   const [proxyBusy, setProxyBusy] = useState(null);        // "2/7 · name" while building
   const [guides, setGuides] = useState(() => localStorage.getItem("fabula:guides") === "1"); // title/action-safe overlay (never rendered)
   const [fxLibOpen, setFxLibOpen] = useState(() => localStorage.getItem("fabula:fxlib") === "1"); // effects library panel (edit page)
+  const [ulOpen, setUlOpen] = useState(false); // Universal Library overlay
   // Export destinations: one rendered file, flag-routed to Reello and/or the Fabula library.
   const [exportReady, setExportReady] = useState(null); // { blob, name } — opens the destination dialog
   const [pubReello, setPubReello] = useState(true);     // default: Reello checked…
@@ -4273,6 +4275,17 @@ export default function Fabula() {
                     <div className="paneltitle"><MonitorPlay size={12} /> MEDIA POOL
                       <button className="minibtn" style={{ marginLeft: "auto", fontSize: 8, color: fxLibOpen ? "#FF8C00" : undefined }} title="Effects Library — filters, generators, Lottie"
                         onClick={() => { const nv = !fxLibOpen; setFxLibOpen(nv); try { localStorage.setItem("fabula:fxlib", nv ? "1" : "0"); } catch { /* */ } }}>⚡FX</button>
+                      <button className="minibtn" style={{ fontSize: 8, color: ulOpen ? "#D0BCFF" : undefined }} title="Universal Library — presets, effects, templates and your assets"
+                        onClick={() => setUlOpen((v) => !v)}>▦ Library</button>
+                      {ulOpen && (
+                        <UniversalLibraryPanel accent="#D40055" defaultDock="floating" storageKey="fabula.ullib.geo.v1" accepts={["fx", "look", "trans"]}
+                          onClose={() => setUlOpen(false)}
+                          onUse={(it) => {
+                            if (it.kind === "fx") addForgeEffect(it.preview.effectId);
+                            else if (it.kind === "look") { const lk = FORGE_LOOKS.find((x) => "look:" + x.id === it.id); if (lk) applyForgeLook(lk); }
+                            else if (it.kind === "trans") addForgeTransition(it.preview.transId);
+                          }} />
+                      )}
                       <span className="segx">
                         <button className={poolView === "list" ? "on" : ""} title="List view"
                           onClick={() => { setPoolView("list"); try { localStorage.setItem("fabula:poolview", "list"); } catch { /* */ } }}>≡</button>
