@@ -245,7 +245,15 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const [localOpen, setLocalOpen] = useState<string | null>(null);
   const openInstrument = p.onOpenInstrument ? null : localOpen;
   const requestOpen = (id: string) => (p.onOpenInstrument ? p.onOpenInstrument(id) : setLocalOpen(id));
-  const drag = useRef<{ clipId: string; trackId: string; mode: 'move' | 'trim'; startX: number; orig: TimelineClip } | null>(null);
+  const drag = useRef<{
+    clipId: string;
+    trackId: string;
+    mode: 'move' | 'trim';
+    startX: number;
+    orig: TimelineClip;
+    members: { trackId: string; clip: TimelineClip }[];
+    targetTrackId?: string;
+  } | null>(null);
 
   const contentBeats = Math.max(
     32 * BEATS_PER_BAR,
@@ -408,14 +416,15 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     const clip = track?.clips.find((c) => c.id === clipId);
     if (!track || !clip) return [];
     const pat = clip.patternId ? p.doc.patterns.find((x) => x.id === clip.patternId) : undefined;
+    const targetIds = clipSelection.isSelected(clipId) ? clipSelection.selectedIds : [clipId];
     const items: MenuNode<{ trackId: string; clipId: string }>[] = [
-      { kind: 'header', label: pat?.name ?? clip.audio?.name ?? 'Clip' },
+      { kind: 'header', label: targetIds.length > 1 ? `${targetIds.length} selected clips` : (pat?.name ?? clip.audio?.name ?? 'Clip') },
     ];
     if (track.kind === 'instrument' && !track.foreign) {
       items.push({ id: 'open', label: 'Open in editor', onSelect: () => setOpenClip({ trackId, clipId }) });
     }
     items.push(
-      { id: 'dup', label: 'Duplicate', onSelect: () => p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); const c = t?.clips.find((x) => x.id === clipId); if (!t || !c) return; const copy = JSON.parse(JSON.stringify(c)); copy.id = grooveUid() + grooveUid(); copy.startBeats = c.startBeats + c.lengthBeats; t.clips.push(copy); clipSelection.selectOnly(copy.id); }) },
+      { id: 'dup', label: targetIds.length > 1 ? `Duplicate ${targetIds.length} clips` : 'Duplicate', onSelect: () => { const made: string[] = []; p.onMutate((d) => { for (const t of d.arrangement) { const originals = t.clips.filter(c => targetIds.includes(c.id)); for (const c of originals) { const copy = structuredClone(c); copy.id = grooveUid() + grooveUid(); copy.startBeats = c.startBeats + c.lengthBeats; t.clips.push(copy); made.push(copy.id); } } }); if (made.length) clipSelection.selectMany(made, made.at(-1)); } },
       { id: 'color', label: 'Clip color', submenu: [
         ...CLIP_SWATCHES.map((color) => ({ id: `color-${color}`, label: <span className="flex items-center gap-2"><span className="block w-3 h-3 rounded-full border border-white/25" style={{ background: color }} />{color.toUpperCase()}{clip.color === color ? ' ✓' : ''}</span>, onSelect: () => p.onMutate((d) => { const c = d.arrangement.find((t) => t.id === trackId)?.clips.find((x) => x.id === clipId); if (c) c.color = color; }) })),
         { kind: 'separator' as const },
@@ -423,7 +432,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
         { id: 'color-inherit', label: 'Use track color', checked: !clip.color, onSelect: () => p.onMutate((d) => { const c = d.arrangement.find((t) => t.id === trackId)?.clips.find((x) => x.id === clipId); if (c) delete c.color; }) },
       ] },
       { kind: 'separator' },
-      { id: 'del', label: 'Delete', danger: true, onSelect: () => { p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); if (t) t.clips = t.clips.filter((c) => c.id !== clipId); }); if (clipSelection.isSelected(clipId)) clipSelection.clear(); } },
+      { id: 'del', label: targetIds.length > 1 ? `Delete ${targetIds.length} clips` : 'Delete', danger: true, onSelect: () => { p.onMutate((d) => { for (const t of d.arrangement) t.clips = t.clips.filter(c => !targetIds.includes(c.id)); }); clipSelection.clear(); } },
     );
     return items;
   });
@@ -836,7 +845,8 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                     )}
                   </div>
 
-                  <div
+                   <div
+                    data-timeline-track-id={track.id}
                     className="relative flex-1"
                     onClick={(e) => {
                       // Pencil: paint on a single click (double-click still works on any tool).
@@ -880,29 +890,69 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                             if (tool === 'knife') { splitClip(track.id, clip.id, clip.startBeats + (e.clientX - el.getBoundingClientRect().left) / pxPerBeat); return; }
                             if (tool === 'glue') { glueClip(track.id, clip.id); return; }
                             if (tool === 'eraser') { eraseClip(track.id, clip.id); return; }
-                             clipSelection.handleSelect(clip.id, e);
+                             const wasSelected = clipSelection.isSelected(clip.id);
+                             const memberIds = wasSelected ? clipSelection.selectedIds : [clip.id];
+                             if (!wasSelected || e.ctrlKey || e.metaKey || e.shiftKey) clipSelection.handleSelect(clip.id, e);
                              if (tool === 'pencil') return; // pencil paints on lanes; on clips it just selects
                              if (e.ctrlKey || e.metaKey || e.shiftKey) return;
-                            const isTrim = e.clientX > el.getBoundingClientRect().right - 10;
-                            el.setPointerCapture(e.pointerId);
-                            drag.current = { clipId: clip.id, trackId: track.id, mode: isTrim ? 'trim' : 'move', startX: e.clientX, orig: { ...clip, audio: clip.audio ? { ...clip.audio } : undefined } };
+                             const isTrim = e.clientX > el.getBoundingClientRect().right - 10;
+                             el.setPointerCapture(e.pointerId);
+                             const members = p.doc.arrangement.flatMap(sourceTrack => sourceTrack.clips
+                               .filter(item => memberIds.includes(item.id))
+                               .map(item => ({ trackId: sourceTrack.id, clip: structuredClone(item) })));
+                             drag.current = { clipId: clip.id, trackId: track.id, mode: isTrim ? 'trim' : 'move', startX: e.clientX, orig: structuredClone(clip), members };
                           }}
                           onPointerMove={(e) => {
-                            const dr = drag.current;
-                            if (!dr || dr.clipId !== clip.id) return;
-                            const dBeats = (e.clientX - dr.startX) / pxPerBeat;
+                             const dr = drag.current;
+                             if (!dr || dr.clipId !== clip.id) return;
+                             const dBeats = (e.clientX - dr.startX) / pxPerBeat;
+                             p.onMutate((d) => {
+                               if (dr.mode === 'trim') {
+                                 const t = d.arrangement.find((x) => x.id === dr.trackId);
+                                 const c = t?.clips.find((x) => x.id === dr.clipId);
+                                 if (!c) return;
+                                 c.lengthBeats = Math.max(1, Math.round(dr.orig.lengthBeats + dBeats));
+                                 return;
+                               }
+
+                               // Move the complete selection as one transaction. Horizontal motion
+                               // preserves relative timing. The vertical lane transfer is committed
+                               // on pointer-up so pointer capture is not lost when React reparents clips.
+                               const minStart = Math.min(...dr.members.map(member => member.clip.startBeats));
+                               const beatDelta = Math.max(-minStart, Math.round(dBeats / BEATS_PER_BAR) * BEATS_PER_BAR);
+                               const hovered = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest<HTMLElement>('[data-timeline-track-id]')?.dataset.timelineTrackId;
+                               if (hovered) dr.targetTrackId = hovered;
+                               for (const member of dr.members) {
+                                 const lane = d.arrangement.find(item => item.id === member.trackId);
+                                 const moving = lane?.clips.find(item => item.id === member.clip.id);
+                                 if (moving) moving.startBeats = member.clip.startBeats + beatDelta;
+                               }
+                             });
+                           }}
+                          onPointerUp={() => {
+                            const dr = drag.current; drag.current = null;
+                            if (!dr || dr.mode !== 'move' || !dr.targetTrackId || dr.targetTrackId === dr.trackId) return;
                             p.onMutate((d) => {
-                              const t = d.arrangement.find((x) => x.id === dr.trackId);
-                              const c = t?.clips.find((x) => x.id === dr.clipId);
-                              if (!c) return;
-                              if (dr.mode === 'move') {
-                                c.startBeats = Math.max(0, Math.round((dr.orig.startBeats + dBeats) / BEATS_PER_BAR) * BEATS_PER_BAR);
-                              } else {
-                                c.lengthBeats = Math.max(1, Math.round(dr.orig.lengthBeats + dBeats));
+                              const primaryOrigIndex = d.arrangement.findIndex(item => item.id === dr.trackId);
+                              const hoverIndex = d.arrangement.findIndex(item => item.id === dr.targetTrackId);
+                              if (primaryOrigIndex < 0 || hoverIndex < 0) return;
+                              const laneDelta = hoverIndex - primaryOrigIndex;
+                              const moving = new Map<string, TimelineClip>();
+                              for (const lane of d.arrangement) for (const item of lane.clips) if (dr.members.some(member => member.clip.id === item.id)) moving.set(item.id, structuredClone(item));
+                              for (const lane of d.arrangement) lane.clips = lane.clips.filter(item => !moving.has(item.id));
+                              for (const member of dr.members) {
+                                const sourceIndex = d.arrangement.findIndex(item => item.id === member.trackId);
+                                const sourceKind = d.arrangement[sourceIndex]?.kind;
+                                const desiredIndex = Math.max(0, Math.min(d.arrangement.length - 1, sourceIndex + laneDelta));
+                                const destination = d.arrangement
+                                  .map((lane, index) => ({ lane, index }))
+                                  .filter(({ lane }) => !lane.foreign && !lane.isFolder && lane.kind === sourceKind)
+                                  .sort((a, b) => Math.abs(a.index - desiredIndex) - Math.abs(b.index - desiredIndex))[0]?.lane || d.arrangement[sourceIndex];
+                                const moved = moving.get(member.clip.id);
+                                if (destination && moved) destination.clips.push(moved);
                               }
                             });
                           }}
-                          onPointerUp={() => { drag.current = null; }}
                           onDoubleClick={(e) => {
                             // A MIDI clip opens its editor; that's the whole point of the clip.
                             if (track.kind === 'instrument' && !track.foreign) {
@@ -931,7 +981,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                           }}
                           title={track.foreign ? 'Preserved for re-export — not played in browser' : `${pat?.name || clip.audio?.name || 'Clip'} · drag to move (bar snap), right edge to trim, Delete to remove`}
                         >
-                          {clip.audio && !track.foreign && <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none" aria-hidden="true"><path d={(clip.audio.peaks?.length ? clip.audio.peaks : [0.2,0.5,0.3,0.7,0.4]).map((v, i, a) => `${i ? 'L' : 'M'} ${(i / Math.max(1, a.length - 1)) * 100} ${50 - v * 42}`).join(' ') + ' ' + (clip.audio.peaks?.length ? [...clip.audio.peaks].reverse() : [0.4,0.7,0.3,0.5,0.2]).map((v, i, a) => `L ${100 - (i / Math.max(1, a.length - 1)) * 100} ${50 + v * 42}`).join(' ') + ' Z'} fill={`${clipColor}55`} stroke={clipColor} strokeWidth="0.8" vectorEffect="non-scaling-stroke" /></svg>}
+                          {clip.audio && !track.foreign && <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none" aria-hidden="true"><path d={(clip.audio.peaks?.length ? clip.audio.peaks : [0.2,0.5,0.3,0.7,0.4]).map((v, i, a) => `${i ? 'L' : 'M'} ${(i / Math.max(1, a.length - 1)) * 100} ${50 - v * 42}`).join(' ') + ' ' + (clip.audio.peaks?.length ? [...clip.audio.peaks].reverse() : [0.4,0.7,0.3,0.5,0.2]).map((v, i, a) => `L ${100 - (i / Math.max(1, a.length - 1)) * 100} ${50 + v * 42}`).join(' ') + ' Z'} fill={`${clipColor}70`} stroke={clipColor} strokeWidth="1" vectorEffect="non-scaling-stroke" /></svg>}
                           {/* MIDI clips draw their notes, so the arrangement shows the music. */}
                           {clip.notes && clip.notes.length > 0 && !track.foreign && (() => {
                             const keys = clip.notes.map((n) => n.key);

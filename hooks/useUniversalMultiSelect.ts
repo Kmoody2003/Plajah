@@ -28,8 +28,9 @@ export function useUniversalMultiSelect<T extends string>(orderedIds: readonly T
   }, []);
 
   const selectMany = useCallback((ids: readonly T[], primary?: T | null) => {
-    const valid = new Set(orderedIds);
-    const next = [...new Set(ids)].filter(id => valid.has(id));
+    // Accept freshly-created ids before their owning list has completed its React update;
+    // the reconciliation effect removes genuinely stale ids on the next render.
+    const next = [...new Set(ids)];
     anchorRef.current = primary === null ? null : (primary ?? next.at(-1) ?? null);
     setSelectedIds(next);
   }, [orderKey]); // eslint-disable-line react-hooks/exhaustive-deps
