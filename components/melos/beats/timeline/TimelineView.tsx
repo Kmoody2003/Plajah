@@ -18,7 +18,7 @@ import { PianoRoll } from './PianoRoll';
 import { TimelineEditPanel } from './TimelineEditPanel';
 import { InstrumentPanel } from '../instrument/InstrumentPanel';
 import { ClipLauncher } from './ClipLauncher';
-import { useUniversalMultiSelect } from '../../../../hooks/useUniversalMultiSelect';
+import { useUniversalMarquee, useUniversalMultiSelect } from '../../../../hooks/useUniversalMultiSelect';
 
 import { PLAYHEAD, SELECT, glassPanel } from '../theme';
 
@@ -216,6 +216,8 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const [followPlayhead, setFollowPlayhead] = useState(() => localStorage.getItem('melos:timeline:follow') !== '0');
   const [ingest, setIngest] = useState<{ done: number; total: number; name: string } | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const marqueeSurfaceRef = useRef<HTMLDivElement>(null);
+  const marqueeSelection = useUniversalMarquee(marqueeSurfaceRef, clipSelection);
   const [showEditor, setShowEditor] = useState(true);
   const [showLauncher, setShowLauncher] = useState(() => localStorage.getItem('plajah_beats_launcher') !== '0');
   const toggleLauncher = () => setShowLauncher((v) => { try { localStorage.setItem('plajah_beats_launcher', v ? '0' : '1'); } catch { /* */ } return !v; });
@@ -622,6 +624,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col p-4 pt-3 gap-0">
+      {marqueeSelection.marquee && <div className="fixed pointer-events-none z-[9998] border border-[#00DAF3] bg-[#00DAF3]/10" style={marqueeSelection.marquee} />}
       {clipMenu.node}
       <input ref={colorInputRef} type="color" className="sr-only" aria-label="Choose a custom clip color" onChange={(e) => { const target = colorTargetRef.current; if (!target) return; const color = e.target.value; p.onMutate((d) => { const c = d.arrangement.find((t) => t.id === target.trackId)?.clips.find((x) => x.id === target.clipId); if (c) c.color = color; }); colorTargetRef.current = null; }} />
       {padHeaderMenu.node}
@@ -687,7 +690,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
             </div>
 
             {/* lanes */}
-            <div className="relative">
+            <div ref={marqueeSurfaceRef} {...marqueeSelection.bind} className="relative">
               {playheadX >= 0 && (
                 <div className="absolute top-0 bottom-0 w-[2px] z-20 pointer-events-none" style={{ left: headerW + playheadX, background: PLAYHEAD, boxShadow: `0 0 12px ${PLAYHEAD}88` }} />
               )}
@@ -866,7 +869,8 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                       const clipColor = clip.color || track.color;
                       return (
                         <div
-                          key={clip.id}
+                           key={clip.id}
+                           data-select-id={clip.id}
                           onContextMenu={clipMenu.bind({ trackId: track.id, clipId: clip.id }).onContextMenu}
                           onPointerDown={(e) => {
                             if (track.foreign) return;

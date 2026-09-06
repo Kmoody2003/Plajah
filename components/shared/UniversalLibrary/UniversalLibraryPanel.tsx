@@ -14,6 +14,7 @@ import {
 } from '../../../services/universalLibrary/libraryModel';
 import { listHqAssets, type OrgAsset, type OwnerScope } from '../../../services/orgAssets';
 import { auth } from '../../../services/firebase';
+import { useUniversalMarquee, useUniversalMultiSelect } from '../../../hooks/useUniversalMultiSelect';
 
 export type DockState = 'docked' | 'floating' | 'collapsed';
 export interface UniversalLibraryProps {
@@ -58,9 +59,9 @@ export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent 
   const [source, setSource] = useState<LibrarySourceId>('presets');
   const [filter, setFilter] = useState<LibraryFilter>('all');
   const [query, setQuery] = useState('');
-  const [sel, setSel] = useState<LibraryItem | null>(null);
   const [assets, setAssets] = useState<Record<string, LibraryItem[] | 'loading' | undefined>>({});
   const rootRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const persist = useCallback((g: Geo) => { setGeo(g); if (storageKey) try { localStorage.setItem(storageKey, JSON.stringify(g)); } catch { /* */ } }, [storageKey]);
   const setDock = (dock: DockState) => persist({ ...geo, dock });
@@ -87,6 +88,10 @@ export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent 
   }, [source, assets, accepts]);
 
   const items = useMemo(() => (Array.isArray(raw) ? filterItems(raw, filter, query) : []), [raw, filter, query]);
+  const assetSelection = useUniversalMultiSelect(items.map(item => item.id));
+  const marqueeSelection = useUniversalMarquee(gridRef, assetSelection);
+  const sel = items.find(item => item.id === assetSelection.primaryId) || null;
+  const selectedItems = items.filter(item => assetSelection.selectedSet.has(item.id));
 
   // ── resize (docked) ──
   const startResize = (e: React.PointerEvent) => {
@@ -134,6 +139,7 @@ export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent 
       // @ts-ignore custom prop
       '--ul-accent': accent,
     }}>
+      {marqueeSelection.marquee && <div style={{ position: 'fixed', ...marqueeSelection.marquee, border: `1px solid ${accent}`, background: `color-mix(in srgb, ${accent} 14%, transparent)`, pointerEvents: 'none', zIndex: 10002 }} />}
       {/* resize handle on the dock edge */}
       {!floating && (
         <div onPointerDown={startResize} title="Drag to resize" style={{ position: 'absolute', [side === 'right' ? 'left' : 'right']: -3, top: 0, bottom: 0, width: 6, cursor: 'col-resize', zIndex: 3 }} />
@@ -195,10 +201,10 @@ export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent 
             ) : items.length === 0 ? (
               <EmptyState title="Nothing here yet" body={source === 'presets' ? 'No preset matches your search.' : 'Upload assets to this shelf, or connect an account, and they appear here.'} />
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 9 }}>
+              <div ref={gridRef} {...marqueeSelection.bind} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 9, position: 'relative' }}>
                 {items.map((it) => (
-                  <button key={it.id} onClick={() => setSel(it)} onDoubleClick={() => onUse?.(it)} title={it.name}
-                    style={card(sel?.id === it.id, accent)}>
+                  <button key={it.id} data-select-id={it.id} onClick={(event) => assetSelection.handleSelect(it.id, event)} onDoubleClick={() => onUse?.(it)} title={it.name}
+                    style={card(assetSelection.isSelected(it.id), accent)}>
                     <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden', background: '#0d0b12' }}>
                       <LibraryTile item={it} />
                       <span style={{ ...badge, color: (LIBRARY_SOURCES.find((s) => s.id === it.source) || {} as any).accent || '#aaa' }}>{it.source}</span>
@@ -218,11 +224,11 @@ export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent 
           {sel && (
             <div style={{ borderTop: '1px solid var(--pj-border,rgba(255,255,255,.09))', padding: '9px 11px', display: 'flex', gap: 10, alignItems: 'center', background: 'var(--ground-2,#0B0910)', flex: 'none' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <b style={{ fontSize: 12, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sel.name}</b>
-                <div style={{ fontFamily: 'var(--mono,monospace)', fontSize: 9, color: 'var(--pj-muted,#877E9B)', marginTop: 2 }}>{sel.source} · {sel.typeLabel}</div>
+                <b style={{ fontSize: 12, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedItems.length > 1 ? `${selectedItems.length} assets selected` : sel.name}</b>
+                <div style={{ fontFamily: 'var(--mono,monospace)', fontSize: 9, color: 'var(--pj-muted,#877E9B)', marginTop: 2 }}>{selectedItems.length > 1 ? 'Drag-select · Ctrl/Cmd-click to add' : `${sel.source} · ${sel.typeLabel}`}</div>
               </div>
-              <button onClick={() => onUse?.(sel)} style={{ flex: 'none', height: 32, padding: '0 15px', border: 'none', borderRadius: 9, color: '#fff', fontWeight: 700, fontSize: 11, letterSpacing: '.03em', cursor: 'pointer', background: `linear-gradient(135deg,#6B0099,${accent})`, boxShadow: `0 6px 16px -6px ${accent}` }}>
-                {sel.kind === 'media' ? 'Add to project' : 'Use'}
+              <button onClick={() => selectedItems.forEach(item => onUse?.(item))} style={{ flex: 'none', height: 32, padding: '0 15px', border: 'none', borderRadius: 9, color: '#fff', fontWeight: 700, fontSize: 11, letterSpacing: '.03em', cursor: 'pointer', background: `linear-gradient(135deg,#6B0099,${accent})`, boxShadow: `0 6px 16px -6px ${accent}` }}>
+                {selectedItems.length > 1 ? `Use ${selectedItems.length}` : sel.kind === 'media' ? 'Add to project' : 'Use'}
               </button>
             </div>
           )}

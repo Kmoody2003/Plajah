@@ -10,7 +10,7 @@ import { renderTimeline } from '../engine/core/offlineRenderer';
 import { getAnalysis, analysisAt, MusicAnalysis } from '../engine/core/musicAnalysis';
 import { snapshotFromColumn, makeBlock, SceneTimeline } from '../engine/timeline/sceneTimeline';
 import SceneView from './SceneView';
-import { useUniversalMultiSelect } from '../../../hooks/useUniversalMultiSelect';
+import { useUniversalMarquee, useUniversalMultiSelect } from '../../../hooks/useUniversalMultiSelect';
 
 interface Props {
   layers: any[];
@@ -72,6 +72,7 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
 
   const waveRef = useRef<HTMLCanvasElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  const marqueeSelection = useUniversalMarquee(trackRef, blockSelection);
   const abortRef = useRef<AbortController | null>(null);
   const dragRef = useRef<{ kind: 'palette' | 'move' | 'trim'; col?: number; id?: string; grab?: number; start?: number; duration?: number } | null>(null);
   const ghostRef = useRef<HTMLDivElement>(null);
@@ -286,6 +287,7 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
 
   return (
     <div ref={overlayRef} style={{ position: 'fixed', inset: 0, background: '#0c0c12', zIndex: 9999, display: 'flex', flexDirection: 'column', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
+      {marqueeSelection.marquee && <div style={{ position: 'fixed', ...marqueeSelection.marquee, border: '1px solid #00DAF3', background: 'rgba(0,218,243,.12)', pointerEvents: 'none', zIndex: 10002 }} />}
       <div ref={ghostRef} style={{ position: 'absolute', display: 'none', pointerEvents: 'none', zIndex: 10001, padding: '5px 10px', borderRadius: 6, background: '#FF8C00', color: '#000', fontWeight: 700, fontSize: 11, opacity: 0.92 }}>Scene</div>
       {/* header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 18px', borderBottom: '1px solid #22222e' }}>
@@ -346,12 +348,12 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
           </div>
         )}
         {song && (
-          <div ref={trackRef} onClick={(e) => !dragRef.current && setPlayhead(xToT(e.clientX))}
+          <div ref={trackRef} {...marqueeSelection.bind} onClick={(e) => !marqueeSelection.consumeMarqueeClick() && !dragRef.current && setPlayhead(xToT(e.clientX))}
             style={{ position: 'relative', height: 160, background: '#101018', borderRadius: 8, border: '1px solid #22222e', overflow: 'hidden', cursor: 'crosshair' }}>
             <canvas ref={waveRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
             {/* scene blocks */}
             {blocks.map(b => (
-              <div key={b.id} data-blk={b.id}
+              <div key={b.id} data-blk={b.id} data-select-id={b.id}
                 onMouseDown={(e) => { e.stopPropagation(); blockSelection.handleSelect(b.id, e); if (!e.ctrlKey && !e.metaKey && !e.shiftKey) dragRef.current = { kind: 'move', id: b.id, grab: xToT(e.clientX) - b.start, start: b.start, duration: b.duration }; }}
                 style={{ position: 'absolute', top: 10, bottom: 10, left: `${(b.start / dur) * 100}%`, width: `${(b.duration / dur) * 100}%`, minWidth: 8, background: sceneColor(b.col), opacity: blockSelection.isSelected(b.id) ? 1 : 0.82, borderRadius: 5, border: blockSelection.isSelected(b.id) ? `2px solid ${selectedId === b.id ? '#fff' : '#00DAF3'}` : '1px solid rgba(0,0,0,0.4)', cursor: 'grab', overflow: 'hidden', color: '#000', fontSize: 11, fontWeight: 700, padding: '4px 6px', willChange: 'left,width' }}>
                 Scene {b.col + 1}

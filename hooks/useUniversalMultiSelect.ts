@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEventHandler, type RefObject } from 'react';
 
 export type SelectionGesture = Pick<MouseEvent, 'ctrlKey' | 'metaKey' | 'shiftKey'> | {
   ctrlKey?: boolean;
@@ -80,4 +80,62 @@ export function useUniversalMultiSelect<T extends string>(orderedIds: readonly T
     selectAll,
     clear,
   }), [selectedIds, handleSelect, selectOnly, selectMany, selectAll, clear]);
+}
+
+export interface MarqueeRect { left: number; top: number; width: number; height: number; }
+
+/** Rubber-band selection for timelines, canvases, grids, and asset browsers. */
+export function useUniversalMarquee<T extends string>(
+  rootRef: RefObject<HTMLElement | null>,
+  selection: Pick<ReturnType<typeof useUniversalMultiSelect<T>>, 'selectedIds' | 'selectMany' | 'clear'>,
+  selector = '[data-select-id]',
+) {
+  const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
+  const suppressClickRef = useRef(false);
+
+  const onPointerDown = useCallback<PointerEventHandler<HTMLElement>>((event) => {
+    if (event.button !== 0 || (event.target as HTMLElement).closest(selector)) return;
+    const root = rootRef.current;
+    if (!root) return;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const additive = event.ctrlKey || event.metaKey;
+    const original = additive ? selection.selectedIds : [];
+    let active = false;
+
+    const move = (next: PointerEvent) => {
+      if (!active && Math.hypot(next.clientX - startX, next.clientY - startY) < 5) return;
+      active = true;
+      suppressClickRef.current = true;
+      const left = Math.min(startX, next.clientX), top = Math.min(startY, next.clientY);
+      const right = Math.max(startX, next.clientX), bottom = Math.max(startY, next.clientY);
+      setMarquee({ left, top, width: right - left, height: bottom - top });
+      const hits = Array.from(root.querySelectorAll<HTMLElement>(selector)).flatMap(node => {
+        const rect = node.getBoundingClientRect();
+        const hit = rect.left < right && rect.right > left && rect.top < bottom && rect.bottom > top;
+        const id = node.dataset.selectId as T | undefined;
+        return hit && id ? [id] : [];
+      });
+      selection.selectMany([...original, ...hits], hits.at(-1));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      setMarquee(null);
+      if (!active && !additive) selection.clear();
+      if (active) setTimeout(() => { suppressClickRef.current = false; }, 0);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  }, [rootRef, selection.selectedIds, selection.selectMany, selection.clear, selector]);
+
+  const consumeMarqueeClick = useCallback(() => {
+    if (!suppressClickRef.current) return false;
+    suppressClickRef.current = false;
+    return true;
+  }, []);
+
+  return { marquee, bind: { onPointerDown }, consumeMarqueeClick };
 }
