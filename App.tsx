@@ -515,6 +515,8 @@ import { AchievementProvider } from './contexts/AchievementContext';
 import { PointsProvider } from './contexts/PointsContext';
 import { BadgeProvider } from './contexts/BadgeContext';
 import { NotificationProvider, useNotifications } from './contexts/NotificationContext';
+import { NetworkMonitorProvider } from './contexts/NetworkMonitorContext';
+import { levelLabel as networkLevelLabel, type DegradationEvent as NetworkDegradationEvent } from './services/networkDiagnostics';
 import { SpatialProvider } from './contexts/SpatialContext';
 import { FediverseProvider } from './contexts/FediverseContext';
 import NotificationCenter from './components/NotificationCenter';
@@ -1020,6 +1022,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     setNavWarning(msg);
     if (navWarnTimer.current) clearTimeout(navWarnTimer.current);
     navWarnTimer.current = setTimeout(() => setNavWarning(null), 3200);
+  }, []);
+  // Network degradation toast — surfaced by the NetworkMonitor when the user's
+  // connection drops to a warning/critical level.
+  const [netAlert, setNetAlert] = useState<{ msg: string; severity: 'info' | 'warning' | 'critical' } | null>(null);
+  const netAlertTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleNetworkDegradation = useCallback((e: NetworkDegradationEvent) => {
+    if (e.severity === 'none') return;
+    const label = e.level === 'offline' ? "You're offline" : `Network ${networkLevelLabel(e.level).toLowerCase()}`;
+    setNetAlert({ msg: `${label} — ${e.reason}`, severity: e.severity as any });
+    if (netAlertTimer.current) clearTimeout(netAlertTimer.current);
+    netAlertTimer.current = setTimeout(() => setNetAlert(null), e.severity === 'critical' ? 6000 : 4500);
   }, []);
   // Curated primary destinations for the compact top bar (Concept C). The full sidebar
   // config still lives in the vertical rail; the bar shows the headline pages + "More".
@@ -2867,6 +2880,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             <UploadProvider>
               <PublishQueueProvider>
               <NotificationProvider>
+                <NetworkMonitorProvider onDegradation={handleNetworkDegradation}>
                 <ActiveIdentityProvider>
                 <CallProvider>
                 <SpatialProvider initialValue={userProfile?.uiSettings?.isSpatialModeEnabled}>
@@ -3387,6 +3401,22 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                  role="alert" style={{ top: 'calc(3.5rem + env(safe-area-inset-top) + 0.5rem)' }}>
               <AlertTriangle size={13} className="text-white shrink-0" />
               <span className="text-[11px] font-black uppercase tracking-widest text-white">{navWarning}</span>
+            </div>
+          )}
+
+          {/* Network degradation toast — severity-colored */}
+          {netAlert && (
+            <div
+              className={`fixed left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2 px-4 py-2.5 rounded-full backdrop-blur-xl border shadow-2xl animate-in fade-in slide-in-from-top-2 ${
+                netAlert.severity === 'critical' ? 'bg-red-600/90 border-red-400/40'
+                : netAlert.severity === 'warning' ? 'bg-amber-500/90 border-amber-300/40'
+                : 'bg-sky-600/90 border-sky-400/40'
+              }`}
+              role="alert"
+              style={{ top: 'calc(3.5rem + env(safe-area-inset-top) + 0.5rem)' }}
+            >
+              <AlertTriangle size={13} className="text-white shrink-0" />
+              <span className="text-[11px] font-black uppercase tracking-widest text-white">{netAlert.msg}</span>
             </div>
           )}
 
@@ -6471,6 +6501,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             </SpatialProvider>
                 </CallProvider>
                 </ActiveIdentityProvider>
+                </NetworkMonitorProvider>
           </NotificationProvider>
               </PublishQueueProvider>
         </UploadProvider>

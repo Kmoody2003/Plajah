@@ -25,11 +25,16 @@ import {
   Settings,
   X,
   Send,
-  Lock
+  Lock,
+  CheckSquare,
+  Square,
+  ListPlus,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Track, UserProfile, Album, Playlist, FeedItem } from '../types';
 import { useContextMenu } from './ui/ContextMenu';
+import { useUniversalMultiSelect } from '../hooks/useUniversalMultiSelect';
 import PodcastManager from './PodcastManager';
 import { 
   fetchUserLibraryTracks, 
@@ -90,6 +95,9 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
   const [offlineItems, setOfflineItems] = useState<OfflineCacheEntry[]>([]);
   const [offlineBytes, setOfflineBytes] = useState(0);
   const [playlistPickerTrack, setPlaylistPickerTrack] = useState<Track | null>(null);
+  // Multi-select for bulk playlist add/remove across the locker.
+  const [selectMode, setSelectMode] = useState(false);
+  const [playlistPickerTracks, setPlaylistPickerTracks] = useState<Track[] | null>(null);
 
   const loadOffline = async () => {
     try {
@@ -580,50 +588,101 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
     return { albums, singles };
   })();
 
+  // Bulk-selection grammar for the locker (add/remove many songs to a playlist).
+  const lockerOrderedIds = filteredPersonal.map(t => t.id);
+  const selection = useUniversalMultiSelect(lockerOrderedIds);
+  const selectedTracks = filteredPersonal.filter(t => selection.selectedSet.has(t.id));
+
+  const exitSelectMode = () => { selection.clear(); setSelectMode(false); };
+  const toggleSelectMode = () => {
+    if (selectMode) exitSelectMode();
+    else setSelectMode(true);
+  };
+  // Play/open should not fire while picking; selection mode reroutes row clicks.
+  const onLockerRowActivate = (track: Track, e?: React.MouseEvent) => {
+    selection.handleSelect(track.id, e as any);
+  };
+  const bulkAddToPlaylist = () => {
+    if (selectedTracks.length) setPlaylistPickerTracks(selectedTracks);
+  };
+  const bulkRemoveFromLocker = async () => {
+    const ids = selectedTracks.map(t => t.id);
+    if (!ids.length) return;
+    if (!window.confirm(`Remove ${ids.length} song${ids.length !== 1 ? 's' : ''} from your locker? This can't be undone.`)) return;
+    for (const id of ids) await deletePersonalTrack(id);
+    setPersonalTracks(prev => prev.filter(t => !ids.includes(t.id)));
+    exitSelectMode();
+  };
+
   // Right-click / long-press a locker track — the shared design-system menu.
   const lockerMenu = useContextMenu<{ track: Track; list: Track[] }>((c) => [
     { kind: 'header', label: c.track.title || 'Untitled Track' },
     { id: 'play', label: 'Play', icon: <Play size={14} />, onSelect: (x) => playTrackFromList(x.track, x.list, 'Personal Collection') },
     { id: 'open', label: 'Open release', icon: <Disc size={14} />, onSelect: (x) => openLockerRelease(x.track, x.list, x.track.albumTitle) },
     { id: 'playlist', label: 'Add to playlist', icon: <ListMusic size={14} />, onSelect: (x) => setPlaylistPickerTrack(x.track) },
+    { id: 'select', label: 'Select songs…', icon: <CheckSquare size={14} />, onSelect: (x) => { setSelectMode(true); selection.selectOnly(x.track.id); } },
     { id: 'edit', label: 'Edit details', icon: <Settings size={14} />, onSelect: (x) => setEditingPodcastTrack(x.track) },
     { kind: 'separator' },
     { id: 'del', label: 'Remove from locker', danger: true, icon: <Trash2 size={14} />, onSelect: (x) => handleDeletePersonal(x.track.id) },
   ]);
 
-  const renderLockerRow = (track: Track, list: Track[]) => (
-    <div key={`pers-list-${track.id}`} className="group flex items-center gap-4 p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/[0.08] transition-all" {...lockerMenu.bind({ track, list })}>
+  const renderLockerRow = (track: Track, list: Track[]) => {
+    const isSelected = selection.selectedSet.has(track.id);
+    return (
+    <div
+      key={`pers-list-${track.id}`}
+      data-select-id={track.id}
+      onClick={selectMode ? (e) => onLockerRowActivate(track, e) : undefined}
+      className={`group flex items-center gap-4 p-3 border rounded-2xl transition-all ${
+        selectMode ? 'cursor-pointer' : ''
+      } ${
+        isSelected
+          ? 'bg-small-orange/15 border-small-orange/50'
+          : 'bg-white/5 border-white/10 hover:bg-white/[0.08]'
+      }`}
+      {...lockerMenu.bind({ track, list })}
+    >
+      {selectMode && (
+        <div className={`shrink-0 w-6 h-6 rounded-md flex items-center justify-center transition-colors ${isSelected ? 'bg-small-orange text-black' : 'bg-white/10 text-white/30'}`}>
+          {isSelected ? <Check size={14} /> : <Square size={14} />}
+        </div>
+      )}
       <div className="relative w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
         {track.albumCover ? (
           <img src={track.albumCover || undefined} className="w-full h-full object-cover rounded-xl" alt={track.title} />
         ) : (
           <FileMusic size={20} className="text-white/20" />
         )}
-        <button onClick={() => playTrackFromList(track, list, 'Personal Collection')} className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-xl">
-          <Play size={16} fill="white" />
-        </button>
+        {!selectMode && (
+          <button onClick={() => playTrackFromList(track, list, 'Personal Collection')} className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-xl">
+            <Play size={16} fill="white" />
+          </button>
+        )}
       </div>
       <div className="flex-1 grid grid-cols-3 gap-4 items-center">
-        <button type="button" onClick={() => openLockerRelease(track, list, track.albumTitle)} className="min-w-0 text-left hover:text-small-orange transition-colors">
+        <button type="button" disabled={selectMode} onClick={() => openLockerRelease(track, list, track.albumTitle)} className="min-w-0 text-left hover:text-small-orange transition-colors disabled:hover:text-inherit">
           <h4 className="text-sm font-bold uppercase tracking-wider truncate">{track.title || 'Untitled Track'}</h4>
           <p className="text-[10px] font-medium text-white/40 uppercase tracking-widest truncate">{track.artist}</p>
         </button>
         <div className="text-[10px] font-bold text-white/20 uppercase tracking-widest truncate">{track.albumTitle || 'Single'}</div>
-        <div className="flex justify-end pr-4 gap-2 items-center">
-          {track.url && (
-            <OfflineDownloadButton
-              url={track.url}
-              size="sm"
-              meta={{ title: track.title || 'Untitled Track', type: 'MUSIC', artist: track.artist, cover: track.albumCover, albumId: track.albumId, trackId: track.id }}
-            />
-          )}
-          <button onClick={() => setPlaylistPickerTrack(track)} className="tap p-2 text-white/20 hover:text-small-orange transition-colors" title="Add to playlist"><ListMusic size={16} /></button>
-          <button onClick={() => setEditingPodcastTrack(track)} className="tap p-2 text-white/20 hover:text-white transition-colors" title="Edit details"><Settings size={16} /></button>
-          <button onClick={() => handleDeletePersonal(track.id)} className="tap p-2 text-white/20 hover:text-red-500 transition-colors" title="Remove from locker"><Trash2 size={16} /></button>
-        </div>
+        {!selectMode && (
+          <div className="flex justify-end pr-4 gap-2 items-center">
+            {track.url && (
+              <OfflineDownloadButton
+                url={track.url}
+                size="sm"
+                meta={{ title: track.title || 'Untitled Track', type: 'MUSIC', artist: track.artist, cover: track.albumCover, albumId: track.albumId, trackId: track.id }}
+              />
+            )}
+            <button onClick={() => setPlaylistPickerTrack(track)} className="tap p-2 text-white/20 hover:text-small-orange transition-colors" title="Add to playlist"><ListMusic size={16} /></button>
+            <button onClick={() => setEditingPodcastTrack(track)} className="tap p-2 text-white/20 hover:text-white transition-colors" title="Edit details"><Settings size={16} /></button>
+            <button onClick={() => handleDeletePersonal(track.id)} className="tap p-2 text-white/20 hover:text-red-500 transition-colors" title="Remove from locker"><Trash2 size={16} /></button>
+          </div>
+        )}
       </div>
     </div>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -826,6 +885,25 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
                     <option value="album">Album</option>
                   </select>
                 </div>
+                {filteredPersonal.length > 0 && (
+                  <button
+                    onClick={toggleSelectMode}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
+                      selectMode ? 'bg-small-orange text-black border-small-orange' : 'bg-white/5 text-white/60 border-white/10 hover:text-white'
+                    }`}
+                  >
+                    <CheckSquare size={13} />
+                    {selectMode ? 'Done' : 'Select'}
+                  </button>
+                )}
+                {selectMode && (
+                  <button
+                    onClick={() => selection.selectedIds.length === filteredPersonal.length ? selection.clear() : selection.selectAll()}
+                    className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white/60 hover:text-white text-[9px] font-black uppercase tracking-widest transition-all"
+                  >
+                    {selection.selectedIds.length === filteredPersonal.length ? 'Clear all' : 'Select all'}
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest cursor-pointer hover:scale-105 transition-all shadow-xl">
@@ -1081,6 +1159,49 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
       {playlistPickerTrack && (
         <PlaylistPickerModal track={playlistPickerTrack} onClose={() => setPlaylistPickerTrack(null)} />
       )}
+
+      {playlistPickerTracks && (
+        <PlaylistPickerModal
+          tracks={playlistPickerTracks}
+          onClose={() => { setPlaylistPickerTracks(null); exitSelectMode(); }}
+        />
+      )}
+
+      {/* Floating bulk-selection action bar */}
+      <AnimatePresence>
+        {selectMode && selectedTracks.length > 0 && !playlistPickerTracks && (
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[150] flex items-center gap-2 px-3 py-2 rounded-2xl bg-[#0f0f0f]/95 backdrop-blur-xl border border-white/15 shadow-2xl"
+          >
+            <span className="px-3 text-[11px] font-black uppercase tracking-widest text-white whitespace-nowrap">
+              {selectedTracks.length} selected
+            </span>
+            <button
+              onClick={bulkAddToPlaylist}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-small-orange text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform"
+            >
+              <ListPlus size={14} /> Add / remove to playlist
+            </button>
+            <button
+              onClick={bulkRemoveFromLocker}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 text-white/60 hover:text-red-400 text-[10px] font-black uppercase tracking-widest transition-colors"
+            >
+              <Trash2 size={14} /> Remove
+            </button>
+            <button
+              onClick={exitSelectMode}
+              className="p-2 rounded-xl bg-white/5 text-white/40 hover:text-white transition-colors"
+              title="Cancel"
+            >
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Create Playlist Modal */}
       <AnimatePresence>

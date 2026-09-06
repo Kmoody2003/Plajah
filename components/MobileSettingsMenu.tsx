@@ -22,6 +22,7 @@ const SECTIONS: Section[] = [
     { id: 'SAFETY', label: 'Content & Safety', icon: ShieldCheck, tint: '#34d399' },
     { id: 'ALIASES', label: 'Emails & Aliases', icon: Mail, tint: '#a78bfa' },
     { id: 'NETWORKS', label: 'Social Networks', icon: Share2, tint: '#f472b6' },
+    { id: 'NETWORK_DIAGNOSTICS', label: 'Network Health', icon: Activity, tint: '#34d399' },
   ] },
   { title: 'My Content', items: [
     { id: 'ASSETS', label: 'My Assets', icon: Database, tint: '#FF8C00' },

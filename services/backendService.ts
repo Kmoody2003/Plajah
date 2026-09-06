@@ -10275,6 +10275,59 @@ export const removeTrackFromPlaylist = async (playlistId: string, trackId: strin
   }
 };
 
+/**
+ * Add many tracks to a playlist in a single read + write (dedupes against what's
+ * already there). Preferred over looping addTrackToPlaylist — one document write
+ * avoids the lost-update races that N concurrent updates would cause.
+ * Returns how many tracks were newly added.
+ */
+export const addTracksToPlaylist = async (playlistId: string, tracks: Track[]): Promise<number> => {
+  try {
+    const ref = doc(db, 'personal_playlists', playlistId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return 0;
+    const data = snap.data() as Playlist;
+    const existing = data.tracks || [];
+    const have = new Set(existing.map((t: Track) => t.id));
+    const toAdd = tracks.filter(t => t && t.id && !have.has(t.id));
+    if (toAdd.length === 0) return 0;
+    await updateDoc(ref, {
+      tracks: [...existing, ...toAdd],
+      trackIds: arrayUnion(...toAdd.map(t => t.id)),
+    });
+    return toAdd.length;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `personal_playlists/${playlistId}`);
+    return 0;
+  }
+};
+
+/**
+ * Remove many tracks from a playlist in a single read + write.
+ * Returns how many tracks were removed.
+ */
+export const removeTracksFromPlaylist = async (playlistId: string, trackIds: string[]): Promise<number> => {
+  try {
+    const ref = doc(db, 'personal_playlists', playlistId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return 0;
+    const data = snap.data() as Playlist;
+    const remove = new Set(trackIds);
+    const existing = data.tracks || [];
+    const kept = existing.filter((t: Track) => !remove.has(t.id));
+    const removedCount = existing.length - kept.length;
+    if (removedCount === 0 && !(data.trackIds || []).some(id => remove.has(id))) return 0;
+    await updateDoc(ref, {
+      tracks: kept,
+      trackIds: arrayRemove(...trackIds),
+    });
+    return removedCount;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `personal_playlists/${playlistId}`);
+    return 0;
+  }
+};
+
 export const fetchPersonalPlaylist = async (playlistId: string): Promise<Playlist | null> => {
   try {
     const snap = await getDoc(doc(db, 'personal_playlists', playlistId));

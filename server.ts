@@ -1952,6 +1952,47 @@ async function startServer() {
   // Liveness probe for uptime monitors / load balancers
   app.get('/healthz', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 
+  // ── Network diagnostics probes (same-origin, privacy-preserving) ──────────
+  // Used by the client NetworkMonitor to measure the *user's own* latency and
+  // throughput. No data is stored or logged; the upload body is discarded.
+  const NETDIAG_MAX_BYTES = 8 * 1024 * 1024; // 8 MB ceiling to prevent abuse
+  // Tiny latency ping — no body, never cached.
+  app.get('/api/netdiag/ping', (_req, res) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.status(204).end();
+  });
+  // Download probe — streams N throwaway random bytes (?bytes=…, clamped).
+  app.get('/api/netdiag/download', (req, res) => {
+    const requested = Number.parseInt(String(req.query.bytes ?? ''), 10);
+    const bytes = Math.max(1024, Math.min(Number.isFinite(requested) ? requested : 512 * 1024, NETDIAG_MAX_BYTES));
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.set('Content-Type', 'application/octet-stream');
+    res.set('Content-Length', String(bytes));
+    // Emit in chunks so we don't allocate the whole payload at once.
+    const CHUNK = 64 * 1024;
+    let sent = 0;
+    let aborted = false;
+    res.on('close', () => { aborted = true; }); // client hung up (e.g. probe timeout)
+    const pump = () => {
+      if (aborted || res.writableEnded) return;
+      while (sent < bytes) {
+        if (aborted) return;
+        const size = Math.min(CHUNK, bytes - sent);
+        const chunk = nodeCrypto.randomBytes(size);
+        sent += size;
+        if (!res.write(chunk)) { res.once('drain', pump); return; }
+      }
+      res.end();
+    };
+    pump();
+  });
+  // Upload probe — accepts and immediately discards an octet-stream body.
+  app.post('/api/netdiag/upload', express.raw({ type: 'application/octet-stream', limit: NETDIAG_MAX_BYTES }), (req, res) => {
+    const received = Buffer.isBuffer(req.body) ? req.body.length : 0;
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.json({ ok: true, received });
+  });
+
   // ── Classic Books Seeder ─────────────────────────────────────────────────
   // One-time admin endpoint: downloads 40 Gutenberg public-domain TXTs and
   // uploads them to Firebase Storage at books/classics/{id}/text.txt so the

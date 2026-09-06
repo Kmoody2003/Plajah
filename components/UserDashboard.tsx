@@ -56,6 +56,7 @@ import MusicDistributionHub from './MusicDistributionHub';
 import ArtistRadioBuilder from './ArtistRadioBuilder';
 import PodcastRssSettings from './PodcastRssSettings';
 import AudioHealthPanel from './AudioHealthPanel';
+import NetworkDiagnosticsPanel from './NetworkDiagnosticsPanel';
 // Books Studio
 import BookCreatorWizard from './BookCreatorWizard';
 import SerialScheduler from './SerialScheduler';
@@ -97,7 +98,8 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
     'FILM_STUDIO' | 'FILM_RIGHTS' | 'FILM_ANALYTICS' |
     'MUSIC_STUDIO' | 'ARTIST_RADIO' | 'PODCAST_HUB' | 'AUDIO_HEALTH' |
     'BOOKS_STUDIO' | 'SERIAL_SCHEDULER' | 'BOOK_CLUBS' |
-    'CLASSROOM_ANALYTICS' | 'CERTIFICATES' | 'SAFETY' | 'FAMILY' | 'RIGHTS_REGISTRY'
+    'CLASSROOM_ANALYTICS' | 'CERTIFICATES' | 'SAFETY' | 'FAMILY' | 'RIGHTS_REGISTRY' |
+    'NETWORK_DIAGNOSTICS'
   >((initialTab as any) || 'ACCOUNT');
   // Phone-only settings shell: a touch-first drill-down replaces the sidebar. 'list' = the grouped
   // menu; 'detail' = one section full-screen with a back header. Deep-linked (initialTab) opens detail.
@@ -354,6 +356,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             { id: 'THEMES', label: 'Theme Presets', icon: LayoutTemplate },
             { id: 'NETWORKS', label: 'Social Networks', icon: Share2 },
             { id: 'CONNECTED_SERVICES', label: 'Connected Services', icon: KeyRound },
+            { id: 'NETWORK_DIAGNOSTICS', label: 'Network Health', icon: Activity },
           ] as { id: string; label: string; icon: any; cap?: Capability }[])
             .filter(item => !item.cap || hasCapability(profile, item.cap))
             .map(item => (
@@ -2165,6 +2168,15 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 loadUserAlbums();
               }}
             />
+          )}
+          {activeTab === 'NETWORK_DIAGNOSTICS' && (
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div>
+                <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none text-white">Network<br />Health</h1>
+                <p className="text-white/30 text-sm font-bold uppercase tracking-widest mt-2">Live connection quality · private to this device</p>
+              </div>
+              <NetworkDiagnosticsPanel />
+            </motion.div>
           )}
 
           {/* ── Books Studio Tabs ─────────────────────────────────────────── */}
