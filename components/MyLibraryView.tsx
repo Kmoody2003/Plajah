@@ -52,6 +52,7 @@ import { readAudioTags, isAudioFile, titleFromFilename, isPlaylistFile, isImageF
 import { fetchLyrics, fetchCoverArtBlob } from '../services/musicEnrichment';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import OfflineDownloadButton from './OfflineDownloadButton';
+import PlaylistPickerModal from './PlaylistPickerModal';
 import {
   listCachedItems, removeCachedMedia, clearAllOfflineMedia, getOfflineStorageUsed,
   type OfflineCacheEntry,
@@ -62,9 +63,11 @@ interface MyLibraryViewProps {
   profile: UserProfile;
   onUpdate?: (updated: UserProfile) => void;
   initialTab?: 'SAVED' | 'PERSONAL' | 'PLAYLISTS' | 'SYNC';
+  /** Opens a locker release in Chora's full PlayerView. */
+  onSelectAlbum?: (album: Album) => void;
 }
 
-const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initialTab = 'SAVED' }) => {
+const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initialTab = 'SAVED', onSelectAlbum }) => {
   const { playTrack, currentTrack: globalTrack, isPlaying: globalIsPlaying } = useGlobalPlayerState();
   const [libraryTracks, setLibraryTracks] = useState<(Track & { albumId?: string; albumArtist?: string; albumCover?: string })[]>([]);
   const [personalTracks, setPersonalTracks] = useState<Track[]>([]);
@@ -86,6 +89,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
   const localFolderInputRef = useRef<HTMLInputElement>(null);
   const [offlineItems, setOfflineItems] = useState<OfflineCacheEntry[]>([]);
   const [offlineBytes, setOfflineBytes] = useState(0);
+  const [playlistPickerTrack, setPlaylistPickerTrack] = useState<Track | null>(null);
 
   const loadOffline = async () => {
     try {
@@ -512,18 +516,36 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
     });
   };
 
-  const playTrackFromList = (track: Track, currentList: Track[], title: string) => {
-    const virtualAlbum: Album = {
-      id: `virtual_${Date.now()}`,
-      title,
-      artist: profile.displayName || 'My Vault',
-      coverImage: track.albumCover || 'https://images.unsplash.com/photo-1614680376573-df3480f0c6ff?auto=format&fit=crop&w=400&q=80',
-      tracks: currentList,
-      description: 'Virtual Album from My Library',
+  const buildLockerRelease = (track: Track, currentList: Track[], title?: string): Album => {
+    // A loose upload is a single release, not one track in a synthetic "Personal Collection"
+    // compilation. Folder/album imports retain their complete track list.
+    const isSingle = !track.albumId && !track.albumTitle;
+    const releaseTracks = isSingle ? [track] : currentList;
+    return {
+      id: isSingle ? `locker-single:${track.id}` : (track.albumId || `locker-album:${track.albumTitle || title || track.id}`),
+      ownerId: profile.uid,
+      title: isSingle ? (track.title || 'Untitled Single') : (track.albumTitle || title || 'Album'),
+      artist: track.artist || profile.displayName || 'My Vault',
+      coverImage: track.albumCover || track.images?.[0] || 'https://images.unsplash.com/photo-1614680376573-df3480f0c6ff?auto=format&fit=crop&w=1200&q=85',
+      tracks: releaseTracks,
+      description: isSingle ? 'Single release from your private Music Locker' : 'Release from your private Music Locker',
       themeColor: '#000000',
-      createdAt: Date.now()
+      createdAt: (track as any).timestamp || Date.now(),
+      type: 'MUSIC',
+      isPrivate: true,
+      isGlobalArchive: false,
     };
+  };
+
+  const playTrackFromList = (track: Track, currentList: Track[], title: string) => {
+    const virtualAlbum = buildLockerRelease(track, currentList, title);
     playTrack(track, virtualAlbum, 'LIBRARY');
+  };
+
+  const openLockerRelease = (track: Track, currentList: Track[], title?: string) => {
+    const release = buildLockerRelease(track, currentList, title);
+    if (onSelectAlbum) onSelectAlbum(release);
+    else playTrack(track, release, 'LIBRARY');
   };
 
   const filteredLibrary = sortTracks(libraryTracks.filter(t => {
@@ -562,6 +584,8 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
   const lockerMenu = useContextMenu<{ track: Track; list: Track[] }>((c) => [
     { kind: 'header', label: c.track.title || 'Untitled Track' },
     { id: 'play', label: 'Play', icon: <Play size={14} />, onSelect: (x) => playTrackFromList(x.track, x.list, 'Personal Collection') },
+    { id: 'open', label: 'Open release', icon: <Disc size={14} />, onSelect: (x) => openLockerRelease(x.track, x.list, x.track.albumTitle) },
+    { id: 'playlist', label: 'Add to playlist', icon: <ListMusic size={14} />, onSelect: (x) => setPlaylistPickerTrack(x.track) },
     { id: 'edit', label: 'Edit details', icon: <Settings size={14} />, onSelect: (x) => setEditingPodcastTrack(x.track) },
     { kind: 'separator' },
     { id: 'del', label: 'Remove from locker', danger: true, icon: <Trash2 size={14} />, onSelect: (x) => handleDeletePersonal(x.track.id) },
@@ -580,10 +604,10 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
         </button>
       </div>
       <div className="flex-1 grid grid-cols-3 gap-4 items-center">
-        <div className="min-w-0">
+        <button type="button" onClick={() => openLockerRelease(track, list, track.albumTitle)} className="min-w-0 text-left hover:text-small-orange transition-colors">
           <h4 className="text-sm font-bold uppercase tracking-wider truncate">{track.title || 'Untitled Track'}</h4>
           <p className="text-[10px] font-medium text-white/40 uppercase tracking-widest truncate">{track.artist}</p>
-        </div>
+        </button>
         <div className="text-[10px] font-bold text-white/20 uppercase tracking-widest truncate">{track.albumTitle || 'Single'}</div>
         <div className="flex justify-end pr-4 gap-2 items-center">
           {track.url && (
@@ -593,6 +617,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
               meta={{ title: track.title || 'Untitled Track', type: 'MUSIC', artist: track.artist, cover: track.albumCover, albumId: track.albumId, trackId: track.id }}
             />
           )}
+          <button onClick={() => setPlaylistPickerTrack(track)} className="tap p-2 text-white/20 hover:text-small-orange transition-colors" title="Add to playlist"><ListMusic size={16} /></button>
           <button onClick={() => setEditingPodcastTrack(track)} className="tap p-2 text-white/20 hover:text-white transition-colors" title="Edit details"><Settings size={16} /></button>
           <button onClick={() => handleDeletePersonal(track.id)} className="tap p-2 text-white/20 hover:text-red-500 transition-colors" title="Remove from locker"><Trash2 size={16} /></button>
         </div>
@@ -869,7 +894,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-4">Albums</h4>
                     <AdaptiveGrid phone={2} tablet={3} desktop={4} gap="1.5rem">
                       {lockerAlbums.albums.map(a => (
-                        <button key={a.key} onClick={() => setLockerAlbumId(a.key)} className="group text-left">
+                        <button key={a.key} onClick={() => a.tracks[0] && (onSelectAlbum ? onSelectAlbum(buildLockerRelease(a.tracks[0], a.tracks, a.title)) : setLockerAlbumId(a.key))} className="group text-left">
                           <div className="relative aspect-square rounded-[2rem] overflow-hidden mb-3 bg-white/5 flex items-center justify-center">
                             {a.cover ? <img src={a.cover} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={a.title} /> : <Disc size={48} className="text-white/10 group-hover:scale-110 transition-transform" />}
                             <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/60 text-[9px] font-black text-white/80">{a.tracks.length}</div>
@@ -1052,6 +1077,10 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
           </div>
         )}
       </div>
+
+      {playlistPickerTrack && (
+        <PlaylistPickerModal track={playlistPickerTrack} onClose={() => setPlaylistPickerTrack(null)} />
+      )}
 
       {/* Create Playlist Modal */}
       <AnimatePresence>

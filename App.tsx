@@ -5102,7 +5102,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     {archiveTab === 'MY_ARCHIVE' ? (
                       <div className="col-span-full">
                         {userProfile ? (
-                          <MyLibraryView profile={userProfile} onUpdate={setUserProfile} />
+                          <MyLibraryView profile={userProfile} onUpdate={setUserProfile} onSelectAlbum={handleSelectItem} />
                         ) : (
                           <div className="py-40 text-center flex flex-col items-center gap-6 opacity-40">
                             <Layers size={48} className="mb-4" />

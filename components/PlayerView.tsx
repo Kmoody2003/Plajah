@@ -1268,9 +1268,25 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 )}
               </div>
               {/* Controls: exit · reactor selector · PP */}
-              <div className="absolute top-0 left-0 right-0 z-10 p-3 flex items-center gap-2 bg-gradient-to-b from-black/70 to-transparent" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
+              <div className="absolute top-0 left-0 right-0 z-10 p-3 flex flex-wrap items-center gap-2 bg-gradient-to-b from-black/70 to-transparent" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
                 <button onClick={() => setIsVisualizerLayout(false)} aria-label="Exit FX Stage" className="shrink-0 p-2 rounded-full bg-black/60 border border-white/10 text-white/60 hover:text-white transition-all"><X size={14} /></button>
                 <div className="flex-1 flex items-center justify-center min-w-0">{fxSelectorEl}</div>
+                <button
+                  onClick={() => {
+                    const stage = document.getElementById('mobile-video-container');
+                    if (!stage) return;
+                    if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+                      if (document.exitFullscreen) void document.exitFullscreen();
+                      else (document as any).webkitExitFullscreen?.();
+                    } else {
+                      if (stage.requestFullscreen) void stage.requestFullscreen();
+                      else (stage as any).webkitRequestFullscreen?.();
+                    }
+                  }}
+                  aria-label="Full screen FX Stage"
+                  title="Full screen"
+                  className="shrink-0 p-2 rounded-full bg-white/10 border border-white/20 text-white/80 hover:bg-white/20 transition-all"
+                ><Maximize2 size={14} /></button>
                 <button onClick={openPlajahPixels} aria-label="Open Plajah Pixels" title="Open the full Plajah Pixels experience" className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-200 text-[9px] font-black uppercase tracking-widest"><Sparkles size={11} /> PP</button>
                 {sampleClearance && currentTrack && (
                   <button onClick={() => setSampleOpen(true)} aria-label="Sample this" title="Sample this track — the artist cleared it" className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-full bg-cyan-500/20 border border-cyan-400/30 text-cyan-200 text-[9px] font-black uppercase tracking-widest"><Scissors size={11} /> Sample</button>
@@ -2524,7 +2540,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       {/* Subtle depth overlay — no blur so background stays visible */}
       <div className="fixed inset-0 bg-black/5 pointer-events-none z-[1]" />
 
-      <div className="fixed inset-0 lg:right-[50%] z-10 flex flex-col p-6 lg:p-12">
+      <div className={`fixed inset-0 z-10 flex flex-col p-6 lg:p-8 xl:p-10 2xl:p-12 ${isVisualizerLayout ? 'lg:right-[38%] xl:right-[34%] 2xl:right-[30%]' : 'lg:right-[50%]'}`}>
          {activeVideoId ? (
            <div className="relative w-full h-full flex items-center justify-center animate-in fade-in zoom-in-95 duration-700">
              {(() => {
@@ -3206,7 +3222,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         {/* Gatefold: the RIGHT LEAF — panel-framed, seamed at 50% beside the left
             leaf (classic skin keeps the overlapping floating-card layout). */}
         <div
-          className={`pointer-events-auto flex flex-col gap-6 flex-1 overflow-hidden ${isVisualizerLayout ? 'lg:w-[50%] lg:ml-[50%] lg:mr-0' : gatefoldOn ? 'lg:w-[50%] lg:ml-[50%] lg:mr-auto rounded-[1.75rem] border border-white/12 p-5' : 'lg:w-[50%] lg:ml-[44%] lg:mr-auto'}`}
+          className={`pointer-events-auto flex flex-col gap-6 flex-1 overflow-hidden ${isVisualizerLayout ? 'lg:w-[38%] lg:ml-[62%] xl:w-[34%] xl:ml-[66%] 2xl:w-[30%] 2xl:ml-[70%] lg:mr-0' : gatefoldOn ? 'lg:w-[50%] lg:ml-[50%] lg:mr-auto rounded-[1.75rem] border border-white/12 p-5' : 'lg:w-[50%] lg:ml-[44%] lg:mr-auto'}`}
           style={gatefoldOn && !isVisualizerLayout ? { background: 'rgba(10,6,16,0.6)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } : undefined}
         >
           {/* ── Compact album art strip (shown only in visualizer layout mode) ── */}
@@ -4131,7 +4147,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             </div>
 
             {/* ── Bottom: essential control bar ── */}
-            <div className="absolute bottom-0 left-0 right-0 z-30 h-[88px] bg-black/70 backdrop-blur-2xl border-t border-white/10 flex items-center px-8 gap-6">
+            <div className="absolute bottom-0 left-0 right-0 z-30 min-h-[88px] bg-black/70 backdrop-blur-2xl border-t border-white/10 flex flex-wrap lg:flex-nowrap items-center px-4 sm:px-6 lg:px-8 py-3 gap-3 lg:gap-6">
               {/* Album art thumbnail – bottom left */}
               <div
                 className="w-12 h-12 rounded-xl overflow-hidden border border-white/20 shadow-[0_0_20px_rgba(0,0,0,0.6)] shrink-0 cursor-pointer hover:scale-105 transition-all"
