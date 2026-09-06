@@ -213,7 +213,7 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
     if (readOnly) return;
     e.stopPropagation();
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
-    const nextIds = e.shiftKey
+    const nextIds = (e.shiftKey || e.ctrlKey || e.metaKey)
       ? (selectedIds.includes(id) ? selectedIds.filter(item => item !== id) : [...selectedIds, id])
       : (selectedIds.includes(id) && selectedIds.length > 1 ? selectedIds : [id]);
     selectMany(nextIds);
@@ -334,7 +334,7 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
           {[...device.layers].reverse().map(l => (
             <ImageLayerRow
               key={l.id} layer={l} selected={l.id === selectedId}
-               onSelect={event => selectMany(event.shiftKey ? (selectedIds.includes(l.id) ? selectedIds.filter(id => id !== l.id) : [...selectedIds, l.id]) : [l.id])}
+               onSelect={event => selectMany((event.shiftKey || event.ctrlKey || event.metaKey) ? (selectedIds.includes(l.id) ? selectedIds.filter(id => id !== l.id) : [...selectedIds, l.id]) : [l.id])}
               onContextMenu={props.onLayerContextMenu ? e => { select(l.id); props.onLayerContextMenu?.(e, l); } : undefined}
               onToggle={() => onUpdateLayer(l.id, { visible: !l.visible })}
               onForward={() => reorder(l.id, 1)} onBack={() => reorder(l.id, -1)}

@@ -2152,7 +2152,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
                       const bound = o.kind === 'TEXT' && o.boundWriterDeviceId;
                       const sw = o.fill !== 'none' ? o.fill : (o.stroke !== 'none' ? o.stroke : '#888');
                       return (
-                        <div key={o.id} {...vectorContextMenu.bind({ deviceId: focus.id, object: o })} onClick={event => setStudioSelection(event.shiftKey ? (studioSelIds.includes(o.id) ? studioSelIds.filter(id => id !== o.id) : [...studioSelIds, o.id]) : [o.id])} className="flex items-center gap-2 px-2 py-1.5 mb-0.5 rounded-[8px] cursor-pointer" style={{ background: studioSelIds.includes(o.id) ? 'rgba(255,255,255,0.09)' : 'transparent', border: studioSelIds.includes(o.id) ? `1px solid ${o.id === studioSel ? 'rgba(212,0,85,.5)' : 'rgba(0,218,243,.28)'}` : '1px solid transparent' }}>
+                        <div key={o.id} {...vectorContextMenu.bind({ deviceId: focus.id, object: o })} onClick={event => setStudioSelection((event.shiftKey || event.ctrlKey || event.metaKey) ? (studioSelIds.includes(o.id) ? studioSelIds.filter(id => id !== o.id) : [...studioSelIds, o.id]) : [o.id])} className="flex items-center gap-2 px-2 py-1.5 mb-0.5 rounded-[8px] cursor-pointer" style={{ background: studioSelIds.includes(o.id) ? 'rgba(255,255,255,0.09)' : 'transparent', border: studioSelIds.includes(o.id) ? `1px solid ${o.id === studioSel ? 'rgba(212,0,85,.5)' : 'rgba(0,218,243,.28)'}` : '1px solid transparent' }}>
                           <span className="w-4 h-4 rounded-[4px] shrink-0" style={{ background: sw, border: '1px solid rgba(255,255,255,0.2)' }} />
                           <span className="flex-1 min-w-0 text-[.74rem] text-white/85 truncate">{o.kind === 'TEXT' ? (o.text || 'Text') : o.objectLabel || o.kind[0] + o.kind.slice(1).toLowerCase()}</span>
                           {o.reconstructionLayer && <span className="shrink-0 text-[7px] font-extrabold tracking-[.08em] text-white/32">{o.reconstructionLayer}</span>}
@@ -2195,7 +2195,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
                     {[...img.layers].map((l, idx) => ({ l, idx })).reverse().map(({ l, idx }) => (
                       <ImageLayerRow
                         key={l.id} layer={l} selected={studioSel === l.id}
-                        onSelect={event => setStudioSelection(event.shiftKey ? (studioSelIds.includes(l.id) ? studioSelIds.filter(id => id !== l.id) : [...studioSelIds, l.id]) : [l.id])}
+                        onSelect={event => setStudioSelection((event.shiftKey || event.ctrlKey || event.metaKey) ? (studioSelIds.includes(l.id) ? studioSelIds.filter(id => id !== l.id) : [...studioSelIds, l.id]) : [l.id])}
                         onContextMenu={e => imageContextMenu.openAt(e.clientX, e.clientY, { deviceId: focus.id, layer: l })}
                         onToggle={() => dispatchOp({ type: 'UPDATE_IMAGE_LAYER', deviceId: focus.id, layerId: l.id, patch: { visible: !l.visible } })}
                         onForward={() => dispatchOp({ type: 'REORDER_IMAGE_LAYER', deviceId: focus.id, layerId: l.id, toIndex: idx + 1 })}

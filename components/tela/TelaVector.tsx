@@ -448,7 +448,7 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
     if (tool !== 'select' && tool !== 'direct') return; // let the bg handle creation tools
     e.stopPropagation();
     (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    const nextIds = e.shiftKey
+    const nextIds = (e.shiftKey || e.ctrlKey || e.metaKey)
       ? (selectedIds.includes(id) ? selectedIds.filter(item => item !== id) : [...selectedIds, id])
       : (selectedIds.includes(id) && selectedIds.length > 1 ? selectedIds : [id]);
     selectMany(nextIds);

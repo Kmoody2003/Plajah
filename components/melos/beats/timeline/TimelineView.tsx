@@ -18,6 +18,7 @@ import { PianoRoll } from './PianoRoll';
 import { TimelineEditPanel } from './TimelineEditPanel';
 import { InstrumentPanel } from '../instrument/InstrumentPanel';
 import { ClipLauncher } from './ClipLauncher';
+import { useUniversalMultiSelect } from '../../../../hooks/useUniversalMultiSelect';
 
 import { PLAYHEAD, SELECT, glassPanel } from '../theme';
 
@@ -204,7 +205,8 @@ interface TimelineViewProps {
 export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const [headerW, setHeaderW] = useState(() => Math.max(132, Math.min(360, Number(localStorage.getItem('melos:timeline:header-width')) || 172)));
   const [pxPerBeat, setPxPerBeat] = useState(14);
-  const [selectedClip, setSelectedClip] = useState<string | null>(null);
+  const clipSelection = useUniversalMultiSelect(p.doc.arrangement.flatMap(track => track.clips.map(clip => clip.id)));
+  const selectedClip = clipSelection.primaryId;
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
   const clipboardRef = useRef<{ trackId: string; clip: TimelineClip } | null>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
@@ -383,19 +385,19 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
         const saved = clipboardRef.current;
         let pastedId = '';
         p.onMutate((d) => { const track = d.arrangement.find((t) => t.id === (selectedTrack || saved.trackId)) || d.arrangement.find((t) => t.id === saved.trackId); if (!track || track.foreign) return; const copy = JSON.parse(JSON.stringify(saved.clip)); copy.id = grooveUid() + grooveUid(); copy.startBeats += copy.lengthBeats; track.clips.push(copy); pastedId = copy.id; });
-        if (pastedId) setSelectedClip(pastedId);
+        if (pastedId) clipSelection.selectOnly(pastedId);
         e.preventDefault(); return;
       }
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
-      if (!selectedClip) return;
+      if (!clipSelection.selectedIds.length) return;
       p.onMutate((d) => {
-        for (const t of d.arrangement) t.clips = t.clips.filter((c) => c.id !== selectedClip);
+        for (const t of d.arrangement) t.clips = t.clips.filter((c) => !clipSelection.selectedSet.has(c.id));
       });
-      setSelectedClip(null);
+      clipSelection.clear();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedClip, selectedTrack, p.doc, p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedClip, selectedTrack, p.doc, p.onMutate, clipSelection]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Right-click a clip — the shared design-system menu. Clips are draggable, so we
   // wire only onContextMenu (not the touch long-press bind, which would fight the drag).
@@ -411,7 +413,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
       items.push({ id: 'open', label: 'Open in editor', onSelect: () => setOpenClip({ trackId, clipId }) });
     }
     items.push(
-      { id: 'dup', label: 'Duplicate', onSelect: () => p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); const c = t?.clips.find((x) => x.id === clipId); if (!t || !c) return; const copy = JSON.parse(JSON.stringify(c)); copy.id = grooveUid() + grooveUid(); copy.startBeats = c.startBeats + c.lengthBeats; t.clips.push(copy); setSelectedClip(copy.id); }) },
+      { id: 'dup', label: 'Duplicate', onSelect: () => p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); const c = t?.clips.find((x) => x.id === clipId); if (!t || !c) return; const copy = JSON.parse(JSON.stringify(c)); copy.id = grooveUid() + grooveUid(); copy.startBeats = c.startBeats + c.lengthBeats; t.clips.push(copy); clipSelection.selectOnly(copy.id); }) },
       { id: 'color', label: 'Clip color', submenu: [
         ...CLIP_SWATCHES.map((color) => ({ id: `color-${color}`, label: <span className="flex items-center gap-2"><span className="block w-3 h-3 rounded-full border border-white/25" style={{ background: color }} />{color.toUpperCase()}{clip.color === color ? ' ✓' : ''}</span>, onSelect: () => p.onMutate((d) => { const c = d.arrangement.find((t) => t.id === trackId)?.clips.find((x) => x.id === clipId); if (c) c.color = color; }) })),
         { kind: 'separator' as const },
@@ -419,7 +421,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
         { id: 'color-inherit', label: 'Use track color', checked: !clip.color, onSelect: () => p.onMutate((d) => { const c = d.arrangement.find((t) => t.id === trackId)?.clips.find((x) => x.id === clipId); if (c) delete c.color; }) },
       ] },
       { kind: 'separator' },
-      { id: 'del', label: 'Delete', danger: true, onSelect: () => { p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); if (t) t.clips = t.clips.filter((c) => c.id !== clipId); }); if (selectedClip === clipId) setSelectedClip(null); } },
+      { id: 'del', label: 'Delete', danger: true, onSelect: () => { p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); if (t) t.clips = t.clips.filter((c) => c.id !== clipId); }); if (clipSelection.isSelected(clipId)) clipSelection.clear(); } },
     );
     return items;
   });
@@ -584,7 +586,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
       const t = d.arrangement.find((x) => x.id === trackId);
       if (t) t.clips = t.clips.filter((x) => x.id !== clipId);
     });
-    setSelectedClip((s) => (s === clipId ? null : s));
+    if (clipSelection.isSelected(clipId)) clipSelection.selectMany(clipSelection.selectedIds.filter(id => id !== clipId));
   }, [p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const playheadX = p.running && p.playMode === 'song' ? p.beats * pxPerBeat : -1;
@@ -860,7 +862,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                   >
                     {track.clips.map((clip) => {
                       const pat = p.doc.patterns.find((x) => x.id === clip.patternId);
-                      const selected = clip.id === selectedClip;
+                       const selected = clipSelection.isSelected(clip.id);
                       const clipColor = clip.color || track.color;
                       return (
                         <div
@@ -874,8 +876,9 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                             if (tool === 'knife') { splitClip(track.id, clip.id, clip.startBeats + (e.clientX - el.getBoundingClientRect().left) / pxPerBeat); return; }
                             if (tool === 'glue') { glueClip(track.id, clip.id); return; }
                             if (tool === 'eraser') { eraseClip(track.id, clip.id); return; }
-                            setSelectedClip(clip.id);
-                            if (tool === 'pencil') return; // pencil paints on lanes; on clips it just selects
+                             clipSelection.handleSelect(clip.id, e);
+                             if (tool === 'pencil') return; // pencil paints on lanes; on clips it just selects
+                             if (e.ctrlKey || e.metaKey || e.shiftKey) return;
                             const isTrim = e.clientX > el.getBoundingClientRect().right - 10;
                             el.setPointerCapture(e.pointerId);
                             drag.current = { clipId: clip.id, trackId: track.id, mode: isTrim ? 'trim' : 'move', startX: e.clientX, orig: { ...clip, audio: clip.audio ? { ...clip.audio } : undefined } };
@@ -1021,6 +1024,9 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
               ><Icon size={12} /></button>
             ))}
           </div>
+          {clipSelection.selectedIds.length > 1 && (
+            <span className="font-semibold" style={{ color: PLAYHEAD }}>{clipSelection.selectedIds.length} clips selected</span>
+          )}
           <span>Snap: <b className="text-white/60">1 bar</b> (trim: 1 beat)</span>
           <label className="flex items-center gap-1.5">Zoom
             <input type="range" min={1} max={48} step="0.5" value={pxPerBeat} onChange={(e) => setPxPerBeat(Number(e.target.value))} className="w-28 accent-[#D0BCFF]" />
