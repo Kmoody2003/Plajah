@@ -5744,11 +5744,7 @@ export default function Fabula() {
                         <button className="minibtn" onClick={addSubtitle} title="Add a subtitle clip at the playhead"><Type size={10} /> + SUBTITLE</button>
                         <button className="minibtn" onClick={addTitle} title="Add a plain title at the playhead"><Type size={10} /> + TITLE</button>
                         <button className="minibtn" onClick={() => setLtGallery("add")} title="Add an editable lower third or full-page shader motion graphic"><Type size={10} /> + MOTION GFX</button>
-                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
-                        {["normal", "ripple", "roll", "slip"].map((m) => (
-                          <button key={m} className="minibtn" onClick={() => setTrimMode(m)} title={`Trim mode: ${m} — ripple shifts downstream, roll moves the cut, slip shifts content`} style={{ opacity: trimMode === m ? 1 : 0.5, color: trimMode === m ? "#FF8C00" : undefined }}>{m.toUpperCase()}</button>
-                        ))}
-                        <button className="minibtn" onClick={() => setSnapOn((s) => !s)} title="Toggle snapping (N)" style={{ opacity: snapOn ? 1 : 0.45 }}><Box size={10} /> SNAP {snapOn ? "ON" : "OFF"}</button>
+                        {/* Trim modes + snap now live in the edit toolset directly above the timeline (moved 2026-09-06). */}
                         <button className="minibtn" onClick={() => setShowShortcuts(true)} title="Keyboard shortcuts — map your own (Ctrl+Alt+K)"><Keyboard size={10} /> KEYS</button>
                         <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
                         <button className="minibtn" title="Preview indexed worker decoding; unsupported sources automatically use compatibility playback" onClick={() => { setIndexedMode(!indexedMode); localStorage.setItem("fabula:decoder", indexedMode ? "compat" : "indexed"); }}>DECODER {indexedMode ? "INDEXED · PREVIEW" : "COMPAT"}</button>
@@ -6906,7 +6902,9 @@ export default function Fabula() {
             )}
             {prod && container && (
               <>
-                {renderRoomToolbar()}
+                {/* The EDIT toolset renders above the timeline (see renderTimeline call) since its
+                    tools act on the timeline; other workspaces keep their tool band here at the top. */}
+                {editWs !== "edit" && renderRoomToolbar()}
                 {editWs === "media" && <div className="btnrow"><button className="minibtn" onClick={()=>setRepairTab(false)}>MEDIA POOL</button><button className="minibtn" onClick={()=>setRepairTab(true)}>MEDIA REPAIR</button></div>}
                 {editWs === "media" && repairTab && <MediaRepair assets={prod.mediaPool} selected={poolSel} onSelect={a=>{setPoolSel([a.id]);openInViewer(a,false);}} onRelink={openRelink} onReconnect={()=>rescanAll(true,true)} onBuildProxies={()=>buildProxiesFor()} />}
                 {editWs === "media" && !repairTab && (
@@ -7125,6 +7123,8 @@ export default function Fabula() {
                       <div className="hsplit" title="Drag to resize the inspector" onMouseDown={(e) => startPanelResize(e, "insp")} />
                       {renderInspector()}
                     </div>
+                    {/* Edit toolset sits directly above the timeline it operates on */}
+                    {renderRoomToolbar()}
                     {renderTimeline()}
                   </>
                 )}
