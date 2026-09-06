@@ -5,12 +5,16 @@ import React, { useEffect, useRef } from 'react';
 import { fxPreview, type FxPreviewTileRef } from '../plajahPixels/engine/fx/fxPreview';
 import { FX_EFFECTS, type FxEffect, type FxPreset } from '../plajahPixels/engine/fx/effects';
 import { referenceSource } from '../plajahPixels/engine/fx/fxReference';
+import { defaultPreviewImageUrl } from '../plajahPixels/engine/fx/previewScene';
 import type { ForgeLook } from '../../services/fabula/forgeLooks';
 
-// A still of the shared reference scene, for CSS-filter previews (a colour grade
-// isn't a GL effect, so it just shows the filter applied to a real frame).
+// A still of the shared preview scene, for CSS-filter previews (a colour grade
+// isn't a GL effect, so it just shows the filter applied to a real frame). Uses
+// a dropped-in photo when present, else the synthetic reference pattern.
 let _refThumb: string | null = null;
 function referenceThumb(): string {
+  const real = defaultPreviewImageUrl();
+  if (real) return real;
   if (_refThumb != null) return _refThumb;
   try { _refThumb = referenceSource(320, 180, 8).toDataURL('image/jpeg', 0.82); } catch { _refThumb = ''; }
   return _refThumb;

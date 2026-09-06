@@ -14,7 +14,7 @@ import { GeneratorRenderer, hasGenerator } from '../core/generators';
 import { ShaderRenderer } from '../core/shaderRenderer';
 import { ForgeTransitionRenderer } from './transitionRenderer';
 import { createGL, createProgram, createFullscreenQuad, makeSourceTexture, uploadElement, type GL } from '../core/glUtil';
-import { referenceSource } from './fxReference';
+import { previewSource } from './previewScene';
 
 const PW = 320, PH = 180; // internal render size; tiles downscale from this
 const MAX_PER_FRAME = 10; // cap GPU work per frame; extra visible tiles render round-robin
@@ -101,14 +101,15 @@ class FxPreviewEngine {
     }
 
     // One animated source frame + synthetic audio, shared by every tile this frame.
-    // referenceSource returns a NEW canvas unless the one passed already matches PW×PH,
+    // previewSource returns a NEW canvas unless the one passed already matches PW×PH,
     // so capture the return — otherwise the first frame uploads a blank canvas forever.
-    // The reference source is only needed by tiles that transform a source (fx/look/trans).
+    // It draws a real photo (from previewAssets) when present, else the synthetic
+    // reference pattern. Only tiles that transform a source (fx/look/trans) need it.
     const needSrc = visible.some(t => !t.kind || t.kind === 'fx' || t.kind === 'look' || t.kind === 'trans');
-    if (needSrc) { this.srcCanvas = referenceSource(PW, PH, Math.floor(time * 24), this.srcCanvas); uploadElement(gl, this.srcTex, this.srcCanvas); }
+    if (needSrc) { this.srcCanvas = previewSource(PW, PH, Math.floor(time * 24), this.srcCanvas, 0); uploadElement(gl, this.srcTex, this.srcCanvas); }
     // A visibly different "incoming" frame, only needed when a transition tile is on screen.
     const needTrans = visible.some(t => t.kind === 'trans');
-    if (needTrans) { this.srcCanvas2 = referenceSource(PW, PH, Math.floor(time * 24) + 47, this.srcCanvas2); uploadElement(gl, this.srcTex2, this.srcCanvas2); }
+    if (needTrans) { this.srcCanvas2 = previewSource(PW, PH, Math.floor(time * 24) + 47, this.srcCanvas2, 1); uploadElement(gl, this.srcTex2, this.srcCanvas2); }
     for (let i = 0; i < 256; i++) {
       this.freq[i] = Math.max(0, Math.min(255, 150 * Math.exp(-i / 42) * (0.6 + 0.4 * Math.sin(time * 2.2 - i * 0.05)) + 26));
       this.wave[i] = Math.max(0, Math.min(255, 128 + 62 * Math.sin(time * 6 + i * 0.19)));
