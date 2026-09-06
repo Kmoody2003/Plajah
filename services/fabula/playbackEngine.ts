@@ -27,7 +27,7 @@ import {
   getAudioCtx, resumeAudioCtx, meterRegistry, EQ_BANDS,
   getMasterInput, getFxSends, needsCors,
 } from './audioGraph';
-import { getBytes as mediaGetBytes } from './mediaStore';
+import { resolveMediaSource } from './mediaSource';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -164,7 +164,7 @@ async function fetchBytes(url: string): Promise<ArrayBuffer> {
   const res = await fetch(url, { ...(needsCors(url) ? { mode: 'cors' as RequestMode } : {}), signal: ac.signal });
   if (!res.ok) throw new Error('http ' + res.status);
   const len = Number(res.headers.get('content-length') || 0);
-  if (len > MAX_FETCH_BYTES) throw new Error('too large to decode');
+  if (len > MAX_FETCH_BYTES) throw new Error('Streaming audio: source exceeds in-memory budget');
   const reader = res.body?.getReader();
   if (!reader) throw new Error('no response body');
   const chunks: Uint8Array[] = []; let size = 0;
@@ -172,7 +172,7 @@ async function fetchBytes(url: string): Promise<ArrayBuffer> {
     const { done, value } = await reader.read();
     if (done) break;
     size += value.byteLength;
-    if (size > MAX_FETCH_BYTES) { await reader.cancel(); throw new Error('too large to decode'); }
+    if (size > MAX_FETCH_BYTES) { await reader.cancel(); throw new Error('Streaming audio: source exceeds in-memory budget'); }
     chunks.push(value);
   }
   const bytes = new Uint8Array(size); let offset = 0;
@@ -181,7 +181,7 @@ async function fetchBytes(url: string): Promise<ArrayBuffer> {
   } finally { clearTimeout(timer); }
 }
 
-async function decodeUrl(url: string, assetId?: string): Promise<AudioBuffer | null> {
+async function decodeUrl(url: string, assetId?: string, asset?: any): Promise<AudioBuffer | null> {
   const hit = bufCache.get(url);
   if (hit) { hit.at = Date.now(); return hit.buf; }
   if (unplayable.has(url)) return null;
@@ -193,36 +193,19 @@ async function decodeUrl(url: string, assetId?: string): Promise<AudioBuffer | n
     const ctx = getAudioCtx();
     if (!ctx) return null;
     let firstErr: any = null;
-    let attemptedLocal = false;
-    // Local storage precedes all network I/O. Blob URLs include direct disk files.
+    let source: Awaited<ReturnType<typeof resolveMediaSource>> | null = null;
     try {
-      const local = assetId && !url.startsWith('blob:') ? await mediaGetBytes('studio:blob:' + assetId) : null;
-      attemptedLocal = !!local?.size;
-      if (local && local.size > MAX_FETCH_BYTES) throw new Error('too large to decode');
-      const bytes = local?.size ? await local.arrayBuffer() : await fetchBytes(url);
+      source = await resolveMediaSource(asset || {id:assetId,url});
+      if (source.blob && source.blob.size > MAX_FETCH_BYTES) throw new Error('Streaming audio: source exceeds in-memory budget');
+      const bytes = source.blob ? await source.blob.arrayBuffer() : await fetchBytes(source.url);
       const buf = await ctx.decodeAudioData(bytes);
       const pcm = buf.length * buf.numberOfChannels * 4;
-      if (pcm > MAX_CACHE_BYTES) throw new Error('decoded audio exceeds budget');
+      if (pcm > MAX_CACHE_BYTES) throw new Error('Streaming audio: decoded size exceeds in-memory budget');
       evictLRU(pcm);
-      bufCache.set(url, { buf, bytes: pcm, at: Date.now() });
+      bufCache.set(url, {buf,bytes:pcm,at:Date.now()});
       return buf;
-    } catch (e) { firstErr = e; }
-    // Stage 2 (rescue): decode straight from the LOCAL bytes in the media substrate —
-    // sidesteps every fetch-level failure (CORS, tokens, dead blob URLs, network).
-    if (assetId && !attemptedLocal) {
-      try {
-        const blob = await mediaGetBytes('studio:blob:' + assetId);
-        if (blob && blob.size && blob.size <= MAX_FETCH_BYTES) {
-          const buf = await ctx.decodeAudioData(await blob.arrayBuffer());
-          const pcm = buf.length * buf.numberOfChannels * 4;
-          if (pcm > MAX_CACHE_BYTES) throw new Error('decoded audio exceeds budget');
-          evictLRU(pcm);
-          bufCache.set(url, { buf, bytes: pcm, at: Date.now() });
-          console.info('[playbackEngine] rescued from local bytes:', url);
-          return buf;
-        }
-      } catch (e2) { if (!firstErr) firstErr = e2; }
-    }
+    } catch (error) { firstErr = error; }
+    finally { source?.release(); }
     const why = (firstErr && (firstErr.message || String(firstErr))) || 'unknown';
     console.warn('[playbackEngine] cannot decode — element fallback for', url, '·', why);
     unplayable.add(url);
@@ -248,7 +231,7 @@ export function warmAudio(clips: any[], mediaPool: any[]) {
     for (const e of planPlayback(clips, mediaPool, 0)) {
       if (seen.has(e.url)) continue;
       seen.add(e.url);
-      void decodeUrl(e.url, e.assetId);
+      void decodeUrl(e.url, e.assetId, mediaPool.find(a => a.id === e.assetId));
       if (seen.size >= 2) break;
     }
   } catch { /* warm is best-effort */ }
@@ -478,7 +461,7 @@ export function startPlayback(opts: { clips: any[]; mediaPool: any[]; trackSetti
     if (cached && e.when >= elapsed) { cached.at = Date.now(); scheduleEntry(e, cached.buf); state.scheduled++; continue; }
     state.pending++;
     // late-join: decode now, then splice in at the correct source offset for the CURRENT clock
-    void decodeUrl(e.url, e.assetId).then((buf) => {
+    void decodeUrl(e.url, e.assetId, opts.mediaPool.find(a => a.id === e.assetId)).then((buf) => {
       if (state.session === session) state.pending = Math.max(0, state.pending - 1);
       if (!buf || !state.running || state.session !== session) return;
       if (state.session === session) state.scheduled++;

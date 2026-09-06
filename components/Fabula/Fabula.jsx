@@ -3183,7 +3183,7 @@ export default function Fabula() {
         const st = engineStats();
         console.info("[fabula-playback]", st);
         if (st.dead) ping("Audio device stalled — switched to direct playback for this session. If audio still misbehaves, check Windows sound devices / Bluetooth.");
-        if (st.running && st.unplayable.length) ping(`${st.unplayable.length} audio source${st.unplayable.length === 1 ? "" : "s"} can't decode (${(st.reasons?.[0] || "").split(" ← ")[0] || "?"}) — playing via fallback. Console has urls.`);
+        if (st.running && st.unplayable.length) ping(`${st.unplayable.length} audio source${st.unplayable.length === 1 ? "" : "s"} using streaming playback (${(st.reasons?.[0] || "").split(" ← ")[0] || "?"}) — this does not mean the file is offline.`);
         else if (st.running && st.pending > 0) ping(`${st.pending} audio clip${st.pending === 1 ? "" : "s"} still decoding — they join as they finish.`);
         if (st.running && st.soloed.length) ping(`SOLO is on (${st.soloed.join(", ")}) — other tracks are muted.`);
       } catch { /* diagnostics only */ }
@@ -8164,9 +8164,22 @@ function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playin
       source = resolved;
       setPlaybackSrc(resolved.url);
       setLoadState({ phase: "loading", pct: 0 });
-    }).catch(() => { if (alive) setLoadState({ phase: "error", pct: 0 }); });
+    }).catch(error => { if (alive) setLoadState({ phase: "error", pct: 0, message: error.message }); });
     return () => { alive = false; source?.release(); };
   }, [asset?.id, asset?.url, asset?.type, sourceRetry]);
+
+  // Bound loading recovery. A seek finishing can produce a frame without a
+  // playing event, so buffering must not remain latched after that frame arrives.
+  useEffect(() => {
+    if (!active || !playing || !playbackSrc || indexedReady || !["loading","buffering"].includes(loadState.phase)) return;
+    const timer = setTimeout(() => {
+      const video = vRef.current;
+      if (video instanceof HTMLVideoElement && video.readyState >= 2 && !video.seeking) setLoadState({phase:"ready",pct:100});
+      else if (sourceRetry === 0) setSourceRetry(1);
+      else setLoadState({phase:"error",pct:0,message:"VIDEO STALLED — no frame available after retry; reconnect local media or convert this source"});
+    }, 12000);
+    return () => clearTimeout(timer);
+  }, [active,playing,playbackSrc,indexedReady,loadState.phase,sourceRetry]);
 
   // Target source-time for the current playhead, held in a ref so the video's own
   // load/seek events can re-apply it (fixes: a freshly-swapped clip renders black or a
@@ -8285,14 +8298,14 @@ function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playin
         {useIndexed && <IndexedVideoCanvas key={playbackSrc} url={playbackSrc} sourceRef={frameRef} playing={playing} active={active} time={playhead} offset={offset} clipStart={clip.start} fps={prod?.defaults?.format?.fps || 24} hidden={!indexedReady || hasForge} onReady={() => { setIndexedState({url:playbackSrc,phase:"ready"}); setLoadState({phase:"ready",pct:100}); }} onError={(error) => { console.warn("[Fabula] indexed decoder fallback", error); setIndexedState({url:playbackSrc,phase:"failed"}); }} />}
         {useIndexed && !clip.av && !engineOwnsAudio && <AudioLayer clip={{...clip,assetId:asset.id,srcIn:offset}} prod={prod} playhead={playhead} playing={playing} active={active} track={{vol,mute}} trackId={clip.trackId} />}
         {hasForge && <ForgeClipPreview videoRef={renderRef} effects={fx.stack} mediaPool={prod?.mediaPool || []} cubeLut={activeCubeLut} time={Math.max(0, playhead - clip.start)} active={active} clipFx={fx} fps={prod?.defaults?.format?.fps || 24} />}
-        {!indexedReady && playbackSrc && asset.type === "video" && <video ref={vRef} src={playbackSrc} className="mvid" style={hasForge ? { opacity: 0 } : undefined} muted={!active || !!mute || !!clip.disabled || !!clip.av || engineOwnsAudio || useIndexed} playsInline preload="auto" crossOrigin={needsCors(playbackSrc) ? "anonymous" : undefined} onLoadStart={() => setLoadState({ phase: "loading", pct: 0 })} onWaiting={() => setLoadState({ phase: "buffering", pct: 0 })} onPlaying={() => setLoadState({ phase: "ready", pct: 100 })} onLoadedData={() => { doSeek(); setLoadState({ phase: "ready", pct: 100 }); }} onCanPlay={() => { doSeek(); setLoadState({ phase: "ready", pct: 100 }); }} onSeeked={() => { if (!playing) doSeek(); }}
+        {!indexedReady && playbackSrc && asset.type === "video" && <video ref={vRef} src={playbackSrc} className="mvid" style={hasForge ? { opacity: 0 } : undefined} muted={!active || !!mute || !!clip.disabled || !!clip.av || engineOwnsAudio || useIndexed} playsInline preload="auto" crossOrigin={needsCors(playbackSrc) ? "anonymous" : undefined} onLoadStart={() => setLoadState({ phase: "loading", pct: 0 })} onWaiting={() => setLoadState({ phase: "buffering", pct: 0 })} onPlaying={() => setLoadState({ phase: "ready", pct: 100 })} onLoadedData={() => { doSeek(); setLoadState({ phase: "ready", pct: 100 }); }} onCanPlay={() => { doSeek(); setLoadState({ phase: "ready", pct: 100 }); }} onSeeked={() => { if (!playing) doSeek(); if (vRef.current?.readyState >= 2) setLoadState({phase:"ready",pct:100}); }}
           onError={() => {
             if (sourceRetry === 0) setSourceRetry(1);
-            else setLoadState({ phase: "error", pct: 0 });
+            else setLoadState({ phase: "error", pct: 0, message: vRef.current?.error?.code === 3 ? "VIDEO DECODE FAILED — file loaded, but the browser rejected its video stream" : "VIDEO SOURCE UNAVAILABLE — reconnect local folder or relink media" });
           }} />}
         {active && asset?.type === "video" && ["error", "loading", "buffering"].includes(loadState.phase) && (
           <div style={{ position: "absolute", left: "6%", right: "6%", bottom: "7%", zIndex: 90, padding: "8px 10px", borderRadius: 8, background: "rgba(0,0,0,.74)", color: "white", fontSize: 9, letterSpacing: ".12em" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}><span>{loadState.phase === "error" ? "MEDIA UNAVAILABLE — RELINK OR CONVERT SOURCE" : loadState.phase.toUpperCase()}</span><span>{loadState.pct ? loadState.pct + "%" : "PREPARING"}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}><span>{loadState.phase === "error" ? (loadState.message || "VIDEO UNAVAILABLE — RELINK OR CONVERT SOURCE") : loadState.phase.toUpperCase()}</span><span>{loadState.pct ? loadState.pct + "%" : "PREPARING"}</span></div>
             <div style={{ height: 3, borderRadius: 4, overflow: "hidden", background: "rgba(255,255,255,.18)" }}><div style={{ width: (loadState.pct || 12) + "%", height: "100%", background: "#ff8c00", transition: "width .2s" }} /></div>
           </div>
         )}
@@ -8390,15 +8403,18 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
   const [corsFail, setCorsFail] = useState(false);
   const asset = clip.assetId ? prod.mediaPool.find((a) => a.id === clip.assetId) : null;
   const [resolvedAudio, setResolvedAudio] = useState(null);
+  const [sourceRetry, setSourceRetry] = useState(0);
+  const [audioError, setAudioError] = useState("");
+  useEffect(() => { setSourceRetry(0); setAudioError(""); }, [asset?.id,asset?.url]);
   useEffect(() => {
     let alive = true, source = null;
     setResolvedAudio(null);
-    resolveMediaSource(asset).then((s) => {
+    resolveMediaSource(asset, sourceRetry > 0).then((s) => {
       if (!alive) { s.release(); return; }
       source = s; setResolvedAudio({ id: asset?.id, original: asset?.url, url: s.url });
-    }).catch(() => {});
+    }).catch(error => { if (alive) setAudioError(error.message); });
     return () => { alive = false; source?.release(); };
-  }, [asset?.id, asset?.url]);
+  }, [asset?.id, asset?.url, sourceRetry]);
   const url = resolvedAudio?.id === asset?.id && resolvedAudio?.original === asset?.url ? resolvedAudio?.url : null;
   const wantCors = needsCors(url) && !corsFail;
   const offset = clip.srcIn || 0;
@@ -8454,10 +8470,12 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
   }, [active, url, clipAudioKey, trackKey, clip.disabled, trackId, ctxTick]);
   // Release the meter when this track's clip goes silent/unmounts.
   useEffect(() => () => { if (trackId && meterRegistry.get(trackId) === graphRef.current?.level) meterRegistry.delete(trackId); }, [trackId]);
-  if (!url || clip.disabled) return null;
-  return <audio key={wantCors ? "cors" : "plain"} ref={aRef} src={url} preload="auto" style={{ display: "none" }}
+  const failure = active && audioError ? <div role="status" style={{position:"absolute",bottom:4,left:8,zIndex:100,color:"#ffbc80",background:"#171717",padding:6,fontSize:11}}>{asset?.name || "Audio"}: {audioError}</div> : null;
+  if (!url || clip.disabled) return failure;
+  return <>{failure}<audio key={wantCors ? "cors" : "plain"} ref={aRef} src={url} preload="auto" style={{ display: "none" }}
     {...(wantCors ? { crossOrigin: "anonymous" } : {})}
     onCanPlay={() => {
+      setAudioError("");
       // Element just became ready — if we are mid-play and it missed its start, join now.
       const a = aRef.current;
       if (a && active && playing && a.paused) {
@@ -8467,9 +8485,11 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
       }
     }}
     onError={() => {
-      // CORS-mode load refused → rebuild plain and play direct (audible, DSP bypassed for this clip).
-      if (wantCors) { console.warn("[fabula-audio] CORS refused for", url, "— playing direct, DSP bypassed"); setCorsFail(true); }
-    }} />;
+      const code = aRef.current?.error?.code;
+      if (sourceRetry === 0) { setSourceRetry(1); return; }
+      if (wantCors && code !== 3) { setCorsFail(true); return; }
+      setAudioError(code === 3 ? "DECODE FAILED — bytes loaded, but the browser rejected the audio stream" : "SOURCE UNAVAILABLE OR UNSUPPORTED — reconnect local folder or relink/convert this file");
+    }} /></>;
 }
 
 /* ---------- Resolve-style per-track peak meter (reads the live DSP analyser) ---------- */

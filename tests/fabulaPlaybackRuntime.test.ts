@@ -8,13 +8,24 @@ test('pending or unknown sources never claim fallback audio', () => {
   assert.equal(enginePlayable('blob:pending'), false);
 });
 
-test('local object URL is resolved without fetching cloud media', async () => {
-  const old = globalThis.fetch;
-  globalThis.fetch = (() => { throw new Error('unexpected network request'); }) as any;
+test('readable local object URL precedes its cloud copy, including recovery', async () => {
+  const url=URL.createObjectURL(new Blob(['local bytes']));
   try {
-    const source = await resolveMediaSource({ id: 'disk', url: 'blob:disk', cloudUrl: 'https://example.com/original.mp4' });
-    assert.equal(source.url, 'blob:disk'); assert.equal(source.local, true); source.release();
-  } finally { globalThis.fetch = old; }
+    for(const recover of [false,true]) {
+      const source=await resolveMediaSource({url,cloudUrl:'https://invalid.example/video'},recover);
+      assert.equal(source.local,true);assert.equal(await source.blob?.text(),'local bytes');source.release();
+    }
+  } finally {URL.revokeObjectURL(url);}
+});
+
+test('expired local URL uses cloud only when local bytes are unavailable', async () => {
+  const url=URL.createObjectURL(new Blob(['gone']));URL.revokeObjectURL(url);
+  const source=await resolveMediaSource({url,cloudUrl:'https://example.com/backup.wav'});
+  assert.equal(source.local,false);assert.equal(source.origin,'cloud');assert.equal(source.url,'https://example.com/backup.wav');
+});
+
+test('missing local bytes without backup are reported offline, not decode failure', async () => {
+  await assert.rejects(resolveMediaSource({url:'blob:expired'}),/MEDIA OFFLINE/);
 });
 
 test('video sync leaves an in-flight seek alone and clamps negative source offsets', async () => {
