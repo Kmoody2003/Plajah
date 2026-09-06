@@ -793,6 +793,7 @@ export default function Fabula() {
   const [guides, setGuides] = useState(() => localStorage.getItem("fabula:guides") === "1"); // title/action-safe overlay (never rendered)
   const [fxLibOpen, setFxLibOpen] = useState(() => localStorage.getItem("fabula:fxlib") === "1"); // effects library panel (edit page)
   const [ulOpen, setUlOpen] = useState(false); // Universal Library overlay
+  const [poolImportOpen, setPoolImportOpen] = useState(false); // collapse the pool's import tools → pool reads as project contents
   // Export destinations: one rendered file, flag-routed to Reello and/or the Fabula library.
   const [exportReady, setExportReady] = useState(null); // { blob, name } — opens the destination dialog
   const [pubReello, setPubReello] = useState(true);     // default: Reello checked…
@@ -4318,6 +4319,13 @@ export default function Fabula() {
                         );
                       })}
                     </div>
+                    {/* Bring media in — collapsed by default so the Media Pool reads as this project's
+                        contents (Resolve-style). All the file inputs below stay mounted (they're used
+                        from the command palette, Media workspace and FX library), so this only hides the UI. */}
+                    <button className="minibtn full" onClick={() => setPoolImportOpen((v) => !v)} title="Import media, watch folders, and add your on-platform music/videos. The pool below is your project's contents.">
+                      <Upload size={12} /> BRING MEDIA IN {poolImportOpen ? "▴" : "▾"}
+                    </button>
+                    <div style={{ display: poolImportOpen ? undefined : "none" }}>
                     <button className="minibtn full" onClick={() => fileRef.current?.click()}><Upload size={12} /> IMPORT MEDIA</button>
                     <input ref={fileRef} type="file" multiple accept={`${codecImportAccept()},.lottie,.json,.svg,.ai,.pdf`} style={{ display: "none" }} onChange={handleUpload} />
                     <input ref={relinkRef} type="file" accept="video/*,image/*,audio/*" style={{ display: "none" }}
@@ -4367,6 +4375,7 @@ export default function Fabula() {
                     <button className="minibtn full" style={{ marginTop: 6 }} onClick={loadMyVideos} disabled={videoLoading} title="Load your on-platform videos + Live-stream recordings">
                       <MonitorPlay size={12} /> {videoLoading ? "LOADING…" : "MY VIDEOS + LIVE"}
                     </button>
+                    </div>
                     {poolView === "thumbs" && (
                       <div className="poolthumbs">
                         {poolShown.map((a) => {
