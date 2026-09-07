@@ -974,16 +974,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
             </>
           )}
         </div>
-        <button onClick={() => setUlOpen((v) => !v)} title="Universal Library — grooves, basslines and your assets"
-          className="h-6 px-2.5 rounded-lg text-[10px] border border-[#8B5CFF]/40 text-[#D0BCFF] hover:bg-[#8B5CFF]/12 flex items-center gap-1">▦ Library</button>
-        {ulOpen && (
-          <UniversalLibraryPanel accent="#FF8C00" defaultDock="floating" storageKey="melos.ullib.geo.v1" accepts={['groove', 'bassline']}
-            onClose={() => setUlOpen(false)}
-            onUse={(it) => {
-              if (it.kind === 'groove') { const g = GENRE_PRESETS.find((x) => 'groove:' + x.id === it.id); if (g) applyGenre(g); }
-              else if (it.kind === 'bassline') { const b = BASSLINES.find((x) => 'bass:' + x.id === it.id); if (b) applyBass(b); }
-            }} />
-        )}
+        <button onClick={() => setUlOpen((v) => !v)} title="Universal Library — grooves, basslines and your assets — docks on the right"
+          className={`h-6 px-2.5 rounded-lg text-[10px] border flex items-center gap-1 ${ulOpen ? 'border-[#8B5CFF]/70 text-white bg-[#8B5CFF]/15' : 'border-[#8B5CFF]/40 text-[#D0BCFF] hover:bg-[#8B5CFF]/12'}`}>▦ Library</button>
         <div className="flex-1" />
         <button
           onClick={() => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) autoFill(d, p, 4); }); }}
@@ -1076,6 +1068,14 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       )}
       </div>
       {showLibrary && <MuseLibrary docked doc={doc} onMutate={mutate} onClose={() => setShowLibrary(false)} />}
+      {ulOpen && (
+        <UniversalLibraryPanel accent="#FF8C00" side="right" defaultDock="docked" storageKey="melos.ullib.geo.v2" accepts={['groove', 'bassline']}
+          onClose={() => setUlOpen(false)}
+          onUse={(it) => {
+            if (it.kind === 'groove') { const g = GENRE_PRESETS.find((x) => 'groove:' + x.id === it.id); if (g) applyGenre(g); }
+            else if (it.kind === 'bassline') { const b = BASSLINES.find((x) => 'bass:' + x.id === it.id); if (b) applyBass(b); }
+          }} />
+      )}
       </div>
 
       {showDiagnostics && (
