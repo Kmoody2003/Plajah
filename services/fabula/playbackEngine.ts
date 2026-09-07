@@ -25,7 +25,7 @@
 
 import {
   getAudioCtx, resumeAudioCtx, meterRegistry, EQ_BANDS,
-  getMasterInput, getFxSends, needsCors,
+  getMasterInput, getFxSends, needsCors, makeHeldMeter,
 } from './audioGraph';
 import { resolveMediaSource } from './mediaSource';
 import { FxChainHost } from './audioFx';
@@ -302,9 +302,9 @@ function getTrackBus(trackId: string): TrackBus | null {
   const bus: TrackBus = { input, eq, comp, mk, insertHost, pan, gain, analyser, sendR, sendD, meterBuf: new Float32Array(analyser.fftSize) };
   trackBuses.set(trackId, bus);
   // this bus owns the track's meter from now on (created lazily — register here, not at start)
-  meterRegistry.set(trackId, () => {
+  meterRegistry.set(trackId, makeHeldMeter(() => {
     try { bus.analyser.getFloatTimeDomainData(bus.meterBuf); let p = 0; for (let i = 0; i < bus.meterBuf.length; i++) { const a = Math.abs(bus.meterBuf[i]); if (a > p) p = a; } return p; } catch { return 0; }
-  });
+  }));
   return bus;
 }
 

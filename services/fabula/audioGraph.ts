@@ -105,6 +105,22 @@ function installResumeOnGesture(ctx: AudioContext) {
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const dbToGain = (db: number) => Math.pow(10, (db || 0) / 20);
 
+/** Wrap a raw peak sampler with a time-based peak-hold decay (mirrors Melos): a
+ *  transient drum hit lasts a few ms and, sampled once per animation frame, flickers
+ *  so briefly the meter looks dead. Hold the peak and fall it on a time constant so
+ *  it reads correctly no matter how often the meter is polled. */
+export function makeHeldMeter(read: () => number, tau = 0.2): () => number {
+  let held = 0, last = 0;
+  return () => {
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
+    if (last) held *= Math.exp(-Math.max(0, now - last) / tau);
+    last = now;
+    const p = read();
+    if (p > held) held = p;
+    return held;
+  };
+}
+
 interface Graph {
   ctx: AudioContext;
   hpf: BiquadFilterNode; lpf: BiquadFilterNode; hum: BiquadFilterNode; trim: GainNode; // cleanup pre-stage
@@ -146,9 +162,9 @@ function getMasterBus(ctx: AudioContext) {
   input.connect(eq.input); eq.output.connect(mastering.input); mastering.output.connect(suite.input); suite.output.connect(gain);
   gain.connect(limiter); limiter.connect(makeup); makeup.connect(analyser); analyser.connect(platformAudio.output('fabula'));
   const buf = new Float32Array(analyser.fftSize);
-  meterRegistry.set('master', () => {
+  meterRegistry.set('master', makeHeldMeter(() => {
     try { analyser.getFloatTimeDomainData(buf); let p = 0; for (let i = 0; i < buf.length; i++) { const a = Math.abs(buf[i]); if (a > p) p = a; } return p; } catch { return 0; }
-  });
+  }));
   _master = { input, eq, mastering, suite, gain, limiter, makeup, analyser, limiterOn: true };
   return (_master as any);
 }
@@ -335,7 +351,7 @@ export function attachAudioGraph(el: HTMLMediaElement): Graph | null {
   const g: Graph = {
     ctx, hpf, lpf, hum, trim, clipEq, trackEq, clipComp, clipMk, trackComp, trackMk, insertHost, pan, gain, analyser, sendR, sendD,
     resume() { if (ctx.state === 'suspended') ctx.resume().catch(() => {}); },
-    level() { try { analyser.getFloatTimeDomainData(buf); let peak = 0; for (let i = 0; i < buf.length; i++) { const a = Math.abs(buf[i]); if (a > peak) peak = a; } return peak; } catch { return 0; } },
+    level: makeHeldMeter(() => { try { analyser.getFloatTimeDomainData(buf); let peak = 0; for (let i = 0; i < buf.length; i++) { const a = Math.abs(buf[i]); if (a > peak) peak = a; } return peak; } catch { return 0; } }),
     apply(clip, track) {
       applyClean(hpf, lpf, hum, trim, clip?.clean);
       applyBand(clipEq, clip?.eq); applyComp(clipComp, clipMk, clip?.comp);
