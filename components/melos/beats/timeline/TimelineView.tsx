@@ -11,6 +11,8 @@ import { unzipSync } from 'fflate';
 import type { GrooveDoc, Pattern, TimelineClip } from '../../../../services/melos/beats/grooveDoc';
 import { grooveUid } from '../../../../services/melos/beats/grooveDoc';
 import { sendInstrumentTrackToPad } from '../../../../services/melos/beats/instrumentFactory';
+import ProgressionBrowser from '../composer/ProgressionBrowser';
+import { progressionToClip } from '../../../../services/melos/composition/progressionToClip';
 import { useContextMenu, type MenuNode } from '../../../ui/ContextMenu';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { ingestSample, backupToLocker } from '../../../../services/melos/beats/sampleStore';
@@ -351,6 +353,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
       items.push(
         { id: 'open', label: 'Open instrument', onSelect: () => requestOpen(trackId) },
         { id: 'arm', label: 'Arm for play/record', checked: !!track.armed, onSelect: () => p.onMutate((d) => { const on = !track.armed; for (const t of d.arrangement) t.armed = false; const t = d.arrangement.find((x) => x.id === trackId); if (t) t.armed = on; }) },
+        { id: 'insertprog', label: 'Insert chord progression…', onSelect: () => setProgBrowserTrack(trackId) },
       );
       // Independent MIDI track → give it a MEKA pad (and therefore a Glass step lane). Hidden once it
       // already has one, or for a pad-owned track (which lives on a pad by definition).
@@ -382,6 +385,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     return items;
   });
 
+  const [progBrowserTrack, setProgBrowserTrack] = useState<string | null>(null); // instrument track receiving a progression
   // "Add instrument" destination chooser (anchored, in-view via the shared menu primitive).
   const instrumentAddMenu = useContextMenu<null>(() => [
     { kind: 'header', label: 'Add instrument as…' },
@@ -666,6 +670,21 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
       {marqueeSelection.marquee && <div className="fixed pointer-events-none z-[9998] border border-[#00DAF3] bg-[#00DAF3]/10" style={marqueeSelection.marquee} />}
       {clipMenu.node}
       {instrumentAddMenu.node}
+      {progBrowserTrack && (
+        <ProgressionBrowser
+          target={p.doc.arrangement.find((t) => t.id === progBrowserTrack)?.name}
+          onClose={() => setProgBrowserTrack(null)}
+          onInsert={(progId, rootPc, seventh) => {
+            const startBeats = Math.floor((p.beats || 0) / BEATS_PER_BAR) * BEATS_PER_BAR;
+            const clip = progressionToClip(progId, rootPc, { seventh, startBeats });
+            if (!clip) return;
+            p.onMutate((d) => {
+              const t = d.arrangement.find((x) => x.id === progBrowserTrack);
+              if (t && t.kind === 'instrument') t.clips.push(clip);
+            });
+          }}
+        />
+      )}
       <input ref={colorInputRef} type="color" className="sr-only" aria-label="Choose a custom clip color" onChange={(e) => { const target = colorTargetRef.current; if (!target) return; const color = e.target.value; p.onMutate((d) => { const c = d.arrangement.find((t) => t.id === target.trackId)?.clips.find((x) => x.id === target.clipId); if (c) c.color = color; }); colorTargetRef.current = null; }} />
       {padHeaderMenu.node}
       {trackMenu.node}
