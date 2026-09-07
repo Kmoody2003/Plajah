@@ -126,10 +126,12 @@ export const meterRegistry = new Map<string, () => number>();
 
 // ---- master bus: every channel strip sums here, then one path to the hardware ----
 //   strip → masterGain → [brickwall limiter] → masterAnalyser → ctx.destination
-let _master: { input: GainNode; gain: GainNode; limiter: WaveShaperNode; makeup: GainNode; analyser: AnalyserNode; limiterOn: boolean } | null = null;
+let _master: { input: GainNode; suite: FxChainHost; gain: GainNode; limiter: WaveShaperNode; makeup: GainNode; analyser: AnalyserNode; limiterOn: boolean } | null = null;
 function getMasterBus(ctx: AudioContext) {
   if (_master) return (_master as any); // strips connect to .input
   const input = ctx.createGain();       // sum point — strips connect here
+  // Master FX suite (Melos's shared devices on the whole mix), pre-fader. Empty = passthrough.
+  const suite = new FxChainHost(ctx);
   const gain = ctx.createGain();        // master fader
   // Master brickwall = memoryless soft-clip (mirrors Melos). A DynamicsCompressor
   // limiter (ratio 20) crushed the whole sum and DUCKED layers when tracks stacked —
@@ -138,13 +140,17 @@ function getMasterBus(ctx: AudioContext) {
   const limiter = ctx.createWaveShaper(); limiter.curve = softClipCurve(-1); limiter.oversample = '4x';
   const makeup = ctx.createGain(); makeup.gain.value = 1;
   const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.2;
-  input.connect(gain); gain.connect(limiter); limiter.connect(makeup); makeup.connect(analyser); analyser.connect(platformAudio.output('fabula'));
+  input.connect(suite.input); suite.output.connect(gain); gain.connect(limiter); limiter.connect(makeup); makeup.connect(analyser); analyser.connect(platformAudio.output('fabula'));
   const buf = new Float32Array(analyser.fftSize);
   meterRegistry.set('master', () => {
     try { analyser.getFloatTimeDomainData(buf); let p = 0; for (let i = 0; i < buf.length; i++) { const a = Math.abs(buf[i]); if (a > p) p = a; } return p; } catch { return 0; }
   });
-  _master = { input, gain, limiter, makeup, analyser, limiterOn: true };
+  _master = { input, suite, gain, limiter, makeup, analyser, limiterOn: true };
   return (_master as any);
+}
+/** Master FX suite — Melos devices on the whole mix (empty = passthrough). */
+export function setMasterInserts(instances: FxInstance[]) {
+  if (_master) _master.suite.setChain(Array.isArray(instances) ? instances : []);
 }
 /** The master bus analyser (post-limiter) — drives audio-reactive effects in the monitor.
  *  Null until the mixer has been built by the first audio clip. */

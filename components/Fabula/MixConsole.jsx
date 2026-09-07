@@ -6,7 +6,7 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import {
-  meterRegistry, setMasterGain, setMasterLimiter, masterReduction,
+  meterRegistry, setMasterGain, setMasterLimiter, masterReduction, setMasterInserts,
   audioEngineInfo, listOutputDevices, setOutputDevice, setOutputChannels, resumeAudioCtx,
   setReverb, setDelay, REVERB_PRESETS,
 } from "../../services/fabula/audioGraph";
@@ -105,8 +105,11 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
     if ((selTrack == null || !audioTracks.some((t) => t.id === selTrack)) && audioTracks.length) setSelTrack(audioTracks[0].id);
     if (!audioTracks.length && selTrack != null) setSelTrack(null);
   }, [audioTracks, selTrack]);
-  const selName = audioTracks.find((t) => t.id === selTrack)?.name || "";
+  const selName = selTrack === "master" ? "MASTER" : (audioTracks.find((t) => t.id === selTrack)?.name || "");
   const selInserts = (trackSettings?.[selTrack]?.inserts) || [];
+  // Master FX suite is on the master bus (not a track bus), so apply it directly.
+  const masterInsertsKey = JSON.stringify(trackSettings?.master?.inserts || []);
+  useEffect(() => { setMasterInserts(trackSettings?.master?.inserts || []); /* eslint-disable-next-line */ }, [masterInsertsKey]);
   const grRef = useRef(null);
   const midiMap = useRef({});      // CC number → trackId
   const learnRef = useRef(null);
@@ -170,9 +173,12 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
         ))}
         {!audioTracks.length && <div className="dim small" style={{ padding: 12 }}>No audio tracks. Add one from the timeline (+ AUDIO), or drop music/dialogue on A1/A2.</div>}
         {/* MASTER */}
-        <div className="mcstrip master">
+        <div className="mcstrip master" onClick={() => setSelTrack("master")}
+          style={{ cursor: "pointer", ...(selTrack === "master" ? { outline: "2px solid var(--org)", outlineOffset: "-2px" } : {}) }}>
           <div className="mctop"><div className="dim small" style={{ textAlign: "center", width: "100%", fontWeight: 900, letterSpacing: ".1em" }}>MASTER</div></div>
-          <button className={`mcbtn ${limiterOn ? "on" : ""}`} title="Brickwall limiter — clip-proof output" onClick={() => setLimiterOn((v) => !v)}>LIMIT</button>
+          <button className={`mcbtn ${(trackSettings?.master?.inserts || []).some((i) => i && i.on) ? "on" : ""}`} title="Edit the master FX suite (Melos effect rack on the whole mix)"
+            onClick={(e) => { e.stopPropagation(); setSelTrack("master"); }} style={{ fontSize: 9 }}>FX{(() => { const n = (trackSettings?.master?.inserts || []).filter((i) => i && i.on).length; return n ? ` ${n}` : ""; })()}</button>
+          <button className={`mcbtn ${limiterOn ? "on" : ""}`} title="Brickwall limiter — clip-proof output" onClick={(e) => { e.stopPropagation(); setLimiterOn((v) => !v); }}>LIMIT</button>
           <div className="mcgr" title="Limiter gain reduction"><i ref={grRef} style={{ width: "0%" }} /></div>
           <div className="mcfaderrow">
             <div className="mcfader">
