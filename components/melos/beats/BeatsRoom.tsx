@@ -101,6 +101,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const selectedPadRef = React.useRef(0);
   useEffect(() => { selectedPadRef.current = selectedPad; }, [selectedPad]);
   const [playMode, setPlayMode] = useState<'pattern' | 'song'>('pattern');
+  // Song/arrangement play position — the timeline playhead. Defaults to the very start so Play in the
+  // timeline always begins at bar 1 on first load; a ruler click moves it (and remembers it).
+  const [songStartBeats, setSongStartBeats] = useState(0);
   const [activePatternId, setActivePatternId] = useState(doc.patterns[0]?.id || '');
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showGrooves, setShowGrooves] = useState(false);
@@ -203,8 +206,15 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     const engine = BeatsEngine.get();
     // Recording with a pre-roll: count the metronome in for N bars before beat 1.
     const countInBeats = recordingRef.current ? preRollBars * 4 : 0;
-    void engine.init().then(() => engine.play(playMode, { patternId: pattern?.id, countInBeats }));
-  }, [playMode, pattern?.id, preRollBars]);
+    // In the timeline (arrangement) view, Play means play the SONG from the playhead — which defaults
+    // to bar 1 — not audition the loose pattern. Every other view auditions the current pattern.
+    if (view === 'timeline') {
+      setPlayMode('song');
+      void engine.init().then(() => engine.play('song', { fromBeats: songStartBeats, countInBeats }));
+    } else {
+      void engine.init().then(() => engine.play(playMode, { patternId: pattern?.id, countInBeats }));
+    }
+  }, [view, playMode, pattern?.id, preRollBars, songStartBeats]);
 
   const handleStop = useCallback(() => { BeatsEngine.get().stop(); }, []);
 
@@ -650,7 +660,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           onStop={handleStop}
           onToggleRecord={() => setRecording((v) => !v)}
           onSetPlayMode={setPlayMode}
-          onPlayFrom={(fromBeats) => { setPlayMode('song'); void BeatsEngine.get().init().then(() => BeatsEngine.get().play('song', { fromBeats })); }}
+          onPlayFrom={(fromBeats) => { setPlayMode('song'); setSongStartBeats(fromBeats); void BeatsEngine.get().init().then(() => BeatsEngine.get().play('song', { fromBeats })); }}
           onLoadSampleFile={(padIdx, file) => { void loadSampleFile(padIdx, file); }}
           melosSamples={melosSamples}
           onLoadMelosSample={(padIdx, ref) => { void loadMelosSample(padIdx, ref); }}
@@ -1021,10 +1031,12 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           beats={snap.beats}
           running={snap.running}
           playMode={playMode}
+          songStartBeats={songStartBeats}
           meters={snap.meters}
           onMutate={mutate}
           onPlayFrom={(fromBeats) => {
             setPlayMode('song');
+            setSongStartBeats(fromBeats);
             const engine = BeatsEngine.get();
             void engine.init().then(() => engine.play('song', { fromBeats }));
           }}

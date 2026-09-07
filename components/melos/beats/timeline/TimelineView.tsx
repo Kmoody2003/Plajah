@@ -199,6 +199,8 @@ interface TimelineViewProps {
   beats: number;
   running: boolean;
   playMode: 'pattern' | 'song';
+  /** The stopped/parked song position (the playhead rests here; defaults to bar 1). */
+  songStartBeats?: number;
   meters: { groups: number[]; master: number; sends: number[] };
   onMutate: (fn: (d: GrooveDoc) => void) => void;
   onPlayFrom: (fromBeats: number) => void;
@@ -666,7 +668,10 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     if (clipSelection.isSelected(clipId)) clipSelection.selectMany(clipSelection.selectedIds.filter(id => id !== clipId));
   }, [p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const playheadX = p.running && p.playMode === 'song' ? p.beats * pxPerBeat : -1;
+  // While the song is rolling the playhead follows the transport; otherwise it rests at the parked
+  // start position (bar 1 by default) so there's always a clear "play begins here" marker.
+  const playheadX = (p.running && p.playMode === 'song' ? p.beats : (p.songStartBeats ?? 0)) * pxPerBeat;
+  const playheadLive = p.running && p.playMode === 'song';
 
   // The selected clip, resolved to {track,clip} for the docked detail editor below.
   const selRef = selectedClip
@@ -797,7 +802,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
             {/* lanes */}
             <div ref={marqueeSurfaceRef} {...marqueeSelection.bind} className="relative">
               {playheadX >= 0 && (
-                <div className="absolute top-0 bottom-0 w-[2px] z-20 pointer-events-none" style={{ left: headerW + playheadX, background: PLAYHEAD, boxShadow: `0 0 12px ${PLAYHEAD}88` }} />
+                <div className="absolute top-0 bottom-0 w-[2px] z-20 pointer-events-none" style={{ left: headerW + playheadX, background: PLAYHEAD, opacity: playheadLive ? 1 : 0.5, boxShadow: playheadLive ? `0 0 12px ${PLAYHEAD}88` : 'none' }} />
               )}
               {/* MEKA pads — the SAME channels the mixer and Glass drive, surfaced as tracks so
                   every view shares one track list. Lanes mirror (and edit) the step grid. */}
