@@ -190,13 +190,17 @@ export class BeatsEngine {
       for (let s = 0; s < 2; s++) g.setPadSend(i, s, sends[s] ?? 0);
     });
 
-    // Per-track inserts + sends.
-    const liveTrackIds = new Set(this.doc.arrangement.filter((t) => t.kind === 'audio').map((t) => t.id));
+    // Per-track inserts + sends. Instrument tracks share the same track strips as
+    // audio clips (ensureInstrument connects the ONDA voice into trackDestination),
+    // so their mixer-channel inserts must be reconciled here too — otherwise an FX
+    // added to an instrument channel is stored but never wired, and it plays dry.
+    const insertableTrack = (t: ATrack) => t.kind === 'audio' || t.kind === 'instrument';
+    const liveTrackIds = new Set(this.doc.arrangement.filter(insertableTrack).map((t) => t.id));
     for (const [id, host] of [...this.trackInserts]) {
       if (!liveTrackIds.has(id)) { g.clearTrackInsert(id); host.dispose(); this.trackInserts.delete(id); }
     }
     for (const t of this.doc.arrangement) {
-      if (t.kind !== 'audio') continue;
+      if (!insertableTrack(t)) continue;
       const inserts = t.inserts ?? [];
       if (inserts.some((f) => f.on)) {
         let host = this.trackInserts.get(t.id);
