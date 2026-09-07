@@ -11,6 +11,7 @@ import { ChevronDown, ChevronUp, Power, Trash2, Plus, X } from 'lucide-react';
 import { DEVICES, deviceByType, newInstance, type FxInstance, type FxCategory, type FxNode } from '../../../../services/melos/beats/fx/devices';
 import { FxScope } from './FxScope';
 import { AmpRigEditor } from './AmpRigEditor';
+import { StutterGrid } from './StutterGrid';
 import { Knob } from '../shared/Knob';
 import { presetsForFx } from '../../../../services/melos/beats/fx/presets';
 
@@ -180,6 +181,8 @@ export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#
                         onChange={(patch) => patch2(inst.id, patch)}
                       />
                     </div>
+                  ) : inst.type === 'stutter' ? (
+                    <StutterGrid params={inst.params} paramSpecs={d.params} color={d.color} onChange={(patch) => patch2(inst.id, patch)} />
                   ) : (
                   <div className="flex flex-wrap gap-x-4 gap-y-3 mt-2.5">
                     {d.params.map((sp) => (

@@ -1163,6 +1163,62 @@ class BeatmasherDevice extends FxBase {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// DEVICE: Stutter — a PATTERN-driven Beatmasher. A 16-step grid (a bitmask param
+// the Stutter editor writes) says which steps re-trigger the captured slice; the
+// clock is tempo-synced to the chosen division. Dry steps keep capturing so the
+// next active step has fresh audio to loop. `gate` sets the slice length (a
+// shorter slice re-loops within the step = a faster, glitchier stutter).
+// ═══════════════════════════════════════════════════════════════════════════
+class StutterDevice extends FxBase {
+  private inGate: GainNode; private delay: DelayNode; private fb: GainNode; private hp: BiquadFilterNode;
+  private dry: GainNode; private wet: GainNode;
+  private bpm = 120; private lastP: Record<string, number> = {};
+  private pattern = 0; private division = 4; private gate = 1; private on = false;
+  private stepIdx = 0; private timer: ReturnType<typeof setInterval> | null = null;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.inGate = this.own(ctx.createGain());
+    this.delay = this.own(ctx.createDelay(1));
+    this.fb = this.own(ctx.createGain());
+    this.hp = this.own(ctx.createBiquadFilter()); this.hp.type = 'highpass'; this.hp.frequency.value = 25;
+    this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
+    this.input.connect(this.dry); this.dry.connect(this.output);
+    this.input.connect(this.inGate); this.inGate.connect(this.delay);
+    this.delay.connect(this.hp); this.hp.connect(this.fb); this.fb.connect(this.delay);
+    this.delay.connect(this.wet); this.wet.connect(this.output);
+    this.dry.gain.value = 1; this.inGate.gain.value = 1;
+  }
+  private stepDur(): number { return (60 / this.bpm) / this.division; } // division = cycles per beat
+  private idle(): void { if (this.timer) { clearInterval(this.timer); this.timer = null; } this.inGate.gain.value = 1; this.fb.gain.value = 0; this.dry.gain.value = 1; this.wet.gain.value = 0; }
+  private restart(): void {
+    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+    if (!this.on || this.pattern === 0) { this.idle(); return; }
+    const dur = this.stepDur();
+    this.delay.delayTime.value = Math.max(0.02, dur * this.gate);
+    const tick = () => {
+      const active = (this.pattern >> (this.stepIdx & 15)) & 1;
+      this.inGate.gain.value = active ? 0 : 1;   // freeze on an active step
+      this.fb.gain.value = active ? 0.995 : 0;
+      this.dry.gain.value = active ? 0 : 1;
+      this.wet.gain.value = active ? 1 : 0;
+      this.stepIdx = (this.stepIdx + 1) & 15;
+    };
+    tick();
+    this.timer = setInterval(tick, dur * 1000);
+  }
+  setTempo(bpm: number): void { this.bpm = bpm; if (this.on) this.restart(); }
+  setParams(p: Record<string, number>): void {
+    this.lastP = p;
+    this.pattern = Math.max(0, Math.round(p.pattern ?? 0)) & 0xFFFF;
+    this.division = DIVISIONS[Math.max(0, Math.min(3, Math.round(p.division ?? 2)))]; // default 1/16
+    this.gate = Math.max(0.1, Math.min(1, (p.gate ?? 100) / 100));
+    this.on = (p.on ?? 0) > 0.5;
+    this.restart();
+  }
+  dispose(): void { if (this.timer) clearInterval(this.timer); super.dispose(); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // UTILITY ADDITIONS — Peak Limiter, Transient Control, Bit-8 crusher.
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1662,6 +1718,17 @@ export const DEVICES: FxDescriptor[] = [
       { key: 'length', label: 'Length', min: 0, max: 3, default: 1, step: 1, format: divisionLabel },
     ],
     create: (ctx) => new BeatmasherDevice(ctx),
+  },
+  {
+    type: 'stutter', label: 'Stutter', category: 'dj', color: C.dj,
+    blurb: 'Pattern stutter — a 16-step grid re-triggers the captured slice, tempo-synced',
+    params: [
+      { key: 'on', label: 'On', min: 0, max: 1, default: 0, step: 1, format: (v) => (v > 0.5 ? 'On' : 'Off') },
+      { key: 'pattern', label: 'Pattern', min: 0, max: 65535, default: 0, step: 1, format: (v) => `${(v >>> 0).toString(2).padStart(16, '0').split('').filter((b) => b === '1').length} steps` },
+      { key: 'division', label: 'Rate', min: 0, max: 3, default: 2, step: 1, format: divisionLabel },
+      { key: 'gate', label: 'Gate', min: 10, max: 100, default: 100, unit: '%' },
+    ],
+    create: (ctx) => new StutterDevice(ctx),
   },
   {
     type: 'limiter', label: 'Peak Limiter', category: 'dynamics', color: C.dynamics,
