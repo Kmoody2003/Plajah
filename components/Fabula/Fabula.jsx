@@ -6,6 +6,7 @@ import { indexedVideoAvailable } from '../../services/mediaEngine/indexedVideo';
 import PanelDivider from "./PanelDivider";
 import { timelineBoundaries, crossedTimelineBoundary } from "../../services/fabula/timelineBoundaries";
 import { resolveMediaSource } from "../../services/fabula/mediaSource";
+import { prefetchAssets, onPrefetched, cancelPrefetch } from "../../services/fabula/prefetch";
 import { useState, useEffect, useRef, useMemo, memo, Fragment } from "react";
 import {
   Film, Music, Clapperboard, Layers, Play, Pause, SkipBack, Plus, Upload,
@@ -710,6 +711,7 @@ export default function Fabula() {
   const relinkTargetRef = useRef(null); // asset id being relinked
   const [playhead, setPlayhead] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const prefetchPhRef = useRef(0); prefetchPhRef.current = playhead;
   const [selClipId, setSelClipId] = useState(null);
   const [selIds, setSelIds] = useState([]);        // timeline multi-select (Ctrl+click / marquee)
   const [tlMarquee, setTlMarquee] = useState(null); // live marquee rect over the timeline
@@ -3119,6 +3121,37 @@ export default function Fabula() {
   const rescanAll = async (interactive, full = false) => { setFolderSyncing(true); try { for (const f of syncFolders) await rescanSyncFolder(f.id, interactive, full); } finally { setFolderSyncing(false); } };
 
   useEffect(() => { refreshSyncFolders(); /* eslint-disable-next-line */ }, [prod?.id]);
+
+  // BYTE-PREFETCH upcoming cloud clips to disk ahead of the playhead. Cloud video/audio is what
+  // buffers and reloads cold every pass; pulling its bytes to OPFS (studio:blob:<id>) turns it LOCAL
+  // so resolveMediaSource stops streaming it. Uses fetch only — zero video decoders, so it never
+  // competes with the live monitor (the reason the old hidden-<video> warmers were removed). Sequential
+  // + size-capped inside prefetch.ts so it can't saturate a lossy link. Re-scans on edits and every 4s.
+  useEffect(() => {
+    if (!prod?.id || !clips.length) return undefined;
+    const kick = () => {
+      try {
+        const ph = prefetchPhRef.current || 0;
+        const pool = prod.mediaPool || [];
+        const seen = new Set(); const list = [];
+        for (const c of clips.slice().sort((a, b) => a.start - b.start)) {
+          if (!c.assetId || seen.has(c.assetId)) continue;
+          if ((c.start + (c.duration || 0)) < ph - 1) continue;                 // already passed
+          const a = pool.find((x) => x.id === c.assetId);
+          if (!a || (a.type !== "video" && a.type !== "audio")) continue;
+          const cloud = [a.url, a.cloudUrl].find((u) => /^https?:/i.test(u || "")); // local (blob:) → skip
+          if (!cloud) continue;
+          seen.add(c.assetId); list.push({ id: a.id, url: cloud });
+          if (list.length >= 8) break;                                          // bounded look-ahead
+        }
+        if (list.length) prefetchAssets(list);
+      } catch { /* best-effort */ }
+    };
+    kick();
+    const iv = setInterval(kick, 4000);
+    return () => clearInterval(iv);
+  }, [clips, prod?.id]);
+  useEffect(() => () => cancelPrefetch(), []);   // stop pulls when Fabula unmounts
   // Reset media filters when the production changes. Otherwise a bin/search filter from a previous
   // project persists and strands the grid: every import lands in a bin the stale filter excludes, so
   // the grid shows empty while the counts (unfiltered) still tick up. This was the "number shows but
@@ -8259,6 +8292,14 @@ function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playin
     }).catch(error => { if (alive) {setLoadState({ phase: "error", pct: 0, message: error.message });reportMediaHealth(asset?.id,error.message);} });
     return () => { alive = false; source?.release(); };
   }, [asset?.id, asset?.url, asset?.type, asset?.previewProxy, sourceRetry]);
+
+  // When the byte-prefetcher pulls this clip's asset local, re-resolve so it plays from disk instead of
+  // the cloud stream — but ONLY when this layer isn't the live playing element (never swap a running
+  // stream; the on-deck/paused clips upgrade silently, the live one upgrades on its next pass/seek).
+  useEffect(() => {
+    if (!asset?.id) return undefined;
+    return onPrefetched((id) => { if (id === asset.id && !(active && playing)) setSourceRetry((r) => r + 1); });
+  }, [asset?.id, active, playing]);
 
   // Bound loading recovery. A seek finishing can produce a frame without a
   // playing event, so buffering must not remain latched after that frame arrives.
