@@ -117,6 +117,10 @@ function driveCurve(amount: number, asym: number, n = 2048): Float32Array {
 /** A transparent WaveShaper curve (linear ramp) — a 2-point curve WebAudio interpolates to identity. */
 const IDENTITY_CURVE = new Float32Array([-1, 1]);
 
+/** Full-wave rectifier |x| — as a WaveShaper it doubles a tone's fundamental (an octave-up ghost), the
+ *  cheap-and-musical trick behind octave-fuzz and shimmer-reverb feedback. */
+const ABS_CURVE = (() => { const n = 1024, c = new Float32Array(n); for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.abs(x); } return c; })();
+
 /** A soft-clip curve that brickwalls to ±ceil (linear) with a `hardness`-controlled knee. Paired with a
  *  4× WaveShaper oversample it catches inter-sample peaks — true-peak safety. Normalised so full-scale
  *  input maps exactly to ceil. */
@@ -1693,6 +1697,170 @@ class ConsoleEqDevice extends FxBase {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// DELAY WAVE — a Replika-class creative delay + a shimmer/cosmos delay-reverb.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// DEVICE: Creative Delay — a multi-mode stereo delay (Modern / Tape / Analog / Diffuse) with a
+// cross-feedback matrix (dial in ping-pong), a coloured feedback path (saturation + LP/HP tone +
+// allpass diffusion), wow/flutter modulation, and input ducking. Every repeat runs through the colour
+// chain, so Tape/Analog darken and smear progressively — real BBD/tape behaviour, not a static echo.
+const ECHO_MODE = ['Modern', 'Tape', 'Analog', 'Diffuse'];
+class CreativeDelayDevice extends FxBase {
+  private dL: DelayNode; private dR: DelayNode;
+  private fbL: GainNode; private fbR: GainNode;
+  private strL: GainNode; private crL: GainNode; private strR: GainNode; private crR: GainNode;
+  private lpL: BiquadFilterNode; private lpR: BiquadFilterNode; private hpL: BiquadFilterNode; private hpR: BiquadFilterNode;
+  private satL: WaveShaperNode; private satR: WaveShaperNode;
+  private apL: BiquadFilterNode[] = []; private apR: BiquadFilterNode[] = [];
+  private wow: Lfo;
+  private duckRect: WaveShaperNode; private duckLP: BiquadFilterNode; private duckScale: GainNode; private wetDuck: GainNode;
+  private panL: StereoPannerNode; private panR: StereoPannerNode;
+  private dry: GainNode; private wet: GainNode;
+  private lastMode = -1;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    const MAX = 4;
+    this.dL = this.own(ctx.createDelay(MAX)); this.dR = this.own(ctx.createDelay(MAX));
+    this.fbL = this.own(ctx.createGain()); this.fbR = this.own(ctx.createGain());
+    this.strL = this.own(ctx.createGain()); this.crL = this.own(ctx.createGain());
+    this.strR = this.own(ctx.createGain()); this.crR = this.own(ctx.createGain());
+    this.lpL = this.own(ctx.createBiquadFilter()); this.lpL.type = 'lowpass';
+    this.lpR = this.own(ctx.createBiquadFilter()); this.lpR.type = 'lowpass';
+    this.hpL = this.own(ctx.createBiquadFilter()); this.hpL.type = 'highpass';
+    this.hpR = this.own(ctx.createBiquadFilter()); this.hpR.type = 'highpass';
+    this.satL = this.own(ctx.createWaveShaper()); this.satL.oversample = '2x';
+    this.satR = this.own(ctx.createWaveShaper()); this.satR.oversample = '2x';
+    for (let i = 0; i < 2; i++) {
+      const a = this.own(ctx.createBiquadFilter()); a.type = 'allpass'; a.Q.value = 0.0001; this.apL.push(a);
+      const b = this.own(ctx.createBiquadFilter()); b.type = 'allpass'; b.Q.value = 0.0001; this.apR.push(b);
+    }
+    this.wow = new Lfo(ctx);
+    this.duckRect = this.own(ctx.createWaveShaper()); this.duckRect.curve = ABS_CURVE;
+    this.duckLP = this.own(ctx.createBiquadFilter()); this.duckLP.type = 'lowpass'; this.duckLP.frequency.value = 12;
+    this.duckScale = this.own(ctx.createGain()); this.duckScale.gain.value = 0;
+    this.wetDuck = this.own(ctx.createGain()); this.wetDuck.gain.value = 1;
+    this.panL = this.own(ctx.createStereoPanner()); this.panR = this.own(ctx.createStereoPanner());
+    this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
+
+    this.input.connect(this.dry); this.dry.connect(this.output);
+    // inject input into both delay lines
+    this.input.connect(this.dL); this.input.connect(this.dR);
+    // colour chain per side: delay → allpass ×2 → LP → HP → saturation
+    const chain = (d: DelayNode, ap: BiquadFilterNode[], lp: BiquadFilterNode, hp: BiquadFilterNode, sat: WaveShaperNode) => {
+      d.connect(ap[0]); ap[0].connect(ap[1]); ap[1].connect(lp); lp.connect(hp); hp.connect(sat);
+    };
+    chain(this.dL, this.apL, this.lpL, this.hpL, this.satL);
+    chain(this.dR, this.apR, this.lpR, this.hpR, this.satR);
+    // wet taps (post-colour) → pan → duck → wet
+    this.satL.connect(this.panL); this.panL.connect(this.wetDuck);
+    this.satR.connect(this.panR); this.panR.connect(this.wetDuck);
+    this.wetDuck.connect(this.wet); this.wet.connect(this.output);
+    // cross-feedback matrix: each side's coloured tail feeds both delays (straight + cross = ping-pong)
+    this.satL.connect(this.fbL); this.fbL.connect(this.strL); this.fbL.connect(this.crL);
+    this.satR.connect(this.fbR); this.fbR.connect(this.strR); this.fbR.connect(this.crR);
+    this.strL.connect(this.dL); this.crL.connect(this.dR);
+    this.strR.connect(this.dR); this.crR.connect(this.dL);
+    // wow/flutter on both delay lines
+    this.wow.depth.connect(this.dL.delayTime); this.wow.depth.connect(this.dR.delayTime);
+    // duck: input envelope pulls the wet bus down
+    this.input.connect(this.duckRect); this.duckRect.connect(this.duckLP); this.duckLP.connect(this.duckScale); this.duckScale.connect(this.wetDuck.gain);
+  }
+  setParams(p: Record<string, number>): void {
+    const time = Math.max(0.005, Math.min(3.5, (p.time ?? 350) / 1000));
+    const spread = Math.max(0, Math.min(0.5, (p.spread ?? 15) / 100));
+    this.dL.delayTime.value = time; this.dR.delayTime.value = Math.min(3.9, time * (1 + spread));
+    const fb = Math.max(0, Math.min(0.98, (p.feedback ?? 40) / 100));
+    const pp = Math.max(0, Math.min(1, (p.pingpong ?? 0) / 100));
+    // straight/cross split preserves total feedback energy at any ping-pong amount
+    this.strL.gain.value = this.strR.gain.value = fb * (1 - pp);
+    this.crL.gain.value = this.crR.gain.value = fb * pp;
+    const mode = Math.round(p.mode ?? 0);
+    if (mode !== this.lastMode) {
+      this.lastMode = mode;
+      this.satL.curve = this.satR.curve = mode === 1 ? driveCurve(0.14, 0.1) : mode === 2 ? driveCurve(0.22, 0) : IDENTITY_CURVE;
+    }
+    const diffuse = mode === 3 ? 0.7 : 0; // allpass smear for the Diffuse mode
+    for (const a of [...this.apL, ...this.apR]) a.Q.value = diffuse > 0 ? 4 : 0.0001;
+    this.apL[0].frequency.value = this.apR[0].frequency.value = 900;
+    this.apL[1].frequency.value = this.apR[1].frequency.value = 2600;
+    // tape/analog darken with each repeat; modern stays open
+    const toneBase = clampHz(p.tone ?? 5200);
+    const modeTone = mode === 1 ? toneBase * 0.8 : mode === 2 ? toneBase * 0.6 : toneBase;
+    this.lpL.frequency.value = modeTone; this.lpR.frequency.value = modeTone * 0.92;
+    const lowcut = clampHz(p.lowcut ?? 120);
+    this.hpL.frequency.value = lowcut; this.hpR.frequency.value = lowcut;
+    // wow/flutter: modern = clean; tape/analog add movement
+    const wowAmt = Math.max(0, Math.min(1, p.wow ?? (mode >= 1 ? 0.3 : 0)));
+    this.wow.set(mode === 1 ? 0.7 : 5.5, wowAmt * time * 0.02);
+    this.panL.pan.value = -Math.max(0, Math.min(1, (p.width ?? 100) / 100));
+    this.panR.pan.value = Math.max(0, Math.min(1, (p.width ?? 100) / 100));
+    this.duckScale.gain.value = -Math.max(0, Math.min(1, (p.duck ?? 0) / 100)) * 3;
+    const mix = Math.max(0, Math.min(1, (p.mix ?? 30) / 100));
+    equalPowerMix(this.dry, this.wet, mix, dbToGain(p.wetGain ?? 0));
+  }
+  dispose(): void { this.wow.dispose(); super.dispose(); }
+}
+
+// DEVICE: Cosmos — the "off the walls" delay-reverb. A pre-delay feeds an allpass diffusion cloud into a
+// big modelled reverb IR, then the tail feeds back — and inside that loop a full-wave rectifier on a
+// filtered band adds an octave-up ghost on every pass, so notes bloom into an ENDLESS ASCENDING SHIMMER.
+// Reverse mode flips the IR for a sucking, backwards swell. Reuses the Spaces IR engine.
+class CosmosDevice extends FxBase {
+  private preDelay: DelayNode; private conv: ConvolverNode;
+  private diff: BiquadFilterNode[] = [];
+  private fbDelay: DelayNode; private fb: GainNode; private fbIn: GainNode;
+  private shBP: BiquadFilterNode; private shRect: WaveShaperNode; private shGain: GainNode;
+  private tone: BiquadFilterNode;
+  private dry: GainNode; private wet: GainNode;
+  private lastKey = '';
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.preDelay = this.own(ctx.createDelay(0.5));
+    this.conv = this.own(ctx.createConvolver());
+    for (let i = 0; i < 3; i++) { const a = this.own(ctx.createBiquadFilter()); a.type = 'allpass'; a.Q.value = 3.5; a.frequency.value = 400 + i * 900; this.diff.push(a); }
+    this.fbDelay = this.own(ctx.createDelay(1)); this.fbDelay.delayTime.value = 0.12;
+    this.fb = this.own(ctx.createGain()); this.fb.gain.value = 0;
+    this.fbIn = this.own(ctx.createGain());
+    this.shBP = this.own(ctx.createBiquadFilter()); this.shBP.type = 'bandpass'; this.shBP.frequency.value = 1200; this.shBP.Q.value = 1.2;
+    this.shRect = this.own(ctx.createWaveShaper()); this.shRect.curve = ABS_CURVE; this.shRect.oversample = '2x';
+    this.shGain = this.own(ctx.createGain()); this.shGain.gain.value = 0;
+    this.tone = this.own(ctx.createBiquadFilter()); this.tone.type = 'lowpass'; this.tone.frequency.value = 7000;
+    this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
+
+    this.input.connect(this.dry); this.dry.connect(this.output);
+    // wet: input (+ feedback) → preDelay → diffusion → conv → tone → wet
+    this.input.connect(this.fbIn);
+    this.fbIn.connect(this.preDelay);
+    this.preDelay.connect(this.diff[0]); this.diff[0].connect(this.diff[1]); this.diff[1].connect(this.diff[2]);
+    this.diff[2].connect(this.conv); this.conv.connect(this.tone); this.tone.connect(this.wet); this.wet.connect(this.output);
+    // feedback loop with the octave-up shimmer branch
+    this.tone.connect(this.fbDelay); this.fbDelay.connect(this.fb); this.fb.connect(this.fbIn);
+    this.fbDelay.connect(this.shBP); this.shBP.connect(this.shRect); this.shRect.connect(this.shGain); this.shGain.connect(this.fbIn);
+  }
+  setParams(p: Record<string, number>): void {
+    const spaceIdx = Math.max(0, Math.min(REVERB_SPACES.length - 1, Math.round(p.space ?? 6)));
+    const size = Math.max(0.5, Math.min(2, p.size ?? 1.4));
+    const reverse = (p.reverse ?? 0) > 0.5;
+    const key = `${spaceIdx}:${size.toFixed(2)}:${reverse}`;
+    if (key !== this.lastKey) {
+      this.lastKey = key;
+      const ir = makeSpaceIR(this.ctx, REVERB_SPACES[spaceIdx], size, 0.2, 1);
+      if (reverse) for (let ch = 0; ch < ir.numberOfChannels; ch++) ir.getChannelData(ch).reverse();
+      this.conv.buffer = ir;
+    }
+    this.preDelay.delayTime.value = Math.max(0, Math.min(0.4, (p.preDelay ?? 40) / 1000));
+    this.fbDelay.delayTime.value = Math.max(0.02, Math.min(0.9, (p.time ?? 120) / 1000));
+    this.fb.gain.value = Math.max(0, Math.min(0.92, (p.feedback ?? 55) / 100));
+    this.shGain.gain.value = Math.max(0, Math.min(0.9, (p.shimmer ?? 40) / 100));
+    this.shBP.frequency.value = clampHz(p.shimmerFreq ?? 1200);
+    this.tone.frequency.value = clampHz(p.tone ?? 7000);
+    for (const a of this.diff) a.Q.value = 1 + Math.max(0, Math.min(1, (p.diffusion ?? 60) / 100)) * 6;
+    const mix = Math.max(0, Math.min(1, (p.mix ?? 45) / 100));
+    equalPowerMix(this.dry, this.wet, mix);
+  }
+}
+
 // ── the registry ─────────────────────────────────────────────────────────────
 const C = { eq: '#00DAF3', dynamics: '#FF8C00', saturation: '#D40055', stereo: '#D0BCFF', space: '#06D6A0', mod: '#B84DFF', dj: '#FF4B1C', repair: '#F59E0B', utility: '#8899aa', amp: '#E8A33D' };
 
@@ -1877,6 +2045,42 @@ export const DEVICES: FxDescriptor[] = [
       { key: 'mix', label: 'Mix', min: 0, max: 100, default: 30, unit: '%' },
     ],
     create: (ctx) => new SpacesDevice(ctx),
+  },
+  {
+    type: 'echo', label: 'Creative Delay', category: 'space', color: C.space,
+    blurb: 'Multi-mode delay — Modern / Tape / Analog / Diffuse, ping-pong, ducking, wow & flutter',
+    params: [
+      { key: 'time', label: 'Time', min: 5, max: 3500, default: 350, unit: 'ms', curve: 'log' },
+      { key: 'feedback', label: 'Feedback', min: 0, max: 98, default: 40, unit: '%' },
+      { key: 'mode', label: 'Mode', min: 0, max: 3, default: 0, step: 1, format: (v) => ECHO_MODE[Math.max(0, Math.min(3, Math.round(v)))] },
+      { key: 'pingpong', label: 'Ping-Pong', min: 0, max: 100, default: 0, unit: '%' },
+      { key: 'spread', label: 'Spread', min: 0, max: 50, default: 15, unit: '%' },
+      { key: 'tone', label: 'Tone', min: 500, max: 18000, default: 5200, unit: 'Hz', curve: 'log' },
+      { key: 'lowcut', label: 'Low Cut', min: 16, max: 1000, default: 120, unit: 'Hz', curve: 'log' },
+      { key: 'wow', label: 'Wow', min: 0, max: 1, default: 0, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'duck', label: 'Duck', min: 0, max: 100, default: 0, unit: '%' },
+      { key: 'width', label: 'Width', min: 0, max: 100, default: 100, unit: '%' },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 30, unit: '%' },
+    ],
+    create: (ctx) => new CreativeDelayDevice(ctx),
+  },
+  {
+    type: 'cosmos', label: 'Cosmos', category: 'space', color: C.space,
+    blurb: 'Shimmer delay-reverb — octave-up feedback blooms into an endless ascending cloud (+ reverse)',
+    params: [
+      { key: 'space', label: 'Space', min: 0, max: REVERB_SPACES.length - 1, default: 6, step: 1, format: (v) => REVERB_SPACES[Math.max(0, Math.min(REVERB_SPACES.length - 1, Math.round(v)))].label },
+      { key: 'size', label: 'Size', min: 0.5, max: 2, default: 1.4, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'time', label: 'Delay', min: 20, max: 900, default: 120, unit: 'ms', curve: 'log' },
+      { key: 'feedback', label: 'Feedback', min: 0, max: 92, default: 55, unit: '%' },
+      { key: 'shimmer', label: 'Shimmer', min: 0, max: 90, default: 40, unit: '%' },
+      { key: 'shimmerFreq', label: 'Shim Freq', min: 300, max: 6000, default: 1200, unit: 'Hz', curve: 'log' },
+      { key: 'diffusion', label: 'Diffuse', min: 0, max: 100, default: 60, unit: '%' },
+      { key: 'tone', label: 'Tone', min: 1000, max: 16000, default: 7000, unit: 'Hz', curve: 'log' },
+      { key: 'preDelay', label: 'Pre', min: 0, max: 400, default: 40, unit: 'ms' },
+      { key: 'reverse', label: 'Reverse', min: 0, max: 1, default: 0, step: 1, format: (v) => (v > 0.5 ? 'On' : 'Off') },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 45, unit: '%' },
+    ],
+    create: (ctx) => new CosmosDevice(ctx),
   },
   {
     type: 'chorus', label: 'Chorus', category: 'mod', color: C.mod,

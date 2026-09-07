@@ -219,6 +219,22 @@ export const FX_PRESETS: Record<string, FxPreset[]> = {
     preset('fz-infinite', 'Infinite Hold', 'Near-unity feedback for an effectively endless drone.', { size: 500, spray: 0.2, rate: 0.15, freeze: 0.98, tone: 4000, mix: 60 }),
     preset('fz-smear', 'Wide Smear', 'A short, panned tap cloud that smears transients into a wide wash.', { size: 80, spray: 0.5, rate: 0.6, freeze: 0.4, tone: 7000, mix: 40 }),
   ],
+  echo: [
+    preset('echo-slap', 'Modern Slap', 'A tight, clean digital slapback — vocals and rockabilly guitar.', { time: 110, feedback: 12, mode: 0, pingpong: 0, spread: 8, tone: 9000, lowcut: 120, wow: 0, duck: 0, width: 60, mix: 22 }),
+    preset('echo-tape', 'Vintage Tape', 'Saturated, wowing tape echo that darkens with every repeat.', { time: 380, feedback: 52, mode: 1, pingpong: 0, spread: 18, tone: 4800, lowcut: 160, wow: 0.4, duck: 0, width: 80, mix: 30 }),
+    preset('echo-bbd', 'Analog BBD', 'A dark, bucket-brigade analog delay — warm and murky in the tail.', { time: 300, feedback: 60, mode: 2, pingpong: 0, spread: 20, tone: 3600, lowcut: 140, wow: 0.25, duck: 0, width: 75, mix: 28 }),
+    preset('echo-pingpong', 'Ping-Pong Wide', 'Repeats bounce hard left-to-right across the stereo field.', { time: 260, feedback: 55, mode: 0, pingpong: 100, spread: 30, tone: 7000, lowcut: 120, wow: 0, duck: 0, width: 100, mix: 32 }),
+    preset('echo-dub', 'Dub Sirens', 'High-feedback analog dub with wow — rides the edge of self-oscillation.', { time: 500, feedback: 82, mode: 2, pingpong: 40, spread: 25, tone: 3200, lowcut: 200, wow: 0.5, duck: 0, width: 90, mix: 38 }),
+    preset('echo-ducked', 'Ducked Vocal', 'The echo ducks under the vocal, then blooms in the gaps — clean and modern.', { time: 340, feedback: 42, mode: 0, pingpong: 30, spread: 15, tone: 8500, lowcut: 150, wow: 0, duck: 70, width: 80, mix: 34 }),
+    preset('echo-ambient', 'Diffuse Wash', 'Diffuse mode smears the repeats into a reverb-like ambient bed.', { time: 450, feedback: 65, mode: 3, pingpong: 20, spread: 35, tone: 6000, lowcut: 120, wow: 0.2, duck: 0, width: 100, mix: 42 }),
+  ],
+  cosmos: [
+    preset('cos-shimmer', 'Cathedral Shimmer', 'A classic octave-up shimmer bloom in a huge stone space.', { space: 6, size: 1.5, time: 140, feedback: 58, shimmer: 45, shimmerFreq: 1400, diffusion: 65, tone: 7500, preDelay: 40, reverse: 0, mix: 45 }),
+    preset('cos-infinite', 'Infinite Bloom', 'Near-oscillating feedback and heavy shimmer — an endless ascending pad.', { space: 7, size: 1.8, time: 180, feedback: 80, shimmer: 65, shimmerFreq: 1100, diffusion: 80, tone: 6500, preDelay: 60, reverse: 0, mix: 55 }),
+    preset('cos-reverse', 'Reverse Swell', 'A backwards, sucking reverb swell with a touch of shimmer.', { space: 5, size: 1.3, time: 120, feedback: 45, shimmer: 25, shimmerFreq: 1600, diffusion: 70, tone: 8000, preDelay: 20, reverse: 1, mix: 50 }),
+    preset('cos-dark', 'Dark Nebula', 'A low, dark cloud — deep space with a subterranean octave rumble.', { space: 9, size: 1.6, time: 220, feedback: 62, shimmer: 35, shimmerFreq: 600, diffusion: 85, tone: 4200, preDelay: 80, reverse: 0, mix: 48 }),
+    preset('cos-subtle', 'Subtle Halo', 'A gentle, wide halo behind a lead — shimmer sits low, mostly space.', { space: 4, size: 1.1, time: 100, feedback: 40, shimmer: 20, shimmerFreq: 2000, diffusion: 55, tone: 9000, preDelay: 30, reverse: 0, mix: 35 }),
+  ],
   consoleeq: [
     preset('ceq-low-trick', 'Low-End Trick', 'The classic simultaneous low boost and cut — a fat yet defined bottom.', { lowFreq: 60, lowBoost: 5, lowCut: 4, lowMidFreq: 400, lowMid: -2, highMidFreq: 3000, highMid: 1, highFreq: 12000, high: 2, drive: 0.25, output: 0 }),
     preset('ceq-air', 'Silky Air', 'A broad high shelf plus warmth — expensive-sounding top for vocals and buses.', { lowFreq: 80, lowBoost: 1, lowCut: 0, lowMidFreq: 500, lowMid: 0, highMidFreq: 4000, highMid: 2, highFreq: 14000, high: 4.5, drive: 0.3, output: -0.5 }),
