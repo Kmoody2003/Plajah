@@ -2852,7 +2852,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             <Logo size={48} />
           </div>
         </div>
-        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-small-orange">Synchronizing Global Archive</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-small-orange">Synchronizing Front Row</p>
       </div>
     );
   }
@@ -3595,7 +3595,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     .map(config => {
                       const items = {
                         USER_PROFILE: { label: 'My Profile', icon: User },
-                        DASHBOARD: { label: 'Global Archive', icon: Settings },
+                        DASHBOARD: { label: 'Front Row', icon: Settings },
                         MUSIC: { label: 'Chora', icon: Music2 },
                         WORLDS: { label: 'Worlds', icon: Globe },
                         VIDEOS: { label: 'Reello', icon: VideoIcon },
@@ -3760,7 +3760,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <nav className="flex-1 flex flex-col overflow-y-auto pr-1 custom-scrollbar overflow-x-hidden w-full">
                   {(() => {
                     const allNavItems: { [k: string]: { label: string; icon: any } } = {
-                      USER_PROFILE: { label: 'My Profile', icon: User }, DASHBOARD: { label: 'Global Archive', icon: Settings },
+                      USER_PROFILE: { label: 'My Profile', icon: User }, DASHBOARD: { label: 'Front Row', icon: Settings },
                       MUSIC: { label: 'Chora', icon: Music2 }, WORLDS: { label: 'Worlds', icon: Globe },
                       VIDEOS: { label: 'Reello', icon: VideoIcon }, MOVIES_TV: { label: 'Taleo', icon: Film },
                       PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, HEALTH_FITNESS: { label: 'Health & Fitness', icon: Activity },
@@ -3855,7 +3855,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <nav className="flex-1 flex flex-col overflow-y-auto pr-1 custom-scrollbar overflow-x-hidden w-full">
                   {(() => {
                     const navItems: { [k: string]: { label: string; icon: any } } = {
-                      USER_PROFILE: { label: 'My Profile', icon: User }, DASHBOARD: { label: 'Global Archive', icon: Settings },
+                      USER_PROFILE: { label: 'My Profile', icon: User }, DASHBOARD: { label: 'Front Row', icon: Settings },
                       MUSIC: { label: 'Chora', icon: Music2 }, WORLDS: { label: 'Worlds', icon: Globe },
                       VIDEOS: { label: 'Reello', icon: VideoIcon }, MOVIES_TV: { label: 'Taleo', icon: Film },
                       PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, HEALTH_FITNESS: { label: 'Health & Fitness', icon: Activity },

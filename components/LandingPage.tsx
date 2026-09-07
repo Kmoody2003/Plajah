@@ -282,13 +282,24 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
           <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">
             Plajah
           </h1>
-          <p className="text-center text-sm lg:text-base font-light tracking-widest uppercase text-white/50 max-w-2xl px-4 group-hover:font-black transition-all duration-500">
-            The Best Platform For You To Grow And Build Your IP and Creative Worlds.<br/>Discover The Playground.
+          <p className="text-center text-lg lg:text-2xl font-bold tracking-wide uppercase text-white max-w-2xl px-4 [text-shadow:0_2px_14px_rgba(0,0,0,0.65)]">
+            Everything creators make — music, film, books, live &amp; more.<br/>One profile to build it. One place to find it.
           </p>
           <div className="h-px w-24 bg-gradient-to-r from-transparent via-small-orange to-transparent" />
         </motion.div>
 
-        {/* Landing-page value copy removed per product direction. */}
+        {/* A one-line tease of the two directions. The "Create your free account" and
+            "Enter" buttons below are the actual answer — this just plants the fork in the
+            visitor's head. The full Explore/Create fork lives on the Front Row page after
+            sign-in. */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1, delay: 0.35 }}
+          className="text-base lg:text-lg font-black uppercase tracking-[0.3em] text-white [text-shadow:0_2px_14px_rgba(0,0,0,0.65)] -mt-2"
+        >
+          What do you want to make — or discover?
+        </motion.p>
 
         {/* Primary CTA — "continue" for a live session, otherwise create an account */}
         <motion.div

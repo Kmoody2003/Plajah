@@ -53,7 +53,7 @@ export const PlajahIconGradientDefs: React.FC = () => (
 export const NAV_SECTIONS: NavSection[] = [
   { key: 'Discover', icon: Compass, items: [
     { id: 'USER_PROFILE', label: 'My Profile', icon: User },
-    { id: 'DASHBOARD', label: 'Global Archive', icon: Home },
+    { id: 'DASHBOARD', label: 'Front Row', icon: Home },
     { id: 'FEED', label: 'Plajah Social', icon: Rss },
     { id: 'WORLDS', label: 'Worlds', icon: Globe },
     { id: 'SEARCH', label: 'Find People', icon: Search },

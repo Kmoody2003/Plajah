@@ -396,7 +396,7 @@ const WorldsView: React.FC<WorldsViewProps> = ({ onNavigate, onEdit, userProfile
               onClick={() => setIsDiscoverMode(!isDiscoverMode)}
               className={`px-8 py-4 rounded-full font-black uppercase tracking-widest text-xs transition-all flex items-center gap-3 shadow-xl ${isDiscoverMode ? 'bg-primary text-white' : 'bg-white/5 border border-white/10 text-white/40 hover:bg-white/10'}`}
             >
-              <Globe size={18} /> {isDiscoverMode ? 'Global Archive' : 'View Global Archive'}
+              <Globe size={18} /> {isDiscoverMode ? 'Front Row' : 'View Front Row'}
             </button>
             {isOwner && (
               <button onClick={() => onNavigate('WORLD_MANAGER')}
