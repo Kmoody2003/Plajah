@@ -142,7 +142,9 @@ export const meterRegistry = new Map<string, () => number>();
 
 // ---- master bus: every channel strip sums here, then one path to the hardware ----
 //   strip → masterGain → [brickwall limiter] → masterAnalyser → ctx.destination
-let _master: { input: GainNode; eq: SpectraEQ; mastering: MasteringChain; suite: FxChainHost; gain: GainNode; limiter: WaveShaperNode; makeup: GainNode; analyser: AnalyserNode; limiterOn: boolean } | null = null;
+interface GroupBus { input: GainNode; insert: FxChainHost; gain: GainNode; analyser: AnalyserNode; meterBuf: Float32Array; }
+export const GROUP_LABELS = ['A', 'B', 'C', 'D'] as const;
+let _master: { input: GainNode; eq: SpectraEQ; mastering: MasteringChain; suite: FxChainHost; gain: GainNode; limiter: WaveShaperNode; makeup: GainNode; analyser: AnalyserNode; limiterOn: boolean; groups: GroupBus[] } | null = null;
 function getMasterBus(ctx: AudioContext) {
   if (_master) return (_master as any); // strips connect to .input
   const input = ctx.createGain();       // sum point — strips connect here
@@ -165,8 +167,39 @@ function getMasterBus(ctx: AudioContext) {
   meterRegistry.set('master', makeHeldMeter(() => {
     try { analyser.getFloatTimeDomainData(buf); let p = 0; for (let i = 0; i < buf.length; i++) { const a = Math.abs(buf[i]); if (a > p) p = a; } return p; } catch { return 0; }
   }));
-  _master = { input, eq, mastering, suite, gain, limiter, makeup, analyser, limiterOn: true };
+  // Four group submix buses (A–D). A track can route to a group instead of straight
+  // to the master; the group has its own insert FX + fader, then feeds the master
+  // sum point — so you can process a whole stem (all drums, all vocals) at once.
+  const groups: GroupBus[] = GROUP_LABELS.map(() => {
+    const gin = ctx.createGain();
+    const gInsert = new FxChainHost(ctx);
+    const ggain = ctx.createGain();
+    const gan = ctx.createAnalyser(); gan.fftSize = 256; gan.smoothingTimeConstant = 0.2;
+    gin.connect(gInsert.input); gInsert.output.connect(ggain); ggain.connect(gan); gan.connect(input);
+    return { input: gin, insert: gInsert, gain: ggain, analyser: gan, meterBuf: new Float32Array(gan.fftSize) };
+  });
+  groups.forEach((g, i) => meterRegistry.set(`group:${GROUP_LABELS[i]}`, makeHeldMeter(() => {
+    try { g.analyser.getFloatTimeDomainData(g.meterBuf); let p = 0; for (let k = 0; k < g.meterBuf.length; k++) { const a = Math.abs(g.meterBuf[k]); if (a > p) p = a; } return p; } catch { return 0; }
+  })));
+  _master = { input, eq, mastering, suite, gain, limiter, makeup, analyser, limiterOn: true, groups };
   return (_master as any);
+}
+/** A group submix bus input (0..3 → A..D) for a track to route into, or null. */
+export function getGroupInput(idx: number): GainNode | null {
+  const m = _master; return m && idx >= 0 && idx < m.groups.length ? m.groups[idx].input : null;
+}
+/** Group index (0..3) for a label 'A'..'D', or -1. */
+export function groupIndex(label: string | number | undefined | null): number {
+  if (typeof label === 'number') return label >= 0 && label < 4 ? label : -1;
+  return label ? GROUP_LABELS.indexOf(label as any) : -1;
+}
+/** Insert FX chain on a group bus (Melos devices; empty = passthrough). */
+export function setGroupInserts(idx: number, instances: FxInstance[]) {
+  const m = _master; if (m && m.groups[idx]) m.groups[idx].insert.setChain(Array.isArray(instances) ? instances : []);
+}
+/** Group bus fader (0..1.5). */
+export function setGroupGain(idx: number, v: number) {
+  const m = _master; if (m && m.groups[idx]) m.groups[idx].gain.gain.value = Math.max(0, v);
 }
 /** Master FX suite — Melos devices on the whole mix (empty = passthrough). */
 export function setMasterInserts(instances: FxInstance[]) {

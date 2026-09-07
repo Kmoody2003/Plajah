@@ -7,7 +7,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import {
   meterRegistry, setMasterGain, setMasterLimiter, masterReduction, setMasterInserts, masterMeterTap,
-  setMasterEq, setMasterMastering,
+  setMasterEq, setMasterMastering, setGroupInserts,
   audioEngineInfo, listOutputDevices, setOutputDevice, setOutputChannels, resumeAudioCtx,
   setReverb, setDelay, REVERB_PRESETS,
 } from "../../services/fabula/audioGraph";
@@ -89,6 +89,10 @@ function ChannelStrip({ tr, ts, onPatch, midiLearnId, onMidiLearn, tab, selected
         <button className={`mcms ${ts.solo ? "on solo" : ""}`} onClick={() => onPatch({ solo: !ts.solo })}>S</button>
         <button className={`mcms ${midiLearnId === tr.id ? "on learn" : ""}`} title="MIDI-learn this fader: click, then move a MIDI control" onClick={() => onMidiLearn(tr.id)}>◎</button>
       </div>
+      <button className={`mcms ${ts.group ? "on" : ""}`} style={{ width: "100%", fontSize: 9 }}
+        title="Route this track to a group submix bus (A–D) or straight to master. Click to cycle."
+        onClick={() => { const order = ["", "A", "B", "C", "D"]; const i = (order.indexOf(ts.group || "") + 1) % order.length; onPatch({ group: order[i] || undefined }); }}>
+        {ts.group ? `▸ BUS ${ts.group}` : "▸ MASTER"}</button>
       <span className="mcname">{tr.name}</span>
     </div>
   );
@@ -106,11 +110,21 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
   // Which track's FX-insert rack is open below the console.
   const [selTrack, setSelTrack] = useState(null);
   useEffect(() => {
-    if ((selTrack == null || !audioTracks.some((t) => t.id === selTrack)) && audioTracks.length) setSelTrack(audioTracks[0].id);
-    if (!audioTracks.length && selTrack != null) setSelTrack(null);
+    // 'master' and 'group:*' are valid non-track selections; only reset a STALE track id.
+    const special = selTrack === "master" || (typeof selTrack === "string" && selTrack.startsWith("group:"));
+    if (!special && (selTrack == null || !audioTracks.some((t) => t.id === selTrack)) && audioTracks.length) setSelTrack(audioTracks[0].id);
+    if (!audioTracks.length && !special && selTrack != null) setSelTrack(null);
   }, [audioTracks, selTrack]);
-  const selName = selTrack === "master" ? "MASTER" : (audioTracks.find((t) => t.id === selTrack)?.name || "");
+  const selName = selTrack === "master" ? "MASTER"
+    : selTrack?.startsWith("group:") ? `BUS ${selTrack.slice(6)}`
+    : (audioTracks.find((t) => t.id === selTrack)?.name || "");
   const selInserts = (trackSettings?.[selTrack]?.inserts) || [];
+  // Apply each group bus's insert chain (flat keys group:A … group:D) to the graph.
+  const groupInsertsKey = JSON.stringify(["A", "B", "C", "D"].map((g) => trackSettings?.[`group:${g}`]?.inserts || []));
+  useEffect(() => {
+    ["A", "B", "C", "D"].forEach((g, i) => setGroupInserts(i, trackSettings?.[`group:${g}`]?.inserts || []));
+    /* eslint-disable-next-line */
+  }, [groupInsertsKey]);
   // Master FX suite is on the master bus (not a track bus), so apply it directly.
   const masterInsertsKey = JSON.stringify(trackSettings?.master?.inserts || []);
   useEffect(() => { setMasterInserts(trackSettings?.master?.inserts || []); /* eslint-disable-next-line */ }, [masterInsertsKey]);
@@ -212,6 +226,16 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
           <button className={`mcms ${midiLearnId === "master" ? "on learn" : ""}`} title="MIDI-learn the master fader" onClick={() => learn("master")}>◎</button>
           <span className="mcname">MAIN</span>
         </div>
+      </div>
+      {/* Group submix buses — route tracks with the ▸ BUS button on each strip, then
+          add FX here to process the whole group (all drums, all vocals) at once. */}
+      <div className="btnrow" style={{ gap: 8, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <span className="lbl" title="Group submix buses">GROUP BUSES</span>
+        {["A", "B", "C", "D"].map((g) => {
+          const n = (trackSettings?.[`group:${g}`]?.inserts || []).filter((i) => i && i.on).length;
+          return <button key={g} className={`minibtn ${selTrack === `group:${g}` ? "on" : ""}`} onClick={() => setSelTrack(`group:${g}`)} title={`Edit BUS ${g} insert FX`}>BUS {g}{n ? ` · ${n}` : ""}</button>;
+        })}
+        <span className="dim small">Add FX to a bus to process every track routed to it.</span>
       </div>
       {/* hardware output routing */}
       <div className="btnrow" style={{ gap: 8, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>

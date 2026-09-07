@@ -25,7 +25,7 @@
 
 import {
   getAudioCtx, resumeAudioCtx, meterRegistry, EQ_BANDS,
-  getMasterInput, getFxSends, needsCors, makeHeldMeter,
+  getMasterInput, getFxSends, needsCors, makeHeldMeter, getGroupInput, groupIndex,
 } from './audioGraph';
 import { resolveMediaSource } from './mediaSource';
 import { FxChainHost } from './audioFx';
@@ -260,6 +260,7 @@ interface TrackBus {
   insertHost: FxChainHost;  // Melos-shared FX insert chain (empty = passthrough)
   pan: StereoPannerNode | null; gain: GainNode; analyser: AnalyserNode;
   sendR: GainNode; sendD: GainNode; meterBuf: Float32Array;
+  dest: AudioNode;          // current output (master sum point, or a group bus)
 }
 const trackBuses = new Map<string, TrackBus>();
 
@@ -299,7 +300,7 @@ function getTrackBus(trackId: string): TrackBus | null {
   const sendR = ctx.createGain(); sendR.gain.value = 0;
   const sendD = ctx.createGain(); sendD.gain.value = 0;
   if (fx) { gain.connect(sendR); sendR.connect(fx.reverbSend); gain.connect(sendD); sendD.connect(fx.delaySend); }
-  const bus: TrackBus = { input, eq, comp, mk, insertHost, pan, gain, analyser, sendR, sendD, meterBuf: new Float32Array(analyser.fftSize) };
+  const bus: TrackBus = { input, eq, comp, mk, insertHost, pan, gain, analyser, sendR, sendD, meterBuf: new Float32Array(analyser.fftSize), dest: master };
   trackBuses.set(trackId, bus);
   // this bus owns the track's meter from now on (created lazily — register here, not at start)
   meterRegistry.set(trackId, makeHeldMeter(() => {
@@ -312,6 +313,10 @@ function applyTrack(bus: TrackBus, ts: any) {
   applyBand(bus.eq, ts?.eq);
   applyComp(bus.comp, bus.mk, ts?.comp);
   bus.insertHost.setChain(Array.isArray(ts?.inserts) ? ts.inserts : []);
+  // Route to a group submix bus (A–D) when assigned, else straight to the master.
+  const gi = groupIndex(ts?.group);
+  const want = (gi >= 0 ? getGroupInput(gi) : null) || getMasterInput();
+  if (want && want !== bus.dest) { try { bus.analyser.disconnect(bus.dest); } catch { /* */ } try { bus.analyser.connect(want); bus.dest = want; } catch { /* */ } }
   if (bus.pan) bus.pan.pan.value = clamp(ts?.pan || 0, -1, 1);
   const muted = !!ts?.mute;
   bus.gain.gain.value = muted ? 0 : Math.max(0, ts?.vol == null ? 1 : ts.vol);
