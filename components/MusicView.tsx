@@ -2799,7 +2799,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   </section>
                 )}
 
-                {activeTab === 'MY_LIBRARY' && userProfile && <MyLibraryView profile={userProfile} />}
+                {activeTab === 'MY_LIBRARY' && userProfile && <MyLibraryView profile={userProfile} onSelectAlbum={onSelectAlbum} />}
               </>
             )}
           </div>

@@ -8,6 +8,7 @@ import {
 } from '../services/academicSocial';
 import { auth } from '../services/firebase';
 import ShareToPlajahComposer from './ShareToPlajahComposer';
+import AnchoredPopover from './ui/AnchoredPopover';
 
 // Reusable "social layer" action bar for any academic item — figures, artifacts,
 // styles, sites, civilizations. Drop it into any detail modal with a normalized
@@ -19,6 +20,7 @@ const AssetActions: React.FC<Props> = ({ asset, accent = '#C9A55C' }) => {
   const [toast, setToast] = useState<string>('');
   const [busy, setBusy] = useState<string>('');
   const [shareOpen, setShareOpen] = useState(false);
+  const shareTrigger = useRef<HTMLButtonElement>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const timer = useRef<any>(null);
   const flash = (msg: string) => { setToast(msg); if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => setToast(''), 2200); };
@@ -49,16 +51,12 @@ const AssetActions: React.FC<Props> = ({ asset, accent = '#C9A55C' }) => {
         <button onClick={onNotebook} className={btn} title="Save to your research notebook"><NotebookPen size={12} /> Notebook</button>
         <button onClick={onInterest} disabled={busy === 'interest'} className={btn} title="Add to your interests"><Star size={12} style={{ color: accent }} /> Interest</button>
         <button onClick={onPlajah} className={btn} title="Compose a post to Plajah"><Send size={12} /> Post</button>
-        <button onClick={() => setShareOpen(o => !o)} className={btn} title="Share to X, Facebook and more"><Share2 size={12} /> Share</button>
+        <button ref={shareTrigger} aria-expanded={shareOpen} onClick={() => setShareOpen(o => !o)} className={btn} title="Share to X, Facebook and more"><Share2 size={12} /> Share</button>
       </div>
 
       <AnimatePresence>
-        {shareOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 4, scale: 0.97 }}
-            transition={{ duration: 0.15 }}
-            className="absolute z-30 mt-2 right-0 w-48 p-2 bg-[#141419] border border-white/12 rounded-2xl shadow-2xl"
-          >
+        {shareOpen && shareTrigger.current && (
+          <AnchoredPopover anchor={shareTrigger.current} onClose={() => setShareOpen(false)} align="end" className="w-48 p-2 bg-[#141419] border border-white/12 rounded-2xl shadow-2xl">
             <div className="flex items-center justify-between px-1.5 pb-1.5">
               <span className="text-[8px] font-black uppercase tracking-widest text-white/35">Share to</span>
               <button onClick={() => setShareOpen(false)} className="text-white/25 hover:text-white/60"><X size={12} /></button>
@@ -72,7 +70,7 @@ const AssetActions: React.FC<Props> = ({ asset, accent = '#C9A55C' }) => {
             <button onClick={onNative} className="w-full flex items-center gap-2 text-left px-2.5 py-2 rounded-xl text-[11px] font-bold text-white/70 hover:bg-white/[0.06] hover:text-white transition-all border-t border-white/8 mt-1 pt-2">
               <Link2 size={12} /> Copy link / more…
             </button>
-          </motion.div>
+          </AnchoredPopover>
         )}
       </AnimatePresence>
 

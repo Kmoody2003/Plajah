@@ -1,6 +1,7 @@
 // engine/audioEngine.ts — Web Audio FFT → bass/mid/treble bands, beat + BPM.
 // Frard-agnostic. Drive it from React via a ref.
 
+import { platformAudio } from '../../../services/mediaEngine/audioRuntime';
 export class AudioEngine {
   ctx: AudioContext | null = null;
   analyser: AnalyserNode | null = null;
@@ -28,8 +29,7 @@ export class AudioEngine {
 
   init() {
     if (this.ctx) return;
-    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
-    this.ctx = new Ctx();
+    this.ctx = platformAudio.getContext();
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 2048;
     this.analyser.smoothingTimeConstant = 0.82;
@@ -37,7 +37,7 @@ export class AudioEngine {
     this.gain = this.ctx.createGain();
     this.gain.gain.value = 0.8;
     this.analyser.connect(this.gain);
-    this.gain.connect(this.ctx.destination);
+    this.gain.connect(platformAudio.output('pixels'));
   }
 
   loadFile(file: File, onTime?: () => void, onMeta?: () => void, onEnded?: () => void) {

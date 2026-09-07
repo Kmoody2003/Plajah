@@ -57,3 +57,13 @@ artifacts/
 release-production-*.files
 release-production-*.patch
 release-production-*.stat
+
+# Undo files written by scripts/clearFillerDescriptions.ts — keep them locally, never commit
+filler-descriptions-backup-*.json
+
+# Rust OFX shell build output
+rust/fabula-ofx/target/
+.tela-proofs/
+
+# Fabula FX preview: raw source images (only the curated webps are bundled)
+components/plajahPixels/engine/fx/previewAssets/_source/

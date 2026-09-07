@@ -54,10 +54,67 @@ import {
   ToggleLeft,
   ToggleRight,
   AlertTriangle,
+  UploadCloud,
   Tv,
   Hash,
 } from 'lucide-react';
+
+/**
+ * A release in `albums` may be a record, a film, a TV series, a book, a photo set or a game —
+ * `type` + `subType` are what say which. These three helpers exist because the admin lists
+ * used to assume "album = music", which is how a feature film showed up as a music album.
+ */
+const albumKindLabel = (a: any): string => {
+  const sub = String(a?.subType || '').toUpperCase();
+  if (sub === 'MOVIE') return 'Film';
+  if (sub === 'TV_SERIES') return 'TV Series';
+  if (sub === 'PODCAST') return 'Podcast';
+  if (sub === 'GRAPHIC_NOVEL') return 'Graphic Novel';
+  if (sub === 'NOVEL') return 'Book';
+  if (sub === 'MIX') return 'DJ Mix';
+  if (sub === 'PLAYLIST') return 'Playlist';
+  switch (String(a?.type || 'MUSIC').toUpperCase()) {
+    case 'VIDEO': return 'Video';
+    case 'BOOK': return 'Book';
+    case 'PHOTO': return 'Photo Set';
+    case 'GAME': return 'Game';
+    default: return 'Album';
+  }
+};
+
+/** Count the thing this release actually contains, named correctly. */
+const albumItemCount = (a: any): string => {
+  const sub = String(a?.subType || '').toUpperCase();
+  if (sub === 'TV_SERIES') {
+    const eps = (a?.seasons || []).reduce((n: number, s: any) => n + (s?.episodes?.length || 0), 0);
+    return `${eps} Episode${eps === 1 ? '' : 's'}`;
+  }
+  const n = (a?.tracks || []).length;
+  const t = String(a?.type || 'MUSIC').toUpperCase();
+  if (sub === 'MOVIE') return n === 0 ? 'No film file' : `${n} Cut${n === 1 ? '' : 's'}`;
+  if (t === 'BOOK') return `${(a?.bookChapters || []).length} Chapters`;
+  if (t === 'PHOTO') return `${(a?.slideshow || []).length} Photos`;
+  return `${n} Track${n === 1 ? '' : 's'}`;
+};
+
+/**
+ * A published release with no playable media behind it. This is the "Pumpkin Patch" state:
+ * cover art, synopsis, cast and crew all present, and no film. Flagged here so it is
+ * visible in the admin list instead of only surfacing when a viewer presses play.
+ */
+const isMissingMedia = (a: any): boolean => {
+  const t = String(a?.type || '').toUpperCase();
+  const sub = String(a?.subType || '').toUpperCase();
+  if (t !== 'VIDEO' || (sub !== 'MOVIE' && sub !== 'TV_SERIES')) return false;
+  const playable = (x: any) => !!(x?.url || x?.muxUploadId || x?.muxPlaybackId);
+  if ((a?.tracks || []).some(playable)) return false;
+  if ((a?.seasons || []).some((s: any) => (s?.episodes || []).some(playable))) return false;
+  if ((a?.alternateVersions || []).some(playable)) return false;
+  return !a?.customVideoUrl;
+};
+
 import ErrorReportsPanel from './admin/ErrorReportsPanel';
+import UploadReportsPanel from './admin/UploadReportsPanel';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, SystemStats, AdConfig, Track, Album, Video, Photo, PostThemeBackground, InteractiveZone, SystemSettingsConfig, Universe, Playlist, VideoPlaylist } from '../types';
 import { 
@@ -141,7 +198,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'NOTIFY' | 'CHORA_STREAMS' | 'PLATFORM_MEDIA' | 'CHANNEL_NUMBERS' | 'ENDLESS_HOUR'>('STATS');
+  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'UPLOAD_REPORTS' | 'NOTIFY' | 'CHORA_STREAMS' | 'PLATFORM_MEDIA' | 'CHANNEL_NUMBERS' | 'ENDLESS_HOUR'>('STATS');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
   const [contentLicensingOn, setContentLicensingOn] = useState(false);
@@ -590,6 +647,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
             { id: 'USER_HEALTH', label: 'User Health', icon: Activity },
             { id: 'NOTIFY', label: 'Push Broadcast', icon: Bell },
             { id: 'ERRORS', label: 'Errors', icon: AlertTriangle },
+            { id: 'UPLOAD_REPORTS', label: 'Upload Reports', icon: UploadCloud },
             { id: 'STATS', label: 'Stats (Legacy)', icon: Database },
             { id: 'SPORTS_AGENTS', label: 'Sports Agents', icon: Trophy },
             { id: 'LIBRARY', label: 'Public Library', icon: LibraryBig },
@@ -852,7 +910,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                         <p className="text-white/40 font-bold uppercase tracking-widest text-xs mb-4">{selectedUser.uid}</p>
                         <div className="flex gap-4">
                           <div className="px-4 py-2 bg-white/5 rounded-xl text-[9px] font-black uppercase tracking-widest">
-                            {userAssets?.albums.length || 0} Albums
+                            {userAssets?.albums.length || 0} Releases
                           </div>
                           <div className="px-4 py-2 bg-white/5 rounded-xl text-[9px] font-black uppercase tracking-widest">
                             {userAssets?.videos.length || 0} Videos
@@ -891,22 +949,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
 
                     {/* Asset Folders */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                      {/* Albums Section */}
+                      {/* Releases Section — a film, a book and a record all live in `albums`,
+                          so this list must read the type off each doc. It used to be headed
+                          "Music Albums" and count "N Tracks" for everything, which showed a
+                          feature film as a music album with 0 tracks. */}
                       <div className="space-y-4">
-                        <h3 className="text-xs font-black uppercase tracking-widest text-white/40 ml-4">Music Albums</h3>
+                        <h3 className="text-xs font-black uppercase tracking-widest text-white/40 ml-4">Releases</h3>
                         <div className="space-y-2">
-                          {userAssets?.albums.map(album => (
-                            <div key={album.id} className="p-4 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between">
-                              <div className="flex items-center gap-4">
-                                <img src={album.coverImage || null} className="w-10 h-10 rounded-lg object-cover" alt="" />
-                                <div>
-                                  <p className="text-sm font-bold uppercase tracking-wider">{album.title}</p>
-                                  <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">{album.tracks.length} Tracks</p>
+                          {userAssets?.albums.map(album => {
+                            const kind = albumKindLabel(album);
+                            const missing = isMissingMedia(album);
+                            return (
+                            <div key={album.id} className="p-4 bg-white/5 border rounded-2xl flex items-center justify-between"
+                                 style={{ borderColor: missing ? '#e2473b66' : 'rgba(255,255,255,0.05)' }}>
+                              <div className="flex items-center gap-4 min-w-0">
+                                <img src={album.coverImage || null} className="w-10 h-10 rounded-lg object-cover shrink-0" alt="" />
+                                <div className="min-w-0">
+                                  <p className="text-sm font-bold uppercase tracking-wider truncate">{album.title}</p>
+                                  <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">
+                                    {kind} · {albumItemCount(album)}
+                                    {missing && <span style={{ color: '#e2473b' }}> · No media attached</span>}
+                                  </p>
                                 </div>
                               </div>
-                              <Eye size={16} className="text-white/20" />
+                              <Eye size={16} className="text-white/20 shrink-0" />
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
 
@@ -1335,6 +1404,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
             {activeTab === 'ERRORS' && (
               <motion.div key="errors" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-5xl">
                 <ErrorReportsPanel />
+              </motion.div>
+            )}
+
+            {activeTab === 'UPLOAD_REPORTS' && (
+              <motion.div
+                key="uploadReports"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <UploadReportsPanel />
               </motion.div>
             )}
 

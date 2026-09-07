@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { platformAudio } from '../services/mediaEngine/audioRuntime';
 import { Track, Album, Video } from '../types';
 import { doc, increment, setDoc, updateDoc } from 'firebase/firestore';
 import { db, fetchAllPublicAlbums } from '../services/backendService';
@@ -387,7 +388,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!audioContextRef.current) {
       const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
       if (AudioContextClass) {
-        const ctx = new AudioContextClass();
+        const ctx = platformAudio.getContext();
         audioContextRef.current = ctx;
         // Auto-resume: the OS can suspend the context on a device change / audio-route
         // switch (headphones, Bluetooth) mid-song. Without this the audio goes silent
@@ -518,7 +519,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         } else {
           head.connect(analyserRef.current);
         }
-        analyserRef.current.connect(audioContextRef.current.destination);
+        analyserRef.current.connect(platformAudio.output('chora'));
         sourceRef.current = source;
       } catch (e) {
         console.warn('Audio Context source connection failed (likely already connected):', e);

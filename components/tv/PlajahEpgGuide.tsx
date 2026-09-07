@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { cleanDescription } from '../../utils/description';
 import { Radio, Tv, Play, ChevronLeft, ChevronRight, FlaskConical, Clock } from 'lucide-react';
 import type { LiveFeed } from '../../types';
 import { fetchFastChannelSchedule, fetchFastChannelVideos, fetchVideoById, type FastChannelListing } from '../../services/backendService';
@@ -159,7 +160,7 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
     if (descCache.current.has(vid)) { setDesc(descCache.current.get(vid)!); return; }
     let alive = true;
     fetchVideoById(vid).then(v => {
-      const d = (v as any)?.description || '';
+      const d = cleanDescription((v as any)?.description);
       descCache.current.set(vid, d);
       if (alive) setDesc(d);
     }).catch(() => {});

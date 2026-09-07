@@ -16,12 +16,13 @@ import {
 } from '../../services/backendService';
 import WatchLaterButton, { invalidateWatchLaterCache } from './WatchLaterButton';
 import LearnChip from '../LearnChip';
+import MediaThumb from '../ui/MediaThumb';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const thumbFor = (v?: Partial<Video> | null): string => {
   if (!v) return '';
-  if ((v as any).muxPlaybackId) return `https://image.mux.com/${(v as any).muxPlaybackId}/thumbnail.png?width=640&height=360&time=5`;
+  if ((v as any).muxPlaybackId) return `https://image.mux.com/${(v as any).muxPlaybackId}/thumbnail.png?width=640&time=5`;
   return v.thumbnailUrl || (v as any).coverImageUrl || (v as any).coverImage || '';
 };
 
@@ -103,7 +104,7 @@ export const TrendingSection: React.FC<{
 
             <div className="relative w-32 sm:w-44 aspect-video rounded-xl overflow-hidden bg-white/[0.04] border border-white/10 shrink-0">
               {thumbFor(v)
-                ? <img src={thumbFor(v)} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                ? <MediaThumb src={thumbFor(v)} alt="" loading="lazy" decoding="async" className="group-hover:scale-105 transition-transform duration-500" />
                 : <div className="w-full h-full flex items-center justify-center"><Play size={18} className="text-white/20" /></div>}
             </div>
 
@@ -182,7 +183,7 @@ export const WatchLaterSection: React.FC<{ onPlay: (v: Video) => void }> = ({ on
             <button onClick={() => onPlay(v)} className="w-full text-left">
               <div className="relative aspect-video rounded-2xl overflow-hidden bg-white/[0.04] border border-white/10">
                 {thumbFor(v)
-                  ? <img src={thumbFor(v)} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  ? <MediaThumb src={thumbFor(v)} alt="" loading="lazy" decoding="async" className="group-hover:scale-105 transition-transform duration-500" />
                   : <div className="w-full h-full flex items-center justify-center"><Play size={22} className="text-white/20" /></div>}
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/30 transition-opacity">
                   <Play size={26} className="text-white" fill="currentColor" />

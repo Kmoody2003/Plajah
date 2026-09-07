@@ -10,10 +10,11 @@ import {
   fetchVideoPlaylistById, fetchPlaylistVideos, auth,
 } from '../services/backendService';
 import { buildShareUrl, shareAsset } from '../services/deepLinkService';
+import MediaThumb from './ui/MediaThumb';
 
 const thumbFor = (v?: Partial<Video> | null): string => {
   if (!v) return '';
-  if ((v as any).muxPlaybackId) return `https://image.mux.com/${(v as any).muxPlaybackId}/thumbnail.png?width=640&height=360&time=5`;
+  if ((v as any).muxPlaybackId) return `https://image.mux.com/${(v as any).muxPlaybackId}/thumbnail.png?width=640&time=5`;
   return v.thumbnailUrl || (v as any).coverImageUrl || (v as any).coverImage || '';
 };
 
@@ -155,7 +156,7 @@ const PlaylistCard: React.FC<{ p: VideoPlaylist; onOpen: () => void }> = ({ p, o
   <button onClick={onOpen} className="group text-left">
     <div className="relative aspect-video rounded-2xl overflow-hidden bg-white/[0.04] border border-white/10">
       {p.thumbnailUrl ? (
-        <img src={p.thumbnailUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <MediaThumb src={p.thumbnailUrl} alt="" className="group-hover:scale-105 transition-transform duration-500" />
       ) : (
         <div className="w-full h-full flex items-center justify-center"><ListVideo size={30} className="text-white/20" /></div>
       )}
@@ -344,7 +345,7 @@ export const VideoPlaylistDetailView: React.FC<{
         <div className="w-full md:w-72 shrink-0">
           <div className="relative aspect-video rounded-2xl overflow-hidden bg-white/[0.04] border border-white/10">
             {(pl.thumbnailUrl || thumbFor(videos[0])) ? (
-              <img src={pl.thumbnailUrl || thumbFor(videos[0])} alt="" className="w-full h-full object-cover" />
+              <MediaThumb src={pl.thumbnailUrl || thumbFor(videos[0])} alt="" />
             ) : <div className="w-full h-full flex items-center justify-center"><ListVideo size={34} className="text-white/20" /></div>}
             <div className="absolute bottom-2 right-2 px-2 py-1 rounded-md bg-black/70 text-[9px] font-black uppercase tracking-widest text-white flex items-center gap-1"><ListVideo size={10} /> {videos.length}</div>
           </div>
@@ -408,7 +409,7 @@ export const VideoPlaylistDetailView: React.FC<{
                 <span className="w-6 text-center text-[10px] font-black text-white/30 shrink-0">{i + 1}</span>
               )}
               <button onClick={() => onPlayVideo(v, videos)} className="relative w-32 aspect-video rounded-lg overflow-hidden bg-white/5 shrink-0">
-                {thumbFor(v) ? <img src={thumbFor(v)} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Play size={16} className="text-white/30" /></div>}
+                {thumbFor(v) ? <MediaThumb src={thumbFor(v)} alt="" /> : <div className="w-full h-full flex items-center justify-center"><Play size={16} className="text-white/30" /></div>}
                 <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/30 transition-opacity"><Play size={18} className="text-white" fill="currentColor" /></span>
               </button>
               <button onClick={() => onPlayVideo(v, videos)} className="flex-1 min-w-0 text-left">

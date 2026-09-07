@@ -6,11 +6,13 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Bundle
 import android.util.Log
+import android.view.KeyEvent
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import com.getcapacitor.BridgeActivity
 
 class MainActivity : BridgeActivity() {
+    private var televisionMode = false
 
     /**
      * Tell the web layer, authoritatively, that this is a television.
@@ -84,7 +86,8 @@ class MainActivity : BridgeActivity() {
             bridge?.webView?.setBackgroundColor(android.graphics.Color.parseColor("#04030A"))
         } catch (_: Throwable) { /* pre-bridge or unavailable — the theme background still covers */ }
 
-        if (!isTelevision()) return
+        televisionMode = isTelevision()
+        if (!televisionMode) return
 
         // Keep D-pad keys inside the WebView.
         //
@@ -120,6 +123,10 @@ class MainActivity : BridgeActivity() {
             // rendering at roughly 2x. Verified over CDP: window.innerWidth was still 960.
             settings.useWideViewPort = true
             settings.loadWithOverviewMode = true
+            // Taleo's preroll is intentionally audible. TV playback is already initiated
+            // by the viewer's Watch action; allow the resulting media element to retain
+            // audio when React mounts it a frame later.
+            settings.mediaPlaybackRequiresUserGesture = false
 
             val ua = settings.userAgentString
             // Idempotent: onCreate runs again after a configuration change.
@@ -131,6 +138,30 @@ class MainActivity : BridgeActivity() {
             // Worst case the UA is untouched and the web layer falls back to its own heuristics.
             Log.w(TAG, "UA tagging failed: ${e.message}")
         }
+    }
+
+    /** Normalize vendor D-pad delivery before Android focus search can swallow a direction. */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (televisionMode && event.action == KeyEvent.ACTION_DOWN) {
+            val key = when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_UP -> "ArrowUp"
+                KeyEvent.KEYCODE_DPAD_DOWN -> "ArrowDown"
+                KeyEvent.KEYCODE_DPAD_LEFT -> "ArrowLeft"
+                KeyEvent.KEYCODE_DPAD_RIGHT -> "ArrowRight"
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> "Enter"
+                KeyEvent.KEYCODE_CHANNEL_UP -> "ChannelUp"
+                KeyEvent.KEYCODE_CHANNEL_DOWN -> "ChannelDown"
+                else -> null
+            }
+            if (key != null) {
+                bridge?.webView?.evaluateJavascript(
+                    "window.dispatchEvent(new KeyboardEvent('keydown',{key:'$key',bubbles:true,cancelable:true,repeat:${event.repeatCount > 0}}));",
+                    null
+                )
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     companion object {

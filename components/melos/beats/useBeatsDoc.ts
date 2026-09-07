@@ -21,6 +21,10 @@ export interface BeatsDocApi {
   saveState: SaveState;
   grooves: GrooveSummary[];
   mutate: (fn: (d: GrooveDoc) => void) => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
   replace: (doc: GrooveDoc) => void;
   saveNow: () => Promise<void>;
   openGroove: (grooveId: string) => Promise<void>;
@@ -36,7 +40,7 @@ async function hydrateDocSamples(doc: GrooveDoc): Promise<void> {
   const refs = [
     ...doc.kit.filter((p) => p.sample).map((p) => p.sample!),
     ...doc.arrangement.flatMap((t) => t.clips.filter((c) => c.audio).map((c) => ({
-      key: c.audio!.sampleKey, name: c.audio!.name, durationSec: c.audio!.durationSec,
+      key: c.audio!.sampleKey, name: c.audio!.name, durationSec: c.audio!.durationSec, lockerUrl: c.audio!.lockerUrl,
     }))),
   ];
   await Promise.all(refs.map(async (ref) => {
@@ -57,6 +61,8 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
   const [grooves, setGrooves] = useState<GrooveSummary[]>([]);
   const prodIdRef = useRef<string | null>(launchProdId || null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const historyRef = useRef<{ past: GrooveDoc[]; future: GrooveDoc[] }>({ past: [], future: [] });
+  const cloneDoc = (doc: GrooveDoc): GrooveDoc => JSON.parse(JSON.stringify(doc));
   const bump = () => setRev((r) => r + 1);
 
   const saveNow = useCallback(async () => {
@@ -77,6 +83,9 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
 
   const mutate = useCallback((fn: (d: GrooveDoc) => void) => {
     const d = docRef.current!;
+    historyRef.current.past.push(cloneDoc(d));
+    if (historyRef.current.past.length > 100) historyRef.current.past.shift();
+    historyRef.current.future = [];
     fn(d);
     d.updatedAt = Date.now();
     BeatsEngine.get().applyDocPatch({}); // re-apply node params (gains, routing, mutes)
@@ -85,11 +94,36 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
   }, [scheduleSave]);
 
   const replace = useCallback((doc: GrooveDoc) => {
+    historyRef.current = { past: [], future: [] };
     docRef.current = doc;
     BeatsEngine.get().loadDoc(doc);
     bump();
     void hydrateDocSamples(doc).then(bump);
   }, []);
+
+  const restoreHistory = useCallback((doc: GrooveDoc) => {
+    docRef.current = doc;
+    BeatsEngine.get().loadDoc(doc);
+    bump();
+    scheduleSave();
+    void hydrateDocSamples(doc).then(bump);
+  }, [scheduleSave]);
+
+  const undo = useCallback(() => {
+    const h = historyRef.current;
+    const previous = h.past.pop();
+    if (!previous || !docRef.current) return;
+    h.future.push(cloneDoc(docRef.current));
+    restoreHistory(previous);
+  }, [restoreHistory]);
+
+  const redo = useCallback(() => {
+    const h = historyRef.current;
+    const next = h.future.pop();
+    if (!next || !docRef.current) return;
+    h.past.push(cloneDoc(docRef.current));
+    restoreHistory(next);
+  }, [restoreHistory]);
 
   const openGroove = useCallback(async (grooveId: string) => {
     const prodId = prodIdRef.current;
@@ -125,17 +159,25 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
       const list = await listGrooves(prodIdRef.current);
       if (cancelled) return;
       setGrooves(list);
-      const target = launchGrooveId || list[0]?.id;
-      if (target) {
-        const loaded = await loadGroove(prodIdRef.current, target);
-        if (!cancelled && loaded) { replace(loaded); setSaveState('saved'); return; }
+      // Only open a groove the caller explicitly asked for. A fresh Studio session (or a New
+      // Song) must be a BLANK timeline — do NOT auto-resume list[0], which showed the user a
+      // previous session's clips. Saved grooves are still one click away in the groove list.
+      if (launchGrooveId) {
+        const loaded = await loadGroove(prodIdRef.current, launchGrooveId);
+        if (cancelled) return;
+        if (loaded) { replace(loaded); setSaveState('saved'); return; }
+        // A brand-new song's project may not have finished its first save yet. Start blank but
+        // UNDER the linked id, so the very first edit autosaves back to the song's project.
+        const blank = newGrooveDoc(auth.currentUser?.uid || '', 'Untitled');
+        blank.id = launchGrooveId;
+        replace(blank); setSaveState('unsaved'); return;
       }
-      setSaveState('unsaved'); // fresh doc, will autosave on first edit
+      setSaveState('unsaved'); // fresh blank doc, autosaves on first edit
     };
     if (auth.currentUser) void attach();
     const unsub = auth.onAuthStateChanged((u) => { if (u && !prodIdRef.current) void attach(); });
     return () => { cancelled = true; unsub(); if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { doc: docRef.current, rev, saveState, grooves, mutate, replace, saveNow, openGroove, newGroove, removeGroove };
+  return { doc: docRef.current, rev, saveState, grooves, mutate, undo, redo, canUndo: historyRef.current.past.length > 0, canRedo: historyRef.current.future.length > 0, replace, saveNow, openGroove, newGroove, removeGroove };
 }

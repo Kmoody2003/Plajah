@@ -26,8 +26,28 @@ import UniversalCommandResults from './UniversalCommandResults';
 
 type ViewId = string;
 
-export interface NavDest { id: ViewId; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; requiresUser?: boolean; }
-export interface NavSection { key: string; icon: React.ComponentType<{ size?: number; className?: string }>; items: NavDest[]; }
+type IconProps = { size?: number; className?: string; style?: React.CSSProperties };
+export interface NavDest { id: ViewId; label: string; icon: React.ComponentType<IconProps>; requiresUser?: boolean; }
+export interface NavSection { key: string; icon: React.ComponentType<IconProps>; items: NavDest[]; }
+
+// ── Plajah brand-gradient icon treatment ──────────────────────────────────────
+// Lucide icons stroke with `currentColor`; an SVG stroke can't take a Tailwind
+// gradient, so we register a paint-server once and point icons' stroke at it.
+// Same brand ramp as the "P" logo / player chevron (purple → magenta → orange).
+export const PLAJAH_ICON_GRAD_ID = 'plajah-icon-grad';
+export const plajahIconStroke: React.CSSProperties = { stroke: `url(#${PLAJAH_ICON_GRAD_ID})` };
+/** Render ONCE inside a bar so `url(#plajah-icon-grad)` resolves. */
+export const PlajahIconGradientDefs: React.FC = () => (
+  <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+    <defs>
+      <linearGradient id={PLAJAH_ICON_GRAD_ID} x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#6B0099" />
+        <stop offset="55%" stopColor="#D40055" />
+        <stop offset="100%" stopColor="#FF8C00" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
 
 // ── The canonical destination map (mirrors App.tsx's allNavItems, grouped) ──
 export const NAV_SECTIONS: NavSection[] = [
@@ -201,7 +221,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
   const Tier2List = (
     <>
       <div className="px-4 pt-3.5 pb-2 font-display italic text-[1.1rem] text-white flex items-center gap-2">
-        {React.createElement(NAV_SECTIONS[openCat].icon, { size: 17 })}
+        {React.createElement(NAV_SECTIONS[openCat].icon, { size: 17, style: plajahIconStroke })}
         <span>{NAV_SECTIONS[openCat].key}</span>
       </div>
       <button onClick={openLauncher}
@@ -214,14 +234,14 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
         {PINNED_IDS.map(id => { const d = destById(id); if (!d) return null; const A = d.icon; return (
           <button key={id} onClick={() => go(id)}
             className={`w-full flex items-center gap-3 px-4 py-2.5 text-[.82rem] font-semibold text-white/90 hover:bg-white/[0.07] transition-colors ${view === id ? 'bg-white/[0.09] shadow-[inset_3px_0_0_#D40055]' : ''}`}>
-            <A size={16} className="shrink-0 opacity-80" /> {d.label}
+            <A size={16} className="shrink-0 opacity-80" style={plajahIconStroke} /> {d.label}
           </button>
         ); })}
         <div className="text-[.58rem] font-black uppercase tracking-[0.2em] text-white/35 px-4 pt-3 pb-1">{NAV_SECTIONS[openCat].key}</div>
         {visibleSection(NAV_SECTIONS[openCat]).map(d => { const A = d.icon; return (
           <button key={d.id} onClick={() => go(d.id)}
             className={`w-full flex items-center gap-3 px-4 py-2.5 text-[.82rem] font-semibold text-white/90 hover:bg-white/[0.07] transition-colors ${view === d.id ? 'bg-white/[0.09] shadow-[inset_3px_0_0_#D40055]' : ''}`}>
-            <A size={16} className="shrink-0 opacity-80" /> {d.label}
+            <A size={16} className="shrink-0 opacity-80" style={plajahIconStroke} /> {d.label}
           </button>
         ); })}
       </div>
@@ -263,6 +283,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
 
   return (
     <>
+      <PlajahIconGradientDefs />
       <div className="relative flex sticky top-0 h-screen z-50 shrink-0">
         {/* Tier 1 — category rail */}
         <nav className="flex flex-col items-center gap-1.5 py-3.5 h-screen overflow-y-auto custom-scrollbar border-r border-white/[0.07]"
@@ -281,17 +302,17 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
               onClick={() => { setOpenCat(i); if (collapsed) setFlyoutOpen(true); }}
               className={`relative grid place-items-center w-[46px] h-[46px] rounded-[13px] transition-colors shrink-0 ${i === openCat ? 'text-white' : 'text-white/55 hover:text-white hover:bg-white/[0.08]'}`}
               style={i === openCat ? { background: 'linear-gradient(135deg,#6B0099,#00DAF3)', boxShadow: '0 0 18px rgba(0,218,243,.32)' } : undefined}>
-              {React.createElement(s.icon, { size: 20 })}
+              {React.createElement(s.icon, { size: 20, style: i === openCat ? undefined : plajahIconStroke })}
             </button>
           ))}
           <div className="w-10 h-px bg-white/[0.08] my-2" />
           <div className="mt-auto flex flex-col items-center gap-1.5">
-            <IconBtn title="Search" onClick={openLauncher}><Search size={18} /></IconBtn>
-            <IconBtn title="Create" onClick={onCreate}><Plus size={18} /></IconBtn>
-            <IconBtn title="Go Live" onClick={onGoLive}><Radio size={18} /></IconBtn>
-            <IconBtn title="Notifications" onClick={onOpenNotifications} badge={notificationCount}><Bell size={18} /></IconBtn>
-            <IconBtn title="Settings" onClick={() => go('CREATOR')}><SettingsIcon size={18} /></IconBtn>
-            {hasUser && <IconBtn title="Sign out" onClick={onSignOut}><LogOut size={18} /></IconBtn>}
+            <IconBtn title="Search" onClick={openLauncher}><Search size={18} style={plajahIconStroke} /></IconBtn>
+            <IconBtn title="Create" onClick={onCreate}><Plus size={18} style={plajahIconStroke} /></IconBtn>
+            <IconBtn title="Go Live" onClick={onGoLive}><Radio size={18} style={plajahIconStroke} /></IconBtn>
+            <IconBtn title="Notifications" onClick={onOpenNotifications} badge={notificationCount}><Bell size={18} style={plajahIconStroke} /></IconBtn>
+            <IconBtn title="Settings" onClick={() => go('CREATOR')}><SettingsIcon size={18} style={plajahIconStroke} /></IconBtn>
+            {hasUser && <IconBtn title="Sign out" onClick={onSignOut}><LogOut size={18} style={plajahIconStroke} /></IconBtn>}
             {onExitNew && (
               <button title="Back to Classic navigation" onClick={onExitNew}
                 className="grid place-items-center w-11 h-11 rounded-[13px] text-[#00DAF3] hover:bg-white/[0.08] transition-colors"><RotateCcw size={18} /></button>
@@ -345,7 +366,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
                   <div className="text-[.6rem] font-black uppercase tracking-[0.2em] text-white/40 mt-6 mb-2.5">Recent</div>
                   <div className="flex flex-wrap gap-2">
                     {['FEED', 'MUSIC', 'PLAJAH_SPORTS', 'FABULA'].map(id => { const d = destById(id); if (!d) return null; const A = d.icon; return (
-                      <button key={id} onClick={() => go(id)} className="inline-flex items-center gap-1.5 text-[.74rem] font-semibold text-white/85 px-3 py-1.5 rounded-full border border-white/[0.14] bg-white/[0.045] hover:bg-white/[0.09]"><A size={13} /> {d.label}</button>
+                      <button key={id} onClick={() => go(id)} className="inline-flex items-center gap-1.5 text-[.74rem] font-semibold text-white/85 px-3 py-1.5 rounded-full border border-white/[0.14] bg-white/[0.045] hover:bg-white/[0.09]"><A size={13} style={plajahIconStroke} /> {d.label}</button>
                     ); })}
                   </div>
                 </>
@@ -353,12 +374,12 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
               {query && <UniversalCommandResults query={query} onNavigate={onNavigate} onClose={() => setLauncher(false)} onVisitUser={onVisitUser} onSelectItem={onSelectItem} onSelectArticle={onSelectArticle} onSelectGame={onSelectGame} onSelectLiveFeed={onSelectLiveFeed} />}
               {(query ? [{ key: results.length + ' result' + (results.length === 1 ? '' : 's'), icon: Search, items: results }] as NavSection[] : NAV_SECTIONS).map((s, si) => (
                 <div key={si}>
-                  <div className="text-[.6rem] font-black uppercase tracking-[0.2em] text-white/40 mt-5 mb-2.5 flex items-center gap-1.5">{React.createElement(s.icon, { size: 12 })} {query ? `Pages & tools · ${s.key}` : s.key}</div>
+                  <div className="text-[.6rem] font-black uppercase tracking-[0.2em] text-white/40 mt-5 mb-2.5 flex items-center gap-1.5">{React.createElement(s.icon, { size: 12, style: plajahIconStroke })} {query ? `Pages & tools · ${s.key}` : s.key}</div>
                   <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(92px,1fr))' }}>
                     {(query ? results : visibleSection(s)).map(d => { const A = d.icon; return (
                       <button key={d.id} onClick={() => go(d.id)}
                         className="flex flex-col items-center gap-1.5 text-center p-3.5 rounded-2xl border border-white/[0.08] bg-white/[0.045] hover:bg-white/[0.1] hover:-translate-y-0.5 transition-all">
-                        <span className="w-11 h-11 rounded-xl grid place-items-center bg-[#1B1329]"><A size={20} className="text-white/85" /></span>
+                        <span className="w-11 h-11 rounded-xl grid place-items-center bg-[#1B1329]"><A size={20} className="text-white/85" style={plajahIconStroke} /></span>
                         <span className="text-[.66rem] font-bold text-white/90 leading-tight">{d.label}</span>
                       </button>
                     ); })}

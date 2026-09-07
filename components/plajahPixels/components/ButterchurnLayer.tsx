@@ -18,10 +18,11 @@ interface Props {
   /** Cap the render loop to N fps (0/undefined = uncapped). Set on low-power targets like TV,
    *  where a held 30 looks better than an unstable 45. */
   fpsCap?:        number;
+  renderScale?:   number;
 }
 
 const ButterchurnLayer: React.FC<Props> = ({
-  analyser, presetIndex, blendSeconds = 2.0, blendMode, layerOpacity, onMeta, onThumbnail, fpsCap,
+  analyser, presetIndex, blendSeconds = 2.0, blendMode, layerOpacity, onMeta, onThumbnail, fpsCap, renderScale = 1,
 }) => {
   const canvasRef      = useRef<HTMLCanvasElement>(null);
   const vizRef         = useRef<any>(null);
@@ -82,7 +83,7 @@ const ButterchurnLayer: React.FC<Props> = ({
         // preset switch, and a small embedded card (album FX Stage, Mixes port) was
         // being rendered at full-window resolution, wasting GPU headroom for no visible
         // gain and contributing to long-set context exhaustion (see cleanup below).
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2) * Math.max(.35, Math.min(1, renderScale));
         const rect = canvas.getBoundingClientRect();
         const w = Math.max(1, Math.round(rect.width || window.innerWidth));
         const h = Math.max(1, Math.round(rect.height || window.innerHeight));
@@ -94,7 +95,7 @@ const ButterchurnLayer: React.FC<Props> = ({
         canvas.height = Math.round(h * dpr);
         const viz = butterchurn.createVisualizer(ctx, canvas, {
           width: w, height: h,
-          pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+          pixelRatio: dpr,
           textureRatio: 2, // higher-quality textures on HiDPI
         });
         viz.connectAudio(analyser);

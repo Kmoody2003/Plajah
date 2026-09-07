@@ -12,12 +12,24 @@
 // immediately, and port generators to native passes incrementally.
 
 import { GL, RenderTarget, createGL, createProgram, createFullscreenQuad, makeTarget, makeSourceTexture, uploadElement } from './glUtil';
+import { FxRenderer } from '../fx/fxRenderer';
+import { ForgeTransitionRenderer, ForgeTransitionInput } from '../fx/transitionRenderer';
+import { getEffect } from '../fx/effects';
+import { applyAudioBindings, type AudioBinding, type AudioLevels } from '../fx/audioReact';
+import { AudioTexture } from './audioTexture';
+import type { CubeLutData } from '../../../../services/fabula/cubeLut';
 
 // Blend-mode index — must match the switch in COMPOSITE_FS below.
 export const BLEND_INDEX: Record<string, number> = {
   normal: 0, screen: 1, add: 2, multiply: 3, overlay: 4,
   lighten: 5, darken: 6, difference: 7, exclusion: 8, 'color-dodge': 9, 'hard-light': 10,
 };
+
+type Mat3Row = number[];
+const mul3 = (a: Mat3Row, b: Mat3Row): Mat3Row => { const o = new Array(9).fill(0); for (let r = 0; r < 3; r++) for (let k = 0; k < 3; k++) o[r * 3 + k] = a[r * 3] * b[k] + a[r * 3 + 1] * b[3 + k] + a[r * 3 + 2] * b[6 + k]; return o; };
+/** F*M*F with F = flip-y: re-express an image-space (y-down) homography in GL uv space (y-up). */
+function flipYMat3(m: Mat3Row): Mat3Row { const F = [1, 0, 0, 0, -1, 1, 0, 0, 1]; return mul3(F, mul3(m, F)); }
+function isIdentityMat3(m: Mat3Row): boolean { const s = Math.abs(m[8]) < 1e-12 ? 1 : 1 / m[8]; const I = [1, 0, 0, 0, 1, 0, 0, 0, 1]; for (let i = 0; i < 9; i++) if (Math.abs(m[i] * s - I[i]) > 1e-9) return false; return true; }
 
 const QUAD_VS = `#version 300 es
 layout(location=0) in vec2 aPos;
@@ -26,6 +38,11 @@ void main() {
   vUv = aPos * 0.5 + 0.5;
   gl_Position = vec4(aPos, 0.0, 1.0);
 }`;
+
+const CUBE_LUT_FS = `#version 300 es
+precision highp float; precision highp sampler3D; in vec2 vUv; out vec4 outColor;
+uniform sampler2D uTex; uniform sampler3D uLut; uniform float uScale,uOff,uStrength;
+void main(){vec4 b=texture(uTex,vUv);vec3 q=clamp(b.rgb,0.,1.)*uScale+uOff;vec3 c=texture(uLut,q).rgb;outColor=vec4(mix(b.rgb,c,uStrength),b.a);}`;
 
 // Composite one source layer over the accumulator with a blend mode + opacity.
 const COMPOSITE_FS = `#version 300 es
@@ -39,6 +56,10 @@ uniform int uMode;
 uniform vec2 uTrans;      // per-layer translate (UV fraction); 0 = none
 uniform float uScale;     // per-layer scale; 1 = none
 uniform float uRot;       // per-layer rotation (radians); 0 = none
+// Per-layer HOMOGRAPHY (VectorTrack planar stabilise / corner pin): a SAMPLING matrix in
+// GL uv space, output(p) = src(uH*p). uHOn=0 = identity. Applied after the affine transform.
+uniform int uHOn;
+uniform mat3 uH;
 // Per-layer WIPE matte — a spatial reveal for wipe transitions (0=L→R,1=R→L,2=T→B,3=B→T,4=radial).
 uniform int uWipeOn, uWipeDir;
 uniform float uWipeP, uWipeSoft;
@@ -155,6 +176,7 @@ void main() {
   suv = mat2(cs, sn, -sn, cs) * suv;
   suv = suv / max(uScale, 1e-3);
   suv += 0.5 - uTrans;
+  if (uHOn == 1) { vec3 hp = uH * vec3(suv, 1.0); suv = hp.z > 1e-6 ? hp.xy / hp.z : vec2(-1.0); }
   float inb = step(0.0, suv.x) * step(suv.x, 1.0) * step(0.0, suv.y) * step(suv.y, 1.0);
   vec4 dst = texture(uDst, vUv);
   vec4 src = texture(uSrc, clamp(suv, 0.0, 1.0)) * inb;
@@ -361,13 +383,38 @@ export interface LayerInput {
   blendMode: string;
   /** Per-layer transform: translate (UV fraction), scale, rotation (radians). */
   transform?: { x: number; y: number; scale: number; rot: number };
+  /** Per-layer projective SAMPLING matrix (row-major 3x3, normalized image space, y down):
+   *  output(p) = src(H*p). VectorTrack planar stabilise passes H, a corner pin passes inv(H*Q). */
+  homography?: number[] | null;
   /** Per-input grade (wheels/temp/tint) — applied in-shader before blending. */
   grade?: InputGrade;
   /** GRADE LAYERS (H2) — a stack of grades applied in sequence before blending.
    *  When present, takes precedence over `grade` (the inline single-grade path). */
   grades?: InputGrade[];
+  /** Ordered Fabula Forge stack. The same host-neutral instances are used by clips,
+   *  graph nodes and the future OFX adapter. */
+  effects?: Array<{
+    id: string; effectId: string; enabled?: boolean; mix?: number;
+    params: Record<string, number>;
+    auxTexture?: WebGLTexture;
+    auxElement?: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement;
+    /** PixelChooser mask (R channel = where the effect applies), rasterised by forgeBindings. */
+    maskElement?: HTMLCanvasElement | null;
+    maskInvert?: boolean;
+    /** Beat Reactor: param key → audio binding, resolved here against the frame's audio. */
+    audio?: Record<string, AudioBinding>;
+  }>;
+  /** Timeline time supplied to deterministic/animated effects. */
+  time?: number;
   /** WIPE matte — a spatial reveal for wipe transitions (progress 0..1). */
   wipe?: { dir: number; p: number; soft?: number } | null;
+  /** Native two-input transition. When present, the current accumulator is outgoing
+   * and this fully processed layer is incoming. */
+  transition?: ForgeTransitionInput | null;
+  /** Nested same-context layer stack rendered to one texture before this layer is
+   * blended or used as a transition input. */
+  precompose?: LayerInput[];
+  precomposeGroup?: string;
 }
 
 /** Camera-shake transform applied in the present pass (UV space). Identity = no shake. */
@@ -388,12 +435,20 @@ export class Compositor {
   private gradeU: Record<string, WebGLUniformLocation | null> = {};
   private inGradeU: Record<string, WebGLUniformLocation | null> = {}; // per-input grade uniforms
   private ping?: RenderTarget; private pong?: RenderTarget;
+  private groupPing?: RenderTarget; private groupPong?: RenderTarget;
   private srcTex: WebGLTexture;       // reused for element uploads
   private curveTex: WebGLTexture;     // reused 256×1 tone-curve LUT
   private lastCurveLut: Uint8Array | null = null; // upload only when the LUT reference changes
   private gradePassProg: WebGLProgram;              // GRADE LAYERS (H2) — one grade per pass
   private gradePassU: Record<string, WebGLUniformLocation | null> = {};
   private gradeA?: RenderTarget; private gradeB?: RenderTarget; // grade-layer ping-pong
+  private fx: FxRenderer;
+  private transitions: ForgeTransitionRenderer;
+  private fxAudio: AudioTexture;
+  private cubeProg: WebGLProgram; private cubeTex: WebGLTexture; private cubeKey = '';
+  private cubeU: Record<string, WebGLUniformLocation | null> = {};
+  private auxTextures = new Map<string, WebGLTexture>();
+  private maskTextures = new Map<string, WebGLTexture>();
   private width = 0; private height = 0;
   private disposed = false;
 
@@ -401,6 +456,12 @@ export class Compositor {
     const gl = createGL(canvas);
     if (!gl) throw new Error('[PixelsCore] WebGL2 unavailable');
     this.gl = gl;
+    this.fx = new FxRenderer(gl);
+    this.transitions = new ForgeTransitionRenderer(gl);
+    this.fxAudio = new AudioTexture(gl);
+    this.cubeProg = createProgram(gl, QUAD_VS, CUBE_LUT_FS);
+    this.cubeTex = gl.createTexture()!;
+    for (const n of ['uTex','uLut','uScale','uOff','uStrength']) this.cubeU[n] = gl.getUniformLocation(this.cubeProg, n);
     this.quad = createFullscreenQuad(gl);
     this.compositeProg = createProgram(gl, QUAD_VS, COMPOSITE_FS);
     this.presentProg = createProgram(gl, QUAD_VS, PRESENT_FS);
@@ -412,7 +473,7 @@ export class Compositor {
     this.uTrans = gl.getUniformLocation(this.compositeProg, 'uTrans');
     this.uScale = gl.getUniformLocation(this.compositeProg, 'uScale');
     this.uRot = gl.getUniformLocation(this.compositeProg, 'uRot');
-    for (const n of ['uWipeOn', 'uWipeDir', 'uWipeP', 'uWipeSoft'])
+    for (const n of ['uWipeOn', 'uWipeDir', 'uWipeP', 'uWipeSoft', 'uHOn', 'uH'])
       this.inGradeU[n] = gl.getUniformLocation(this.compositeProg, n);
     for (const n of ['uGradeOn', 'uGLift', 'uGGamma', 'uGGain', 'uGCon', 'uGPivot', 'uGSat', 'uGHue', 'uGTemp', 'uGTint', 'uCurveOn', 'uCurveTex',
       'uQualOn', 'uQShow', 'uQH', 'uQHW', 'uQSL', 'uQSH', 'uQLL', 'uQLH', 'uQSoft', 'uQdHue', 'uQmSat', 'uQmLum',
@@ -445,6 +506,13 @@ export class Compositor {
   }
 
   /** Resize internal targets + canvas backing store (capped to a 1080p-class target). */
+  /** Feed the effect chain's audio from a spectrum + waveform (offline: exact per frame). */
+  updateAudio(freq: Uint8Array, wave: Uint8Array) { this.fxAudio.updateFromArrays(freq, wave); }
+  /** Feed it from a live AnalyserNode instead (the monitor's master bus). */
+  updateAudioFromAnalyser(analyser: AnalyserNode | null) { this.fxAudio.update(analyser); }
+  /** Current levels driving both the GLSL uniforms and the Beat Reactor bindings. */
+  audioLevels(): AudioLevels { return { level: this.fxAudio.level, bass: this.fxAudio.bass, mid: this.fxAudio.mid, treble: this.fxAudio.treble }; }
+
   resize(w: number, h: number) {
     w = Math.max(1, Math.round(w)); h = Math.max(1, Math.round(h));
     if (w === this.width && h === this.height && this.ping) return;
@@ -454,6 +522,21 @@ export class Compositor {
     this.pong = makeTarget(this.gl, w, h, this.pong);
     this.gradeA = makeTarget(this.gl, w, h, this.gradeA);
     this.gradeB = makeTarget(this.gl, w, h, this.gradeB);
+    this.groupPing = makeTarget(this.gl, w, h, this.groupPing);
+    this.groupPong = makeTarget(this.gl, w, h, this.groupPong);
+  }
+
+  /** Render a nested compound in the SAME GL context, so procedural generators,
+   * alpha, grade layers and Forge effects retain full fidelity. */
+  private precomposeLayers(layers: LayerInput[]): WebGLTexture | null {
+    if (!this.groupPing || !this.groupPong) return null;
+    const mainPing = this.ping, mainPong = this.pong;
+    this.ping = this.groupPing; this.pong = this.groupPong;
+    this.composite(layers);
+    this.groupPing = this.ping; this.groupPong = this.pong;
+    const texture = this.groupPing?.tex || null;
+    this.ping = mainPing; this.pong = mainPong;
+    return texture;
   }
 
   /** GRADE LAYERS (H2): run each grade over the source in sequence, returning the
@@ -548,19 +631,63 @@ export class Compositor {
     for (const layer of layers) {
       // Resolve the source texture (ported texture, or upload an element).
       let src: WebGLTexture | null = null;
-      if (layer.texture) {
+      if (layer.precompose?.length) {
+        src = this.precomposeLayers(layer.precompose);
+        gl.useProgram(this.compositeProg); gl.bindVertexArray(this.quad); gl.disable(gl.BLEND);
+      } else if (layer.texture) {
         src = layer.texture;
       } else if (layer.element) {
         if (uploadElement(gl, this.srcTex, layer.element)) src = this.srcTex;
       }
       if (!src) continue;
 
+      // FORGE STACK: each enabled instance is evaluated in order before grading
+      // and compositing. Parameter order is defined by the portable registry.
+      if (layer.effects?.length) {
+        for (const instance of layer.effects) {
+          if (instance.enabled === false) continue;
+          const effect = getEffect(instance.effectId);
+          if (!effect) continue;
+          let values = effect.params.map((param) => instance.params?.[param.key] ?? param.default);
+          // Beat Reactor: modulate the declared params from the SAME audio the shaders read,
+          // so a bound parameter and an iBass-reading shader always agree.
+          if (instance.audio) values = applyAudioBindings(values, effect.params, instance.audio, this.audioLevels());
+          let auxiliary = instance.auxTexture;
+          if (!auxiliary && instance.auxElement) {
+            auxiliary = this.auxTextures.get(instance.id);
+            if (!auxiliary) { auxiliary = makeSourceTexture(gl); this.auxTextures.set(instance.id, auxiliary); }
+            if (!uploadElement(gl, auxiliary, instance.auxElement)) auxiliary = undefined;
+          }
+          let maskTex: WebGLTexture | undefined;
+          if (instance.maskElement) {
+            maskTex = this.maskTextures.get(instance.id);
+            if (!maskTex) { maskTex = makeSourceTexture(gl); this.maskTextures.set(instance.id, maskTex); }
+            if (!uploadElement(gl, maskTex, instance.maskElement)) maskTex = undefined;
+          }
+          src = this.fx.render(`clip:${instance.id}`, effect.id, values, src, this.width, this.height, { time: layer.time ?? 0, audio: this.fxAudio }, auxiliary, { mix: instance.mix ?? 1, mask: maskTex, maskInvert: !!instance.maskInvert });
+        }
+        // FxRenderer leaves the VAO unbound; restore the composite draw state.
+        gl.useProgram(this.compositeProg); gl.bindVertexArray(this.quad); gl.disable(gl.BLEND);
+        gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, this.curveTex);
+        gl.uniform1i(this.inGradeU.uCurveTex, 2);
+      }
+
       // GRADE LAYERS (H2): pre-grade the source through the layer stack, then blend
       // the result. Switches program/FBO, so restore the composite program after.
       const hasGradeLayers = !!(layer.grades && layer.grades.length);
       if (hasGradeLayers) {
         src = this.applyInputGrades(src, layer.grades!);
-        gl.useProgram(this.compositeProg);
+        gl.useProgram(this.compositeProg); gl.bindVertexArray(this.quad); gl.disable(gl.BLEND);
+        gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, this.curveTex);
+        gl.uniform1i(this.inGradeU.uCurveTex, 2);
+      }
+
+      // TRUE TWO-INPUT TRANSITION: evaluate after the incoming stack/grade, using
+      // the current accumulator as outgoing. Copy the result through the normal
+      // blend path below so accumulator ownership/ping-pong stays deterministic.
+      if (layer.transition) {
+        src = this.transitions.render(this.ping.tex, src, this.width, this.height, layer.transition);
+        gl.useProgram(this.compositeProg); gl.bindVertexArray(this.quad); gl.disable(gl.BLEND);
         gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, this.curveTex);
         gl.uniform1i(this.inGradeU.uCurveTex, 2);
       }
@@ -576,6 +703,13 @@ export class Compositor {
       gl.uniform2f(this.uTrans, tf?.x ?? 0, tf?.y ?? 0);
       gl.uniform1f(this.uScale, tf?.scale ?? 1);
       gl.uniform1f(this.uRot, tf?.rot ?? 0);
+      // Homography (set every layer so identity resets the prior draw). Layers hand us an
+      // image-space (y-down) matrix; textures are uploaded Y-flipped so we conjugate with
+      // F=flip-y into GL uv space and upload column-major.
+      const hm = layer.homography;
+      const hOn = !!hm && !isIdentityMat3(hm);
+      gl.uniform1i(this.inGradeU.uHOn, hOn ? 1 : 0);
+      if (hOn && hm) { const g = flipYMat3(hm); gl.uniformMatrix3fv(this.inGradeU.uH, false, [g[0], g[3], g[6], g[1], g[4], g[7], g[2], g[5], g[8]]); }
       // Wipe matte (set every layer so identity resets the prior draw).
       const wp = layer.wipe;
       gl.uniform1i(this.inGradeU.uWipeOn, wp ? 1 : 0);
@@ -681,11 +815,30 @@ export class Compositor {
     const t = this.ping; this.ping = this.pong; this.pong = t; // graded → accumulator
   }
 
+  private applyCubeLut(lut: CubeLutData) {
+    const gl = this.gl;
+    if (!this.ping || !this.pong || !lut?.size || !lut.bytes?.length) return;
+    const key = `${lut.id}:${lut.size}:${lut.bytes.length}`;
+    if (key !== this.cubeKey) {
+      gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_3D, this.cubeTex);
+      gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1); gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGB8, lut.size, lut.size, lut.size, 0, gl.RGB, gl.UNSIGNED_BYTE, new Uint8Array(lut.bytes)); gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+      this.cubeKey = key;
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.pong.fbo); gl.viewport(0, 0, this.width, this.height); gl.useProgram(this.cubeProg); gl.bindVertexArray(this.quad); gl.disable(gl.BLEND);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.ping.tex); gl.uniform1i(this.cubeU.uTex, 0);
+    gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_3D, this.cubeTex); gl.uniform1i(this.cubeU.uLut, 3);
+    gl.uniform1f(this.cubeU.uScale, (lut.size - 1) / lut.size); gl.uniform1f(this.cubeU.uOff, .5 / lut.size); gl.uniform1f(this.cubeU.uStrength, Math.max(0, Math.min(1, lut.strength ?? 1)));
+    gl.drawArrays(gl.TRIANGLES, 0, 3); gl.bindVertexArray(null); const t = this.ping; this.ping = this.pong; this.pong = t;
+  }
+
   /** One-shot: composite + (optional post-FX) + present (with optional camera shake). */
-  render(layers: LayerInput[], grade?: GradeParams, shake?: ShakeParams) {
+  render(layers: LayerInput[], grade?: GradeParams, shake?: ShakeParams, cubeLut?: CubeLutData | null) {
     if (this.disposed) return;
     this.composite(layers);
     if (grade && !isNeutral(grade)) this.applyGrade(grade);
+    if (cubeLut) this.applyCubeLut(cubeLut);
     this.present(shake);
   }
 
@@ -695,9 +848,17 @@ export class Compositor {
     if (this.ping) { gl.deleteTexture(this.ping.tex); gl.deleteFramebuffer(this.ping.fbo); }
     if (this.pong) { gl.deleteTexture(this.pong.tex); gl.deleteFramebuffer(this.pong.fbo); }
     gl.deleteTexture(this.srcTex);
+    this.fx.dispose();
+    this.transitions.dispose();
+    this.fxAudio.dispose();
+    gl.deleteTexture(this.cubeTex); gl.deleteProgram(this.cubeProg);
+    this.auxTextures.forEach((texture) => gl.deleteTexture(texture)); this.auxTextures.clear();
+    this.maskTextures.forEach((texture) => gl.deleteTexture(texture)); this.maskTextures.clear();
     gl.deleteTexture(this.curveTex);
     if (this.gradeA) { gl.deleteTexture(this.gradeA.tex); gl.deleteFramebuffer(this.gradeA.fbo); }
     if (this.gradeB) { gl.deleteTexture(this.gradeB.tex); gl.deleteFramebuffer(this.gradeB.fbo); }
+    if (this.groupPing) { gl.deleteTexture(this.groupPing.tex); gl.deleteFramebuffer(this.groupPing.fbo); }
+    if (this.groupPong) { gl.deleteTexture(this.groupPong.tex); gl.deleteFramebuffer(this.groupPong.fbo); }
     gl.deleteProgram(this.gradePassProg);
     gl.deleteProgram(this.compositeProg);
     gl.deleteProgram(this.presentProg);

@@ -3148,6 +3148,9 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
       onProgress?.(`Uploading ${itemNoun} ${i + 1}/${album.tracks.length}`, Math.round(trackProgressBase));
       const uploadId = await uploadVideoFileMux(track.file, (p) => {
         onProgress?.(`Uploading ${itemNoun} ${i + 1}/${album.tracks.length} (${Math.round(p)}%)`, Math.round(trackProgressBase + (p / 100) * span));
+      }, undefined, {
+        surface: 'TALEO', role: album.subType === 'TV_SERIES' ? 'EPISODE' : 'FILM',
+        targetId: album.id, targetTitle: album.title,
       });
       pendingTrackMux.push({ trackId: track.id, uploadId });
       finalTracks.push({ ...track, url: '', muxUploadId: uploadId, file: undefined });
@@ -3256,7 +3259,10 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
           onProgress?.(`Uploading S${season.number} E${ep.episodeNumber || e + 1}`, 90);
           // Episodes go to Mux too (resumable, no size cap) — the playback id is patched onto the
           // album doc after transcode; the episode player already streams from muxPlaybackId.
-          epMuxUploadId = await uploadVideoFileMux(ep.file);
+          epMuxUploadId = await uploadVideoFileMux(ep.file, undefined, undefined, {
+            surface: 'TALEO', role: 'EPISODE', targetId: album.id,
+            targetTitle: `${album.title} — S${season.number}E${ep.episodeNumber || e + 1}`,
+          });
           pendingEpisodeMux.push({ seasonId: season.id, episodeId: ep.id, uploadId: epMuxUploadId });
           epUrl = '';
         }
@@ -3267,7 +3273,31 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
   }
 
   onProgress?.("Indexing Project...", 95);
-  
+
+  // ── GUARD: never publish a film with nothing to play ────────────────────────────
+  // A VIDEO album whose media never arrived (no track url, no Mux id, no direct video
+  // url, no episode) used to sail through this write as isPublic:true — a live catalog
+  // entry with a cover, a synopsis, cast and crew, and no film behind it. Viewers hit
+  // play and got nothing, and because no upload ever errored, nothing was reported.
+  // Such a publish now lands as a DRAFT the creator can finish, and files an upload
+  // report so it shows up in the admin Upload Reports panel instead of vanishing.
+  const hasPlayableTrack = finalTracks.some(t => t.url || (t as any).muxUploadId || (t as any).muxPlaybackId);
+  const hasPlayableEpisode = (finalSeasons.length > 0 ? finalSeasons : (album.seasons || []))
+    .some((s: any) => (s.episodes || []).some((e: any) => e.url || e.muxUploadId || e.muxPlaybackId));
+  const hasDirectVideo = !!album.customVideoUrl || (album.alternateVersions || []).some((v: any) => v.url || v.muxPlaybackId);
+  const isFilmLike = album.type === 'VIDEO' && (album.subType === 'MOVIE' || album.subType === 'TV_SERIES');
+  const publishedEmpty = isFilmLike && !hasPlayableTrack && !hasPlayableEpisode && !hasDirectVideo;
+  if (publishedEmpty) {
+    import('./uploadReports').then(m => m.reportEmptyPublish({
+      surface: 'TALEO',
+      targetId: album.id,
+      targetTitle: album.title,
+      kind: album.subType || 'MOVIE',
+      reason: 'Publish completed with no playable media — no track url, Mux upload id, episode, or direct video url. Held as a draft.',
+    })).catch(() => {});
+    onProgress?.('No video attached — saved as a draft', 95);
+  }
+
   // Construct the cloud album object, ensuring no File objects or undefined fields
   const cloudAlbum = removeUndefined({
     ...album,
@@ -3283,8 +3313,8 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
     musicVideos: finalVideos,
     seasons: finalSeasons.length > 0 ? finalSeasons : album.seasons,
     slideshow: finalSlideshow,
-    isDraft: false,
-    isPublic: !album.isPrivate,
+    isDraft: publishedEmpty,
+    isPublic: !album.isPrivate && !publishedEmpty,
     isPrivate: album.isPrivate ?? false,
     isScheduled: album.isScheduled ?? false,
     ...(album.releaseDate ? { releaseDate: album.releaseDate } : {}),
@@ -4398,6 +4428,79 @@ export const loginWithMicrosoft = async () => {
   }
 };
 
+// ── “Which way did I sign up?” ──────────────────────────────────────────
+// Email & password only works for accounts CREATED with a password. Someone who joined with
+// Google/Facebook/Microsoft/X has no password at all, and Firebase's email-enumeration
+// protection (on for this project) collapses that case into the same auth/invalid-credential
+// as a simple typo — which is how a Google user ended up staring at “Invalid email or
+// password.” with no way to find out why. /api/auth-methods/lookup asks the server (admin
+// credentials, not subject to enumeration protection) which providers the address really has.
+
+export type EmailAuthMethods = {
+  exists: boolean;
+  providers: string[];   // raw providerIds, e.g. ['google.com'] or ['password']
+  hasPassword: boolean;  // can this address sign in with a password at all?
+  labels: string[];      // human names of the NON-password providers, e.g. ['Google']
+  unknown?: boolean;     // server couldn't answer — treat as “no information”, never as “no account”
+};
+
+const UNKNOWN_METHODS: EmailAuthMethods = { exists: false, providers: [], hasPassword: false, labels: [], unknown: true };
+
+/** Provider label ← providerId, for messages the client builds itself. */
+export const PROVIDER_LABEL: Record<string, string> = {
+  'google.com': 'Google',
+  'facebook.com': 'Facebook',
+  'microsoft.com': 'Microsoft',
+  'twitter.com': 'X (Twitter)',
+  'apple.com': 'Apple',
+  'github.com': 'GitHub',
+};
+
+export const fetchEmailAuthMethods = async (email: string): Promise<EmailAuthMethods> => {
+  const addr = (email || '').trim().toLowerCase();
+  if (!addr) return UNKNOWN_METHODS;
+  try {
+    const res = await fetch('/api/auth-methods/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: addr }),
+    });
+    if (!res.ok) return UNKNOWN_METHODS;
+    const d = await res.json();
+    return {
+      exists: !!d.exists,
+      providers: Array.isArray(d.providers) ? d.providers : [],
+      hasPassword: !!d.hasPassword,
+      labels: Array.isArray(d.labels) ? d.labels : [],
+      unknown: !!d.unknown,
+    };
+  } catch {
+    return UNKNOWN_METHODS;
+  }
+};
+
+const listNames = (names: string[]) =>
+  names.length <= 1 ? (names[0] || '') : `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
+
+/**
+ * Thrown when an address exists but has no password — the caller (a sign-in form) can read
+ * `.providers` / `.labels` off it and offer the right button instead of just printing text.
+ */
+export class WrongProviderError extends Error {
+  providers: string[];
+  labels: string[];
+  constructor(labels: string[], providers: string[], verb: 'sign in' | 'reset') {
+    super(
+      verb === 'reset'
+        ? `There’s no password on this account to reset — you joined with ${listNames(labels)}. Use the ${listNames(labels)} button to sign in.`
+        : `This account signs in with ${listNames(labels)}, not a password. Use the ${listNames(labels)} button instead.`
+    );
+    this.name = 'WrongProviderError';
+    this.providers = providers;
+    this.labels = labels;
+  }
+}
+
 export const loginWithEmail = async (email: string, password: string) => {
   try {
     const result = await signInWithEmailAndPassword(auth, email, password);
@@ -4406,7 +4509,13 @@ export const loginWithEmail = async (email: string, password: string) => {
   } catch (error: any) {
     const code = error?.code || '';
     if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
-      throw new Error('Invalid email or password.');
+      // Before calling it a typo, find out whether this address even HAS a password. That is
+      // the difference between “check your password” and “you signed up with Google”.
+      const m = await fetchEmailAuthMethods(email);
+      if (m.exists && !m.hasPassword && m.labels.length) throw new WrongProviderError(m.labels, m.providers, 'sign in');
+      if (m.exists && m.hasPassword) throw new Error('That password doesn\u2019t match this account. Try again, or use “Forgot password?”.');
+      if (!m.exists && !m.unknown) throw new Error('No account found for that email. Create one below, or sign in with the button you originally used.');
+      throw new Error('Invalid email or password. If you originally joined with Google, Facebook, Microsoft or X, use that button instead — email sign-in only works for accounts created with a password.');
     }
     // Everything past this point is a system/config/network problem (not a user typo) — worth alerting on.
     void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'email', error, email }));
@@ -4426,6 +4535,9 @@ export const registerWithEmail = async (email: string, password: string, display
   } catch (error: any) {
     const code = error?.code || '';
     if (code === 'auth/email-already-in-use') {
+      // Name the provider they already have, so “already registered” isn't a dead end.
+      const m = await fetchEmailAuthMethods(email);
+      if (m.exists && !m.hasPassword && m.labels.length) throw new WrongProviderError(m.labels, m.providers, 'sign in');
       throw new Error('This email is already registered. Try signing in instead.');
     } else if (code === 'auth/weak-password') {
       throw new Error('Password must be at least 6 characters.');
@@ -4434,8 +4546,31 @@ export const registerWithEmail = async (email: string, password: string, display
   }
 };
 
+/**
+ * Send a password-reset mail. Firebase resolves this successfully even for an address with no
+ * password account, so on its own it leaves people waiting for mail that never arrives — we
+ * check the account's real providers first and say so out loud.
+ */
 export const sendPasswordReset = async (email: string) => {
-  await sendPasswordResetEmail(auth, email);
+  const addr = (email || '').trim();
+  const m = await fetchEmailAuthMethods(addr);
+  if (m.exists && !m.hasPassword && m.labels.length) throw new WrongProviderError(m.labels, m.providers, 'reset');
+  if (!m.exists && !m.unknown) throw new Error('No account found for that email. Check the address, or create an account instead.');
+  try {
+    await sendPasswordResetEmail(auth, addr);
+  } catch (error: any) {
+    const code = error?.code || '';
+    if (code === 'auth/user-not-found') throw new Error('No account found for that email.');
+    if (code === 'auth/invalid-email') throw new Error('That doesn\u2019t look like a valid email address.');
+    if (code === 'auth/too-many-requests') throw new Error('Too many reset requests. Please wait a few minutes and try again.');
+    // A misconfigured action URL / authorised-domain list is a platform problem, not a user
+    // one: it silently breaks reset for EVERY email signup, so it gets reported.
+    void import('./errorReporting').then(r => r.reportLoginIssue({ provider: 'email-reset', error, email: addr }));
+    if (code === 'auth/unauthorized-continue-uri' || code === 'auth/missing-android-pkg-name' || code === 'auth/invalid-continue-uri') {
+      throw new Error('We couldn\u2019t send the reset email because of a configuration problem on our side. We\u2019ve been notified — please try a social sign-in for now.');
+    }
+    throw new Error(error?.message || 'Could not send the reset email. Please try again.');
+  }
 };
 
 export const linkAuthProvider = async (providerName: 'GOOGLE' | 'TWITTER' | 'FACEBOOK' | 'MICROSOFT') => {
@@ -7283,18 +7418,44 @@ export const uploadVideoFileMux = async (
   file: File,
   onProgress?: (p: number) => void,
   existing?: { id: string; url: string },   // pass to RESUME an interrupted upload
+  ledger?: { surface: import('./uploadReports').UploadSurface; role: string; targetId?: string; targetTitle?: string },
 ): Promise<string> => {
+  // Open the attempt row BEFORE any network call. A film upload that dies mid-transfer
+  // fires no handler at all (tab close, deploy, network drop) — the row left in UPLOADING
+  // with a stale heartbeat is what makes that failure visible at all. See uploadReports.ts.
+  const { beginUploadAttempt } = await import('./uploadReports');
+  const attempt = beginUploadAttempt({
+    surface: ledger?.surface || 'OTHER',
+    role: ledger?.role || 'VIDEO',
+    fileName: file.name,
+    sizeBytes: file.size,
+    contentType: file.type,
+    targetId: ledger?.targetId,
+    targetTitle: ledger?.targetTitle,
+    transport: existing ? `mux:resume:${existing.id}` : 'mux',
+  });
+
   let uploadId: string;
   let uploadUrl: string;
   try {
-    ({ id: uploadId, url: uploadUrl } = existing ?? await createMuxDirectUpload());
+    // Stamp the attempt + target onto the Mux asset so an abandoned upload is attributable
+    // to a creator and a release instead of being an anonymous orphan in the Mux dashboard.
+    const passthrough = [
+      attempt.id ? `ua=${attempt.id}` : '',
+      auth.currentUser?.uid ? `uid=${auth.currentUser.uid}` : '',
+      ledger?.targetId ? `target=${ledger.targetId}` : '',
+      ledger?.surface ? `via=${ledger.surface}` : '',
+    ].filter(Boolean).join(';');
+    ({ id: uploadId, url: uploadUrl } = existing ?? await createMuxDirectUpload(passthrough));
   } catch (e: any) {
     // Couldn't even mint a Mux upload URL — the server/endpoint is unreachable and NO
     // bytes have been sent. Flag this so uploadVideo() can safely fall back to Firebase
     // Storage (a mid-transfer failure, by contrast, is resumable and must NOT restart).
     if (e && typeof e === 'object') e.muxUnavailable = true;
+    attempt.settle('FAILED', e);
     throw e;
   }
+  attempt.attach({ transport: `mux:${uploadId}`, muxUploadId: uploadId });
   // Persist so a tab close / crash / network drop mid-upload can be resumed. The
   // Mux url is a resumable GCS endpoint, so re-running UpChunk against it continues
   // from the last byte instead of restarting.
@@ -7319,7 +7480,7 @@ export const uploadVideoFileMux = async (
       pause: () => { upload.pause(); updateTransfer(uploadId, { paused: true }); },
       resume: () => { upload.resume(); updateTransfer(uploadId, { paused: false }); },
     });
-    upload.on('progress', (e: any) => { const p = Math.round(e.detail); if (onProgress) onProgress(p); updateResumableProgress(p); updateTransfer(uploadId, { progress: p }); });
+    upload.on('progress', (e: any) => { const p = Math.round(e.detail); if (onProgress) onProgress(p); updateResumableProgress(p); updateTransfer(uploadId, { progress: p }); attempt.beat(p, Math.round((p / 100) * file.size)); });
     upload.on('success', () => { removeTransfer(uploadId); resolve(); });
     upload.on('error', (e: any) => {
       removeTransfer(uploadId);
@@ -7328,10 +7489,12 @@ export const uploadVideoFileMux = async (
       // a whole new (capped, non-crash-safe) Firebase upload from 0%.
       const err = new Error(e?.detail?.message || 'Mux upload failed') as any;
       err.resumable = true;
+      attempt.settle('FAILED', err);
       reject(err);
     });
   });
   clearResumable();
+  attempt.settle('COMPLETED');
   return uploadId;
 };
 
@@ -9668,11 +9831,20 @@ export const deleteThemePreset = async (presetId: string): Promise<void> => {
   }
 };
 
-export const createMuxDirectUpload = async (): Promise<{ id: string; url: string }> => {
+/**
+ * Mint a Mux direct-upload URL.
+ *
+ * `passthrough` is stamped onto the resulting Mux asset so an upload can be traced back to
+ * the creator and the release it belongs to. Without it an abandoned upload sitting in Mux
+ * is anonymous — you can see that someone's film died at 40% and have no way to learn whose
+ * it was. Mux caps passthrough at 255 chars.
+ */
+export const createMuxDirectUpload = async (passthrough?: string): Promise<{ id: string; url: string }> => {
   const idToken = await getRequiredIdToken();
   const res = await fetch('/api/mux/upload', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${idToken}` },
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ passthrough: String(passthrough || '').slice(0, 255) }),
   });
   if (!res.ok) {
     const data = await res.json();
@@ -10100,6 +10272,59 @@ export const removeTrackFromPlaylist = async (playlistId: string, trackId: strin
     });
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, `personal_playlists/${playlistId}`);
+  }
+};
+
+/**
+ * Add many tracks to a playlist in a single read + write (dedupes against what's
+ * already there). Preferred over looping addTrackToPlaylist — one document write
+ * avoids the lost-update races that N concurrent updates would cause.
+ * Returns how many tracks were newly added.
+ */
+export const addTracksToPlaylist = async (playlistId: string, tracks: Track[]): Promise<number> => {
+  try {
+    const ref = doc(db, 'personal_playlists', playlistId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return 0;
+    const data = snap.data() as Playlist;
+    const existing = data.tracks || [];
+    const have = new Set(existing.map((t: Track) => t.id));
+    const toAdd = tracks.filter(t => t && t.id && !have.has(t.id));
+    if (toAdd.length === 0) return 0;
+    await updateDoc(ref, {
+      tracks: [...existing, ...toAdd],
+      trackIds: arrayUnion(...toAdd.map(t => t.id)),
+    });
+    return toAdd.length;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `personal_playlists/${playlistId}`);
+    return 0;
+  }
+};
+
+/**
+ * Remove many tracks from a playlist in a single read + write.
+ * Returns how many tracks were removed.
+ */
+export const removeTracksFromPlaylist = async (playlistId: string, trackIds: string[]): Promise<number> => {
+  try {
+    const ref = doc(db, 'personal_playlists', playlistId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return 0;
+    const data = snap.data() as Playlist;
+    const remove = new Set(trackIds);
+    const existing = data.tracks || [];
+    const kept = existing.filter((t: Track) => !remove.has(t.id));
+    const removedCount = existing.length - kept.length;
+    if (removedCount === 0 && !(data.trackIds || []).some(id => remove.has(id))) return 0;
+    await updateDoc(ref, {
+      tracks: kept,
+      trackIds: arrayRemove(...trackIds),
+    });
+    return removedCount;
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `personal_playlists/${playlistId}`);
+    return 0;
   }
 };
 

@@ -480,7 +480,7 @@ const THEME_BG: Record<string, string> = {
     '#080200',
   ].join(','),
 };
-import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd, fetchSystemSettingsConfig, allocateChannelNumber, fetchAllLiveFeeds } from './services/backendService';
+import { auth, fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd, fetchSystemSettingsConfig, allocateChannelNumber, fetchAllLiveFeeds } from './services/backendService';
 import { initFeatureFlagListener } from './services/featureFlagService';
 import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ClipboardList, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Library, Cctv, Bug, AlertTriangle, MapPin, Cross, MonitorPlay } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -515,6 +515,8 @@ import { AchievementProvider } from './contexts/AchievementContext';
 import { PointsProvider } from './contexts/PointsContext';
 import { BadgeProvider } from './contexts/BadgeContext';
 import { NotificationProvider, useNotifications } from './contexts/NotificationContext';
+import { NetworkMonitorProvider } from './contexts/NetworkMonitorContext';
+import { levelLabel as networkLevelLabel, type DegradationEvent as NetworkDegradationEvent } from './services/networkDiagnostics';
 import { SpatialProvider } from './contexts/SpatialContext';
 import { FediverseProvider } from './contexts/FediverseContext';
 import NotificationCenter from './components/NotificationCenter';
@@ -644,6 +646,13 @@ const App: React.FC = () => {
   // history, and fall back to the Dashboard only when there's no in-app screen behind us.
   const navDepthRef = useRef(0);
 
+  // Back must never strand a signed-in person on the sign-in page. The first history entry
+  // this app writes is LANDING (the replaceState at boot), so walking Back far enough always
+  // pops back to it — even for someone who signed in ten screens ago. When that pop happens
+  // we send them to their real home instead. Filled in below, once handleEnterApp's home
+  // resolver exists; read by the popstate listener, which is registered before it.
+  const landingEscapeRef = useRef<(() => void) | null>(null);
+
   const setView = useCallback((newView: AppView | ((prev: AppView) => AppView), path?: string) => {
     setViewInternal((prev) => {
       let nextView = typeof newView === 'function' ? newView(prev) : newView;
@@ -728,6 +737,18 @@ const App: React.FC = () => {
     return () => window.removeEventListener('plajah:openTela', h as EventListener);
   }, [setView]);
 
+  // "Learn more on Plajah" from the Tela template gallery → the Art Museum, with the
+  // style remembered so the museum can focus its search on it.
+  useEffect(() => {
+    const h = (e: Event) => {
+      const d = (e as CustomEvent).detail || {};
+      try { sessionStorage.setItem('plajah_design_history_focus', JSON.stringify({ tag: d.tag, styleId: d.styleId, at: Date.now() })); } catch { /* private mode */ }
+      setView('ART_GALLERY');
+    };
+    window.addEventListener('plajah:openDesignHistory', h as EventListener);
+    return () => window.removeEventListener('plajah:openDesignHistory', h as EventListener);
+  }, [setView]);
+
   // Open the Tela reference-embed demo (P2b) from anywhere.
   useEffect(() => {
     const h = () => setView('TELA_EMBED_DEMO');
@@ -793,6 +814,13 @@ const App: React.FC = () => {
     const handlePopState = (event: PopStateEvent) => {
       navDepthRef.current = Math.max(0, navDepthRef.current - 1);
       if (event.state && event.state.view) {
+        // LANDING is the bottom of the stack, not a screen a signed-in person can be "at".
+        // Anonymous sessions (a podcast guest listener) are excluded on purpose: for them the
+        // sign-in page is still a destination they may well want Back to reach.
+        if (event.state.view === 'LANDING' && auth.currentUser && !auth.currentUser.isAnonymous && landingEscapeRef.current) {
+          landingEscapeRef.current();
+          return;
+        }
         setViewInternal(event.state.view);
       }
     };
@@ -994,6 +1022,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     setNavWarning(msg);
     if (navWarnTimer.current) clearTimeout(navWarnTimer.current);
     navWarnTimer.current = setTimeout(() => setNavWarning(null), 3200);
+  }, []);
+  // Network degradation toast — surfaced by the NetworkMonitor when the user's
+  // connection drops to a warning/critical level.
+  const [netAlert, setNetAlert] = useState<{ msg: string; severity: 'info' | 'warning' | 'critical' } | null>(null);
+  const netAlertTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleNetworkDegradation = useCallback((e: NetworkDegradationEvent) => {
+    if (e.severity === 'none') return;
+    const label = e.level === 'offline' ? "You're offline" : `Network ${networkLevelLabel(e.level).toLowerCase()}`;
+    setNetAlert({ msg: `${label} — ${e.reason}`, severity: e.severity as any });
+    if (netAlertTimer.current) clearTimeout(netAlertTimer.current);
+    netAlertTimer.current = setTimeout(() => setNetAlert(null), e.severity === 'critical' ? 6000 : 4500);
   }, []);
   // Curated primary destinations for the compact top bar (Concept C). The full sidebar
   // config still lives in the vertical rail; the bar shows the headline pages + "More".
@@ -1448,36 +1487,53 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     if (!getPlatformInfo().isTV) setTimeout(() => setShowOnboarding(true), 400);
   };
 
-  const handleEnterApp = () => {
+  // Where "in" is on this device — the single answer shared by the Enter button and by the
+  // Back-out-of-LANDING escape, so the two can never disagree about where home is.
+  const resolveHomeDestination = (): { view: AppView; theme: ThemeType } => {
     const isTV = getPlatformInfo().isTV;
-    const isMobileDevice = !isTV && (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 640);
+    // A television opens on its home destination — Taleo by default, so the app behaves like
+    // a streaming service rather than dropping the viewer into a creation hub.
+    if (isTV) return { view: getTvHome() as AppView, theme: 'BIG_SCREEN' };
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 640;
+    if (isMobileDevice) return { view: 'MUSIC', theme: 'PHONE' };
+    const expRouteMap: Record<ExperienceMode, AppView> = {
+      RAW_DOG:          'DASHBOARD',
+      MUSIC_CREATOR:    'MUSIC',
+      WRITER:           'BOOKS',
+      SPORTS_FAN:       'PLAJAH_SPORTS',
+      STORY_TELLER:     'MOVIES_TV',
+      CONTENT_CREATOR:  'VIDEOS',
+      SCIENCE_ENGINEER: 'PLAJAH_LABS',
+    };
+    const expMode = userProfile?.experienceMode;
+    return { view: expMode ? (expRouteMap[expMode] ?? 'DASHBOARD') : 'DASHBOARD', theme };
+  };
 
-    if (isTV) {
-      // A television opens on its home destination — Taleo by default, so the app behaves like
-      // a streaming service rather than dropping the viewer into a creation hub.
-      setView(getTvHome());
-      setTheme('BIG_SCREEN');
+  const handleEnterApp = () => {
+    const { view: home, theme: homeTheme } = resolveHomeDestination();
+    setView(home);
+    if (homeTheme !== theme) setTheme(homeTheme);
+    if (getPlatformInfo().isTV) {
       // Refresh the Android TV home-screen "continue watching" row from cross-device history.
       // No-op on non-Android-TV; deferred so it never competes with first paint.
       import('./services/watchHistoryService')
         .then(m => setTimeout(() => m.reconcileWatchNext().catch(() => {}), 3000))
         .catch(() => {});
-    } else if (isMobileDevice) {
-      setView('MUSIC');
-      setTheme('PHONE');
-    } else {
-      const expRouteMap: Record<ExperienceMode, AppView> = {
-        RAW_DOG:          'DASHBOARD',
-        MUSIC_CREATOR:    'MUSIC',
-        WRITER:           'BOOKS',
-        SPORTS_FAN:       'PLAJAH_SPORTS',
-        STORY_TELLER:     'MOVIES_TV',
-        CONTENT_CREATOR:  'VIDEOS',
-        SCIENCE_ENGINEER: 'PLAJAH_LABS',
-      };
-      const expMode = userProfile?.experienceMode;
-      setView(expMode ? (expRouteMap[expMode] ?? 'DASHBOARD') : 'DASHBOARD');
     }
+  };
+
+  // The Back-out-of-LANDING escape (declared above the popstate listener, which is registered
+  // on mount and so can't close over anything defined down here).
+  //
+  // setViewInternal + replaceState, deliberately NOT setView: pushing a fresh entry would leave
+  // LANDING sitting underneath us, so the next Back press would pop straight back into this
+  // handler and bounce forever instead of leaving the app. Rewriting the bottom entry means one
+  // more Back exits, which is what a person pressing Back actually wants.
+  landingEscapeRef.current = () => {
+    const { view: home, theme: homeTheme } = resolveHomeDestination();
+    setViewInternal(home);
+    if (homeTheme !== theme) setTheme(homeTheme);
+    window.history.replaceState({ view: home }, '', window.location.pathname + window.location.search + window.location.hash);
   };
 
   const handleSelectItem = (item: any) => {
@@ -2824,6 +2880,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             <UploadProvider>
               <PublishQueueProvider>
               <NotificationProvider>
+                <NetworkMonitorProvider onDegradation={handleNetworkDegradation}>
                 <ActiveIdentityProvider>
                 <CallProvider>
                 <SpatialProvider initialValue={userProfile?.uiSettings?.isSpatialModeEnabled}>
@@ -3344,6 +3401,22 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                  role="alert" style={{ top: 'calc(3.5rem + env(safe-area-inset-top) + 0.5rem)' }}>
               <AlertTriangle size={13} className="text-white shrink-0" />
               <span className="text-[11px] font-black uppercase tracking-widest text-white">{navWarning}</span>
+            </div>
+          )}
+
+          {/* Network degradation toast — severity-colored */}
+          {netAlert && (
+            <div
+              className={`fixed left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2 px-4 py-2.5 rounded-full backdrop-blur-xl border shadow-2xl animate-in fade-in slide-in-from-top-2 ${
+                netAlert.severity === 'critical' ? 'bg-red-600/90 border-red-400/40'
+                : netAlert.severity === 'warning' ? 'bg-amber-500/90 border-amber-300/40'
+                : 'bg-sky-600/90 border-sky-400/40'
+              }`}
+              role="alert"
+              style={{ top: 'calc(3.5rem + env(safe-area-inset-top) + 0.5rem)' }}
+            >
+              <AlertTriangle size={13} className="text-white shrink-0" />
+              <span className="text-[11px] font-black uppercase tracking-widest text-white">{netAlert.msg}</span>
             </div>
           )}
 
@@ -5059,7 +5132,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     {archiveTab === 'MY_ARCHIVE' ? (
                       <div className="col-span-full">
                         {userProfile ? (
-                          <MyLibraryView profile={userProfile} onUpdate={setUserProfile} />
+                          <MyLibraryView profile={userProfile} onUpdate={setUserProfile} onSelectAlbum={handleSelectItem} />
                         ) : (
                           <div className="py-40 text-center flex flex-col items-center gap-6 opacity-40">
                             <Layers size={48} className="mb-4" />
@@ -6428,6 +6501,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             </SpatialProvider>
                 </CallProvider>
                 </ActiveIdentityProvider>
+                </NetworkMonitorProvider>
           </NotificationProvider>
               </PublishQueueProvider>
         </UploadProvider>

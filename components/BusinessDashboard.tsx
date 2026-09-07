@@ -33,6 +33,16 @@ import StaffHRManager from './StaffHRManager';
 
 type BizTab = 'OVERVIEW' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'MARKETING' | 'SETTINGS' | 'LISTINGS' | 'COMPLIANCE';
 
+// "Storefront Command" rail — the 13 vertical-filtered tabs collapse into four
+// working groups so nothing wraps. Only ids that survive the vertical filter
+// (see `tabs` below) actually render, so a realtor's rail has no Inventory/Radio.
+const TAB_GROUPS: { label: string; ids: BizTab[] }[] = [
+  { label: 'Sell',   ids: ['OVERVIEW', 'ORDERS', 'INVENTORY', 'LISTINGS'] },
+  { label: 'Engage', ids: ['CRM', 'MESSAGING', 'SIGNAGE', 'RADIO'] },
+  { label: 'Grow',   ids: ['MARKETING', 'SEEDRAISER'] },
+  { label: 'Manage', ids: ['TEAM', 'COMPLIANCE', 'SETTINGS'] },
+];
+
 // ── Status badge ──────────────────────────────────────────────────────────────
 
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
@@ -232,7 +242,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-5xl md:text-[6rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Business</h1>
-          <p className="text-white/40 text-sm font-bold uppercase tracking-widest mt-4">Manage your Plajah business presence</p>
+          <p className="text-white/40 text-sm font-bold uppercase tracking-widest mt-4">Your storefront command center</p>
         </div>
         <button
           onClick={() => setEditingPage({ businessType: 'RETAIL', isAcceptingOrders: false, radioServiceEnabled: false, digitalSignageEnabled: false, crmEnabled: false, rewardsEnabled: false })}
@@ -294,21 +304,59 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
 
       {/* Tab nav (only when a page is selected) */}
       {activePage && (
-        <>
-          <div className="flex gap-2 flex-wrap">
-            {tabs.map(t => (
-              <button
-                key={t.id}
-                onClick={() => setActiveTab(t.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                  activeTab === t.id ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'
-                }`}
-              >
-                <t.icon size={11} />
-                {t.label}
-              </button>
-            ))}
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-[236px_minmax(0,1fr)] gap-6 items-start">
+          {/* ── Storefront Command rail — grouped nav (replaces the 13-tab row) ── */}
+          <aside className="md:sticky md:top-4 self-start">
+            <div className="flex items-center gap-3 px-2 pb-4 mb-3 border-b border-white/[0.06]">
+              <div className="w-9 h-9 rounded-xl grid place-items-center text-white font-black text-base shrink-0" style={{ background: 'linear-gradient(135deg,#D40055,#FF8C00)' }}>
+                {(activePage.businessName || 'B').charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <div className="text-[13px] font-black truncate leading-tight">{activePage.businessName}</div>
+                <div className="text-[9px] text-white/40 truncate uppercase tracking-widest font-black">{vertical.label}</div>
+              </div>
+            </div>
+            <div className="flex md:flex-col gap-4 overflow-x-auto md:overflow-visible pb-1 -mx-1 px-1">
+              {TAB_GROUPS.map(g => {
+                const items = g.ids
+                  .map(id => tabs.find(t => t.id === id))
+                  .filter((t): t is typeof tabs[number] => Boolean(t));
+                if (items.length === 0) return null;
+                return (
+                  <div key={g.label} className="min-w-max md:min-w-0">
+                    <div className="text-[9px] font-black uppercase tracking-[0.2em] text-white/25 px-2.5 mb-1.5">{g.label}</div>
+                    <div className="flex md:flex-col gap-1">
+                      {items.map(t => {
+                        const sel = activeTab === t.id;
+                        const count = t.id === 'ORDERS'
+                          ? orders.filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED').length
+                          : t.id === 'CRM' ? contacts.length : 0;
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() => setActiveTab(t.id)}
+                            className={`relative flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[12.5px] font-bold transition-all whitespace-nowrap ${
+                              sel ? 'bg-white/[0.08] text-white' : 'text-white/55 hover:text-white hover:bg-white/[0.04]'
+                            }`}
+                          >
+                            {sel && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r" style={{ background: 'linear-gradient(180deg,#D40055,#FF8C00)' }} />}
+                            <t.icon size={15} />
+                            <span>{t.label}</span>
+                            {count > 0 && (
+                              <span className="ml-auto text-[9px] font-black text-black rounded-full px-1.5 py-0.5 leading-none" style={{ background: t.id === 'ORDERS' ? '#FF8C00' : '#00DAF3' }}>{count}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </aside>
+
+          {/* ── Panel column ── */}
+          <div className="min-w-0 space-y-6">
 
           {/* ── OVERVIEW ── */}
           {activeTab === 'OVERVIEW' && (
@@ -329,6 +377,38 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                   </Card>
                 ))}
               </div>
+
+              {/* Storefront powers — marquee capabilities, live/off at a glance */}
+              <Card>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-white">Your storefront powers</h3>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/25">Powered by Plajah</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    { key: 'isAcceptingOrders',    tab: 'INVENTORY', label: 'Online Store',     desc: 'Powered by your Merch Store — products, variants & checkout.', color: '#FF8C00', icon: ShoppingBag },
+                    { key: 'rewardsEnabled',        tab: 'CRM',       label: 'Customer Rewards', desc: 'Points, tiers & auto-deals recognized at the register.',        color: '#00DAF3', icon: Star },
+                    { key: 'radioServiceEnabled',   tab: 'RADIO',     label: 'In-Store Radio',   desc: 'Now Playing to every phone in the room — tip & buy live.',      color: '#D40055', icon: Radio },
+                    { key: 'digitalSignageEnabled', tab: 'SIGNAGE',   label: 'Digital Signage',  desc: 'Menu boards & promos pushed to any screen remotely.',          color: '#6B0099', icon: Monitor },
+                  ].map(p => {
+                    const on = Boolean((activePage as any)[p.key]);
+                    return (
+                      <button
+                        key={p.key}
+                        onClick={() => setActiveTab(p.tab as BizTab)}
+                        className="relative text-left p-4 rounded-2xl bg-white/[0.03] border border-white/[0.07] hover:border-white/20 hover:-translate-y-0.5 transition-all flex flex-col gap-2.5 overflow-hidden"
+                      >
+                        <span className="absolute top-3 right-3 text-[8px] font-black uppercase tracking-widest" style={{ color: on ? '#06D6A0' : 'rgba(255,255,255,0.3)' }}>{on ? '● Live' : '○ Set up'}</span>
+                        <span className="w-9 h-9 rounded-xl grid place-items-center shrink-0" style={{ background: `${p.color}22`, color: p.color }}><p.icon size={17} /></span>
+                        <div>
+                          <div className="text-[13px] font-black text-white">{p.label}</div>
+                          <div className="text-[10.5px] text-white/40 leading-snug">{p.desc}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Card>
 
               {/* Feature toggles */}
               <Card>
@@ -854,7 +934,8 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
               </Card>
             </div>
           )}
-        </>
+          </div>
+        </div>
       )}
 
       {/* ── Edit Business Modal ── */}

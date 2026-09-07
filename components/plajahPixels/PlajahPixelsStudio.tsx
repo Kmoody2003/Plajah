@@ -19,6 +19,7 @@ import ShaderLayer from './components/ShaderLayer';
 import PostProcessLayer from './components/PostProcessLayer';
 import ShaderPanel, { SHADER_LIBRARY, DEFAULT_SHADER_SRC } from './components/ShaderPanel';
 import LibraryRail, { type LibrarySource } from './ui/LibraryRail';
+import { UniversalLibraryPanel } from '../shared/UniversalLibrary/UniversalLibraryPanel';
 import { getSilentAnalyser } from './engine/silentAnalyser';
 import ShaderInspector from './ui/ShaderInspector';
 import MidiNotesScene from './components/MidiNotesScene';
@@ -826,6 +827,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
     // Every library pick lands here. A look is one of three things, and choosing one clears the
     // others — only one thing is ON the canvas at a time. This is the single door the deck's own
     // browser used to be a second, duplicate copy of.
+    const [pixLib, setPixLib] = useState<'universal' | 'classic'>(() => { try { return (localStorage.getItem('pixels.lib.v1') as any) || 'universal'; } catch { return 'universal'; } });
+    const setPixLibP = (v: 'universal' | 'classic') => { setPixLib(v); try { localStorage.setItem('pixels.lib.v1', v); } catch { /* */ } };
     const applySource = useCallback((source: LibrarySource) => {
         if (source.kind === 'shader') { selectLook(source.src); return; }
         if (source.kind === 'generator') {
@@ -1446,15 +1449,34 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
             Simple rung up: "Library + canvas + four sliders" is the whole of Rung 1. */}
         {!uiHidden && (
             <AtDepth min="simple">
-                <LibraryRail
-                    selectedSrc={shaderSrc}
-                    selectedMode={!shaderSrc && !milkdrop ? config.mode : null}
-                    milkdropOn={milkdrop}
-                    milkdropIndex={milkdropIdx}
-                    onSelect={applySource}
-                    onImport={() => setShowShaderPanel(true)}
-                    analyser={analyserRef.current}
-                />
+                {pixLib === 'classic' ? (
+                    <div style={{ position: 'relative', display: 'flex', height: '100%' }}>
+                        <LibraryRail
+                            selectedSrc={shaderSrc}
+                            selectedMode={!shaderSrc && !milkdrop ? config.mode : null}
+                            milkdropOn={milkdrop}
+                            milkdropIndex={milkdropIdx}
+                            onSelect={applySource}
+                            onImport={() => setShowShaderPanel(true)}
+                            analyser={analyserRef.current}
+                        />
+                        <button onClick={() => setPixLibP('universal')} title="Universal Library" style={{ position: 'absolute', top: 8, right: 8, zIndex: 6, width: 26, height: 26, borderRadius: 8, border: '1px solid rgba(0,218,243,.6)', background: 'rgba(0,218,243,.12)', color: '#fff', cursor: 'pointer' }}>▦</button>
+                    </div>
+                ) : (
+                    <UniversalLibraryPanel
+                        accent="#00DAF3"
+                        side="left"
+                        storageKey="pixels.ullib.geo.v1"
+                        accepts={['shader', 'gen']}
+                        onImport={() => setShowShaderPanel(true)}
+                        onUse={(it) => {
+                            const p = it.preview;
+                            if (p.mode === 'shader' && p.shaderSrc) applySource({ kind: 'shader', src: p.shaderSrc });
+                            else if (p.mode === 'gen' && p.genMode) applySource({ kind: 'generator', mode: p.genMode as any });
+                        }}
+                        headerExtra={<button onClick={() => setPixLibP('classic')} title="Classic library — milkdrop, ISF, live preview" style={{ width: 24, height: 24, borderRadius: 7, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.06)', color: '#B7AEC7', cursor: 'pointer', fontSize: 11 }}>◐</button>}
+                    />
+                )}
             </AtDepth>
         )}
 

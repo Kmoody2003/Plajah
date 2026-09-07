@@ -467,7 +467,7 @@ function DepthViewer({ imgSrc, depthData, depthScale, segments }: DepthViewerPro
 
 // ── Gaussian Splat file viewer (real .splat / .ply captures) ─────────────────
 
-function GaussianSplatFileViewer({ splatUrl }: { splatUrl: string }) {
+export function GaussianSplatFileViewer({ splatUrl }: { splatUrl: string }) {
   const mountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

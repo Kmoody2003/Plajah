@@ -15,6 +15,8 @@ import TelaForm from './TelaForm';
 import TelaVector from './TelaVector';
 import TelaImage from './TelaImage';
 import TelaNotes from './TelaNotes';
+import TelaChart from './TelaChart';
+import TelaMedia from './TelaMedia';
 import { auth } from '../../services/firebase';
 
 /** Everything renderDevice needs that isn't the device itself. */
@@ -116,9 +118,13 @@ export function renderDevice(device: TelaDevice, ctx: RenderDeviceCtx, readOnly 
       />
     );
   }
+  if (device.type === 'CHART') {
+    return <TelaChart key={device.id} device={device} devices={devices} formulaContext={formulaContext} readOnly={readOnly} onUpdate={patch => dispatchOp({ type:'UPDATE_CHART_DEVICE', deviceId:device.id, patch })}/>;
+  }
   if (device.type === 'NOTES') {
     return <TelaNotes key={device.id} device={device} readOnly={readOnly} onChange={patch => dispatchOp({ type: 'UPDATE_NOTES_DEVICE', deviceId: device.id, patch })}/>;
   }
+  if (device.type === 'MEDIA') return <TelaMedia key={device.id} device={device} readOnly={readOnly}/>;
   return (
     <TelaGrid
       key={device.id}

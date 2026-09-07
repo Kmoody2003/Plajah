@@ -27,6 +27,8 @@ function contentTypeFor(file: File): string {
   return ({
     png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp',
     gif: 'image/gif', avif: 'image/avif', svg: 'image/svg+xml', bmp: 'image/bmp',
+    lottie: 'application/zip+dotlottie', json: 'application/json',
+    mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime',
   } as Record<string, string>)[ext] || 'application/octet-stream';
 }
 
@@ -59,3 +61,7 @@ export async function uploadTelaImage(
   });
   return { src, storagePath, sessionOnly: false };
 }
+
+/** Media-neutral name used by the document canvas. Kept as an alias so older
+ * image-device call sites and stored boards remain fully compatible. */
+export const uploadTelaAsset = uploadTelaImage;

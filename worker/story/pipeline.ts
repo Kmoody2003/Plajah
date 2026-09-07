@@ -20,6 +20,7 @@ import path from 'node:path';
 import {
   firestorePatch, firestoreGet, storageUpload, runFfmpeg, runFfprobe, sleep,
 } from './lib.ts';
+import { transcribeChunkLocal, captionStillLocal } from './localModels.ts';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,9 @@ const POKEE_IN_MICROS_PER_TOKEN = 0.15;
 const POKEE_OUT_MICROS_PER_TOKEN = 1.0;
 
 const GEMINI_MODEL = 'gemini-3.6-flash';
+// Perception ladder. A 503 'experiencing high demand' is a capacity signal for ONE model, so a
+// spike on the primary should move to a sibling rather than kill a part-finished (paid) job.
+const PERCEIVE_MODELS = [GEMINI_MODEL, 'gemini-flash-lite-latest', 'gemini-flash-latest'];
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com';
 
 const geminiKey = () => process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || '';
@@ -106,7 +110,7 @@ interface Sampled {
   shots: number[]; // boundary timestamps (sec)
   sceneThreshold: number;
   chunks: { path: string; offsetSec: number; durationSec: number }[];
-  stills: { index: number; tSec: number; storagePath: string }[];
+  stills: { index: number; tSec: number; storagePath: string; localPath: string }[];
 }
 
 function parseShowinfoTimes(stderr: string): number[] {
@@ -225,7 +229,7 @@ async function stageSampling(job: StoryJob, tmp: string): Promise<Sampled> {
     const tSec = Math.round(t);
     const storagePath = `taleoAnalysis/${ownerId}/${albumId}/stills/${i}_${tSec}.jpg`;
     if (await storageUpload(storagePath, buf, 'image/jpeg')) {
-      stills.push({ index: i, tSec, storagePath });
+      stills.push({ index: i, tSec, storagePath, localPath: jpg });
     }
   }
 
@@ -297,11 +301,170 @@ async function geminiDeleteFile(name: string) {
   try { await fetch(`${GEMINI_BASE}/v1beta/${name}?key=${geminiKey()}`, { method: 'DELETE' }); } catch { /* */ }
 }
 
-function extractJson(text: string): any {
+/**
+ * Close whatever a truncated response left open. A model that hits its output cap emits
+ * well-formed JSON that simply stops — often mid-string, mid-array. Strict parsing throws the
+ * whole (already paid for) run away, so cut back to the last complete element and close the
+ * open structures. Same repair, and the same reason, as Fabula's parseJsonRobust.
+ */
+function repairJson(text: string): string {
+  let s = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
+  const start = s.indexOf('{');
+  if (start > 0) s = s.slice(start);
+
+  // Walk once to find the last position where the document was structurally complete.
+  let inStr = false, esc = false, depth = 0, lastSafe = -1;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === '{' || c === '[') depth++;
+    else if (c === '}' || c === ']') { depth--; if (depth > 0) lastSafe = i; }
+    else if (c === ',' && depth > 0) lastSafe = i;
+  }
+  if (!inStr && depth === 0) return s; // nothing to repair
+
+  let out = lastSafe > 0 ? s.slice(0, lastSafe + 1) : s;
+  out = out.replace(/,\s*$/, '');
+
+  // Re-scan the trimmed text and close what is still open, innermost first.
+  const stack: string[] = [];
+  let q = false, e2 = false;
+  for (let i = 0; i < out.length; i++) {
+    const c = out[i];
+    if (q) {
+      if (e2) e2 = false;
+      else if (c === '\\') e2 = true;
+      else if (c === '"') q = false;
+      continue;
+    }
+    if (c === '"') q = true;
+    else if (c === '{') stack.push('}');
+    else if (c === '[') stack.push(']');
+    else if (c === '}' || c === ']') stack.pop();
+  }
+  if (q) out += '"';
+  while (stack.length) out += stack.pop();
+  return out;
+}
+
+/**
+ * Escape raw control characters (literal newline/CR/tab) that appear INSIDE a JSON string
+ * literal. A model that writes a multi-line description with an actual line break produces
+ * text that is invalid JSON regardless of truncation — JSON.parse rejects raw control chars
+ * in strings per spec. The reasoning prompt asks the model not to do this, but this is the
+ * guard that holds when it does anyway (same fix Fabula's parseJsonRobust applies).
+ */
+function escapeRawControlCharsInStrings(text: string): string {
+  let out = '';
+  let inStr = false, esc = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inStr) {
+      if (esc) { out += c; esc = false; continue; }
+      if (c === '\\') { out += c; esc = true; continue; }
+      if (c === '"') { inStr = false; out += c; continue; }
+      if (c === '\n') { out += '\\n'; continue; }
+      if (c === '\r') { out += '\\r'; continue; }
+      if (c === '\t') { out += '\\t'; continue; }
+      out += c;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    out += c;
+  }
+  return out;
+}
+
+function extractJson(text: string, onRepair?: () => void): any {
+  text = escapeRawControlCharsInStrings(text);
   try { return JSON.parse(text); } catch { /* fall through */ }
   const a = text.indexOf('{'); const b = text.lastIndexOf('}');
   if (a >= 0 && b > a) { try { return JSON.parse(text.slice(a, b + 1)); } catch { /* */ } }
-  throw new Error(`model returned non-JSON: ${text.slice(0, 200)}`);
+  try { const v = JSON.parse(repairJson(text)); if (onRepair) onRepair(); return v; } catch { /* */ }
+  throw new Error('model returned non-JSON: ' + text.slice(0, 200));
+}
+
+const FALLBACK_PROMPT = `You are a meticulous film script supervisor logging ONE segment of a longer film.
+NATIVE VIDEO IS UNAVAILABLE for this segment (an upstream capacity limit) — you have only its
+AUDIO TRACK plus a handful of STILL FRAMES sampled from within it. Work with what you have:
+- Transcribe every spoken line you hear from the audio, with your best estimate of when it
+  occurs (seconds from the start of THIS segment). Attribute speakers when the audio makes it
+  clear (named in dialogue) or by a stable "SPEAKER 1/2" label otherwise.
+- The stills are SNAPSHOTS, not continuous motion — describe only what a still plainly shows
+  (setting, who is visible, what they appear to be doing at that instant). Do NOT infer action
+  or events that would require seeing motion between frames.
+- Note any people who appear (in stills or clearly implied by dialogue) with a short physical
+  descriptor and a stable label, reused across mentions.
+Return STRICT JSON only, matching exactly:
+{"beats":[{"tSec":number,"action":string,"setting":string}],"dialogue":[{"tSec":number,"speaker":string,"text":string}],"people":[{"label":string,"descriptor":string,"firstSeenTSec":number}]}
+JSON RULES: no markdown fences, no trailing commas, every string a single line (no literal newlines). If truly nothing is discernible, return empty arrays — never invent.`;
+
+/** Strip the video track from a perceived chunk, mp3 (Gemini's proven audio mime — matches
+ *  the existing captions pipeline in server.ts) so the fallback has a real audio signal to
+ *  transcribe when native video perception is unavailable. Non-throwing: null on failure, so
+ *  the caller can skip the fallback gracefully rather than fail the whole chunk on an
+ *  extraction hiccup. */
+async function extractChunkAudio(chunkPath: string, tmp: string, i: number): Promise<Buffer | null> {
+  const out = path.join(tmp, `chunk_audio_${i}.mp3`);
+  const r = await runFfmpeg([
+    '-y', '-hide_banner', '-loglevel', 'error', '-i', chunkPath,
+    '-vn', '-c:a', 'libmp3lame', '-b:a', '64k', '-ac', '1', out,
+  ], 5 * 60 * 1000);
+  if (!r.ok) return null;
+  const buf = await fs.readFile(out).catch(() => null);
+  return buf && buf.length > 100 ? buf : null;
+}
+
+/**
+ * Degraded perception path: audio + up to 6 still frames instead of native video. Tried only
+ * after the full video ladder (all models, all attempts) is exhausted — cheaper and, per the
+ * capacity pattern actually observed (video calls 503 while text/audio calls on the SAME key
+ * succeed), meaningfully more likely to be served. Less rich (no continuous motion), but a
+ * real fallback rather than an empty chunk.
+ */
+async function geminiPerceiveFallback(
+  audioBuf: Buffer, stillBufs: Buffer[], usage: Usage, model: string,
+): Promise<any> {
+  const key = geminiKey();
+  const parts: any[] = [{ inlineData: { data: audioBuf.toString('base64'), mimeType: 'audio/mpeg' } }];
+  for (const b of stillBufs) parts.push({ inlineData: { data: b.toString('base64'), mimeType: 'image/jpeg' } });
+  parts.push({ text: FALLBACK_PROMPT });
+
+  const body = (withThinking: boolean) => JSON.stringify({
+    contents: [{ parts }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      maxOutputTokens: 8192,
+      ...(withThinking ? { thinkingConfig: { thinkingLevel: 'minimal' } } : {}),
+    },
+  });
+
+  let useThinking = /^gemini-3\./.test(model);
+  let res: Response | null = null;
+  for (let i = 0; i < 2; i++) {
+    res = await fetch(`${GEMINI_BASE}/v1beta/models/${model}:generateContent?key=${key}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body(useThinking),
+    });
+    if (res.status !== 400) break;
+    const errText = await res.text();
+    if (useThinking && /thinking/i.test(errText)) { useThinking = false; continue; }
+    throw new Error(`generateContent HTTP 400: ${errText.slice(0, 300)}`);
+  }
+  if (!res || !res.ok) throw new Error(`generateContent HTTP ${res ? res.status : '???'}: ${res ? (await res.text()).slice(0, 300) : 'no response'}`);
+  const data = await res.json() as any;
+  const um = data.usageMetadata || {};
+  addUsage(usage, model,
+    Number(um.promptTokenCount) || 0, Number(um.candidatesTokenCount) || 0,
+    GEMINI_IN_MICROS_PER_TOKEN, GEMINI_OUT_MICROS_PER_TOKEN);
+  const text = (data.candidates?.[0]?.content?.parts || []).map((p: any) => p.text || '').join('');
+  if (!text) throw new Error(`generateContent returned no text (finishReason=${data.candidates?.[0]?.finishReason})`);
+  return extractJson(text);
 }
 
 /**
@@ -309,9 +472,9 @@ function extractJson(text: string): any {
  * a sane token budget; if the API version deployed rejects the field, retry once without it
  * (the caller notes the degradation on the job doc).
  */
-async function geminiPerceiveChunk(fileUri: string, usage: Usage): Promise<{ parsed: any; mediaResolutionRejected: boolean }> {
+async function geminiPerceiveChunk(fileUri: string, usage: Usage, model: string = GEMINI_MODEL): Promise<{ parsed: any; mediaResolutionRejected: boolean }> {
   const key = geminiKey();
-  const body = (withMediaRes: boolean) => JSON.stringify({
+  const body = (withMediaRes: boolean, withThinking: boolean) => JSON.stringify({
     contents: [{ parts: [
       { fileData: { fileUri, mimeType: 'video/mp4' } },
       { text: PERCEIVE_PROMPT },
@@ -319,30 +482,34 @@ async function geminiPerceiveChunk(fileUri: string, usage: Usage): Promise<{ par
     generationConfig: {
       responseMimeType: 'application/json',
       maxOutputTokens: 8192,
-      thinkingConfig: { thinkingLevel: 'minimal' },
+      ...(withThinking ? { thinkingConfig: { thinkingLevel: 'minimal' } } : {}),
       ...(withMediaRes ? { mediaResolution: 'MEDIA_RESOLUTION_LOW' } : {}),
     },
   });
 
+  // generationConfig support varies by model — thinkingLevel is Gemini 3.x only, and the
+  // fallback models reject it outright (HTTP 400). Rather than hard-code a matrix that will
+  // drift, start optimistic and drop whichever field the API names in its 400.
+  let useMediaRes = true;
+  let useThinking = /^gemini-3\./.test(model);
   let mediaResolutionRejected = false;
-  let res = await fetch(`${GEMINI_BASE}/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body(true),
-  });
-  if (res.status === 400) {
+  let res: Response | null = null;
+
+  for (let i = 0; i < 3; i++) {
+    res = await fetch(`${GEMINI_BASE}/v1beta/models/${model}:generateContent?key=${key}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body(useMediaRes, useThinking),
+    });
+    if (res.status !== 400) break;
     const errText = await res.text();
-    if (/media_?resolution/i.test(errText)) {
-      mediaResolutionRejected = true;
-      res = await fetch(`${GEMINI_BASE}/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body(false),
-      });
-    } else {
-      throw new Error(`generateContent HTTP 400: ${errText.slice(0, 300)}`);
-    }
+    if (useMediaRes && /media_?resolution/i.test(errText)) { useMediaRes = false; mediaResolutionRejected = true; continue; }
+    if (useThinking && /thinking/i.test(errText)) { useThinking = false; continue; }
+    throw new Error(`generateContent HTTP 400: ${errText.slice(0, 300)}`);
   }
-  if (!res.ok) throw new Error(`generateContent HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
+
+  if (!res || !res.ok) throw new Error(`generateContent HTTP ${res ? res.status : '???'}: ${res ? (await res.text()).slice(0, 300) : 'no response'}`);
   const data = await res.json() as any;
   const um = data.usageMetadata || {};
-  addUsage(usage, GEMINI_MODEL,
+  addUsage(usage, model,
     Number(um.promptTokenCount) || 0, Number(um.candidatesTokenCount) || 0,
     GEMINI_IN_MICROS_PER_TOKEN, GEMINI_OUT_MICROS_PER_TOKEN);
   const text = (data.candidates?.[0]?.content?.parts || []).map((p: any) => p.text || '').join('');
@@ -359,53 +526,138 @@ async function stagePerceiving(
   const failedChunks: number[] = [];
   const notes: string[] = [];
   let notedMediaRes = false;
+  let notedFallback = false;
+  let notedDegraded = false;
+  let notedOffline = false;
+
+  const pushPerception = (i: number, offsetSec: number, parsed: any) => {
+    perceptions.push({
+      chunkIndex: i,
+      offsetSec: Math.round(offsetSec),
+      beats: (Array.isArray(parsed.beats) ? parsed.beats : []).map((b: any) => ({
+        tSec: Math.round(offsetSec + (Number(b.tSec) || 0)),
+        action: String(b.action || '').slice(0, 500),
+        setting: String(b.setting || '').slice(0, 200),
+      })),
+      dialogue: (Array.isArray(parsed.dialogue) ? parsed.dialogue : []).map((d: any) => ({
+        tSec: Math.round(offsetSec + (Number(d.tSec) || 0)),
+        speaker: String(d.speaker || 'PERSON-?').slice(0, 60),
+        text: String(d.text || '').slice(0, 1000),
+      })),
+      people: (Array.isArray(parsed.people) ? parsed.people : []).map((p: any) => ({
+        label: String(p.label || 'PERSON-?').slice(0, 60),
+        descriptor: String(p.descriptor || '').slice(0, 300),
+        firstSeenTSec: Math.round(offsetSec + (Number(p.firstSeenTSec) || 0)),
+      })),
+    });
+  };
 
   for (let i = 0; i < sampled.chunks.length; i++) {
     const chunk = sampled.chunks[i];
     const pct = 22 + Math.round((i / sampled.chunks.length) * 43); // 22 → 65
     await setProgress(albumId, 'PERCEIVING', 'perceive', pct, `chunk ${i + 1}/${sampled.chunks.length}`);
 
+    // isEmptyParsed: a video call can succeed (HTTP 200, real cost) yet the model reports it
+    // sees nothing — observed live 2026-08-30 on a stylized/animated teaser at low resolution.
+    // That is functionally a miss even though the ladder considers it "done", so it gets the
+    // same fallback chance as an outright error rather than silently shipping an empty chunk.
+    const isEmptyParsed = (p: any) =>
+      !p || ((Array.isArray(p.beats) ? p.beats.length : 0)
+           + (Array.isArray(p.dialogue) ? p.dialogue.length : 0)
+           + (Array.isArray(p.people) ? p.people.length : 0)) === 0;
+
     let done = false;
-    for (let attempt = 0; attempt < 3 && !done; attempt++) {
+    let videoParsed: any = null;
+    for (let attempt = 0; attempt < 5 && !done; attempt++) {
       let fileName = '';
       try {
         const buf = await fs.readFile(chunk.path);
         const file = await geminiUploadFile(buf, `${albumId}_chunk_${i}`);
         fileName = file.name;
-        const { parsed, mediaResolutionRejected } = await geminiPerceiveChunk(file.uri, usage);
+        const model = PERCEIVE_MODELS[Math.min(attempt, PERCEIVE_MODELS.length - 1)];
+        const { parsed, mediaResolutionRejected } = await geminiPerceiveChunk(file.uri, usage, model);
+        if (attempt > 0 && !notedFallback) { notedFallback = true; notes.push(`perception fell back to ${model} after the primary model reported high demand`); }
         if (mediaResolutionRejected && !notedMediaRes) {
           notedMediaRes = true;
           notes.push('mediaResolution rejected by API — chunks perceived at default resolution');
         }
-        const off = chunk.offsetSec;
-        perceptions.push({
-          chunkIndex: i,
-          offsetSec: Math.round(off),
-          beats: (Array.isArray(parsed.beats) ? parsed.beats : []).map((b: any) => ({
-            tSec: Math.round(off + (Number(b.tSec) || 0)),
-            action: String(b.action || '').slice(0, 500),
-            setting: String(b.setting || '').slice(0, 200),
-          })),
-          dialogue: (Array.isArray(parsed.dialogue) ? parsed.dialogue : []).map((d: any) => ({
-            tSec: Math.round(off + (Number(d.tSec) || 0)),
-            speaker: String(d.speaker || 'PERSON-?').slice(0, 60),
-            text: String(d.text || '').slice(0, 1000),
-          })),
-          people: (Array.isArray(parsed.people) ? parsed.people : []).map((p: any) => ({
-            label: String(p.label || 'PERSON-?').slice(0, 60),
-            descriptor: String(p.descriptor || '').slice(0, 300),
-            firstSeenTSec: Math.round(off + (Number(p.firstSeenTSec) || 0)),
-          })),
-        });
+        videoParsed = parsed;
         done = true;
       } catch (e: any) {
         console.error(`[perceive] chunk ${i} attempt ${attempt + 1} failed:`, e?.message || e);
-        if (attempt < 2) await sleep([2000, 8000, 20000][attempt]);
+        if (attempt < 4) await sleep([3000, 10000, 25000, 45000][attempt]);
       } finally {
         if (fileName) await geminiDeleteFile(fileName);
       }
     }
-    if (!done) failedChunks.push(i);
+    if (!done || isEmptyParsed(videoParsed)) {
+      // Either the video ladder exhausted (every model, every attempt), or it succeeded but
+      // came back empty. Try the degraded audio+stills path once — a genuinely different,
+      // often more available/reliable route (real pattern observed 2026-08-30: Gemini's video
+      // path both 503s under demand AND, separately, can report seeing nothing on content it
+      // handles fine as audio+stills), not just another retry of the same thing.
+      const tmpDir = path.dirname(chunk.path);
+      const chunkStills = sampled.stills.filter(
+        st => st.tSec >= chunk.offsetSec && st.tSec < chunk.offsetSec + chunk.durationSec,
+      );
+      const picked = (chunkStills.length ? chunkStills : sampled.stills
+        .slice().sort((a, b) => Math.abs(a.tSec - (chunk.offsetSec + chunk.durationSec / 2)) - Math.abs(b.tSec - (chunk.offsetSec + chunk.durationSec / 2)))
+        .slice(0, 1)
+      ).slice(0, 6);
+
+      let fallbackParsed: any = null;
+      try {
+        const audioBuf = await extractChunkAudio(chunk.path, tmpDir, i);
+        const stillBufs = (await Promise.all(picked.map(st => fs.readFile(st.localPath).catch(() => null))))
+          .filter((b): b is Buffer => !!b);
+        if (audioBuf) {
+          for (let fbAttempt = 0; fbAttempt < 2 && !fallbackParsed; fbAttempt++) {
+            try {
+              const model = PERCEIVE_MODELS[Math.min(fbAttempt, PERCEIVE_MODELS.length - 1)];
+              const parsed = await geminiPerceiveFallback(audioBuf, stillBufs, usage, model);
+              if (!isEmptyParsed(parsed)) fallbackParsed = parsed;
+            } catch (e2: any) {
+              console.error(`[perceive-fallback] chunk ${i} attempt ${fbAttempt + 1} failed:`, e2?.message || e2);
+              if (fbAttempt < 1) await sleep(5000);
+            }
+          }
+        }
+      } catch (e3: any) {
+        console.error(`[perceive-fallback] chunk ${i} setup failed:`, e3?.message || e3);
+      }
+
+      if (fallbackParsed) {
+        videoParsed = fallbackParsed;
+        done = true;
+        if (!notedDegraded) { notedDegraded = true; notes.push('one or more segments used degraded audio+stills perception (native video was unavailable or reported nothing) — less rich than a full video pass'); }
+      } else {
+        // Tier 3: fully offline, no cloud call at all — Whisper for dialogue, Florence-2 per
+        // still for a scene caption. Immune to Gemini's capacity throttling by construction
+        // (it never leaves this container), at the cost of no continuous motion understanding
+        // and no speaker attribution. Genuinely last resort — CPU inference is slow and the
+        // first call on a fresh instance also pays a one-time model download.
+        try {
+          const [dialogueLocal, captions] = await Promise.all([
+            transcribeChunkLocal(chunk.path, tmpDir, String(i)),
+            Promise.all(picked.map(async st => ({ tSec: st.tSec - chunk.offsetSec, text: await captionStillLocal(st.localPath) }))),
+          ]);
+          const beatsLocal = captions.filter(c => c.text).map(c => ({ tSec: Math.max(0, c.tSec), action: c.text, setting: '' }));
+          if (dialogueLocal.length || beatsLocal.length) {
+            videoParsed = {
+              beats: beatsLocal,
+              dialogue: dialogueLocal.map(d => ({ tSec: d.tSec, speaker: 'SPEAKER 1', text: d.text })),
+              people: [],
+            };
+            done = true;
+            if (!notedOffline) { notedOffline = true; notes.push('one or more segments used fully offline local-model perception (Whisper + Florence-2, no cloud call) after both cloud tiers were unavailable — the least rich tier: no continuous motion, no speaker attribution'); }
+          }
+        } catch (e4: any) {
+          console.error(`[perceive-local] chunk ${i} failed:`, e4?.message || e4);
+        }
+      }
+    }
+    if (done) pushPerception(i, chunk.offsetSec, videoParsed);
+    else failedChunks.push(i);
 
     await patchJob(albumId, { checkpoint: { stage: 'PERCEIVING', chunkIndex: i }, usage: usageDoc(usage) });
 
@@ -448,6 +700,8 @@ Your tasks:
 8. Every character, location, and macguffin carries "confidence" 0..1 and "evidence" — short strings quoting or citing the perception log (with timestamps).
 
 NEVER invent events, characters, or dialogue not present in the log. Where the log is ambiguous, lower the confidence rather than guessing.
+
+JSON RULES: no markdown code fences, no comments, no trailing commas. Every string value is a SINGLE LINE — never a literal newline inside a string (write \\n if you must break a line, never a raw line break). Keep the ENTIRE response short enough that it never truncates; favor shorter evidence/summary strings over completeness.
 
 Return STRICT JSON only, exactly matching this schema:
 ${REPORT_SCHEMA_TEXT}`;
@@ -495,7 +749,12 @@ function truncateCorpusIfNeeded(
   return { corpus, truncated: true }; // best effort — let the provider truncate the tail
 }
 
-async function pokeeReason(instructions: string, corpus: string, usage: Usage): Promise<any> {
+/** Records that a lane response was cut at its output cap and salvaged by repair. */
+function onTruncated(notes: string[]) {
+  return () => notes.push('the story synthesis hit the model output cap — recovered the complete part, so later scenes may be missing');
+}
+
+async function pokeeReason(instructions: string, corpus: string, usage: Usage, notes: string[]): Promise<any> {
   const res = await fetch('https://api.pokee.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -520,16 +779,16 @@ async function pokeeReason(instructions: string, corpus: string, usage: Usage): 
     POKEE_IN_MICROS_PER_TOKEN, POKEE_OUT_MICROS_PER_TOKEN);
   const text = data.choices?.[0]?.message?.content;
   if (!text) throw new Error('pokee returned no content');
-  return extractJson(text);
+  return extractJson(text, onTruncated(notes));
 }
 
-async function geminiReason(instructions: string, corpus: string, usage: Usage): Promise<any> {
+async function geminiReason(instructions: string, corpus: string, usage: Usage, notes: string[]): Promise<any> {
   const res = await fetch(`${GEMINI_BASE}/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiKey()}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: `${instructions}\n\nPERCEPTION LOG:\n${corpus}` }] }],
-      generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 8192 },
+      generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 32768 },
     }),
   });
   if (!res.ok) throw new Error(`gemini reasoning HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
@@ -540,7 +799,7 @@ async function geminiReason(instructions: string, corpus: string, usage: Usage):
     GEMINI_IN_MICROS_PER_TOKEN, GEMINI_OUT_MICROS_PER_TOKEN);
   const text = (data.candidates?.[0]?.content?.parts || []).map((p: any) => p.text || '').join('');
   if (!text) throw new Error('gemini reasoning returned no text');
-  return extractJson(text);
+  return extractJson(text, onTruncated(notes));
 }
 
 async function stageReasoning(
@@ -556,19 +815,19 @@ async function stageReasoning(
   if (process.env.POKEE_API_KEY) {
     let lastErr: any;
     for (let attempt = 0; attempt < 3 && !story; attempt++) {
-      try { story = await pokeeReason(instructions, corpus, usage); }
+      try { story = await pokeeReason(instructions, corpus, usage, notes); }
       catch (e: any) { lastErr = e; if (attempt < 2) await sleep([3000, 10000, 0][attempt]); }
     }
     if (!story) {
       notes.push(`pokee reasoning failed (${String(lastErr?.message || lastErr).slice(0, 120)}) — fell back to ${GEMINI_MODEL}`);
-      story = await geminiReason(instructions, corpus, usage);
+      story = await geminiReason(instructions, corpus, usage, notes);
       await patchJob(albumId, { reasoningLane: GEMINI_MODEL });
     } else {
       await patchJob(albumId, { reasoningLane: 'pokee-isaac' });
     }
   } else {
     notes.push('POKEE_API_KEY unset — reasoning ran on ' + GEMINI_MODEL);
-    story = await geminiReason(instructions, corpus, usage);
+    story = await geminiReason(instructions, corpus, usage, notes);
     await patchJob(albumId, { reasoningLane: GEMINI_MODEL });
   }
 
@@ -679,6 +938,11 @@ export async function runPipeline(job: StoryJob): Promise<void> {
     await patchJob(albumId, {
       albumId, ownerId: job.ownerId, scope: 'MOVIE', pipelineVersion: 1,
       status: 'SAMPLING', progress: { stage: 'start', pct: 1, note: '' },
+      // A re-run must clear the PREVIOUS attempt's leftovers, or a job that now succeeds (or
+      // fails differently) still shows a stale error/cost/counts from the last try.
+      error: '', notes: [], usage: { byLane: {}, totalUsdMicros: 0, totalUsd: '0.0000' },
+      counts: { shots: 0, chunks: 0, stills: 0, scenes: 0, characters: 0, dialogueLines: 0 },
+      coverage: null, reasoningLane: null, reportPath: null, transcriptPath: null,
     });
 
     tmp = await fs.mkdtemp(path.join(os.tmpdir(), `story_${albumId}_`));

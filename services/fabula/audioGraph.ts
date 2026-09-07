@@ -27,7 +27,7 @@ export interface CompSettings { on: boolean; threshold: number; ratio: number; a
 // the media — applied live (HPF/LPF/hum/trim via biquads) and at render (plus spectral gate `denoise`).
 export interface CleanSettings { hpf: number; lpf: number; hum: 0 | 50 | 60; trim: number; denoise: number; normalize: boolean; }
 export interface ClipAudio { vol: number; eq: number[]; comp: CompSettings; clean?: CleanSettings; }
-export interface TrackAudio { vol?: number; pan?: number; mute?: boolean; eq?: number[]; comp?: Partial<CompSettings>; sendReverb?: number; sendDelay?: number; }
+export interface TrackAudio { vol?: number; pan?: number; mute?: boolean; eq?: number[]; comp?: Partial<CompSettings>; sendReverb?: number; sendDelay?: number; inserts?: FxInstance[]; }
 export const REVERB_PRESETS = ['room', 'chamber', 'hall', 'plate', 'cathedral'] as const;
 export type ReverbPreset = typeof REVERB_PRESETS[number];
 
@@ -36,16 +36,15 @@ export const COMP_DEFAULT: CompSettings = { on: false, threshold: -24, ratio: 3,
 export const CLEAN_DEFAULT: CleanSettings = { hpf: 0, lpf: 0, hum: 0, trim: 0, denoise: 0, normalize: false };
 export const CLIP_AUDIO_DEFAULT: ClipAudio = { vol: 1, eq: [0, 0, 0, 0, 0], comp: { ...COMP_DEFAULT } };
 
+import { platformAudio } from '../mediaEngine/audioRuntime';
+import { FxChainHost, softClipCurve, type FxInstance } from './audioFx';
 let _ctx: AudioContext | null = null;
 export function getAudioCtx(): AudioContext | null {
   if (_ctx) return _ctx;
   try {
-    const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
-    if (!Ctx) return null;
     // DAW-grade context: 48kHz pro rate + interactive latency hint (smallest safe buffer the
     // browser will give us → lowest round-trip). Falls back to defaults if the UA rejects them.
-    try { _ctx = new Ctx({ latencyHint: 'interactive', sampleRate: 48000 }); }
-    catch { _ctx = new Ctx(); }
+    _ctx = platformAudio.getContext();
     installResumeOnGesture(_ctx);
     return _ctx;
   } catch { return null; }
@@ -112,6 +111,7 @@ interface Graph {
   clipEq: BiquadFilterNode[]; trackEq: BiquadFilterNode[];
   clipComp: DynamicsCompressorNode; clipMk: GainNode;
   trackComp: DynamicsCompressorNode; trackMk: GainNode;
+  insertHost: FxChainHost;  // Melos-shared FX insert chain (empty = passthrough)
   pan: StereoPannerNode | null; gain: GainNode; analyser: AnalyserNode;
   sendR: GainNode; sendD: GainNode; // post-fader aux sends → reverb / delay buses
   resume(): void;
@@ -126,17 +126,19 @@ export const meterRegistry = new Map<string, () => number>();
 
 // ---- master bus: every channel strip sums here, then one path to the hardware ----
 //   strip → masterGain → [brickwall limiter] → masterAnalyser → ctx.destination
-let _master: { input: GainNode; gain: GainNode; limiter: DynamicsCompressorNode; makeup: GainNode; analyser: AnalyserNode; limiterOn: boolean } | null = null;
+let _master: { input: GainNode; gain: GainNode; limiter: WaveShaperNode; makeup: GainNode; analyser: AnalyserNode; limiterOn: boolean } | null = null;
 function getMasterBus(ctx: AudioContext) {
   if (_master) return (_master as any); // strips connect to .input
   const input = ctx.createGain();       // sum point — strips connect here
   const gain = ctx.createGain();        // master fader
-  // Brickwall limiter: catches inter-track sum peaks so the master never clips → clean output.
-  const limiter = ctx.createDynamicsCompressor();
-  limiter.threshold.value = -1.0; limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.05; limiter.knee.value = 0;
+  // Master brickwall = memoryless soft-clip (mirrors Melos). A DynamicsCompressor
+  // limiter (ratio 20) crushed the whole sum and DUCKED layers when tracks stacked —
+  // one loud track pumped everything down. The soft-clip leaves the body linear
+  // (to ~-4.4 dB) with a tanh knee into a -1 dBFS ceiling, so layers stay full.
+  const limiter = ctx.createWaveShaper(); limiter.curve = softClipCurve(-1); limiter.oversample = '4x';
   const makeup = ctx.createGain(); makeup.gain.value = 1;
   const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.2;
-  input.connect(gain); gain.connect(limiter); limiter.connect(makeup); makeup.connect(analyser); analyser.connect(ctx.destination);
+  input.connect(gain); gain.connect(limiter); limiter.connect(makeup); makeup.connect(analyser); analyser.connect(platformAudio.output('fabula'));
   const buf = new Float32Array(analyser.fftSize);
   meterRegistry.set('master', () => {
     try { analyser.getFloatTimeDomainData(buf); let p = 0; for (let i = 0; i < buf.length; i++) { const a = Math.abs(buf[i]); if (a > p) p = a; } return p; } catch { return 0; }
@@ -144,6 +146,10 @@ function getMasterBus(ctx: AudioContext) {
   _master = { input, gain, limiter, makeup, analyser, limiterOn: true };
   return (_master as any);
 }
+/** The master bus analyser (post-limiter) — drives audio-reactive effects in the monitor.
+ *  Null until the mixer has been built by the first audio clip. */
+export function masterAnalyser(): AnalyserNode | null { return _master ? _master.analyser : null; }
+
 /** Master fader (0..1.5). */
 export function setMasterGain(v: number) { if (_master) _master.gain.gain.value = Math.max(0, v); }
 /** Bypass/engage the brickwall limiter (re-patch gain → limiter or gain → makeup). */
@@ -154,8 +160,9 @@ export function setMasterLimiter(on: boolean) {
   if (on) { m.gain.connect(m.limiter); m.limiter.connect(m.makeup); }
   else { m.gain.connect(m.makeup); }
 }
-/** True post-limiter gain reduction in dB (for the master GR meter). */
-export function masterReduction(): number { return _master ? (_master.limiter.reduction || 0) : 0; }
+/** Master GR meter. The soft-clip brickwall is memoryless (no time-varying gain
+ *  reduction), so it reports 0 — layers stay full instead of being ducked. */
+export function masterReduction(): number { return 0; }
 
 // ---- FX aux buses: convolution REVERB + feedback DELAY, fed by per-track sends ----
 //   channel post-fader → sendReverb → reverbConvolver → reverbWet → master.input
@@ -236,7 +243,10 @@ function applyBand(nodes: BiquadFilterNode[], eq: number[] | undefined) {
 function applyClean(hpf: BiquadFilterNode, lpf: BiquadFilterNode, hum: BiquadFilterNode, trim: GainNode, c: CleanSettings | undefined) {
   hpf.frequency.value = c && c.hpf > 0 ? clamp(c.hpf, 10, 2000) : 10;
   lpf.frequency.value = c && c.lpf > 0 ? clamp(c.lpf, 1000, 22000) : 22000;
-  if (c && c.hum) { hum.frequency.value = c.hum; hum.Q.value = 8; } else { hum.Q.value = 0.0001; }
+  // Q approaching zero broadens a notch across the audible spectrum; it is
+  // not a bypass. A zero-frequency notch has unity response above DC.
+  hum.frequency.value = c?.hum || 0;
+  hum.Q.value = 8;
   trim.gain.value = dbToGain(clamp(c?.trim || 0, -24, 24));
 }
 function applyComp(comp: DynamicsCompressorNode, makeup: GainNode, c: Partial<CompSettings> | undefined) {
@@ -281,7 +291,7 @@ export function attachAudioGraph(el: HTMLMediaElement): Graph | null {
   // Non-destructive cleanup pre-stage (AudioEditor). Start bypassed (extreme corners / notch off).
   const hpf = ctx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = 10; hpf.Q.value = 0.707;
   const lpf = ctx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 22000; lpf.Q.value = 0.707;
-  const hum = ctx.createBiquadFilter(); hum.type = 'notch'; hum.frequency.value = 60; hum.Q.value = 0.0001;
+  const hum = ctx.createBiquadFilter(); hum.type = 'notch'; hum.frequency.value = 0; hum.Q.value = 8;
   const trim = ctx.createGain(); trim.gain.value = 1;
   const clipEq = mkEq(), trackEq = mkEq();
   const clipComp = ctx.createDynamicsCompressor(), clipMk = ctx.createGain();
@@ -291,21 +301,26 @@ export function attachAudioGraph(el: HTMLMediaElement): Graph | null {
   const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.2;
   const master = getMasterBus(ctx);
   const fx = getFxBuses(ctx);
-  const chain: AudioNode[] = [source, hpf, hum, lpf, trim, ...clipEq, clipComp, clipMk, ...trackEq, trackComp, trackMk, ...(pan ? [pan] : []), gain, analyser, master.input];
-  try { for (let i = 0; i < chain.length - 1; i++) chain[i].connect(chain[i + 1]); }
+  // Per-track FX insert chain (Melos's shared devices), post-EQ/comp, pre-fader.
+  // Empty → internal passthrough, so this is a no-op until inserts are set.
+  const insertHost = new FxChainHost(ctx);
+  const chain: AudioNode[] = [source, hpf, hum, lpf, trim, ...clipEq, clipComp, clipMk, ...trackEq, trackComp, trackMk, insertHost.input];
+  const tail: AudioNode[] = [insertHost.output, ...(pan ? [pan] : []), gain, analyser, master.input];
+  try { for (let i = 0; i < chain.length - 1; i++) chain[i].connect(chain[i + 1]); for (let i = 0; i < tail.length - 1; i++) tail[i].connect(tail[i + 1]); }
   catch { try { source.connect(master.input); } catch { /* last resort — still audible */ } }
   // Post-fader aux sends (tapped after the fader `gain`, before the analyser) → shared FX buses.
   const sendR = ctx.createGain(); sendR.gain.value = 0; gain.connect(sendR); sendR.connect(fx.reverbSend);
   const sendD = ctx.createGain(); sendD.gain.value = 0; gain.connect(sendD); sendD.connect(fx.delaySend);
   const buf = new Float32Array(analyser.fftSize);
   const g: Graph = {
-    ctx, hpf, lpf, hum, trim, clipEq, trackEq, clipComp, clipMk, trackComp, trackMk, pan, gain, analyser, sendR, sendD,
+    ctx, hpf, lpf, hum, trim, clipEq, trackEq, clipComp, clipMk, trackComp, trackMk, insertHost, pan, gain, analyser, sendR, sendD,
     resume() { if (ctx.state === 'suspended') ctx.resume().catch(() => {}); },
     level() { try { analyser.getFloatTimeDomainData(buf); let peak = 0; for (let i = 0; i < buf.length; i++) { const a = Math.abs(buf[i]); if (a > peak) peak = a; } return peak; } catch { return 0; } },
     apply(clip, track) {
       applyClean(hpf, lpf, hum, trim, clip?.clean);
       applyBand(clipEq, clip?.eq); applyComp(clipComp, clipMk, clip?.comp);
       applyBand(trackEq, track?.eq); applyComp(trackComp, trackMk, track?.comp);
+      insertHost.setChain(Array.isArray(track?.inserts) ? track.inserts : []);
       if (pan) pan.pan.value = clamp(track?.pan || 0, -1, 1);
       const cv = clip?.vol == null ? 1 : clip.vol;
       const tv = track?.vol == null ? 1 : track.vol;

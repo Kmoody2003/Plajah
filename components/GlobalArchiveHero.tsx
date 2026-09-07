@@ -15,6 +15,7 @@
  *  key art → first audio track → key art with a slow drift.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { cleanDescription } from '../utils/description';
 import { Upload, Play, Radio } from 'lucide-react';
 import type { Album, LiveFeed } from '../types';
 import { fetchClassicBooks, type ArchiveBook } from '../services/archiveContentService';
@@ -174,7 +175,7 @@ const PanoramaColumn: React.FC<{
         const kicker = a.type === 'VIDEO'
           ? (a.subType === 'UGC' ? 'New on Reello' : 'New on Taleo')
           : TYPE_KICKER[a.type || 'MUSIC'] || 'New release';
-        return { kicker, title: a.title, by: a.artist, desc: a.description || '', cta: 'Open' };
+        return { kicker, title: a.title, by: a.artist, desc: cleanDescription(a.description), cta: 'Open' };
       }
       case 'CREATOR': return {
         kicker: 'Creator spotlight', title: pane.artist,

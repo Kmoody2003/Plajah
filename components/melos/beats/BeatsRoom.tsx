@@ -11,6 +11,8 @@ import { useContextMenu, type MenuNode } from '../../ui/ContextMenu';
 import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveTools';
 import { GENRE_PRESETS, applyGenrePreset, type GenrePreset } from '../../../services/melos/beats/genrePresets';
 import { BASSLINES, applyBassline, type BasslinePreset } from '../../../services/melos/beats/bassLines';
+import { DrumPatternThumb, BasslineThumb, cachedPattern } from './PatternThumb';
+import { UniversalLibraryPanel } from '../../shared/UniversalLibrary/UniversalLibraryPanel';
 import { useAriaSurface } from '../../../services/aria/useAriaSurface';
 import { ingestSample, backupToLocker } from '../../../services/melos/beats/sampleStore';
 import { renderGroove, publishGroove, downloadBlob } from '../../../services/melos/beats/render';
@@ -78,7 +80,7 @@ interface BeatsRoomProps {
 const AVAILABLE_VIEWS: BeatsViewId[] = ['machine', 'glass', 'timeline', 'mixer', 'project'];
 
 const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, embedded, melosSamples, onRenderTake, takeTargetName }) => {
-  const { doc, saveState, grooves, mutate, replace, saveNow, openGroove, newGroove, removeGroove } =
+  const { doc, saveState, grooves, mutate, undo, redo, canUndo, canRedo, replace, saveNow, openGroove, newGroove, removeGroove } =
     useBeatsDoc(payload?.grooveId, production?.prodId || payload?.productionId);
   const snap = useEngineBridge();
   const vp = useViewport();
@@ -124,6 +126,18 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const [showLibrary, setShowLibrary] = useState(false);
   const [showMidi, setShowMidi] = useState(false);
   const [midiConnected, setMidiConnected] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el?.matches('input, textarea, select, [contenteditable="true"]')) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      if (e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+      else if (e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
   // Poll the WebMIDI device list so the transport dot lights when a controller is present.
   useEffect(() => { const t = setInterval(() => setMidiConnected(midiStatus().connected.length > 0), 2000); return () => clearInterval(t); }, []);
 
@@ -486,6 +500,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
 
   // Genre drum presets — drop a ready-made pattern in and set its tempo/swing.
   const [showGenres, setShowGenres] = useState(false);
+  const [ulOpen, setUlOpen] = useState(false);
   const applyGenre = useCallback((preset: GenrePreset) => {
     let id = '';
     mutate((d: GrooveDoc) => { id = applyGenrePreset(d, preset); });
@@ -683,12 +698,12 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       items: [
         { id: 'new', label: 'New project', onSelect: newGroove },
         // The projects drawer is anchored in the pattern bar, which Mixer/Project don't show.
-        { id: 'open', label: 'Open…', hint: 'projects', onSelect: () => { if (view === 'mixer' || view === 'project') setView('machine'); setShowGrooves(true); } },
+        { id: 'open', label: 'My Productions…', hint: 'projects', onSelect: () => { if (view === 'mixer' || view === 'project') setView('machine'); setShowGrooves(true); } },
         { id: 'save', label: 'Save now', onSelect: () => { void saveNow(); } },
         { id: 'copy', label: 'Save a copy', onSelect: handleSaveCopy },
         'sep',
         { id: 'open-melos', label: 'Open Melos Project…', hint: '.melos', onSelect: () => melosFileRef.current?.click() },
-        { id: 'save-melos', label: 'Save Melos Project', hint: '.melos', onSelect: () => { exportGrooveFile(doc); } },
+        { id: 'save-melos', label: 'Save Melos Project', hint: '.melos + audio', onSelect: () => { void exportGrooveFile(doc); } },
         'sep',
         { id: 'import-song', label: 'Import Melos Song…', hint: '.dawproject', onSelect: () => dawFileRef.current?.click() },
         { id: 'export-song', label: 'Export Melos Song', hint: '.dawproject', disabled: !!busy, onSelect: () => { void handleExportDawproject(); } },
@@ -701,6 +716,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     {
       label: 'Edit',
       items: [
+        { id: 'undo', label: 'Undo', hint: 'Ctrl+Z', disabled: !canUndo, onSelect: undo },
+        { id: 'redo', label: 'Redo', hint: 'Ctrl+Shift+Z / Ctrl+Y', disabled: !canRedo, onSelect: redo },
+        'sep',
         { id: 'quantize', label: 'Quantize pattern', disabled: !pattern, onSelect: () => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) quantizePattern(p, 1); }); } },
         { id: 'fill', label: 'Auto-fill last bar', disabled: !pattern, onSelect: () => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) autoFill(d, p, 4); }); } },
         { id: 'clear', label: 'Clear pattern steps', danger: true, disabled: !pattern, onSelect: () => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) p.steps = {}; }); } },
@@ -811,6 +829,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         </div>
       )}
 
+      <div className="flex-1 min-h-0 flex">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
       {/* The pattern bar belongs to the pattern-editing pages — Mixer and Project have no
           business showing pattern chips. */}
       {view !== 'mixer' && view !== 'project' && (
@@ -850,7 +870,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                 <FilePlus2 size={10} /> Save a copy
               </button>
               <div className="flex gap-1 px-1 pb-1.5 mb-1 border-b border-white/10">
-                <button onClick={() => { exportGrooveFile(doc); }} className="flex-1 h-7 rounded-lg text-[10px] border border-white/12 text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-center gap-1.5" title="Save this groove as a local .melos file">
+                <button onClick={() => { void exportGrooveFile(doc); }} className="flex-1 h-7 rounded-lg text-[10px] border border-white/12 text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-center gap-1.5" title="Save this groove and its audio as a portable .melos file">
                   <Download size={10} /> Save as file
                 </button>
                 <button onClick={() => melosFileRef.current?.click()} className="flex-1 h-7 rounded-lg text-[10px] border border-white/12 text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-center gap-1.5" title="Open a .melos file as a new groove">
@@ -903,12 +923,13 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                 <div className="px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-white/30">Genre patterns</div>
                 {GENRE_PRESETS.map(g => (
                   <button key={g.id} onClick={() => applyGenre(g)}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/8 transition-colors">
-                    <div className="flex items-center justify-between gap-2">
+                    className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/8 transition-colors">
+                    <DrumPatternThumb pattern={cachedPattern(g.id, g.make)} bpm={g.bpm} style={{ marginBottom: 6 }} />
+                    <div className="flex items-center justify-between gap-2 px-1">
                       <span className="text-[12px] font-bold text-white">{g.name}</span>
                       <span className="text-[9px] font-mono text-white/35 shrink-0">{g.bpm} BPM</span>
                     </div>
-                    <div className="text-[10px] text-white/45 leading-snug mt-0.5">{g.hint}</div>
+                    <div className="text-[10px] text-white/45 leading-snug mt-0.5 px-1">{g.hint}</div>
                   </button>
                 ))}
               </div>
@@ -927,18 +948,29 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                 <div className="px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-white/30">MIDI basslines · adds a BAJO</div>
                 {BASSLINES.map(b => (
                   <button key={b.id} onClick={() => applyBass(b)}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/8 transition-colors">
-                    <div className="flex items-center justify-between gap-2">
+                    className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/8 transition-colors">
+                    <BasslineThumb notes={b.notes} bpm={b.bpm} style={{ marginBottom: 6 }} />
+                    <div className="flex items-center justify-between gap-2 px-1">
                       <span className="text-[12px] font-bold text-white">{b.name}</span>
                       <span className="text-[9px] font-mono text-white/35 shrink-0">{b.genre}</span>
                     </div>
-                    <div className="text-[10px] text-white/45 leading-snug mt-0.5">{b.hint}</div>
+                    <div className="text-[10px] text-white/45 leading-snug mt-0.5 px-1">{b.hint}</div>
                   </button>
                 ))}
               </div>
             </>
           )}
         </div>
+        <button onClick={() => setUlOpen((v) => !v)} title="Universal Library — grooves, basslines and your assets"
+          className="h-6 px-2.5 rounded-lg text-[10px] border border-[#8B5CFF]/40 text-[#D0BCFF] hover:bg-[#8B5CFF]/12 flex items-center gap-1">▦ Library</button>
+        {ulOpen && (
+          <UniversalLibraryPanel accent="#FF8C00" defaultDock="floating" storageKey="melos.ullib.geo.v1" accepts={['groove', 'bassline']}
+            onClose={() => setUlOpen(false)}
+            onUse={(it) => {
+              if (it.kind === 'groove') { const g = GENRE_PRESETS.find((x) => 'groove:' + x.id === it.id); if (g) applyGenre(g); }
+              else if (it.kind === 'bassline') { const b = BASSLINES.find((x) => 'bass:' + x.id === it.id); if (b) applyBass(b); }
+            }} />
+        )}
         <div className="flex-1" />
         <button
           onClick={() => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) autoFill(d, p, 4); }); }}
@@ -1029,6 +1061,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           onEditPadInstrument={(padIdx) => { const id = doc.kit[padIdx]?.instrumentTrackId; if (id) setOpenInstrumentId(id); }}
         />
       )}
+      </div>
+      {showLibrary && <MuseLibrary docked doc={doc} onMutate={mutate} onClose={() => setShowLibrary(false)} />}
+      </div>
 
       {showDiagnostics && (
         <DiagnosticsReadout snap={snap} hidStatus={hid.status} onConnectHid={() => { void hid.connect(); }} />
@@ -1068,8 +1103,6 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       )}
 
       {showEq && <SpectraPanel doc={doc} onMutate={mutate} onClose={() => setShowEq(false)} />}
-      {showLibrary && <MuseLibrary doc={doc} onMutate={mutate} onClose={() => setShowLibrary(false)} />}
-
       {/* Pad → instrument: the picker targets a specific pad. On pick we mint a padOwned instrument
           track, link it to the pad, and open its editor — the same panels a track instrument uses. */}
       {padPickerFor !== null && (

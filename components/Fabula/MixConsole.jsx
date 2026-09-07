@@ -11,6 +11,9 @@ import {
   setReverb, setDelay, REVERB_PRESETS,
 } from "../../services/fabula/audioGraph";
 import AnalogFX from "./AnalogFX";
+// Melos Studio's effect rack + catalog, shared verbatim so Fabula's audio FX
+// mirror Melos exactly (see services/fabula/audioFx.ts).
+import { FxRack } from "../melos/beats/project/FxRack";
 
 // dB helpers for a musical fader taper (0..1.5 linear gain shown as dB).
 const toDb = (g) => (g <= 0.0001 ? -Infinity : 20 * Math.log10(g));
@@ -37,13 +40,17 @@ const EQ3 = [{ i: 0, label: "LO" }, { i: 2, label: "MID" }, { i: 4, label: "HI" 
 // Plajah-toned channel tab colors, cycled per strip (Bitwig-style multi-color channels).
 const TAB_COLORS = ["#f97316", "#00A3FF", "#22c55e", "#a855f7", "#ffcf33", "#ff6b9d"];
 
-function ChannelStrip({ tr, ts, onPatch, midiLearnId, onMidiLearn, tab }) {
+function ChannelStrip({ tr, ts, onPatch, midiLearnId, onMidiLearn, tab, selected, onSelect }) {
   const vol = ts.vol == null ? 1 : ts.vol, pan = ts.pan || 0;
   const eq = ts.eq || [0, 0, 0, 0, 0];
   const comp = ts.comp || {};
+  const fxCount = Array.isArray(ts.inserts) ? ts.inserts.filter((i) => i && i.on).length : 0;
   const setEq = (i, v) => { const n = [...eq]; n[i] = v; onPatch({ eq: n }); };
   return (
-    <div className="mcstrip" style={{ "--tab": tab }}>
+    <div className="mcstrip" onClick={onSelect}
+      style={{ "--tab": tab, cursor: "pointer", ...(selected ? { outline: "2px solid var(--tab)", outlineOffset: "-2px" } : {}) }}>
+      <button className={`mcbtn ${fxCount ? "on" : ""}`} title="Edit this track's FX inserts (Melos effect rack)"
+        onClick={(e) => { e.stopPropagation(); onSelect(); }} style={{ fontSize: 9 }}>FX{fxCount ? ` ${fxCount}` : ""}</button>
       <div className="mctop">
         {EQ3.map(({ i, label }) => (
           <div className="mcknob" key={i} title={`${label} EQ ${(eq[i] || 0) > 0 ? "+" : ""}${eq[i] || 0}dB`}>
@@ -92,6 +99,14 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
   const [masterVol, setMasterVol] = useState(() => (trackSettings?.master?.vol == null ? 1 : trackSettings.master.vol));
   const [midiStatus, setMidiStatus] = useState("MIDI: not connected");
   const [midiLearnId, setMidiLearnId] = useState(null);
+  // Which track's FX-insert rack is open below the console.
+  const [selTrack, setSelTrack] = useState(null);
+  useEffect(() => {
+    if ((selTrack == null || !audioTracks.some((t) => t.id === selTrack)) && audioTracks.length) setSelTrack(audioTracks[0].id);
+    if (!audioTracks.length && selTrack != null) setSelTrack(null);
+  }, [audioTracks, selTrack]);
+  const selName = audioTracks.find((t) => t.id === selTrack)?.name || "";
+  const selInserts = (trackSettings?.[selTrack]?.inserts) || [];
   const grRef = useRef(null);
   const midiMap = useRef({});      // CC number → trackId
   const learnRef = useRef(null);
@@ -150,7 +165,8 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
       <div className="mcrow">
         {audioTracks.map((tr, i) => (
           <ChannelStrip key={tr.id} tr={tr} ts={trackSettings?.[tr.id] || {}} tab={TAB_COLORS[i % TAB_COLORS.length]}
-            onPatch={(p) => setTrackSetting(tr.id, p)} midiLearnId={midiLearnId} onMidiLearn={learn} />
+            onPatch={(p) => setTrackSetting(tr.id, p)} midiLearnId={midiLearnId} onMidiLearn={learn}
+            selected={selTrack === tr.id} onSelect={() => setSelTrack(tr.id)} />
         ))}
         {!audioTracks.length && <div className="dim small" style={{ padding: 12 }}>No audio tracks. Add one from the timeline (+ AUDIO), or drop music/dialogue on A1/A2.</div>}
         {/* MASTER */}
@@ -188,6 +204,20 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
         <button className="minibtn" onClick={() => listOutputDevices().then(setDevices)}>↻ DEVICES</button>
         <span className="dim small">Faders/pan/EQ/comp/sends are live and bake into the export. Solo mutes the rest. MIDI-learn (◎) maps a controller to any fader.</span>
       </div>
+      {/* Melos-shared FX insert rack for the selected track — the full 30-device
+          catalog (EQ, dynamics, saturation, reverb/delay, modulation, amp rig,
+          repair…). Writes to trackSettings[id].inserts; the engine applies them live. */}
+      {selTrack && (
+        <div className="mcfxrack" style={{ marginTop: 10, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 10 }}>
+          <FxRack
+            key={selTrack}
+            instances={selInserts}
+            onChange={(next) => setTrackSetting(selTrack, { inserts: next })}
+            title={`INSERTS · ${selName}`}
+            emptyHint="Add an effect — the same rack Melos Studio uses"
+          />
+        </div>
+      )}
       {/* FX rack — vintage analog units (rotary knobs + VU needles) over the shared aux buses */}
       <AnalogFX rvb={rvb} setRvb={setRvb} dly={dly} setDly={setDly} />
     </div>

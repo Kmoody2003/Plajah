@@ -124,6 +124,8 @@ export interface TimelineClip {
   id: string;
   startBeats: number;
   lengthBeats: number;
+  /** Optional clip-local color. Unset clips inherit their track color. */
+  color?: string;
   patternId?: string;                              // kind 'pattern'
   /** kind 'pattern' — per-pad loop-length override IN 16th STEPS inside this clip. MEKA's
    *  pattern length is the default; a pad listed here loops its own shorter cycle instead
@@ -132,7 +134,11 @@ export interface TimelineClip {
   /** kind 'instrument' — a MIDI clip. */
   notes?: NoteEvent[];
   audio?: { sampleKey: string; name: string; offsetSec: number; gainDb: number;
-            durationSec: number; stretch?: number /* simple linear rate only */ };
+            durationSec: number; stretch?: number /* simple linear rate only */;
+            /** Durable private-locker fallback for reopening on another device. */
+            lockerUrl?: string;
+            /** Downsampled channel peak envelope used by every timeline renderer. */
+            peaks?: number[]; detectedBpm?: number };
 }
 
 /** The meditation suite (vela/cantus/ison/pneuma) shares one engine and one editor; they are
@@ -177,6 +183,10 @@ export interface ArrangeTrack {
   // Mixer channel: this track's own insert chain + aux sends.
   inserts?: FxInstance[];
   sends?: number[];
+  /** Optional DAW folder hierarchy. Folder tracks contain no clips and collapse their children. */
+  folderId?: string;
+  isFolder?: boolean;
+  collapsed?: boolean;
 }
 
 import type { FxInstance } from './fx/devices';

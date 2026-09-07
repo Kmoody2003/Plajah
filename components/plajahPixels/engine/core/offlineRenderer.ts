@@ -14,6 +14,10 @@
 
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
 import { Compositor, LayerInput, ShakeParams } from './compositor';
+import { segmentSubject } from '../../../../services/fabula/subjectMatte';
+import { estimateDepth, depthRangeCanvas } from '../../../../services/fabula/depthMatte';
+import { segmentSam } from '../../../../services/fabula/samMatte';
+import { renderModel3d } from './model3d';
 import { GeneratorRenderer, hasGenerator, hexToRgb } from './generators';
 import { ShaderRenderer } from './shaderRenderer';
 import { createMilkdropDriver, MilkdropDriver } from './milkdropDriver';
@@ -24,8 +28,16 @@ import { MusicAnalysis, analysisAt } from './musicAnalysis';
 import { AudioDriverSampler } from '../audioDrivers';
 import { getTextCanvas } from './textLayer';
 import { getTitleCanvas } from './titleLayer';
+import { getLowerThirdCanvas } from './lowerThirdLayer';
+import { getBroadcastGraphicCanvas, ensureBroadcastGraphic } from './broadcastGraphicLayer';
+import { findLowerThird } from '../../../../services/fabula/lowerThirdRegistry';
+import { materialShaderSource } from '../presets/materialShaders';
 import { SceneTimeline, RenderLayer, activeBlockAt, localTime } from '../timeline/sceneTimeline';
 import { normalizeVideoFrameRate, videoFrameTiming } from '../../../../services/videoFrameRate';
+import type { CubeLutData } from '../../../../services/fabula/cubeLut';
+import { getEffect } from '../fx/effects';
+import { TextOverlayCache } from '../../../../services/fabula/textOverlay';
+import { meshAuxElement } from '../../../../services/fabula/meshTrack';
 
 export interface RenderOptions {
   timeline?: SceneTimeline;              // single-track Pixels path (activeBlockAt)
@@ -48,6 +60,7 @@ export interface RenderOptions {
   analysis?: MusicAnalysis;
   onProgress?: (p: number, stage: string) => void;
   signal?: AbortSignal;
+  cubeLut?: CubeLutData | null;
 }
 
 const VIDEO_CODECS = ['avc1.4D0033', 'avc1.4D0028', 'avc1.42E01F']; // Main 5.1 → Main 4.0 → Baseline
@@ -143,7 +156,7 @@ async function loadMediaEl(url: string, type: 'video' | 'image'): Promise<HTMLVi
 
 /** Render the timeline to an MP4 Blob, or null on failure / unsupported / abort. */
 export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> {
-  const { timeline, resolveLayers, audioBuffer, config, fast, analysis, onProgress, signal } = opts;
+  const { timeline, resolveLayers, audioBuffer, config, fast, analysis, onProgress, signal, cubeLut } = opts;
   const fps = normalizeVideoFrameRate(opts.fps) || 30;
   const width = Math.max(2, Math.round(opts.width / 2) * 2);
   const height = Math.max(2, Math.round(opts.height / 2) * 2);
@@ -196,6 +209,8 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
     return d;
   };
 
+  // Text-as-input overlays: rasterised once per distinct string, reused across frames.
+  const textAux = new TextOverlayCache();
   const gradeCanvases = new Map<string, HTMLCanvasElement>(); // per-layer graded-frame buffers (Fabula color page)
   const colorCanvases = new Map<string, HTMLCanvasElement>();
   const colorEl = (hex: string) => {
@@ -248,7 +263,8 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
       // Prefer the stored analysis (deterministic, no per-frame FFT); else analyze live.
       const aud = analysis ? analysisAt(analysis, t) : (offAudio ? offAudio.sample(t) : null);
       if (aud) {
-        audioTex.updateFromArrays(aud.freq, aud.wave);
+        audioTex.updateFromArrays(aud.freq, aud.wave, audioBuffer?.sampleRate || offAudio?.sampleRate || 48_000);
+        comp.updateAudio(aud.freq, aud.wave);   // Forge effects + Beat Reactor bindings
         if (wantShake) {
           shakeSampler.updateFromArray(aud.freq, t * 1000, audioBuffer?.sampleRate || offAudio?.sampleRate || 48000);
           const target = shakeSampler.intensity * 0.4 + shakeSampler.density * 0.55;
@@ -276,12 +292,46 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
       } else { layers = []; }
 
       for (const layer of layers) {
+        const inputStart = inputs.length;
         const clip = layer.clip;
         const lt = layer.time ?? 0;
+        const forgeEffects = await Promise.all(((layer as any).forgeEffects || []).map(async (instance: any) => {
+          if (instance.maskUrl) {
+            // Asset-driven mask (PixelChooser image/video mask): the element's luma feeds the mix stage.
+            const maskEl = await getMedia(instance.maskUrl, instance.maskMediaType === 'video' ? 'video' : 'image');
+            if (maskEl instanceof HTMLVideoElement) { const dur = maskEl.duration || 0; const seek = dur > 0 ? lt % dur : lt; if (fast) { try { maskEl.currentTime = seek; } catch { /* */ } } else await seekVideo(maskEl, seek); }
+            instance = { ...instance, maskElement: maskEl };
+          }
+          const eff = getEffect(instance.effectId);
+          if (eff?.auxInput?.kind === 'mesh') {
+            // A mesh warp takes a generated displacement map, not an asset. Neutral when the clip
+            // has no track — never the renderer's source-frame fallback, which a warp shader would
+            // read as a displacement field and tear the picture apart.
+            return { ...instance, auxElement: meshAuxElement(instance.meshTrack, Math.round(lt * fps)) };
+          }
+          if (eff?.auxInput?.kind === 'text') {
+            // Text effects take a rasterised string, not an asset. Blank when empty — never the
+            // renderer's source-frame fallback, which would read as full glyph coverage.
+            return { ...instance, auxElement: textAux.resolve(instance.id, instance.textOverlay, { localT: lt, fps }, width, height) };
+          }
+          if (!instance.auxUrl) return instance;
+          const auxElement = await getMedia(instance.auxUrl, instance.auxMediaType === 'video' ? 'video' : 'image');
+          if (auxElement instanceof HTMLVideoElement) {
+            const dur = auxElement.duration || 0; const seek = dur > 0 ? lt % dur : lt;
+            if (fast) { try { auxElement.currentTime = seek; } catch { /* */ } } else await seekVideo(auxElement, seek);
+          }
+          return { ...instance, auxElement };
+        }));
         const opacity = Math.max(0, Math.min(1, (layer.opacity ?? 1) * (clip.opacity ?? 1)));
         if (clip.type === 'generator' && clip.sceneMode && hasGenerator(clip.sceneMode)) {
           const tex = gen.render(layer.id, clip.sceneMode, width, height, { time: lt, audio: audioTex, colors: palette, params: clip.params || [] });
-          inputs.push({ texture: tex, opacity, blendMode: layer.blendMode, transform: layer.transform });
+          inputs.push({ texture: tex, opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });
+        } else if (clip.type === 'model3d' && (clip.model3dUrl || (clip as any).model3d?.url)) {
+          // A loaded mesh rendered by three.js to a canvas the compositor uploads like an image —
+          // so Forge effects, grade and masks apply on top, and the model's own animation is driven
+          // to clip-local time (lt), which is why the export matches the monitor.
+          const canvas = await renderModel3d(clip.model3dUrl || (clip as any).model3d.url, (clip as any).model3d || {}, width, height, lt);
+          if (canvas) inputs.push({ element: canvas, opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography, grade: (layer as any).glGrade, grades: (layer as any).glGrades, effects: forgeEffects, time: layer.time, wipe: (layer as any).wipe, transition: (layer as any).forgeTransition });
         } else if (clip.type === 'media' && clip.mediaUrl) {
           const el = await getMedia(clip.mediaUrl, clip.mediaType ?? 'video');
           // Per-clip GRADE (Fabula color page): bake the clip's grade into the frame via a cached
@@ -310,34 +360,82 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
             if (dur > 0) st = st % dur; // loop the source within the clip
             if (fast) { try { el.currentTime = st; } catch { /* */ } } // no wait — nearest ready frame
             else await seekVideo(el, st);
-            inputs.push({ element: applyGrade(el), opacity, blendMode: layer.blendMode, transform: layer.transform, grade: (layer as any).glGrade, grades: (layer as any).glGrades, wipe: (layer as any).wipe });
+            // ML subject mattes are computed from the SEEKED frame so the export is exact.
+            for (const inst of forgeEffects) if (inst?.subjectMask) inst.maskElement = await segmentSubject(el, 512, Math.max(2, Math.round(512 * (el.videoHeight || 9) / (el.videoWidth || 16))));
+            for (const inst of forgeEffects) if (inst?.samMask) inst.maskElement = await segmentSam(el, inst.samMask, 512, Math.max(2, Math.round(512 * (el.videoHeight || 9) / (el.videoWidth || 16))), inst.samMask.feather);
+            for (const inst of forgeEffects) if (inst?.depthMask) { const d = await estimateDepth(el, 384, Math.max(2, Math.round(384 * (el.videoHeight || 9) / (el.videoWidth || 16)))); inst.maskElement = d ? depthRangeCanvas(d, inst.depthMask.near, inst.depthMask.far, inst.depthMask.feather) : null; }
+            for (const inst of forgeEffects) if (inst?.auxSource === 'depth' && !inst.auxElement) inst.auxElement = await estimateDepth(el, 384, Math.max(2, Math.round(384 * (el.videoHeight || 9) / (el.videoWidth || 16))));
+            inputs.push({ element: applyGrade(el), opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography, grade: (layer as any).glGrade, grades: (layer as any).glGrades, effects: forgeEffects, time: layer.time, wipe: (layer as any).wipe, transition: (layer as any).forgeTransition });
           } else if (el instanceof HTMLImageElement) {
-            inputs.push({ element: applyGrade(el), opacity, blendMode: layer.blendMode, transform: layer.transform, grade: (layer as any).glGrade, grades: (layer as any).glGrades, wipe: (layer as any).wipe });
+            for (const inst of forgeEffects) if (inst?.subjectMask) inst.maskElement = await segmentSubject(el, 512, Math.max(2, Math.round(512 * (el.naturalHeight || 9) / (el.naturalWidth || 16))));
+            for (const inst of forgeEffects) if (inst?.samMask) inst.maskElement = await segmentSam(el, inst.samMask, 512, Math.max(2, Math.round(512 * (el.naturalHeight || 9) / (el.naturalWidth || 16))), inst.samMask.feather);
+            for (const inst of forgeEffects) if (inst?.depthMask) { const d = await estimateDepth(el, 384, Math.max(2, Math.round(384 * (el.naturalHeight || 9) / (el.naturalWidth || 16)))); inst.maskElement = d ? depthRangeCanvas(d, inst.depthMask.near, inst.depthMask.far, inst.depthMask.feather) : null; }
+            for (const inst of forgeEffects) if (inst?.auxSource === 'depth' && !inst.auxElement) inst.auxElement = await estimateDepth(el, 384, Math.max(2, Math.round(384 * (el.naturalHeight || 9) / (el.naturalWidth || 16))));
+            inputs.push({ element: applyGrade(el), opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography, grade: (layer as any).glGrade, grades: (layer as any).glGrades, effects: forgeEffects, time: layer.time, wipe: (layer as any).wipe, transition: (layer as any).forgeTransition });
           }
         } else if (clip.type === 'color' && clip.fillColor) {
-          inputs.push({ element: colorEl(clip.fillColor), opacity, blendMode: layer.blendMode, transform: layer.transform });
+          inputs.push({ element: colorEl(clip.fillColor), opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });
         } else if (clip.type === 'text' && clip.text) {
-          inputs.push({ element: getTextCanvas(clip.text, clip.fillColor), opacity, blendMode: layer.blendMode, transform: layer.transform });
+          inputs.push({ element: getTextCanvas(clip.text, clip.fillColor), opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });
+        } else if (clip.type === 'title' && (clip as any).tGraphic && findLowerThird((clip as any).tGraphic.specId)) {
+          // Motion lower third — same renderer as Fabula's monitor, keyed per frame while animating.
+          const tc = clip as any;
+          const spec = findLowerThird(tc.tGraphic.specId)!;
+          const fusion = spec.shaderFusion;
+          const fusionSource = fusion ? materialShaderSource(fusion.shaderId) : undefined;
+          if (fusion && fusionSource) {
+            const tex = shaderRend.render(`${layer.id}:fusion`, fusionSource, width, height, { time: layer.time ?? 0, audio: audioTex, params: fusion.params || [] });
+            inputs.push({ texture: tex, opacity: opacity * fusion.opacity, blendMode: fusion.blend, transform: layer.transform, homography: (layer as any).homography });
+          }
+          inputs.push({ element: getLowerThirdCanvas({ spec, ref: tc.tGraphic, title: tc.rawText ?? clip.text ?? '', subtitle: clip.subtitle, tag: tc.tag, t: layer.time ?? 0, duration: tc.tDur ?? Infinity, origin: tc.tx != null && tc.ty != null ? { x: tc.tx, y: tc.ty } : undefined, width, height }), opacity, blendMode: 'normal', transform: layer.transform, homography: (layer as any).homography });
+        } else if (clip.type === 'title' && (clip as any).bGraphic) {
+          // Broadcast template graphic — the identity's held still + a deterministic motion
+          // envelope, same renderer as Fabula's monitor. Rasterize the still once (with the
+          // pack's fonts embedded), then the frame is a cheap enveloped draw.
+          const tc = clip as any;
+          const texts = { title: tc.rawText ?? clip.text ?? '', subtitle: clip.subtitle };
+          await ensureBroadcastGraphic(tc.bGraphic, texts);
+          const cnv = getBroadcastGraphicCanvas({ ref: tc.bGraphic, title: texts.title, subtitle: texts.subtitle, t: layer.time ?? 0, duration: tc.tDur ?? Infinity, width, height });
+          if (cnv) inputs.push({ element: cnv, opacity, blendMode: 'normal', transform: layer.transform, homography: (layer as any).homography });
         } else if (clip.type === 'title' && clip.text) {
           const tc = clip as any; // Fabula titler overrides ride along on the clip
-          inputs.push({ element: getTitleCanvas(clip.text, clip.subtitle, clip.titleStyle, clip.fillColor, { font: tc.tFont, color: tc.tColor, subColor: tc.tSubColor, size: tc.tSize, x: tc.tx, y: tc.ty }), opacity, blendMode: layer.blendMode, transform: layer.transform });
+          inputs.push({ element: getTitleCanvas(clip.text, clip.subtitle, clip.titleStyle, clip.fillColor, { font: tc.tFont, color: tc.tColor, subColor: tc.tSubColor, size: tc.tSize, x: tc.tx, y: tc.ty }, { anim: tc.tAnim, t: layer.time ?? 0, duration: tc.tDur }), opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });
         } else if (clip.type === 'shader' && clip.shaderSrc) {
           const tex = shaderRend.render(layer.id, clip.shaderSrc, width, height, { time: lt, audio: audioTex, params: clip.params || [] });
-          inputs.push({ texture: tex, opacity, blendMode: layer.blendMode, transform: layer.transform });
+          inputs.push({ texture: tex, opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });
         } else if (clip.type === 'nodegraph' && clip.graph) {
           const tex = graphRend.evaluate(clip.graph, width, height, { time: lt, audio: audioTex, colors: palette });
-          if (tex) inputs.push({ texture: tex, opacity, blendMode: layer.blendMode, transform: layer.transform });
+          if (tex) inputs.push({ texture: tex, opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });
         } else if (clip.type === 'milkdrop') {
           const preset = clip.milkdropName ?? clip.milkdropIdx ?? 0;
           const d = await getMilkdrop(layer.id, preset);
           if (d) {
             d.renderFrame(aud ? aud.wave : null);   // inject stored waveform → deterministic
-            inputs.push({ element: d.canvas, opacity, blendMode: layer.blendMode, transform: layer.transform });
+            inputs.push({ element: d.canvas, opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });
           }
+        }
+        for (let added = inputStart; added < inputs.length; added++) {
+          (inputs[added] as any).precomposeGroup = (layer as any).precomposeGroup;
+          if ((layer as any).forgeTransition) (inputs[added] as any).transition = (layer as any).forgeTransition;
         }
       }
 
-      comp.render(inputs, grade, shake);
+      // Collapse every marked compound scene to one same-context texture before
+      // it enters the two-input transition renderer.
+      const finalInputs: LayerInput[] = [];
+      for (let inputIndex = 0; inputIndex < inputs.length; inputIndex++) {
+        const input = inputs[inputIndex];
+        if (!input.precomposeGroup) { finalInputs.push(input); continue; }
+        const children: LayerInput[] = [];
+        const groupId = input.precomposeGroup; let transition = input.transition;
+        while (inputIndex < inputs.length && inputs[inputIndex].precomposeGroup === groupId) {
+          const child = { ...inputs[inputIndex], transition: null, precomposeGroup: undefined };
+          transition ||= inputs[inputIndex].transition; children.push(child); inputIndex++;
+        }
+        inputIndex--;
+        finalInputs.push({ precompose: children, opacity: 1, blendMode: 'normal', transition });
+      }
+      comp.render(finalInputs, grade, shake, cubeLut);
       const timing = videoFrameTiming(i, fps);
       const frame = new VideoFrame(canvas as any, timing);
       videoEnc.encode(frame, { keyFrame: i % gopFrames === 0 });

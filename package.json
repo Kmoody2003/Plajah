@@ -9,6 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
+    "ofx:manifest": "npx tsx scripts/emitOfxManifest.ts",
+    "ofx:check": "npm run ofx:manifest && cargo check --manifest-path rust/fabula-ofx/Cargo.toml",
     "audio:build": "cargo build --release --manifest-path rust/plajah-audio/Cargo.toml --target wasm32-unknown-unknown && node scripts/buildAudioWasm.mjs",
     "test:dsp": "node --test rust/plajah-audio/test/dsp.test.mjs",
     "sports:agent": "tsx scripts/localSportsAgent.ts",
@@ -28,10 +30,16 @@
     "test:transcode": "npx tsx --test tests/choraTranscodeWorker.test.ts",
     "test:playback": "npx tsx --test tests/playbackHealth.test.ts",
     "test:melos": "npx tsx --test tests/melosArp.test.ts tests/melosKera.test.ts",
-    "test:fabulagen": "npx tsx --test tests/fabulaGenHandoff.test.ts",
+    "test:signature": "npx tsx --test tests/signatureShaders.test.ts",
+    "test:forge": "npx tsx --test tests/forgeEffects.test.ts tests/forgeBindings.test.ts tests/ofxManifest.test.ts tests/titleAnimators.test.ts tests/titleDynamic.test.ts tests/fcpxmlTransform.test.ts tests/trackShare.test.ts tests/forgeTransitions.test.ts tests/forgeLooks.test.ts tests/audioReact.test.ts tests/forgeKeyframes.test.ts tests/forgeRegistryIntegrity.test.ts tests/textOverlay.test.ts tests/customEffects.test.ts tests/effectCost.test.ts tests/fxReference.test.ts tests/meshTrack.test.ts",
+    "test:vectortrack": "npx tsx --test tests/vectorTrack.test.ts tests/planarTrack.test.ts tests/planarSequence.test.ts",
+    "test:fabulagen": "npx tsx --test tests/fabulaGenHandoff.test.ts tests/fabulaMagnific.test.ts",
     "academia:ingest": "npx tsx scripts/ingestOerLibrary.ts",
     "test:runner": "npx tsx --test tests/serviceRunner.test.ts",
-    "test:stillness": "npx tsx --test tests/stillnessEngine.test.ts tests/solaHandoff.test.ts tests/velaPlayer.test.ts tests/velaSuite.test.ts tests/generativeChannel.test.ts tests/inflection.test.ts tests/composer.test.ts tests/autonomousProducer.test.ts"
+    "test:stillness": "npx tsx --test tests/stillnessEngine.test.ts tests/solaHandoff.test.ts tests/velaPlayer.test.ts tests/velaSuite.test.ts tests/generativeChannel.test.ts tests/inflection.test.ts tests/composer.test.ts tests/autonomousProducer.test.ts",
+    "test:tela": "npx tsx --test tests/telaTemplates.test.ts tests/lowerThirds.test.ts tests/telaStyleEraLibrary.test.ts tests/telaPublicationTemplates.test.ts",
+    "fabula:lottie": "tsx scripts/buildFabulaLottieLibrary.ts",
+    "tela:proof": "npx tsx scripts/telaGallery.ts tela-proof.html all"
   },
   "dependencies": {
     "@atproto/api": "^0.19.10",
@@ -85,6 +93,7 @@
     "konva": "^10.2.3",
     "leaflet": "^1.9.4",
     "lucide-react": "0.460.0",
+    "mediabunny": "1.55.7",
     "motion": "^12.38.0",
     "mp4-muxer": "^5.2.2",
     "onnxruntime-web": "^1.27.0",
@@ -108,7 +117,13 @@
     "vite": "^6.2.0"
   },
   "overrides": {
-    "node-domexception": "file:./mocks/node-domexception"
+    "node-domexception": "file:./mocks/node-domexception",
+    "qs": "^6.16.0",
+    "fast-uri": "^3.1.6",
+    "mysql2": "^3.22.0",
+    "three-stdlib": {
+      "fflate": "0.6.11"
+    }
   },
   "devDependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",

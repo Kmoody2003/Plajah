@@ -36,6 +36,7 @@ import {
   type AriaContextSnapshot,
   type AriaActionHandler,
 } from './ariaContext';
+import { resolveAriaCreativeRole } from './ariaCreativeRoles';
 
 export interface AriaSurfaceConfig extends AriaContextSnapshot {
   /** Handlers keyed by the bare action id (matching `actions[].id`). */
@@ -70,7 +71,7 @@ export function useAriaSurface(
   useEffect(() => {
     if (!surface) return;
     const { handlers, ...snapshot } = config;
-    publishAriaContext(snapshot);
+    publishAriaContext({ ...snapshot, creativeRole: snapshot.creativeRole ?? resolveAriaCreativeRole(snapshot.surface, snapshot.domain) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [surface, ...deps]);
 }

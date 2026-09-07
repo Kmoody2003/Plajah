@@ -9,6 +9,7 @@
  * cleared with `null` — NEVER `undefined`, which throws on a Firestore write.
  */
 import React, { useMemo, useState } from 'react';
+import { cleanDescription } from '../../utils/description';
 import { motion, AnimatePresence } from 'motion/react';
 import { Play, Sparkles, Pencil, X, Check, RotateCcw } from 'lucide-react';
 import type { Album, FeaturedProjectRef } from '../../types';
@@ -64,7 +65,7 @@ const ProfileFeaturedProject: React.FC<ProfileFeaturedProjectProps> = ({
   };
 
   const canPlay = featured.kind === 'ALBUM' && !!featured.album?.tracks?.length;
-  const description: string = featured.album?.description || featured.raw?.description || '';
+  const description: string = cleanDescription(featured.album?.description) || cleanDescription(featured.raw?.description);
   const trackCount = featured.album?.tracks?.length || 0;
 
   return (

@@ -19,7 +19,7 @@ import { listCloudAssets, resolveCloudFile, cloudSupported } from '../../../../s
 import { coverCss, accentFor } from '../../../../services/melos/instruments/presetArt';
 import { PLAYHEAD, SELECT, SURFACE } from '../theme';
 
-interface Props { doc: GrooveDoc; onMutate: (fn: (d: GrooveDoc) => void) => void; onClose: () => void; }
+interface Props { doc: GrooveDoc; onMutate: (fn: (d: GrooveDoc) => void) => void; onClose: () => void; docked?: boolean; }
 
 interface Row extends MuseAsset {
   getFile?: () => Promise<File | null>;   // local files
@@ -29,7 +29,10 @@ interface Row extends MuseAsset {
 const AUDIO_RE = /\.(wav|mp3|ogg|flac|m4a|aif|aiff)$/i;
 const kindOfName = (name: string, dur: number): MuseKind => (dur >= 1 && dur <= 8 ? 'loop' : 'sample');
 
-export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose }) => {
+export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose, docked = false }) => {
+  const [dockW, setDockW] = useState(() => Number(localStorage.getItem('melos:media-library-width')) || 520);
+  const [sourceW, setSourceW] = useState(() => Number(localStorage.getItem('media-library:source-width')) || 176);
+  const [inspectorW, setInspectorW] = useState(() => Number(localStorage.getItem('media-library:inspector-width')) || 232);
   const [source, setSource] = useState<MuseSource>('factory');
   const [category, setCategory] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -52,7 +55,7 @@ export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose }) => {
   const projectRows: Row[] = useMemo(() => {
     const out: Row[] = [];
     doc.kit.forEach((pad) => { if (pad.source === 'sample' && pad.sample) out.push({ id: `p:pad:${pad.id}`, kind: 'sample', name: pad.sample.name, source: 'project', ref: { sampleKey: pad.sample.key, lockerUrl: pad.sample.lockerUrl }, tags: ['pad'], category: 'Samples' }); });
-    for (const t of doc.arrangement) for (const c of t.clips) if (c.audio) out.push({ id: `p:clip:${c.id}`, kind: 'audio', name: c.audio.name, source: 'project', ref: { sampleKey: c.audio.sampleKey }, tags: ['clip'], category: 'Audio files' });
+    for (const t of doc.arrangement) for (const c of t.clips) if (c.audio) out.push({ id: `p:clip:${c.id}`, kind: 'audio', name: c.audio.name, source: 'project', ref: { sampleKey: c.audio.sampleKey, lockerUrl: c.audio.lockerUrl }, tags: ['clip'], category: 'Audio files' });
     for (const t of doc.arrangement) if (t.kind === 'instrument' && t.instrument) out.push({ id: `p:inst:${t.id}`, kind: 'instrument', name: t.name, source: 'project', ref: { presetName: t.instrument.presetName }, tags: [t.instrument.type], category: 'Instruments' });
     return out;
   }, [doc]);
@@ -173,10 +176,14 @@ export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose }) => {
   );
 
   return (
-    <div className="absolute inset-0 z-50 grid place-items-center bg-black/72 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="w-full max-w-5xl rounded-[20px] border border-white/[0.16] overflow-hidden shadow-2xl flex flex-col" style={{ background: SURFACE, height: '84vh' }} onClick={(e) => e.stopPropagation()}>
+    <div className={docked ? 'relative flex-none h-full min-h-0 border-l border-white/10' : 'absolute inset-0 z-50 grid place-items-center pointer-events-none p-4'} style={docked ? { width: dockW } : undefined}>
+      {docked && <div className="absolute left-0 inset-y-0 w-2 -translate-x-1/2 z-10 cursor-col-resize hover:bg-[#00DAF3]/25 touch-none" title="Drag to resize Media Library"
+        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); e.currentTarget.dataset.x = String(e.clientX); e.currentTarget.dataset.w = String(dockW); }}
+        onPointerMove={(e) => { if (e.currentTarget.hasPointerCapture(e.pointerId)) setDockW(Math.max(360, Math.min(900, Number(e.currentTarget.dataset.w) + Number(e.currentTarget.dataset.x) - e.clientX))); }}
+        onPointerUp={(e) => { const next = Math.max(360, Math.min(900, Number(e.currentTarget.dataset.w) + Number(e.currentTarget.dataset.x) - e.clientX)); setDockW(next); try { localStorage.setItem('melos:media-library-width', String(next)); } catch { /* */ } e.currentTarget.releasePointerCapture(e.pointerId); }} />}
+      <div className={`${docked ? 'w-full h-full' : 'pointer-events-auto w-[min(1000px,82vw)] h-[72vh] rounded-[20px] shadow-2xl'} border border-white/[0.16] overflow-hidden flex flex-col`} style={{ background: SURFACE }}>
         <div className="flex items-center gap-3 px-4 h-12 border-b border-white/10 flex-none" style={{ background: '#0C0C10' }}>
-          <span className="font-black text-[13px] tracking-[0.08em]" style={{ color: PLAYHEAD }}>MUSE LIBRARY</span>
+          <span className="font-black text-[13px] tracking-[0.08em]" style={{ color: PLAYHEAD }}>MEDIA LIBRARY</span>
           <div className="relative ml-2">
             <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-white/25" />
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search sounds, keys, tempos" className="w-56 h-8 pl-7 pr-2 rounded-lg bg-black/40 border border-white/10 text-[12px] text-white outline-none focus:border-white/30" />
@@ -186,7 +193,7 @@ export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose }) => {
           <button onClick={onClose} aria-label="Close" className="w-8 h-8 grid place-items-center rounded-lg border border-white/10 text-white/50 hover:text-white"><X size={15} /></button>
         </div>
 
-        <div className="grid flex-1 min-h-0" style={{ gridTemplateColumns: '176px 1fr 232px' }}>
+        <div className="grid flex-1 min-h-0" style={{ gridTemplateColumns: `${sourceW}px 6px minmax(260px,1fr) 6px ${inspectorW}px` }}>
           {/* sources */}
           <div className="p-2.5 border-r border-white/10 overflow-y-auto" style={{ background: '#0C0C10' }}>
             <p className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-semibold px-1 mb-1.5">Sources</p>
@@ -206,6 +213,8 @@ export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose }) => {
             </>)}
           </div>
 
+          <ResizeRail value={sourceW} min={132} max={360} direction={1} storageKey="media-library:source-width" onChange={setSourceW} />
+
           {/* asset list */}
           <div className="overflow-y-auto">
             <table className="w-full text-[12px]">
@@ -216,7 +225,9 @@ export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose }) => {
                 {filtered.map((r) => {
                   const a = analyzed.current.get(r.id)?.analysis; const isSel = r.id === sel; const accent = accentFor(r.category);
                   return (
-                    <tr key={r.id} onClick={() => selectRow(r)} className="cursor-pointer" style={isSel ? { background: 'rgba(0,218,243,0.08)' } : undefined}>
+                    <tr key={r.id} onClick={() => selectRow(r)} draggable={r.source === 'project' && r.kind !== 'instrument'}
+                      onDragStart={(e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('application/x-plajah-media-asset', JSON.stringify({ context: 'melos', id: r.id, name: r.name, kind: r.kind, sampleKey: r.ref.sampleKey })); }}
+                      className="cursor-pointer" style={isSel ? { background: 'rgba(0,218,243,0.08)' } : undefined}>
                       <td className="px-2.5 py-1.5"><button onClick={(e) => { e.stopPropagation(); void audition(r); }} aria-label="Preview" className="w-6 h-6 rounded-full grid place-items-center border" style={{ borderColor: `${PLAYHEAD}55`, color: PLAYHEAD }}><Play size={11} /></button></td>
                       <td className="px-2.5 py-1.5"><span className="flex items-center gap-2"><span className="w-5 h-5 rounded flex-none" style={{ background: r.kind === 'instrument' ? coverCss(r.name, r.category) : '#0d0d12', border: r.kind !== 'instrument' ? `1px solid ${accent}44` : 'none' }} /><span className="text-white/85 truncate">{r.name}</span><span className="font-mono text-[8px] px-1 rounded" style={{ background: `${accent}22`, color: accent }}>{r.kind}</span></span></td>
                       <td className="px-2.5 py-1.5 font-mono" style={{ color: a?.keyRoot != null ? '#57E389' : 'rgba(255,255,255,0.25)' }}>{a ? keyLabel(a) : (r.kind === 'instrument' ? '—' : '·')}</td>
@@ -229,6 +240,8 @@ export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose }) => {
               </tbody>
             </table>
           </div>
+
+          <ResizeRail value={inspectorW} min={180} max={420} direction={-1} storageKey="media-library:inspector-width" onChange={setInspectorW} />
 
           {/* inspector */}
           <div className="border-l border-white/10 p-3.5 overflow-y-auto" style={{ background: '#0C0C10' }}>
@@ -262,4 +275,11 @@ const Stat: React.FC<{ label: string; value: string; accent?: string }> = ({ lab
     <div className="font-mono text-[8px] uppercase tracking-wide text-white/35">{label}</div>
     <div className="text-[14px] font-semibold font-mono mt-0.5" style={{ color: accent || 'var(--text)' }}>{value}</div>
   </div>
+);
+
+const ResizeRail: React.FC<{ value: number; min: number; max: number; direction: 1 | -1; storageKey: string; onChange: (v: number) => void }> = ({ value, min, max, direction, storageKey, onChange }) => (
+  <div className="cursor-col-resize touch-none bg-white/[0.025] hover:bg-[#00DAF3]/25 transition-colors" title="Drag to resize this section"
+    onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); e.currentTarget.dataset.x = String(e.clientX); e.currentTarget.dataset.w = String(value); }}
+    onPointerMove={(e) => { if (!e.currentTarget.hasPointerCapture(e.pointerId)) return; onChange(Math.max(min, Math.min(max, Number(e.currentTarget.dataset.w) + direction * (e.clientX - Number(e.currentTarget.dataset.x))))); }}
+    onPointerUp={(e) => { const next = Math.max(min, Math.min(max, Number(e.currentTarget.dataset.w) + direction * (e.clientX - Number(e.currentTarget.dataset.x)))); onChange(next); try { localStorage.setItem(storageKey, String(next)); } catch { /* */ } e.currentTarget.releasePointerCapture(e.pointerId); }} />
 );

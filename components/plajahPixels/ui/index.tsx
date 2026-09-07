@@ -15,6 +15,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { getShaderThumb, peekShaderThumb } from './shaderThumbs';
+import { ShaderPreviewTile } from '../components/ShaderPreviewTile';
 
 export { Button, IconButton, Surface, Actions, Eyebrow, Input, Chip } from '../../ui';
 
@@ -119,12 +120,14 @@ export interface WorkCardProps {
   /** Picked but not yet committed to program — a softer ring than `selected`. */
   picked?: boolean;
   live?: Record<string, number>;
+  /** Render a live animated shader over the still (visible-gated by the shared engine). */
+  livePreview?: boolean;
   onClick?: () => void;
   onDoubleClick?: () => void;
 }
 
 export const WorkCard: React.FC<WorkCardProps> = ({
-  name, cacheKey, src, meta, bands, selected, picked, live, onClick, onDoubleClick,
+  name, cacheKey, src, meta, bands, selected, picked, live, livePreview, onClick, onDoubleClick,
 }) => {
   const [thumb, setThumb] = useState<string | null>(() => peekShaderThumb(cacheKey));
 
@@ -155,7 +158,7 @@ export const WorkCard: React.FC<WorkCardProps> = ({
       ].join(' ')}
     >
       <span
-        className="block aspect-video bg-black/60 bg-cover bg-center"
+        className="relative block aspect-video bg-black/60 bg-cover bg-center"
         style={thumb ? { backgroundImage: `url(${thumb})` } : undefined}
       >
         {!thumb && (
@@ -163,6 +166,7 @@ export const WorkCard: React.FC<WorkCardProps> = ({
             <span className="type-label-sm uppercase tracking-[0.14em] text-white/20">rendering</span>
           </span>
         )}
+        {livePreview && <ShaderPreviewTile id={cacheKey} src={src} />}
       </span>
       <span className="block px-2 pt-1.5 pb-2">
         <span className="block type-body-sm font-semibold text-white/90 truncate leading-tight">{name}</span>

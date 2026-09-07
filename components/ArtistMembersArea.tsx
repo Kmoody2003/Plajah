@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { cleanDescription } from '../utils/description';
 import { Shield, Sparkles, Heart, Target, Users, Lock, ChevronRight, Gift, Star, Zap, DollarSign, TrendingUp, Calendar, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, Album, MembershipTier } from '../types';
@@ -216,7 +217,7 @@ const ArtistMembersArea: React.FC<ArtistMembersAreaProps> = ({ artistId, artist:
                   </div>
                   <div className="p-8">
                     <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-8 line-clamp-2 leading-relaxed">
-                      {project.description || "Help fund the production of this new creative endeavor."}
+                      {cleanDescription(project.description) || "Help fund the production of this new creative endeavor."}
                     </p>
                     
                     <div className="space-y-4 mb-8">

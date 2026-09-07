@@ -5,6 +5,7 @@
 // scalars every consumer needs, so the FFT is read once for the whole GPU stage.
 
 import { GL } from './glUtil';
+import { extractChroma, smoothChroma, writeChromaAlpha } from './audioChroma';
 
 const W = 512;
 
@@ -13,6 +14,7 @@ export class AudioTexture {
   private pixels = new Uint8Array(W * 2 * 4);
   private freq: Uint8Array | null = null;
   private wave: Uint8Array | null = null;
+  private chroma = new Float32Array(12);
   bass = 0; mid = 0; treble = 0; level = 0;
 
   constructor(private gl: GL) {
@@ -35,16 +37,16 @@ export class AudioTexture {
     if (!this.wave || this.wave.length !== fftN) this.wave = new Uint8Array(fftN);
     analyser.getByteFrequencyData(this.freq);
     analyser.getByteTimeDomainData(this.wave);
-    this.process(this.freq, this.wave);
+    this.process(this.freq, this.wave, analyser.context.sampleRate);
   }
 
   /** Worker path: process + upload from raw arrays transferred from the main
    *  thread (a worker has no AnalyserNode). */
-  updateFromArrays(freq: Uint8Array, wave: Uint8Array) {
-    this.process(freq, wave);
+  updateFromArrays(freq: Uint8Array, wave: Uint8Array, sampleRate = 48_000) {
+    this.process(freq, wave, sampleRate);
   }
 
-  private process(freq: Uint8Array, wave: Uint8Array) {
+  private process(freq: Uint8Array, wave: Uint8Array, sampleRate: number) {
     const gl = this.gl;
     const bins = freq.length;
     const fftN = wave.length;
@@ -69,6 +71,8 @@ export class AudioTexture {
     this.mid = midSum / Math.max(1, midEnd - bassEnd) / 255;
     this.treble = trebSum / Math.max(1, bins - midEnd) / 255;
     this.level = sum / bins / 255;
+    smoothChroma(this.chroma, extractChroma(freq, sampleRate));
+    writeChromaAlpha(this.pixels, this.chroma);
 
     gl.bindTexture(gl.TEXTURE_2D, this.tex);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, 2, gl.RGBA, gl.UNSIGNED_BYTE, this.pixels);
