@@ -200,6 +200,106 @@ class GateDevice extends FxBase {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// DEVICE: Glue Comp — SSL-style program-dependent bus compressor, with a parallel
+// mix so you can compress hard and blend the transients back in.
+// ═══════════════════════════════════════════════════════════════════════════
+class GlueCompDevice extends FxBase {
+  private comp: DynamicsCompressorNode;
+  private makeup: GainNode;
+  private dry: GainNode; private wet: GainNode;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.comp = this.own(ctx.createDynamicsCompressor());
+    this.makeup = this.own(ctx.createGain());
+    this.dry = this.own(ctx.createGain());
+    this.wet = this.own(ctx.createGain());
+    this.comp.knee.value = 6; // soft SSL-ish knee — glue, not clamp
+    // parallel: input → dry → out ; input → comp → makeup → wet → out
+    this.input.connect(this.dry); this.dry.connect(this.output);
+    this.input.connect(this.comp); this.comp.connect(this.makeup); this.makeup.connect(this.wet); this.wet.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    this.comp.ratio.value = Math.max(1.5, p.ratio ?? 4);      // SSL: 2 / 4 / 10
+    this.comp.threshold.value = Math.max(-60, Math.min(0, p.threshold ?? -20));
+    this.comp.attack.value = Math.max(0.0001, (p.attack ?? 10) / 1000);   // 0.1–30 ms
+    this.comp.release.value = Math.max(0.05, (p.release ?? 300) / 1000);  // 0.1–1.2 s
+    this.makeup.gain.value = dbToGain(p.makeup ?? 0);
+    const mix = Math.max(0, Math.min(1, (p.mix ?? 100) / 100));
+    this.wet.gain.value = mix; this.dry.gain.value = 1 - mix;
+  }
+  gr(): number { return this.comp.reduction; }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DEVICE: Upward Expander — lift the quiet parts (the inverse of a gate): adds
+// depth and life to a mix or a reverb tail without touching the loud material.
+// ═══════════════════════════════════════════════════════════════════════════
+class UpwardExpanderDevice extends FxBase {
+  private detector: AnalyserNode; private amp: GainNode; private buf: Float32Array;
+  private threshold = -40; private amount = 6; private attack = 0.01; private release = 0.15;
+  private timer: ReturnType<typeof setInterval>;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.detector = this.own(ctx.createAnalyser()); this.detector.fftSize = 256; this.detector.smoothingTimeConstant = 0;
+    this.amp = this.own(ctx.createGain()); this.buf = new Float32Array(this.detector.fftSize);
+    this.input.connect(this.detector); this.input.connect(this.amp); this.amp.connect(this.output);
+    this.timer = setInterval(() => {
+      this.detector.getFloatTimeDomainData(this.buf); let sum = 0;
+      for (let i = 0; i < this.buf.length; i++) sum += this.buf[i] * this.buf[i];
+      const rms = Math.sqrt(sum / this.buf.length); const db = rms > 1e-7 ? 20 * Math.log10(rms) : -140;
+      // Below threshold (and above a −70 dB floor so it doesn't lift pure noise) → boost, more the
+      // further below, capped at `amount`.
+      let boostDb = 0;
+      if (db < this.threshold && db > -70) boostDb = Math.min(this.amount, (this.threshold - db) * (this.amount / 24));
+      const target = dbToGain(boostDb);
+      const tc = target > this.amp.gain.value ? this.attack : this.release;
+      this.amp.gain.setTargetAtTime(target, this.ctx.currentTime, Math.max(0.001, tc));
+    }, 8);
+  }
+  setParams(p: Record<string, number>): void {
+    this.threshold = Math.max(-70, Math.min(0, p.threshold ?? -40));
+    this.amount = Math.max(0, Math.min(18, p.amount ?? 6));
+    this.attack = Math.max(0.001, (p.attack ?? 10) / 1000);
+    this.release = Math.max(0.02, (p.release ?? 150) / 1000);
+  }
+  dispose(): void { clearInterval(this.timer); super.dispose(); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DEVICE: Multiband Dynamics — 3-band compressor. Linkwitz-Riley 4th-order
+// crossovers (two cascaded Q=0.707 biquads per split) so the bands sum flat;
+// each band has its own threshold, one shared ratio/attack/release.
+// ═══════════════════════════════════════════════════════════════════════════
+class MultibandDevice extends FxBase {
+  private loLP1: BiquadFilterNode; private loLP2: BiquadFilterNode;
+  private midHP1: BiquadFilterNode; private midHP2: BiquadFilterNode; private midLP1: BiquadFilterNode; private midLP2: BiquadFilterNode;
+  private hiHP1: BiquadFilterNode; private hiHP2: BiquadFilterNode;
+  private lo: DynamicsCompressorNode; private mid: DynamicsCompressorNode; private hi: DynamicsCompressorNode;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    const bq = (type: BiquadFilterType) => { const f = this.own(ctx.createBiquadFilter()); f.type = type; f.Q.value = 0.7071; return f; };
+    this.loLP1 = bq('lowpass'); this.loLP2 = bq('lowpass');
+    this.midHP1 = bq('highpass'); this.midHP2 = bq('highpass'); this.midLP1 = bq('lowpass'); this.midLP2 = bq('lowpass');
+    this.hiHP1 = bq('highpass'); this.hiHP2 = bq('highpass');
+    this.lo = this.own(ctx.createDynamicsCompressor()); this.mid = this.own(ctx.createDynamicsCompressor()); this.hi = this.own(ctx.createDynamicsCompressor());
+    for (const c of [this.lo, this.mid, this.hi]) c.knee.value = 6;
+    this.input.connect(this.loLP1); this.loLP1.connect(this.loLP2); this.loLP2.connect(this.lo); this.lo.connect(this.output);
+    this.input.connect(this.midHP1); this.midHP1.connect(this.midHP2); this.midHP2.connect(this.midLP1); this.midLP1.connect(this.midLP2); this.midLP2.connect(this.mid); this.mid.connect(this.output);
+    this.input.connect(this.hiHP1); this.hiHP1.connect(this.hiHP2); this.hiHP2.connect(this.hi); this.hi.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    const xl = Math.max(40, Math.min(1000, p.crossLow ?? 200));
+    const xh = Math.max(1000, Math.min(14000, p.crossHigh ?? 2500));
+    for (const f of [this.loLP1, this.loLP2, this.midHP1, this.midHP2]) f.frequency.value = (f === this.loLP1 || f === this.loLP2) ? xl : xl;
+    for (const f of [this.midLP1, this.midLP2, this.hiHP1, this.hiHP2]) f.frequency.value = xh;
+    const ratio = Math.max(1, p.ratio ?? 3), atk = Math.max(0.0001, (p.attack ?? 15) / 1000), rel = Math.max(0.02, (p.release ?? 200) / 1000);
+    const set = (c: DynamicsCompressorNode, thr: number) => { c.threshold.value = Math.max(-60, Math.min(0, thr)); c.ratio.value = ratio; c.attack.value = atk; c.release.value = rel; };
+    set(this.lo, p.loThresh ?? -24); set(this.mid, p.midThresh ?? -22); set(this.hi, p.hiThresh ?? -20);
+  }
+  gr(): number { return Math.min(this.lo.reduction, this.mid.reduction, this.hi.reduction); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // DEVICE: Exciter / Saturator (Ozone Exciter + Vintage Tape analogue)
 // ═══════════════════════════════════════════════════════════════════════════
 class SaturatorDevice extends FxBase {
@@ -1320,6 +1420,45 @@ export const DEVICES: FxDescriptor[] = [
       { key: 'release', label: 'Release', min: 10, max: 500, default: 120, unit: 'ms' },
     ],
     create: (ctx) => new GateDevice(ctx),
+  },
+  {
+    type: 'gluecomp', label: 'Glue Comp', category: 'dynamics', color: C.dynamics,
+    blurb: 'SSL-style bus glue — program-dependent, parallel-mixable',
+    params: [
+      { key: 'threshold', label: 'Thresh', min: -60, max: 0, default: -20, unit: 'dB' },
+      { key: 'ratio', label: 'Ratio', min: 1.5, max: 10, default: 4, format: (v) => `${v.toFixed(1)}:1` },
+      { key: 'attack', label: 'Attack', min: 0.1, max: 30, default: 10, unit: 'ms', curve: 'log' },
+      { key: 'release', label: 'Release', min: 50, max: 1200, default: 300, unit: 'ms' },
+      { key: 'makeup', label: 'Makeup', min: 0, max: 24, default: 0, unit: 'dB' },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 100, unit: '%' },
+    ],
+    create: (ctx) => new GlueCompDevice(ctx),
+  },
+  {
+    type: 'multiband', label: 'Multiband', category: 'dynamics', color: C.dynamics,
+    blurb: '3-band compressor — LR4 crossovers, per-band threshold',
+    params: [
+      { key: 'crossLow', label: 'Low×', min: 40, max: 1000, default: 200, unit: 'Hz', curve: 'log' },
+      { key: 'crossHigh', label: 'High×', min: 1000, max: 14000, default: 2500, unit: 'Hz', curve: 'log' },
+      { key: 'loThresh', label: 'Low Thr', min: -60, max: 0, default: -24, unit: 'dB' },
+      { key: 'midThresh', label: 'Mid Thr', min: -60, max: 0, default: -22, unit: 'dB' },
+      { key: 'hiThresh', label: 'High Thr', min: -60, max: 0, default: -20, unit: 'dB' },
+      { key: 'ratio', label: 'Ratio', min: 1, max: 12, default: 3, format: (v) => `${v.toFixed(1)}:1` },
+      { key: 'attack', label: 'Attack', min: 0.5, max: 100, default: 15, unit: 'ms', curve: 'log' },
+      { key: 'release', label: 'Release', min: 20, max: 800, default: 200, unit: 'ms' },
+    ],
+    create: (ctx) => new MultibandDevice(ctx),
+  },
+  {
+    type: 'upexp', label: 'Upward Exp', category: 'dynamics', color: C.dynamics,
+    blurb: 'Lift the quiet parts — depth and life, the inverse of a gate',
+    params: [
+      { key: 'threshold', label: 'Thresh', min: -70, max: 0, default: -40, unit: 'dB' },
+      { key: 'amount', label: 'Amount', min: 0, max: 18, default: 6, unit: 'dB' },
+      { key: 'attack', label: 'Attack', min: 1, max: 100, default: 10, unit: 'ms' },
+      { key: 'release', label: 'Release', min: 20, max: 500, default: 150, unit: 'ms' },
+    ],
+    create: (ctx) => new UpwardExpanderDevice(ctx),
   },
   {
     type: 'saturator', label: 'Saturator', category: 'saturation', color: C.saturation,
