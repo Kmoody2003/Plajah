@@ -208,6 +208,22 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const clipSelection = useUniversalMultiSelect(p.doc.arrangement.flatMap(track => track.clips.map(clip => clip.id)));
   const selectedClip = clipSelection.primaryId;
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
+  // Per-track lane height drag (Bitwig-style). Live-preview in local state, commit on release.
+  const [laneDrag, setLaneDrag] = useState<{ id: string; h: number } | null>(null);
+  const laneHeightOf = (track: { id: string; laneH?: number }) =>
+    (laneDrag && laneDrag.id === track.id) ? laneDrag.h : (track.laneH || LANE_H);
+  const startLaneResize = (trackId: string, startH: number, e: React.PointerEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    const startY = e.clientY;
+    let latest = startH;
+    const move = (ev: PointerEvent) => { latest = Math.max(28, Math.min(320, startH + (ev.clientY - startY))); setLaneDrag({ id: trackId, h: latest }); };
+    const up = () => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+      p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); if (t) t.laneH = latest; });
+      setLaneDrag(null);
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  };
   const clipboardRef = useRef<{ trackId: string; clip: TimelineClip } | null>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
   const colorTargetRef = useRef<{ trackId: string; clipId: string } | null>(null);
@@ -772,7 +788,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
               })}
 
               {p.doc.arrangement.filter((track) => !track.padOwned && (!track.folderId || !p.doc.arrangement.find((f) => f.id === track.folderId)?.collapsed)).map((track) => (
-                <div key={track.id} className="flex border-b border-white/[0.06]" style={{ height: LANE_H, opacity: track.foreign ? 0.65 : 1 }}>
+                <div key={track.id} className="flex border-b border-white/[0.06]" style={{ height: laneHeightOf(track), opacity: track.foreign ? 0.65 : 1 }}>
                   <div
                     className="sticky left-0 z-10 flex items-center gap-2 px-3 bg-[#0E0916] border-r border-white/10"
                     style={{
@@ -782,6 +798,14 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                     onClick={() => setSelectedTrack(track.id)}
                     {...trackMenu.bind(track.id)}
                   >
+                    {/* Bitwig-style per-track height grip — drag the track's bottom edge. */}
+                    <div
+                      onPointerDown={(e) => startLaneResize(track.id, laneHeightOf(track), e)}
+                      onClick={(e) => e.stopPropagation()}
+                      onDoubleClick={(e) => { e.stopPropagation(); p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === track.id); if (t) t.laneH = undefined; }); }}
+                      className="absolute left-0 right-0 bottom-0 h-[6px] cursor-ns-resize hover:bg-[#FF8C00]/50 z-20"
+                      title="Drag to resize this track · double-click to reset"
+                    />
                     {track.isFolder ? (
                       <button onClick={(e) => { e.stopPropagation(); p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === track.id); if (t) t.collapsed = !t.collapsed; }); }} className="w-4 h-6 grid place-items-center text-white/50" aria-label={track.collapsed ? `Expand ${track.name}` : `Collapse ${track.name}`}>{track.collapsed ? <ChevronUp size={12} /> : <ChevronDown size={12} />}</button>
                     ) : track.kind === 'instrument' && !track.foreign ? (

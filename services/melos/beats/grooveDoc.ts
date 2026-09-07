@@ -187,6 +187,8 @@ export interface ArrangeTrack {
   folderId?: string;
   isFolder?: boolean;
   collapsed?: boolean;
+  /** Per-track lane height in the arrangement timeline (px). Undefined = default LANE_H. */
+  laneH?: number;
 }
 
 import type { FxInstance } from './fx/devices';
