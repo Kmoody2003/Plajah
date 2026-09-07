@@ -958,7 +958,7 @@ class PhaserDevice extends FxBase {
     this.fb = this.own(ctx.createGain());
     this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
     let node: AudioNode = this.input;
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 12; i++) {
       const ap = this.own(ctx.createBiquadFilter()); ap.type = 'allpass'; ap.Q.value = 0.55;
       this.lfo.depth.connect(ap.frequency);
       node.connect(ap); node = ap; this.stages.push(ap);
@@ -969,9 +969,9 @@ class PhaserDevice extends FxBase {
   }
   setParams(p: Record<string, number>): void {
     const center = clampHz(p.center ?? 900);
-    const active = Math.max(2, Math.min(6, Math.round(p.stages ?? 4)));
+    const active = Math.max(2, Math.min(12, Math.round(p.stages ?? 4)));
     this.stages.forEach((ap, i) => {
-      ap.frequency.value = center * (1 + i * 0.5);
+      ap.frequency.value = center * (1 + i * 0.4);
       ap.Q.value = i < active ? 0.55 : 0.0001; // parked stages pass through flat
     });
     this.lfo.set(p.rate ?? 0.4, Math.max(0, Math.min(1, p.depth ?? 0.6)) * center * 0.8);
@@ -1861,6 +1861,124 @@ class CosmosDevice extends FxBase {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// WAVE 4 — analog character: Tape and Exciter. Plus an Ensemble chorus.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// DEVICE: Tape — a tape-machine channel. Head-bump low shelf → wow/flutter (two LFOs on a short delay,
+// slow wow + fast flutter) → tape saturation (soft, slightly asymmetric) → HF head rolloff → a whisper
+// of hiss. The whole flavour of tape: fatter lows, a hair of pitch drift, gentle compression-by-clipping,
+// rolled-off top.
+class TapeDevice extends FxBase {
+  private bump: BiquadFilterNode; private wowDelay: DelayNode; private wow: Lfo; private flutter: Lfo;
+  private sat: WaveShaperNode; private roll: BiquadFilterNode;
+  private hiss: AudioBufferSourceNode; private hissLP: BiquadFilterNode; private hissGain: GainNode;
+  private dry: GainNode; private wet: GainNode; private makeup: GainNode;
+  private lastCurve = '';
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.bump = this.own(ctx.createBiquadFilter()); this.bump.type = 'lowshelf'; this.bump.frequency.value = 90;
+    this.wowDelay = this.own(ctx.createDelay(0.05)); this.wowDelay.delayTime.value = 0.004;
+    this.wow = new Lfo(ctx); this.flutter = new Lfo(ctx, 'triangle');
+    this.wow.depth.connect(this.wowDelay.delayTime); this.flutter.depth.connect(this.wowDelay.delayTime);
+    this.sat = this.own(ctx.createWaveShaper()); this.sat.oversample = '4x';
+    this.roll = this.own(ctx.createBiquadFilter()); this.roll.type = 'lowpass'; this.roll.frequency.value = 12000;
+    const nb = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); const nd = nb.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    this.hiss = ctx.createBufferSource(); this.hiss.buffer = nb; this.hiss.loop = true;
+    this.hissLP = this.own(ctx.createBiquadFilter()); this.hissLP.type = 'lowpass'; this.hissLP.frequency.value = 13000;
+    this.hissGain = this.own(ctx.createGain()); this.hissGain.gain.value = 0;
+    this.hiss.connect(this.hissLP); this.hissLP.connect(this.hissGain); this.hissGain.connect(this.output);
+    this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain()); this.makeup = this.own(ctx.createGain());
+    this.input.connect(this.dry); this.dry.connect(this.output);
+    this.input.connect(this.bump); this.bump.connect(this.wowDelay); this.wowDelay.connect(this.sat);
+    this.sat.connect(this.roll); this.roll.connect(this.makeup); this.makeup.connect(this.wet); this.wet.connect(this.output);
+    this.hiss.start();
+  }
+  setParams(p: Record<string, number>): void {
+    const drive = Math.max(0, Math.min(1, p.drive ?? 0.3));
+    const bias = Math.max(0, Math.min(1, p.bias ?? 0.1));
+    const key = `${drive.toFixed(3)}:${bias.toFixed(3)}`;
+    if (key !== this.lastCurve) { this.lastCurve = key; this.sat.curve = driveCurve(0.08 + drive * 0.6, bias * 0.3); }
+    this.bump.frequency.value = clampHz(p.bumpFreq ?? 90);
+    this.bump.gain.value = Math.max(0, Math.min(9, p.bump ?? 3));
+    this.wow.set(0.7, Math.max(0, Math.min(1, p.wow ?? 0.3)) * 0.0016);
+    this.flutter.set(8.5, Math.max(0, Math.min(1, p.flutter ?? 0.2)) * 0.0004);
+    this.roll.frequency.value = clampHz(p.tone ?? 12000);
+    this.hissGain.gain.value = Math.max(0, Math.min(1, p.hiss ?? 0)) * 0.02;
+    this.makeup.gain.value = dbToGain(Math.max(-6, Math.min(12, p.output ?? 0)));
+    const mix = Math.max(0, Math.min(1, (p.mix ?? 100) / 100));
+    equalPowerMix(this.dry, this.wet, mix);
+  }
+  dispose(): void { this.wow.dispose(); this.flutter.dispose(); try { this.hiss.stop(); this.hiss.disconnect(); } catch { /* */ } super.dispose(); }
+}
+
+// DEVICE: Exciter — an Aphex-style aural exciter. Highpass a copy of the signal, generate harmonics with
+// an asymmetric shaper (even-harmonic "sweetness"), keep only the highs, and add them back on top of the
+// full dry signal. Result: air and presence that a plain EQ boost can't fake, because it synthesises
+// content that wasn't there.
+class ExciterDevice extends FxBase {
+  private hp: BiquadFilterNode; private shaper: WaveShaperNode; private hp2: BiquadFilterNode; private tone: BiquadFilterNode; private blend: GainNode;
+  private lastAmt = -1;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.input.connect(this.output); // full dry
+    this.hp = this.own(ctx.createBiquadFilter()); this.hp.type = 'highpass'; this.hp.frequency.value = 3500; this.hp.Q.value = 0.7;
+    this.shaper = this.own(ctx.createWaveShaper()); this.shaper.oversample = '4x';
+    this.hp2 = this.own(ctx.createBiquadFilter()); this.hp2.type = 'highpass'; this.hp2.frequency.value = 3500; this.hp2.Q.value = 0.7;
+    this.tone = this.own(ctx.createBiquadFilter()); this.tone.type = 'highshelf'; this.tone.frequency.value = 8000;
+    this.blend = this.own(ctx.createGain()); this.blend.gain.value = 0;
+    this.input.connect(this.hp); this.hp.connect(this.shaper); this.shaper.connect(this.hp2); this.hp2.connect(this.tone); this.tone.connect(this.blend); this.blend.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    const freq = clampHz(p.freq ?? 3500);
+    this.hp.frequency.value = freq; this.hp2.frequency.value = freq;
+    const amount = Math.max(0, Math.min(1, p.amount ?? 0.4));
+    if (amount !== this.lastAmt) { this.lastAmt = amount; this.shaper.curve = amount < 0.01 ? IDENTITY_CURVE : driveCurve(0.2 + amount * 0.9, 0.45); }
+    this.tone.frequency.value = clampHz(p.tone ?? 8000);
+    this.tone.gain.value = Math.max(-6, Math.min(9, p.character ?? 0));
+    this.blend.gain.value = Math.max(0, Math.min(1, p.blend ?? 0.3)) * 2.2;
+  }
+}
+
+// DEVICE: Ensemble — a lush multi-voice chorus (the Juno / Dimension flavour). Four detuned delay voices
+// spread hard across the stereo field, driven by two out-of-phase LFOs (with per-voice inversion) so the
+// voices decorrelate into a wide, shimmering thickening — far richer than the two-voice Chorus.
+class EnsembleDevice extends FxBase {
+  private voices: { d: DelayNode; pan: StereoPannerNode }[] = [];
+  private lfoA: Lfo; private lfoB: Lfo; private invA: GainNode; private invB: GainNode;
+  private dry: GainNode; private wet: GainNode;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.lfoA = new Lfo(ctx); this.lfoB = new Lfo(ctx, 'triangle');
+    this.invA = this.own(ctx.createGain()); this.invA.gain.value = -1; this.lfoA.depth.connect(this.invA);
+    this.invB = this.own(ctx.createGain()); this.invB.gain.value = -1; this.lfoB.depth.connect(this.invB);
+    this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
+    this.input.connect(this.dry); this.dry.connect(this.output);
+    const NV = 4;
+    for (let i = 0; i < NV; i++) {
+      const d = this.own(ctx.createDelay(0.06)); d.delayTime.value = 0.012 + i * 0.004;
+      const pan = this.own(ctx.createStereoPanner()); pan.pan.value = (i / (NV - 1)) * 2 - 1;
+      // voices 0/1 ride LFO A (0 direct, 1 inverted); 2/3 ride LFO B — four decorrelated modulators
+      const mod = i === 0 ? this.lfoA.depth : i === 1 ? this.invA : i === 2 ? this.lfoB.depth : this.invB;
+      mod.connect(d.delayTime);
+      this.input.connect(d); d.connect(pan); pan.connect(this.wet);
+      this.voices.push({ d, pan });
+    }
+    this.wet.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    const rate = Math.max(0.05, Math.min(8, p.rate ?? 0.5));
+    const depth = Math.max(0, Math.min(1, p.depth ?? 0.5)) * 0.004;
+    this.lfoA.set(rate, depth); this.lfoB.set(rate * 1.31, depth * 0.8); // slightly different rate = extra motion
+    const spread = Math.max(0, Math.min(1, (p.width ?? 100) / 100));
+    this.voices.forEach((v, i) => { v.pan.pan.value = ((i / (this.voices.length - 1)) * 2 - 1) * spread; });
+    const mix = Math.max(0, Math.min(1, (p.mix ?? 55) / 100));
+    equalPowerMix(this.dry, this.wet, mix, 0.5); // four wet voices sum
+  }
+  dispose(): void { this.lfoA.dispose(); this.lfoB.dispose(); super.dispose(); }
+}
+
 // ── the registry ─────────────────────────────────────────────────────────────
 const C = { eq: '#00DAF3', dynamics: '#FF8C00', saturation: '#D40055', stereo: '#D0BCFF', space: '#06D6A0', mod: '#B84DFF', dj: '#FF4B1C', repair: '#F59E0B', utility: '#8899aa', amp: '#E8A33D' };
 
@@ -1976,6 +2094,35 @@ export const DEVICES: FxDescriptor[] = [
       { key: 'output', label: 'Output', min: -12, max: 12, default: 0, unit: 'dB' },
     ],
     create: (ctx) => new SaturatorDevice(ctx),
+  },
+  {
+    type: 'tape', label: 'Tape', category: 'saturation', color: C.saturation,
+    blurb: 'Tape machine — head bump, wow & flutter, saturation, HF rolloff, hiss',
+    params: [
+      { key: 'drive', label: 'Drive', min: 0, max: 1, default: 0.3, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'bias', label: 'Bias', min: 0, max: 1, default: 0.1, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'bump', label: 'Head Bump', min: 0, max: 9, default: 3, unit: 'dB' },
+      { key: 'bumpFreq', label: 'Bump Hz', min: 40, max: 180, default: 90, unit: 'Hz', curve: 'log' },
+      { key: 'wow', label: 'Wow', min: 0, max: 1, default: 0.3, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'flutter', label: 'Flutter', min: 0, max: 1, default: 0.2, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'tone', label: 'HF Roll', min: 3000, max: 20000, default: 12000, unit: 'Hz', curve: 'log' },
+      { key: 'hiss', label: 'Hiss', min: 0, max: 1, default: 0, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'output', label: 'Output', min: -6, max: 12, default: 0, unit: 'dB' },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 100, unit: '%' },
+    ],
+    create: (ctx) => new TapeDevice(ctx),
+  },
+  {
+    type: 'exciter', label: 'Exciter', category: 'saturation', color: C.saturation,
+    blurb: 'Aural exciter — synthesises high harmonics for air a plain EQ boost can’t fake',
+    params: [
+      { key: 'freq', label: 'Freq', min: 1000, max: 12000, default: 3500, unit: 'Hz', curve: 'log' },
+      { key: 'amount', label: 'Harmonics', min: 0, max: 1, default: 0.4, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'blend', label: 'Blend', min: 0, max: 1, default: 0.3, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'tone', label: 'Tone', min: 4000, max: 16000, default: 8000, unit: 'Hz', curve: 'log' },
+      { key: 'character', label: 'Character', min: -6, max: 9, default: 0, unit: 'dB' },
+    ],
+    create: (ctx) => new ExciterDevice(ctx),
   },
   {
     type: 'imager', label: 'Imager', category: 'stereo', color: C.stereo,
@@ -2095,6 +2242,17 @@ export const DEVICES: FxDescriptor[] = [
     create: (ctx) => new ChorusDevice(ctx),
   },
   {
+    type: 'ensemble', label: 'Ensemble', category: 'mod', color: C.mod,
+    blurb: 'Four-voice chorus ensemble — lush, wide Juno/Dimension thickening',
+    params: [
+      { key: 'rate', label: 'Rate', min: 0.05, max: 8, default: 0.5, unit: 'Hz' },
+      { key: 'depth', label: 'Depth', min: 0, max: 1, default: 0.5, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'width', label: 'Width', min: 0, max: 100, default: 100, unit: '%' },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 55, unit: '%' },
+    ],
+    create: (ctx) => new EnsembleDevice(ctx),
+  },
+  {
     type: 'flanger', label: 'Flanger', category: 'mod', color: C.mod,
     blurb: 'Swept comb with feedback — tape-flange to jet',
     params: [
@@ -2108,12 +2266,12 @@ export const DEVICES: FxDescriptor[] = [
   },
   {
     type: 'phaser', label: 'Phaser', category: 'mod', color: C.mod,
-    blurb: 'Up to six swept all-pass stages with feedback',
+    blurb: 'Up to twelve swept all-pass stages with feedback',
     params: [
       { key: 'rate', label: 'Rate', min: 0.02, max: 8, default: 0.4, unit: 'Hz' },
       { key: 'depth', label: 'Depth', min: 0, max: 1, default: 0.6, format: (v) => `${Math.round(v * 100)}%` },
       { key: 'center', label: 'Center', min: 100, max: 4000, default: 900, unit: 'Hz', curve: 'log' },
-      { key: 'stages', label: 'Stages', min: 2, max: 6, default: 4, step: 2 },
+      { key: 'stages', label: 'Stages', min: 2, max: 12, default: 4, step: 2 },
       { key: 'feedback', label: 'Feedback', min: 0, max: 85, default: 30, unit: '%' },
       { key: 'mix', label: 'Mix', min: 0, max: 100, default: 50, unit: '%' },
     ],

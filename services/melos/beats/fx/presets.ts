@@ -64,16 +64,22 @@ export const FX_PRESETS: Record<string, FxPreset[]> = {
     preset('chorus-subtle', 'Analog Double', 'A close, gently moving second take.', { rate: 0.35, depth: 0.24, delay: 0.18, spread: 0.45, mix: 28 }),
     preset('chorus-lush', 'Lush Ensemble', 'Wide, slow ensemble movement for pads and clean guitar.', { rate: 0.72, depth: 0.68, delay: 0.55, spread: 0.92, mix: 62 }),
     preset('chorus-warp', 'Seasick Cassette', 'Fast, deep pitch drift for character effects.', { rate: 3.2, depth: 0.9, delay: 0.75, spread: 0.7, mix: 78 }),
+    preset('chorus-80s', '80s Clean', 'The bright, wide chorus on every 80s clean guitar and DX bell.', { rate: 0.5, depth: 0.45, delay: 0.35, spread: 1, mix: 45 }),
+    preset('chorus-bass', 'Bass Widener', 'A mono-safe, gentle chorus that thickens bass without wandering.', { rate: 0.28, depth: 0.18, delay: 0.12, spread: 0.35, mix: 22 }),
   ],
   flanger: [
     preset('flange-tape', 'Tape Flange', 'Slow through-zero-style sweep with restrained feedback.', { rate: 0.08, depth: 0.82, center: 0.22, feedback: -24, mix: 48 }),
     preset('flange-jet', 'Jet Engine', 'Deep resonant positive-feedback sweep.', { rate: 0.22, depth: 0.9, center: 0.45, feedback: 82, mix: 68 }),
     preset('flange-metal', 'Hollow Metal', 'Short static-like combing with negative feedback.', { rate: 1.8, depth: 0.18, center: 0.08, feedback: -76, mix: 72 }),
+    preset('flange-barber', 'Barberpole Rise', 'A slow, endless-rising sweep for builds and risers.', { rate: 0.05, depth: 1, center: 0.5, feedback: 60, mix: 60 }),
+    preset('flange-vocal', 'Vocal Sheen', 'A subtle, wide flange that adds movement to vocals and pads.', { rate: 0.15, depth: 0.4, center: 0.3, feedback: 20, mix: 30 }),
   ],
   phaser: [
     preset('phase-vintage', 'Vintage Four Stage', 'Warm, slow classic pedal movement.', { rate: 0.22, depth: 0.58, center: 720, stages: 4, feedback: 18, mix: 46 }),
     preset('phase-deep', 'Deep Six', 'Six resonant stages for liquid synth motion.', { rate: 0.55, depth: 0.9, center: 1100, stages: 6, feedback: 62, mix: 68 }),
     preset('phase-fast', 'Electric Swirl', 'Fast bright rotation for transitions and percussion.', { rate: 5.5, depth: 0.62, center: 2200, stages: 6, feedback: 38, mix: 55 }),
+    preset('phase-twelve', 'Twelve-Stage Liquid', 'A dozen stages for a deep, glassy, many-notch wash.', { rate: 0.4, depth: 0.85, center: 900, stages: 12, feedback: 70, mix: 62 }),
+    preset('phase-funk', 'Funk Envelope', 'A fast, resonant eight-stage phase for rhythm guitar and clav.', { rate: 3.8, depth: 0.7, center: 1400, stages: 8, feedback: 55, mix: 58 }),
   ],
   tremolo: [
     preset('trem-bias', 'Bias Tremolo', 'Soft vintage pulse that breathes with chords.', { rate: 4.2, depth: 0.38 }),
@@ -218,6 +224,22 @@ export const FX_PRESETS: Record<string, FxPreset[]> = {
     preset('fz-shimmer', 'Shimmer Cloud', 'Fast, sprayed grains high in the spectrum — a glittering cloud.', { size: 120, spray: 0.7, rate: 1.2, freeze: 0.6, tone: 9000, mix: 45 }),
     preset('fz-infinite', 'Infinite Hold', 'Near-unity feedback for an effectively endless drone.', { size: 500, spray: 0.2, rate: 0.15, freeze: 0.98, tone: 4000, mix: 60 }),
     preset('fz-smear', 'Wide Smear', 'A short, panned tap cloud that smears transients into a wide wash.', { size: 80, spray: 0.5, rate: 0.6, freeze: 0.4, tone: 7000, mix: 40 }),
+  ],
+  tape: [
+    preset('tape-warm', 'Warm Master', 'A gentle tape glue for buses and masters — a hair of bump and roll-off.', { drive: 0.22, bias: 0.1, bump: 2.5, bumpFreq: 80, wow: 0.15, flutter: 0.1, tone: 14000, hiss: 0, output: 0, mix: 100 }),
+    preset('tape-drums', 'Drum Squash', 'Driven tape that fattens and softens drum transients.', { drive: 0.55, bias: 0.15, bump: 4, bumpFreq: 95, wow: 0.1, flutter: 0.15, tone: 11000, hiss: 0, output: -1, mix: 100 }),
+    preset('tape-lofi', 'Lo-Fi Cassette', 'Heavy wow, rolled-off top and audible hiss — worn cassette character.', { drive: 0.7, bias: 0.25, bump: 5, bumpFreq: 110, wow: 0.7, flutter: 0.5, tone: 6500, hiss: 0.4, output: -1.5, mix: 100 }),
+    preset('tape-slap', 'Vocal Tape', 'Subtle tape warmth and a touch of flutter for vocals.', { drive: 0.3, bias: 0.12, bump: 1.5, bumpFreq: 70, wow: 0.2, flutter: 0.2, tone: 13000, hiss: 0.1, output: 0, mix: 80 }),
+  ],
+  exciter: [
+    preset('exc-air', 'Vocal Air', 'Silky high-harmonic sheen for vocals and acoustic guitar.', { freq: 5000, amount: 0.4, blend: 0.35, tone: 10000, character: 2 }),
+    preset('exc-presence', 'Mix Presence', 'A broad presence lift for a whole mix that a shelf can’t match.', { freq: 3500, amount: 0.5, blend: 0.3, tone: 8000, character: 0 }),
+    preset('exc-crisp', 'Crisp Cymbals', 'Bright, aggressive excitement for dull overheads and hats.', { freq: 6500, amount: 0.7, blend: 0.5, tone: 12000, character: 4 }),
+  ],
+  ensemble: [
+    preset('ens-juno', 'Juno Wash', 'The classic wide, slow four-voice synth ensemble.', { rate: 0.5, depth: 0.5, width: 100, mix: 55 }),
+    preset('ens-shimmer', 'Shimmer Pad', 'Fast, deep, hugely wide — a shimmering pad ensemble.', { rate: 1.4, depth: 0.8, width: 100, mix: 70 }),
+    preset('ens-subtle', 'Subtle Widener', 'A gentle ensemble that widens without obvious modulation.', { rate: 0.3, depth: 0.28, width: 80, mix: 35 }),
   ],
   echo: [
     preset('echo-slap', 'Modern Slap', 'A tight, clean digital slapback — vocals and rockabilly guitar.', { time: 110, feedback: 12, mode: 0, pingpong: 0, spread: 8, tone: 9000, lowcut: 120, wow: 0, duck: 0, width: 60, mix: 22 }),
