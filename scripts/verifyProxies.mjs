@@ -45,7 +45,10 @@ const msBundle=await build({stdin:{resolveDir:process.cwd(),loader:'ts',contents
 `},bundle:true,write:false,format:'iife',plugins:[memPlugin]});
 const {runInNewContext}=await import('node:vm');
 const proxyStore=new Map();
-proxyStore.set('studio:proxy:aud1',{size:4096}); // a proxy exists for aud1
+// aud1 has BOTH a local cache original AND a proxy — so we can see the PREFERENCE: pref ON prefers the
+// proxy over the original; pref OFF uses the original (the proxy stays a last-resort, never reached here).
+proxyStore.set('studio:blob:aud1',{size:99999}); // the local original (cache)
+proxyStore.set('studio:proxy:aud1',{size:4096}); // the lightweight AAC proxy
 const urls=[];
 const ctx={console,__proxy:proxyStore};ctx.globalThis=ctx;
 ctx.URL={createObjectURL:b=>{const u='blob:'+(urls.push(b));return u;},revokeObjectURL(){}};
@@ -57,7 +60,7 @@ const off=await ctx.MS.resolveMediaSource(asset,false,false);
 ctx.MS.setAudioProxyPreference(true);
 const on=await ctx.MS.resolveMediaSource(asset,false,false);
 console.log('AUDIO pref off→',off.origin,' on→',on.origin);
-assert.equal(off.origin,'cloud','pref OFF → audio streams original (cloud)');
-assert.equal(on.origin,'proxy','pref ON → audio resolves the local AAC proxy');
+assert.equal(off.origin,'cache','pref OFF → audio uses the local ORIGINAL (proxy not preferred)');
+assert.equal(on.origin,'proxy','pref ON → audio prefers the lightweight local AAC proxy');
 assert.equal(on.local,true,'proxy source is local');
-console.log('PASS — picture proxy downscales to webp; audio-proxy preference gates on/off');
+console.log('PASS — picture proxy downscales to webp; audio-proxy preference gates original↔proxy');

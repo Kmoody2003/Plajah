@@ -5,7 +5,7 @@ import IndexedVideoCanvas from './IndexedVideoCanvas';
 import { indexedVideoAvailable } from '../../services/mediaEngine/indexedVideo';
 import PanelDivider from "./PanelDivider";
 import { timelineBoundaries, crossedTimelineBoundary } from "../../services/fabula/timelineBoundaries";
-import { resolveMediaSource, setAudioProxyPreference, setLocalOnly, isLocalOnly } from "../../services/fabula/mediaSource";
+import { resolveMediaSource, setAudioProxyPreference, setLocalOnly, isLocalOnly, mediaOriginOf, subscribeMediaOrigin } from "../../services/fabula/mediaSource";
 import { prefetchAssets, onPrefetched, cancelPrefetch, setPrefetchSuspended } from "../../services/fabula/prefetch";
 import { nextShuttleRate } from "../../services/fabula/shuttle";
 import { useState, useEffect, useRef, useMemo, memo, Fragment } from "react";
@@ -2154,6 +2154,10 @@ export default function Fabula() {
   // streaming); export still reads the original. Kept in sync with the PROXY ON/OFF toggle.
   useEffect(() => { setAudioProxyPreference(proxyOn); }, [proxyOn]);
   useEffect(() => { setLocalOnly(localOnly); }, [localOnly]);
+  // Timeline local-glow: re-render when any asset's resolved origin (disk/cache/proxy vs cloud) changes,
+  // so a clip playing from the drive lights up blue and a cloud-streamed one doesn't.
+  const [, setOriginTick] = useState(0);
+  useEffect(() => subscribeMediaOrigin(() => setOriginTick((t) => t + 1)), []);
 
   // AUTO-PROXY: shortly after a project opens, quietly build proxies for heavy media that would
   // otherwise stream/hitch — remote-only VIDEO (tablet/phone/other-desk), heavy AUDIO (WAV/FLAC),
@@ -6001,9 +6005,12 @@ export default function Fabula() {
                               const cAsset = c.assetId ? prod?.mediaPool?.find((m) => m.id === c.assetId) : null;
                               const noMedia = !!c.assetId && (!cAsset || !cAsset.url || cAsset.offline);
                               const wfUrl = (tr.type === "audio" || c.kind === "voice") && c.assetId ? (cAsset?.url) : null;
+                              const cOrigin = c.assetId ? mediaOriginOf(c.assetId) : null; // disk/cache/proxy vs cloud
+                              const localGlow = !!cOrigin?.local; // playing straight off the drive → blue hue + glow
                               return (
                                 <div key={c.id} data-cid={c.id}
-                                  className={`clip ${c.kind} ${tr.type === "video" ? "vid" : ""} ${sel ? "sel" : ""} ${shot?.status === "ready" ? "rdy" : ""} ${noMedia ? "nomedia" : ""}`}
+                                  className={`clip ${c.kind} ${tr.type === "video" ? "vid" : ""} ${sel ? "sel" : ""} ${shot?.status === "ready" ? "rdy" : ""} ${noMedia ? "nomedia" : ""} ${localGlow ? "local" : ""}`}
+                                  title={cOrigin ? (cOrigin.local ? `Playing locally · ${cOrigin.origin === "proxy" ? "proxy" : cOrigin.origin === "folder" ? "reading from disk" : "on-device"}` : "Streaming from the cloud (not on this device)") : undefined}
                                   style={{ left: c.start * pxPerSec, width: Math.max(8, c.duration * pxPerSec), opacity: c.disabled ? 0.4 : 1, cursor: toolMode === "razor" ? "crosshair" : undefined }}
                                   onMouseDown={(e) => { if (toolMode === "razor") { e.stopPropagation(); razorAt(e, c.id); return; } onClipDown(e, c.id, "move"); }}
                                   onClick={(e) => { e.stopPropagation(); if (toolMode !== "razor") { setSelClipId(c.id); if(cAsset) { setPoolSel([cAsset.id]); openInViewer(cAsset,false); } } }}
@@ -9398,6 +9405,10 @@ const CSS = `
   background-image:linear-gradient(90deg,rgba(124,58,237,.7) 0%,rgba(224,69,155,.6) 25%,rgba(249,115,22,.65) 50%,rgba(224,69,155,.6) 75%,rgba(124,58,237,.7) 100%);
   background-size:300% 100%;animation:track-gradient-sweep 6s ease-in-out infinite alternate}
 @media (prefers-reduced-motion: reduce){ .clip.sel{animation:none;background-position:50% 50%} }
+/* LOCAL playback — clip is reading from disk/cache/proxy on this device (not the cloud): blue hue+glow.
+   An inset ::before overlay so it coexists with the white .sel selection ring. */
+.clip.local::before{content:"";position:absolute;inset:0;border-radius:6px;box-shadow:inset 0 0 0 1px rgba(90,168,255,.6),inset 0 0 13px rgba(90,168,255,.34);pointer-events:none;z-index:3}
+.clip.local::after{content:"▣";position:absolute;bottom:2px;left:4px;font-size:8px;line-height:1;color:#9fd4ff;text-shadow:0 0 6px rgba(90,168,255,.7),0 1px 2px rgba(0,0,0,.6);pointer-events:none;z-index:4}
 /* non-relinked / offline media — flagged RED in the pool + on the timeline */
 .clip.nomedia{outline:2px solid var(--red);outline-offset:-2px}
 .clip.nomedia::after{content:"⚠ NO MEDIA";position:absolute;top:2px;right:4px;font-size:7px;font-weight:900;letter-spacing:.06em;color:#ff9d9d;text-shadow:0 1px 2px rgba(0,0,0,.7);pointer-events:none}
