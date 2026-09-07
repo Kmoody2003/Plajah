@@ -58,3 +58,20 @@ export function designLinearPhaseFir(bands: SpectraBand[], sampleRate: number, t
   }
   return h;
 }
+
+/** Design a windowed FIR Hilbert transformer (Type III, odd length): a 90° phase shift across the band,
+ *  used to build the analytic signal for a single-sideband frequency shifter. Returns the kernel and its
+ *  group delay (= (taps-1)/2 samples); the direct path must be delayed by the same amount to stay aligned. */
+export function designHilbertFir(taps = 511): { kernel: Float32Array; delay: number } {
+  const N = taps % 2 === 0 ? taps + 1 : taps;  // odd length
+  const M = (N - 1) / 2;
+  const h = new Float32Array(N);
+  for (let n = 0; n < N; n++) {
+    const k = n - M;
+    // ideal Hilbert: 2/(πk) for odd k, 0 for even k (and 0 at centre)
+    const ideal = (k === 0 || k % 2 === 0) ? 0 : 2 / (Math.PI * k);
+    const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * n) / (N - 1)); // Hann
+    h[n] = ideal * w;
+  }
+  return { kernel: h, delay: M };
+}

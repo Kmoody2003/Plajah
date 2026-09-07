@@ -198,6 +198,33 @@ export const FX_PRESETS: Record<string, FxPreset[]> = {
     preset('rig-acoustic-sim', 'Acoustic Sim', 'Bright, airy direct clean that flatters an acoustic-style pickup.', { amp: 0, gain: 0.15, bass: 0.5, mid: 0.45, treble: 0.62, presence: 0.55, resonance: 0.35, sagAmt: 0.2, master: 0.7, cab: 0, mic: 2, micEdge: 0.5, pedal1On: 0, pedal1: 3, pedal1Drive: 0.2, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
     preset('rig-shimmer-clean', 'Shimmer Clean', 'A jangly top-boost clean lifted by a treble booster — ambient sparkle.', { amp: 5, gain: 0.4, bass: 0.45, mid: 0.5, treble: 0.65, presence: 0.62, resonance: 0.4, sagAmt: 0.35, master: 0.72, cab: 2, mic: 2, micEdge: 0.4, pedal1On: 1, pedal1: 7, pedal1Drive: 0.35, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
   ],
+
+  // ── Creative wave ──
+  freqshift: [
+    preset('fs-subtle-thicken', 'Subtle Thicken', 'A few Hz of shift blended low — a shimmering, chorus-like thickening.', { shift: 7, feedback: 0, mix: 35 }),
+    preset('fs-metallic', 'Metallic Bell', 'A larger shift makes partials inharmonic — struck-metal and bell tones.', { shift: 220, feedback: 0.15, mix: 70 }),
+    preset('fs-spiral', 'Spiral Cascade', 'Feedback re-shifts the output on every pass — an endlessly climbing spiral.', { shift: 60, feedback: 0.7, mix: 60 }),
+    preset('fs-detune-down', 'Downward Blur', 'A downward shift with a wide blend — dark, detuned, and unsettling.', { shift: -110, feedback: 0.2, mix: 55 }),
+    preset('fs-radio', 'Broken Radio', 'A big shift, mostly wet — the classic ring-mod-adjacent transmission artefact.', { shift: 400, feedback: 0.1, mix: 90 }),
+  ],
+  vocoder: [
+    preset('voc-robot', 'Classic Robot', 'The archetypal talkbox-robot voice — tight bands, bright carrier.', { carrier: 110, detune: 6, breath: 0.06, tightness: 6, depth: 9, mix: 100 }),
+    preset('voc-choir', 'Synth Choir', 'A wide, detuned carrier turns speech or pads into a lush vocoder choir.', { carrier: 90, detune: 22, breath: 0.04, tightness: 4, depth: 8, mix: 100 }),
+    preset('voc-whisper', 'Breathy Whisper', 'Heavy breath noise for consonant-rich, airy robot whispers.', { carrier: 140, detune: 10, breath: 0.35, tightness: 5, depth: 7, mix: 100 }),
+    preset('voc-bass-talk', 'Talking Bass', 'A low carrier makes a bassline or drum loop appear to speak.', { carrier: 55, detune: 8, breath: 0.05, tightness: 7, depth: 10, mix: 90 }),
+  ],
+  freeze: [
+    preset('fz-pad', 'Frozen Pad', 'A moment of input blooms into a sustaining ambient pad.', { size: 300, spray: 0.3, rate: 0.3, freeze: 0.85, tone: 5000, mix: 55 }),
+    preset('fz-shimmer', 'Shimmer Cloud', 'Fast, sprayed grains high in the spectrum — a glittering cloud.', { size: 120, spray: 0.7, rate: 1.2, freeze: 0.6, tone: 9000, mix: 45 }),
+    preset('fz-infinite', 'Infinite Hold', 'Near-unity feedback for an effectively endless drone.', { size: 500, spray: 0.2, rate: 0.15, freeze: 0.98, tone: 4000, mix: 60 }),
+    preset('fz-smear', 'Wide Smear', 'A short, panned tap cloud that smears transients into a wide wash.', { size: 80, spray: 0.5, rate: 0.6, freeze: 0.4, tone: 7000, mix: 40 }),
+  ],
+  consoleeq: [
+    preset('ceq-low-trick', 'Low-End Trick', 'The classic simultaneous low boost and cut — a fat yet defined bottom.', { lowFreq: 60, lowBoost: 5, lowCut: 4, lowMidFreq: 400, lowMid: -2, highMidFreq: 3000, highMid: 1, highFreq: 12000, high: 2, drive: 0.25, output: 0 }),
+    preset('ceq-air', 'Silky Air', 'A broad high shelf plus warmth — expensive-sounding top for vocals and buses.', { lowFreq: 80, lowBoost: 1, lowCut: 0, lowMidFreq: 500, lowMid: 0, highMidFreq: 4000, highMid: 2, highFreq: 14000, high: 4.5, drive: 0.3, output: -0.5 }),
+    preset('ceq-mid-forward', 'Mid Forward', 'A gentle presence push for guitars and keys that need to cut.', { lowFreq: 90, lowBoost: 0, lowCut: 2, lowMidFreq: 700, lowMid: 2.5, highMidFreq: 2600, highMid: 3.5, highFreq: 11000, high: 1.5, drive: 0.35, output: -1 }),
+    preset('ceq-warm-glue', 'Warm Glue', 'Soft top, lifted low mids, and heavier drive — a cohesive analog wash.', { lowFreq: 100, lowBoost: 3, lowCut: 0, lowMidFreq: 450, lowMid: 2, highMidFreq: 3500, highMid: -1.5, highFreq: 10000, high: -1, drive: 0.5, output: -1.5 }),
+  ],
 };
 
 export const presetsForFx = (type: string): FxPreset[] => FX_PRESETS[type] ?? [];

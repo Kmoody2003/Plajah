@@ -495,16 +495,88 @@ async function choraHasLibfdk(): Promise<boolean> {
   return _choraLibfdk;
 }
 
+/**
+ * Some uncompressed masters (WAV/BWF and the RF64/W64 variants) carry a `data`-chunk
+ * size that LIES about the audio length: a zero/placeholder size, a value written before
+ * recording finished, or a >4 GB file squeezed into a plain 32-bit WAV field. ffprobe,
+ * ffmpeg AND the browser <audio> element all trust that header, so the song silently
+ * "ends" after only the declared seconds even though every audio byte uploaded fine —
+ * this is the classic "plays only the first N seconds" bug.
+ *
+ * We detect the lie by comparing the declared duration to what the file's real byte count
+ * implies for its PCM parameters, and — for the WAV demuxer family — remux with
+ * `-ignore_length 1` (read to EOF, rewrite an honest header) so the WHOLE song transcodes
+ * and `durationSec` is correct. Safe no-op when the header is already honest, or when we
+ * can't confidently prove it's wrong.
+ */
+async function choraRepairTruncatedMaster(inPath: string, trackId: string, workDir: string): Promise<{ path: string; trueSec: number; repaired: boolean }> {
+  try {
+    const probe = await runFfprobe(inPath);
+    const fmt = probe.json?.format || {};
+    const aStream = (probe.json?.streams || []).find((s: any) => s.codec_type === 'audio') || {};
+    const declaredSec = parseFloat(fmt.duration || '0') || 0;
+    const formatName = String(fmt.format_name || '').toLowerCase();
+    const codec = String(aStream.codec_name || '').toLowerCase();
+    const isPcm = codec.startsWith('pcm_');
+    // The wav demuxer (which alone accepts -ignore_length) covers wav/bwf/rf64; w64 has a
+    // 64-bit size field so it almost never truncates. Gate the remux to the wav demuxer.
+    const isWavDemuxer = /(^|,)wav($|,)/.test(formatName) || formatName.includes('rf64');
+
+    // Byte math: for PCM we know exactly how many bytes one second occupies.
+    let size = 0;
+    try { size = (await fs.stat(inPath)).size; } catch { /* */ }
+    const sr = parseInt(aStream.sample_rate || '0', 10) || 0;
+    const ch = parseInt(aStream.channels || '0', 10) || 0;
+    const bits = parseInt(aStream.bits_per_raw_sample || aStream.bits_per_sample || '0', 10) || 0;
+    const bytesPerSec = isPcm && sr && ch && bits ? sr * ch * (bits / 8) : 0;
+    // Subtract a generous 64 KB header allowance so honest files never trip the check.
+    const impliedSec = bytesPerSec > 0 ? Math.max(0, size - 65536) / bytesPerSec : 0;
+
+    // Suspicious only when the bytes clearly hold much more audio than the header admits.
+    const suspicious = bytesPerSec > 0 && impliedSec > declaredSec + 5 && impliedSec > declaredSec * 1.2;
+    if (!suspicious) return { path: inPath, trueSec: declaredSec, repaired: false };
+
+    console.warn(`[chora] track ${trackId}: master header claims ${declaredSec.toFixed(1)}s but ${size} PCM bytes imply ~${impliedSec.toFixed(1)}s — attempting header repair (format=${formatName}, codec=${codec})`);
+    if (!isWavDemuxer) {
+      console.warn(`[chora] track ${trackId}: truncated header on non-WAV demuxer (${formatName}); cannot auto-repair, transcoding as-is`);
+      return { path: inPath, trueSec: declaredSec, repaired: false };
+    }
+
+    const repairedPath = path.join(workDir, 'repaired_master.wav');
+    // -ignore_length must precede -i (it's a wav demuxer input option); -c copy keeps PCM bit-exact.
+    const rr = await runFfmpeg(['-y', '-ignore_length', '1', '-i', inPath, '-vn', '-c', 'copy', repairedPath], 300000);
+    if (!rr.ok) {
+      console.warn(`[chora] track ${trackId}: -ignore_length remux failed, transcoding original: ${rr.err.slice(-200)}`);
+      return { path: inPath, trueSec: declaredSec, repaired: false };
+    }
+    const rp = await runFfprobe(repairedPath);
+    const repairedSec = parseFloat(rp.json?.format?.duration || '0') || 0;
+    if (repairedSec > declaredSec + 2) {
+      console.warn(`[chora] track ${trackId}: header repaired — recovered ${repairedSec.toFixed(1)}s (was ${declaredSec.toFixed(1)}s)`);
+      return { path: repairedPath, trueSec: repairedSec, repaired: true };
+    }
+    return { path: inPath, trueSec: declaredSec, repaired: false };
+  } catch (e: any) {
+    console.warn(`[chora] track ${trackId}: header-repair check errored, transcoding as-is: ${e?.message || e}`);
+    return { path: inPath, trueSec: 0, repaired: false };
+  }
+}
+
 interface ChoraTranscodeResult { status: 'ready'; hls: string; low: string; flac: string; loudnessLufs: number; durationSec: number; }
 async function choraTranscodeToGcs(inPath: string, trackId: string, publicBase: string): Promise<ChoraTranscodeResult> {
   const workDir = path.join(os.tmpdir(), `chora_${trackId}_${Date.now()}`);
   const hlsDir = path.join(workDir, 'aac256');
   await fs.mkdir(hlsDir, { recursive: true });
 
+  // Repair a lying WAV/RF64 header BEFORE any encode so the full song (not just the
+  // declared head) flows into every rendition and into durationSec.
+  const rep = await choraRepairTruncatedMaster(inPath, trackId, workDir);
+  const src = rep.path;
+
   // 1) Measure loudness (EBU R128 two-pass). print_format=json goes to stderr; parse it.
   let ln = 'loudnorm=I=-14:TP=-1:LRA=11';
   let loudnessLufs = -14;
-  const meas = await runFfmpeg(['-hide_banner', '-i', inPath, '-af', 'loudnorm=I=-14:TP=-1:LRA=11:print_format=json', '-f', 'null', '-'], 180000);
+  const meas = await runFfmpeg(['-hide_banner', '-i', src, '-af', 'loudnorm=I=-14:TP=-1:LRA=11:print_format=json', '-f', 'null', '-'], 180000);
   const jm = meas.err.match(/\{[\s\S]*?"input_i"[\s\S]*?\}/);
   if (jm) { try {
     const j = JSON.parse(jm[0]);
@@ -517,23 +589,24 @@ async function choraTranscodeToGcs(inPath: string, trackId: string, publicBase: 
     : ['-c:a', 'aac', '-b:a', '128k'];
 
   // 2) High — AAC-LC 256 HLS (fMP4, 6s) — the default gapless stream.
-  const r1 = await runFfmpeg(['-y', '-i', inPath, '-vn', '-af', ln, '-c:a', 'aac', '-b:a', '256k', '-ar', '48000',
+  const r1 = await runFfmpeg(['-y', '-i', src, '-vn', '-af', ln, '-c:a', 'aac', '-b:a', '256k', '-ar', '48000',
     '-f', 'hls', '-hls_time', '6', '-hls_segment_type', 'fmp4', '-hls_playlist_type', 'vod', '-hls_flags', 'independent_segments',
     '-hls_segment_filename', path.join(hlsDir, 'seg_%03d.m4s'), path.join(hlsDir, 'playlist.m3u8')], 300000);
   if (!r1.ok) throw new Error('hls encode: ' + r1.err.slice(-300));
 
   // 3) Data-saver — progressive HE-AAC/AAC.
   const lowPath = path.join(workDir, 'low.m4a');
-  const r2 = await runFfmpeg(['-y', '-i', inPath, '-vn', '-af', ln, ...heArgs, '-ar', '48000', '-movflags', '+faststart', lowPath], 300000);
+  const r2 = await runFfmpeg(['-y', '-i', src, '-vn', '-af', ln, ...heArgs, '-ar', '48000', '-movflags', '+faststart', lowPath], 300000);
   if (!r2.ok) throw new Error('low encode: ' + r2.err.slice(-300));
 
   // 4) Lossless — FLAC.
   const flacPath = path.join(workDir, 'lossless.flac');
-  const r3 = await runFfmpeg(['-y', '-i', inPath, '-vn', '-af', ln, '-c:a', 'flac', '-compression_level', '8', flacPath], 300000);
+  const r3 = await runFfmpeg(['-y', '-i', src, '-vn', '-af', ln, '-c:a', 'flac', '-compression_level', '8', flacPath], 300000);
   if (!r3.ok) throw new Error('flac encode: ' + r3.err.slice(-300));
 
-  let durationSec = 0;
-  try { const { json } = await runFfprobe(inPath); durationSec = parseFloat(json?.format?.duration || '0') || 0; } catch { /* */ }
+  // Trust the repaired source's real length; fall back to a fresh probe of it.
+  let durationSec = rep.trueSec || 0;
+  if (!durationSec) { try { const { json } = await runFfprobe(src); durationSec = parseFloat(json?.format?.duration || '0') || 0; } catch { /* */ } }
 
   // 5) Upload everything under chora-hls/{trackId}/.
   const ctFor = (f: string) => f.endsWith('.m3u8') ? 'application/vnd.apple.mpegurl'
@@ -6962,6 +7035,10 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   app.post('/api/chora/enqueue-album', apiLimiter, authMiddleware, express.json({ limit: '16kb' }), async (req: any, res) => {
     const albumId = String(req.body?.albumId || '').trim();
     if (!albumId || !/^[\w-]{1,128}$/.test(albumId)) return res.status(400).json({ error: 'albumId required' });
+    // force re-queues tracks even when they already finished 'ready' — the re-heal path for
+    // renditions that transcoded WRONG (e.g. a lying WAV header that produced a short stream).
+    // Owner-gated and album-scoped, so it re-transcodes only this album, not the catalogue.
+    const force = req.body?.force === true;
     const album = await firestoreRead('albums', albumId);
     if (!album) return res.status(404).json({ error: 'album not found' });
     if (String(album.ownerId || '') !== req.uid) return res.status(403).json({ error: 'not your album' });
@@ -6973,11 +7050,11 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const srcUrl = String((t as any)?.url || '').trim();
       if (!trackId || !/^https?:/i.test(srcUrl)) continue;
       const existing: any = await firestoreRead('choraStreams', trackId);
-      if (existing?.status === 'ready') continue;
+      if (!force && existing?.status === 'ready') continue;
       await firestoreWrite('choraStreams', trackId, { status: 'pending', updatedAt: Date.now() });
       queued++;
     }
-    res.json({ ok: true, queued, total: tracks.length });
+    res.json({ ok: true, queued, total: tracks.length, forced: force });
   });
 
   // Backend-only transcode for the catalogue backfill. Identical work to the route above, but

@@ -10,6 +10,9 @@ import {
 } from '../services/backendService';
 import { accountFlagUpdate, hasCapability, capabilitiesFor, ACCOUNT_TYPE_META, type Capability } from '../services/accountCapabilities';
 import FastChannelManager from './FastChannelManager';
+import LinkedStationsManager from './radio/LinkedStationsManager';
+import BroadcastMultiview from './radio/BroadcastMultiview';
+import BroadcastDestinations from './radio/BroadcastDestinations';
 
 // Human labels for the capabilities shown in the "your account unlocks" panel.
 const CAP_LABELS: Record<Capability, string> = {
@@ -1687,6 +1690,15 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Manage your live stream, FAST channel, and global broadcast status</p>
               </header>
 
+              {/* Smart Multiview — the MCR centerpiece: every output this account is broadcasting. */}
+              <BroadcastMultiview profile={profile} />
+
+              {/* Broadcast Out — simulcast destinations (Plajah+ / Business). */}
+              <BroadcastDestinations
+                profile={profile}
+                onUpgrade={() => window.dispatchEvent(new CustomEvent('plajah:open-plajah-plus'))}
+              />
+
               {/* TV Studio launch tile */}
               {onOpenTVStudio && (
                 <button
@@ -1729,6 +1741,9 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                   Open Scheduler
                 </button>
               </div>
+
+              {/* Linked internet-radio stations — bring-your-station-by-link management. */}
+              <LinkedStationsManager uid={profile.uid} ownerName={profile.displayName} ownerAvatar={profile.photoURL || undefined} />
 
               {(() => {
                 const feeds = getLiveFeeds();

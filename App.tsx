@@ -791,6 +791,13 @@ const App: React.FC = () => {
     return () => window.removeEventListener('plajah:open-chora-podcasts', openPods);
   }, [setView]);
 
+  // Open the Plajah+ billboard (from any upsell — e.g. Broadcast Out's gate).
+  useEffect(() => {
+    const openPlus = () => setShowPlajahPlusBillboard(true);
+    window.addEventListener('plajah:open-plajah-plus', openPlus);
+    return () => window.removeEventListener('plajah:open-plajah-plus', openPlus);
+  }, []);
+
   // Open the Podcast Studio (from content-upload "Produce").
   useEffect(() => {
     const open = () => setView('PODCAST_STUDIO');

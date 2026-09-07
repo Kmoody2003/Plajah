@@ -12,6 +12,7 @@
 // adding a device is one entry in DEVICES — no UI edit.
 
 import { AMP_MODELS, CAB_MODELS, MIC_MODELS, PEDAL_MODELS, ampModelAt, cabModelAt, micModelAt, pedalModelAt } from './ampModels';
+import { designHilbertFir } from './firEq';
 
 export type FxCategory = 'eq' | 'dynamics' | 'saturation' | 'stereo' | 'space' | 'mod' | 'dj' | 'repair' | 'utility' | 'amp';
 
@@ -1480,6 +1481,218 @@ class SpacesDevice extends FxBase {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// CREATIVE WAVE — the sound-design tools: a single-sideband Frequency Shifter,
+// an analog-style channel Vocoder, a granular Freeze/Cloud, and a saturating
+// Console EQ colour. All sample-accurate (osc/convolver/biquad/waveshaper), so
+// the offline album render reproduces them — no control-rate detectors here.
+// Original voicings; no trademarked model names.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// DEVICE: Frequency Shifter — a TRUE single-sideband shift (every partial moves by the same number of
+// Hz, so harmonic ratios break — inharmonic, metallic, distinct from a pitch shifter and from ring-mod).
+// Method: build the analytic signal x + j·H(x) with an FIR Hilbert transformer (90° phase), then
+// SSB-modulate — out = x·cos(ωt) − H(x)·sin(ωt). cos/sin come from two PeriodicWave oscillators started
+// together (a locked 90° quadrature pair). The Hilbert conv delays by (taps-1)/2, so the direct (cos)
+// path takes a matching DelayNode. Down-shift flips the sin path's sign (cos is even, sin is odd).
+class FreqShifterDevice extends FxBase {
+  private conv: ConvolverNode; private dryDelay: DelayNode;
+  private cosMul: GainNode; private sinMul: GainNode; private sinInv: GainNode; private sum: GainNode;
+  private cosOsc: OscillatorNode; private sinOsc: OscillatorNode;
+  private dry: GainNode; private wet: GainNode; private fb: GainNode; private fbDelay: DelayNode;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    const { kernel, delay } = designHilbertFir(511);
+    this.conv = this.own(ctx.createConvolver()); this.conv.normalize = false;
+    const ir = ctx.createBuffer(1, kernel.length, ctx.sampleRate); ir.getChannelData(0).set(kernel); this.conv.buffer = ir;
+    this.dryDelay = this.own(ctx.createDelay(1)); this.dryDelay.delayTime.value = delay / ctx.sampleRate;
+    this.cosMul = this.own(ctx.createGain()); this.cosMul.gain.value = 0; // osc drives this
+    this.sinMul = this.own(ctx.createGain()); this.sinMul.gain.value = 0;
+    this.sinInv = this.own(ctx.createGain()); this.sinInv.gain.value = -1;
+    this.sum = this.own(ctx.createGain());
+    // quadrature pair: real→cos (real coeff), imag→sin (imag coeff). disableNormalization keeps both at amplitude 1.
+    this.cosOsc = ctx.createOscillator();
+    this.sinOsc = ctx.createOscillator();
+    this.cosOsc.setPeriodicWave(ctx.createPeriodicWave(new Float32Array([0, 1]), new Float32Array([0, 0]), { disableNormalization: true }));
+    this.sinOsc.setPeriodicWave(ctx.createPeriodicWave(new Float32Array([0, 0]), new Float32Array([0, 1]), { disableNormalization: true }));
+    this.cosOsc.start(); this.sinOsc.start();
+    // real path: delayed input · cos
+    this.input.connect(this.dryDelay); this.dryDelay.connect(this.cosMul); this.cosMul.connect(this.sum);
+    // imag path: Hilbert(input) · sin, inverted for up-shift
+    this.input.connect(this.conv); this.conv.connect(this.sinMul); this.sinMul.connect(this.sinInv); this.sinInv.connect(this.sum);
+    this.cosOsc.connect(this.cosMul.gain); this.sinOsc.connect(this.sinMul.gain);
+    // wet/dry + a feedback loop that re-shifts (spiralling cascade — a signature freq-shifter move)
+    this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
+    this.fb = this.own(ctx.createGain()); this.fb.gain.value = 0;
+    this.fbDelay = this.own(ctx.createDelay(0.05)); this.fbDelay.delayTime.value = 0.02;
+    this.sum.connect(this.wet); this.wet.connect(this.output);
+    this.sum.connect(this.fbDelay); this.fbDelay.connect(this.fb); this.fb.connect(this.input);
+    this.input.connect(this.dry); this.dry.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    const shift = Math.max(-2000, Math.min(2000, p.shift ?? 100));
+    this.cosOsc.frequency.value = Math.abs(shift);
+    this.sinOsc.frequency.value = Math.abs(shift);
+    this.sinInv.gain.value = shift >= 0 ? -1 : 1; // up subtracts, down adds
+    this.fb.gain.value = Math.max(0, Math.min(0.9, p.feedback ?? 0));
+    const mix = Math.max(0, Math.min(1, (p.mix ?? 100) / 100));
+    equalPowerMix(this.dry, this.wet, mix);
+  }
+  dispose(): void { try { this.cosOsc.stop(); this.sinOsc.stop(); this.cosOsc.disconnect(); this.sinOsc.disconnect(); } catch { /* */ } super.dispose(); }
+}
+
+// DEVICE: Vocoder — a classic analog-style channel vocoder as an insert. The channel IS the modulator
+// (voice, drums, a pad); an internal carrier (detuned saws + a breath of noise for consonants) is
+// sculpted by the modulator's moving spectrum. Per band: bandpass the modulator → full-wave rectify
+// (WaveShaper |x|) → smooth (lowpass envelope follower) → that control signal drives the gain of the
+// carrier's matching bandpass. Everything is audio-rate — NO setInterval — so it renders offline too.
+const VOC_BANDS = 20; // log-spaced 150 Hz … 7 kHz
+class VocoderDevice extends FxBase {
+  private sawA: OscillatorNode; private sawB: OscillatorNode; private noise: AudioBufferSourceNode;
+  private noiseGain: GainNode; private carSum: GainNode;
+  private vcas: GainNode[] = []; private envGains: GainNode[] = []; private carBPs: BiquadFilterNode[] = [];
+  private dry: GainNode; private wet: GainNode;
+  private centers: number[] = [];
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    // full-wave rectifier curve |x| — shared array, but each band gets its OWN WaveShaper node so the
+    // bands stay separate (one shared node would sum every band's envelope into one control signal).
+    const rectCurve = new Float32Array(1024);
+    for (let i = 0; i < rectCurve.length; i++) { const x = (i / (rectCurve.length - 1)) * 2 - 1; rectCurve[i] = Math.abs(x); }
+    // internal carrier: two saws a hair apart + noise
+    this.sawA = ctx.createOscillator(); this.sawA.type = 'sawtooth'; this.sawA.frequency.value = 110;
+    this.sawB = ctx.createOscillator(); this.sawB.type = 'sawtooth'; this.sawB.frequency.value = 110; this.sawB.detune.value = 8;
+    const nb = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); const nd = nb.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    this.noise = ctx.createBufferSource(); this.noise.buffer = nb; this.noise.loop = true;
+    this.noiseGain = this.own(ctx.createGain()); this.noiseGain.gain.value = 0.08;
+    this.carSum = this.own(ctx.createGain());
+    this.sawA.connect(this.carSum); this.sawB.connect(this.carSum); this.noise.connect(this.noiseGain); this.noiseGain.connect(this.carSum);
+    this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
+    this.input.connect(this.dry); this.dry.connect(this.output);
+    for (let i = 0; i < VOC_BANDS; i++) {
+      const f = 150 * Math.pow(7000 / 150, i / (VOC_BANDS - 1));
+      this.centers.push(f);
+      const q = 4.5;
+      // modulator analysis: bandpass → rectify → envelope lowpass → env control gain
+      const modBP = this.own(ctx.createBiquadFilter()); modBP.type = 'bandpass'; modBP.frequency.value = f; modBP.Q.value = q;
+      const rect = this.own(ctx.createWaveShaper()); rect.curve = rectCurve; rect.oversample = '2x'; // per-band rectifier
+      const envLP = this.own(ctx.createBiquadFilter()); envLP.type = 'lowpass'; envLP.frequency.value = 18; // ~9ms follower
+      const envGain = this.own(ctx.createGain()); envGain.gain.value = 8; // envelope depth → VCA drive
+      this.input.connect(modBP); modBP.connect(rect); rect.connect(envLP); envLP.connect(envGain);
+      // carrier synthesis: bandpass at the same centre, gain driven by the envelope
+      const carBP = this.own(ctx.createBiquadFilter()); carBP.type = 'bandpass'; carBP.frequency.value = f; carBP.Q.value = q;
+      const vca = this.own(ctx.createGain()); vca.gain.value = 0;
+      this.carSum.connect(carBP); carBP.connect(vca); vca.connect(this.wet);
+      envGain.connect(vca.gain);
+      this.vcas.push(vca); this.envGains.push(envGain); this.carBPs.push(carBP);
+    }
+    this.wet.connect(this.output);
+    this.sawA.start(); this.sawB.start(); this.noise.start();
+  }
+  setParams(p: Record<string, number>): void {
+    const pitch = Math.max(40, Math.min(400, p.carrier ?? 110));
+    this.sawA.frequency.value = pitch; this.sawB.frequency.value = pitch;
+    this.sawB.detune.value = Math.max(0, Math.min(40, p.detune ?? 8));
+    this.noiseGain.gain.value = Math.max(0, Math.min(0.5, p.breath ?? 0.08));
+    const depth = Math.max(1, Math.min(20, p.depth ?? 8));
+    for (const g of this.envGains) g.gain.value = depth;
+    const q = Math.max(2, Math.min(14, p.tightness ?? 4.5));
+    for (const bp of this.carBPs) bp.Q.value = q;
+    const mix = Math.max(0, Math.min(1, (p.mix ?? 100) / 100));
+    equalPowerMix(this.dry, this.wet, mix);
+  }
+  dispose(): void { try { this.sawA.stop(); this.sawB.stop(); this.noise.stop(); this.sawA.disconnect(); this.sawB.disconnect(); this.noise.disconnect(); } catch { /* */ } super.dispose(); }
+}
+
+// DEVICE: Freeze / Cloud — a granular smear. A modulated multi-tap delay cloud: several short taps at
+// slightly different, LFO-jittered delay times with a long feedback loop create a shimmering sustain
+// out of a moment of input — the "freeze" pad. `freeze` pushes feedback toward unity (infinite hold);
+// `spray` widens the tap jitter (grain scatter); `size` sets the grain/tap window. Self-contained delay
+// network — renders offline.
+const CLOUD_TAPS = 4;
+class FreezeCloudDevice extends FxBase {
+  private taps: { delay: DelayNode; lfo: Lfo; pan: StereoPannerNode }[] = [];
+  private fb: GainNode; private fbSum: GainNode; private tone: BiquadFilterNode;
+  private dry: GainNode; private wet: GainNode;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.fbSum = this.own(ctx.createGain());
+    this.fb = this.own(ctx.createGain()); this.fb.gain.value = 0.5;
+    this.tone = this.own(ctx.createBiquadFilter()); this.tone.type = 'lowpass'; this.tone.frequency.value = 6000;
+    this.dry = this.own(ctx.createGain()); this.wet = this.own(ctx.createGain());
+    this.input.connect(this.dry); this.dry.connect(this.output);
+    // input + feedback feed the tap cloud
+    const cloudIn = this.own(ctx.createGain());
+    this.input.connect(cloudIn);
+    this.tone.connect(this.fb); this.fb.connect(cloudIn); // feedback path (tone-shaped)
+    for (let i = 0; i < CLOUD_TAPS; i++) {
+      const delay = this.own(ctx.createDelay(2));
+      const base = 0.05 + i * 0.037;
+      delay.delayTime.value = base;
+      const lfo = new Lfo(ctx); lfo.depth.connect(delay.delayTime);
+      const pan = this.own(ctx.createStereoPanner()); pan.pan.value = (i / (CLOUD_TAPS - 1)) * 2 - 1;
+      cloudIn.connect(delay); delay.connect(pan); pan.connect(this.wet); delay.connect(this.fbSum);
+      this.taps.push({ delay, lfo, pan });
+    }
+    this.fbSum.connect(this.tone); // sum of taps → tone → feedback gain
+    this.wet.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    const size = Math.max(0.02, Math.min(1.5, (p.size ?? 200) / 1000)); // grain window seconds
+    const spray = Math.max(0, Math.min(1, p.spray ?? 0.3));
+    const rate = Math.max(0.05, Math.min(4, p.rate ?? 0.4));
+    const freeze = Math.max(0, Math.min(1, p.freeze ?? 0.5));
+    this.taps.forEach((t, i) => {
+      t.delay.delayTime.value = size * (0.5 + i / CLOUD_TAPS);
+      t.lfo.set(rate * (0.7 + i * 0.15), spray * size * 0.4);
+    });
+    this.tone.frequency.value = clampHz(p.tone ?? 6000);
+    this.fb.gain.value = 0.3 + freeze * 0.69; // up to ~0.99 = near-infinite hold
+    const mix = Math.max(0, Math.min(1, (p.mix ?? 45) / 100));
+    equalPowerMix(this.dry, this.wet, mix);
+  }
+  dispose(): void { for (const t of this.taps) t.lfo.dispose(); super.dispose(); }
+}
+
+// DEVICE: Console EQ — a musical, fixed-band "colour" EQ (broad Pultec/console-style curves) with an
+// always-on transformer saturation stage. Where the surgical EQ is precise, this one flatters: wide
+// shelves, gentle bells, and even-harmonic warmth baked in. The classic trick — a low shelf that boosts
+// and cuts at once for a scooped-yet-fat bottom — is why the low band has separate boost/cut.
+class ConsoleEqDevice extends FxBase {
+  private lowBoost: BiquadFilterNode; private lowCut: BiquadFilterNode;
+  private lowMid: BiquadFilterNode; private highMid: BiquadFilterNode; private high: BiquadFilterNode;
+  private color: WaveShaperNode; private makeup: GainNode;
+  private lastDrive = -1;
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    const bq = (type: BiquadFilterType, f: number, q = 0.7) => { const b = this.own(ctx.createBiquadFilter()); b.type = type; b.frequency.value = f; b.Q.value = q; return b; };
+    this.lowBoost = bq('lowshelf', 90);
+    this.lowCut = bq('peaking', 250, 1.2);
+    this.lowMid = bq('peaking', 500, 0.8);
+    this.highMid = bq('peaking', 3000, 0.7);
+    this.high = bq('highshelf', 12000);
+    this.color = this.own(ctx.createWaveShaper()); this.color.oversample = '2x'; this.color.curve = driveCurve(0.06, 0.08);
+    this.makeup = this.own(ctx.createGain());
+    this.input.connect(this.lowBoost); this.lowBoost.connect(this.lowCut); this.lowCut.connect(this.lowMid);
+    this.lowMid.connect(this.highMid); this.highMid.connect(this.high); this.high.connect(this.color);
+    this.color.connect(this.makeup); this.makeup.connect(this.output);
+  }
+  setParams(p: Record<string, number>): void {
+    const cl = (v: number) => Math.max(-15, Math.min(15, v));
+    this.lowBoost.frequency.value = clampHz(p.lowFreq ?? 90);
+    this.lowBoost.gain.value = cl(p.lowBoost ?? 0);
+    this.lowCut.frequency.value = clampHz((p.lowFreq ?? 90) * 2.6);
+    this.lowCut.gain.value = -Math.max(0, Math.min(15, p.lowCut ?? 0));
+    this.lowMid.frequency.value = clampHz(p.lowMidFreq ?? 500); this.lowMid.gain.value = cl(p.lowMid ?? 0);
+    this.highMid.frequency.value = clampHz(p.highMidFreq ?? 3000); this.highMid.gain.value = cl(p.highMid ?? 0);
+    this.high.frequency.value = clampHz(p.highFreq ?? 12000); this.high.gain.value = cl(p.high ?? 0);
+    const drive = Math.max(0, Math.min(1, p.drive ?? 0.2));
+    if (drive !== this.lastDrive) { this.lastDrive = drive; this.color.curve = driveCurve(0.04 + drive * 0.4, 0.08); }
+    this.makeup.gain.value = dbToGain(Math.max(-12, Math.min(12, p.output ?? 0)));
+  }
+}
+
 // ── the registry ─────────────────────────────────────────────────────────────
 const C = { eq: '#00DAF3', dynamics: '#FF8C00', saturation: '#D40055', stereo: '#D0BCFF', space: '#06D6A0', mod: '#B84DFF', dj: '#FF4B1C', repair: '#F59E0B', utility: '#8899aa', amp: '#E8A33D' };
 
@@ -1502,6 +1715,24 @@ export const DEVICES: FxDescriptor[] = [
       { key: 'lp', label: 'LP', min: 2000, max: 22000, default: 20000, unit: 'Hz', curve: 'log' },
     ],
     create: (ctx) => new EqDevice(ctx),
+  },
+  {
+    type: 'consoleeq', label: 'Console EQ', category: 'eq', color: C.eq,
+    blurb: 'Musical colour EQ — wide console curves + transformer warmth',
+    params: [
+      { key: 'lowFreq', label: 'Low Hz', min: 30, max: 200, default: 90, unit: 'Hz', curve: 'log' },
+      { key: 'lowBoost', label: 'Low Boost', min: 0, max: 15, default: 0, unit: 'dB' },
+      { key: 'lowCut', label: 'Low Cut', min: 0, max: 15, default: 0, unit: 'dB' },
+      { key: 'lowMidFreq', label: 'Lo-Mid', min: 200, max: 2000, default: 500, unit: 'Hz', curve: 'log' },
+      { key: 'lowMid', label: 'Lo-Mid dB', min: -15, max: 15, default: 0, unit: 'dB' },
+      { key: 'highMidFreq', label: 'Hi-Mid', min: 1500, max: 8000, default: 3000, unit: 'Hz', curve: 'log' },
+      { key: 'highMid', label: 'Hi-Mid dB', min: -15, max: 15, default: 0, unit: 'dB' },
+      { key: 'highFreq', label: 'Air', min: 6000, max: 18000, default: 12000, unit: 'Hz', curve: 'log' },
+      { key: 'high', label: 'Air dB', min: -15, max: 15, default: 0, unit: 'dB' },
+      { key: 'drive', label: 'Drive', min: 0, max: 1, default: 0.2, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'output', label: 'Output', min: -12, max: 12, default: 0, unit: 'dB' },
+    ],
+    create: (ctx) => new ConsoleEqDevice(ctx),
   },
   {
     type: 'comp', label: 'Dynamics', category: 'dynamics', color: C.dynamics,
@@ -1738,6 +1969,42 @@ export const DEVICES: FxDescriptor[] = [
       { key: 'mix', label: 'Mix', min: 0, max: 100, default: 100, unit: '%' },
     ],
     create: (ctx) => new RingModDevice(ctx),
+  },
+  {
+    type: 'freqshift', label: 'Freq Shifter', category: 'mod', color: C.mod,
+    blurb: 'Single-sideband shift — inharmonic metal, shimmer, and spiralling feedback',
+    params: [
+      { key: 'shift', label: 'Shift', min: -2000, max: 2000, default: 100, unit: 'Hz', format: (v) => `${v >= 0 ? '+' : ''}${v.toFixed(0)} Hz` },
+      { key: 'feedback', label: 'Feedback', min: 0, max: 0.9, default: 0, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 100, unit: '%' },
+    ],
+    create: (ctx) => new FreqShifterDevice(ctx),
+  },
+  {
+    type: 'vocoder', label: 'Vocoder', category: 'mod', color: C.mod,
+    blurb: '20-band channel vocoder — the track drives an internal synth carrier',
+    params: [
+      { key: 'carrier', label: 'Carrier', min: 40, max: 400, default: 110, unit: 'Hz', curve: 'log' },
+      { key: 'detune', label: 'Detune', min: 0, max: 40, default: 8, unit: '¢' },
+      { key: 'breath', label: 'Breath', min: 0, max: 0.5, default: 0.08, format: (v) => `${Math.round(v * 200)}%` },
+      { key: 'tightness', label: 'Tightness', min: 2, max: 14, default: 4.5 },
+      { key: 'depth', label: 'Depth', min: 1, max: 20, default: 8 },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 100, unit: '%' },
+    ],
+    create: (ctx) => new VocoderDevice(ctx),
+  },
+  {
+    type: 'freeze', label: 'Freeze Cloud', category: 'mod', color: C.mod,
+    blurb: 'Granular smear — jittered tap cloud with near-infinite hold',
+    params: [
+      { key: 'size', label: 'Grain', min: 20, max: 1500, default: 200, unit: 'ms', curve: 'log' },
+      { key: 'spray', label: 'Spray', min: 0, max: 1, default: 0.3, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'rate', label: 'Rate', min: 0.05, max: 4, default: 0.4, unit: 'Hz' },
+      { key: 'freeze', label: 'Hold', min: 0, max: 1, default: 0.5, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'tone', label: 'Tone', min: 500, max: 16000, default: 6000, unit: 'Hz', curve: 'log' },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, default: 45, unit: '%' },
+    ],
+    create: (ctx) => new FreezeCloudDevice(ctx),
   },
   {
     type: 'autofilter', label: 'Filter LFO', category: 'dj', color: C.dj,

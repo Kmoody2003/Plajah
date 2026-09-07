@@ -2669,6 +2669,20 @@ service cloud.firestore {
       allow write: if isOwner(ownerId) || isAdmin();
     }
 
+    // Linked internet-radio stations a creator brings on-platform by link — public read for the
+    // Radio directory & profiles; only the station's owner (or an admin) may create/change it.
+    match /linked_stations/{stationId} {
+      allow read: if true;
+      allow create: if isOwner(request.resource.data.ownerUid) || isAdmin();
+      allow update, delete: if isOwner(resource.data.ownerUid) || isAdmin();
+    }
+
+    // Broadcast-out destinations (Restream / per-platform RTMP). SECRET-BEARING (stream keys), so
+    // read is owner-only — NOT public like linked_stations. One doc per account.
+    match /broadcast_destinations/{uid} {
+      allow read, write: if isOwner(uid) || isAdmin();
+    }
+
     // Up-to-3 concurrent sources + the saved-feed library — public read for the "Live Now" rails.
     match /channel_sources/{ownerId} {
       allow read: if true;

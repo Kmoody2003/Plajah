@@ -1317,6 +1317,65 @@ export interface FeaturedProjectRef {
   setAt: number;
 }
 
+/**
+ * A creator's own internet-radio station brought on-platform by pasting its public stream URL.
+ *
+ * Lives in the `linked_stations` Firestore collection (public read, owner write) so it can appear
+ * in the Radio directory (LiveRadioBrowser "Creator Stations" shelf) and on the owner's profile
+ * alongside their other broadcasting. Playback goes through the shared RADIO transport, so a linked
+ * station behaves like every other station on the platform. Verified best-effort at link time —
+ * see services/linkedStations.ts. Writes must strip `undefined` (Firestore rejects it).
+ */
+export interface LinkedRadioStation {
+  id: string;
+  ownerUid: string;
+  ownerName: string;
+  ownerAvatar?: string;
+  name: string;
+  /** The public stream URL the owner already broadcasts on (played straight through the transport). */
+  streamUrl: string;
+  homepage?: string;
+  favicon?: string;
+  tags: string[];
+  country?: string;
+  countryCode?: string;
+  language?: string;
+  genre?: string;
+  /** Best-effort at link time (guessed from the URL) or user-declared. */
+  codec?: string;
+  bitrate?: number;
+  /** The stream is an HLS (.m3u8) playlist rather than an ICY/progressive stream. */
+  isHls: boolean;
+  /** URL is https — an http-only stream is blocked as mixed content on the https app. */
+  isSecure: boolean;
+  /** The last verification actually reached playable audio. */
+  lastCheckOk: boolean;
+  verifiedAt: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type BroadcastDestinationKind = 'restream' | 'youtube' | 'twitch' | 'facebook' | 'kick' | 'custom';
+
+/**
+ * A place an account can simulcast a broadcast out to — Restream, or a platform's RTMP directly.
+ *
+ * SECRET-BEARING: `streamKey` is a credential, so these live in `broadcast_destinations/{uid}`
+ * (owner-only READ, unlike the public `linked_stations`). Configured in any host; the actual RTMP
+ * push runs where the host can do it — the desktop/Capacitor app today (see
+ * services/mediaEngine/capabilities.ts), a server relay later. Supports both models the owner chose:
+ * Restream as one destination AND direct per-platform RTMP side by side.
+ */
+export interface BroadcastDestination {
+  id: string;
+  kind: BroadcastDestinationKind;
+  label: string;
+  rtmpUrl: string;
+  streamKey: string;
+  enabled: boolean;
+  createdAt: number;
+}
+
 export interface UserProfile {
   uid: string;
   displayName: string;

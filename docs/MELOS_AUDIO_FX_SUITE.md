@@ -118,7 +118,8 @@ This is one device that covers surgical, dynamic, linear-phase and M/S — the P
 - **Wave 2** — Dynamics depth: Multiband Dynamics, Glue Comp, upward expander, comp voicings; Limiter true-peak/character.
 - **Wave 3** — Guitar rack + components + dual-mic + preset library + IR loader.
 - **Wave 4** — Convolution reverb + EW-Spaces-class stock IR library; Tape; Exciter; delay modes.
-- **Wave 5** — Creative: Vocoder, Freq Shifter, Grain/Freeze; Console EQ colour.
+- **Wave 5 — DONE ✓** Creative: **Freq Shifter** (FIR-Hilbert SSB, ~59 dB image rejection), **Vocoder** (20-band, internal saw+noise carrier, audio-rate envelope followers — renders offline), **Freeze Cloud** (jittered granular tap-cloud, near-infinite hold), **Console EQ** (musical fixed-band colour + always-on transformer saturation). All measured in `scripts/verifyCreativeFx.mjs`; preset banks + registered in `DEVICES`.
+- **Wave 4 (remaining)** — Convolution reverb + EW-Spaces-class stock IR library; Tape; Exciter; delay modes.
 - Repair suite ([[MELOS_RX_REPAIR_SUITE]]) runs in parallel as its own initiative.
 
 Each wave ships to BOTH Melos and Fabula through the shared FX core, and each device is presets + tests.
