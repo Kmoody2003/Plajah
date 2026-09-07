@@ -3420,6 +3420,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             </div>
           )}
 
+          {/* Early Access badge — pinned to the upper-left corner across EVERY shell (classic sidebar,
+              Command Split rail, top bar). Lives here as a fixed sibling so it can't go missing when the
+              nav chrome changes. pointer-events-none so it never blocks the logo/nav beneath it. */}
+          {!isPublicView && !getPlatformInfo().isTV && (
+            <div className="fixed z-[400] pointer-events-none select-none"
+                 style={{ top: 'calc(env(safe-area-inset-top) + 6px)', left: 'calc(env(safe-area-inset-left) + 6px)' }}>
+              <span className="inline-block bg-small-orange text-white text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shadow-lg">
+                Early Access · Beta
+              </span>
+            </div>
+          )}
+
           {(!isPublicView && !getPlatformInfo().isTV && !isMobile && theme !== 'PHONE' && !navLayout.isBar) && (
             shellNext.enabled ? (
               <CommandSplitNav
@@ -3463,7 +3475,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 </button>
                 <div className={`${isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:block' : 'block')} transition-all duration-300`}>
                   <span className="font-display font-black text-2xl tracking-tighter block leading-none text-white">Plajah</span>
-                  <span className="bg-small-orange text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full ml-2">Early Access: Pardon Our Dust</span>
                   <span className="text-small-orange font-black uppercase tracking-[0.3em] text-[8px]">Playgrounds</span>
                 </div>
               </div>
