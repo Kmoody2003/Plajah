@@ -7,6 +7,7 @@ import PanelDivider from "./PanelDivider";
 import { timelineBoundaries, crossedTimelineBoundary } from "../../services/fabula/timelineBoundaries";
 import { resolveMediaSource, setAudioProxyPreference } from "../../services/fabula/mediaSource";
 import { prefetchAssets, onPrefetched, cancelPrefetch, setPrefetchSuspended } from "../../services/fabula/prefetch";
+import { nextShuttleRate } from "../../services/fabula/shuttle";
 import { useState, useEffect, useRef, useMemo, memo, Fragment } from "react";
 import {
   Film, Music, Clapperboard, Layers, Play, Pause, SkipBack, Plus, Upload,
@@ -3629,6 +3630,9 @@ export default function Fabula() {
   const redoEdit = () => { const h = histRef.current; if (!h.future.length) return; const nx = h.future.pop(); h.past.push(clips); setClips(nx); commitClips(nx); ping("Redo"); };
 
   const stepFrame = (dir) => setPlayhead((p) => Math.max(0, p + dir * frameDur));
+  // JKL shuttle. The transport loop reads rateRef live: 1× forward runs through the audio engine
+  // (with sound), everything else the wall clock. Ladder math lives in services/fabula/shuttle.ts.
+  const shuttle = (dir) => { rateRef.current = nextShuttleRate(rateRef.current, playingGateRef.current, dir); setPlaying(true); };
   const jumpEdit = (dir) => {
     const pts = Array.from(new Set([0, ...clips.flatMap((c) => [c.start, c.start + c.duration])])).sort((a, b) => a - b);
     if (dir < 0) { const prev = [...pts].reverse().find((t) => t < playhead - 1e-3); setPlayhead(prev ?? 0); }
@@ -3930,9 +3934,13 @@ export default function Fabula() {
       }
       rateRef.current = 1; setPlaying((p) => !p);
     },
-    "playback.shuttleBack": () => { rateRef.current = -2; setPlaying(true); },
-    "playback.shuttleStop": () => setPlaying(false),
-    "playback.shuttleFwd": () => { rateRef.current = 2; setPlaying(true); },
+    // JKL shuttle — proper NLE ladder. First press in a direction plays 1× (with audio at 1× forward,
+    // via the engine); tapping the SAME key again steps up 1→2→4→8×. K stops and resets to 1×. Pressing
+    // the opposite key drops back toward 1× and reverses. Reverse/fast run on the wall clock (silent by
+    // design — audio only makes sense at 1× forward).
+    "playback.shuttleBack": () => shuttle(-1),
+    "playback.shuttleStop": () => { rateRef.current = 1; setPlaying(false); },
+    "playback.shuttleFwd": () => shuttle(1),
     "playback.stepBack": () => stepFrame(-1),
     "playback.stepFwd": () => stepFrame(1),
     "playback.prevEdit": () => jumpEdit(-1),
