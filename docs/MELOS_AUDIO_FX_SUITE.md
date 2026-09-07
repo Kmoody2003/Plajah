@@ -119,7 +119,8 @@ This is one device that covers surgical, dynamic, linear-phase and M/S — the P
 - **Wave 3** — Guitar rack + components + dual-mic + preset library + IR loader.
 - **Wave 4** — Convolution reverb + EW-Spaces-class stock IR library; Tape; Exciter; delay modes.
 - **Wave 5 — DONE ✓** Creative: **Freq Shifter** (FIR-Hilbert SSB, ~59 dB image rejection), **Vocoder** (20-band, internal saw+noise carrier, audio-rate envelope followers — renders offline), **Freeze Cloud** (jittered granular tap-cloud, near-infinite hold), **Console EQ** (musical fixed-band colour + always-on transformer saturation). All measured in `scripts/verifyCreativeFx.mjs`; preset banks + registered in `DEVICES`.
-- **Wave 4 (remaining)** — Convolution reverb + EW-Spaces-class stock IR library; Tape; Exciter; delay modes.
+- **Wave 4 — DONE ✓** **Tape** (head bump + wow/flutter + sat + HF roll + hiss), **Exciter** (Aphex-style highs-only harmonic synth), plus the **delay wave**: **Creative Delay** (`echo` — Replika-class Modern/Tape/Analog/Diffuse, cross-feedback ping-pong, ducking, wow) and **Cosmos** (`cosmos` — octave-up shimmer delay-reverb + reverse). Modulation deepened: **Ensemble** (`ensemble` — 4-voice Juno chorus), Phaser → 12 stages. Convolution reverb was already met by `SpacesDevice`/`makeSpaceIR` (12 modelled spaces); the real-IR gap is now a **loader + bundle** task — see `docs/fabula/IR_LIBRARY_SOURCES.md` (AKRT CC BY 4.0 is the clean pick). Tests: verifyDelayWave.mjs, verifyWave4.mjs.
+- **Remaining** — a real-IR loader + curated CC-BY bundle (needs an AudioBuffer-loading param path, since the FX param model is numbers-only); M/S per-band on the surgical EQ; the user's fine-tuning/audition pass.
 - Repair suite ([[MELOS_RX_REPAIR_SUITE]]) runs in parallel as its own initiative.
 
 Each wave ships to BOTH Melos and Fabula through the shared FX core, and each device is presets + tests.
