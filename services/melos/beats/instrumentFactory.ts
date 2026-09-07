@@ -179,6 +179,30 @@ export function clearPad(doc: GrooveDoc, padIdx: number): void {
   pad.melos = undefined;
 }
 
+/**
+ * Give an EXISTING independent (clip-driven) instrument track a MEKA pad — and therefore a Glass step
+ * lane — WITHOUT making it padOwned. The track stays in the arranger and clip-driven; the pad triggers
+ * the SAME instrument, so you can both draw MIDI clips on its lane AND step-sequence it in Glass. This
+ * is the "send to MEKA / Glass" action on an independent MIDI track. Returns the pad index, or -1 if
+ * the track is missing or already linked to a pad.
+ */
+export function sendInstrumentTrackToPad(doc: GrooveDoc, trackId: string): number {
+  const track = doc.arrangement.find((t) => t.id === trackId && t.kind === 'instrument');
+  if (!track || !track.instrument || track.padOwned) return -1;
+  if (doc.kit.some((p) => p.instrumentTrackId === trackId)) return -1; // already has a pad
+  let padIdx = firstEmptyPadIndex(doc.kit);
+  if (padIdx < 0) padIdx = addPadBank(doc.kit);
+  const pad = doc.kit[padIdx];
+  if (!pad) return -1;
+  pad.source = 'instrument';
+  pad.instrumentTrackId = trackId;
+  pad.empty = false;
+  pad.name = track.name.slice(0, 18);
+  pad.color = instrumentColor(track.instrument.type);
+  if (pad.instrumentNote === undefined) pad.instrumentNote = 60;
+  return padIdx;
+}
+
 /** Add an instrument track to the doc, disarming whatever was armed before. Returns its id. */
 export function addInstrument(
   doc: { arrangement: ArrangeTrack[] },

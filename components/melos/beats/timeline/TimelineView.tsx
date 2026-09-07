@@ -10,6 +10,7 @@ import { ChevronDown, ChevronUp, Plus, Music2, AudioWaveform, Piano, Circle, Mou
 import { unzipSync } from 'fflate';
 import type { GrooveDoc, Pattern, TimelineClip } from '../../../../services/melos/beats/grooveDoc';
 import { grooveUid } from '../../../../services/melos/beats/grooveDoc';
+import { sendInstrumentTrackToPad } from '../../../../services/melos/beats/instrumentFactory';
 import { useContextMenu, type MenuNode } from '../../../ui/ContextMenu';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { ingestSample, backupToLocker } from '../../../../services/melos/beats/sampleStore';
@@ -199,7 +200,7 @@ interface TimelineViewProps {
   /** Room-owned: open a specific instrument's panel (so the add-picker can too). */
   onOpenInstrument?: (id: string) => void;
   /** Room-owned: open the instrument picker (choose ONDA/KERA/…). */
-  onAddInstrument?: () => void;
+  onAddInstrument?: (dest: 'meka' | 'track') => void;
 }
 
 export const TimelineView: React.FC<TimelineViewProps> = (p) => {
@@ -351,6 +352,12 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
         { id: 'open', label: 'Open instrument', onSelect: () => requestOpen(trackId) },
         { id: 'arm', label: 'Arm for play/record', checked: !!track.armed, onSelect: () => p.onMutate((d) => { const on = !track.armed; for (const t of d.arrangement) t.armed = false; const t = d.arrangement.find((x) => x.id === trackId); if (t) t.armed = on; }) },
       );
+      // Independent MIDI track → give it a MEKA pad (and therefore a Glass step lane). Hidden once it
+      // already has one, or for a pad-owned track (which lives on a pad by definition).
+      const onPad = p.doc.kit.some((pad) => pad.instrumentTrackId === trackId);
+      if (!track.padOwned && !onPad) {
+        items.push({ id: 'sendmeka', label: 'Send to MEKA + Glass (add pad)', onSelect: () => { let padIdx = -1; p.onMutate((d) => { padIdx = sendInstrumentTrackToPad(d, trackId); }); if (padIdx >= 0) BeatsEngine.get().syncInstruments(); } });
+      }
     }
     if (!track.foreign) {
       items.push(
@@ -374,6 +381,13 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     );
     return items;
   });
+
+  // "Add instrument" destination chooser (anchored, in-view via the shared menu primitive).
+  const instrumentAddMenu = useContextMenu<null>(() => [
+    { kind: 'header', label: 'Add instrument as…' },
+    { id: 'meka', label: 'MEKA pad', onSelect: () => p.onAddInstrument?.('meka') },
+    { id: 'track', label: 'Independent MIDI track', onSelect: () => p.onAddInstrument?.('track') },
+  ]);
 
   const commitTrackRename = (trackId: string) => {
     setRenamingTrack(null);
@@ -651,6 +665,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     <div className="flex-1 min-h-0 flex flex-col p-4 pt-3 gap-0">
       {marqueeSelection.marquee && <div className="fixed pointer-events-none z-[9998] border border-[#00DAF3] bg-[#00DAF3]/10" style={marqueeSelection.marquee} />}
       {clipMenu.node}
+      {instrumentAddMenu.node}
       <input ref={colorInputRef} type="color" className="sr-only" aria-label="Choose a custom clip color" onChange={(e) => { const target = colorTargetRef.current; if (!target) return; const color = e.target.value; p.onMutate((d) => { const c = d.arrangement.find((t) => t.id === target.trackId)?.clips.find((x) => x.id === target.clipId); if (c) c.color = color; }); colorTargetRef.current = null; }} />
       {padHeaderMenu.node}
       {trackMenu.node}
@@ -1066,7 +1081,8 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                 <button onClick={() => addTrack('audio')} className="h-6 px-2 rounded-lg border border-white/10 text-white/40 hover:text-white text-[10px] flex items-center gap-1"><Plus size={10} /><AudioWaveform size={10} /> Audio track</button>
                 <button onClick={() => p.onMutate((d) => d.arrangement.push({ id: grooveUid(), kind: 'pattern', isFolder: true, collapsed: false, name: 'Track Folder', color: '#8B8194', mute: false, solo: false, gainDb: 0, pan: 0, clips: [] }))} className="h-6 px-2 rounded-lg border border-white/10 text-white/40 hover:text-white text-[10px] flex items-center gap-1"><FolderPlus size={10} /> Folder</button>
                 <button
-                  onClick={() => p.onAddInstrument?.()}
+                  onClick={(e) => instrumentAddMenu.openFrom(e.currentTarget, null)}
+                  title="Add an instrument — as a MEKA pad, or its own independent MIDI track"
                   className="h-6 px-2 rounded-lg border text-[10px] flex items-center gap-1"
                   style={{ borderColor: 'rgba(208,188,255,0.4)', color: '#D0BCFF' }}
                 ><Plus size={10} /><Piano size={10} /> Instrument</button>

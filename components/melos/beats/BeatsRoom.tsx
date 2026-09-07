@@ -52,7 +52,7 @@ import { BajoPanel } from './instrument/BajoPanel';
 import { isSuite } from '../../../services/melos/beats/instrumentFactory';
 import { SpectraPanel } from './mixer/SpectraPanel';
 import { MuseLibrary } from './muse/MuseLibrary';
-import { addPadInstrument, addInstrumentToNextPad, detachPadInstrument } from '../../../services/melos/beats/instrumentFactory';
+import { addPadInstrument, addInstrumentToNextPad, detachPadInstrument, addInstrument } from '../../../services/melos/beats/instrumentFactory';
 import { SELECT, WASH_BG } from './theme';
 
 export interface BeatsLaunchPayload {
@@ -118,6 +118,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   }, [metronomeOn]);
   useEffect(() => { try { localStorage.setItem('plajah_beats_preroll', String(preRollBars)); } catch { /* */ } }, [preRollBars]);
   const [showInstrumentPicker, setShowInstrumentPicker] = useState(false);
+  // Where a freshly-picked instrument lands: a MEKA pad, or its own independent (clip-driven) MIDI track.
+  const [instrumentDest, setInstrumentDest] = useState<'meka' | 'track'>('meka');
   const [openInstrumentId, setOpenInstrumentId] = useState<string | null>(null);
   // When set, the instrument picker is targeting a PAD (turn the pad into an ONDA/KERA instrument)
   // rather than adding a new arranger track.
@@ -632,16 +634,27 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           melosSamples={melosSamples}
           onLoadMelosSample={(padIdx, ref) => { void loadMelosSample(padIdx, ref); }}
           onOpenInstrument={(id) => setOpenInstrumentId(id)}
-          onAddInstrument={() => setShowInstrumentPicker(true)}
+          onAddInstrument={(dest?: 'meka' | 'track') => { setInstrumentDest(dest || 'meka'); setShowInstrumentPicker(true); }}
           onClose={onClose}
           hideClose={embedded}
           embedded={embedded}
         />
         {showInstrumentPicker && (
           <InstrumentPicker
+            destination={instrumentDest === 'track' ? 'as an independent MIDI track' : undefined}
             onClose={() => setShowInstrumentPicker(false)}
             onPick={(type) => {
               let newId = ''; let landedPad = 0;
+              if (instrumentDest === 'track') {
+                // Independent, clip-driven MIDI track — behaves like an audio track (own mixer strip,
+                // draw MIDI clips on its lane). Send it to a MEKA pad later via the track's right-click.
+                mutate((d) => { newId = addInstrument(d, type); });
+                void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
+                setShowInstrumentPicker(false);
+                setView('timeline'); // the arranger — its new lane is there
+                if (newId) setTimeout(() => setOpenInstrumentId(newId), 60);
+                return;
+              }
               mutate((d) => { const r = addInstrumentToNextPad(d, type); newId = r.trackId; landedPad = r.padIdx; });
               setSelectedPad(landedPad);
               void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
@@ -1001,7 +1014,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
             void engine.init().then(() => engine.play('song', { fromBeats }));
           }}
           onOpenInstrument={(id) => setOpenInstrumentId(id)}
-          onAddInstrument={() => setShowInstrumentPicker(true)}
+          onAddInstrument={(dest?: 'meka' | 'track') => { setInstrumentDest(dest || 'meka'); setShowInstrumentPicker(true); }}
         />
       )}
 
@@ -1038,7 +1051,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           playMode={playMode}
           onSelectPad={setSelectedPad}
           onMutate={mutate}
-          onAddInstrument={() => setShowInstrumentPicker(true)}
+          onAddInstrument={(dest?: 'meka' | 'track') => { setInstrumentDest(dest || 'meka'); setShowInstrumentPicker(true); }}
           onOpenInstrument={(id) => setOpenInstrumentId(id)}
         />
       )}
