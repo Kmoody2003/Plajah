@@ -2111,6 +2111,18 @@ export default function Fabula() {
       return r?.blob || (r?.outputUrl ? await fetch(r.outputUrl).then((x) => (x.ok ? x.blob() : null)) : null);
     } catch (e) { console.warn("[fabula-proxy] crossover cloud failed for", a.name, e?.message || e); return null; }
   };
+  // Server-side AUDIO proxy: transcode a CLOUD WAV/FLAC → small AAC on the Crossover cloud, so a heavy
+  // audio file becomes a light local proxy WITHOUT the browser downloading the whole original first
+  // (the reason buildAudioProxy alone can't help a cloud-only WAV on a bad connection).
+  const crossoverAudioProxy = async (a) => {
+    try {
+      const srcUrl = a.cloudUrl || a.url;
+      if (!srcUrl || !/^https?:/i.test(srcUrl)) return null;
+      const recipe = { containerId: "m4a", audioCodecId: "aac", audioBitrate: "160k", hwAccel: "auto", stripMetadata: false };
+      const r = await crossover.convert({ id: a.id, name: (a.name || "audio").replace(/\.[^.]+$/, "") + ".m4a", kind: "audio", sizeBytes: 0, url: srcUrl }, recipe, () => {});
+      return r?.blob || (r?.outputUrl ? await fetch(r.outputUrl).then((x) => (x.ok ? x.blob() : null)) : null);
+    } catch (e) { console.warn("[fabula-proxy] crossover audio failed for", a.name, e?.message || e); return null; }
+  };
   // Build lightweight proxies for the given assets (or every proxyable asset missing one). Per type:
   // VIDEO → 540p AVC instant-seek (WebCodecs local, Crossover cloud fallback); AUDIO → tiny AAC that
   // plays through the mixer instead of streaming a heavy WAV; IMAGE → downscaled WebP for heavy stills.
@@ -2129,15 +2141,23 @@ export default function Fabula() {
         let proxy = null; let original = null;
         try {
           original = await resolveMediaSource(a);
-          // Building a proxy from a CLOUD source is itself a download — don't do it unless the user
-          // has opted into Sync to Local. Disk/cache-resident sources build their proxy with no network.
-          if (!original.local && !syncToLocalRef.current) { original.release(); original = null; n--; continue; }
-          const blob = original.blob || await (await fetch(original.url)).blob();
-          if (a.type === "video") proxy = await buildEditingProxy(blob);
-          else if (a.type === "audio") proxy = await buildAudioProxy(blob);
-          else proxy = await buildPictureProxy(blob); // image / graphic
+          if (original.local) {
+            // Local source → build the proxy on-device (no network).
+            const blob = original.blob || await (await fetch(original.url)).blob();
+            if (a.type === "video") proxy = await buildEditingProxy(blob);
+            else if (a.type === "audio") proxy = await buildAudioProxy(blob);
+            else proxy = await buildPictureProxy(blob); // image / graphic
+          } else {
+            // Cloud-only source. Prefer SERVER-SIDE transcode (Crossover) — it produces a small local
+            // proxy without the browser downloading the heavy original. Only fall back to a browser
+            // download (for image proxies, which have no server path) when the user opted into Sync to Local.
+            if (a.type === "video") proxy = await crossoverProxy(a);
+            else if (a.type === "audio") proxy = await crossoverAudioProxy(a);
+            else if (syncToLocalRef.current) { const blob = original.blob || await (await fetch(original.url)).blob(); proxy = await buildPictureProxy(blob); }
+          }
         } finally { original?.release(); }
-        if (!proxy && a.type === "video") proxy = await crossoverProxy(a); // server-side ffmpeg (phones/tablets/long clips)
+        // Local video whose WebCodecs encode failed → server-side fallback (cloud video already tried it).
+        if (!proxy && a.type === "video" && original?.local) proxy = await crossoverProxy(a);
         if (proxy) {
           await stSet("studio:proxy:" + a.id, proxy);
           const purl = URL.createObjectURL(proxy);
