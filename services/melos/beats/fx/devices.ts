@@ -113,6 +113,23 @@ function driveCurve(amount: number, asym: number, n = 2048): Float32Array {
   return c;
 }
 
+/** A transparent WaveShaper curve (linear ramp) — a 2-point curve WebAudio interpolates to identity. */
+const IDENTITY_CURVE = new Float32Array([-1, 1]);
+
+/** A soft-clip curve that brickwalls to ±ceil (linear) with a `hardness`-controlled knee. Paired with a
+ *  4× WaveShaper oversample it catches inter-sample peaks — true-peak safety. Normalised so full-scale
+ *  input maps exactly to ceil. */
+function ceilingClipCurve(ceil: number, hardness: number, n = 4096): Float32Array {
+  const c = new Float32Array(n);
+  const d = 1 + hardness * 8;
+  const norm = Math.tanh(d / Math.max(0.05, ceil));
+  for (let i = 0; i < n; i++) {
+    const x = (i / (n - 1)) * 2 - 1;
+    c[i] = (ceil * Math.tanh((d * x) / Math.max(0.05, ceil))) / norm;
+  }
+  return c;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // DEVICE: Equalizer — 4-band parametric + HP/LP (Ozone Equalizer analogue).
 // Its params double as an analytic curve the rack overlays on the RTA — see eqCurveDb().
@@ -149,19 +166,30 @@ class EqDevice extends FxBase {
 // ═══════════════════════════════════════════════════════════════════════════
 class CompDevice extends FxBase {
   private comp: DynamicsCompressorNode;
+  private color: WaveShaperNode;   // the "voicing" — a touch of harmonic character per model
   private makeup: GainNode;
   constructor(ctx: BaseAudioContext) {
     super(ctx);
     this.comp = this.own(ctx.createDynamicsCompressor());
+    this.color = this.own(ctx.createWaveShaper()); this.color.oversample = '2x'; this.color.curve = IDENTITY_CURVE;
     this.makeup = this.own(ctx.createGain());
-    this.input.connect(this.comp); this.comp.connect(this.makeup); this.makeup.connect(this.output);
+    this.input.connect(this.comp); this.comp.connect(this.color); this.color.connect(this.makeup); this.makeup.connect(this.output);
   }
   setParams(p: Record<string, number>): void {
+    // character: 0 Clean/VCA (transparent), 1 FET (fast + hard knee + odd harmonics), 2 Opto (slow,
+    // program-dependent release + soft knee + gentle warmth).
+    const character = Math.round(p.character ?? 0);
+    let attack = Math.max(0, (p.attack ?? 10) / 1000);
+    let release = Math.max(0.001, (p.release ?? 180) / 1000);
+    let knee = p.knee ?? 12;
+    if (character === 1) { attack *= 0.6; knee = Math.min(knee, 3); this.color.curve = driveCurve(0.10, 0.12); }
+    else if (character === 2) { release *= 1.6; knee = Math.max(knee, 18); this.color.curve = driveCurve(0.06, 0); }
+    else { this.color.curve = IDENTITY_CURVE; }
     this.comp.threshold.value = p.threshold ?? -18;
     this.comp.ratio.value = Math.max(1, p.ratio ?? 2);
-    this.comp.attack.value = Math.max(0, (p.attack ?? 10) / 1000);
-    this.comp.release.value = Math.max(0.001, (p.release ?? 180) / 1000);
-    this.comp.knee.value = p.knee ?? 12;
+    this.comp.attack.value = attack;
+    this.comp.release.value = release;
+    this.comp.knee.value = knee;
     this.makeup.gain.value = dbToGain(p.makeup ?? 0);
   }
   gr(): number { return this.comp.reduction; }
@@ -1226,22 +1254,31 @@ class LimiterDevice extends FxBase {
   private drive: GainNode;
   private comp: DynamicsCompressorNode;
   private ceilingG: GainNode;
+  private clip: WaveShaperNode;   // 4× oversampled soft-clip → catches inter-sample (true) peaks
   constructor(ctx: BaseAudioContext) {
     super(ctx);
     this.drive = this.own(ctx.createGain());
     this.comp = this.own(ctx.createDynamicsCompressor());
     this.comp.knee.value = 0; this.comp.ratio.value = 20; this.comp.attack.value = 0.001;
     this.ceilingG = this.own(ctx.createGain());
-    this.input.connect(this.drive); this.drive.connect(this.comp); this.comp.connect(this.ceilingG); this.ceilingG.connect(this.output);
+    this.clip = this.own(ctx.createWaveShaper()); this.clip.oversample = '4x';
+    this.input.connect(this.drive); this.drive.connect(this.comp); this.comp.connect(this.ceilingG); this.ceilingG.connect(this.clip); this.clip.connect(this.output);
   }
   setParams(p: Record<string, number>): void {
     const ceiling = Math.max(-12, Math.min(0, p.ceiling ?? -0.3));
+    // character: 0 Transparent, 1 Glue (slower release), 2 Loud (fast + harder clip).
+    const character = Math.round(p.character ?? 0);
     this.drive.gain.value = dbToGain(Math.max(0, p.gain ?? 0));
     this.comp.threshold.value = ceiling;
-    this.comp.release.value = Math.max(0.01, (p.release ?? 80) / 1000);
-    // DynamicsCompressor is not a true look-ahead brickwall, but this final trim guarantees the
-    // ceiling control never becomes an accidental second input-gain stage.
+    let release = Math.max(0.01, (p.release ?? 80) / 1000);
+    if (character === 1) release *= 1.8; else if (character === 2) release *= 0.4;
+    this.comp.release.value = release;
     this.ceilingG.gain.value = dbToGain(Math.min(0, ceiling));
+    // True-peak-safe brickwall: soft-clip to the ceiling, 4× oversampled so inter-sample peaks are
+    // caught (a plain sample-domain limiter overshoots them). Harder knee = louder/more aggressive.
+    const ceilLin = dbToGain(ceiling);
+    const hardness = character === 2 ? 0.9 : character === 1 ? 0.35 : 0.6;
+    this.clip.curve = ceilingClipCurve(ceilLin, hardness);
   }
   gr(): number { return this.comp.reduction; }
 }
@@ -1463,6 +1500,7 @@ export const DEVICES: FxDescriptor[] = [
       { key: 'release', label: 'Release', min: 10, max: 1000, default: 180, unit: 'ms' },
       { key: 'knee', label: 'Knee', min: 0, max: 40, default: 12, unit: 'dB' },
       { key: 'makeup', label: 'Makeup', min: 0, max: 24, default: 0, unit: 'dB' },
+      { key: 'character', label: 'Voicing', min: 0, max: 2, default: 0, step: 1, format: (v) => ['Clean', 'FET', 'Opto'][Math.round(v)] ?? 'Clean' },
     ],
     create: (ctx) => new CompDevice(ctx),
   },
@@ -1732,11 +1770,12 @@ export const DEVICES: FxDescriptor[] = [
   },
   {
     type: 'limiter', label: 'Peak Limiter', category: 'dynamics', color: C.dynamics,
-    blurb: 'Brickwall-ish ceiling with input gain',
+    blurb: 'True-peak-safe ceiling (4× oversampled) with input gain',
     params: [
       { key: 'gain', label: 'Gain', min: 0, max: 24, default: 0, unit: 'dB' },
       { key: 'ceiling', label: 'Ceiling', min: -12, max: 0, default: -0.3, unit: 'dB' },
       { key: 'release', label: 'Release', min: 10, max: 500, default: 80, unit: 'ms' },
+      { key: 'character', label: 'Style', min: 0, max: 2, default: 0, step: 1, format: (v) => ['Transparent', 'Glue', 'Loud'][Math.round(v)] ?? 'Transparent' },
     ],
     create: (ctx) => new LimiterDevice(ctx),
   },
