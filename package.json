@@ -7,6 +7,7 @@
     "dev": "tsx server.ts",
     "start": "node server.ts",
     "build": "vite build",
+    "changelog:build": "node scripts/genBuildLog.mjs",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
     "ofx:manifest": "npx tsx scripts/emitOfxManifest.ts",
