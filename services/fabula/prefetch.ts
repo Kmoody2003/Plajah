@@ -17,9 +17,20 @@ interface Item { id: string; url: string }
 let queue: Item[] = [];
 let running = false;
 let current: AbortController | null = null;
+let suspended = false;               // true while the timeline is playing/scrubbing — never compete
 const done = new Set<string>();      // pulled OR permanently skipped (too big) this session
 const inflight = new Set<string>();
 const listeners = new Set<(id: string) => void>();
+
+/** Background conforming must NEVER contend with live playback or scrubbing — pulling a big file over
+ *  a lossy link while the transport runs is exactly what makes the 2nd pass stutter. Fabula suspends
+ *  the prefetcher on play/scrub (aborting any in-flight pull) and resumes it when the editor goes idle.
+ *  The queue is preserved across a suspend so it just picks back up. */
+export function setPrefetchSuspended(on: boolean): void {
+  suspended = !!on;
+  if (suspended) { try { current?.abort(); } catch { /* */ } }   // free the link immediately
+  else void pump();                                              // idle again → resume draining
+}
 
 async function readCapped(res: Response): Promise<Blob> {
   if (!res.ok) throw new Error('http ' + res.status);
@@ -47,10 +58,11 @@ async function fetchToStore(url: string, key: string, ac: AbortController): Prom
 }
 
 async function pump(): Promise<void> {
-  if (running) return;
+  if (running || suspended) return;
   running = true;
   try {
     while (queue.length) {
+      if (suspended) break;                          // play/scrub started — stand down, keep the queue
       const item = queue.shift()!;
       if (done.has(item.id) || inflight.has(item.id)) continue;
       const key = 'studio:blob:' + item.id;

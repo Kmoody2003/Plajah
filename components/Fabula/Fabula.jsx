@@ -6,7 +6,7 @@ import { indexedVideoAvailable } from '../../services/mediaEngine/indexedVideo';
 import PanelDivider from "./PanelDivider";
 import { timelineBoundaries, crossedTimelineBoundary } from "../../services/fabula/timelineBoundaries";
 import { resolveMediaSource, setAudioProxyPreference } from "../../services/fabula/mediaSource";
-import { prefetchAssets, onPrefetched, cancelPrefetch } from "../../services/fabula/prefetch";
+import { prefetchAssets, onPrefetched, cancelPrefetch, setPrefetchSuspended } from "../../services/fabula/prefetch";
 import { useState, useEffect, useRef, useMemo, memo, Fragment } from "react";
 import {
   Film, Music, Clapperboard, Layers, Play, Pause, SkipBack, Plus, Upload,
@@ -3160,7 +3160,7 @@ export default function Fabula() {
           const cloud = [a.url, a.cloudUrl].find((u) => /^https?:/i.test(u || "")); // local (blob:) → skip
           if (!cloud) continue;
           seen.add(c.assetId); list.push({ id: a.id, url: cloud });
-          if (list.length >= 8) break;                                          // bounded look-ahead
+          if (list.length >= 64) break;                                         // conform the whole timeline (deduped by asset) so scrubbing anywhere is local
         }
         if (list.length) prefetchAssets(list);
       } catch { /* best-effort */ }
@@ -3182,7 +3182,13 @@ export default function Fabula() {
   // Keep a live "is the editor busy" flag the background poll can read without re-subscribing. During
   // playback or a render the edit thread is the priority — the folder walk must never compete with it.
   const editBusyRef = useRef(false);
-  useEffect(() => { editBusyRef.current = playing || rendering; }, [playing, rendering]);
+  const scrubbingRef = useRef(false);
+  const playingGateRef = useRef(false); playingGateRef.current = playing;
+  // Any background conforming (prefetch pulls, proxy encodes) must stand down while the transport is
+  // playing, rendering, OR the user is scrubbing — otherwise it steals CPU/bandwidth and the 2nd pass
+  // + scrubbing stutter. `syncEditBusy` is the single gate; call it whenever one of those changes.
+  const syncEditBusy = () => { const busy = playingGateRef.current || rendering || scrubbingRef.current; editBusyRef.current = busy; setPrefetchSuspended(busy); };
+  useEffect(() => { syncEditBusy(); /* eslint-disable-next-line */ }, [playing, rendering]);
   // Poll watched folders (browsers can't push FS events): on an interval + on window focus. Only folders
   // whose read permission is still granted rescan silently; the rest wait for a manual (gesture) rescan.
   useEffect(() => {
@@ -4122,9 +4128,9 @@ export default function Fabula() {
   const startScrub = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const seek = (clientX) => setPlayhead(Math.max(0, qFrame((clientX - rect.left) / pxPerSec)));
-    setPlaying(false); seek(e.clientX);
+    setPlaying(false); scrubbingRef.current = true; syncEditBusy(); seek(e.clientX);
     const move = (ev) => { ev.preventDefault(); seek(ev.clientX); };
-    const up = () => { document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
+    const up = () => { scrubbingRef.current = false; syncEditBusy(); document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
     document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
   };
   // Razor: split the clip at the clicked position (used when the razor tool is active).
@@ -8321,7 +8327,9 @@ function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playin
   // stream; the on-deck/paused clips upgrade silently, the live one upgrades on its next pass/seek).
   useEffect(() => {
     if (!asset?.id) return undefined;
-    return onPrefetched((id) => { if (id === asset.id && !(active && playing)) setSourceRetry((r) => r + 1); });
+    // Only upgrade to the freshly-local copy while paused — never re-resolve any layer mid-playback
+    // (that churn is what degraded the 2nd pass). The live pass finishes on cloud; the next one is local.
+    return onPrefetched((id) => { if (id === asset.id && !playing) setSourceRetry((r) => r + 1); });
   }, [asset?.id, active, playing]);
 
   // Bound loading recovery. A seek finishing can produce a frame without a
