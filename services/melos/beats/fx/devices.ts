@@ -592,6 +592,7 @@ class AmpRigDevice extends FxBase {
   private cabLowCut: BiquadFilterNode; private cabBump: BiquadFilterNode; private cabNotch: BiquadFilterNode;
   private cabPresence: BiquadFilterNode; private cabRolloff: BiquadFilterNode;
   private micTilt: BiquadFilterNode; private micPeak: BiquadFilterNode;
+  private mic2Tilt: BiquadFilterNode; private mic2Peak: BiquadFilterNode; private mic2Gain: GainNode;
   private cabWet: GainNode; private cabDry: GainNode;
   private master: GainNode;
 
@@ -635,6 +636,9 @@ class AmpRigDevice extends FxBase {
     this.cabRolloff = bq('lowpass', 5000, 1.4);
     this.micTilt = bq('highshelf', 3000);
     this.micPeak = bq('peaking', 5500, 1.2);
+    this.mic2Tilt = bq('highshelf', 3000);
+    this.mic2Peak = bq('peaking', 5500, 1.2);
+    this.mic2Gain = this.own(ctx.createGain());
     this.cabWet = this.own(ctx.createGain());
     this.cabDry = this.own(ctx.createGain());
     this.master = this.own(ctx.createGain());
@@ -647,7 +651,9 @@ class AmpRigDevice extends FxBase {
     this.cabLowCut.connect(this.cabBump); this.cabBump.connect(this.cabNotch); this.cabNotch.connect(this.cabPresence);
     this.cabPresence.connect(this.cabRolloff); this.cabRolloff.connect(this.micTilt); this.micTilt.connect(this.micPeak);
     this.micPeak.connect(this.cabWet);
-    this.cabWet.connect(this.master); this.cabDry.connect(this.master);
+    // second mic — a parallel tap off the same cab, blended in
+    this.cabRolloff.connect(this.mic2Tilt); this.mic2Tilt.connect(this.mic2Peak); this.mic2Peak.connect(this.mic2Gain);
+    this.cabWet.connect(this.master); this.mic2Gain.connect(this.master); this.cabDry.connect(this.master);
     this.master.connect(this.output);
   }
 
@@ -732,6 +738,13 @@ class AmpRigDevice extends FxBase {
     this.cabRolloff.Q.value = cab.rolloffQ;
     this.micTilt.gain.value = mic.tiltDb;
     this.micPeak.frequency.value = clampHz(mic.peakHz); this.micPeak.gain.value = mic.peakDb * (1 - edge * 0.5);
+    // Second mic + blend (0 = mic 1 only, 1 = mic 2 only) — the classic 57+121 dual-mic move.
+    const mic2 = micModelAt(p.mic2 ?? 1);
+    const blend = Math.max(0, Math.min(1, p.micBlend ?? 0));
+    this.mic2Tilt.gain.value = mic2.tiltDb;
+    this.mic2Peak.frequency.value = clampHz(mic2.peakHz); this.mic2Peak.gain.value = mic2.peakDb * (1 - edge * 0.5);
+    this.cabWet.gain.value = direct ? 0 : (1 - blend);
+    this.mic2Gain.gain.value = direct ? 0 : blend;
 
     // ── master, with automatic level compensation so gain changes stay comparable ──
     const comp = 1 / (1 + gain * amp.driveScale * 0.32);
@@ -1833,8 +1846,10 @@ export const DEVICES: FxDescriptor[] = [
       { key: 'sagAmt', label: 'Sag', min: 0, max: 1, default: 0.4, format: (v) => `${Math.round(v * 100)}%` },
       { key: 'master', label: 'Master', min: 0, max: 1, default: 0.7, format: (v) => `${Math.round(v * 10)}` },
       { key: 'cab', label: 'Cab', min: 0, max: CAB_MODELS.length - 1, default: 3, step: 1, format: (v) => cabModelAt(v).label },
-      { key: 'mic', label: 'Mic', min: 0, max: MIC_MODELS.length - 1, default: 0, step: 1, format: (v) => micModelAt(v).label },
+      { key: 'mic', label: 'Mic 1', min: 0, max: MIC_MODELS.length - 1, default: 0, step: 1, format: (v) => micModelAt(v).label },
       { key: 'micEdge', label: 'Cap→Edge', min: 0, max: 1, default: 0.4, format: (v) => (v < 0.33 ? 'Cap' : v < 0.66 ? 'Mid' : 'Edge') },
+      { key: 'mic2', label: 'Mic 2', min: 0, max: MIC_MODELS.length - 1, default: 1, step: 1, format: (v) => micModelAt(v).label },
+      { key: 'micBlend', label: 'Mic Blend', min: 0, max: 1, default: 0, format: (v) => (v <= 0.02 ? 'Mic 1' : v >= 0.98 ? 'Mic 2' : `${Math.round((1 - v) * 100)}/${Math.round(v * 100)}`) },
       { key: 'pedal1On', label: 'Pedal 1', min: 0, max: 1, default: 0, step: 1, format: (v) => (v > 0.5 ? 'On' : 'Off') },
       { key: 'pedal1', label: 'P1 Type', min: 0, max: PEDAL_MODELS.length - 1, default: 0, step: 1, format: (v) => pedalModelAt(v).label },
       { key: 'pedal1Drive', label: 'P1 Drive', min: 0, max: 1, default: 0.4, format: (v) => `${Math.round(v * 100)}%` },
