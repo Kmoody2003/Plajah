@@ -107,7 +107,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
       setOfflineBytes(bytes);
     } catch { /* Cache API / IndexedDB unavailable */ }
   };
-  useEffect(() => { if (activeSubTab === 'SYNC') loadOffline(); }, [activeSubTab]);
+  useEffect(() => { loadOffline(); }, []); // Local Sync section is always visible in the unified locker
 
   const formatBytes = (b: number): string => {
     const u = ['B', 'KB', 'MB', 'GB'];
@@ -704,9 +704,9 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
             <Library className="text-white" size={24} />
           </div>
           <div>
-            <h3 className="type-headline-md font-black uppercase tracking-tightest">My Music Vault</h3>
+            <h3 className="type-headline-md font-black uppercase tracking-tightest">Music Locker</h3>
             <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
-              Private Media Library • {libraryTracks.length + personalTracks.length} Assets
+              Private Music Library • {personalTracks.length} {personalTracks.length === 1 ? 'Track' : 'Tracks'} · {playlists.length} {playlists.length === 1 ? 'Playlist' : 'Playlists'}
             </p>
           </div>
         </div>
@@ -740,31 +740,8 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
         </div>
       </div>
 
-      {/* Sub Tabs */}
-      <div className="flex flex-wrap items-center gap-2 p-1 bg-white/5 rounded-full self-start">
-        {[
-          { id: 'SAVED', label: 'Saved Music', icon: Music },
-          { id: 'PERSONAL', label: 'Music Locker', icon: Lock },
-          { id: 'PLAYLISTS', label: 'Playlists', icon: ListMusic },
-          { id: 'SYNC', label: 'Local Sync', icon: FolderSync }
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveSubTab(tab.id as any)}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
-              activeSubTab === tab.id 
-                ? 'bg-white text-black shadow-lg' 
-                : 'text-white/40 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <tab.icon size={14} />
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Content Area */}
-      <div className="min-h-[400px]">
+      {/* Content Area — unified single scroll: Music Locker · Playlists · Local Sync (no tabs) */}
+      <div className="flex flex-col gap-12 min-h-[400px]">
         {editingPodcastTrack ? (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -785,7 +762,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
               }} 
             />
           </motion.div>
-        ) : activeSubTab === 'SAVED' && (
+        ) : false && (
           <div className={viewMode === 'GRID' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6' : 'flex flex-col gap-2'}>
             {filteredLibrary.length > 0 ? (
               filteredLibrary.map((track) => (
@@ -859,7 +836,8 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
           </div>
         )}
 
-        {activeSubTab === 'PERSONAL' && (
+        {/* ===== MUSIC LOCKER (private uploaded music) ===== */}
+        {(
           <div className="flex flex-col gap-6">
             {/* Private music locker — legal privacy notice */}
             <div className="flex items-start gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/10">
@@ -996,7 +974,9 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
           </div>
         )}
 
-        {activeSubTab === 'PLAYLISTS' && (
+        <div className="h-px bg-white/10" />
+        {/* ===== PLAYLISTS ===== */}
+        {(
           <div className="flex flex-col gap-8">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-black uppercase tracking-widest text-white/40">Your Playlists</h4>
@@ -1033,7 +1013,9 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
             </AdaptiveGrid>
           </div>
         )}
-        {activeSubTab === 'SYNC' && (
+        <div className="h-px bg-white/10" />
+        {/* ===== LOCAL SYNC ===== */}
+        {(
           <div className="flex flex-col gap-8">
             {/* Offline Downloads — tracks saved for playback with no network (Cache API + IndexedDB) */}
             <div className="flex flex-col gap-4 p-6 bg-white/[0.03] border border-white/10 rounded-3xl">
