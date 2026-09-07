@@ -294,6 +294,10 @@ const OrgHub = retryLazy(() => import('./components/OrgHub'));
 const PlajahElevate = retryLazy(() => import('./components/PlajahElevate'));
 const PlatformChangelog = retryLazy(() => import('./components/PlatformChangelog'));
 const WelcomePackage = retryLazy(() => import('./components/WelcomePackage'));
+const Onboarding = retryLazy(() => import('./components/Onboarding'));
+// Existing-user "Welcome Package is ready" nudge runs only until this date (~2 months from
+// the 2026-09-07 launch). After it, returning users are no longer notified.
+const WELCOME_PACKAGE_CAMPAIGN_END = Date.UTC(2026, 10, 7); // 2026-11-07 (month index 10 = Nov)
 const UpdateNotification = retryLazy(() => import('./components/UpdateNotification'));
 const BugReportButton = retryLazy(() => import('./components/BugReportButton'));
 const VideoRouterConsole = retryLazy(() => import('./components/mediaEngine/VideoRouterConsole'));
@@ -1083,6 +1087,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const insertPressedRef = useRef(false);
   const [showWelcomeAchievement, setShowWelcomeAchievement] = useState(false);
   const [showWelcomePackage, setShowWelcomePackage] = useState(false);
+  // First-login sequence: the Welcome Package letter → the 2-page Onboarding → the app.
+  // (Named distinctly from the legacy `showOnboarding` OnboardingTour state, now retired.)
+  const [showFirstRunOnboarding, setShowFirstRunOnboarding] = useState(false);
+  const [welcomeFirstRun, setWelcomeFirstRun] = useState(false);
   const [selectedDebateId, setSelectedDebateId] = useState<string | null>(null);
   const [showAchievements, setShowAchievements] = useState(false);
   const [is3DDepthEnabled, setIs3DDepthEnabled] = useState(false);
@@ -1932,15 +1940,30 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           updateUserProfile(u.uid, { welcomeAchievementShown: true, totalPoints: (p.totalPoints || 0) + 100 } as any).catch(() => {});
         }
 
-        if (p && !p.hasSeenWelcomePackage && firstTime('welcome_package')) {
-          // First login → open the Boarding Plajah welcome package (routed view), mark it
-          // seen, and drop the "Love, Plajah" letter into the system inbox once. Later
-          // reopens (notification / profile pill) route to the same view without re-sending.
+        if (p && !p.hasCompletedOnboarding && firstTime('welcome_package')) {
+          // Brand-new account → open the Boarding Plajah welcome package live (letter →
+          // Continue → onboarding), drop the "Love, Plajah" letter into the system inbox once,
+          // and mark it notified so the existing-user campaign below never also nudges them.
           setTimeout(() => setView('WELCOME_PACKAGE'), 1200);
-          updateUserProfile(u.uid, { hasSeenWelcomePackage: true, isPioneer: true } as any).catch(() => {});
+          setWelcomeFirstRun(true); // the letter's "Continue" then leads into the 2-page onboarding
+          updateUserProfile(u.uid, { hasSeenWelcomePackage: true, welcomePackageNotified: true, isPioneer: true } as any).catch(() => {});
           import('./services/backendService').then(({ sendSystemWelcomeDM }) => {
             sendSystemWelcomeDM(u.uid, u.displayName || 'Creator').catch(() => {});
           });
+        } else if (p && p.hasCompletedOnboarding && !p.welcomePackageNotified && Date.now() < WELCOME_PACKAGE_CAMPAIGN_END && firstTime('welcome_pkg_notify')) {
+          // Existing user, launch window: send ONE "Welcome Package is ready" SYSTEM
+          // notification pointing at the view. Clicking it (opens the view) or dismissing it
+          // ends it — we never re-send (welcomePackageNotified guard). No auto-open for them.
+          import('./services/backendService').then(({ createNotification }) => {
+            createNotification({
+              userId: u.uid, senderId: 'plajah_system', senderName: 'Plajah',
+              senderPhoto: '/icons/icon-192.png', type: 'SYSTEM',
+              title: 'Your Welcome Package is ready',
+              message: 'A letter from us — and the fastest tour of everything Plajah can do. Tap to open it.',
+              link: 'WELCOME_PACKAGE',
+            } as any).catch(() => {});
+          });
+          updateUserProfile(u.uid, { welcomePackageNotified: true } as any).catch(() => {});
         }
 
         // Smart Guide — auto-enable for new users
@@ -4828,6 +4851,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   displayName={user?.displayName || userProfile?.displayName || undefined}
                   onBack={() => handleBackToDashboard()}
                   onNavigate={(v) => handleGlobalNavigate(v)}
+                  onContinue={welcomeFirstRun ? () => { setWelcomeFirstRun(false); setShowFirstRunOnboarding(true); } : undefined}
                 />
               </Suspense>
             )}
@@ -6137,6 +6161,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               displayName={user?.displayName || userProfile?.displayName}
               onDismiss={handleWelcomePackageDismiss}
             />
+          )}
+
+          {/* First-login onboarding — runs AFTER the Welcome Package letter (its "Continue"
+              opens this). Two pages: "what brings you here?" + the Homes & Studios map,
+              then lands the user on their chosen home. */}
+          {showFirstRunOnboarding && (
+            <Suspense fallback={null}>
+              <Onboarding onDone={(home) => { setShowFirstRunOnboarding(false); handleGlobalNavigate(home); }} />
+            </Suspense>
           )}
 
           <KidsSessionGuard profile={effectiveProfile} />

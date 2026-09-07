@@ -20,6 +20,8 @@ interface WelcomePackageProps {
   displayName?: string;
   onBack: () => void;
   onNavigate: (view: string) => void;
+  /** First-run only: renders a sticky "Continue" that advances into the 2-page onboarding. */
+  onContinue?: () => void;
 }
 
 const CSS = `
@@ -124,9 +126,12 @@ button.wpk-stop:hover{background:rgba(255,255,255,.03)}
 .wpk-you{background:var(--grad)}.wpk-pj{background:rgba(255,255,255,.14)}
 .wpk-leg{display:flex;justify-content:space-between;font-family:"JetBrains Mono",monospace;font-size:.72rem}
 .wpk-leg .wpk-y{color:var(--orange);font-weight:700}.wpk-leg .wpk-pgrey{color:var(--ink-soft)}
+.wpk-continuebar{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;padding:16px;z-index:6;background:linear-gradient(to top,var(--bg) 45%,transparent)}
+.wpk-continue{font-family:"JetBrains Mono",monospace;font-weight:700;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:#fff;border:none;border-radius:999px;padding:14px 30px;display:inline-flex;align-items:center;gap:10px;background:var(--grad);box-shadow:0 10px 30px -8px rgba(255,45,126,.6);transition:filter .16s}
+.wpk-continue:hover{filter:brightness(1.06)}
 `;
 
-const WelcomePackage: React.FC<WelcomePackageProps> = ({ displayName, onBack, onNavigate }) => {
+const WelcomePackage: React.FC<WelcomePackageProps> = ({ displayName, onBack, onNavigate, onContinue }) => {
   const [role, setRole] = useState('creator');
   const firstName = displayName?.split(' ')[0] || 'traveller';
   const activeRole = WP_ROLES.find(r => r.key === role) || WP_ROLES[0];
@@ -271,6 +276,12 @@ const WelcomePackage: React.FC<WelcomePackageProps> = ({ displayName, onBack, on
           </div>
         </div>
       </div>
+
+      {onContinue && (
+        <div className="wpk-continuebar">
+          <button className="wpk-continue" onClick={onContinue}>Continue — set up your Plajah <span aria-hidden>→</span></button>
+        </div>
+      )}
     </div>
   );
 };

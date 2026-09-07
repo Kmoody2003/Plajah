@@ -1516,6 +1516,9 @@ export interface UserProfile {
   isPioneer?: boolean;
   pioneerRewardClaimed?: boolean;
   hasSeenWelcomePackage?: boolean;
+  /** Existing-user launch campaign: set once we've sent the "Welcome Package is ready"
+   *  notification (or when a brand-new user gets it live), so it is never re-sent. */
+  welcomePackageNotified?: boolean;
   tier?: 'FREE' | 'PIONEER' | 'PRO' | 'ELITE';
   storageLimit: number; // 0 means unlimited
   storageUsage: {
