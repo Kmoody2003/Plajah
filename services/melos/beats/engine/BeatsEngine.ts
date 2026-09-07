@@ -101,6 +101,10 @@ export class BeatsEngine {
   isRunning() { return this.running; }
   getDoc() { return this.doc; }
   getContext() { return this.ctx; }
+  /** Master-bus node + context for the shared Meter Bridge to tap (post-limiter). */
+  masterMeterTap(): { ctx: BaseAudioContext; node: AudioNode } | null {
+    return this.ctx && this.graph ? { ctx: this.ctx, node: this.graph.master.analyser } : null;
+  }
 
   /** Gesture-gated: call from a pointer/key handler. Idempotent. */
   async init(): Promise<void> {

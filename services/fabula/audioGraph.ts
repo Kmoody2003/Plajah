@@ -152,6 +152,12 @@ function getMasterBus(ctx: AudioContext) {
 export function setMasterInserts(instances: FxInstance[]) {
   if (_master) _master.suite.setChain(Array.isArray(instances) ? instances : []);
 }
+/** The master-bus node + context for the shared Meter Bridge to tap (post-limiter,
+ *  full stereo). Null until the mixer is built by the first audio clip. */
+export function masterMeterTap(): { ctx: BaseAudioContext; node: AudioNode } | null {
+  const ctx = getAudioCtx();
+  return _master && ctx ? { ctx, node: _master.makeup } : null;
+}
 /** The master bus analyser (post-limiter) — drives audio-reactive effects in the monitor.
  *  Null until the mixer has been built by the first audio clip. */
 export function masterAnalyser(): AnalyserNode | null { return _master ? _master.analyser : null; }

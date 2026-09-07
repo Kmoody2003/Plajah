@@ -6,10 +6,11 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import {
-  meterRegistry, setMasterGain, setMasterLimiter, masterReduction, setMasterInserts,
+  meterRegistry, setMasterGain, setMasterLimiter, masterReduction, setMasterInserts, masterMeterTap,
   audioEngineInfo, listOutputDevices, setOutputDevice, setOutputChannels, resumeAudioCtx,
   setReverb, setDelay, REVERB_PRESETS,
 } from "../../services/fabula/audioGraph";
+import MeterBridge from "../shared/MeterBridge";
 import AnalogFX from "./AnalogFX";
 // Melos Studio's effect rack + catalog, shared verbatim so Fabula's audio FX
 // mirror Melos exactly (see services/fabula/audioFx.ts).
@@ -99,6 +100,7 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
   const [masterVol, setMasterVol] = useState(() => (trackSettings?.master?.vol == null ? 1 : trackSettings.master.vol));
   const [midiStatus, setMidiStatus] = useState("MIDI: not connected");
   const [midiLearnId, setMidiLearnId] = useState(null);
+  const [showMeters, setShowMeters] = useState(true);
   // Which track's FX-insert rack is open below the console.
   const [selTrack, setSelTrack] = useState(null);
   useEffect(() => {
@@ -164,7 +166,9 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
         <span className="dim small" style={{ marginLeft: 8, letterSpacing: 0 }}>
           {info.sampleRate ? `${(info.sampleRate / 1000).toFixed(1)}kHz · ${info.outputLatencyMs || info.baseLatencyMs}ms out · ${info.maxChannels}ch max · ${midiStatus}` : "engine idle — press play"}
         </span>
+        <button className="minibtn" style={{ marginLeft: "auto" }} onClick={() => setShowMeters((v) => !v)} title="Mastering-engineer meter bridge">{showMeters ? "▾ METERS" : "▸ METERS"}</button>
       </div>
+      {showMeters && <div style={{ marginBottom: 12 }}><MeterBridge tap={masterMeterTap} /></div>}
       <div className="mcrow">
         {audioTracks.map((tr, i) => (
           <ChannelStrip key={tr.id} tr={tr} ts={trackSettings?.[tr.id] || {}} tab={TAB_COLORS[i % TAB_COLORS.length]}
