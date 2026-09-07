@@ -13,6 +13,7 @@ import type { GrooveDoc, PadConfig, ArrangeTrack } from '../../../../services/me
 import { GROUP_NAMES, defaultSendBuses } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import MeterBridge from '../../../shared/MeterBridge';
+import MusicCouncilPanel from '../../council/MusicCouncilPanel';
 import type { FxInstance, FxNode } from '../../../../services/melos/beats/fx/devices';
 import { ChannelStrip } from '../shared/ChannelStrip';
 import { FxRack } from '../project/FxRack';
@@ -114,6 +115,7 @@ export const MixerView: React.FC<MixerViewProps> = ({ doc, meters, limiterReduct
     <div className="flex-1 min-h-0 flex flex-col">
       <div className="flex-1 min-h-0 overflow-auto p-4">
         <div className={`${slabPanel} p-3 mb-3`}><MeterBridge tap={() => eng.masterMeterTap()} /></div>
+        <div className="mb-3"><MusicCouncilPanel tap={() => eng.masterMeterTap()} /></div>
         <div className={`${slabPanel} p-4 inline-flex gap-2 items-stretch min-w-full`}>
 
           {/* pads — each a channel with sends + inserts (empty placeholder pads have no channel) */}
