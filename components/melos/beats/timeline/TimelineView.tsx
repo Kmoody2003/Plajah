@@ -14,6 +14,7 @@ import { sendInstrumentTrackToPad } from '../../../../services/melos/beats/instr
 import ProgressionBrowser from '../composer/ProgressionBrowser';
 import HumRecorder from '../composer/HumRecorder';
 import { progressionToClip } from '../../../../services/melos/composition/progressionToClip';
+import { midiFileToClip } from '../../../../services/melos/composition/midiFileImport';
 import { useContextMenu, type MenuNode } from '../../../ui/ContextMenu';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { ingestSample, backupToLocker } from '../../../../services/melos/beats/sampleStore';
@@ -356,6 +357,19 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
         { id: 'arm', label: 'Arm for play/record', checked: !!track.armed, onSelect: () => p.onMutate((d) => { const on = !track.armed; for (const t of d.arrangement) t.armed = false; const t = d.arrangement.find((x) => x.id === trackId); if (t) t.armed = on; }) },
         { id: 'insertprog', label: 'Insert chord progression…', onSelect: () => setProgBrowserTrack(trackId) },
         { id: 'hum', label: 'Hum a melody…', onSelect: () => setHumTrack(trackId) },
+        { id: 'importmidi', label: 'Import MIDI file…', onSelect: () => {
+          const input = document.createElement('input'); input.type = 'file'; input.accept = '.mid,.midi,audio/midi,audio/x-midi';
+          input.onchange = async () => {
+            const f = input.files?.[0]; if (!f) return;
+            try {
+              const buf = await f.arrayBuffer();
+              const startBeats = Math.floor((p.beats || 0) / BEATS_PER_BAR) * BEATS_PER_BAR;
+              const clip = midiFileToClip(buf, startBeats);
+              if (clip) p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); if (t && t.kind === 'instrument') t.clips.push(clip); });
+            } catch { /* not a readable MIDI file */ }
+          };
+          input.click();
+        } },
       );
       // Independent MIDI track → give it a MEKA pad (and therefore a Glass step lane). Hidden once it
       // already has one, or for a pad-owned track (which lives on a pad by definition).
