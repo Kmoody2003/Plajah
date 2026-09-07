@@ -15,3 +15,7 @@ export {
 } from '../melos/beats/fx/devices';
 export type { FxInstance, FxDescriptor } from '../melos/beats/fx/devices';
 export { presetsForFx } from '../melos/beats/fx/presets';
+// Master soft-clip brickwall curve — Melos's memoryless limiter that leaves layers
+// untouched instead of pumping/ducking the sum (graph.ts is import-type-only at
+// runtime, so this tree-shakes to just the function).
+export { softClipCurve } from '../melos/beats/engine/graph';
