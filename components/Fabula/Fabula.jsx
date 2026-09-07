@@ -813,6 +813,11 @@ export default function Fabula() {
   // IndexedDB. The MONITOR plays proxies (Resolve-style scrub perf); EXPORT always uses full-res.
   const [indexedMode, setIndexedMode] = useState(() => localStorage.getItem("fabula:decoder") === "indexed");
   const [proxyOn, setProxyOn] = useState(() => (localStorage.getItem("fabula:proxy") ?? "1") === "1");
+  // "Sync to Local" — OPT-IN cloud→disk download for assets that DON'T live on this device. Off by
+  // default: the default is to read originals straight off disk (disk-resident files are NEVER
+  // downloaded). Distinct from disk-first reading, which is always on.
+  const [syncToLocal, setSyncToLocal] = useState(() => localStorage.getItem("fabula:syncLocal") === "1");
+  const syncToLocalRef = useRef(false); syncToLocalRef.current = syncToLocal; // stable read inside async proxy/sync loops
   const [proxies, setProxies] = useState(() => new Map()); // assetId → object URL of proxy blob
   const [proxyBusy, setProxyBusy] = useState(null);        // "2/7 · name" while building
   const [guides, setGuides] = useState(() => localStorage.getItem("fabula:guides") === "1"); // title/action-safe overlay (never rendered)
@@ -2097,6 +2102,9 @@ export default function Fabula() {
         let proxy = null; let original = null;
         try {
           original = await resolveMediaSource(a);
+          // Building a proxy from a CLOUD source is itself a download — don't do it unless the user
+          // has opted into Sync to Local. Disk/cache-resident sources build their proxy with no network.
+          if (!original.local && !syncToLocalRef.current) { original.release(); original = null; n--; continue; }
           const blob = original.blob || await (await fetch(original.url)).blob();
           if (a.type === "video") proxy = await buildEditingProxy(blob);
           else if (a.type === "audio") proxy = await buildAudioProxy(blob);
@@ -3104,6 +3112,17 @@ export default function Fabula() {
     } catch (e) { ping(e?.message || "Couldn't reconnect the drives"); }
     finally { setFolderSyncing(false); }
   };
+  // DISK-FIRST, like Resolve/Premiere: the originals live on the drive and we read them straight off it.
+  // The one browser tax native apps don't pay is that File System Access permission drops on reload and
+  // needs a user GESTURE to restore. So the first time the user presses play (or scrubs) we quietly
+  // re-grant it — after which every read comes from the original file on disk, no cloud, no download.
+  const diskAccessTriedRef = useRef(false);
+  const foldersNeedAuthRef = useRef(0); foldersNeedAuthRef.current = foldersNeedAuth;
+  const ensureDiskAccess = () => {
+    if (diskAccessTriedRef.current) return;
+    diskAccessTriedRef.current = true;
+    if (foldersNeedAuthRef.current > 0) reconnectDrives(); // re-grant + relink from disk (no download)
+  };
   const rescanSyncFolder = async (id, interactive, full = false) => {
     if (!prod?.id) return;
     try {
@@ -3141,13 +3160,13 @@ export default function Fabula() {
 
   useEffect(() => { refreshSyncFolders(); /* eslint-disable-next-line */ }, [prod?.id]);
 
-  // BYTE-PREFETCH upcoming cloud clips to disk ahead of the playhead. Cloud video/audio is what
-  // buffers and reloads cold every pass; pulling its bytes to OPFS (studio:blob:<id>) turns it LOCAL
-  // so resolveMediaSource stops streaming it. Uses fetch only — zero video decoders, so it never
-  // competes with the live monitor (the reason the old hidden-<video> warmers were removed). Sequential
-  // + size-capped inside prefetch.ts so it can't saturate a lossy link. Re-scans on edits and every 4s.
+  // "SYNC TO LOCAL" (opt-in) — download cloud copies to OPFS for assets that DON'T live on this device.
+  // This does NOT run by default and NEVER touches disk-resident files: an asset that came from a watch
+  // folder (folderId) or a saved file handle (localFileHandle) is read straight off the drive, not
+  // downloaded. Only genuinely cloud-only assets (no disk source on this machine) are pulled, and only
+  // while the user has Sync to Local enabled. fetch-only (zero decoders), sequential + size-capped.
   useEffect(() => {
-    if (!prod?.id || !clips.length) return undefined;
+    if (!prod?.id || !clips.length || !syncToLocal) return undefined;
     const kick = () => {
       try {
         const ph = prefetchPhRef.current || 0;
@@ -3158,10 +3177,11 @@ export default function Fabula() {
           if ((c.start + (c.duration || 0)) < ph - 1) continue;                 // already passed
           const a = pool.find((x) => x.id === c.assetId);
           if (!a || (a.type !== "video" && a.type !== "audio")) continue;
+          if (a.folderId || a.localFileHandle) continue;                        // lives on disk → read from disk, never download
           const cloud = [a.url, a.cloudUrl].find((u) => /^https?:/i.test(u || "")); // local (blob:) → skip
           if (!cloud) continue;
           seen.add(c.assetId); list.push({ id: a.id, url: cloud });
-          if (list.length >= 64) break;                                         // conform the whole timeline (deduped by asset) so scrubbing anywhere is local
+          if (list.length >= 64) break;                                         // whole timeline, deduped by asset
         }
         if (list.length) prefetchAssets(list);
       } catch { /* best-effort */ }
@@ -3169,7 +3189,7 @@ export default function Fabula() {
     kick();
     const iv = setInterval(kick, 4000);
     return () => clearInterval(iv);
-  }, [clips, prod?.id]);
+  }, [clips, prod?.id, syncToLocal]);
   useEffect(() => () => cancelPrefetch(), []);   // stop pulls when Fabula unmounts
   // Reset media filters when the production changes. Otherwise a bin/search filter from a previous
   // project persists and strands the grid: every import lands in a bin the stale filter excludes, so
@@ -3632,7 +3652,7 @@ export default function Fabula() {
   const stepFrame = (dir) => setPlayhead((p) => Math.max(0, p + dir * frameDur));
   // JKL shuttle. The transport loop reads rateRef live: 1× forward runs through the audio engine
   // (with sound), everything else the wall clock. Ladder math lives in services/fabula/shuttle.ts.
-  const shuttle = (dir) => { rateRef.current = nextShuttleRate(rateRef.current, playingGateRef.current, dir); setPlaying(true); };
+  const shuttle = (dir) => { ensureDiskAccess(); rateRef.current = nextShuttleRate(rateRef.current, playingGateRef.current, dir); setPlaying(true); };
   const jumpEdit = (dir) => {
     const pts = Array.from(new Set([0, ...clips.flatMap((c) => [c.start, c.start + c.duration])])).sort((a, b) => a - b);
     if (dir < 0) { const prev = [...pts].reverse().find((t) => t < playhead - 1e-3); setPlayhead(prev ?? 0); }
@@ -3932,7 +3952,7 @@ export default function Fabula() {
         const v = srcVideoRef.current;
         if (v) { if (v.paused) { v.play().catch(() => {}); setSrcPlaying(true); } else { v.pause(); setSrcPlaying(false); } return; }
       }
-      rateRef.current = 1; setPlaying((p) => !p);
+      ensureDiskAccess(); rateRef.current = 1; setPlaying((p) => !p);
     },
     // JKL shuttle — proper NLE ladder. First press in a direction plays 1× (with audio at 1× forward,
     // via the engine); tapping the SAME key again steps up 1→2→4→8×. K stops and resets to 1×. Pressing
@@ -4136,7 +4156,7 @@ export default function Fabula() {
   const startScrub = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const seek = (clientX) => setPlayhead(Math.max(0, qFrame((clientX - rect.left) / pxPerSec)));
-    setPlaying(false); scrubbingRef.current = true; syncEditBusy(); seek(e.clientX);
+    ensureDiskAccess(); setPlaying(false); scrubbingRef.current = true; syncEditBusy(); seek(e.clientX);
     const move = (ev) => { ev.preventDefault(); seek(ev.clientX); };
     const up = () => { scrubbingRef.current = false; syncEditBusy(); document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
     document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
@@ -4750,7 +4770,7 @@ export default function Fabula() {
                       <span ref={tcRef} className="tc">{fmtTc(playhead, vfmt)}</span>
                       <div className="tbtns">
                         <button className="tbtn" onClick={() => { setPlayhead(0); setPlaying(false); }}><SkipBack size={14} /></button>
-                        <button className="tbtn play" onClick={() => { resumeAudioCtx(); setPlaying(!playing); }}>{playing ? <Pause size={15} /> : <Play size={15} />}</button>
+                        <button className="tbtn play" onClick={() => { resumeAudioCtx(); ensureDiskAccess(); setPlaying(!playing); }}>{playing ? <Pause size={15} /> : <Play size={15} />}</button>
                       </div>
                       <span className="tc dim2">/ {fmtTc(seqEnd, vfmt)}</span>
                       <div style={{ display: "flex", height: 20, marginLeft: 6 }} title="Master output level"><TrackMeter trackId="master" /></div>
@@ -5866,6 +5886,8 @@ export default function Fabula() {
                           <button className="minibtn" disabled={!!proxyBusy || !missing} title="Build lightweight proxies for heavy media (540p video, AAC audio, downscaled stills). Compact/local-friendly sources are skipped. Runs automatically in the background too."
                             onClick={() => buildProxiesFor()}>{proxyBusy ? `⚙ ${proxyBusy}` : `BUILD PROXIES${missing ? ` (${missing})` : " ✓"}`}</button>
                         ); })()}
+                        <button className="minibtn" title="SYNC TO LOCAL — download CLOUD-ONLY assets (ones that don't live on this device) to disk for offline use. OFF by default: files already on your drive are read straight off disk, never re-downloaded." style={{ opacity: syncToLocal ? 1 : 0.45, color: syncToLocal ? "#8fd0ff" : undefined }}
+                          onClick={() => { const nv = !syncToLocal; setSyncToLocal(nv); try { localStorage.setItem("fabula:syncLocal", nv ? "1" : "0"); } catch { /* */ } ping(nv ? "Sync to Local ON — cloud-only assets will download to disk" : "Sync to Local OFF — reading originals off disk only"); }}>SYNC LOCAL {syncToLocal ? "ON" : "OFF"}</button>
                         <button className="minibtn" disabled={scriptBuilding || !clips.length} title="Reverse-engineer the screenplay from this edit: every clip is watched (computer vision) + transcribed, dialogue is tagged to your cast, and the scene + SLATE shot list are rebuilt from the cut"
                           onClick={buildScriptFromTimeline} style={{ color: scriptBuilding ? "#FF8C00" : undefined }}>{scriptBuilding ? "📜 BUILDING…" : "📜 BUILD SCRIPT FROM TIMELINE"}</button>
                       </div>
