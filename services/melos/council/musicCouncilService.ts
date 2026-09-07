@@ -10,13 +10,13 @@ import type { MusicBrief, MeasuredMix, MusicDeliberation, Proposal, CouncilMove,
 export { MUSIC_PERSONAS, MUSIC_COUNCIL_LIST };
 export type { MusicBrief, MeasuredMix, MusicDeliberation };
 
-const BANDS: Array<{ key: keyof NonNullable<MeasuredMix['tone']>; label: string; where: string }> = [
-  { key: 'sub', label: 'sub', where: '30–60 Hz' },
-  { key: 'low', label: 'low end', where: '60–120 Hz' },
-  { key: 'lowMid', label: 'low-mids', where: '200–500 Hz' },
-  { key: 'mid', label: 'mids', where: '500 Hz–2 kHz' },
-  { key: 'highMid', label: 'presence', where: '2–5 kHz' },
-  { key: 'high', label: 'air', where: '8 kHz+' },
+const BANDS: Array<{ key: keyof NonNullable<MeasuredMix['tone']>; label: string; where: string; hz: number }> = [
+  { key: 'sub', label: 'sub', where: '30–60 Hz', hz: 45 },
+  { key: 'low', label: 'low end', where: '60–120 Hz', hz: 90 },
+  { key: 'lowMid', label: 'low-mids', where: '200–500 Hz', hz: 320 },
+  { key: 'mid', label: 'mids', where: '500 Hz–2 kHz', hz: 1000 },
+  { key: 'highMid', label: 'presence', where: '2–5 kHz', hz: 3500 },
+  { key: 'high', label: 'air', where: '8 kHz+', hz: 10000 },
 ];
 
 /** Deterministic, grounded advice from the measurements + knowledge base — no AI. */
@@ -31,26 +31,26 @@ export function localAdvice(brief: MusicBrief, m: MeasuredMix = {}): MusicDelibe
   const masterMoves: CouncilMove[] = [];
   if (typeof m.lufsIntegrated === 'number' && target) {
     const d = m.lufsIntegrated - target.lufs;
-    if (d > 1.5) masterMoves.push({ text: `You're ${d.toFixed(1)} dB over the ${target.platform} target — it'll be turned down and lose punch. Master to ${target.lufs} LUFS.`, where: 'master' });
-    else if (d < -2) masterMoves.push({ text: `${Math.abs(d).toFixed(1)} dB under the ${target.platform} target — there's headroom to push loudness.`, where: 'master' });
-    else masterMoves.push({ text: `Loudness is on target for ${target.platform} (${m.lufsIntegrated.toFixed(1)} vs ${target.lufs} LUFS).`, where: 'master' });
+    if (d > 1.5) masterMoves.push({ personaId: 'MASTER', text: `You're ${d.toFixed(1)} dB over the ${target.platform} target — it'll be turned down and lose punch. Master to ${target.lufs} LUFS.`, where: 'master', apply: { kind: 'loudness', trimDb: -Math.min(6, Math.round(d * 10) / 10) } });
+    else if (d < -2) masterMoves.push({ personaId: 'MASTER', text: `${Math.abs(d).toFixed(1)} dB under the ${target.platform} target — there's headroom to push loudness.`, where: 'master' });
+    else masterMoves.push({ personaId: 'MASTER', text: `Loudness is on target for ${target.platform} (${m.lufsIntegrated.toFixed(1)} vs ${target.lufs} LUFS).`, where: 'master' });
   }
-  if (typeof m.truePeakDb === 'number' && target && m.truePeakDb > target.truePeakDb) masterMoves.push({ text: `True-peak ${m.truePeakDb.toFixed(1)} dBTP exceeds ${target.truePeakDb} — inter-sample overs will clip on lossy. Lower the ceiling.`, where: 'true-peak limiter' });
-  if (typeof m.plr === 'number' && gp && m.plr < gp.plr[0]) masterMoves.push({ text: `PLR ${m.plr.toFixed(1)} is below the ${gp.genre} norm (${gp.plr[0]}–${gp.plr[1]}) — it's over-compressed and flat. Ease the limiting.`, where: 'master bus' });
+  if (typeof m.truePeakDb === 'number' && target && m.truePeakDb > target.truePeakDb) masterMoves.push({ personaId: 'MASTER', text: `True-peak ${m.truePeakDb.toFixed(1)} dBTP exceeds ${target.truePeakDb} — inter-sample overs will clip on lossy. Lower the ceiling.`, where: 'true-peak limiter' });
+  if (typeof m.plr === 'number' && gp && m.plr < gp.plr[0]) masterMoves.push({ personaId: 'MASTER', text: `PLR ${m.plr.toFixed(1)} is below the ${gp.genre} norm (${gp.plr[0]}–${gp.plr[1]}) — it's over-compressed and flat. Ease the limiting.`, where: 'master bus' });
   if (masterMoves.length) proposals.push({ personaId: 'MASTER', headline: 'Loudness & translation', moves: masterMoves });
 
-  // ── Mix Engineer: tonal balance vs the genre norm ──
+  // ── Mix Engineer: tonal balance vs the genre norm (each is one-click applyable as a master EQ band) ──
   const mixMoves: CouncilMove[] = [];
   if (m.tone && gp) {
     for (const b of BANDS) {
       const have = m.tone[b.key]; const want = gp.tone[b.key];
       if (typeof have !== 'number') continue;
       const diff = have - want;
-      if (diff > 0.2) mixMoves.push({ text: `Too much ${b.label} for ${gp.genre} — pull it back a little.`, where: b.where });
-      else if (diff < -0.2) mixMoves.push({ text: `Light on ${b.label} vs ${gp.genre} — a gentle lift will help it sit right.`, where: b.where });
+      if (diff > 0.2) mixMoves.push({ personaId: 'MIX', text: `Too much ${b.label} for ${gp.genre} — pull it back a little.`, where: b.where, apply: { kind: 'eq', freq: b.hz, gainDb: -Math.min(4, Math.round((diff * 8)) / 2), q: 1 } });
+      else if (diff < -0.2) mixMoves.push({ personaId: 'MIX', text: `Light on ${b.label} vs ${gp.genre} — a gentle lift will help it sit right.`, where: b.where, apply: { kind: 'eq', freq: b.hz, gainDb: Math.min(4, Math.round((-diff * 8)) / 2), q: 1 } });
     }
   }
-  if (typeof m.corr === 'number' && m.corr < 0) mixMoves.push({ text: `Correlation is negative (${m.corr.toFixed(2)}) — phase issues; check mono, keep the low end centered.`, where: 'M/S · low mono' });
+  if (typeof m.corr === 'number' && m.corr < 0) mixMoves.push({ personaId: 'MIX', text: `Correlation is negative (${m.corr.toFixed(2)}) — phase issues; check mono, keep the low end centered.`, where: 'M/S · low mono' });
   if (mixMoves.length) proposals.push({ personaId: 'MIX', headline: 'Balance & clarity', moves: mixMoves.slice(0, 5) });
 
   // ── The other three: lens-based prompts (they read the song, not the meter) ──

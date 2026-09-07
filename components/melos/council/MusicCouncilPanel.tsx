@@ -6,8 +6,10 @@ import { Users, Loader2, Sparkles } from 'lucide-react';
 import { MeterAnalyser } from '../../../services/shared/meterAnalyser';
 import { frameToMeasured } from '../../../services/melos/council/meterToMeasured';
 import { deliberate, MUSIC_PERSONAS } from '../../../services/melos/council/musicCouncilService';
-import type { MusicDeliberation, MeasuredMix, MusicPersonaId } from '../../../services/melos/council/musicCouncilTypes';
+import type { MusicDeliberation, MeasuredMix, MusicPersonaId, ApplyAction } from '../../../services/melos/council/musicCouncilTypes';
 import { GENRE_PROFILES, LOUDNESS_TARGETS } from '../../../services/melos/council/musicKnowledge';
+import { saveSession, markUsed, leadCounts, listSessions } from '../../../services/melos/council/musicCouncilStore';
+import { Check, History } from 'lucide-react';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -25,22 +27,34 @@ async function measure(tap: () => { ctx: BaseAudioContext; node: AudioNode } | n
   finally { ma?.dispose(); }
 }
 
-export default function MusicCouncilPanel({ tap }: { tap: () => { ctx: BaseAudioContext; node: AudioNode } | null }) {
+export default function MusicCouncilPanel({ tap, onApply }: { tap: () => { ctx: BaseAudioContext; node: AudioNode } | null; onApply?: (a: ApplyAction) => void }) {
   const [ask, setAsk] = useState('Why does my mix sound small?');
   const [genre, setGenre] = useState('pop');
   const [platform, setPlatform] = useState('Spotify');
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<MusicDeliberation | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [used, setUsed] = useState(false);
+  const [applied, setApplied] = useState<Set<string>>(new Set());
+  const [tick, setTick] = useState(0); // bump to re-read the store (history + stats)
+  const [showHistory, setShowHistory] = useState(false);
+  const counts = leadCounts();
+  const topLead = (Object.entries(counts) as [MusicPersonaId, number][]).sort((a, b) => b[1] - a[1])[0];
 
   const run = async () => {
     if (busy || !ask.trim()) return;
-    setBusy(true); setRes(null);
+    setBusy(true); setRes(null); setUsed(false); setApplied(new Set());
     try {
       const m = await measure(tap);
-      setRes(await deliberate({ ask: ask.trim(), genre, platform }, m));
+      const d = await deliberate({ ask: ask.trim(), genre, platform }, m);
+      setRes(d);
+      const sess = saveSession({ ask: ask.trim(), genre, platform }, d);
+      setSessionId(sess.id); setTick((t) => t + 1);
     } catch { /* deliberate already falls back */ }
     finally { setBusy(false); }
   };
+  const doApply = (a: ApplyAction | undefined, key: string) => { if (!a || !onApply) return; onApply(a); setApplied((s) => new Set(s).add(key)); };
+  const followed = () => { if (sessionId) { markUsed(sessionId); setUsed(true); setTick((t) => t + 1); } };
 
   return (
     <div className="rounded-2xl border border-white/10 bg-[#0f0d15] p-4">
@@ -77,9 +91,14 @@ export default function MusicCouncilPanel({ tap }: { tap: () => { ctx: BaseAudio
                 </div>
                 <ul className="space-y-0.5">
                   {p.moves.map((m, j) => (
-                    <li key={j} className="text-[12px] text-white/70 flex gap-2">
+                    <li key={j} className="text-[12px] text-white/70 flex gap-2 items-start">
                       <span className="flex-1">{m.text}</span>
                       {m.where && <span className="shrink-0 text-[9px] font-mono text-[#8B5CFF]/80 bg-[#8B5CFF]/10 border border-[#8B5CFF]/25 rounded px-1.5 py-0.5 self-start">{m.where}</span>}
+                      {m.apply && onApply && (
+                        applied.has(`${i}:${j}`)
+                          ? <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-[#3DFFC0] flex items-center gap-0.5 self-start"><Check size={11} /> applied</span>
+                          : <button onClick={() => doApply(m.apply, `${i}:${j}`)} className="shrink-0 text-[9px] font-black uppercase tracking-widest text-[#8B5CFF] hover:text-white bg-[#8B5CFF]/10 hover:bg-[#8B5CFF]/25 border border-[#8B5CFF]/30 rounded px-1.5 py-0.5 self-start transition-colors">Apply</button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -101,7 +120,33 @@ export default function MusicCouncilPanel({ tap }: { tap: () => { ctx: BaseAudio
             </div>
           )}
           {res.summary && <p className="text-[12px] text-white/70 leading-relaxed">{res.summary}</p>}
-          <p className="text-[9px] text-white/25 uppercase tracking-widest">{res.grounded ? '▣ grounded in your master' : '— play the master for numbers-backed advice'} · {res.source}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[9px] text-white/25 uppercase tracking-widest">{res.grounded ? '▣ grounded in your master' : '— play the master for numbers-backed advice'} · {res.source}</span>
+            {used
+              ? <span className="text-[9px] font-black uppercase tracking-widest text-[#3DFFC0] flex items-center gap-0.5"><Check size={11} /> followed</span>
+              : <button onClick={followed} className="text-[9px] font-black uppercase tracking-widest text-white/45 hover:text-white border border-white/12 rounded-full px-2 py-0.5">I followed this</button>}
+          </div>
+        </div>
+      )}
+
+      {/* Persistence: lead stats + recent asks. The team learns which voice you keep following. */}
+      {(topLead || listSessions().length > 0) && (
+        <div className="mt-3 pt-3 border-t border-white/8" key={tick}>
+          <button onClick={() => setShowHistory((v) => !v)} className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-white/35 hover:text-white/60">
+            <History size={11} /> {topLead ? `${MUSIC_PERSONAS[topLead[0]].name} has led ${topLead[1]} you've kept` : 'Council history'}
+          </button>
+          {showHistory && (
+            <div className="mt-2 space-y-1">
+              {listSessions().slice(0, 6).map((s) => (
+                <div key={s.id} className="flex items-center gap-2 text-[11px]">
+                  {s.used && <Check size={10} className="text-[#3DFFC0] shrink-0" />}
+                  <span className="flex-1 truncate text-white/50">{s.ask}</span>
+                  {s.leadPersona && <span className="shrink-0 text-[9px] text-[#8B5CFF]/70 uppercase tracking-widest">{s.leadPersona.toLowerCase()}</span>}
+                </div>
+              ))}
+              {listSessions().length === 0 && <p className="text-[10px] text-white/25">No sessions yet.</p>}
+            </div>
+          )}
         </div>
       )}
     </div>

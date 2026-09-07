@@ -34,7 +34,11 @@ export interface MusicBrief {
   platform?: string;            // delivery target platform
 }
 
-export interface CouncilMove { text: string; where?: string; personaId?: MusicPersonaId; }
+/** A move the user can apply in one click. EQ adds a bell band on the master; loudness sets a target. */
+export type ApplyAction =
+  | { kind: 'eq'; freq: number; gainDb: number; q?: number }
+  | { kind: 'loudness'; trimDb: number };   // adjust master gain by trimDb (negative = quieter)
+export interface CouncilMove { text: string; where?: string; personaId?: MusicPersonaId; apply?: ApplyAction; }
 export interface Proposal { personaId: MusicPersonaId; headline: string; moves: CouncilMove[]; }
 
 export interface MusicDeliberation {
