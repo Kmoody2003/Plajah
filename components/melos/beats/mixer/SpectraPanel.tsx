@@ -168,6 +168,9 @@ export const SpectraPanel: React.FC<Props> = ({ doc, onMutate, onClose }) => {
             <button onClick={() => setMode(5)} className="h-6 px-2.5 rounded-md text-[10px] font-mono" style={state.mode === 5 ? { background: PLAYHEAD, color: '#06222a', fontWeight: 700 } : { color: 'rgba(255,255,255,0.45)' }}>5-band</button>
             <button onClick={() => setMode(30)} className="h-6 px-2.5 rounded-md text-[10px] font-mono" style={state.mode === 30 ? { background: PLAYHEAD, color: '#06222a', fontWeight: 700 } : { color: 'rgba(255,255,255,0.45)' }}>30-band</button>
           </div>
+          <button onClick={() => { stateRef.current.linearPhase = !stateRef.current.linearPhase; commit(); }}
+            title="Linear-phase FIR — zero phase distortion for mastering, adds latency. Off = real-time minimum-phase."
+            className="h-7 px-3 rounded-lg text-[10px] font-mono border" style={state.linearPhase ? { borderColor: '#00DAF3', color: '#00DAF3', background: 'rgba(0,218,243,0.12)' } : { borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)' }}>Linear phase {state.linearPhase ? 'on' : 'off'}</button>
           <button onClick={() => setShowPresets((v) => !v)} className="h-7 px-3 rounded-lg text-[11px] font-semibold" style={{ color: SELECT }}>Presets ▾</button>
           <span className="flex-1" />
           <button onClick={onClose} aria-label="Close" className="w-8 h-8 grid place-items-center rounded-lg border border-white/10 text-white/50 hover:text-white"><X size={15} /></button>

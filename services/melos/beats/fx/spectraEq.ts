@@ -11,6 +11,8 @@
 // The follower is driven live from the panel's rAF (tickDynamics); an offline bounce renders the
 // static curve (dynamics are a live feature in v1).
 
+import { designLinearPhaseFir } from './firEq';
+
 export type BandType = 'bell' | 'lowshelf' | 'highshelf' | 'highpass' | 'lowpass' | 'notch';
 
 export interface SpectraBand {
@@ -30,6 +32,9 @@ export interface SpectraState {
   /** Band-SOLO: when set to a band id, the EQ becomes a band-pass "listen" at that band's freq/Q so you
    *  can hear the resonance you're about to notch. Transient — cleared when you stop listening. */
   solo?: string;
+  /** LINEAR-PHASE: process through a linear-phase FIR (firEq) instead of the minimum-phase biquads —
+   *  zero phase distortion for mastering, at the cost of latency ((taps-1)/2 samples). Off = real-time. */
+  linearPhase?: boolean;
 }
 
 const BQ: Record<BandType, BiquadFilterType> = {
@@ -81,6 +86,10 @@ export class SpectraEQ {
   private bandsById = new Map<string, SpectraBand>();
   private freqScratch = new Float32Array(0);
   private soloBP: BiquadFilterNode | null = null;
+  private conv: ConvolverNode | null = null;
+  private readonly linTaps = 8192;
+  /** FIR latency in samples while linear-phase is engaged (0 in the minimum-phase default). */
+  latencySamples = 0;
 
   constructor(ctx: BaseAudioContext) {
     this.ctx = ctx;
@@ -118,6 +127,26 @@ export class SpectraEQ {
       return;
     }
     if (this.soloBP) { try { this.soloBP.disconnect(); } catch { /* */ } }
+
+    // LINEAR-PHASE: route through a FIR convolver built from the band curve (firEq) — zero phase
+    // distortion, at the cost of (taps-1)/2 samples of latency. Overrides the biquad chain.
+    const lpBands = state.on ? state.bands.filter((b) => b.on) : [];
+    if (state.on && state.linearPhase && lpBands.length) {
+      const kernel = designLinearPhaseFir(lpBands, this.ctx.sampleRate, this.linTaps);
+      if (!this.conv) this.conv = this.ctx.createConvolver();
+      const ir = this.ctx.createBuffer(2, kernel.length, this.ctx.sampleRate);
+      ir.getChannelData(0).set(kernel); ir.getChannelData(1).set(kernel);
+      this.conv.normalize = false; this.conv.buffer = ir;
+      for (const id of [...this.filters.keys()]) { try { this.filters.get(id)!.disconnect(); } catch { /* */ } this.filters.delete(id); }
+      for (const id of [...this.detectors.keys()]) this.dropDetector(id);
+      this.order = []; this.bandsById = new Map();
+      try { this.conv.disconnect(); } catch { /* */ }
+      this.input.connect(this.conv); this.conv.connect(this.output);
+      this.latencySamples = (this.linTaps - 1) / 2;
+      return;
+    }
+    if (this.conv) { try { this.conv.disconnect(); } catch { /* */ } }
+    this.latencySamples = 0;
 
     const active = state.on ? state.bands.filter((b) => b.on) : [];
     this.order = active.map((b) => b.id);
@@ -200,6 +229,7 @@ export class SpectraEQ {
     for (const f of this.filters.values()) { try { f.disconnect(); } catch { /* */ } }
     for (const id of [...this.detectors.keys()]) this.dropDetector(id);
     try { this.soloBP?.disconnect(); } catch { /* */ }
+    try { this.conv?.disconnect(); } catch { /* */ }
     this.filters.clear();
   }
 }
