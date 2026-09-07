@@ -13,6 +13,7 @@ import { grooveUid } from '../../../../services/melos/beats/grooveDoc';
 import { sendInstrumentTrackToPad } from '../../../../services/melos/beats/instrumentFactory';
 import ProgressionBrowser from '../composer/ProgressionBrowser';
 import HumRecorder from '../composer/HumRecorder';
+import PromptComposer from '../composer/PromptComposer';
 import { progressionToClip } from '../../../../services/melos/composition/progressionToClip';
 import { midiFileToClip } from '../../../../services/melos/composition/midiFileImport';
 import { useContextMenu, type MenuNode } from '../../../ui/ContextMenu';
@@ -356,6 +357,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
         { id: 'open', label: 'Open instrument', onSelect: () => requestOpen(trackId) },
         { id: 'arm', label: 'Arm for play/record', checked: !!track.armed, onSelect: () => p.onMutate((d) => { const on = !track.armed; for (const t of d.arrangement) t.armed = false; const t = d.arrangement.find((x) => x.id === trackId); if (t) t.armed = on; }) },
         { id: 'insertprog', label: 'Insert chord progression…', onSelect: () => setProgBrowserTrack(trackId) },
+        { id: 'prompt', label: 'Describe a part (AI)…', onSelect: () => setPromptTrack(trackId) },
         { id: 'hum', label: 'Hum a melody…', onSelect: () => setHumTrack(trackId) },
         { id: 'importmidi', label: 'Import MIDI file…', onSelect: () => {
           const input = document.createElement('input'); input.type = 'file'; input.accept = '.mid,.midi,audio/midi,audio/x-midi';
@@ -403,6 +405,19 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
 
   const [progBrowserTrack, setProgBrowserTrack] = useState<string | null>(null); // instrument track receiving a progression
   const [humTrack, setHumTrack] = useState<string | null>(null); // instrument track receiving a hummed melody
+  const [promptTrack, setPromptTrack] = useState<string | null>(null); // instrument track receiving an AI-composed part
+  // Shared: drop a set of NoteEvents as a bar-snapped MIDI clip at the playhead on an instrument track
+  // (used by Hum, the Virtual Composer prompt, etc.).
+  const insertNotesOnTrack = (trackId: string, notes: TimelineClip['notes']) => {
+    if (!notes || !notes.length) return;
+    const startBeats = Math.floor((p.beats || 0) / BEATS_PER_BAR) * BEATS_PER_BAR;
+    const end = notes.reduce((m, n) => Math.max(m, n.startBeats + n.lengthBeats), 0);
+    const lengthBeats = Math.max(BEATS_PER_BAR, Math.ceil(end / BEATS_PER_BAR) * BEATS_PER_BAR);
+    p.onMutate((d) => {
+      const t = d.arrangement.find((x) => x.id === trackId);
+      if (t && t.kind === 'instrument') t.clips.push({ id: grooveUid(), startBeats, lengthBeats, notes });
+    });
+  };
   // "Add instrument" destination chooser (anchored, in-view via the shared menu primitive).
   const instrumentAddMenu = useContextMenu<null>(() => [
     { kind: 'header', label: 'Add instrument as…' },
@@ -706,16 +721,14 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
         <HumRecorder
           target={p.doc.arrangement.find((t) => t.id === humTrack)?.name}
           onClose={() => setHumTrack(null)}
-          onInsert={(notes) => {
-            if (!notes.length) return;
-            const startBeats = Math.floor((p.beats || 0) / BEATS_PER_BAR) * BEATS_PER_BAR;
-            const end = notes.reduce((m, n) => Math.max(m, n.startBeats + n.lengthBeats), 0);
-            const lengthBeats = Math.max(BEATS_PER_BAR, Math.ceil(end / BEATS_PER_BAR) * BEATS_PER_BAR);
-            p.onMutate((d) => {
-              const t = d.arrangement.find((x) => x.id === humTrack);
-              if (t && t.kind === 'instrument') t.clips.push({ id: grooveUid(), startBeats, lengthBeats, notes });
-            });
-          }}
+          onInsert={(notes) => insertNotesOnTrack(humTrack, notes)}
+        />
+      )}
+      {promptTrack && (
+        <PromptComposer
+          target={p.doc.arrangement.find((t) => t.id === promptTrack)?.name}
+          onClose={() => setPromptTrack(null)}
+          onInsert={(notes) => insertNotesOnTrack(promptTrack, notes)}
         />
       )}
       <input ref={colorInputRef} type="color" className="sr-only" aria-label="Choose a custom clip color" onChange={(e) => { const target = colorTargetRef.current; if (!target) return; const color = e.target.value; p.onMutate((d) => { const c = d.arrangement.find((t) => t.id === target.trackId)?.clips.find((x) => x.id === target.clipId); if (c) c.color = color; }); colorTargetRef.current = null; }} />
