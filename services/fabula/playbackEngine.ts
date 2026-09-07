@@ -28,6 +28,7 @@ import {
   getMasterInput, getFxSends, needsCors, makeHeldMeter, getGroupInput, groupIndex,
 } from './audioGraph';
 import { resolveMediaSource } from './mediaSource';
+import { putBytes } from './mediaStore';
 import { FxChainHost } from './audioFx';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -214,6 +215,13 @@ async function decodeUrl(url: string, assetId?: string, asset?: any): Promise<Au
       source = await resolveMediaSource(asset || {id:assetId,url});
       if (source.blob && source.blob.size > MAX_FETCH_BYTES) throw new Error('Streaming audio: source exceeds in-memory budget');
       const bytes = source.blob ? await source.blob.arrayBuffer() : await fetchBytes(source.url);
+      // Local-first: the first time a cloud asset is streamed, persist its bytes on
+      // device (studio:blob:<id>) so every later play/seek resolves LOCAL (instant,
+      // no re-stream) — the fix for WAV stutter on a lossy network. Blob copies the
+      // data synchronously, so it survives decodeAudioData detaching the ArrayBuffer.
+      if (!source.blob && assetId && bytes.byteLength <= MAX_FETCH_BYTES) {
+        try { void putBytes('studio:blob:' + assetId, new Blob([bytes])).catch(() => {}); } catch { /* storage full */ }
+      }
       const buf = await ctx.decodeAudioData(bytes);
       const pcm = buf.length * buf.numberOfChannels * 4;
       if (pcm > MAX_CACHE_BYTES) throw new Error('Streaming audio: decoded size exceeds in-memory budget');
