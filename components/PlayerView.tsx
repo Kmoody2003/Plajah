@@ -2888,7 +2888,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
          {/* Gatefold: the live lyric rides ON the leaf's lower edge as a subtitle
              overlay (z-20, pointer-events-none) — it can never be covered by the
              leaf again. Classic keeps the old stacked strip below the art. */}
-         {showCaptions && (currentTrack.lyrics || currentTrack.timeCodedLyrics) && !activeVideoId && (
+         {showCaptions && currentTrack && (currentTrack.lyrics || currentTrack.timeCodedLyrics) && !activeVideoId && (
            <div className={gatefoldOn
              ? 'absolute bottom-10 inset-x-8 z-20 pointer-events-none animate-in slide-in-from-bottom-4 duration-700'
              : 'mt-auto mb-8 animate-in slide-in-from-bottom-4 duration-700'}>
