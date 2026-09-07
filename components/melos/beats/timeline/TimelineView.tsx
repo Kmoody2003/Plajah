@@ -12,6 +12,7 @@ import type { GrooveDoc, Pattern, TimelineClip } from '../../../../services/melo
 import { grooveUid } from '../../../../services/melos/beats/grooveDoc';
 import { sendInstrumentTrackToPad } from '../../../../services/melos/beats/instrumentFactory';
 import ProgressionBrowser from '../composer/ProgressionBrowser';
+import HumRecorder from '../composer/HumRecorder';
 import { progressionToClip } from '../../../../services/melos/composition/progressionToClip';
 import { useContextMenu, type MenuNode } from '../../../ui/ContextMenu';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
@@ -354,6 +355,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
         { id: 'open', label: 'Open instrument', onSelect: () => requestOpen(trackId) },
         { id: 'arm', label: 'Arm for play/record', checked: !!track.armed, onSelect: () => p.onMutate((d) => { const on = !track.armed; for (const t of d.arrangement) t.armed = false; const t = d.arrangement.find((x) => x.id === trackId); if (t) t.armed = on; }) },
         { id: 'insertprog', label: 'Insert chord progression…', onSelect: () => setProgBrowserTrack(trackId) },
+        { id: 'hum', label: 'Hum a melody…', onSelect: () => setHumTrack(trackId) },
       );
       // Independent MIDI track → give it a MEKA pad (and therefore a Glass step lane). Hidden once it
       // already has one, or for a pad-owned track (which lives on a pad by definition).
@@ -386,6 +388,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   });
 
   const [progBrowserTrack, setProgBrowserTrack] = useState<string | null>(null); // instrument track receiving a progression
+  const [humTrack, setHumTrack] = useState<string | null>(null); // instrument track receiving a hummed melody
   // "Add instrument" destination chooser (anchored, in-view via the shared menu primitive).
   const instrumentAddMenu = useContextMenu<null>(() => [
     { kind: 'header', label: 'Add instrument as…' },
@@ -681,6 +684,22 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
             p.onMutate((d) => {
               const t = d.arrangement.find((x) => x.id === progBrowserTrack);
               if (t && t.kind === 'instrument') t.clips.push(clip);
+            });
+          }}
+        />
+      )}
+      {humTrack && (
+        <HumRecorder
+          target={p.doc.arrangement.find((t) => t.id === humTrack)?.name}
+          onClose={() => setHumTrack(null)}
+          onInsert={(notes) => {
+            if (!notes.length) return;
+            const startBeats = Math.floor((p.beats || 0) / BEATS_PER_BAR) * BEATS_PER_BAR;
+            const end = notes.reduce((m, n) => Math.max(m, n.startBeats + n.lengthBeats), 0);
+            const lengthBeats = Math.max(BEATS_PER_BAR, Math.ceil(end / BEATS_PER_BAR) * BEATS_PER_BAR);
+            p.onMutate((d) => {
+              const t = d.arrangement.find((x) => x.id === humTrack);
+              if (t && t.kind === 'instrument') t.clips.push({ id: grooveUid(), startBeats, lengthBeats, notes });
             });
           }}
         />
