@@ -1,11 +1,11 @@
 import MediaRepair from './MediaRepair';
 import { reportMediaHealth } from '../../services/fabula/mediaHealth';
-import { buildEditingProxy } from '../../services/fabula/proxyBuilder';
+import { buildEditingProxy, buildAudioProxy, buildPictureProxy } from '../../services/fabula/proxyBuilder';
 import IndexedVideoCanvas from './IndexedVideoCanvas';
 import { indexedVideoAvailable } from '../../services/mediaEngine/indexedVideo';
 import PanelDivider from "./PanelDivider";
 import { timelineBoundaries, crossedTimelineBoundary } from "../../services/fabula/timelineBoundaries";
-import { resolveMediaSource } from "../../services/fabula/mediaSource";
+import { resolveMediaSource, setAudioProxyPreference } from "../../services/fabula/mediaSource";
 import { prefetchAssets, onPrefetched, cancelPrefetch } from "../../services/fabula/prefetch";
 import { useState, useEffect, useRef, useMemo, memo, Fragment } from "react";
 import {
@@ -2059,7 +2059,7 @@ export default function Fabula() {
       if (!prod?.mediaPool?.length) return;
       const found = [];
       for (const a of prod.mediaPool) {
-        if (a.type !== "video") continue;
+        if (!(a.type === "video" || a.type === "audio" || a.type === "image" || a.type === "graphic")) continue;
         const b = await stGet("studio:proxy:" + a.id);
         if (b && b.size) { try { found.push([a.id, URL.createObjectURL(b)]); } catch { /* */ } }
       }
@@ -2078,24 +2078,30 @@ export default function Fabula() {
       return r?.blob || (r?.outputUrl ? await fetch(r.outputUrl).then((x) => (x.ok ? x.blob() : null)) : null);
     } catch (e) { console.warn("[fabula-proxy] crossover cloud failed for", a.name, e?.message || e); return null; }
   };
-  // Build instant-seek proxies for the given assets (or every video asset missing one).
-  // Local WebCodecs 540p short-GOP encode first; Crossover cloud ffmpeg as the fallback.
+  // Build lightweight proxies for the given assets (or every proxyable asset missing one). Per type:
+  // VIDEO → 540p AVC instant-seek (WebCodecs local, Crossover cloud fallback); AUDIO → tiny AAC that
+  // plays through the mixer instead of streaming a heavy WAV; IMAGE → downscaled WebP for heavy stills.
+  // Export always reads the ORIGINAL (renderer bypasses the proxy resolver), so delivery is full-quality.
+  const proxyable = (a) => a?.url && (a.type === "video" || a.type === "audio" || a.type === "image" || a.type === "graphic");
   const buildProxiesFor = async (list, opts = {}) => {
     const silent = !!opts.silent;
-    const vids = (list || (prod?.mediaPool || []).filter((a) => a.type === "video" && a.url)).filter((a) => !proxies.has(a.id));
-    if (!vids.length) { if (!silent) ping("Every video asset already has a proxy"); return; }
-    const webOk = await canTranscode();
+    const targets = (list || (prod?.mediaPool || []).filter(proxyable)).filter((a) => proxyable(a) && !proxies.has(a.id));
+    if (!targets.length) { if (!silent) ping("Every asset already has a proxy"); return; }
     let n = 0, made = 0;
-    for (const a of vids) {
+    for (const a of targets) {
       if (editBusyRef.current) break;
-      n++; setProxyBusy(`${n}/${vids.length} · ${a.name}`);
+      n++; setProxyBusy(`${n}/${targets.length} · ${a.name}`);
       try {
         if (await stGet("studio:proxy:" + a.id)) { n--; continue; } // raced another pass
-        let proxy = null;
-        let original=null;
-        try {original=await resolveMediaSource(a);const blob=original.blob || await (await fetch(original.url)).blob();proxy=await buildEditingProxy(blob);}
-        finally {original?.release();}
-        if (!proxy) proxy = await crossoverProxy(a); // server-side ffmpeg (phones/tablets/long clips)
+        let proxy = null; let original = null;
+        try {
+          original = await resolveMediaSource(a);
+          const blob = original.blob || await (await fetch(original.url)).blob();
+          if (a.type === "video") proxy = await buildEditingProxy(blob);
+          else if (a.type === "audio") proxy = await buildAudioProxy(blob);
+          else proxy = await buildPictureProxy(blob); // image / graphic
+        } finally { original?.release(); }
+        if (!proxy && a.type === "video") proxy = await crossoverProxy(a); // server-side ffmpeg (phones/tablets/long clips)
         if (proxy) {
           await stSet("studio:proxy:" + a.id, proxy);
           const purl = URL.createObjectURL(proxy);
@@ -2105,23 +2111,35 @@ export default function Fabula() {
       } catch (e) { console.warn("[fabula-proxy]", a.name, e?.message || e); }
     }
     setProxyBusy(null);
-    if (made) ping(`⚡ ${made} prox${made === 1 ? "y" : "ies"} ready — remote media now scrubs instant-seek`);
-    else if (!silent) ping("No proxies could be built (clips too long or unreadable)");
+    if (made) ping(`⚡ ${made} prox${made === 1 ? "y" : "ies"} ready — heavy media now plays light (full-res on export)`);
+    else if (!silent) ping("No proxies needed (sources already compact or unreadable)");
   };
-  // AUTO-PROXY: shortly after a project opens, quietly build proxies for every REMOTE-ONLY video
-  // asset (no local bytes on this machine — the tablet/phone/other-desk case). Local originals
-  // never need proxies: they already play full-res with frame-accurate seeking.
+  // Audio playback prefers the lightweight AAC proxy while PROXY mode is on (heavy WAV stops
+  // streaming); export still reads the original. Kept in sync with the PROXY ON/OFF toggle.
+  useEffect(() => { setAudioProxyPreference(proxyOn); }, [proxyOn]);
+
+  // AUTO-PROXY: shortly after a project opens, quietly build proxies for heavy media that would
+  // otherwise stream/hitch — remote-only VIDEO (tablet/phone/other-desk), heavy AUDIO (WAV/FLAC),
+  // and large IMAGES. Compact/local-friendly sources are skipped by the builders (they return null).
   useEffect(() => {
     if (!prod?.id || !proxyOn || playing) return undefined;
     const t = setTimeout(async () => {
-      const remote = [];
+      const todo = [];
       for (const a of (prod.mediaPool || [])) {
-        if (a.type !== "video" || !a.url || !/^https?:/i.test(a.url)) continue;
-        if (await stGet("studio:proxy:" + a.id)) continue;
-        if (await stGet("studio:blob:" + a.id)) continue; // local original exists → no proxy needed
-        remote.push(a);
+        if (await stGet("studio:proxy:" + a.id)) continue;               // already has a proxy
+        if (a.type === "video") {
+          if (!a.url || !/^https?:/i.test(a.url)) continue;              // local video already scrubs full-res
+          if (await stGet("studio:blob:" + a.id)) continue;             // local original exists → no proxy needed
+          todo.push(a);
+        } else if (a.type === "audio") {
+          if (!a.url) continue;                                         // heavy audio: proxy local OR cloud (WAV streams badly either way)
+          todo.push(a);
+        } else if (a.type === "image" || a.type === "graphic") {
+          if (!a.url) continue;                                         // large stills; builder no-ops on small ones
+          todo.push(a);
+        }
       }
-      if (remote.length) buildProxiesFor(remote, { silent: true });
+      if (todo.length) buildProxiesFor(todo, { silent: true });
     }, 4000);
     return () => clearTimeout(t);
   }, [prod?.id, proxyOn, playing]);
@@ -4146,7 +4164,11 @@ export default function Fabula() {
     let changed = false;
     const mp = prod.mediaPool.map((a) => {
       const p = policy.proxies.get(a.id);
-      if (p && a.type === "video") { changed = true; return { ...a, previewProxy: true }; }
+      if (!p) return a;
+      // Video: flag it so MonitorLayer's resolver picks the 540p proxy. Image/graphic: point the
+      // monitor straight at the downscaled proxy url (export still uses prod → the full-res original).
+      if (a.type === "video") { changed = true; return { ...a, previewProxy: true }; }
+      if (a.type === "image" || a.type === "graphic") { changed = true; return { ...a, url: p }; }
       return a;
     });
     return changed ? { ...prod, mediaPool: mp } : prod;
@@ -5543,6 +5565,7 @@ export default function Fabula() {
     if (!prod || !container) return null;
     const canSplit = clips.some((c) => playhead > c.start && playhead < c.start + c.duration);
     const remoteVideo = (prod?.mediaPool || []).filter((a) => a.type === "video" && /^https?:/i.test(a.url || "")).length;
+    const proxyableMissing = (prod?.mediaPool || []).filter((a) => a?.url && (a.type === "video" || a.type === "audio" || a.type === "image" || a.type === "graphic") && !proxies.has(a.id)).length;
     const trimModes = [["normal", "NORMAL"], ["ripple", "RIPPLE"], ["roll", "ROLL"], ["slip", "SLIP"]];
     const toggleGuides = () => { const nv = !guides; setGuides(nv); try { localStorage.setItem("fabula:guides", nv ? "1" : "0"); } catch { /* */ } };
     const toggleFxLib = () => { const nv = !fxLibOpen; setFxLibOpen(nv); try { localStorage.setItem("fabula:fxlib", nv ? "1" : "0"); } catch { /* */ } };
@@ -5568,10 +5591,10 @@ export default function Fabula() {
           <span className="tdiv" />
           <div className="tgrp">
             <button className="tbtn2" title="Relink offline media from a folder" onClick={() => folderRelinkRef.current?.click()}>RELINK</button>
-            <button className="tbtn2" disabled={!!proxyBusy || !remoteVideo}
-              title="Build instant-seek proxies for remote video"
-              onClick={() => buildProxiesFor((prod?.mediaPool || []).filter((a) => a.type === "video" && /^https?:/i.test(a.url || "")))}>
-              {proxyBusy ? `PROXIES ${proxyBusy}` : `PROXIES${remoteVideo ? ` (${remoteVideo})` : ""}`}</button>
+            <button className="tbtn2" disabled={!!proxyBusy || !proxyableMissing}
+              title="Build lightweight proxies for heavy media — 540p video, tiny AAC audio, downscaled stills. Preview plays light; export is always full-res."
+              onClick={() => buildProxiesFor()}>
+              {proxyBusy ? `PROXIES ${proxyBusy}` : `PROXIES${proxyableMissing ? ` (${proxyableMissing})` : ""}`}</button>
           </div>
         </>
       );
@@ -5823,11 +5846,11 @@ export default function Fabula() {
                         <button className="minibtn" onClick={() => setShowShortcuts(true)} title="Keyboard shortcuts — map your own (Ctrl+Alt+K)"><Keyboard size={10} /> KEYS</button>
                         <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
                         <button className="minibtn" title="Preview indexed worker decoding; unsupported sources automatically use compatibility playback" onClick={() => { setIndexedMode(!indexedMode); localStorage.setItem("fabula:decoder", indexedMode ? "compat" : "indexed"); }}>DECODER {indexedMode ? "INDEXED · PREVIEW" : "COMPAT"}</button>
-                        <button className="minibtn" title="Monitor plays 540p instant-seek proxies (export always full-res)" style={{ opacity: proxyOn ? 1 : 0.45, color: proxyOn && proxies.size ? "#7ee2a8" : undefined }}
+                        <button className="minibtn" title="Preview plays lightweight proxies — 540p video, tiny AAC audio, downscaled stills. Export is always full-res (native)." style={{ opacity: proxyOn ? 1 : 0.45, color: proxyOn && proxies.size ? "#7ee2a8" : undefined }}
                           onClick={() => { const nv = !proxyOn; setProxyOn(nv); try { localStorage.setItem("fabula:proxy", nv ? "1" : "0"); } catch { /* */ } }}>PROXY {proxyOn ? "ON" : "OFF"}{proxies.size ? ` · ${proxies.size}✓` : ""}</button>
-                        {(() => { const missing = (prod?.mediaPool || []).filter((a) => a.type === "video" && /^https?:/i.test(a.url || "") && !proxies.has(a.id)).length; return (
-                          <button className="minibtn" disabled={!!proxyBusy || !missing} title="Build instant-seek proxies for REMOTE video (local originals already play full-res). Runs automatically in the background too."
-                            onClick={() => buildProxiesFor((prod?.mediaPool || []).filter((a) => a.type === "video" && /^https?:/i.test(a.url || "")))}>{proxyBusy ? `⚙ ${proxyBusy}` : `BUILD PROXIES${missing ? ` (${missing})` : " ✓"}`}</button>
+                        {(() => { const missing = (prod?.mediaPool || []).filter((a) => a?.url && (a.type === "video" || a.type === "audio" || a.type === "image" || a.type === "graphic") && !proxies.has(a.id)).length; return (
+                          <button className="minibtn" disabled={!!proxyBusy || !missing} title="Build lightweight proxies for heavy media (540p video, AAC audio, downscaled stills). Compact/local-friendly sources are skipped. Runs automatically in the background too."
+                            onClick={() => buildProxiesFor()}>{proxyBusy ? `⚙ ${proxyBusy}` : `BUILD PROXIES${missing ? ` (${missing})` : " ✓"}`}</button>
                         ); })()}
                         <button className="minibtn" disabled={scriptBuilding || !clips.length} title="Reverse-engineer the screenplay from this edit: every clip is watched (computer vision) + transcribed, dialogue is tagged to your cast, and the scene + SLATE shot list are rebuilt from the cut"
                           onClick={buildScriptFromTimeline} style={{ color: scriptBuilding ? "#FF8C00" : undefined }}>{scriptBuilding ? "📜 BUILDING…" : "📜 BUILD SCRIPT FROM TIMELINE"}</button>

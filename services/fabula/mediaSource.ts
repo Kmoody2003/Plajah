@@ -4,13 +4,22 @@ import {get as idbGet} from 'idb-keyval';
 
 export type MediaSource = { url: string; release: () => void; local: boolean; blob?: Blob; origin: 'folder' | 'cache' | 'session' | 'cloud' | 'proxy' };
 
+// When PROXY mode is on, audio playback prefers a lightweight AAC proxy (services/fabula/proxyBuilder
+// buildAudioProxy) over the heavy WAV/FLAC original — small, low-memory, decodes fast. This resolver
+// runs on the LIVE playback/preview path only; export reads the original url directly (fabulaRender),
+// so delivery is always full-quality regardless of this flag.
+let audioProxyPref = false;
+export function setAudioProxyPreference(on: boolean): void { audioProxyPref = !!on; }
+
 /** Audio and video use readable local bytes first, including on recovery. */
 export async function resolveMediaSource(asset: any, _recover = false, picture = false): Promise<MediaSource> {
   const owned = (blob: Blob, origin: MediaSource['origin']): MediaSource => {
     const url = URL.createObjectURL(blob);
     return {url,blob,origin,local:true,release:()=>URL.revokeObjectURL(url)};
   };
-  if (picture && asset?.previewProxy && asset?.id) {
+  // Preview/playback proxy: video only when the monitor asks (picture) and the asset is flagged;
+  // audio whenever proxy mode is on (there's no "picture" for audio). Export never reaches here.
+  if (asset?.id && ((picture && asset?.previewProxy) || (audioProxyPref && asset?.type === 'audio'))) {
     const proxy = await getBytes('studio:proxy:' + asset.id);
     if (proxy?.size) return owned(proxy,'proxy');
   }
