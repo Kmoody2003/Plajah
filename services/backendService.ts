@@ -5078,24 +5078,20 @@ export const sendSystemWelcomeDM = async (uid: string, displayName: string): Pro
       updatedAt: Date.now(),
     }, { merge: true });
 
-    const body = `Hey ${displayName?.split(' ')[0] || 'there'} 👋 Welcome to Plajah — and congratulations on your Pioneer Badge! 🏅
+    const body = `Dear ${displayName?.split(' ')[0] || 'traveller'},
 
-You're part of our earliest wave of creators and fans, and that means a lot to us.
+Welcome aboard. This is a one-way ticket to your own potential — and you're one of the first to hold one. 🎫
 
-Here's your starter pack:
+You made it in early, which means some gates are wide open and boarding, and some are still being built (signposted on purpose, so you can see where we're headed). It's a big terminal — you don't have to see all of it today. Walk to the one gate that's useful to you now; the rest reveals itself as you go.
 
-🧭 Explore — Music, films, books, live talks, games. Every corner is built for discovery.
-📤 Upload — Share your music, videos, and art. Your profile is your stage.
-💬 Engage — Comment, react, and connect with creators who share your passion.
-🐛 Report Issues — Use the Help Center to flag bugs or send feedback. Your voice shapes Plajah.
+Your ticket already reaches ten places: Chora (music), Reello (video), Taleo (film & TV), Lorea (books & comics), Plajah Labs, Academia, Business, Sanctuary, Live & Rooms, and Aria — one companion across all of it.
 
-🎉 Stop by The Plajah Club — our community space for early members — to meet the team and fellow creators.
+Two promises for the road: you keep up to 100% of what you make — 0% commerce fee with Plajah+, a flat 5% without — and every sale settles straight to your own account. We never hold your money. Your work and your audience are yours: portable, DRM-free.
 
-As an early access member, you may run into a bump or two. We truly appreciate your patience. Every piece of feedback helps us build something better.
+We build in the open, with you. If Plajah helps you grow, tell us. If it hasn't yet, tell us that too.
 
-Plajah exists to be the best place in the world for creators to share their work. We're building that together.
-
-— The Plajah Team ❤️`;
+Safe travels,
+Love, Plajah ✈`;
 
     await addDoc(collection(db, 'chat_rooms', roomId, 'messages'), {
       senderId: 'plajah_system',

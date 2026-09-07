@@ -293,6 +293,7 @@ const BrandDashboard = retryLazy(() => import('./components/BrandDashboard'));
 const OrgHub = retryLazy(() => import('./components/OrgHub'));
 const PlajahElevate = retryLazy(() => import('./components/PlajahElevate'));
 const PlatformChangelog = retryLazy(() => import('./components/PlatformChangelog'));
+const WelcomePackage = retryLazy(() => import('./components/WelcomePackage'));
 const UpdateNotification = retryLazy(() => import('./components/UpdateNotification'));
 const BugReportButton = retryLazy(() => import('./components/BugReportButton'));
 const VideoRouterConsole = retryLazy(() => import('./components/mediaEngine/VideoRouterConsole'));
@@ -1601,6 +1602,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       handleBackToDashboard();
     } else if (target === 'LANDING') {
       setView('LANDING');
+    } else if (target === 'WELCOME_PACKAGE') {
+      setView('WELCOME_PACKAGE');
     } else if (target === 'USER_PROFILE') {
       if (user) {
         handleVisitUser(user.uid);
@@ -1918,7 +1921,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         };
 
         if (p && !p.hasCompletedOnboarding && firstTime('onboard')) {
-          setShowExperiencePicker(true);
+          // Onboarding is now the Welcome Package view (opened just below). The old
+          // 7-persona Experience Picker + 8-slide tour are retired — Boarding Plajah's
+          // gates are the direction pick and its itinerary is the tour. Just mark it done.
+          updateUserProfile(u.uid, { hasCompletedOnboarding: true } as any).catch(() => {});
         }
 
         if (p && !p.welcomeAchievementShown && firstTime('welcome_achievement')) {
@@ -1927,8 +1933,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         }
 
         if (p && !p.hasSeenWelcomePackage && firstTime('welcome_package')) {
-          // Show on next login — slight delay so the UI is settled
-          setTimeout(() => setShowWelcomePackage(true), 1200);
+          // First login → open the Boarding Plajah welcome package (routed view), mark it
+          // seen, and drop the "Love, Plajah" letter into the system inbox once. Later
+          // reopens (notification / profile pill) route to the same view without re-sending.
+          setTimeout(() => setView('WELCOME_PACKAGE'), 1200);
+          updateUserProfile(u.uid, { hasSeenWelcomePackage: true, isPioneer: true } as any).catch(() => {});
+          import('./services/backendService').then(({ sendSystemWelcomeDM }) => {
+            sendSystemWelcomeDM(u.uid, u.displayName || 'Creator').catch(() => {});
+          });
         }
 
         // Smart Guide — auto-enable for new users
@@ -2638,6 +2650,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         break;
       case 'FEED': setView('FEED'); break;
       case 'LIVE_HUB': setView('LIVE_HUB'); break;
+      case 'WELCOME_PACKAGE': setView('WELCOME_PACKAGE'); break;
       case 'LIVETALK': setView('LIVE_HUB'); break;
 
       case 'READ':
@@ -4805,6 +4818,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <PlatformChangelog
                   onBack={() => setView('HELP_CENTER')}
                   showTechnical={userProfile?.role === 'admin' || user?.email === 'kmoody2003@gmail.com'}
+                />
+              </Suspense>
+            )}
+
+            {view === 'WELCOME_PACKAGE' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <WelcomePackage
+                  displayName={user?.displayName || userProfile?.displayName || undefined}
+                  onBack={() => handleBackToDashboard()}
+                  onNavigate={(v) => handleGlobalNavigate(v)}
                 />
               </Suspense>
             )}

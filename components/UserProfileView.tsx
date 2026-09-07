@@ -1111,6 +1111,15 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                       <X size={13} /> X Feed
                     </button>
                   )}
+                  {/* Reopen the Boarding Plajah welcome package anytime — routes to the
+                      WELCOME_PACKAGE view via the app's NAVIGATE channel. */}
+                  <button
+                    onClick={() => { window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'WELCOME_PACKAGE' } })); }}
+                    className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 text-[10px] font-black uppercase tracking-widest text-white/70 transition-all hover:bg-white/10 hover:text-white"
+                    title="Reopen your Welcome Package"
+                  >
+                    🎫 Welcome Package
+                  </button>
                 </>
               )}
 
