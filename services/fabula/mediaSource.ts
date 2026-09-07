@@ -11,6 +11,13 @@ export type MediaSource = { url: string; release: () => void; local: boolean; bl
 let audioProxyPref = false;
 export function setAudioProxyPreference(on: boolean): void { audioProxyPref = !!on; }
 
+// "Switch to Local" master mode. When ON, resolveMediaSource NEVER falls back to the cloud: an asset
+// with no on-device source (disk handle / folder / cache) is reported OFFLINE (relink it) instead of
+// streaming — exactly how a native NLE behaves when its media drive is disconnected. Disk-first is
+// always the default; this makes it absolute.
+let localOnly = false;
+export function setLocalOnly(on: boolean): void { localOnly = !!on; }
+
 /** Audio and video use readable local bytes first, including on recovery. */
 export async function resolveMediaSource(asset: any, _recover = false, picture = false): Promise<MediaSource> {
   const owned = (blob: Blob, origin: MediaSource['origin']): MediaSource => {
@@ -52,6 +59,7 @@ export async function resolveMediaSource(asset: any, _recover = false, picture =
     } catch { /* local reference expired */ }
   }
   const remote = [asset?.url,asset?.cloudUrl].find(url => /^https?:/i.test(url || ''));
+  if (remote && localOnly) throw new Error('LOCAL-ONLY MODE — this asset has no on-device copy; reconnect its drive, relink it, or Sync to Local. (Cloud streaming is off.)');
   if (remote) return {url:remote,origin:'cloud',local:false,release(){}};
   throw new Error(asset?.folderId
     ? 'LOCAL FILE UNAVAILABLE — reconnect its folder or relink the file; no cloud copy is available'

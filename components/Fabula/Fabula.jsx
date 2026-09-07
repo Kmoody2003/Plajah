@@ -5,7 +5,7 @@ import IndexedVideoCanvas from './IndexedVideoCanvas';
 import { indexedVideoAvailable } from '../../services/mediaEngine/indexedVideo';
 import PanelDivider from "./PanelDivider";
 import { timelineBoundaries, crossedTimelineBoundary } from "../../services/fabula/timelineBoundaries";
-import { resolveMediaSource, setAudioProxyPreference } from "../../services/fabula/mediaSource";
+import { resolveMediaSource, setAudioProxyPreference, setLocalOnly } from "../../services/fabula/mediaSource";
 import { prefetchAssets, onPrefetched, cancelPrefetch, setPrefetchSuspended } from "../../services/fabula/prefetch";
 import { nextShuttleRate } from "../../services/fabula/shuttle";
 import { useState, useEffect, useRef, useMemo, memo, Fragment } from "react";
@@ -818,6 +818,9 @@ export default function Fabula() {
   // downloaded). Distinct from disk-first reading, which is always on.
   const [syncToLocal, setSyncToLocal] = useState(() => localStorage.getItem("fabula:syncLocal") === "1");
   const syncToLocalRef = useRef(false); syncToLocalRef.current = syncToLocal; // stable read inside async proxy/sync loops
+  // "Switch to Local" master mode — disk-first made absolute: never stream from the cloud; a missing
+  // local source reads as OFFLINE (relink), like a native NLE with its drive disconnected.
+  const [localOnly, setLocalOnlyState] = useState(() => localStorage.getItem("fabula:localOnly") === "1");
   const [proxies, setProxies] = useState(() => new Map()); // assetId → object URL of proxy blob
   const [proxyBusy, setProxyBusy] = useState(null);        // "2/7 · name" while building
   const [guides, setGuides] = useState(() => localStorage.getItem("fabula:guides") === "1"); // title/action-safe overlay (never rendered)
@@ -1592,19 +1595,26 @@ export default function Fabula() {
   };
 
   const addAssetToPool = (asset) => updateProd((p) => { p.mediaPool.push(asset); });
-  const handleUpload = async (e) => {
-    const files = Array.from(e.target.files || []);
-    const added = files.map((f) => {
+  // Register imported media. `entries` = [{ file, handle? }]. A File System Access handle (from the
+  // disk PICKER) is persisted per-asset (studio:handle:<id> + localFileHandle) so playback reads the
+  // ORIGINAL file straight off the drive — like Resolve/Premiere (resolveMediaSource localFileHandle
+  // branch, tried before any cache/cloud). We still stash the bytes as a NO-FRICTION local fallback for
+  // after a reload (before the handle's permission is re-granted) — a local copy, never the cloud.
+  const ingestEntries = async (entries) => {
+    const added = [];
+    for (const { file: f, handle } of entries) {
       const isLottie = /\.(lottie)$/i.test(f.name) || (/\.json$/i.test(f.name)) || f.type === "application/json";
       const type = isLottie ? "lottie" : f.type.startsWith("video") ? "video" : f.type.startsWith("audio") ? "audio" : "image";
       const id = uid();
-      addAssetToPool({ id, name: f.name, type, url: URL.createObjectURL(f), duration: type === "image" ? 0 : 5, session: true, bin: "imports" });
-      stSet("studio:blob:" + id, f); // stash the bytes so the media survives a reload + can sync to cloud later
-      return { id, f, type };
-    });
-    if (files.length) ping(`Imported ${files.length} asset${files.length > 1 ? "s" : ""}`);
-    if (files.length) scheduleAutoSync(added.map((x) => x.id)); // cloud copy happens by itself
-    e.target.value = "";
+      if (handle) { try { await idbSet("studio:handle:" + id, handle); } catch { /* handle not persistable here */ } }
+      addAssetToPool({ id, name: f.name, type, url: URL.createObjectURL(f), duration: type === "image" ? 0 : 5, session: true, bin: "imports", ...(handle ? { localFileHandle: true } : {}) });
+      stSet("studio:blob:" + id, f); // local fallback + cloud-sync source (the bytes are already in hand — never a re-download)
+      added.push({ id, f, type });
+    }
+    if (added.length) {
+      ping(`Imported ${added.length} asset${added.length > 1 ? "s" : ""}${entries.some((e) => e.handle) ? " · reading from disk" : ""}`);
+      scheduleAutoSync(added.map((x) => x.id)); // cloud copy for OTHER devices happens by itself; this device reads local
+    }
     // Crossover: probe real duration + browser-compatibility (client-side, instant),
     // replacing the old hardcoded 5s guess and flagging formats that won't decode.
     for (const { id, f, type } of added) {
@@ -1625,6 +1635,23 @@ export default function Fabula() {
         if (incompatible) ping(`"${f.name}" may not play/render in-browser — hit CONVERT on it to transcode via Crossover.`);
       } catch { /* probe is best-effort */ }
     }
+  };
+  const handleUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    await ingestEntries(files.map((f) => ({ file: f }))); // <input> gives no persistent handle → cache-backed local
+  };
+  // Disk-picker import — the DISK-FIRST path. showOpenFilePicker returns persistent file handles, so we
+  // read the ORIGINAL file off the drive on every play (native-NLE behavior). Falls back to the plain
+  // file input where the File System Access API is missing (Safari/Firefox/some PWAs).
+  const importFilesDiskFirst = async () => {
+    if (typeof window.showOpenFilePicker !== "function") { fileRef.current?.click(); return; }
+    let handles;
+    try { handles = await window.showOpenFilePicker({ multiple: true }); }
+    catch (err) { if (err?.name === "AbortError") return; fileRef.current?.click(); return; }
+    const entries = [];
+    for (const h of handles) { try { entries.push({ file: await h.getFile(), handle: h }); } catch { /* unreadable */ } }
+    if (entries.length) await ingestEntries(entries);
   };
 
   // Crossover: transcode a media-pool asset to a browser-friendly format in place.
@@ -2126,6 +2153,7 @@ export default function Fabula() {
   // Audio playback prefers the lightweight AAC proxy while PROXY mode is on (heavy WAV stops
   // streaming); export still reads the original. Kept in sync with the PROXY ON/OFF toggle.
   useEffect(() => { setAudioProxyPreference(proxyOn); }, [proxyOn]);
+  useEffect(() => { setLocalOnly(localOnly); }, [localOnly]);
 
   // AUTO-PROXY: shortly after a project opens, quietly build proxies for heavy media that would
   // otherwise stream/hitch — remote-only VIDEO (tablet/phone/other-desk), heavy AUDIO (WAV/FLAC),
@@ -3122,6 +3150,16 @@ export default function Fabula() {
     if (diskAccessTriedRef.current) return;
     diskAccessTriedRef.current = true;
     if (foldersNeedAuthRef.current > 0) reconnectDrives(); // re-grant + relink from disk (no download)
+  };
+  // "Switch to Local" master toggle. ON = disk-first made absolute (no cloud streaming; missing local
+  // media reads as OFFLINE/relink). Enabling it re-grants disk access right away so reads go to the
+  // originals on the drive. This is a user gesture, so the permission re-grant is allowed here.
+  const toggleLocalOnly = () => {
+    const nv = !localOnly;
+    setLocalOnlyState(nv);
+    try { localStorage.setItem("fabula:localOnly", nv ? "1" : "0"); } catch { /* */ }
+    if (nv) { if (foldersNeedAuthRef.current > 0) reconnectDrives(); ping("Switched to Local — reading originals off disk; cloud streaming is OFF"); }
+    else ping("Local-only OFF — cloud is a fallback again for media not on this device");
   };
   const rescanSyncFolder = async (id, interactive, full = false) => {
     if (!prod?.id) return;
@@ -4486,7 +4524,7 @@ export default function Fabula() {
                       <Upload size={12} /> BRING MEDIA IN {poolImportOpen ? "▴" : "▾"}
                     </button>
                     <div style={{ display: poolImportOpen ? undefined : "none" }}>
-                    <button className="minibtn full" onClick={() => fileRef.current?.click()}><Upload size={12} /> IMPORT MEDIA</button>
+                    <button className="minibtn full" onClick={importFilesDiskFirst} title="Import files — read straight off disk (like Resolve/Premiere). No copy, no cloud."><Upload size={12} /> IMPORT MEDIA</button>
                     <input ref={fileRef} type="file" multiple accept={`${codecImportAccept()},.lottie,.json,.svg,.ai,.pdf`} style={{ display: "none" }} onChange={handleUpload} />
                     <input ref={relinkRef} type="file" accept="video/*,image/*,audio/*" style={{ display: "none" }}
                       onChange={(e) => {
@@ -5485,7 +5523,7 @@ export default function Fabula() {
         { label: "New edit (standalone timeline)", fn: () => newEdit() },
         { label: "Open a production…", fn: () => setPage("productions") },
         D,
-        { label: "Import files…", fn: () => fileRef.current?.click() },
+        { label: "Import files…", fn: importFilesDiskFirst },
         { label: "Import folder…", fn: () => folderRef.current?.click() },
         D,
         { label: `Sync assets to cloud${unsyncedCount ? ` (${unsyncedCount})` : " ✓"}`, fn: () => syncAssetsToCloud() },
@@ -5611,7 +5649,7 @@ export default function Fabula() {
       verbs = (
         <>
           <div className="tgrp">
-            <button className="tbtn2" title="Import individual files" onClick={() => fileRef.current?.click()}><Upload size={11} /> FILES</button>
+            <button className="tbtn2" title="Import individual files — read straight off disk (like Resolve/Premiere)" onClick={importFilesDiskFirst}><Upload size={11} /> FILES</button>
             <button className="tbtn2" title="Import a folder once — bins mirror its nested structure" onClick={() => editFolderRef.current?.click()}><FolderOpen size={11} /> FOLDER</button>
             <button className="tbtn2" title="Watch a folder — new files import automatically" onClick={addSyncFolderNow}><RefreshCw size={11} /> WATCH</button>
             {foldersNeedAuth > 0 && (
@@ -5886,6 +5924,8 @@ export default function Fabula() {
                           <button className="minibtn" disabled={!!proxyBusy || !missing} title="Build lightweight proxies for heavy media (540p video, AAC audio, downscaled stills). Compact/local-friendly sources are skipped. Runs automatically in the background too."
                             onClick={() => buildProxiesFor()}>{proxyBusy ? `⚙ ${proxyBusy}` : `BUILD PROXIES${missing ? ` (${missing})` : " ✓"}`}</button>
                         ); })()}
+                        <button className="minibtn" title="SWITCH TO LOCAL — read originals straight off disk, like Resolve/Premiere. Never streams from the cloud; media not on this device reads as OFFLINE (relink). Enabling it re-grants disk access." style={{ opacity: localOnly ? 1 : 0.55, borderColor: localOnly ? "rgba(90,168,255,0.7)" : undefined, color: localOnly ? "#bcdcff" : undefined, background: localOnly ? "rgba(60,120,220,0.16)" : undefined }}
+                          onClick={toggleLocalOnly}><HardDrive size={10} /> LOCAL {localOnly ? "ON" : "OFF"}</button>
                         <button className="minibtn" title="SYNC TO LOCAL — download CLOUD-ONLY assets (ones that don't live on this device) to disk for offline use. OFF by default: files already on your drive are read straight off disk, never re-downloaded." style={{ opacity: syncToLocal ? 1 : 0.45, color: syncToLocal ? "#8fd0ff" : undefined }}
                           onClick={() => { const nv = !syncToLocal; setSyncToLocal(nv); try { localStorage.setItem("fabula:syncLocal", nv ? "1" : "0"); } catch { /* */ } ping(nv ? "Sync to Local ON — cloud-only assets will download to disk" : "Sync to Local OFF — reading originals off disk only"); }}>SYNC LOCAL {syncToLocal ? "ON" : "OFF"}</button>
                         <button className="minibtn" disabled={scriptBuilding || !clips.length} title="Reverse-engineer the screenplay from this edit: every clip is watched (computer vision) + transcribed, dialogue is tagged to your cast, and the scene + SLATE shot list are rebuilt from the cut"
