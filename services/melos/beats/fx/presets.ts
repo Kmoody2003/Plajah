@@ -145,6 +145,59 @@ export const FX_PRESETS: Record<string, FxPreset[]> = {
     preset('clean-ai', 'AI Mix Repair', 'Balanced cleanup for common generated-song artifacts.', { cliff: 15800, shimmer: 0.58, shimmerHz: 6000, dehiss: 0.42, rebuild: 0.48, transients: 0.44, width: 118, monoBelow: 115 }),
     preset('clean-rescue', 'Codec Rescue', 'Assertive de-shimmer, de-hiss, and spectral rebuilding.', { cliff: 14500, shimmer: 0.88, shimmerHz: 5600, dehiss: 0.68, rebuild: 0.78, transients: 0.72, width: 132, monoBelow: 140 }),
   ],
+
+  // ── Wave 2 dynamics ──
+  gluecomp: [
+    preset('glue-mix', 'Mix Glue', 'Slow SSL-style bus glue — 2 dB of gentle 4:1 to bind the mix.', { threshold: -18, ratio: 4, attack: 10, release: 300, makeup: 2, mix: 100 }),
+    preset('glue-drum', 'Drum Bus', 'Faster, punchier bus compression that lets transients through.', { threshold: -16, ratio: 4, attack: 3, release: 150, makeup: 3, mix: 100 }),
+    preset('glue-parallel', 'Parallel Crush', 'Hard 10:1 blended 40% under the dry — density with punch intact.', { threshold: -30, ratio: 10, attack: 1, release: 120, makeup: 6, mix: 40 }),
+  ],
+  multiband: [
+    preset('mb-master', 'Master Control', 'Even three-band control for the mix bus — gentle across the spectrum.', { crossLow: 200, crossHigh: 2500, loThresh: -22, midThresh: -20, hiThresh: -20, ratio: 2.5, attack: 20, release: 220 }),
+    preset('mb-bass-tight', 'Tighten Lows', 'Clamps the low band harder to control boom, mids/highs light.', { crossLow: 160, crossHigh: 3000, loThresh: -30, midThresh: -18, hiThresh: -16, ratio: 4, attack: 8, release: 140 }),
+    preset('mb-deharsh', 'Tame Highs', 'Rides the high band to smooth harshness while lows stay open.', { crossLow: 250, crossHigh: 4000, loThresh: -14, midThresh: -16, hiThresh: -28, ratio: 3.5, attack: 5, release: 120 }),
+  ],
+  upexp: [
+    preset('up-depth', 'Add Depth', 'Lifts the quiet detail a few dB — space and life without touching the loud.', { threshold: -42, amount: 5, attack: 12, release: 180 }),
+    preset('up-tails', 'Reverb Lift', 'Brings up reverb and delay tails so they bloom.', { threshold: -50, amount: 9, attack: 20, release: 250 }),
+    preset('up-room', 'Room Life', 'Assertive lift for a dead recording — pulls the room up.', { threshold: -38, amount: 12, attack: 8, release: 140 }),
+  ],
+  stutter: [
+    preset('stut-16', '16th Roll', 'Every step re-triggers — a driving 1/16 machine-gun stutter.', { on: 1, pattern: 65535, division: 2, gate: 100 }),
+    preset('stut-offbeat', 'Offbeat Glitch', 'The offbeats stutter for a syncopated, glitchy feel.', { on: 1, pattern: 43690, division: 2, gate: 80 }),
+    preset('stut-fill', 'Build Fill', 'Sparse hits that subdivide — a fast gate opens the last bars of a build.', { on: 1, pattern: 4369, division: 3, gate: 60 }),
+  ],
+
+  // ── Amp Rack — a stock library across clean, crunch, lead, metal, bass, ambient (original voicings) ──
+  amprig: [
+    // Clean
+    preset('rig-studio-clean', 'Studio Clean', 'A pristine, full-range clean — the pedal platform.', { amp: 0, gain: 0.22, bass: 0.5, mid: 0.5, treble: 0.55, presence: 0.5, resonance: 0.4, sagAmt: 0.25, master: 0.7, cab: 1, mic: 0, micEdge: 0.4, pedal1On: 0, pedal1: 3, pedal1Drive: 0.4, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    preset('rig-american-clean', 'American Sparkle', 'Bright, glassy Fender-style clean with a tweed cab.', { amp: 2, gain: 0.28, bass: 0.5, mid: 0.45, treble: 0.62, presence: 0.55, resonance: 0.4, sagAmt: 0.3, master: 0.72, cab: 4, mic: 2, micEdge: 0.45, pedal1On: 0, pedal1: 3, pedal1Drive: 0.3, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    preset('rig-jazz-box', 'Jazz Box', 'Warm, round, dark-topped clean for hollow-body jazz.', { amp: 7, gain: 0.25, bass: 0.55, mid: 0.55, treble: 0.4, presence: 0.35, resonance: 0.45, sagAmt: 0.2, master: 0.7, cab: 2, mic: 1, micEdge: 0.5, pedal1On: 0, pedal1: 3, pedal1Drive: 0.3, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    preset('rig-vox-jangle', 'Top-Boost Jangle', 'Chimey British class-A jangle — bright and lively.', { amp: 5, gain: 0.35, bass: 0.45, mid: 0.5, treble: 0.65, presence: 0.6, resonance: 0.4, sagAmt: 0.35, master: 0.72, cab: 2, mic: 0, micEdge: 0.45, pedal1On: 0, pedal1: 7, pedal1Drive: 0.3, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    preset('rig-boutique-sparkle', 'Boutique Sparkle', 'A pristine class-A clean with a touch of hair when you dig in.', { amp: 8, gain: 0.32, bass: 0.5, mid: 0.5, treble: 0.58, presence: 0.55, resonance: 0.45, sagAmt: 0.35, master: 0.7, cab: 1, mic: 2, micEdge: 0.4, pedal1On: 0, pedal1: 3, pedal1Drive: 0.3, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    // Crunch
+    preset('rig-tweed-break', 'Tweed Breakup', 'Cranked tweed on the edge of breakup — touch-sensitive grit.', { amp: 1, gain: 0.55, bass: 0.5, mid: 0.6, treble: 0.55, presence: 0.5, resonance: 0.45, sagAmt: 0.55, master: 0.7, cab: 4, mic: 0, micEdge: 0.4, pedal1On: 0, pedal1: 0, pedal1Drive: 0.4, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    preset('rig-plexi-crunch', 'Plexi Crunch', 'The classic British plexi crunch through greenbacks.', { amp: 3, gain: 0.62, bass: 0.5, mid: 0.6, treble: 0.58, presence: 0.6, resonance: 0.5, sagAmt: 0.4, master: 0.72, cab: 3, mic: 0, micEdge: 0.4, pedal1On: 0, pedal1: 0, pedal1Drive: 0.4, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    preset('rig-marshall-rock', 'Stack Rock', 'A big British stack rock rhythm tone.', { amp: 4, gain: 0.66, bass: 0.55, mid: 0.62, treble: 0.55, presence: 0.55, resonance: 0.55, sagAmt: 0.4, master: 0.75, cab: 3, mic: 3, micEdge: 0.45, pedal1On: 0, pedal1: 0, pedal1Drive: 0.4, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    preset('rig-blues-screamer', 'Blues Screamer', 'Tweed pushed by a green screamer — singing blues grit.', { amp: 1, gain: 0.5, bass: 0.5, mid: 0.62, treble: 0.55, presence: 0.5, resonance: 0.45, sagAmt: 0.5, master: 0.72, cab: 1, mic: 0, micEdge: 0.45, pedal1On: 1, pedal1: 0, pedal1Drive: 0.45, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    preset('rig-garage', 'Garage Snarl', 'A plexi shoved by a rodent — nasty garage rock.', { amp: 3, gain: 0.7, bass: 0.5, mid: 0.55, treble: 0.6, presence: 0.6, resonance: 0.5, sagAmt: 0.4, master: 0.72, cab: 3, mic: 0, micEdge: 0.35, pedal1On: 1, pedal1: 4, pedal1Drive: 0.55, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    // Lead
+    preset('rig-singing-lead', 'Singing Lead', 'Plexi + screamer + a clean boost for a smooth, sustaining lead.', { amp: 3, gain: 0.65, bass: 0.45, mid: 0.68, treble: 0.58, presence: 0.6, resonance: 0.5, sagAmt: 0.45, master: 0.8, cab: 3, mic: 3, micEdge: 0.45, pedal1On: 1, pedal1: 0, pedal1Drive: 0.4, pedal2On: 1, pedal2: 3, pedal2Drive: 0.5 }),
+    preset('rig-cali-lead', 'Rectified Lead', 'High-gain American lead through a dark oversize cab.', { amp: 6, gain: 0.75, bass: 0.55, mid: 0.5, treble: 0.6, presence: 0.62, resonance: 0.58, sagAmt: 0.4, master: 0.78, cab: 7, mic: 3, micEdge: 0.4, pedal1On: 1, pedal1: 0, pedal1Drive: 0.35, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    preset('rig-boutique-lead', 'Boutique Lead', 'A refined class-A lead — smooth, vocal, and dynamic.', { amp: 8, gain: 0.6, bass: 0.5, mid: 0.62, treble: 0.58, presence: 0.58, resonance: 0.5, sagAmt: 0.4, master: 0.78, cab: 6, mic: 2, micEdge: 0.45, pedal1On: 1, pedal1: 3, pedal1Drive: 0.4, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    // Metal
+    preset('rig-modern-metal', 'Modern Metal', 'Tight, aggressive rhythm — scooped mids, screamer in front.', { amp: 6, gain: 0.85, bass: 0.6, mid: 0.42, treble: 0.6, presence: 0.65, resonance: 0.62, sagAmt: 0.35, master: 0.8, cab: 6, mic: 3, micEdge: 0.4, pedal1On: 1, pedal1: 0, pedal1Drive: 0.3, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    preset('rig-djent', 'Djent Tight', 'Extra-tight, percussive high gain with a clean boost.', { amp: 6, gain: 0.8, bass: 0.55, mid: 0.4, treble: 0.62, presence: 0.68, resonance: 0.55, sagAmt: 0.3, master: 0.8, cab: 7, mic: 3, micEdge: 0.35, pedal1On: 1, pedal1: 3, pedal1Drive: 0.35, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    preset('rig-doom', 'Doom Cathedral', 'Huge, saggy low-tuned doom through a dark oversize cab.', { amp: 9, gain: 0.8, bass: 0.72, mid: 0.5, treble: 0.45, presence: 0.45, resonance: 0.68, sagAmt: 0.6, master: 0.78, cab: 7, mic: 1, micEdge: 0.5, pedal1On: 1, pedal1: 2, pedal1Drive: 0.5, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    preset('rig-industrial', 'Industrial Razor', 'Cold, cutting high-gain with an industrial edge.', { amp: 9, gain: 0.85, bass: 0.55, mid: 0.45, treble: 0.65, presence: 0.7, resonance: 0.55, sagAmt: 0.3, master: 0.8, cab: 6, mic: 0, micEdge: 0.3, pedal1On: 1, pedal1: 4, pedal1Drive: 0.5, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    // Bass
+    preset('rig-bass-di', 'Bass DI', 'Clean, solid direct bass through a 1×15.', { amp: 2, gain: 0.3, bass: 0.6, mid: 0.5, treble: 0.5, presence: 0.45, resonance: 0.5, sagAmt: 0.25, master: 0.72, cab: 5, mic: 3, micEdge: 0.45, pedal1On: 0, pedal1: 6, pedal1Drive: 0.4, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    preset('rig-bass-drive', 'Bass Grind', 'Driven bass with a bass overdrive for grit and cut.', { amp: 4, gain: 0.5, bass: 0.6, mid: 0.55, treble: 0.5, presence: 0.5, resonance: 0.55, sagAmt: 0.35, master: 0.74, cab: 5, mic: 3, micEdge: 0.4, pedal1On: 1, pedal1: 6, pedal1Drive: 0.5, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    // Ambient / clean-fx
+    preset('rig-acoustic-sim', 'Acoustic Sim', 'Bright, airy direct clean that flatters an acoustic-style pickup.', { amp: 0, gain: 0.15, bass: 0.5, mid: 0.45, treble: 0.62, presence: 0.55, resonance: 0.35, sagAmt: 0.2, master: 0.7, cab: 0, mic: 2, micEdge: 0.5, pedal1On: 0, pedal1: 3, pedal1Drive: 0.2, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+    preset('rig-shimmer-clean', 'Shimmer Clean', 'A jangly top-boost clean lifted by a treble booster — ambient sparkle.', { amp: 5, gain: 0.4, bass: 0.45, mid: 0.5, treble: 0.65, presence: 0.62, resonance: 0.4, sagAmt: 0.35, master: 0.72, cab: 2, mic: 2, micEdge: 0.4, pedal1On: 1, pedal1: 7, pedal1Drive: 0.35, pedal2On: 0, pedal2: 3, pedal2Drive: 0.4 }),
+  ],
 };
 
 export const presetsForFx = (type: string): FxPreset[] => FX_PRESETS[type] ?? [];
