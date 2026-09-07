@@ -17,6 +17,7 @@ export function setAudioProxyPreference(on: boolean): void { audioProxyPref = !!
 // always the default; this makes it absolute.
 let localOnly = false;
 export function setLocalOnly(on: boolean): void { localOnly = !!on; }
+export function isLocalOnly(): boolean { return localOnly; }
 
 /** Audio and video use readable local bytes first, including on recovery. */
 export async function resolveMediaSource(asset: any, _recover = false, picture = false): Promise<MediaSource> {
@@ -57,6 +58,13 @@ export async function resolveMediaSource(asset: any, _recover = false, picture =
         if (blob.size) return owned(blob,'session');
       }
     } catch { /* local reference expired */ }
+  }
+  // LAST-RESORT LOCAL fallback: even when proxy mode is OFF (so the preferred branch above was
+  // skipped), a proxy sitting on disk still beats streaming the cloud. This is why "proxies off" now
+  // keeps playing locally instead of going black/buffering — the proxy is just another on-device copy.
+  if (asset?.id) {
+    const proxy = await getBytes('studio:proxy:' + asset.id);
+    if (proxy?.size) return owned(proxy,'proxy');
   }
   const remote = [asset?.url,asset?.cloudUrl].find(url => /^https?:/i.test(url || ''));
   if (remote && localOnly) throw new Error('LOCAL-ONLY MODE — this asset has no on-device copy; reconnect its drive, relink it, or Sync to Local. (Cloud streaming is off.)');

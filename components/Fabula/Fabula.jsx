@@ -5,7 +5,7 @@ import IndexedVideoCanvas from './IndexedVideoCanvas';
 import { indexedVideoAvailable } from '../../services/mediaEngine/indexedVideo';
 import PanelDivider from "./PanelDivider";
 import { timelineBoundaries, crossedTimelineBoundary } from "../../services/fabula/timelineBoundaries";
-import { resolveMediaSource, setAudioProxyPreference, setLocalOnly } from "../../services/fabula/mediaSource";
+import { resolveMediaSource, setAudioProxyPreference, setLocalOnly, isLocalOnly } from "../../services/fabula/mediaSource";
 import { prefetchAssets, onPrefetched, cancelPrefetch, setPrefetchSuspended } from "../../services/fabula/prefetch";
 import { nextShuttleRate } from "../../services/fabula/shuttle";
 import { useState, useEffect, useRef, useMemo, memo, Fragment } from "react";
@@ -8383,7 +8383,9 @@ function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playin
     let alive = true; let source = null;
     setPlaybackSrc(null);
     setLoadState({ phase: "loading", pct: 0 });
-    if (asset?.type === "video") resolveMediaSource(asset, sourceRetry > 0, true).then((resolved) => {
+    // Resolve video AND stills local-first (disk→cache→proxy→…), so in Local mode an image never
+    // loads from the cloud either — the still now honors the same resolution order as video.
+    if (asset?.type === "video" || asset?.type === "image" || asset?.type === "graphic") resolveMediaSource(asset, sourceRetry > 0, true).then((resolved) => {
       if (!alive) { resolved.release(); return; }
       source = resolved;
       setPlaybackSrc(resolved.url);
@@ -8538,14 +8540,14 @@ function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playin
             if (sourceRetry === 0) setSourceRetry(1);
             else setLoadState({ phase: "error", pct: 0, message: vRef.current?.error?.code === 3 ? "VIDEO DECODE FAILED — file loaded, but the browser rejected its video stream" : "VIDEO SOURCE UNAVAILABLE — reconnect local folder or relink media" });
           }} />}
-        {active && asset?.type === "video" && ["error", "loading", "buffering"].includes(loadState.phase) && (
+        {active && (asset?.type === "video" || isStill) && ["error", "loading", "buffering"].includes(loadState.phase) && !(isStill && (playbackSrc || (!isLocalOnly() && asset?.url))) && (
           <div style={{ position: "absolute", left: "6%", right: "6%", bottom: "7%", zIndex: 90, padding: "8px 10px", borderRadius: 8, background: "rgba(0,0,0,.74)", color: "white", fontSize: 9, letterSpacing: ".12em" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}><span>{loadState.phase === "error" ? (loadState.message || "VIDEO UNAVAILABLE — RELINK OR CONVERT SOURCE") : loadState.phase.toUpperCase()}</span><span>{loadState.pct ? loadState.pct + "%" : "PREPARING"}</span></div>
             <div style={{ height: 3, borderRadius: 4, overflow: "hidden", background: "rgba(255,255,255,.18)" }}><div style={{ width: (loadState.pct || 12) + "%", height: "100%", background: "#ff8c00", transition: "width .2s" }} /></div>
           </div>
         )}
         {asset?.url && asset.type === "lottie" && <LottieLayer url={asset.url} time={Math.max(0, playhead - clip.start + offset)} playing={playing && active} speed={clip.lottieSpeed || 1} loop={clip.lottieLoop !== false} />}
-        {asset?.url && isStill && <img key={imgCors ? "cors" : "plain"} ref={vRef} src={asset.url} className="mvid" alt="" style={hasForge ? { opacity: 0 } : undefined} crossOrigin={imgCors ? "anonymous" : undefined} onError={() => { if (imgCors) setImgCors(false); }} />}
+        {isStill && (playbackSrc || (!isLocalOnly() && asset?.url)) && <img key={imgCors ? "cors" : "plain"} ref={vRef} src={playbackSrc || asset.url} className="mvid" alt="" style={hasForge ? { opacity: 0 } : undefined} crossOrigin={imgCors ? "anonymous" : undefined} onError={() => { if (imgCors) setImgCors(false); }} />}
         {asset && !asset.url && (
           <div className="sboard">
             <div className="sb-stripe gray" />
