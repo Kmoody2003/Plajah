@@ -7557,7 +7557,8 @@ export default function Fabula() {
                       </div>
                       {/* ── GRADE-PASS mini timeline (Mockup A #6): every picture clip, striped by
                           graded state. Click to jump the grade to that clip. ── */}
-                      <div className="cgradetl glass-dark">
+                      {divider("color timeline", 84, { vertical: true, reverse: true, max: 340 })}
+                      <div className="cgradetl glass-dark" style={{ height: panelSize("color timeline", 84), resize: "none" }}>
                         <span className="cap" style={{ flex: "none" }}>TIMELINE</span>
                         {(() => {
                           const vclips = clips.filter((c) => c.trackId?.startsWith("v")).sort((a, b) => a.start - b.start);
@@ -7609,7 +7610,8 @@ export default function Fabula() {
                             selClipId={selClipId} setSelClipId={setSelClipId} trackSettings={container.timeline?.trackSettings || {}}
                             setTrackSetting={setTrackSetting} onOpenEditor={openAudioEditor} onSplit={(c) => splitClipStems(c, "vocals-music")} />
                         </div>
-                        <aside className="audioref glass-dark">
+                        {divider("audio reference", 284, { reverse: true, max: 620 })}
+                        <aside className="audioref glass-dark" style={{ width: panelSize("audio reference", 284) }}>
                           <div className="paneltitle"><MonitorPlay size={12} /> REFERENCE
                             <span className="numval dim small" style={{ marginLeft: "auto" }}>{fmtTc(playhead, vfmt)}</span></div>
                           <div style={{ position: "relative", width: "100%", aspectRatio: String(ar), background: "#0c0c11", borderRadius: 8, overflow: "hidden", border: "1px solid var(--line)" }}>
@@ -7625,7 +7627,8 @@ export default function Fabula() {
                         </aside>
                       </div>
 
-                      <div className="audioctrl glass-dark">
+                      {divider("audio controls", 300, { vertical: true, reverse: true, max: 640 })}
+                      <div className="audioctrl glass-dark" style={{ height: panelSize("audio controls", 300), maxHeight: "none" }}>
                         <div className="audiotabs">
                           <span className="troom">AUDIO</span>
                           <span className="tdiv" />
