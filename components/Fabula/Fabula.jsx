@@ -13,7 +13,7 @@ import {
   Palette, Box, Cpu, Lock, Unlock, Camera, Brush, Type, Captions, Keyboard,
   Scissors, MousePointer2, FlagTriangleRight, FlagTriangleLeft,
   SlidersHorizontal, Mic2, FolderOpen, Search, Tag, FileText, RefreshCw,
-  Image as ImageIcon,
+  Image as ImageIcon, HardDrive,
 } from "lucide-react";
 import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
@@ -86,7 +86,7 @@ import { sampleTrack, sampleParam as kfSample, isAnimated as kfIsAnimated, hasKe
 import { quickStems, separateStemsCloud } from "../../services/fabula/stemSeparation";
 import { exportFCPXML, importFCPXML } from "../../services/fabula/fcpxml";
 import { initResumableUploads, enqueueUpload, onUploadProgress, pendingCount, setUploadsPaused, uploadsPaused, clearUploadQueue } from "../../services/fabula/resumableUpload";
-import { listSyncFolders, addSyncFolder, removeSyncFolder, rescanNew, markSeen, getFileFromFolder } from "../../services/fabula/syncFolders";
+import { listSyncFolders, addSyncFolder, removeSyncFolder, rescanNew, markSeen, getFileFromFolder, foldersNeedingAuth, reconnectFolders } from "../../services/fabula/syncFolders";
 import { isVectorFile, rasterizeVector } from "../../services/fabula/vectorRaster";
 import GeneratePanel from "./GeneratePanel";
 import { specFromShot, connectorById, placeResultInCut } from "../../services/fabula/genAgent";
@@ -725,6 +725,7 @@ export default function Fabula() {
   const [stemBusy, setStemBusy] = useState(false);   // stem-split / separation in flight
   const [uploadPending, setUploadPending] = useState(0); // background resumable uploads still in flight
   const [syncFolders, setSyncFolders] = useState([]);    // watch folders for this project
+  const [foldersNeedAuth, setFoldersNeedAuth] = useState(0); // watch folders whose disk permission lapsed (streaming from cloud until re-granted)
   const [folderSyncing, setFolderSyncing] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(null);   // top menu bar: 'File' | 'Edit' | 'View' | 'Clip' | 'Help'
@@ -3045,7 +3046,43 @@ export default function Fabula() {
     const files = Array.from(fileList || []).filter((f) => /\.(txt|md|fountain|markdown)$/i.test(f.name));
     for (const f of files) { const text = await f.text().catch(() => ""); if (text) await importScriptText(text, f.name); }
   };
-  const refreshSyncFolders = async () => { if (prod?.id) { try { setSyncFolders(await listSyncFolders(prod.id)); } catch { /* */ } } };
+  const checkFolderAuth = async () => { if (prod?.id) { try { setFoldersNeedAuth((await foldersNeedingAuth(prod.id)).length); } catch { /* */ } } };
+  const refreshSyncFolders = async () => { if (prod?.id) { try { setSyncFolders(await listSyncFolders(prod.id)); } catch { /* */ } await checkFolderAuth(); } };
+  // Re-point every folder-imported asset at its ORIGINAL file on disk (fresh objectURL through the
+  // directory handle). Called after a permission re-grant so playback stops streaming from the cloud
+  // and reads straight from local storage, exactly like Resolve/Premiere. Returns how many relinked.
+  const relinkFolderAssetsFromDisk = async () => {
+    if (!prod?.mediaPool?.length) return 0;
+    const updates = [];
+    for (const a of prod.mediaPool) {
+      if (!a.folderId) continue;
+      try {
+        const f = await getFileFromFolder(a.folderId, a.diskPath || a.bin || "", a.diskName || a.name);
+        if (f && f.size) updates.push({ id: a.id, url: URL.createObjectURL(f), size: f.size });
+      } catch { /* still unreachable — leave on its cloud/relink path */ }
+    }
+    if (updates.length) updateProd((p) => { for (const u of updates) { const a = p.mediaPool.find((x) => x.id === u.id); if (a) { a.url = u.url; a.offline = false; a.session = true; a.size = u.size; } } });
+    return updates.length;
+  };
+  // One-gesture "reconnect drives": re-grant read permission on every watch folder (browser requires a
+  // click for this), then relink assets to their on-disk originals. This is the first order of defense —
+  // after it, local playback is native-speed and never touches the cloud while the files are present.
+  const reconnectDrives = async () => {
+    if (!prod?.id) return;
+    setFolderSyncing(true);
+    try {
+      const r = await reconnectFolders(prod.id);
+      let relinked = 0;
+      if (r.granted) relinked = await relinkFolderAssetsFromDisk();
+      await checkFolderAuth();
+      const parts = [];
+      if (r.granted) parts.push(`${r.granted} drive${r.granted > 1 ? "s" : ""} reconnected${relinked ? ` · ${relinked} asset${relinked > 1 ? "s" : ""} now reading from disk` : ""}`);
+      if (r.failed) parts.push(`${r.failed} still need permission — click Reconnect again`);
+      if (r.missing) parts.push(`${r.missing} folder${r.missing > 1 ? "s" : ""} lost — re-add via IMPORT FOLDER`);
+      ping(parts.join(" · ") || "No watch folders to reconnect");
+    } catch (e) { ping(e?.message || "Couldn't reconnect the drives"); }
+    finally { setFolderSyncing(false); }
+  };
   const rescanSyncFolder = async (id, interactive, full = false) => {
     if (!prod?.id) return;
     try {
@@ -5487,6 +5524,11 @@ export default function Fabula() {
             <button className="tbtn2" title="Import individual files" onClick={() => fileRef.current?.click()}><Upload size={11} /> FILES</button>
             <button className="tbtn2" title="Import a folder once — bins mirror its nested structure" onClick={() => editFolderRef.current?.click()}><FolderOpen size={11} /> FOLDER</button>
             <button className="tbtn2" title="Watch a folder — new files import automatically" onClick={addSyncFolderNow}><RefreshCw size={11} /> WATCH</button>
+            {foldersNeedAuth > 0 && (
+              <button className="tbtn2" style={{ borderColor: "rgba(90,168,255,0.7)", color: "#bcdcff", background: "rgba(60,120,220,0.16)", boxShadow: "0 0 0 1px rgba(90,168,255,0.25), 0 0 10px rgba(90,168,255,0.25)" }} disabled={folderSyncing}
+                title={`${foldersNeedAuth} watch folder${foldersNeedAuth > 1 ? "s" : ""} lost disk permission after reload, so media is streaming from the cloud. Click to re-grant access and play straight from the original files on disk (native speed).`}
+                onClick={reconnectDrives}><HardDrive size={11} /> {folderSyncing ? "RECONNECTING…" : `RECONNECT DRIVE${foldersNeedAuth > 1 ? "S" : ""} (${foldersNeedAuth})`}</button>
+            )}
             <button className="tbtn2" style={{ borderColor: "rgba(224,69,155,0.45)", color: "#f0b8dd" }}
               title="Generate with a linked service — results land in a bin" onClick={() => setGenOpen(true)}><Sparkles size={11} /> GENERATE</button>
           </div>
@@ -6242,6 +6284,12 @@ export default function Fabula() {
                   {syncFolders.length > 0 && (
                     <div className="glass-card">
                       <div className="lbl">WATCH FOLDERS <span className="catcount">{syncFolders.length}</span> — auto-update while the project is open</div>
+                      {foldersNeedAuth > 0 && (
+                        <button className="cta" style={{ width: "100%", marginBottom: 8, borderColor: "rgba(90,168,255,0.7)", color: "#bcdcff", background: "rgba(60,120,220,0.16)", boxShadow: "0 0 0 1px rgba(90,168,255,0.25), 0 0 12px rgba(90,168,255,0.22)" }} disabled={folderSyncing} onClick={reconnectDrives}
+                          title="After a reload the browser drops disk permission, so media streams from the cloud. Reconnect to read the original files straight off your drive again — native NLE speed, no streaming.">
+                          <HardDrive size={13} /> {folderSyncing ? "RECONNECTING…" : `RECONNECT ${foldersNeedAuth} DRIVE${foldersNeedAuth > 1 ? "S" : ""} FOR LOCAL PLAYBACK`}
+                        </button>
+                      )}
                       {syncFolders.map((f) => (
                         <div className="watchrow" key={f.id}>
                           <FolderOpen size={13} />
@@ -6363,9 +6411,21 @@ export default function Fabula() {
                         <div className="mapvmeta">
                           <div className="mapvname">{selAsset.name}</div>
                           <div className="dim small">{selAsset.bin || "imports"} · {selAsset.type?.toUpperCase()}{selAsset.duration ? ` · ${selAsset.duration.toFixed(1)}s` : ""}{selAsset.cloudUrl ? " · ☁ synced" : " · ⭯ syncing"}</div>
-                          <div className="dim small" style={{ marginTop: 2 }} title={selAsset.folderId ? "Playing the real file straight from your drive" : (selAsset.url && selAsset.url.startsWith("blob:")) ? "Playing from the on-device copy" : "Playing from the cloud (bytes not on this device)"}>
-                            {selAsset.folderId ? "▣ ON DEVICE · reading from disk" : (selAsset.url && selAsset.url.startsWith("blob:")) ? "▣ ON DEVICE · local copy" : (selAsset.url && /^https?:/i.test(selAsset.url)) ? "☁ CLOUD · not on this device" : "— offline"}
-                          </div>
+                          {(() => {
+                            const local = selAsset.url && selAsset.url.startsWith("blob:");
+                            const cloud = selAsset.url && /^https?:/i.test(selAsset.url);
+                            // Honest source read from the ACTUAL url in play, not the mere presence of a
+                            // folderId — a folder asset whose disk permission lapsed is really streaming.
+                            const label = local ? (selAsset.folderId ? "▣ ON DEVICE · reading from disk" : "▣ ON DEVICE · local copy")
+                              : cloud ? (selAsset.folderId ? "☁ CLOUD · disk disconnected — reconnect to play local" : "☁ CLOUD · not on this device") : "— offline";
+                            return (
+                              <div className="dim small" style={{ marginTop: 2, color: local ? "#8fd0ff" : undefined, textShadow: local ? "0 0 8px rgba(90,168,255,0.45)" : undefined }}
+                                title={local ? "Playing the real file straight from your drive — native speed, no streaming" : cloud ? "Streaming from the cloud (bytes not readable on this device right now)" : "Media offline"}>
+                                {label}
+                                {cloud && selAsset.folderId && <button className="minibtn" style={{ marginLeft: 8, fontSize: 8, borderColor: "rgba(90,168,255,0.6)", color: "#bcdcff" }} disabled={folderSyncing} onClick={reconnectDrives}><HardDrive size={9} /> RECONNECT</button>}
+                              </div>
+                            );
+                          })()}
                           {(selAsset.tags || []).length > 0 && <div className="matags" style={{ marginTop: 6 }}>{(selAsset.tags || []).map((t) => <span key={t} className="matag">{t}</span>)}</div>}
                           <div className="lbl" style={{ marginTop: 12 }}>NOTES</div>
                           <textarea className="mapvnotes" rows={3} value={selAsset.note || ""} placeholder="Add production notes for this asset…" onChange={(e) => updateAssetNote(selAsset.id, e.target.value)} />
