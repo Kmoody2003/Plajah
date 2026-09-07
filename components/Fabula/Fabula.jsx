@@ -6,7 +6,7 @@ import { indexedVideoAvailable } from '../../services/mediaEngine/indexedVideo';
 import PanelDivider from "./PanelDivider";
 import { timelineBoundaries, crossedTimelineBoundary } from "../../services/fabula/timelineBoundaries";
 import { resolveMediaSource, setAudioProxyPreference, setLocalOnly, isLocalOnly, mediaOriginOf, subscribeMediaOrigin } from "../../services/fabula/mediaSource";
-import { prefetchAssets, onPrefetched, cancelPrefetch, setPrefetchSuspended } from "../../services/fabula/prefetch";
+import { prefetchAssets, onPrefetched, cancelPrefetch, setPrefetchSuspended, conformNow } from "../../services/fabula/prefetch";
 import { nextShuttleRate } from "../../services/fabula/shuttle";
 import { useState, useEffect, useRef, useMemo, memo, Fragment } from "react";
 import {
@@ -3155,6 +3155,31 @@ export default function Fabula() {
     diskAccessTriedRef.current = true;
     if (foldersNeedAuthRef.current > 0) reconnectDrives(); // re-grant + relink from disk (no download)
   };
+  // "Everything Local" — one click to make the whole project readable on this device: reconnect watch
+  // folders (disk-resident assets read from disk, no download) THEN pull every cloud-only asset to disk
+  // with progress. This is the explicit "conform now" that Sync-to-Local does lazily in the background.
+  const [conforming, setConforming] = useState(null); // { done, total } while running, else null
+  const conformEverythingLocal = async () => {
+    if (conforming || !prod?.id) return;
+    if (foldersNeedAuthRef.current > 0) { try { await reconnectDrives(); } catch { /* */ } } // disk-resident → read from disk
+    const pool = prod?.mediaPool || [];
+    const candidates = [];
+    for (const a of pool) {
+      if (a.folderId || a.localFileHandle) continue;                              // lives on disk → not a download
+      if (!(a.type === "video" || a.type === "audio" || a.type === "image" || a.type === "graphic")) continue;
+      const cloud = [a.url, a.cloudUrl].find((u) => /^https?:/i.test(u || ""));   // local (blob:) → already here
+      if (!cloud) continue;
+      candidates.push({ id: a.id, url: cloud });
+    }
+    if (!candidates.length) { ping("Everything is already on this device ✓"); return; }
+    setConforming({ done: 0, total: candidates.length });
+    try {
+      const r = await conformNow(candidates, (done, total) => setConforming({ done, total }));
+      ping(`Conformed ${r.pulled}/${r.total} asset${r.total === 1 ? "" : "s"} to disk${r.failed ? ` · ${r.failed} unavailable or too large` : " — all local"}`);
+    } catch (e) { ping(e?.message || "Conform failed"); }
+    finally { setConforming(null); }
+  };
+
   // "Switch to Local" master toggle. ON = disk-first made absolute (no cloud streaming; missing local
   // media reads as OFFLINE/relink). Enabling it re-grants disk access right away so reads go to the
   // originals on the drive. This is a user gesture, so the permission re-grant is allowed here.
@@ -5932,6 +5957,8 @@ export default function Fabula() {
                           onClick={toggleLocalOnly}><HardDrive size={10} /> LOCAL {localOnly ? "ON" : "OFF"}</button>
                         <button className="minibtn" title="SYNC TO LOCAL — download CLOUD-ONLY assets (ones that don't live on this device) to disk for offline use. OFF by default: files already on your drive are read straight off disk, never re-downloaded." style={{ opacity: syncToLocal ? 1 : 0.45, color: syncToLocal ? "#8fd0ff" : undefined }}
                           onClick={() => { const nv = !syncToLocal; setSyncToLocal(nv); try { localStorage.setItem("fabula:syncLocal", nv ? "1" : "0"); } catch { /* */ } ping(nv ? "Sync to Local ON — cloud-only assets will download to disk" : "Sync to Local OFF — reading originals off disk only"); }}>SYNC LOCAL {syncToLocal ? "ON" : "OFF"}</button>
+                        <button className="minibtn" disabled={!!conforming} title="EVERYTHING LOCAL — reconnect your drives and pull every cloud-only asset onto this device now, so the whole project plays from local storage." style={{ borderColor: conforming ? "rgba(90,168,255,0.7)" : undefined, color: conforming ? "#bcdcff" : undefined }}
+                          onClick={conformEverythingLocal}><HardDrive size={10} /> {conforming ? `CONFORMING ${conforming.done}/${conforming.total}` : "EVERYTHING LOCAL"}</button>
                         <button className="minibtn" disabled={scriptBuilding || !clips.length} title="Reverse-engineer the screenplay from this edit: every clip is watched (computer vision) + transcribed, dialogue is tagged to your cast, and the scene + SLATE shot list are rebuilt from the cut"
                           onClick={buildScriptFromTimeline} style={{ color: scriptBuilding ? "#FF8C00" : undefined }}>{scriptBuilding ? "📜 BUILDING…" : "📜 BUILD SCRIPT FROM TIMELINE"}</button>
                       </div>

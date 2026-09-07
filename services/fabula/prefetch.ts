@@ -57,6 +57,11 @@ async function fetchToStore(url: string, key: string, ac: AbortController): Prom
   await putBytes(key, blob);
 }
 
+function markPulled(id: string): void {
+  done.add(id);
+  listeners.forEach((cb) => { try { cb(id); } catch { /* */ } });
+}
+
 async function pump(): Promise<void> {
   if (running || suspended) return;
   running = true;
@@ -71,8 +76,7 @@ async function pump(): Promise<void> {
         inflight.add(item.id);
         current = new AbortController();
         await fetchToStore(item.url, key, current);
-        done.add(item.id);
-        listeners.forEach((cb) => { try { cb(item.id); } catch { /* */ } });
+        markPulled(item.id);
       } catch (err: any) {
         // Too-big is permanent (needs a proxy); a network error is transient — leave it out of `done`
         // so a later playhead pass re-queues and retries it.
@@ -80,6 +84,29 @@ async function pump(): Promise<void> {
       } finally { inflight.delete(item.id); current = null; }
     }
   } finally { running = false; }
+}
+
+/** Eagerly pull a specific set to disk NOW — the "Everything Local / conform" action — reporting
+ *  progress (done+failed vs total) as it goes. Runs its own sequential loop (not the background queue),
+ *  but still yields while the transport is suspended so it never fights playback. Assets already on disk
+ *  count as done instantly. Resolves with counts. */
+export async function conformNow(list: Item[], onProgress?: (completed: number, total: number) => void): Promise<{ pulled: number; failed: number; total: number }> {
+  const items = list.filter((a) => a?.id && isHttp(a.url));
+  let pulled = 0, failed = 0;
+  for (const it of items) {
+    const key = 'studio:blob:' + it.id;
+    try {
+      if (await hasBytes(key)) { markPulled(it.id); pulled++; }
+      else {
+        while (suspended) await new Promise((r) => setTimeout(r, 400)); // wait out playback/scrub
+        const ac = new AbortController(); current = ac; inflight.add(it.id);
+        await fetchToStore(it.url, key, ac);
+        markPulled(it.id); pulled++;
+      }
+    } catch (err: any) { if (err?.message === 'TOO_BIG') markPulled(it.id); failed++; }
+    finally { inflight.delete(it.id); current = null; onProgress?.(pulled + failed, items.length); }
+  }
+  return { pulled, failed, total: items.length };
 }
 
 /** Queue upcoming CLOUD assets to pull to OPFS ahead of the playhead. Already-local (blob:/cached/disk)
