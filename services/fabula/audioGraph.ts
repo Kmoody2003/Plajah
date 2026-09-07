@@ -37,7 +37,7 @@ export const CLEAN_DEFAULT: CleanSettings = { hpf: 0, lpf: 0, hum: 0, trim: 0, d
 export const CLIP_AUDIO_DEFAULT: ClipAudio = { vol: 1, eq: [0, 0, 0, 0, 0], comp: { ...COMP_DEFAULT } };
 
 import { platformAudio } from '../mediaEngine/audioRuntime';
-import { FxChainHost, softClipCurve, type FxInstance } from './audioFx';
+import { FxChainHost, softClipCurve, SpectraEQ, MasteringChain, type FxInstance, type SpectraState, type MasteringState } from './audioFx';
 let _ctx: AudioContext | null = null;
 export function getAudioCtx(): AudioContext | null {
   if (_ctx) return _ctx;
@@ -126,11 +126,14 @@ export const meterRegistry = new Map<string, () => number>();
 
 // ---- master bus: every channel strip sums here, then one path to the hardware ----
 //   strip → masterGain → [brickwall limiter] → masterAnalyser → ctx.destination
-let _master: { input: GainNode; suite: FxChainHost; gain: GainNode; limiter: WaveShaperNode; makeup: GainNode; analyser: AnalyserNode; limiterOn: boolean } | null = null;
+let _master: { input: GainNode; eq: SpectraEQ; mastering: MasteringChain; suite: FxChainHost; gain: GainNode; limiter: WaveShaperNode; makeup: GainNode; analyser: AnalyserNode; limiterOn: boolean } | null = null;
 function getMasterBus(ctx: AudioContext) {
   if (_master) return (_master as any); // strips connect to .input
   const input = ctx.createGain();       // sum point — strips connect here
-  // Master FX suite (Melos's shared devices on the whole mix), pre-fader. Empty = passthrough.
+  // Master processing chain (mirrors Melos): Spectra EQ → Mastering "Pressing"
+  // (Era/Engineer) → FX suite → fader → soft-clip. Each starts as a passthrough.
+  const eq = new SpectraEQ(ctx);
+  const mastering = new MasteringChain(ctx);
   const suite = new FxChainHost(ctx);
   const gain = ctx.createGain();        // master fader
   // Master brickwall = memoryless soft-clip (mirrors Melos). A DynamicsCompressor
@@ -140,18 +143,23 @@ function getMasterBus(ctx: AudioContext) {
   const limiter = ctx.createWaveShaper(); limiter.curve = softClipCurve(-1); limiter.oversample = '4x';
   const makeup = ctx.createGain(); makeup.gain.value = 1;
   const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.2;
-  input.connect(suite.input); suite.output.connect(gain); gain.connect(limiter); limiter.connect(makeup); makeup.connect(analyser); analyser.connect(platformAudio.output('fabula'));
+  input.connect(eq.input); eq.output.connect(mastering.input); mastering.output.connect(suite.input); suite.output.connect(gain);
+  gain.connect(limiter); limiter.connect(makeup); makeup.connect(analyser); analyser.connect(platformAudio.output('fabula'));
   const buf = new Float32Array(analyser.fftSize);
   meterRegistry.set('master', () => {
     try { analyser.getFloatTimeDomainData(buf); let p = 0; for (let i = 0; i < buf.length; i++) { const a = Math.abs(buf[i]); if (a > p) p = a; } return p; } catch { return 0; }
   });
-  _master = { input, suite, gain, limiter, makeup, analyser, limiterOn: true };
+  _master = { input, eq, mastering, suite, gain, limiter, makeup, analyser, limiterOn: true };
   return (_master as any);
 }
 /** Master FX suite — Melos devices on the whole mix (empty = passthrough). */
 export function setMasterInserts(instances: FxInstance[]) {
   if (_master) _master.suite.setChain(Array.isArray(instances) ? instances : []);
 }
+/** Master surgical/dynamic EQ (Melos SpectraEQ). */
+export function setMasterEq(state: SpectraState) { if (_master) _master.eq.setState(state); }
+/** Master "Pressing" mastering chain (Era × Engineer, tilt/drive/width/glue). */
+export function setMasterMastering(state: MasteringState) { if (_master) _master.mastering.setState(state); }
 /** The master-bus node + context for the shared Meter Bridge to tap (post-limiter,
  *  full stereo). Null until the mixer is built by the first audio clip. */
 export function masterMeterTap(): { ctx: BaseAudioContext; node: AudioNode } | null {
