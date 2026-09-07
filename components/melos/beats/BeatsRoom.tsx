@@ -53,6 +53,8 @@ import { isSuite } from '../../../services/melos/beats/instrumentFactory';
 import { SpectraPanel } from './mixer/SpectraPanel';
 import { MuseLibrary } from './muse/MuseLibrary';
 import { addPadInstrument, addInstrumentToNextPad, detachPadInstrument, addInstrument } from '../../../services/melos/beats/instrumentFactory';
+import BreakdownImporter from './composer/BreakdownImporter';
+import { breakdownToTracks } from '../../../services/melos/composition/breakdownToTracks';
 import { SELECT, WASH_BG } from './theme';
 
 export interface BeatsLaunchPayload {
@@ -120,6 +122,25 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const [showInstrumentPicker, setShowInstrumentPicker] = useState(false);
   // Where a freshly-picked instrument lands: a MEKA pad, or its own independent (clip-driven) MIDI track.
   const [instrumentDest, setInstrumentDest] = useState<'meka' | 'track'>('meka');
+  const [showBreakdownImport, setShowBreakdownImport] = useState(false);
+  // Score a Chora breakdown → one instrument track per part (Melody/Harmony/Bass/Accent).
+  const scoreFromBreakdown = (bd: Parameters<typeof breakdownToTracks>[0]) => {
+    const scored = breakdownToTracks(bd);
+    if (!scored.tracks.length) return;
+    mutate((d) => {
+      if (scored.tempo) d.bpm = Math.max(20, Math.min(300, Math.round(scored.tempo)));
+      for (const st of scored.tracks) {
+        const trackId = addInstrument(d, st.instrumentType);
+        const t = d.arrangement.find((x) => x.id === trackId);
+        if (!t) continue;
+        t.name = st.name;
+        const end = st.notes.reduce((m, n) => Math.max(m, n.startBeats + n.lengthBeats), 0);
+        t.clips.push({ id: grooveUid(), startBeats: 0, lengthBeats: Math.max(4, Math.ceil(end / 4) * 4), notes: st.notes });
+      }
+    });
+    void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
+    setView('timeline');
+  };
   const [openInstrumentId, setOpenInstrumentId] = useState<string | null>(null);
   // When set, the instrument picker is targeting a PAD (turn the pad into an ONDA/KERA instrument)
   // rather than adding a new arranger track.
@@ -976,6 +997,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         </div>
         <button onClick={() => setUlOpen((v) => !v)} title="Universal Library — grooves, basslines and your assets — docks on the right"
           className={`h-6 px-2.5 rounded-lg text-[10px] border flex items-center gap-1 ${ulOpen ? 'border-[#8B5CFF]/70 text-white bg-[#8B5CFF]/15' : 'border-[#8B5CFF]/40 text-[#D0BCFF] hover:bg-[#8B5CFF]/12'}`}>▦ Library</button>
+        <button onClick={() => setShowBreakdownImport(true)} title="Score from Chora — turn a song's Breakdown into instrument tracks"
+          className="h-6 px-2.5 rounded-lg text-[10px] border border-[#00DAF3]/35 text-[#00DAF3] hover:bg-[#00DAF3]/10 flex items-center gap-1">♪ From Chora</button>
         <div className="flex-1" />
         <button
           onClick={() => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) autoFill(d, p, 4); }); }}
@@ -1097,6 +1120,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         </button>
       )}
 
+      {showBreakdownImport && (
+        <BreakdownImporter onClose={() => setShowBreakdownImport(false)} onImport={scoreFromBreakdown} />
+      )}
       {showInstrumentPicker && (
         <InstrumentPicker
           onClose={() => setShowInstrumentPicker(false)}
