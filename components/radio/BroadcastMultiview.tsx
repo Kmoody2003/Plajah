@@ -11,10 +11,12 @@
  */
 import React, { useEffect, useState } from 'react';
 import { Video, Radio, Tv, Globe, Signal, CircleDot, Mic, RefreshCw } from 'lucide-react';
-import type { UserProfile, LinkedRadioStation } from '../../types';
+import type { UserProfile, LinkedRadioStation, Album } from '../../types';
 import { fetchMyLinkedStations } from '../../services/linkedStations';
 import { fetchBroadcastTelemetry, type BroadcastTelemetry } from '../../services/broadcastTelemetry';
 import { buildOutputs, totalAudience, hasAudienceData, type BroadcastOutput, type OutputKind } from '../../services/broadcastOutputs';
+import { fetchUserAlbums } from '../../services/backendService';
+import { useRadioNowPlaying, useChannelNowPlaying } from '../../hooks/useProfileMarquee';
 
 const KIND_ICON: Record<OutputKind, React.ComponentType<{ size?: number; className?: string }>> = {
   video: Video, radio: Radio, fast: Tv, linked: Globe, talk: Mic,
@@ -28,6 +30,7 @@ const EMPTY_TELEMETRY: BroadcastTelemetry = { liveFeeds: [], liveTalk: null };
 const BroadcastMultiview: React.FC<{ profile: UserProfile }> = ({ profile }) => {
   const [linked, setLinked] = useState<LinkedRadioStation[]>([]);
   const [telemetry, setTelemetry] = useState<BroadcastTelemetry>(EMPTY_TELEMETRY);
+  const [albums, setAlbums] = useState<Album[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = React.useCallback(async () => {
@@ -50,7 +53,30 @@ const BroadcastMultiview: React.FC<{ profile: UserProfile }> = ({ profile }) => 
     return () => { alive = false; clearInterval(t); };
   }, [load]);
 
-  const outputs = buildOutputs(profile, linked, telemetry);
+  // Albums power the radio now-playing engine; they change rarely, so fetch once per account.
+  useEffect(() => {
+    let alive = true;
+    if (!profile.uid) return;
+    fetchUserAlbums(profile.uid).then(a => { if (alive) setAlbums(a || []); }).catch(() => { /* radio tile falls back to its static sub */ });
+    return () => { alive = false; };
+  }, [profile.uid]);
+
+  // Real now-playing via the same engines the profile marquee and the players use — so the tile and
+  // the surface it represents always agree. Both no-op when their feature is off.
+  const radioNP = useRadioNowPlaying(profile.uid, profile, albums, !!profile.radioSettings?.enabled);
+  const channelNP = useChannelNowPlaying(profile.uid, !!profile.fastChannelEnabled);
+
+  const outputs = buildOutputs(profile, linked, telemetry).map(o => {
+    if (o.id === 'plajahfm' && radioNP) {
+      return { ...o, sub: `Now · ${radioNP.track.title}` };
+    }
+    // Only enrich the FAST tile when the channel engine actually resolved the FAST channel (not a
+    // live source that happens to be the account's first channel).
+    if (o.id === 'fast' && channelNP && channelNP.sourceType === 'FAST') {
+      return { ...o, sub: channelNP.offAir ? 'Off air · resumes at midnight' : `Now · ${channelNP.title}` };
+    }
+    return o;
+  });
   const onAir = outputs.filter(o => o.live).length;
   const videoCount = outputs.filter(o => o.kind === 'video' || o.kind === 'fast' || o.kind === 'talk').length;
   const audioCount = outputs.filter(o => o.kind === 'radio' || o.kind === 'linked').length;
