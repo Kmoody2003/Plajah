@@ -26,6 +26,8 @@ export interface IrDef {
 
 const AKRT = 'Adventure Kid Reverb Tools (AKRT) — Kristoffer Ekstrand, adventurekid.se';
 const CC_BY_4 = 'CC BY 4.0';
+// OpenAIR (openairlib.net), Audiolab, University of York — each room CC BY 4.0, per-room credit below.
+const oa = (room: string) => `${room} — OpenAIR (openairlib.net), Audiolab, University of York`;
 
 // The bundled seed set (AKRT, CC BY 4.0). The fetch script (scripts/fetchIrs.mjs) can expand this with
 // the full AKRT packs and hand-picked OpenAIR CC-BY halls/cathedrals — add their entries here as they
@@ -45,6 +47,14 @@ export const IR_LIBRARY: IrDef[] = [
   { id: 'cab-speaker', name: 'Speaker Cab', category: 'Cabinet', file: 'akrt/cab-speaker.wav', seconds: 0.23, channels: 2, credit: AKRT, license: CC_BY_4 },
   { id: 'cab-vintage', name: 'Vintage Cab', category: 'Cabinet', file: 'akrt/cab-vintage.wav', seconds: 0.18, channels: 2, credit: AKRT, license: CC_BY_4 },
   { id: 'cab-80s', name: '80s Cab', category: 'Cabinet', file: 'akrt/cab-80s.wav', seconds: 0.19, channels: 2, credit: AKRT, license: CC_BY_4 },
+  // OpenAIR — real recorded halls, cathedrals & iconic spaces (CC BY 4.0, hand-verified per room).
+  { id: 'york-minster', name: 'York Minster', category: 'Cathedral', file: 'openair/york-minster.wav', seconds: 10.0, channels: 2, credit: oa('York Minster') + ' — Damian T. Murphy', license: CC_BY_4 },
+  { id: 'st-albans', name: 'St Albans Lady Chapel', category: 'Cathedral', file: 'openair/st-albans-lady-chapel.wav', seconds: 6.0, channels: 2, credit: oa('Lady Chapel, St Albans Cathedral') + ' — M. Gorzel, G. Kearney et al.', license: CC_BY_4 },
+  { id: 'elveden-hall', name: 'Elveden Marble Hall', category: 'Hall', file: 'openair/elveden-marble-hall.wav', seconds: 8.03, channels: 2, credit: 'Elveden Hall — OpenAIR (openairlib.net) — Matt Rogalsky', license: CC_BY_4 },
+  { id: 'maes-howe', name: 'Maes Howe Chamber', category: 'Chamber', file: 'openair/maes-howe.wav', seconds: 1.0, channels: 2, credit: oa('Maes Howe') + ' — Damian T. Murphy', license: CC_BY_4 },
+  { id: 'r1-reactor', name: 'R1 Reactor Hall', category: 'Hall', file: 'openair/r1-reactor-hall.wav', seconds: 20.28, channels: 2, credit: oa('R1 Nuclear Reactor Hall, Stockholm') + ' — Damian T. Murphy', license: CC_BY_4 },
+  { id: 'hamilton-mausoleum', name: 'Hamilton Mausoleum', category: 'Chamber', file: 'openair/hamilton-mausoleum.wav', seconds: 15.0, channels: 2, credit: oa('Hamilton Mausoleum') + ' — Damian T. Murphy', license: CC_BY_4 },
+  { id: 'tyndall-bruce', name: 'Tyndall Bruce Monument', category: 'Weird', file: 'openair/tyndall-bruce-monument.wav', seconds: 4.8, channels: 2, credit: oa('Tyndall Bruce Monument') + ' — Damian T. Murphy', license: CC_BY_4 },
 ];
 
 export const irByIndex = (i: number): IrDef | undefined => IR_LIBRARY[Math.max(0, Math.min(IR_LIBRARY.length - 1, Math.round(i)))];

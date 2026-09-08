@@ -61,5 +61,12 @@ try {
   console.log('decode cab-speaker', JSON.stringify(cab));
   assert.ok(cab.ok, 'the speaker-cab IR also decodes');
 
+  const ham = await p.evaluate(() => window.decodeOne('hamilton-mausoleum'));
+  console.log('decode hamilton-mausoleum (OpenAIR)', JSON.stringify(ham));
+  assert.ok(ham.ok && ham.secs > 10 && ham.ch === 2, "the OpenAIR Hamilton Mausoleum IR decodes to its famous ~15 s stereo tail");
+  const minster = await p.evaluate(() => window.decodeOne('york-minster'));
+  console.log('decode york-minster (OpenAIR)', JSON.stringify(minster));
+  assert.ok(minster.ok, 'the OpenAIR York Minster cathedral IR decodes');
+
   console.log('\nPASS — IR library: loader fetches + decodes real AKRT WAVs, caches them, Spaces convolves with them');
 } finally { await b.close(); }
