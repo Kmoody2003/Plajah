@@ -13,6 +13,7 @@
 
 import { AMP_MODELS, CAB_MODELS, MIC_MODELS, PEDAL_MODELS, ampModelAt, cabModelAt, micModelAt, pedalModelAt } from './ampModels';
 import { designHilbertFir } from './firEq';
+import { IR_LIBRARY, irByIndex, getCachedIr, loadIr } from './irLibrary';
 
 export type FxCategory = 'eq' | 'dynamics' | 'saturation' | 'stereo' | 'space' | 'mod' | 'dj' | 'repair' | 'utility' | 'amp';
 
@@ -1473,16 +1474,46 @@ class SpacesDevice extends FxBase {
     this.input.connect(this.preDelay); this.preDelay.connect(this.conv); this.conv.connect(this.wet); this.wet.connect(this.output);
   }
   setParams(p: Record<string, number>): void {
-    const space = REVERB_SPACES[Math.max(0, Math.min(REVERB_SPACES.length - 1, Math.round(p.space ?? 6)))];
-    const size = Math.max(0.25, Math.min(2, p.size ?? 1));
-    const damp = Math.max(0, Math.min(1, p.damp ?? 0.2));
-    const width = Math.max(0, Math.min(1, (p.width ?? 100) / 100));
-    const key = `${space.id}:${size.toFixed(2)}:${damp.toFixed(2)}:${width.toFixed(2)}`;
-    if (key !== this.lastKey) { this.lastKey = key; this.conv.buffer = makeSpaceIR(this.ctx, space, size, damp, width); }
+    // Source 1 = a real recorded IR from the library; 0 = a modelled space (the default, zero-byte).
+    if ((p.irMode ?? 0) > 0.5) {
+      const def = irByIndex(p.irIndex ?? 0);
+      const key = `ir:${def?.id ?? '?'}`;
+      if (def && key !== this.lastKey) {
+        this.lastKey = key;
+        irIntoConvolver(this.ctx, this.conv, def.id, () => this.lastKey === key);
+      }
+    } else {
+      const space = REVERB_SPACES[Math.max(0, Math.min(REVERB_SPACES.length - 1, Math.round(p.space ?? 6)))];
+      const size = Math.max(0.25, Math.min(2, p.size ?? 1));
+      const damp = Math.max(0, Math.min(1, p.damp ?? 0.2));
+      const width = Math.max(0, Math.min(1, (p.width ?? 100) / 100));
+      const key = `mdl:${space.id}:${size.toFixed(2)}:${damp.toFixed(2)}:${width.toFixed(2)}`;
+      if (key !== this.lastKey) { this.lastKey = key; this.conv.buffer = makeSpaceIR(this.ctx, space, size, damp, width); }
+    }
     this.preDelay.delayTime.value = Math.max(0, Math.min(0.25, (p.preDelay ?? 15) / 1000));
     const mix = Math.max(0, Math.min(1, (p.mix ?? 30) / 100));
     equalPowerMix(this.dry, this.wet, mix);
   }
+}
+
+/** Point a ConvolverNode at a library IR: use the decoded buffer if it's cached (deterministic for the
+ *  offline render), else drop in a modelled placeholder now and hot-swap the real IR once it decodes.
+ *  `stillWanted()` is checked on resolve so a stale load never clobbers a newer selection. */
+function irIntoConvolver(ctx: BaseAudioContext, conv: ConvolverNode, id: string, stillWanted: () => boolean): void {
+  const cached = getCachedIr(id, ctx.sampleRate);
+  if (cached) { conv.buffer = cached; return; }
+  conv.buffer = makeSpaceIR(ctx, REVERB_SPACES[0], 1, 0.3, 1); // placeholder until the real IR decodes
+  void loadIr(ctx, id).then((buf) => { if (buf && stillWanted()) conv.buffer = buf; });
+}
+
+/** A reversed clone of an IR (so a shared/cached buffer is never mutated in place). */
+function reversedCopy(ctx: BaseAudioContext, src: AudioBuffer): AudioBuffer {
+  const out = ctx.createBuffer(src.numberOfChannels, src.length, src.sampleRate);
+  for (let ch = 0; ch < src.numberOfChannels; ch++) {
+    const s = src.getChannelData(ch), d = out.getChannelData(ch), n = s.length;
+    for (let i = 0; i < n; i++) d[i] = s[n - 1 - i];
+  }
+  return out;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1839,15 +1870,27 @@ class CosmosDevice extends FxBase {
     this.fbDelay.connect(this.shBP); this.shBP.connect(this.shRect); this.shRect.connect(this.shGain); this.shGain.connect(this.fbIn);
   }
   setParams(p: Record<string, number>): void {
-    const spaceIdx = Math.max(0, Math.min(REVERB_SPACES.length - 1, Math.round(p.space ?? 6)));
     const size = Math.max(0.5, Math.min(2, p.size ?? 1.4));
     const reverse = (p.reverse ?? 0) > 0.5;
-    const key = `${spaceIdx}:${size.toFixed(2)}:${reverse}`;
-    if (key !== this.lastKey) {
-      this.lastKey = key;
-      const ir = makeSpaceIR(this.ctx, REVERB_SPACES[spaceIdx], size, 0.2, 1);
-      if (reverse) for (let ch = 0; ch < ir.numberOfChannels; ch++) ir.getChannelData(ch).reverse();
-      this.conv.buffer = ir;
+    if ((p.irMode ?? 0) > 0.5) {
+      const def = irByIndex(p.irIndex ?? 0);
+      const key = `ir:${def?.id ?? '?'}:${reverse}`;
+      if (def && key !== this.lastKey) {
+        this.lastKey = key;
+        const apply = (buf: AudioBuffer | null) => { if (buf && this.lastKey === key) this.conv.buffer = reverse ? reversedCopy(this.ctx, buf) : buf; };
+        const cached = getCachedIr(def.id, this.ctx.sampleRate);
+        if (cached) apply(cached);
+        else { this.conv.buffer = makeSpaceIR(this.ctx, REVERB_SPACES[0], 1, 0.3, 1); void loadIr(this.ctx, def.id).then(apply); }
+      }
+    } else {
+      const spaceIdx = Math.max(0, Math.min(REVERB_SPACES.length - 1, Math.round(p.space ?? 6)));
+      const key = `mdl:${spaceIdx}:${size.toFixed(2)}:${reverse}`;
+      if (key !== this.lastKey) {
+        this.lastKey = key;
+        const ir = makeSpaceIR(this.ctx, REVERB_SPACES[spaceIdx], size, 0.2, 1);
+        if (reverse) for (let ch = 0; ch < ir.numberOfChannels; ch++) ir.getChannelData(ch).reverse();
+        this.conv.buffer = ir;
+      }
     }
     this.preDelay.delayTime.value = Math.max(0, Math.min(0.4, (p.preDelay ?? 40) / 1000));
     this.fbDelay.delayTime.value = Math.max(0.02, Math.min(0.9, (p.time ?? 120) / 1000));
@@ -2182,8 +2225,10 @@ export const DEVICES: FxDescriptor[] = [
   },
   {
     type: 'spaces', label: 'Spaces', category: 'space', color: C.space,
-    blurb: 'Convolution reverb — modeled impulses of the world’s great rooms, halls and monuments',
+    blurb: 'Convolution reverb — modeled spaces, or real recorded IRs (springs, rooms, cabs)',
     params: [
+      { key: 'irMode', label: 'Source', min: 0, max: 1, default: 0, step: 1, format: (v) => (v > 0.5 ? 'Library IR' : 'Modelled') },
+      { key: 'irIndex', label: 'IR', min: 0, max: IR_LIBRARY.length - 1, default: 0, step: 1, format: (v) => irByIndex(v)?.name ?? '—' },
       { key: 'space', label: 'Space', min: 0, max: REVERB_SPACES.length - 1, default: 6, step: 1, format: (v) => REVERB_SPACES[Math.max(0, Math.min(REVERB_SPACES.length - 1, Math.round(v)))].label },
       { key: 'size', label: 'Size', min: 0.25, max: 2, default: 1, format: (v) => `${Math.round(v * 100)}%` },
       { key: 'damp', label: 'Damp', min: 0, max: 1, default: 0.2, format: (v) => `${Math.round(v * 100)}%` },
@@ -2215,6 +2260,8 @@ export const DEVICES: FxDescriptor[] = [
     type: 'cosmos', label: 'Cosmos', category: 'space', color: C.space,
     blurb: 'Shimmer delay-reverb — octave-up feedback blooms into an endless ascending cloud (+ reverse)',
     params: [
+      { key: 'irMode', label: 'Source', min: 0, max: 1, default: 0, step: 1, format: (v) => (v > 0.5 ? 'Library IR' : 'Modelled') },
+      { key: 'irIndex', label: 'IR', min: 0, max: IR_LIBRARY.length - 1, default: 0, step: 1, format: (v) => irByIndex(v)?.name ?? '—' },
       { key: 'space', label: 'Space', min: 0, max: REVERB_SPACES.length - 1, default: 6, step: 1, format: (v) => REVERB_SPACES[Math.max(0, Math.min(REVERB_SPACES.length - 1, Math.round(v)))].label },
       { key: 'size', label: 'Size', min: 0.5, max: 2, default: 1.4, format: (v) => `${Math.round(v * 100)}%` },
       { key: 'time', label: 'Delay', min: 20, max: 900, default: 120, unit: 'ms', curve: 'log' },

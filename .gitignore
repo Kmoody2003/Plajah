@@ -67,3 +67,7 @@ rust/fabula-ofx/target/
 
 # Fabula FX preview: raw source images (only the curated webps are bundled)
 components/plajahPixels/engine/fx/previewAssets/_source/
+
+# IR library expansion artifacts (the curated seed in public/irs/akrt IS committed)
+public/irs/_zips/
+public/irs/akrt-full/
