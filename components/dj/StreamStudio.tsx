@@ -26,6 +26,9 @@ import { GeneratorRenderer, hasGenerator, hexToRgb } from '../plajahPixels/engin
 import { ShaderRenderer } from '../plajahPixels/engine/core/shaderRenderer';
 import { AudioTexture } from '../plajahPixels/engine/core/audioTexture';
 import { SHADER_LIBRARY } from '../plajahPixels/components/ShaderPanel';
+// Flux — real-3D audio-reactive generators (Trapcode Form / Mir), shared with Fabula + Pixels.
+import { renderFluxLatest } from '../plajahPixels/engine/core/flux';
+import { FLUX_SCENES, fluxBandsFromFreq, type FluxSceneId } from '../../services/fabula/fluxNode';
 
 // ── The DJ Console's visual library ─────────────────────────────────────────────
 // "Aurora Orbs" is the hand-made reactive backdrop (kept — people like it); the rest
@@ -33,7 +36,8 @@ import { SHADER_LIBRARY } from '../plajahPixels/components/ShaderPanel';
 type Visual =
   | { id: string; name: string; cat: string; kind: 'orbs' }
   | { id: string; name: string; cat: string; kind: 'gen'; mode: string }
-  | { id: string; name: string; cat: string; kind: 'shader'; src: string };
+  | { id: string; name: string; cat: string; kind: 'shader'; src: string }
+  | { id: string; name: string; cat: string; kind: 'flux'; scene: FluxSceneId };
 
 const GEN_MODES: [string, string][] = [
   ['TUNNEL', 'Tunnel'], ['VORTEX', 'Vortex'], ['NEBULA', 'Nebula'], ['COSMIC', 'Cosmic'],
@@ -44,13 +48,21 @@ const GEN_MODES: [string, string][] = [
 ];
 const VISUALS: Visual[] = [
   { id: 'orbs', name: 'Aurora Orbs', cat: 'Plajah', kind: 'orbs' },
+  ...FLUX_SCENES.filter(s => s.built).map((s): Visual => ({ id: 'flux:' + s.id, name: s.name, cat: 'Flux', kind: 'flux', scene: s.id })),
   ...GEN_MODES.filter(([m]) => hasGenerator(m)).map(([mode, name]): Visual => ({ id: 'gen:' + mode, name, cat: 'Generators', kind: 'gen', mode })),
   ...SHADER_LIBRARY.map((s): Visual => ({ id: 'shader:' + s.name, name: s.name, cat: 'Shaders · ' + (s.category || 'gallery'), kind: 'shader', src: s.src })),
 ];
-const VISUAL_GROUPS = ['Plajah', 'Generators', 'Shaders'] as const;
+const VISUAL_GROUPS = ['Plajah', 'Flux', 'Generators', 'Shaders'] as const;
 const PIX_PALETTE = ['#00DAF3', '#D40055', '#FF8C00'].map(hexToRgb);
 const PIX_PARAMS = [0.5, 0.5, 0.5, 0.5];
 const PIX_W = 1280, PIX_H = 720;
+
+// bass/mid/treble/level from the DJ master analyser, for driving Flux 3D (shared extractor).
+function djBands(an: AnalyserNode | null) {
+  if (!an) return { bass: 0, mid: 0, treble: 0, level: 0, beat: 0 };
+  const d = new Uint8Array(an.frequencyBinCount); an.getByteFrequencyData(d);
+  return fluxBandsFromFreq(d);
+}
 
 // Plajah brand tokens (kept literal so this surface reads in the design language
 // even though the audio engine still uses its legacy deck hexes).
@@ -289,10 +301,14 @@ const StreamStudio: React.FC<Props> = ({ audioCtx, masterGain, nowPlaying, bpm, 
       }
       setMicLevel(p => p + (miLvl - p) * 0.4);
 
-      // ── render the REAL Pixels frame once (gen/shader), audio-reactive ──
+      // ── render the REAL Pixels frame once (gen/shader/flux), audio-reactive ──
       const vis = visualRef.current;
       let glReady = false;
-      if (vis.kind !== 'orbs' && glOkRef.current && compRef.current && audioTexRef.current) {
+      let fluxCanvas: HTMLCanvasElement | null = null;
+      if (vis.kind === 'flux') {
+        // Flux owns its own three.js renderer; blit its canvas like the Pixels GL surface below.
+        try { fluxCanvas = renderFluxLatest({ scene: vis.scene }, PIX_W, PIX_H, t, djBands(masterAnalyserRef.current)); } catch { fluxCanvas = null; }
+      } else if (vis.kind !== 'orbs' && glOkRef.current && compRef.current && audioTexRef.current) {
         try {
           audioTexRef.current.update(masterAnalyserRef.current);
           compRef.current.resize(PIX_W, PIX_H);
@@ -303,9 +319,12 @@ const StreamStudio: React.FC<Props> = ({ audioCtx, masterGain, nowPlaying, bpm, 
           glReady = true;
         } catch { glReady = false; }
       }
-      // Backdrop: the live Pixels GL surface, or the Aurora Orbs (2D) fallback.
+      // Backdrop: a live Flux 3D canvas, the Pixels GL surface, or the Aurora Orbs (2D) fallback.
       const drawBackdrop = (c: CanvasRenderingContext2D, w: number, h: number) => {
-        if (glReady && pixelsGlRef.current) {
+        if (fluxCanvas) {
+          c.fillStyle = '#05060a'; c.fillRect(0, 0, w, h);
+          c.drawImage(fluxCanvas, 0, 0, w, h);
+        } else if (glReady && pixelsGlRef.current) {
           c.fillStyle = '#05060a'; c.fillRect(0, 0, w, h);
           c.drawImage(pixelsGlRef.current, 0, 0, w, h);
         } else {

@@ -18,6 +18,8 @@ import { segmentSubject } from '../../../../services/fabula/subjectMatte';
 import { estimateDepth, depthRangeCanvas } from '../../../../services/fabula/depthMatte';
 import { segmentSam } from '../../../../services/fabula/samMatte';
 import { renderModel3d } from './model3d';
+import { renderFlux } from './flux';
+import { fluxBandsFromFreq } from '../../../../services/fabula/fluxNode';
 import { GeneratorRenderer, hasGenerator, hexToRgb } from './generators';
 import { ShaderRenderer } from './shaderRenderer';
 import { createMilkdropDriver, MilkdropDriver } from './milkdropDriver';
@@ -331,6 +333,14 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
           // so Forge effects, grade and masks apply on top, and the model's own animation is driven
           // to clip-local time (lt), which is why the export matches the monitor.
           const canvas = await renderModel3d(clip.model3dUrl || (clip as any).model3d.url, (clip as any).model3d || {}, width, height, lt);
+          if (canvas) inputs.push({ element: canvas, opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography, grade: (layer as any).glGrade, grades: (layer as any).glGrades, effects: forgeEffects, time: layer.time, wipe: (layer as any).wipe, transition: (layer as any).forgeTransition });
+        } else if (clip.type === 'flux' && (clip.flux?.scene || clip.fluxScene)) {
+          // A Flux real-3D audio-reactive generator (Trapcode Form / Mir) rendered by three.js to a
+          // canvas the compositor uploads like an image — Forge effects, grade and masks apply on top,
+          // and the scene is driven to clip-local time (lt) + the exact per-frame spectrum, so the
+          // export matches the monitor.
+          const spec = { ...(clip.flux || {}), scene: (clip.flux?.scene || clip.fluxScene) as any };
+          const canvas = await renderFlux(spec, width, height, lt, fluxBandsFromFreq(aud ? aud.freq : null));
           if (canvas) inputs.push({ element: canvas, opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography, grade: (layer as any).glGrade, grades: (layer as any).glGrades, effects: forgeEffects, time: layer.time, wipe: (layer as any).wipe, transition: (layer as any).forgeTransition });
         } else if (clip.type === 'media' && clip.mediaUrl) {
           const el = await getMedia(clip.mediaUrl, clip.mediaType ?? 'video');

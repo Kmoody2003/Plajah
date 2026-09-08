@@ -4,10 +4,13 @@
 // self-describing and renderable offline without the live launcher.
 
 import type { NodeGraph } from '../core/nodeGraph';
+import type { FluxSpec } from '../../../../services/fabula/fluxNode';
 
 export interface RenderClip {
-  type: 'generator' | 'media' | 'color' | 'shader' | 'milkdrop' | 'text' | 'title' | 'nodegraph' | 'empty';
+  type: 'generator' | 'media' | 'color' | 'shader' | 'milkdrop' | 'text' | 'title' | 'nodegraph' | 'flux' | 'empty';
   sceneMode?: string;                 // generator / studio mode (UPPERCASE)
+  fluxScene?: string;                 // type:'flux' — Flux scene id (fallback if `flux` spec absent)
+  flux?: Partial<FluxSpec>;           // type:'flux' — full Flux generator spec (Trapcode Form / Mir)
   mediaUrl?: string;
   mediaType?: 'video' | 'image';
   fillColor?: string;                 // color fill, or text/accent color

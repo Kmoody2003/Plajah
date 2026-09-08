@@ -61,6 +61,11 @@ function itemToSnapshot(item: any, label: string): SceneSnapshot {
   if (item?.url && item.type === 'model') {
     return { name: item.name || label, layers: [{ id: 'v1', blendMode: 'normal', opacity: 1, clip: { type: 'model3d', model3dUrl: item.url, opacity: 1 } }] };
   }
+  // A Flux real-3D audio-reactive generator (Trapcode Form / Mir). No url: the source is a scene id +
+  // spec. The per-clip spec is merged onto this clip in emitClip, like model3d.
+  if (item?.type === 'flux' && (item.fluxScene || item.flux?.scene)) {
+    return { name: item.name || label, layers: [{ id: 'v1', blendMode: 'normal', opacity: 1, clip: { type: 'flux', fluxScene: item.fluxScene || item.flux?.scene, flux: item.flux || {}, opacity: 1 } }] };
+  }
   return { name: label || 'clip', layers: [] };                 // unresolved → black
 }
 
@@ -351,6 +356,8 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
           // A 3D-model layer carries the clip's own camera/lighting/rotation spec so the export
           // frames and animates it exactly as the monitor does.
           ...(layer.clip?.type === 'model3d' ? { clip: { ...layer.clip, model3d: clip.model3d || {} } } : {}),
+          // A Flux layer carries the clip's own generator spec (scene, camera, palette, sensitivity).
+          ...(layer.clip?.type === 'flux' ? { clip: { ...layer.clip, flux: { ...(layer.clip as any).flux, ...(clip.flux || {}) } } } : {}),
           id: `${clip.trackId}:${clip.id}:${layer.id}`,   // unique per clip (two clips can co-exist mid-transition)
           blendMode: clipBlend || layer.blendMode,
           opacity: (layer.opacity ?? 1) * clipOp,
