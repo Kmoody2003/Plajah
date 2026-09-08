@@ -15,7 +15,7 @@
 export interface FluxAudio { bass: number; mid: number; treble: number; level: number; beat: number }
 export const SILENT_AUDIO: FluxAudio = { bass: 0, mid: 0, treble: 0, level: 0, beat: 0 };
 
-export type FluxSceneId = 'field' | 'lattice' | 'tunnel' | 'aurora';
+export type FluxSceneId = 'field' | 'tapestry' | 'lattice' | 'tunnel' | 'aurora';
 
 export interface FluxSceneInfo {
   id: FluxSceneId;
@@ -30,6 +30,8 @@ export interface FluxSceneInfo {
 export const FLUX_SCENES: FluxSceneInfo[] = [
   { id: 'field', name: 'Flux Field', cat: 'Form', built: true,
     line: 'A structured dot-grid terrain that flows as one fractal surface — swells with the bass, erupts on the build, ripples on every kick.' },
+  { id: 'tapestry', name: 'Deco Tapestry', cat: 'Deco', built: true,
+    line: 'An embroidered Art Deco tapestry on a marble gallery wall whose gilt motifs shape-shift, kaleidoscope and brighten to the music. A static shot.' },
   { id: 'lattice', name: 'Flux Lattice', cat: 'Form', built: false,
     line: 'A breathing fractal sphere-lattice that folds and shatters to the beat.' },
   { id: 'tunnel', name: 'Flux Tunnel', cat: 'Mir', built: false,
@@ -62,7 +64,8 @@ export interface FluxSpec {
 
 export const FLUX_DEFAULT: FluxSpec = {
   scene: 'field',
-  camera: 'static', orbitSpeed: 6, yaw: 0, pitch: 16, distance: 1,
+  // yaw/pitch are OFFSETS on top of each scene's own framing (0 = the scene's default camera).
+  camera: 'static', orbitSpeed: 6, yaw: 0, pitch: 0, distance: 1,
   exposure: 1.0, bloom: 1.0, hue: 0.5, sensitivity: 1.0,
   background: '#04060a',
 };

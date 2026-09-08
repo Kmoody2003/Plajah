@@ -27,6 +27,7 @@ export enum VisualizerMode {
 
   // ─── Flux 3D scenes (three.js real-3D generators — Trapcode Form / Mir) ───
   FluxField = 'FLUX_FIELD',
+  FluxTapestry = 'FLUX_TAPESTRY',
   // FluxLattice = 'FLUX_LATTICE', FluxTunnel = 'FLUX_TUNNEL', FluxAurora = 'FLUX_AURORA' (when built)
 }
 
@@ -52,6 +53,7 @@ export function isStudioMode(mode: VisualizerMode): boolean {
 /** VisualizerMode ↔ Flux scene id (three.js real-3D generators, hosted by FluxStage). */
 export const MODE_TO_FLUX_SCENE: Record<string, string> = {
   [VisualizerMode.FluxField]: 'field',
+  [VisualizerMode.FluxTapestry]: 'tapestry',
 };
 export const FLUX_SCENE_TO_MODE: Record<string, VisualizerMode> =
   Object.fromEntries(Object.entries(MODE_TO_FLUX_SCENE).map(([k, v]) => [v, k as VisualizerMode]));
