@@ -51,6 +51,10 @@ import { translateLyrics, LYRIC_LANGS } from '../services/lyricTranslator';
 import HoverPreviewThumb, { previewSourceFor } from './HoverPreviewThumb';
 import type { SampleClearance } from '../services/melos/sampling/clearance';
 const SampleThisModal = React.lazy(() => import('./melos/sampling/SampleThisModal').then((m) => ({ default: m.SampleThisModal })));
+// The TV now-playing FX surface (visualizer + synced lyrics + transport) reused as the album
+// view's fullscreen FX Stage on desktop/mobile. It portals to <body> and self-hides unless
+// isTvFxActive, so a single mount here (guarded off TV, where App.tsx already mounts it) is enough.
+const TvFxSurface = React.lazy(() => import('./tv/TvFxSurface'));
 import PlajahPlusButton from './PlajahPlusButton';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
@@ -488,6 +492,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     setYtPlayer,
     isTVMode,
     setIsTVMode,
+    setIsTvFxActive,
     clearMedia,
     spatialMode,
     setSpatialMode,
@@ -2647,7 +2652,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                    <Sparkles size={11} /> PP
                  </button>
                  <button
-                   onClick={() => setIsVisualizerFullscreen(true)}
+                   onClick={() => setIsTvFxActive(true)}
                    className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/20 transition-all"
                  >
                    <Maximize2 size={11} /> Full
@@ -3247,7 +3252,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 <p className="text-[9px] font-bold text-small-orange uppercase tracking-widest truncate opacity-70">{album.artist}</p>
               </div>
               <button
-                onClick={() => setIsVisualizerFullscreen(true)}
+                onClick={() => setIsTvFxActive(true)}
                 className="p-2 text-white/30 hover:text-white hover:bg-white/10 rounded-xl transition-all shrink-0"
                 title="Full Stage"
               >
@@ -4069,7 +4074,13 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
       {/* Local Audio Element Removed - Now Global */}
 
-      {/* ─────────────────── VISUALIZER FULLSCREEN STAGE ─────────────────── */}
+      {/* Fullscreen FX Stage — reuses the TV now-playing surface (visualizer + synced lyrics +
+          transport). Portals to <body>, self-hides unless isTvFxActive. Off TV (App.tsx mounts it there). */}
+      {!getPlatformInfo().isTV && (
+        <React.Suspense fallback={null}><TvFxSurface /></React.Suspense>
+      )}
+
+      {/* ─────────────────── VISUALIZER FULLSCREEN STAGE (legacy desktop overlay, superseded by the TV FX surface above) ─────────────────── */}
       <AnimatePresence>
         {isVisualizerFullscreen && !isMobile && !isTVMode && (
           <motion.div
