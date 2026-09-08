@@ -32,7 +32,7 @@ const SceneRail: React.FC<Props> = ({ config, onPick, visible, embedded }) => {
                 color: active ? '#fff' : 'rgba(244,242,255,0.6)',
                 boxShadow: active ? '0 0 0 1px #FF8C00' : 'none',
               }}>
-              {s.name}{s.kind === 'gl' && <span className="ml-1 text-[7px] text-cyan-300">GL</span>}
+              {s.name}{s.kind === 'gl' && <span className="ml-1 text-[7px] text-cyan-300">GL</span>}{s.kind === 'three' && <span className="ml-1 text-[7px] text-amber-300">3D</span>}
             </button>
           );
         })}

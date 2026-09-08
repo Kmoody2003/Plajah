@@ -10,6 +10,7 @@ import {
 import { uploadVideo, createVideoPlaylist, postToFeed, auth } from '../../services/backendService';
 import AudioVisualizer from './components/AudioVisualizer';
 import StudioStage from './components/StudioStage';
+import FluxStage from './components/FluxStage';
 import SceneRail from './components/SceneRail';
 import ClipGrid from './components/ClipGrid';
 import ClipLauncher from './components/ClipLauncher';
@@ -50,7 +51,7 @@ import GLCompositorView from './components/GLCompositorView';
 import WorkerCompositorView from './components/WorkerCompositorView';
 import CaptionsOverlay from './components/CaptionsOverlay';
 import ColorPaletteEditor from './components/ColorPaletteEditor';
-import { VisualizationConfig, VisualizerMode, AudioState, BackgroundMedia, BlendMode, isStudioMode } from './types';
+import { VisualizationConfig, VisualizerMode, AudioState, BackgroundMedia, BlendMode, isStudioMode, isFluxMode } from './types';
 import { generateThemeFromMood, generateVideoLoop, LiveLyricsSession } from './services/geminiService';
 import { saveProject, loadProject, saveProjectToCloud, listCloudProjects, loadCloudProject, deleteCloudProject } from './services/projectService';
 
@@ -1895,9 +1896,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                         {analyserRef.current ? (
                             previewKind === 'shader' && previewShader
                                 ? <ShaderLayer analyser={analyserRef.current} source={previewShader} startTimeMs={previewShaderStartRef.current} onError={() => { }} />
-                                : isStudioMode(previewConfig.mode)
-                                    ? <StudioStage analyser={analyserRef.current} config={previewConfig} isPlaying={audioState.isPlaying} />
-                                    : <AudioVisualizer analyser={analyserRef.current} config={previewConfig} isPlaying={audioState.isPlaying} hasBackground={false} />
+                                : isFluxMode(previewConfig.mode)
+                                    ? <FluxStage analyser={analyserRef.current} config={previewConfig} isPlaying={audioState.isPlaying} />
+                                    : isStudioMode(previewConfig.mode)
+                                        ? <StudioStage analyser={analyserRef.current} config={previewConfig} isPlaying={audioState.isPlaying} />
+                                        : <AudioVisualizer analyser={analyserRef.current} config={previewConfig} isPlaying={audioState.isPlaying} hasBackground={false} />
                         ) : (
                             <div className="absolute inset-0 flex items-center justify-center text-[9px] text-white/30">Play audio to preview</div>
                         )}

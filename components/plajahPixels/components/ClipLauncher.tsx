@@ -56,7 +56,7 @@ export interface LauncherClip {
   loop?:         boolean;
   // generator
   sceneMode?:    string;
-  sceneKind?:    'classic' | 'canvas' | 'gl';
+  sceneKind?:    'classic' | 'canvas' | 'gl' | 'three';
   // milkdrop
   milkdropIdx?:  number;
   milkdropName?: string;
@@ -682,7 +682,7 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
         <div className="flex gap-1 h-full items-stretch p-1">
 
           {tab === 'generators' && generators.map((s) => {
-            const color = s.kind === 'gl' ? '#22d3ee' : s.kind === 'canvas' ? '#a78bfa' : '#FF8C00';
+            const color = s.kind === 'gl' ? '#22d3ee' : s.kind === 'canvas' ? '#a78bfa' : s.kind === 'three' ? '#ffb84d' : '#FF8C00';
             const genClip: LauncherClip = { id: `gen-${s.mode}`, type: 'generator', name: s.name, color, sceneMode: s.mode, sceneKind: s.kind, opacity: 1 };
             return (
               <div
@@ -703,7 +703,7 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
                 title={`${s.name} — ${s.cat} · hover to preview, drag to assign`}
               >
                 <div className="text-[6px] uppercase tracking-widest" style={{ color: `${color}88` }}>
-                  {s.kind === 'gl' ? 'GLSL' : s.kind === 'canvas' ? 'GEN' : 'AUDIO'}
+                  {s.kind === 'gl' ? 'GLSL' : s.kind === 'canvas' ? 'GEN' : s.kind === 'three' ? '3D' : 'AUDIO'}
                 </div>
                 <div className="text-[9px] font-black uppercase leading-tight" style={{ color: '#ffffffcc' }}>
                   {s.name}
