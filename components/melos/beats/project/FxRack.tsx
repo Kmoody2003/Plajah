@@ -12,6 +12,7 @@ import { DEVICES, deviceByType, newInstance, type FxInstance, type FxCategory, t
 import { FxScope } from './FxScope';
 import { AmpRigEditor } from './AmpRigEditor';
 import { StutterGrid } from './StutterGrid';
+import { IrPicker } from './IrPicker';
 import { Knob } from '../shared/Knob';
 import { presetsForFx } from '../../../../services/melos/beats/fx/presets';
 
@@ -184,8 +185,20 @@ export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#
                   ) : inst.type === 'stutter' ? (
                     <StutterGrid params={inst.params} paramSpecs={d.params} color={d.color} onChange={(patch) => patch2(inst.id, patch)} />
                   ) : (
+                  <>
+                  {/* Reverbs get a Source picker (modelled vs recorded IR); its raw irMode/irIndex knobs
+                      are hidden, and the modelled-only knobs drop out once a library IR is chosen. */}
+                  {(inst.type === 'spaces' || inst.type === 'cosmos') && (
+                    <IrPicker params={inst.params} color={d.color} onChange={(patch) => patch2(inst.id, patch)} />
+                  )}
                   <div className="flex flex-wrap gap-x-4 gap-y-3 mt-2.5">
-                    {d.params.map((sp) => (
+                    {d.params.filter((sp) => {
+                      if (inst.type !== 'spaces' && inst.type !== 'cosmos') return true;
+                      if (sp.key === 'irMode' || sp.key === 'irIndex') return false;
+                      const library = (inst.params.irMode ?? 0) > 0.5;
+                      if (library && (sp.key === 'space' || sp.key === 'size' || sp.key === 'damp')) return false;
+                      return true;
+                    }).map((sp) => (
                       <Knob
                         key={sp.key}
                         label={sp.label}
@@ -200,6 +213,7 @@ export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#
                       />
                     ))}
                   </div>
+                  </>
                   )}
                 </div>
               )}
