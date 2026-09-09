@@ -34,9 +34,11 @@ accepts.
 ### Scenes (registry in `flux.ts`)
 
 - **Flux Field** — a structured Trapcode-Form dot-grid terrain over a faint Mir surface. *Built.*
-- **Flux Lattice / Flux Tunnel / Flux Aurora** — listed in the catalog (`FLUX_SCENES`), runtimes to be
-  ported from the standalone artifacts into the registry (each is a `SceneInst` builder). *Catalogued,
-  not yet built.*
+- **Deco Tapestry** — the original embroidered gallery-wall scene. *Built.*
+- **Deco Tapestry II / Flux Lattice / Flux Tunnel / Flux Aurora** — four additional
+  `SceneInst` builders in `fluxCouncilScenes.ts`, registered in the shared renderer,
+  Pixels modes and DJ catalog. *Built.* See [the collection notes](FLUX_COUNCIL_COLLECTION.md)
+  for creative direction, council-run limitations, preview and verification.
 
 ### Audio contract
 

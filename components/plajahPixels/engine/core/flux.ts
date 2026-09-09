@@ -14,6 +14,8 @@ import {
   newFluxAudioState, driveFluxAudio, SILENT_AUDIO,
   type FluxSpec, type FluxSceneId, type FluxAudio, type FluxDriven, type FluxAudioState,
 } from '../../../../services/fabula/fluxNode';
+import { buildTapestryII, buildLattice, buildTunnel, buildAurora } from './fluxCouncilScenes';
+import { buildPorcelainTide, buildVelvetBloom, buildPrismArchive } from './fluxAtelierScenes';
 
 let status: 'idle' | 'loading' | 'ready' | 'failed' = 'idle';
 export function fluxStatus() { return status; }
@@ -38,7 +40,7 @@ interface CamBase {
   fov: number;     // vertical FOV (deg)
   lock?: boolean;  // static scenes (e.g. the tapestry): ignore orbit/dolly and spec pitch nudges
 }
-interface SceneInst {
+export interface SceneInst {
   scene: any;
   camera: any;
   cam: CamBase;
@@ -52,6 +54,8 @@ interface SceneInst {
   exposure?: number;
   /** bloom bright-pass threshold (default 0.85) */
   brightThreshold?: number;
+  /** Linear-light grain amount; dark material studies need less than luminous fields. */
+  grain?: number;
   dispose(): void;
 }
 
@@ -94,14 +98,14 @@ async function ensureEnv(): Promise<Env | null> {
         fragmentShader: 'uniform sampler2D tDiffuse;uniform float uThresh;varying vec2 vUv;void main(){vec3 c=texture2D(tDiffuse,vUv).rgb;float l=dot(c,vec3(.2126,.7152,.0722));gl_FragColor=vec4(c*smoothstep(uThresh,uThresh+0.5,l),1.);}' });
       const blurMat = new THREE.ShaderMaterial({ uniforms: { tDiffuse: { value: null }, uDir: { value: new THREE.Vector2() } }, vertexShader: VQ,
         fragmentShader: 'uniform sampler2D tDiffuse;uniform vec2 uDir;varying vec2 vUv;void main(){vec4 s=texture2D(tDiffuse,vUv)*0.227027;s+=texture2D(tDiffuse,vUv+uDir*1.3846)*0.316216;s+=texture2D(tDiffuse,vUv-uDir*1.3846)*0.316216;s+=texture2D(tDiffuse,vUv+uDir*3.2307)*0.070270;s+=texture2D(tDiffuse,vUv-uDir*3.2307)*0.070270;gl_FragColor=s;}' });
-      const compMat = new THREE.ShaderMaterial({ uniforms: { tScene: { value: null }, tBloom: { value: null }, uRes: { value: new THREE.Vector2() }, uTime: { value: 0 }, uBloom: { value: 0.7 }, uExposure: { value: 1.05 } }, vertexShader: VQ,
-        fragmentShader: `precision highp float;uniform sampler2D tScene,tBloom;uniform vec2 uRes;uniform float uTime,uBloom,uExposure;varying vec2 vUv;
+      const compMat = new THREE.ShaderMaterial({ uniforms: { tScene: { value: null }, tBloom: { value: null }, uRes: { value: new THREE.Vector2() }, uTime: { value: 0 }, uBloom: { value: 0.7 }, uExposure: { value: 1.05 }, uGrain: { value: 0.022 } }, vertexShader: VQ,
+        fragmentShader: `precision highp float;uniform sampler2D tScene,tBloom;uniform vec2 uRes;uniform float uTime,uBloom,uExposure,uGrain;varying vec2 vUv;
           vec3 aces(vec3 x){return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.,1.);}
           void main(){vec2 uv=vUv;vec2 dir=uv-0.5;
             vec3 col=texture2D(tScene,uv).rgb+texture2D(tBloom,uv).rgb*uBloom;
             col=aces(col*uExposure);
             float vig=smoothstep(1.25,0.3,length(dir));col*=mix(0.5,1.0,vig);
-            float gr=fract(sin(dot(uv*uRes+uTime,vec2(12.9898,78.233)))*43758.5453);col+=(gr-0.5)*0.022;
+            float gr=fract(sin(dot(uv*uRes+uTime,vec2(12.9898,78.233)))*43758.5453);col+=(gr-0.5)*uGrain;
             col=pow(max(col,0.),vec3(1.0/2.2));gl_FragColor=vec4(col,1.);}` });
       const RT = (w: number, h: number) => new THREE.WebGLRenderTarget(w, h, { type: HTYPE, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: true });
       env = {
@@ -120,9 +124,13 @@ async function ensureEnv(): Promise<Env | null> {
 const SCENE_BUILDERS: Record<FluxSceneId, ((THREE: any, renderer: any) => SceneInst) | undefined> = {
   field: buildField,
   tapestry: buildTapestry,
-  lattice: undefined,
-  tunnel: undefined,
-  aurora: undefined,
+  'tapestry-ii': buildTapestryII,
+  lattice: buildLattice,
+  tunnel: buildTunnel,
+  aurora: buildAurora,
+  'porcelain-tide': buildPorcelainTide,
+  'velvet-bloom': buildVelvetBloom,
+  'prism-archive': buildPrismArchive,
 };
 
 function getScene(e: Env, id: FluxSceneId): SceneInst | null {
@@ -449,6 +457,7 @@ function renderFrame(e: Env, inst: SceneInst, spec: FluxSpec, w: number, h: numb
     e.blurMat.uniforms.tDiffuse.value = e.rtB.texture; e.blurMat.uniforms.uDir.value.set(0, ty * r * 1.2); pass(e, e.blurMat, e.rtA);
   }
   e.compMat.uniforms.uTime.value = localT;
+  e.compMat.uniforms.uGrain.value = inst.grain ?? 0.022;
   e.compMat.uniforms.uBloom.value = inst.bloom(a) * spec.bloom;
   e.compMat.uniforms.uExposure.value = (inst.exposure ?? 1.05) * spec.exposure;
   e.compMat.uniforms.tScene.value = e.rtScene.texture; e.compMat.uniforms.tBloom.value = e.rtA.texture;

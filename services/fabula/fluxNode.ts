@@ -15,7 +15,7 @@
 export interface FluxAudio { bass: number; mid: number; treble: number; level: number; beat: number }
 export const SILENT_AUDIO: FluxAudio = { bass: 0, mid: 0, treble: 0, level: 0, beat: 0 };
 
-export type FluxSceneId = 'field' | 'tapestry' | 'lattice' | 'tunnel' | 'aurora';
+export type FluxSceneId = 'field' | 'tapestry' | 'tapestry-ii' | 'lattice' | 'tunnel' | 'aurora' | 'porcelain-tide' | 'velvet-bloom' | 'prism-archive';
 
 export interface FluxSceneInfo {
   id: FluxSceneId;
@@ -32,12 +32,20 @@ export const FLUX_SCENES: FluxSceneInfo[] = [
     line: 'A structured dot-grid terrain that flows as one fractal surface — swells with the bass, erupts on the build, ripples on every kick.' },
   { id: 'tapestry', name: 'Deco Tapestry', cat: 'Deco', built: true,
     line: 'An embroidered Art Deco tapestry on a marble gallery wall whose gilt motifs shape-shift, kaleidoscope and brighten to the music. A static shot.' },
-  { id: 'lattice', name: 'Flux Lattice', cat: 'Form', built: false,
-    line: 'A breathing fractal sphere-lattice that folds and shatters to the beat.' },
-  { id: 'tunnel', name: 'Flux Tunnel', cat: 'Mir', built: false,
-    line: 'An endless flown corridor of light that accelerates and warps with energy.' },
-  { id: 'aurora', name: 'Flux Aurora', cat: 'Mir', built: false,
-    line: 'Layered light curtains that sway and ignite across the frequency spectrum.' },
+  { id: 'tapestry-ii', name: 'Deco Tapestry II', cat: 'Deco', built: true,
+    line: 'Midnight enamel and layered brass: a sunburst relief, stepped wings and woven light. Bass warms the gold; treble catches the filigree.' },
+  { id: 'lattice', name: 'Flux Lattice', cat: 'Form', built: true,
+    line: 'A suspended porcelain-and-copper orbital instrument. Interlaced meridians turn around a dark pearl; sound illuminates their intersections.' },
+  { id: 'tunnel', name: 'Flux Tunnel', cat: 'Mir', built: true,
+    line: 'A procession of monumental vermilion portals over an ink-blue causeway. The clock carries you forward; sound lights the ribs.' },
+  { id: 'aurora', name: 'Flux Aurora', cat: 'Mir', built: true,
+    line: 'Pleated jade and violet light suspended above a black arctic horizon. Slow overlapping curtains, fine spectral threads and a distant moon.' },
+  { id: 'porcelain-tide', name: 'Porcelain Tide', cat: 'Sculpture', built: true,
+    line: 'A ceramic sea above a museum basin. Bass raises its crests, mids fold the porcelain scales, and treble exposes their copper undersides.' },
+  { id: 'velvet-bloom', name: 'Velvet Bloom', cat: 'Couture', built: true,
+    line: 'An impossible crimson couture sculpture. Bass opens the pleated petals, voices torque the folds, and high frequencies ignite the silk edges.' },
+  { id: 'prism-archive', name: 'Prism Archive', cat: 'Optics', built: true,
+    line: 'Suspended dichroic pages over an ink-black plinth. Bass fans the archive open, mids turn its glass leaves, and treble draws spectral light across the floor.' },
 ];
 
 export function fluxSceneInfo(id: FluxSceneId): FluxSceneInfo | undefined {
@@ -114,12 +122,21 @@ export function fluxOrbitEye(target: { x: number; y: number; z: number }, yawDeg
 
 /** Bands from a byte FFT array (analyser or offline spectrum), resolution-independent via fractional
  *  band edges — so a 256-bin DJ analyser and a 1024-bin export spectrum read the same. */
-export function fluxBandsFromFreq(freq: Uint8Array | null | undefined): FluxAudio {
+export function fluxBandsFromFreq(freq: Uint8Array | null | undefined, sampleRate = 48000): FluxAudio {
   const n = freq ? freq.length : 0;
   if (!n) return { ...SILENT_AUDIO };
-  const avg = (a: number, b: number) => { let s = 0, c = 0; const lo = Math.floor(a), hi = Math.floor(b); for (let i = lo; i < hi && i < n; i++) { s += freq![i]; c++; } return c ? s / c / 255 : 0; };
-  const bass = avg(0, n * 0.04), mid = avg(n * 0.04, n * 0.18), treble = avg(n * 0.18, n * 0.55);
-  return { bass: Math.min(1, bass * 1.5), mid: Math.min(1, mid * 1.5), treble: Math.min(1, treble * 1.8), level: Math.min(1, (bass + mid + treble) / 2.2), beat: 0 };
+  const rate = Number.isFinite(sampleRate) && sampleRate > 0 ? sampleRate : 48000;
+  // Physical bands + RMS/peak blend. A kick occupies only a few bins: averaging
+  // it over the old 0–960 Hz bucket made actual music far weaker than demo values.
+  const band = (low: number, high: number) => {
+    const lo = Math.min(n - 1, Math.max(0, Math.floor(low / (rate / 2) * n)));
+    const hi = Math.min(n, Math.max(lo + 1, Math.ceil(high / (rate / 2) * n)));
+    let sum = 0, peak = 0;
+    for (let i = lo; i < hi; i++) { const v = freq![i] / 255; sum += v * v; peak = Math.max(peak, v); }
+    return Math.max(0, Math.min(1, (Math.sqrt(sum / (hi - lo)) * .8 + peak * .2 - .04) * 1.9));
+  };
+  const bass = band(30, 250), mid = band(250, 2400), treble = band(2400, 12000);
+  return { bass, mid, treble, level: bass * .5 + mid * .35 + treble * .15, beat: 0 };
 }
 
 export interface FluxDriven { bass: number; mid: number; tre: number; kick: number; snare: number; energy: number; beat: number }

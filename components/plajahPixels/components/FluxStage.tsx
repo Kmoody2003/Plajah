@@ -49,7 +49,7 @@ const FluxStage: React.FC<Props> = ({ analyser, config, isPlaying, id }) => {
         if (n > freq.length) freq = new Uint8Array(n);
         const d = freq.length === n ? freq : freq.subarray(0, n);
         a.getByteFrequencyData(d as Uint8Array);
-        bands = fluxBandsFromFreq(d);
+        bands = fluxBandsFromFreq(d, a.context.sampleRate);
       }
       const t = (now - start) / 1000;
       const src = renderFluxLatest(
