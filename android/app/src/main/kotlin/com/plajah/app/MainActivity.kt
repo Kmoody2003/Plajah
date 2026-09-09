@@ -2,9 +2,11 @@ package com.plajah.app
 
 import android.app.UiModeManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Bundle
+import com.plajah.app.ui.ShellPrefs
 import android.util.Log
 import android.view.KeyEvent
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -52,6 +54,17 @@ class MainActivity : BridgeActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // NATIVE SHELL HANDOFF. If the user has toggled into the native Compose UI, hand off to
+        // NativeActivity before building the Capacitor bridge (phones/tablets/Android-laptop
+        // windows only — TV keeps the web leanback UI, which is D-pad-tuned). The web app is
+        // otherwise the default and stays fully intact; this is opt-in, like "Try New Nav" on web.
+        if (!isTelevision() && ShellPrefs.isNativeEnabled(this)) {
+            super.onCreate(savedInstanceState)
+            startActivity(Intent(this, NativeActivity::class.java))
+            finish()
+            return
+        }
+
         // Capacitor requires custom plugins to be registered BEFORE super.onCreate builds the
         // bridge — after that the registry is sealed and the JS `WatchNext` proxy resolves to
         // nothing. It writes the TV home-screen "continue watching" row (Reello + Taleo); on a
@@ -60,6 +73,8 @@ class MainActivity : BridgeActivity() {
         // PlajahCamera (Phase N1): native max-quality local recording + real per-lens enumeration.
         // On a phone without CameraX wired it simply reports unavailable to JS (harmless).
         registerPlugin(PlajahCameraPlugin::class.java)
+        // PlajahShell: lets the web app's "Switch to Native" toggle hand off to the Compose shell.
+        registerPlugin(PlajahShellPlugin::class.java)
 
         // Hold the native splash until the web layer has something on screen, then hand over.
         //

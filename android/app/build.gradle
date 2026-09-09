@@ -93,6 +93,11 @@ dependencies {
     implementation 'androidx.compose.runtime:runtime'
     implementation 'androidx.compose.foundation:foundation'
 
+    // Native rebuild UI — the branded icon set + the adaptive nav shell that
+    // becomes bottom-bar → rail → drawer across phone / tablet / Android-laptop.
+    implementation 'androidx.compose.material:material-icons-extended'
+    implementation 'androidx.compose.material3:material3-adaptive-navigation-suite'
+
     // Compose + Activity integration (Material 3 edge-to-edge)
     implementation "androidx.activity:activity-compose:$androidxActivityVersion"
     implementation "androidx.lifecycle:lifecycle-viewmodel-compose:$lifecycleVersion"

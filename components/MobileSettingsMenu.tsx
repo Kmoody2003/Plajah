@@ -5,6 +5,7 @@ import {
   Activity, BookOpen, CalendarClock, Users, CheckSquare, ShoppingBag, DollarSign,
   ChevronRight, LogOut, Fingerprint,
 } from 'lucide-react';
+import NativeShellSwitch from './NativeShellSwitch';
 
 // Phone-only settings surface — an iOS/Android-style grouped drill-down. The desktop dashboard packs
 // a permanent sidebar + dense panels that scroll and resize badly on a phone; on phone we replace the
@@ -98,6 +99,9 @@ const MobileSettingsMenu: React.FC<{
       </div>
       <ChevronRight size={20} className="text-white/25 shrink-0" />
     </button>
+
+    {/* Native app hand-off — renders only inside the native Android app (non-TV). */}
+    <NativeShellSwitch className="mx-4 mt-4" />
 
     {/* grouped sections */}
     <div className="px-4 pt-2 pb-8 space-y-7">
