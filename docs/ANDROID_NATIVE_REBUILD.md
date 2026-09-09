@@ -137,12 +137,9 @@ never a blank — until ported.
 
 ## Remaining / TODO (in order)
 
-1. **Fonts.** Ships on system sans today so it builds with zero setup. Swap in the
-   real Outfit (display/label) + Inter (body) — the same faces the web `@imports` —
-   via Downloadable Google Fonts (add `androidx.compose.ui:ui-text-google-fonts`,
-   drop in Google's standard `font_certs.xml`, build the families with
-   `GoogleFont.Provider`) *or* bundle TTFs under `res/font`. All type already routes
-   through `BrandDisplay` / `ReadingBody` in `Type.kt` — a two-line change.
+1. ~~**Fonts.**~~ — DONE. Swapped in real Outfit (display/label) + Inter (body)
+   via Downloadable Google Fonts (`androidx.compose.ui:ui-text-google-fonts` +
+   `font_certs.xml` + `GoogleFont.Provider` in `Type.kt`), falling back to system sans.
 2. ~~**Wire the web toggle**~~ — DONE. `services/nativeShell.ts` +
    `components/NativeShellSwitch.tsx`, mounted in the phone Settings menu.
 3. **Real data** — replace the sample content in `Screens.kt` with Firestore reads
