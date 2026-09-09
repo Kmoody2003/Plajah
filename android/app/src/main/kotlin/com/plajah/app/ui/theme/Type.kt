@@ -4,35 +4,37 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.googlefonts.Font
+import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 
-/**
- * PLAJAH TYPE SYSTEM — ported from index.css `--font-*` tokens + the `.type-*`
- * scale (index.css:17-21, 649-682).
- *
- * Web tokens:
- *   --font-display: "Outfit","Space Grotesk"    (display 900 / lh 1.05)
- *   --font-body:    "Inter","Manrope"           (body 400 / lh 1.55)
- *   --font-label:   "Outfit","Manrope"          (label 700-800 UPPERCASE, tracked)
- *
- * FONTS — one-step swap to the real faces (tracked in the rebuild strategy doc):
- * the app ships today on the system sans-serif so it builds and runs with zero
- * font setup. To pull the SAME Outfit / Inter the web @imports, either
- *   (a) Downloadable Fonts: add `androidx.compose.ui:ui-text-google-fonts`, drop
- *       in Google's standard `font_certs.xml`, and build the families with
- *       GoogleFont.Provider (Outfit + Inter) — Compose falls back to system if the
- *       provider is unavailable, so it is safe; or
- *   (b) bundle Outfit-*.ttf / Inter-*.ttf under res/font and reference R.font.*.
- * Everything below is already routed through [BrandDisplay] / [ReadingBody] so the
- * swap is a two-line change here and nothing at the call sites moves.
- */
+val GoogleFontProvider = GoogleFont.Provider(
+    providerAuthority = "com.google.android.gms.fonts",
+    providerPackage = "com.google.android.gms",
+    certificates = com.plajah.app.R.array.com_google_android_gms_fonts_certs
+)
+
+private val OutfitGoogleFont = GoogleFont("Outfit")
+private val InterGoogleFont = GoogleFont("Inter")
 
 // Brand voice — displays, headlines, titles, tracked labels (Outfit on the web).
-val BrandDisplay: FontFamily = FontFamily.SansSerif
+val BrandDisplay: FontFamily = FontFamily(
+    Font(googleFont = OutfitGoogleFont, fontProvider = GoogleFontProvider, weight = FontWeight.Normal),
+    Font(googleFont = OutfitGoogleFont, fontProvider = GoogleFontProvider, weight = FontWeight.Medium),
+    Font(googleFont = OutfitGoogleFont, fontProvider = GoogleFontProvider, weight = FontWeight.SemiBold),
+    Font(googleFont = OutfitGoogleFont, fontProvider = GoogleFontProvider, weight = FontWeight.Bold),
+    Font(googleFont = OutfitGoogleFont, fontProvider = GoogleFontProvider, weight = FontWeight.ExtraBold),
+    Font(googleFont = OutfitGoogleFont, fontProvider = GoogleFontProvider, weight = FontWeight.Black),
+)
 
 // Reading face — body copy (Inter on the web).
-val ReadingBody: FontFamily = FontFamily.SansSerif
+val ReadingBody: FontFamily = FontFamily(
+    Font(googleFont = InterGoogleFont, fontProvider = GoogleFontProvider, weight = FontWeight.Normal),
+    Font(googleFont = InterGoogleFont, fontProvider = GoogleFontProvider, weight = FontWeight.Medium),
+    Font(googleFont = InterGoogleFont, fontProvider = GoogleFontProvider, weight = FontWeight.SemiBold),
+    Font(googleFont = InterGoogleFont, fontProvider = GoogleFontProvider, weight = FontWeight.Bold),
+)
 
 /** UPPERCASE tracked labels — the platform's most recognisable gesture (.pj-eyebrow). */
 private fun label(size: androidx.compose.ui.unit.TextUnit, weight: FontWeight, tracking: Double) = TextStyle(
