@@ -14,6 +14,7 @@
 import { db } from './firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import type { LiveFeed, LiveTalk } from '../types';
+import { isFeedLive } from './liveFeedLiveness';
 
 export interface LiveTalkTelemetry {
   id: string;
@@ -44,7 +45,7 @@ export async function fetchBroadcastTelemetry(uid: string): Promise<BroadcastTel
 
     const liveFeeds = feedsSnap.docs
       .map(d => ({ id: d.id, ...(d.data() as any) } as LiveFeed))
-      .filter(f => f.status === 'LIVE');
+      .filter(f => isFeedLive(f));
 
     const talk = talksSnap.docs
       .map(d => ({ id: d.id, ...(d.data() as any) } as LiveTalk))

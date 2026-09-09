@@ -8,6 +8,8 @@ import { exactDurationSec } from '../../services/mediaTimebase';
 import { now as clockNow } from '../../services/platformClock';
 import { ACTIVE_SCIENCE_STREAMS } from '../scienceStreams';
 import { PLAJAH_CHANNELS, UNNUMBERED, guideSortKey, plajahNumber } from '../../services/fast/channelNumbers';
+import { isChannelFeed } from '../../services/fast/guideLineup';
+import { isFeedLive } from '../../services/liveFeedLiveness';
 
 /**
  * PlajahEpgGuide — a full traditional cable-TV programme guide, in the Plajah aesthetic. Channels run
@@ -67,7 +69,7 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
       id: `fast_${fc.ownerId}`, number: fc.number != null ? String(fc.number) : UNNUMBERED, name: fc.name || 'Channel',
       logo: fc.logoUrl, accent: ORANGE, kind: 'fast', ownerId: fc.ownerId,
     }));
-    (feeds || []).filter(f => (f as any).status !== 'ENDED' && (f as any).status !== 'OFFLINE').forEach(f => {
+    (feeds || []).filter(f => isChannelFeed(f) || isFeedLive(f)).forEach(f => {
       out.push({ id: `live_${f.id}`, number: (f as any).channelNumber != null ? String((f as any).channelNumber) : '•', name: (f as any).ownerName || f.title || 'Live', logo: (f as any).ownerPhoto, accent: MAGENTA, kind: 'live', feed: f });
     });
     // Plajah's own channels, in the reserved band. They carry no owner account, so they are

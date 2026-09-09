@@ -4656,13 +4656,14 @@ export const publishLiveFeed = async (feed: Partial<LiveFeed> & { title: string,
 
 export const fetchAllLiveFeeds = (callback: (feeds: LiveFeed[]) => void) => {
   const path = 'live_feeds';
-  const q = query(collection(db, path), orderBy('timestamp', 'desc'), limit(50));
+  // Older permanent channels must not be evicted by new broadcasts.
+  const q = query(collection(db, path));
   return onSnapshot(q, (snapshot) => {
     callback(snapshot.docs.map(d => ({
       id: d.id,
       ...d.data(),
       timestamp: safeToMillis(d.data().timestamp)
-    } as LiveFeed)));
+    } as LiveFeed)).sort((a, b) => Number(b.timestamp) - Number(a.timestamp)));
   }, (err) => {
     handleFirestoreError(err, OperationType.LIST, path);
   });
