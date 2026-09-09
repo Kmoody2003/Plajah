@@ -798,6 +798,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
        const safeT = htmlEscape(displayName), safeD = htmlEscape(desc);
        const safeI = htmlEscape(image), safeH = htmlEscape(host), safeId = htmlEscape(String(id));
        const safeN = htmlEscape(num);
+       const safeSource = htmlEscape(encodeURIComponent(String((query as any).source || '')));
        const tags = html.replace(/[ \t]*<meta\s+(?:property|name)="(?:og:[^"]*|twitter:[^"]*)"[^>]*\/?>\s*/gi, '');
        return tags.replace('</head>', `
     <meta name="twitter:card" content="summary_large_image" />
@@ -812,7 +813,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
     <meta property="og:image" content="${safeI}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:url" content="https://${safeH}/?type=channel&amp;id=${safeId}${safeN ? `&amp;n=${safeN}` : ''}" />
+    <meta property="og:url" content="https://${safeH}/?type=channel&amp;id=${safeId}${safeN ? `&amp;n=${safeN}` : ''}${safeSource ? `&amp;source=${safeSource}` : ''}" />
 </head>`);
      } catch { return html; }
    }
@@ -1213,6 +1214,66 @@ async function firestoreRead(collection: string, id: string): Promise<Record<str
     }
     return out;
   } catch { return null; }
+}
+
+// ── Deep Firestore <-> JS converters ──────────────────────────────────────────
+// firestoreRead/firestoreWrite above flatten nested maps and arrays (an array of
+// objects becomes an array of strings). That's fine for scalar docs but corrupts
+// structured fields like an album's `tracks: Track[]`. These converters round-trip
+// arbitrarily nested values, so a single track's field can be edited in place and
+// written back without mangling the rest of the document.
+function fsValueToJs(v: any): any {
+  if (v == null) return undefined;
+  if (v.stringValue !== undefined) return v.stringValue;
+  if (v.integerValue !== undefined) return Number(v.integerValue);
+  if (v.doubleValue !== undefined) return Number(v.doubleValue);
+  if (v.booleanValue !== undefined) return v.booleanValue;
+  if (v.nullValue !== undefined) return null;
+  if (v.timestampValue !== undefined) return v.timestampValue;
+  if (v.arrayValue !== undefined) return (v.arrayValue.values || []).map(fsValueToJs);
+  if (v.mapValue !== undefined) {
+    const out: Record<string, any> = {};
+    for (const [k, mv] of Object.entries(v.mapValue.fields || {})) out[k] = fsValueToJs(mv);
+    return out;
+  }
+  return undefined;
+}
+function jsToFsValue(x: any): any {
+  if (x === null || x === undefined) return { nullValue: null };
+  if (typeof x === 'string') return { stringValue: x };
+  if (typeof x === 'boolean') return { booleanValue: x };
+  if (typeof x === 'number') return Number.isInteger(x) ? { integerValue: String(x) } : { doubleValue: x };
+  if (Array.isArray(x)) return { arrayValue: { values: x.map(jsToFsValue) } };
+  if (typeof x === 'object') {
+    const fields: Record<string, any> = {};
+    for (const [k, v] of Object.entries(x)) fields[k] = jsToFsValue(v);
+    return { mapValue: { fields } };
+  }
+  return { stringValue: String(x) };
+}
+/** GET a doc and deep-parse ALL fields (including nested maps/arrays). */
+async function firestoreGetDeep(collection: string, id: string): Promise<Record<string, any> | null> {
+  const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${collection}/${id}`;
+  try {
+    const res = await fetch(url, { headers: await firestoreAuthHeaders() });
+    if (!res.ok) return null;
+    const json = await res.json() as any;
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(json.fields || {})) out[k] = fsValueToJs(v);
+    return out;
+  } catch { return null; }
+}
+/** PATCH specific fields with deep conversion (preserves everything not named in updateMask). */
+async function firestorePatchDeep(collection: string, id: string, fieldsJs: Record<string, any>): Promise<boolean> {
+  const mask = Object.keys(fieldsJs).map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
+  const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${collection}/${id}?${mask}`;
+  const fields: Record<string, any> = {};
+  for (const [k, v] of Object.entries(fieldsJs)) fields[k] = jsToFsValue(v);
+  try {
+    const res = await fetch(url, { method: 'PATCH', headers: await firestoreAuthHeaders(), body: JSON.stringify({ fields }) });
+    if (!res.ok) console.error(`[Firestore] deep patch ${collection}/${id} failed: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+    return res.ok;
+  } catch { return false; }
 }
 
 const TIER_STORAGE: Record<string, number> = { '1': 50, '2': 75, '3': 100 };
@@ -7087,6 +7148,227 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       firestoreWrite('choraStreams', trackId, { status: 'failed', error: String(e?.message || e).slice(0, 300), updatedAt: Date.now() }).catch(() => {});
       res.status(500).json({ error: String(e?.message || e) });
     } finally { if (inPath) fs.unlink(inPath).catch(() => {}); }
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Admin Media Health — detailed file/encode reporting + consented file replacement.
+  //
+  // WHY. A creator can upload a file that "succeeds" but is broken: a truncated master
+  // (only the first N seconds actually landed), a lying WAV/RF64 header, a never-transcoded
+  // track, or a messy double-publish with duplicate tracks. None of that is visible from the
+  // normal UI. This surfaces per-file size/duration/encode-health so support can SEE the
+  // problem, audition the file, and repair it. Repair is deliberately narrow: an admin can
+  // ONLY replace the file behind an existing track, and ONLY after the CREATOR approves it.
+  // Admins can never create an album/release or add a track — every route below operates on a
+  // track that already exists inside an album that already exists.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Replacement files must live on our own storage — never let a track point at an arbitrary host.
+  const isAllowedMediaHost = (u: string): boolean => {
+    try {
+      const h = new URL(u).host.toLowerCase();
+      return u.startsWith('https://') && (
+        h === 'firebasestorage.googleapis.com' || h === 'storage.googleapis.com' ||
+        h.endsWith('.firebasestorage.app') || h === 'plajah.com' || h.endsWith('.plajah.com') ||
+        h.endsWith('.run.app')
+      );
+    } catch { return false; }
+  };
+
+  // Deep-read every album owned by a user (tracks preserved).
+  const queryAlbumsByOwner = async (ownerId: string, limit = 200): Promise<any[]> => {
+    const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents:runQuery`;
+    const body = { structuredQuery: { from: [{ collectionId: 'albums' }], where: { fieldFilter: { field: { fieldPath: 'ownerId' }, op: 'EQUAL', value: { stringValue: ownerId } } }, limit } };
+    const res = await fetch(url, { method: 'POST', headers: await firestoreAuthHeaders(), body: JSON.stringify(body) });
+    if (!res.ok) return [];
+    const rows = await res.json() as any[];
+    return (rows || []).filter(r => r.document).map(r => {
+      const out: any = {}; for (const [k, v] of Object.entries(r.document.fields || {})) out[k] = fsValueToJs(v);
+      out.id = out.id || r.document.name.split('/').pop(); return out;
+    });
+  };
+
+  // Inspect ONE track: HEAD the file (size/type/reachability), read its stream doc, derive flags.
+  const inspectTrack = async (alb: any, t: any, dupUrl: Record<string, number>, dupId: Record<string, number>) => {
+    const url: string = typeof t?.url === 'string' ? t.url : '';
+    let size: number | null = null, contentType: string | null = null, reachable = false;
+    if (/^https?:/i.test(url)) {
+      try {
+        const h = await fetch(url, { method: 'HEAD' });
+        reachable = h.ok; size = Number(h.headers.get('content-length')) || null; contentType = h.headers.get('content-type');
+      } catch { /* unreachable */ }
+    }
+    const stream = t?.id ? await firestoreRead('choraStreams', t.id) : null;
+    const streamStatus: string = (stream?.status as string) || 'none';
+    const durationSec: number | null = stream?.durationSec != null ? Number(stream.durationSec) : null;
+    // Bytes → seconds estimate for a lossy master (helps flag a short file before any transcode).
+    const estBitrateKbps = /aac|mp4|m4a|mpeg|mp3/.test(String(contentType || '').toLowerCase()) ? 256 : 0;
+    const estSeconds = size && estBitrateKbps ? Math.round((size * 8) / (estBitrateKbps * 1000)) : null;
+    const flags: string[] = [];
+    if (!url) flags.push('NO_URL');
+    else if (!reachable) flags.push('MISSING_FILE');
+    if (streamStatus === 'none') flags.push('NO_TRANSCODE');
+    else if (streamStatus !== 'ready') flags.push('STREAM_' + streamStatus.toUpperCase());
+    if (durationSec != null && durationSec > 0 && durationSec < 40) flags.push('SHORT_DURATION');
+    if (estSeconds != null && estSeconds < 40 && durationSec == null) flags.push('LIKELY_SHORT_FILE');
+    if (size != null && size < 300 * 1024) flags.push('SMALL_FILE');
+    if ((url && dupUrl[url] > 1) || (t?.id && dupId[t.id] > 1)) flags.push('DUPLICATE');
+    return {
+      albumId: alb.id, albumTitle: alb.title || '', ownerId: alb.ownerId || '', albumType: alb.type || '',
+      trackId: t?.id || '', trackTitle: t?.title || '', artist: t?.artist || alb.artist || '',
+      url, size, contentType, estSeconds,
+      streamStatus, durationSec, hls: !!stream?.hls, low: !!stream?.low, flac: !!stream?.flac,
+      loudnessLufs: stream?.loudnessLufs != null ? Number(stream.loudnessLufs) : null,
+      flags,
+    };
+  };
+
+  // GET report — scope with ?albumId= | ?ownerId= | ?trackId= (trackId narrows within albumId).
+  app.get('/api/admin/media-health', authMiddleware, async (req: any, res: any) => {
+    if (!(await fetchFirebaseDoc('admins', req.uid))) return res.status(403).json({ error: 'Admin access required' });
+    const albumId = String(req.query.albumId || '').trim();
+    const ownerId = String(req.query.ownerId || '').trim();
+    const trackId = String(req.query.trackId || '').trim();
+    try {
+      let albums: any[] = [];
+      if (albumId) { const a = await firestoreGetDeep('albums', albumId); if (a) { a.id = a.id || albumId; albums = [a]; } }
+      else if (ownerId) { albums = (await queryAlbumsByOwner(ownerId)).filter(a => (a.type || 'MUSIC') !== 'BOOK'); }
+      else return res.status(400).json({ error: 'albumId or ownerId required' });
+
+      const rows: any[] = [];
+      const albumFlags: any[] = [];
+      for (const alb of albums) {
+        const tracks = Array.isArray(alb.tracks) ? alb.tracks : [];
+        if (!tracks.length) { albumFlags.push({ albumId: alb.id, albumTitle: alb.title || '', ownerId: alb.ownerId || '', flags: ['EMPTY_ALBUM'] }); continue; }
+        const dupUrl: Record<string, number> = {}, dupId: Record<string, number> = {};
+        for (const t of tracks) { if (t?.url) dupUrl[t.url] = (dupUrl[t.url] || 0) + 1; if (t?.id) dupId[t.id] = (dupId[t.id] || 0) + 1; }
+        for (const t of tracks) {
+          if (trackId && t?.id !== trackId) continue;
+          rows.push(await inspectTrack(alb, t, dupUrl, dupId));
+        }
+      }
+      res.json({ ok: true, albums: albums.length, tracks: rows.length, rows, albumFlags });
+    } catch (e: any) {
+      res.status(500).json({ error: String(e?.message || e) });
+    }
+  });
+
+  // Exact probe (drill-in): ffprobe the master for true duration/format/bitrate. Downloads the file,
+  // so it's a per-track action, not part of the bulk report.
+  app.post('/api/admin/media-health/probe', authMiddleware, express.json({ limit: '4kb' }), async (req: any, res: any) => {
+    if (!(await fetchFirebaseDoc('admins', req.uid))) return res.status(403).json({ error: 'Admin access required' });
+    const url = String(req.body?.url || '').trim();
+    if (!/^https?:/i.test(url)) return res.status(400).json({ error: 'url required' });
+    let tmp: string | null = null;
+    try {
+      tmp = await fetchToTmp(url, 'media');
+      if (!tmp) return res.status(502).json({ error: 'could not fetch file' });
+      const { json } = await runFfprobe(tmp);
+      const a = (json?.streams || []).find((s: any) => s.codec_type === 'audio') || {};
+      res.json({
+        ok: true,
+        durationSec: parseFloat(json?.format?.duration || '0') || 0,
+        bitRate: Number(json?.format?.bit_rate) || null,
+        formatName: json?.format?.format_name || '',
+        codec: a.codec_name || '', sampleRate: Number(a.sample_rate) || null, channels: Number(a.channels) || null,
+        sizeBytes: Number(json?.format?.size) || null,
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: String(e?.message || e) });
+    } finally { if (tmp) fs.unlink(tmp).catch(() => {}); }
+  });
+
+  // Admin proposes replacing a track's file. Writes a pending request + notifies the CREATOR.
+  // Does NOT change anything live — the swap only happens after the owner approves.
+  app.post('/api/admin/media-repair/request', authMiddleware, express.json({ limit: '8kb' }), async (req: any, res: any) => {
+    if (!(await fetchFirebaseDoc('admins', req.uid))) return res.status(403).json({ error: 'Admin access required' });
+    const albumId = String(req.body?.albumId || '').trim();
+    const trackId = String(req.body?.trackId || '').trim();
+    const newUrl = String(req.body?.newUrl || '').trim();
+    const note = String(req.body?.note || '').slice(0, 500);
+    if (!albumId || !trackId || !newUrl) return res.status(400).json({ error: 'albumId, trackId, newUrl required' });
+    if (!isAllowedMediaHost(newUrl)) return res.status(400).json({ error: 'replacement file must be on Plajah storage' });
+    const alb = await firestoreGetDeep('albums', albumId);
+    if (!alb) return res.status(404).json({ error: 'album not found' });
+    const tracks = Array.isArray(alb.tracks) ? alb.tracks : [];
+    const track = tracks.find((t: any) => t?.id === trackId);
+    if (!track) return res.status(404).json({ error: 'track not found in album' });
+    const ownerId = String(alb.ownerId || '');
+    if (!ownerId) return res.status(409).json({ error: 'album has no owner to ask' });
+    const now = Date.now();
+    const requestId = await firestoreCreate('mediaRepairRequests', {
+      albumId, trackId, ownerId, albumTitle: alb.title || '', trackTitle: track.title || '',
+      adminUid: req.uid, oldUrl: typeof track.url === 'string' ? track.url : '', newUrl,
+      note, status: 'pending', createdAt: now,
+    });
+    if (!requestId) return res.status(500).json({ error: 'could not create request' });
+    // Notify the creator (SYSTEM notification; link resolves to the in-app approval surface).
+    await firestoreCreate('notifications', {
+      userId: ownerId, senderId: 'plajah-support', senderName: 'Plajah Support', senderPhoto: '',
+      type: 'SYSTEM', title: 'File repair needs your approval',
+      message: `Support wants to replace the file for "${track.title || 'your track'}" on "${alb.title || 'your release'}". Review and approve.`,
+      link: 'MEDIA_REPAIR', targetId: requestId, isRead: false, timestamp: now,
+    });
+    res.json({ ok: true, requestId, ownerId });
+  });
+
+  // Owner lists THEIR pending repair requests (the approval inbox).
+  app.get('/api/media-repair/mine', authMiddleware, async (req: any, res: any) => {
+    try {
+      const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents:runQuery`;
+      const body = { structuredQuery: { from: [{ collectionId: 'mediaRepairRequests' }], where: { compositeFilter: { op: 'AND', filters: [
+        { fieldFilter: { field: { fieldPath: 'ownerId' }, op: 'EQUAL', value: { stringValue: req.uid } } },
+        { fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'pending' } } },
+      ] } } } };
+      const r = await fetch(url, { method: 'POST', headers: await firestoreAuthHeaders(), body: JSON.stringify(body) });
+      const rows = (await r.json() as any[]) || [];
+      const out = rows.filter(x => x.document).map(x => { const o: any = {}; for (const [k, v] of Object.entries(x.document.fields || {})) o[k] = fsValueToJs(v); o.id = x.document.name.split('/').pop(); return o; });
+      res.json({ ok: true, requests: out });
+    } catch (e: any) { res.status(500).json({ error: String(e?.message || e) }); }
+  });
+
+  // Owner approves/denies. Approve = swap the track's url (deep-preserving every other field) and
+  // re-enqueue transcode. Only the OWNER of the album may respond; admins cannot self-approve.
+  app.post('/api/media-repair/respond', authMiddleware, express.json({ limit: '4kb' }), async (req: any, res: any) => {
+    const requestId = String(req.body?.requestId || '').trim();
+    const approve = req.body?.approve === true;
+    if (!requestId) return res.status(400).json({ error: 'requestId required' });
+    const reqDoc = await firestoreGetDeep('mediaRepairRequests', requestId);
+    if (!reqDoc) return res.status(404).json({ error: 'request not found' });
+    if (String(reqDoc.ownerId) !== req.uid) return res.status(403).json({ error: 'not your request' });
+    if (reqDoc.status !== 'pending') return res.json({ ok: true, already: reqDoc.status });
+    const now = Date.now();
+    if (!approve) {
+      await firestorePatchDeep('mediaRepairRequests', requestId, { status: 'denied', resolvedAt: now });
+      return res.json({ ok: true, applied: false });
+    }
+    const alb = await firestoreGetDeep('albums', String(reqDoc.albumId));
+    const tracks = Array.isArray(alb?.tracks) ? alb!.tracks : [];
+    const idx = tracks.findIndex((t: any) => t?.id === reqDoc.trackId);
+    if (idx < 0) {
+      await firestorePatchDeep('mediaRepairRequests', requestId, { status: 'failed', error: 'track no longer exists', resolvedAt: now });
+      return res.status(409).json({ error: 'track no longer exists in album' });
+    }
+    tracks[idx] = { ...tracks[idx], url: reqDoc.newUrl };
+    const ok = await firestorePatchDeep('albums', String(reqDoc.albumId), { tracks });
+    if (!ok) return res.status(500).json({ error: 'failed to update album' });
+    // Re-enqueue transcode so the streaming ladder rebuilds from the corrected file.
+    await firestoreWrite('choraStreams', String(reqDoc.trackId), { status: 'pending', updatedAt: now });
+    await firestorePatchDeep('mediaRepairRequests', requestId, { status: 'approved', resolvedAt: now });
+    res.json({ ok: true, applied: true });
+  });
+
+  // Admin lists repair requests (any status) to track outcomes.
+  app.get('/api/admin/media-repair/list', authMiddleware, async (req: any, res: any) => {
+    if (!(await fetchFirebaseDoc('admins', req.uid))) return res.status(403).json({ error: 'Admin access required' });
+    try {
+      const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/mediaRepairRequests?pageSize=100`;
+      const r = await fetch(url, { headers: await firestoreAuthHeaders() });
+      const j = await r.json() as any;
+      const out = (j.documents || []).map((d: any) => { const o: any = {}; for (const [k, v] of Object.entries(d.fields || {})) o[k] = fsValueToJs(v); o.id = d.name.split('/').pop(); return o; })
+        .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
+      res.json({ ok: true, requests: out });
+    } catch (e: any) { res.status(500).json({ error: String(e?.message || e) }); }
   });
 
   // Serve a transcoded asset from GCS with Range + permissive CORS (HLS playlists resolve their

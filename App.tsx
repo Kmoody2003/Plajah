@@ -525,6 +525,8 @@ import { levelLabel as networkLevelLabel, type DegradationEvent as NetworkDegrad
 import { SpatialProvider } from './contexts/SpatialContext';
 import { FediverseProvider } from './contexts/FediverseContext';
 import NotificationCenter from './components/NotificationCenter';
+import { isFeedLive } from './services/liveFeedLiveness';
+import MediaRepairApprovals from './components/MediaRepairApprovals';
 import AchievementListView from './components/AchievementListView';
 import UploadManager from './components/UploadManager';
 import { PublishQueueProvider } from './contexts/PublishQueueContext';
@@ -850,7 +852,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   useEffect(() => {
     if (view !== 'DASHBOARD') return;
     const unsub = fetchAllLiveFeeds(feeds =>
-      setDashLiveFeeds(feeds.filter(f => (f as any).status !== 'ENDED' && (f as any).status !== 'OFFLINE')));
+      setDashLiveFeeds(feeds.filter(f => isFeedLive(f))));
     return () => unsub();
   }, [view]);
   // Floating tab dock — appears once the real archive tab row scrolls above the
@@ -1002,6 +1004,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [melosProductionId, setMelosProductionId] = useState<string | null>(null);
   const [scannerEventId, setScannerEventId] = useState<string | null>(null);
   const [isPIFModalOpen, setIsPIFModalOpen] = useState(false);
+  const [mediaRepairOpen, setMediaRepairOpen] = useState(false);
   const [pifWins, setPifWins] = useState<PayItForwardWinner[]>([]);
   const [activeLiveFeed, setActiveLiveFeed] = useState<LiveFeed | null>(null);
   const [showMyOrders, setShowMyOrders] = useState(false);
@@ -1085,7 +1088,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [videoPlaylistInitialId, setVideoPlaylistInitialId] = useState<string | undefined>(undefined);
   const [clubInitialId, setClubInitialId] = useState<string | undefined>(undefined);
   // A shared live channel deep-link opens the Live guide focused on that channel.
-  const [liveChannelFocus, setLiveChannelFocus] = useState<{ ownerId?: string; plajahId?: string; number?: string } | null>(null);
+  const [liveChannelFocus, setLiveChannelFocus] = useState<{ ownerId?: string; plajahId?: string; number?: string; sourceId?: string } | null>(null);
   // Account Switcher
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
@@ -2217,10 +2220,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           // number, kept as a fallback way to find the row.
           const raw = String(projectId || '');
           const number = params.get('n') || undefined;
+          const sourceId = params.get('source') || (raw.startsWith('source:') ? raw.slice(7) : undefined);
           setLiveChannelFocus(
-            raw.startsWith('owner:') ? { ownerId: raw.slice('owner:'.length), number }
-            : raw.startsWith('plajah:') ? { plajahId: raw.slice('plajah:'.length), number }
-            : { plajahId: raw || undefined, number },
+            raw.startsWith('owner:') ? { ownerId: raw.slice('owner:'.length), number, sourceId }
+            : raw.startsWith('plajah:') ? { plajahId: raw.slice('plajah:'.length), number, sourceId }
+            : { plajahId: sourceId ? undefined : raw || undefined, number, sourceId },
           );
           setView('LIVE_HUB');
           document.title = 'Plajah Live';
@@ -2679,6 +2683,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         }
         break;
       case 'FEED': setView('FEED'); break;
+      case 'MEDIA_REPAIR': setMediaRepairOpen(true); break;
       case 'LIVE_HUB': setView('LIVE_HUB'); break;
       case 'WELCOME_PACKAGE': setView('WELCOME_PACKAGE'); break;
       case 'LIVETALK': setView('LIVE_HUB'); break;
@@ -6503,6 +6508,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           sofa. Gated here rather than inside the component, which would mean returning before its
           hooks. */}
       {user && !getPlatformInfo().isTV && <PersistentChatDrawer currentView={view} onNotificationNavigate={handleNotificationNavigate} externalTrigger={notifDrawerTrigger} />}
+      {user && <MediaRepairApprovals open={mediaRepairOpen} onClose={() => setMediaRepairOpen(false)} />}
 
       {/* Nudge users stuck in an in-app WebView (Google app, etc.) into Chrome. Self-gates:
           renders nothing unless it detects a genuine embedded browser on Android. */}
