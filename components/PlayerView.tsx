@@ -642,7 +642,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const [isVisualizerFullscreen, setIsVisualizerFullscreen] = useState(false);
   // FX Stage engine: 'FLOW'/'PAINT' are the built-in reactors; the rest pull the
   // three Plajah Pixels engines (MilkDrops / Shaders / Generators) as no-param reactors.
-  const [fxEngine, setFxEngine] = useState<'FLOW' | 'PAINT' | FxEngine>('FLOW');
+  const [fxEngine, setFxEngine] = useState<'FLOW' | 'PAINT' | FxEngine>('FLUX');
   const [fxPresetIndex, setFxPresetIndex] = useState(0);
   const [fxMenuOpen, setFxMenuOpen] = useState(false);
 
@@ -661,7 +661,14 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     const delay = stageCycleStarted ? 8000 : 20000;
     const timer = window.setTimeout(() => {
       const current = available.indexOf(gatefoldStageMode);
-      selectGatefoldStage(available[(current + 1) % available.length], false);
+      const next = available[(current + 1) % available.length];
+      // When auto-cycling lands on FX, pick a random FLUX preset for variety
+      if (next === 'FX') {
+        setFxEngine('FLUX');
+        const fluxCount = FX_ENGINE_PRESETS.FLUX?.length || 1;
+        setFxPresetIndex(Math.floor(Math.random() * fluxCount));
+      }
+      selectGatefoldStage(next, false);
       setStageCycleStarted(true);
     }, delay);
     return () => window.clearTimeout(timer);

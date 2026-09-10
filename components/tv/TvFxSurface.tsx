@@ -423,22 +423,6 @@ const TvFxSurface: React.FC = () => {
               {isPlaying ? <Pause size={26} fill="currentColor" /> : <Play size={26} fill="currentColor" className="ml-0.5" />}
             </button>
             <button onClick={() => next()} aria-label="Next" className="cursor-pointer hover:text-white transition-colors"><SkipForward size={26} fill="currentColor" /></button>
-            
-            {currentAlbum?.tracks?.length ? (
-              <div 
-                className="flex items-center ml-2 relative"
-                onMouseEnter={() => setIsPlaylistHovered(true)}
-                onMouseLeave={() => setIsPlaylistHovered(false)}
-              >
-                <button
-                  onClick={(e) => { e.stopPropagation(); setIsPlaylistLocked(p => !p); }}
-                  aria-label="Toggle Playlist"
-                  className={`cursor-pointer transition-colors ${isPlaylistLocked || isPlaylistHovered ? 'text-[#FF8C00]' : 'text-white/60 hover:text-white'}`}
-                >
-                  <ListMusic size={22} />
-                </button>
-              </div>
-            ) : null}
           </div>
         </div>
         <div className="mt-4 flex items-center gap-3">
