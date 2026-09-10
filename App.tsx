@@ -992,7 +992,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [notifDrawerTrigger, setNotifDrawerTrigger] = useState<{ tab: string; ts: number } | null>(null);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | undefined>(undefined);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const [pixelsPayload, setPixelsPayload] = useState<{ album?: any; track?: any } | null>(null);
+  const [pixelsPayload, setPixelsPayload] = useState<{ album?: any; track?: any; fluxScene?: string } | null>(null);
   const [melosBeatsPayload, setMelosBeatsPayload] = useState<{ grooveId?: string; productionId?: string; sampleUrl?: string; sampleName?: string } | null>(null);
   const [smartDirectorPayload, setSmartDirectorPayload] = useState<{ productionId?: string; event?: any } | null>(null);
   const [labsDiscipline, setLabsDiscipline] = useState<string | null>(null);
@@ -5385,11 +5385,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <Suspense fallback={null}><TvSlideshowSurface /></Suspense>
             )}
 
-            {/* FX Stage on TV — the audio-reactive visualizer, opened from the Chora album screen.
-                A fullscreen takeover like the slideshow; renders only when isTvFxActive. */}
-            {getPlatformInfo().isTV && (
-              <Suspense fallback={null}><TvFxSurface /></Suspense>
-            )}
+            {/* Fullscreen FX Stage — the audio-reactive visualizer surface opened from the Chora album screen.
+                A fullscreen takeover with synced lyrics + transport; mounts and renders whenever isTvFxActive. */}
+            <Suspense fallback={null}><TvFxSurface /></Suspense>
 
             {/* The persistent TV transport — always at the bottom once something is playing, so the
                 viewer never loses pause/play wherever they browse. Suppressed on the Chora album

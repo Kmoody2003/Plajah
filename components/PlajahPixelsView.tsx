@@ -13,6 +13,7 @@ import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
 import type { Album, Track } from '../types';
 import { getActiveCaption, trackHasCaptions } from '../src/lib/captions';
 import PlajahPixelsStudio, { PlajahPixelsPlatformBridge } from './plajahPixels/PlajahPixelsStudio';
+import { FLUX_SCENE_TO_MODE } from './plajahPixels/types';
 
 function timeCodedToLrc(lines: { time: number; text: string }[]): string {
   return lines.map(({ time, text }) => {
@@ -25,6 +26,7 @@ function timeCodedToLrc(lines: { time: number; text: string }[]): string {
 }
 
 export interface PlajahPixelsPayload {
+  fluxScene?: string;
   album?: Album | null;
   track?: Track | null;
 }
@@ -100,6 +102,7 @@ const PlajahPixelsView: React.FC<{ payload?: PlajahPixelsPayload | null; onClose
       {/* The standalone exit rides the ModeBar. It used to float at top-6 left-6,
           which is where the mode spine now lives. */}
       <PlajahPixelsStudio
+        initialMode={payload?.fluxScene ? FLUX_SCENE_TO_MODE[payload.fluxScene] : undefined}
         platform={standalone ? undefined : bridge}
         onExit={standalone ? onClose : undefined}
       />

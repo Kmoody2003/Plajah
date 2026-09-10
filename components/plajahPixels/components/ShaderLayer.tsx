@@ -188,18 +188,46 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
         analyser?.getByteTimeDomainData(waveRef.current as any);
         const W = 512, td = texDataRef.current;
         const fb = fftRef.current, wb = waveRef.current;
-        let bass = 0, mid = 0, treble = 0, level = 0;
-        for (let x = 0; x < W; x++) {
-          const fv = fb[Math.floor((x / W) * fb.length)] || 0;
-          const wv = wb[Math.floor((x / W) * wb.length)] || 128;
-          let o = x * 4;            // row 0 = FFT
-          td[o] = td[o + 1] = td[o + 2] = fv; td[o + 3] = 255;
-          o = (W + x) * 4;          // row 1 = waveform
-          td[o] = td[o + 1] = td[o + 2] = wv; td[o + 3] = 255;
-          if (x < W * 0.08) bass += fv; else if (x < W * 0.35) mid += fv; else treble += fv;
-          level += fv;
+
+        // Check if incoming audio is silent or flat
+        let hasSignal = false;
+        for (let i = 0; i < Math.min(fb.length, 64); i++) {
+          if (fb[i] > 2) { hasSignal = true; break; }
         }
-        bass /= (W * 0.08 * 255); mid /= (W * 0.27 * 255); treble /= (W * 0.65 * 255); level /= (W * 255);
+
+        let bass = 0, mid = 0, treble = 0, level = 0;
+        if (hasSignal) {
+          for (let x = 0; x < W; x++) {
+            const fv = fb[Math.floor((x / W) * fb.length)] || 0;
+            const wv = wb[Math.floor((x / W) * wb.length)] || 128;
+            let o = x * 4;            // row 0 = FFT
+            td[o] = td[o + 1] = td[o + 2] = fv; td[o + 3] = 255;
+            o = (W + x) * 4;          // row 1 = waveform
+            td[o] = td[o + 1] = td[o + 2] = wv; td[o + 3] = 255;
+            if (x < W * 0.08) bass += fv; else if (x < W * 0.35) mid += fv; else treble += fv;
+            level += fv;
+          }
+          bass /= (W * 0.08 * 255); mid /= (W * 0.27 * 255); treble /= (W * 0.65 * 255); level /= (W * 255);
+        } else {
+          // Ambient rest state: calm breathing oscillation
+          const t = now / 1000;
+          for (let x = 0; x < W; x++) {
+            const fx = x / W;
+            const fv = Math.floor((Math.sin(t * 1.8 + fx * 3.14) * 0.5 + 0.5) * Math.exp(-fx * 3.5) * 35);
+            const wv = Math.floor(128 + Math.sin(t * 3.0 + fx * 6.28) * 12);
+            let o = x * 4;
+            td[o] = td[o + 1] = td[o + 2] = fv; td[o + 3] = 255;
+            o = (W + x) * 4;
+            td[o] = td[o + 1] = td[o + 2] = wv; td[o + 3] = 255;
+            if (x < W * 0.08) bass += fv; else if (x < W * 0.35) mid += fv; else treble += fv;
+            level += fv;
+          }
+          bass = (bass / (W * 0.08 * 255)) * 0.5 + 0.04;
+          mid = (mid / (W * 0.27 * 255)) * 0.5 + 0.03;
+          treble = (treble / (W * 0.65 * 255)) * 0.5 + 0.02;
+          level = (level / (W * 255)) * 0.5 + 0.03;
+        }
+
         smoothChroma(chromaRef.current, extractChroma(fb, analyser?.context.sampleRate || 48_000), dt || 1 / 60);
         writeChromaAlpha(td, chromaRef.current);
 

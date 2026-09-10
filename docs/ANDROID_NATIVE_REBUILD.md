@@ -142,10 +142,12 @@ never a blank — until ported.
    `font_certs.xml` + `GoogleFont.Provider` in `Type.kt`), falling back to system sans.
 2. ~~**Wire the web toggle**~~ — DONE. `services/nativeShell.ts` +
    `components/NativeShellSwitch.tsx`, mounted in the phone Settings menu.
-3. **Real data** — replace the sample content in `Screens.kt` with Firestore reads
-   (the web services can be mirrored, or exposed to native via a bridge).
-4. **Native player** — drive `PlajahMediaService` (Media3) from Compose for Chora
-   and Reello: background playback, MediaSession, Cast/Google Home.
+3. ~~**Real data.**~~ — DONE for public discovery. Front Row, Chora, Reello and
+   Lorea read the same production Firestore collections and publication rules as web.
+4. **Native player** — Chora album detail, queue playback, seek, shuffle, repeat,
+   timed lyrics, metadata and sharing are native Compose/Media3. Moving its player
+   into `PlajahMediaService` is still required for durable background/lock-screen/
+   Cast control. Reello playback remains Classic.
 5. **Port more screens** — ~~Reello~~ (done), then Feed, Profile, then the long tail.
 6. **List/detail multi-pane** for the laptop tier beyond Lorea (Reello, Chora).
 7. **Predictive back**, window-size-class-driven type scaling, keyboard shortcuts.
@@ -154,8 +156,10 @@ never a blank — until ported.
 
 ## Verifying the build
 
-Verified on 2026-09-08: `:app:assembleDebug` passed (4m 22s), including the
-continuation changes above. Output: `android/app/build/outputs/apk/debug/app-debug.apk`.
+Verified on 2026-09-09: `:app:assembleDebug` passed, including production catalog
+decoding and the native Chora album screen. A read-only production smoke test found
+41 published album documents, 418 embedded tracks and 417 directly playable HTTPS
+tracks. Output: `android/app/build/outputs/apk/debug/app-debug.apk`.
 No device/emulator was connected, so on-device UI and shell switching still need
 verification. The web root and both native-switch modules returned HTTP 200 on
 the development server.

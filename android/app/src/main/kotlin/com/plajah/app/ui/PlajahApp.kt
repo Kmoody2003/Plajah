@@ -45,11 +45,10 @@ import androidx.compose.ui.unit.dp
 import com.plajah.app.ui.components.Eyebrow
 import com.plajah.app.ui.nav.Destination
 import com.plajah.app.ui.nav.Destinations
-import com.plajah.app.ui.screens.ChoraScreen
-import com.plajah.app.ui.screens.HomeScreen
-import com.plajah.app.ui.screens.LoreaScreen
 import com.plajah.app.ui.screens.PlaceholderScreen
-import com.plajah.app.ui.screens.ReelloScreen
+import com.plajah.app.ui.screens.PlatformScreen
+import com.plajah.app.ui.screens.ChoraAlbumScreen
+import com.plajah.app.data.PlatformItem
 import com.plajah.app.ui.theme.PlajahTheme
 
 /**
@@ -61,6 +60,7 @@ import com.plajah.app.ui.theme.PlajahTheme
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlajahApp(
+    onOpenContent: (String) -> Unit,
     onExitToClassic: () -> Unit,
     dynamicTint: Boolean,
     onDynamicTintChange: (Boolean) -> Unit,
@@ -69,9 +69,10 @@ fun PlajahApp(
     val current = Destinations.all.firstOrNull { it.id == currentId } ?: Destinations.Home
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     var destinationsOpen by remember { mutableStateOf(false) }
+    var selectedAlbum by remember { mutableStateOf<PlatformItem?>(null) }
 
-    BackHandler(enabled = current.id != Destinations.Home.id && !settingsOpen && !destinationsOpen) {
-        currentId = Destinations.Home.id
+    BackHandler(enabled = selectedAlbum != null || current.id != Destinations.Home.id && !settingsOpen && !destinationsOpen) {
+        if(selectedAlbum!=null)selectedAlbum=null else currentId = Destinations.Home.id
     }
 
     // Width buckets pick the nav affordance AND the content density. screenWidthDp
@@ -86,7 +87,9 @@ fun PlajahApp(
     // The phone bottom bar shows the five primary destinations; rail/drawer show all.
     val items = if (navType == NavigationSuiteType.NavigationBar) Destinations.primary else Destinations.all
 
-    NavigationSuiteScaffold(
+    if(selectedAlbum!=null){
+        ChoraAlbumScreen(selectedAlbum!!,onBack={selectedAlbum=null},onOpenClassic=onOpenContent)
+    } else NavigationSuiteScaffold(
         layoutType = navType,
         navigationSuiteItems = {
             items.forEach { dest ->
@@ -104,11 +107,8 @@ fun PlajahApp(
                 CenterAlignedTopAppBar(
                     title = {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                current.label,
-                                style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                            )
+                            Text("PLAJAH", style = androidx.compose.material3.MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black, color = com.plajah.app.ui.theme.PlajahBrand.Orange)
+                            Text(current.label.uppercase(), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
                         }
                     },
                     actions = {
@@ -144,10 +144,9 @@ fun PlajahApp(
         ) { inner ->
             Box(Modifier.padding(inner)) {
                 when (current.id) {
-                    Destinations.Home.id -> HomeScreen(wide = wide, onOpenClassic = onExitToClassic)
-                    Destinations.Chora.id -> ChoraScreen(wide = wide)
-                    Destinations.Reello.id -> ReelloScreen(wide = wide)
-                    Destinations.Lorea.id -> LoreaScreen(wide = wide)
+                    Destinations.Home.id, Destinations.Chora.id, Destinations.Reello.id, Destinations.Lorea.id -> PlatformScreen(current.id) { item ->
+                        if(item.kind=="album")selectedAlbum=item else onOpenContent(item.platformUrl)
+                    }
                     else -> PlaceholderScreen(current, onExitToClassic)
                 }
             }

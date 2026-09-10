@@ -31,25 +31,27 @@ class NativeActivity : ComponentActivity() {
             var dynamicTint by remember { mutableStateOf(ShellPrefs.isDynamicTint(this)) }
 
             PlajahTheme(
-                darkTheme = isSystemInDarkTheme(),
-                dynamicTint = dynamicTint,
+                darkTheme = true,
+                dynamicTint = false,
             ) {
-                PlajahApp(
-                    onExitToClassic = { returnToClassic() },
-                    dynamicTint = dynamicTint,
-                    onDynamicTintChange = { on ->
-                        dynamicTint = on
-                        ShellPrefs.setDynamicTint(this, on)
-                    },
-                )
+                androidx.compose.material3.Surface(
+                    color=androidx.compose.ui.graphics.Color(0xFF04030A),
+                    contentColor=androidx.compose.ui.graphics.Color.White,
+                ) {
+                    com.plajah.app.ui.screens.ChoraNightScreen(
+                        onOpenPlatform = { url -> returnToClassic(url) },
+                        onExit = { returnToClassic() },
+                    )
+                }
             }
         }
     }
 
-    private fun returnToClassic() {
+    private fun returnToClassic(url: String? = null) {
         ShellPrefs.setNativeEnabled(this, false)
         startActivity(
             Intent(this, MainActivity::class.java)
+                .putExtra("platformContentUrl", url)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
         )
         finish()

@@ -96,7 +96,7 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
     const slots = activeDaySlots(sched, windowStart);
     if (!slots.length) return [];
     const pos = sched?.midnightAnchored ? linearPositionMidnight(slots, windowStart) : dayAnchoredPosition(slots, windowStart);
-    if ('offAir' in pos && pos.offAir) return [];
+    if ('offAir' in pos) return [];
     let cursor = windowStart - pos.offsetSec * 1000;
     let i = pos.index, guard = 0;
     const out: Program[] = [];

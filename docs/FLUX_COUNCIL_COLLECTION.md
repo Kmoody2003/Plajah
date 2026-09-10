@@ -1,60 +1,77 @@
-# Flux — four new generators
+# Flux Atelier — transforming tapestry and three original installations
 
-Preview locally at http://localhost:3000/flux-gallery.html (`npm run dev`).
-The gallery runs the production Flux renderer, with a labelled simulated rhythm,
-local audio-file playback, pause, full screen, and the original Tapestry comparison.
-Audio files stay in the browser. The gallery HTML is a development entry point;
-the generators themselves are registered in the normal Pixels and DJ catalogs.
+Preview: http://localhost:3000/flux-gallery.html (`npm run dev`).
 
-| Generator | Composition | Motion and audio rule |
-|---|---|---|
-| Deco Tapestry II | Teal-black woven enamel, a raised brass sunburst, tiered wings, concentric medallion and chevron hem | Locked frontal framing. A slow fan gesture and grazing key light follow clip time. Bass warms brass; treble picks out the thread and fine lines. |
-| Flux Lattice | Copper and porcelain meridians around a dark central pearl; 320 instanced beads | Nested orbital motion follows the clock. Midrange opens the mint linework; bass lights the inner copper rings; treble illuminates beads. |
-| Flux Tunnel | Vermilion portal ribs, blue hairline inlays and a dark causeway | Deterministic forward procession. Sound changes emissive intensity, not camera speed or position. |
-| Flux Aurora | Five pleated translucent light curtains, jade hems, violet heights, a distant moon and dark terrain | Layered, overlapping wave motion follows time. Bands brighten the body, hems and spectral threads. |
+The gallery uses the production Flux renderer. Choose an audio file or click
+**Play test groove**: both play actual PCM through the same media element and
+AnalyserNode. There are no simulated visualizer bands. Bass/mid/high input meters,
+a response-gain control, pause, full screen and original-tapestry comparison are
+available. Files remain local to the browser. The gallery is a development entry;
+the scenes also register in the normal Pixels and DJ catalogs.
 
-All four are actual three.js scenes. Aurora and the woven textile use custom GPU
-shaders; the others combine procedural meshes, lines and instancing. They use the
-existing Flux camera, audio envelope and bloom pipeline. Per-scene grain lets this
-collection keep dark regions quieter while preserving the original scenes' setting.
+| Generator | Design and transformation |
+|---|---|
+| Deco Tapestry II | 24 procedural arrangements across palace fans, floral courts, stepped lattices, feathers, city spires, scales/lace, guilloche and celestial mosaics. Continuous topology morphs follow musical beats; energy jumps accelerate transitions and reorientation. Intensity reveals ornament and vocal presence bends the threads. |
+| Porcelain Tide | More than a thousand beveled ceramic scales over a stone basin. Bass raises wave crests; mids fold the scales; treble exposes copper edging. |
+| Velvet Bloom | A suspended, pleated crimson couture sculpture. Bass opens its silhouette and depth; mids twist individual petals; treble catches silk ridges. |
+| Prism Archive | Fifteen suspended dichroic glass volumes. Bass spreads and fans the pages; mids turn them; treble lights the edges and a stylized spectral projection across the plinth. |
+
+The earlier Lattice, Tunnel and Aurora studies remain available. The new three
+concepts are additions, not renamed versions of those catalog entries.
+
+## Audio correction
+
+The old broad arithmetic FFT average could reduce a narrow kick to a negligible
+value. `fluxBandsFromFreq` now uses physical 30–250 / 250–2400 / 2400–12000 Hz bands
+with an RMS/peak blend. Live hosts pass the analyser's sample rate. Silence remains
+zero. The new scenes use audio to deform geometry/patterns, not only brightness.
+The fixed-time render proof uses bands captured from an actually playing WAV.
 
 ## Council provenance
 
-The user explicitly requested the existing Art and Motion Councils and approved
-sending the creative brief to their configured Anthropic connection. The live run
-was attempted on 2026-09-08. Anthropic rejected the configured key (`invalid x-api-key`):
-the Art Council returned FAILED, and the Motion Council used its existing
-`localAdvice` fallback. **There was no successful live AI deliberation.**
+The user approved a live council call on 2026-09-08. Anthropic rejected the configured
+key as invalid: the Art Council failed, and the Motion Council returned its existing
+localAdvice fallback. There was no successful live AI deliberation. These designs
+are Codex's interpretation of the stored council lenses and the user's subsequent
+direction, not council votes or quotations. The user explicitly requested visible
+transformation; that direction takes precedence over the stored lens's advice to
+restrict audio to light and color. No image-model output was used. After user clarification, II retains the initial brass sunburst design and morphs its actual geometry; it does not reuse the first tapestry's circular embroidered kaleidoscope.
 
-The implemented direction is Codex's interpretation of the stored council lenses:
-Classical/Baroque structure and relief for Tapestry II, Futurist/Minimalist orbital
-rules for Lattice, Rebel/Classical procession for Tunnel, and Baroque/Minimalist
-light with the Animator's overlapping gesture for Aurora. These pairings are
-design attribution, not quotes or votes from the failed session.
-
-Applied Motion Council guidance: clock-driven movement; separate band-driven
-light and colour; deliberate motion cadence; avoid full-frame beat flashes.
-The engine has no temporal motion-blur pass, so the fallback's 180-degree shutter
-recommendation is not claimed as implemented. The collection runs continuously;
-not every scene is a seamless fixed-duration loop.
-
-`scripts/directFluxCouncil.mjs` reproduces the council run with a local in-memory
-store. It uses the existing council protocol and Motion Council prompt; the latter
-is sent through the configured Anthropic lane for this standalone authoring run.
-It does not update users' production council histories. Raw session output is in
-the ignored `artifacts/flux-council/direction.json`.
+The standalone `scripts/directFluxCouncil.mjs` saves its session locally and does
+not update production account histories. Existing raw results remain under the
+ignored `artifacts/flux-council/` directory.
 
 ## Verification
 
-- Targeted TypeScript checks cover the scene builders, Flux renderer, gallery and mode mapping.
-- `node scripts/verifyFluxCouncil.mjs` renders each scene at fixed times and audio
-  levels, checks visible pixels, measurable audio response and time-varying output,
-  and captures PNG proofs. Also checks gallery selection and mobile overflow.
-- Chromium's default hardware backend lost its WebGL context during the initial
-  check. The successful verification uses SwiftShader software WebGL; it does not
-  establish physical-GPU frame rate or device performance.
-- The normal catalog wiring exposes the new generators in Pixels Studio and the
-  DJ source picker. Fabula integration remains at the state documented separately;
-  this change does not add a new Fabula clip type.
+- `node node_modules/tsx/dist/cli.mjs --test tests/fluxAudio.test.ts`: narrow-kick
+  response, sample-rate/FFT-size band classification, silence and real PCM fixture.
+- `node scripts/verifyFluxCouncil.mjs`: real test-groove playback, uploaded WAV
+  decoding and analyser values; four fixed-time renders contrasting silence with
+  captured audio; later-time transformation; pause, comparison, selection and
+  phone overflow checks. Captures active, quiet and later PNGs for visual review.
+- Targeted TypeScript compilation covers both scene modules, the runtime and gallery.
+- Render verification uses Chromium SwiftShader software WebGL. The default hardware
+  backend lost its context in the earlier run; no physical-GPU FPS claim is made.
+- No new Fabula clip type is introduced by this work.
 
-Proofs and numerical results: `artifacts/flux-council/`.
+Proof PNGs and numerical audio/render results: `artifacts/flux-council/`.
+
+## Musical morphing and entry points (September 9)
+
+Deco Tapestry II now uses 24 equal-topology seeds (144 paths each), with a stateful musical director. Calm music holds a seed for 16 beats and morphs over 8; energetic music selects every 2 beats and morphs over 1.25. Strong onsets or energy jumps can interrupt with a .65-beat transition, starting from the current blended geometry. Musical beat position controls progress; intensity reveals additional ornament and vocals curve the threads. Vocal detection is a harmonic/formant estimate, not source separation. The gallery offers automatic conducting or inspection of each seed. Uploaded gallery tracks receive background tempo analysis of up to 90 seconds of audio;
+Pixels and the DJ host use independent live music samplers. The gallery displays tempo,
+intensity and vocal estimates. `tests/decoMusic.test.ts` covers continuity and independent
+controls, plus silence/noise/tone rejection and a voiced harmonic fixture.
+
+Discover contains four individual Flux cards that open Pixels with the chosen scene
+already applied. The shared preset shelf exposes all four under Presets and Templates.
+The browser verification checks their registrations and captures each Deco configuration.
+Firebase App Check can reject the headless browser when the catalog initializes Firebase;
+that unrelated service failure is recorded separately from rendering errors.
+
+Android debug build `dist-apk/Plajah-Native-UI-20260909-debug.apk` adds an APK-owned
+Native UI button on phones/tablets, independent of the remotely loaded website's version.
+Native settings provide the return to Classic. `assembleDebug --offline` passed; this
+build has not been installed or exercised on the user's physical device.
+
+The native live-content build replaces all sample Home/Chora/Reello/Lorea data with public records from the configured production Firestore database. It filters private/draft/future-scheduled records, loads actual artwork, and opens real content IDs in the existing Capacitor player/reader. Browsing is native; playback, reading, account and purchase flows remain Classic. The read-only production smoke check returned 41 public albums and 49 videos. No private user data or administrative credentials are used.

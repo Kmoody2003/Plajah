@@ -14,8 +14,9 @@ import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
 const ButterchurnLayer = React.lazy(() => import('./plajahPixels/components/ButterchurnLayer'));
 const ShaderLayer = React.lazy(() => import('./plajahPixels/components/ShaderLayer'));
 const AudioVisualizer = React.lazy(() => import('./plajahPixels/components/AudioVisualizer'));
+const FluxStage = React.lazy(() => import('./plajahPixels/components/FluxStage'));
 
-export type FxEngine = 'MILKDROP' | 'SHADER' | 'GENERATOR';
+export type FxEngine = 'MILKDROP' | 'SHADER' | 'GENERATOR' | 'FLUX';
 
 /**
  * Frames per second the Pixels engines should target on this device. 0 = uncapped.
@@ -82,6 +83,19 @@ export async function loadShaderNames(): Promise<string[]> {
   return (await loadSignatureShaders()).map(s => s.name);
 }
 
+// ── Flux 3D Real-Time Scenes (Trapcode Form / Mir lineage) ──
+export const FLUX_MODES: { name: string; mode: VisualizerMode }[] = [
+  { name: 'Flux Field', mode: VisualizerMode.FluxField },
+  { name: 'Deco Tapestry', mode: VisualizerMode.FluxTapestry },
+  { name: 'Deco Tapestry II', mode: VisualizerMode.FluxTapestryII },
+  { name: 'Flux Lattice', mode: VisualizerMode.FluxLattice },
+  { name: 'Flux Tunnel', mode: VisualizerMode.FluxTunnel },
+  { name: 'Flux Aurora', mode: VisualizerMode.FluxAurora },
+  { name: 'Porcelain Tide', mode: VisualizerMode.PorcelainTide },
+  { name: 'Velvet Bloom', mode: VisualizerMode.VelvetBloom },
+  { name: 'Prism Archive', mode: VisualizerMode.PrismArchive },
+];
+
 // ── Generator presets — every Plajah Pixels scene, chrome stripped ──
 const GEN_MODES: { name: string; mode: VisualizerMode }[] = [
   { name: 'Nebula', mode: VisualizerMode.Nebula }, { name: 'Vortex', mode: VisualizerMode.Vortex },
@@ -116,6 +130,7 @@ export const FX_ENGINE_PRESETS: Record<FxEngine, string[]> = {
   MILKDROP: [], // filled at runtime via loadMilkdropNames()
   SHADER: [],   // filled at runtime via loadSignatureShaders()
   GENERATOR: GEN_MODES.map(g => g.name),
+  FLUX: FLUX_MODES.map(f => f.name),
 };
 
 /** `names` supplies the runtime list for the async engines (MilkDrops, Shaders); the
@@ -202,6 +217,12 @@ export default function FxStageVisualizers({
     [genMode.mode, fps],
   );
 
+  const fluxMode = FLUX_MODES[((presetIndex % FLUX_MODES.length) + FLUX_MODES.length) % FLUX_MODES.length];
+  const fluxConfig = useMemo<VisualizationConfig>(
+    () => ({ ...BASE_CONFIG, mode: fluxMode.mode, targetFrameRate: fps || BASE_CONFIG.targetFrameRate }),
+    [fluxMode.mode, fps],
+  );
+
   if (!analyser) return <Loading />;
 
   return (
@@ -212,6 +233,9 @@ export default function FxStageVisualizers({
         : <Loading />)}
       {engine === 'GENERATOR' && (
         <AudioVisualizer analyser={analyser} config={genConfig} isPlaying={isPlaying} hasBackground={false} renderScale={renderScale} />
+      )}
+      {engine === 'FLUX' && (
+        <FluxStage analyser={analyser} config={fluxConfig} isPlaying={isPlaying} />
       )}
     </Suspense>
   );

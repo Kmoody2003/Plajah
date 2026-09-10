@@ -2,7 +2,7 @@
 // Sound articulates geometry; the camera remains a stable viewing position.
 import type { SceneInst } from './flux';
 
-function atelier(T:any, renderer:any) {
+export function atelier(T:any, renderer:any) {
   const owned=new Set<any>(),scene=new T.Scene(),camera=new T.PerspectiveCamera(43,1,.1,180);
   const own=<A,>(a:A):A=>{owned.add(a);return a;};
   const mesh=(g:any,m:any,parent=scene)=>{const o=new T.Mesh(own(g),m);parent.add(o);return o;};
@@ -48,7 +48,7 @@ export function buildPorcelainTide(T:any,renderer:any):SceneInst {
   for(let j=0;j<NZ;j++)for(let i=0;i<NX;i++){
     color.setHSL(.50+.04*Math.sin(i*.11+j*.17),.08+.10*(j/NZ),.68+.1*Math.sin(i*.3+j*.13));tiles.setColorAt(j*NX+i,color);
   }
-  return {scene,camera,cam:{target:[0,.5,0],radius:31,pitch:39,yaw:23,fov:42},grain:.0005,exposure:1.03,brightThreshold:1.2,
+  return {scene,camera,cam:{target:[0,.5,0],radius:35,pitch:39,yaw:23,fov:42},grain:.0005,exposure:1.03,brightThreshold:1.2,
     update(t,a){
       const amp=.16+Math.min(1.4,a.bass)*2.45,fold=a.mid*.64;
       for(let j=0;j<NZ;j++)for(let i=0;i<NX;i++){
@@ -61,7 +61,7 @@ export function buildPorcelainTide(T:any,renderer:any):SceneInst {
         pose.scale.set(1,1,1);pose.updateMatrix();tiles.setMatrixAt(j*NX+i,pose.matrix);
       }
       tiles.instanceMatrix.needsUpdate=true;copper.emissiveIntensity=.08+a.tre*.55;
-      s.key.intensity=2.6+a.level*.8;
+      s.key.intensity=2.6+a.energy*.8;
     },bloom:a=>.12+a.tre*.12,dispose:s.dispose};
 }
 
@@ -110,7 +110,7 @@ export function buildVelvetBloom(T:any,renderer:any):SceneInst {
   mesh(new T.CylinderGeometry(2.2,2.4,.4,64),plinth).position.set(0,-5.25,-.5);
   const stem=mesh(new T.CylinderGeometry(.075,.14,4.8,20),brass);stem.position.set(0,-2.7,-.8);
   const backdrop=mesh(new T.PlaneGeometry(100,70),own(new T.MeshStandardMaterial({color:0x211b25,roughness:.9})));backdrop.position.z=-5;
-  return {scene,camera,cam:{target:[0,-.15,0],radius:18.5,pitch:8,yaw:-7,fov:43},grain:.0005,exposure:1.08,brightThreshold:1.1,
+  return {scene,camera,cam:{target:[0,-.15,0],radius:22.5,pitch:8,yaw:-7,fov:43},grain:.0005,exposure:1.08,brightThreshold:1.1,
     update(t,a,spec){materials.forEach(m=>{const u=m.uniforms;u.time.value=t;u.bass.value=Math.min(1.35,a.bass);u.mid.value=a.mid;u.tre.value=a.tre;u.hue.value=spec.hue;});heart.rotation.z=t*.09+a.mid*.3;heart.scale.setScalar(.85+a.kick*.35);},
     bloom:a=>.14+a.tre*.14,dispose:s.dispose};
 }
@@ -149,7 +149,7 @@ export function buildPrismArchive(T:any,renderer:any):SceneInst {
     vertexShader:'varying vec2 q;void main(){q=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
     fragmentShader:`varying vec2 q;uniform float time,bass,tre;void main(){vec2 p=(q-.5)*vec2(21.,9.);
       float streak=pow(.5+.5*sin(p.x*(2.6-bass*.35)+p.y*.55+sin(time*.3)*.3),10.);
-      float fade=exp(-p.y*p.y*.12)*smoothstep(10.5,7.5,abs(p.x));
+      float fade=exp(-p.y*p.y*.12)*(1.-smoothstep(7.5,10.5,abs(p.x)));
       vec3 col=.5+.5*cos(p.x*.6+vec3(0.,2.,4.));
       gl_FragColor=vec4(vec3(.007,.012,.018)+col*streak*fade*(.08+bass*.27+tre*.12),1.);}` }));
   const reflection=mesh(new T.PlaneGeometry(20.9,8.9),floorMat);reflection.rotation.x=-Math.PI/2;reflection.position.y=-3.535;

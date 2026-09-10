@@ -28,7 +28,8 @@ import { AudioTexture } from '../plajahPixels/engine/core/audioTexture';
 import { SHADER_LIBRARY } from '../plajahPixels/components/ShaderPanel';
 // Flux — real-3D audio-reactive generators (Trapcode Form / Mir), shared with Fabula + Pixels.
 import { renderFluxLatest } from '../plajahPixels/engine/core/flux';
-import { FLUX_SCENES, fluxBandsFromFreq, type FluxSceneId } from '../../services/fabula/fluxNode';
+import { FLUX_SCENES, type FluxSceneId } from '../../services/fabula/fluxNode';
+import { FluxMusicSampler } from '../../services/fabula/fluxMusic';
 
 // ── The DJ Console's visual library ─────────────────────────────────────────────
 // "Aurora Orbs" is the hand-made reactive backdrop (kept — people like it); the rest
@@ -58,10 +59,13 @@ const PIX_PARAMS = [0.5, 0.5, 0.5, 0.5];
 const PIX_W = 1280, PIX_H = 720;
 
 // bass/mid/treble/level from the DJ master analyser, for driving Flux 3D (shared extractor).
+const musicSamplers=new WeakMap<AnalyserNode,FluxMusicSampler>();
 function djBands(an: AnalyserNode | null) {
   if (!an) return { bass: 0, mid: 0, treble: 0, level: 0, beat: 0 };
   const d = new Uint8Array(an.frequencyBinCount); an.getByteFrequencyData(d);
-  return fluxBandsFromFreq(d);
+  let sampler=musicSamplers.get(an);
+  if(!sampler){sampler=new FluxMusicSampler();musicSamplers.set(an,sampler);}
+  return sampler.sample(d,an.context.currentTime,an.context.sampleRate);
 }
 
 // Plajah brand tokens (kept literal so this surface reads in the design language

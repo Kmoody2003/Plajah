@@ -7100,7 +7100,10 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     // renditions that transcoded WRONG (e.g. a lying WAV header that produced a short stream).
     // Owner-gated and album-scoped, so it re-transcodes only this album, not the catalogue.
     const force = req.body?.force === true;
-    const album = await firestoreRead('albums', albumId);
+    let album = await firestoreRead('albums', albumId);
+    if (!album) {
+      album = await firestoreRead('personal_albums', albumId);
+    }
     if (!album) return res.status(404).json({ error: 'album not found' });
     if (String(album.ownerId || '') !== req.uid) return res.status(403).json({ error: 'not your album' });
 

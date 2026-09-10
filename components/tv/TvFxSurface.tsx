@@ -21,9 +21,13 @@ import { thumb, THUMB } from '../../src/lib/imageThumb';
  * sweet spot while still looking clean at ten feet. SHADER (lightest) is the default engine.
  */
 
-const TV_ENGINES: FxEngine[] = ['SHADER', 'GENERATOR', 'MILKDROP'];
-const ENGINE_LABEL: Record<FxEngine, string> = { SHADER: 'Shader', GENERATOR: 'Generator', MILKDROP: 'MilkDrop' };
-const RENDER_SCALE = 0.66;   // render at 66% then upscale — a DPR-agnostic fill-rate cut
+const TV_ENGINES: FxEngine[] = ['SHADER', 'GENERATOR', 'FLUX', 'MILKDROP'];
+const ENGINE_LABEL: Record<FxEngine, string> = { SHADER: 'Shader', GENERATOR: 'Generator', FLUX: 'Flux 3D', MILKDROP: 'MilkDrop' };
+const getSurfaceRenderScale = () => {
+  if (typeof window === 'undefined') return 1;
+  const isTV = getPlatformInfo().isTV;
+  return isTV ? 0.66 : 1; // 100% on desktop/laptop/tablet for crisp visuals, 66% on TV for Mali GPU budget
+};
 
 const fmt = (s?: number): string => {
   if (!s || !isFinite(s)) return '0:00';
@@ -126,14 +130,22 @@ const TvFxSurface: React.FC = () => {
 
   const pct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
   const art = (currentTrack as any)?.albumCover || (currentAlbum as any)?.coverImage;
-  const scalePct = `${Math.round(100 / RENDER_SCALE)}%`;
+  const renderScale = getSurfaceRenderScale();
+  const scalePct = `${Math.round(100 / renderScale)}%`;
 
   return createPortal(
-    <div className="fixed inset-0 z-[290] bg-black overflow-hidden" data-tv-no-trap role="img" aria-label="FX Stage visualizer">
-      {/* Reduced-resolution render, CSS-upscaled to fill. */}
+    <div
+      className="fixed inset-0 z-[290] bg-black overflow-hidden select-none"
+      data-tv-no-trap
+      role="img"
+      aria-label="FX Stage visualizer"
+      onMouseMove={wake}
+      onClick={wake}
+    >
+      {/* Dynamic resolution render, CSS-upscaled to fill. */}
       <div
         className="absolute top-0 left-0 origin-top-left"
-        style={{ width: scalePct, height: scalePct, transform: `scale(${RENDER_SCALE})` }}
+        style={{ width: scalePct, height: scalePct, transform: `scale(${renderScale})` }}
       >
         <Suspense fallback={<div className="w-full h-full grid place-items-center text-white/25 text-xs font-black uppercase tracking-widest">Loading FX Stage…</div>}>
           <FxStageVisualizers engine={engine} presetIndex={presetIndex} analyser={analyser} isPlaying={isPlaying} />
@@ -160,26 +172,26 @@ const TvFxSurface: React.FC = () => {
       <button
         onClick={exit}
         aria-label="Close FX Stage"
-        className="absolute top-8 right-10 z-10 flex items-center gap-2.5 pl-4 pr-5 py-2.5 rounded-full bg-black/60 border border-white/20 text-white transition-opacity duration-300"
+        className="absolute top-8 right-10 z-10 flex items-center gap-2.5 pl-4 pr-5 py-2.5 rounded-full bg-black/60 border border-white/20 text-white hover:bg-black/80 hover:border-white/40 transition-all duration-300 pointer-events-auto cursor-pointer"
         style={{ opacity: controls ? 1 : 0 }}
       >
         <X size={20} /><span className="text-[11px] font-black uppercase tracking-widest">Close</span>
       </button>
 
-      {/* Engine selector (top-left) — three pills so it's obvious which engine is live and that ▲▼
-          switches them. This is the "make it deliberate" fix: the choice is shown, not hidden. */}
-      <div className="absolute top-8 left-10 z-10 flex items-center gap-2 transition-opacity duration-300" style={{ opacity: controls ? 1 : 0 }}>
+      {/* Engine selector (top-left) — clickable pills so it's easy on mouse, touch, or remote */}
+      <div className="absolute top-8 left-10 z-10 flex items-center gap-2 transition-opacity duration-300 pointer-events-auto" style={{ opacity: controls ? 1 : 0 }}>
         <Sparkles size={18} className="text-[#FF8C00] mr-1" />
         {TV_ENGINES.map((e, i) => (
-          <span
+          <button
             key={e}
-            className="px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-widest transition-colors"
+            onClick={() => { setEngineIdx(i); setPresetIndex(0); wake(); }}
+            className="px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer"
             style={i === engineIdx
               ? { background: '#FF8C00', color: '#000' }
               : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}
           >
             {ENGINE_LABEL[e]}
-          </span>
+          </button>
         ))}
         <span className="ml-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/35">▲▼ engine</span>
       </div>
@@ -187,7 +199,7 @@ const TvFxSurface: React.FC = () => {
       {/* Bottom transport — present, like the slideshow. Progress + prev / play-pause / next, plus the
           current preset name and the control legend. */}
       <div
-        className="absolute left-0 right-0 bottom-0 px-12 pb-9 pt-24 bg-gradient-to-t from-black/85 via-black/40 to-transparent transition-opacity duration-300"
+        className="absolute left-0 right-0 bottom-0 px-12 pb-9 pt-24 bg-gradient-to-t from-black/85 via-black/40 to-transparent transition-opacity duration-300 pointer-events-auto"
         style={{ opacity: controls ? 1 : 0 }}
       >
         <div className="flex items-center gap-6">
@@ -196,16 +208,37 @@ const TvFxSurface: React.FC = () => {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-2xl font-black text-white truncate">{currentTrack?.title || ''}</p>
-            <p className="text-base text-white/55 truncate">
-              {currentTrack?.artist || ''} <span className="text-white/30">· {ENGINE_LABEL[engine]}: {fxPresetName(engine, presetIndex, presetNames[engine])}</span>
-            </p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-base text-white/55 truncate">
+                {currentTrack?.artist || ''} <span className="text-white/30">· {ENGINE_LABEL[engine]}:</span>
+              </p>
+              <div className="flex items-center gap-1 bg-white/10 rounded-full px-3 py-0.5 text-xs text-white/80">
+                <button
+                  onClick={() => { setPresetIndex(p => p - 1); wake(); }}
+                  className="hover:text-white transition-colors cursor-pointer px-1"
+                  aria-label="Previous preset"
+                >
+                  ◀
+                </button>
+                <span className="font-bold text-white px-1">
+                  {fxPresetName(engine, presetIndex, presetNames[engine])}
+                </span>
+                <button
+                  onClick={() => { setPresetIndex(p => p + 1); wake(); }}
+                  className="hover:text-white transition-colors cursor-pointer px-1"
+                  aria-label="Next preset"
+                >
+                  ▶
+                </button>
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-5 shrink-0 text-white/85">
-            <button onClick={() => prev()} aria-label="Previous"><SkipBack size={26} fill="currentColor" /></button>
-            <button onClick={() => togglePlay()} aria-label={isPlaying ? 'Pause' : 'Play'} className="w-14 h-14 rounded-full grid place-items-center" style={{ background: '#FF8C00', color: '#000' }}>
+            <button onClick={() => prev()} aria-label="Previous" className="cursor-pointer hover:text-white transition-colors"><SkipBack size={26} fill="currentColor" /></button>
+            <button onClick={() => togglePlay()} aria-label={isPlaying ? 'Pause' : 'Play'} className="w-14 h-14 rounded-full grid place-items-center cursor-pointer hover:scale-105 transition-transform" style={{ background: '#FF8C00', color: '#000' }}>
               {isPlaying ? <Pause size={26} fill="currentColor" /> : <Play size={26} fill="currentColor" className="ml-0.5" />}
             </button>
-            <button onClick={() => next()} aria-label="Next"><SkipForward size={26} fill="currentColor" /></button>
+            <button onClick={() => next()} aria-label="Next" className="cursor-pointer hover:text-white transition-colors"><SkipForward size={26} fill="currentColor" /></button>
           </div>
         </div>
         <div className="mt-4 flex items-center gap-3">

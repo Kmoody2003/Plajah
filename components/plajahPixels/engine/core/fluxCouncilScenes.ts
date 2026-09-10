@@ -1,5 +1,6 @@
 // Council collection: actual geometry, shared Flux camera/audio/bloom contract.
-// Transport is a function of clip time. Audio changes radiance, never camera position.
+// The earlier Lattice/Tunnel/Aurora studies remain available in the catalog.
+// Tapestry II now lives in its own transforming-embroidery implementation.
 import type { SceneInst } from './flux';
 
 function stage(T: any) {
@@ -15,96 +16,7 @@ function stage(T: any) {
   return { scene, camera, own, mesh, line, dispose: () => { owned.forEach(o => o.dispose?.()); owned.clear(); } };
 }
 
-/** CLASSICAL + BAROQUE, edited by RADICAL_MINIMAL: ornament carries the structure.
- * CINEMATIC gives the relief grazing light; GENERATIVE gives the thread a rule. */
-export function buildTapestryII(T: any): SceneInst {
-  const s = stage(T), { scene, camera, own, mesh, line } = s;
-  scene.add(new T.HemisphereLight(0xc9e2f4, 0x120d24, 1.6));
-  const key = new T.PointLight(0xffd5a0, 90, 35, 2); key.position.set(-5, 5, 7); scene.add(key);
-  const edge = new T.PointLight(0x5899bd, 55, 30, 2); edge.position.set(6, -1, 5); scene.add(edge);
-  const gold = own(new T.MeshStandardMaterial({ color: 0xb89558, metalness: 0.72, roughness: 0.31, emissive: 0x53300c, emissiveIntensity: 0.25 }));
-  const enamel = own(new T.MeshStandardMaterial({ color: 0x082c36, metalness: 0.45, roughness: 0.32 }));
-  const black = own(new T.MeshStandardMaterial({ color: 0x07101b, metalness: 0.25, roughness: 0.7 }));
-  const ink = own(new T.LineBasicMaterial({ color: 0xbe9860, transparent: true, opacity: 0.8 }));
-  const glow = own(new T.LineBasicMaterial({ color: 0xf8d59b, transparent: true, opacity: 0.75 }));
-  mesh(new T.BoxGeometry(24, 15, 0.4), black).position.z = -0.8;
-  mesh(new T.BoxGeometry(14.4, 9.2, 0.3), enamel).position.z = -0.4;
-  // Three nested frames, their stepped corners echoed by the architectural wings.
-  for (let j = 0; j < 3; j++) {
-    const x = 7.05 - j * 0.18, y = 4.43 - j * 0.18, c = 0.35;
-    line([[-x+c,-y,0], [x-c,-y,0], [x,-y+c,0], [x,y-c,0], [x-c,y,0], [-x+c,y,0], [-x,y-c,0], [-x,-y+c,0], [-x+c,-y,0]], ink);
-  }
-  // A textile bed, shader lit rather than a flat printed motif.
-  const woven = own(new T.ShaderMaterial({ uniforms: { time: { value: 0 }, tre: { value: 0 } },
-    vertexShader: 'varying vec2 q; void main(){q=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-    fragmentShader: `varying vec2 q; uniform float time,tre;
-      void main(){float warp=pow(.5+.5*sin(q.x*900.),8.);float weft=pow(.5+.5*sin(q.y*570.),8.);
-      float light=.5+.5*sin(q.x*15.+q.y*9.-time*.45);
-      vec3 c=vec3(.012,.048,.061)+(warp+weft)*vec3(.007,.018,.020);
-      c+=pow(light,14.)*warp*vec3(.025,.045,.040)*(.25+tre*.6);gl_FragColor=vec4(c,1.);}` }));
-  mesh(new T.PlaneGeometry(13.5, 8.3), woven).position.z = -0.22;
-  const relief = new T.Group(); scene.add(relief);
-  const fans: { bar: any; angle: number; radius: number }[] = [];
-  const wings: {object:any; x:number; y:number; row:number; side:number}[]=[];
-  // Nested sun fans: real strips on a shallow spherical cap, fanning out above the medallion.
-  for (let i = 0; i < 43; i++) {
-    const a = Math.PI * (0.055 + 0.89 * i / 42);
-    const r0 = 1.35, r1 = 3.72 - 0.18 * (i % 3);
-    const x = Math.cos(a), y = Math.sin(a);
-    const bar = mesh(new T.BoxGeometry(0.043, r1-r0, 0.085), gold, relief);
-    bar.position.set(x*(r0+r1)/2, y*(r0+r1)/2 - .25, .16 + .11*Math.sin(a));
-    bar.rotation.z = a - Math.PI/2;
-    fans.push({bar,angle:a,radius:(r0+r1)/2});
-  }
-  for (let j = 0; j < 7; j++) {
-    const r = 1.45 + j*.34;
-    line(Array.from({length:129}, (_,i) => {const a=Math.PI*i/128;return [Math.cos(a)*r,Math.sin(a)*r-.25,.4];}), j % 2 ? ink : glow, relief);
-  }
-  // Pair of tiered wings; stepped silhouettes and descending reeds, not a repeated texture.
-  for (const side of [-1, 1]) {
-    for (let j = 0; j < 9; j++) {
-      const x=side*(1.65+j*.47), top=1.4-j*.31, bottom=-3.55+j*.13;
-      line([[x, bottom, .24], [x,top,.24], [x+side*.33,top+.27,.24], [x+side*.33,bottom+.2,.24]], glow);
-      const b=mesh(new T.BoxGeometry(.10,top-bottom,.14),gold);b.position.set(x,(top+bottom)/2,.18);
-      wings.push({object:b,x,y:(top+bottom)/2,row:j,side});
-    }
-  }
-  const disk=mesh(new T.CylinderGeometry(1.22,1.22,.16,96),gold); disk.rotation.x=Math.PI/2;disk.position.set(0,-.25,.36);
-  const face=mesh(new T.CircleGeometry(1.10,96),black);face.position.set(0,-.25,.46);
-  for (let j=0;j<3;j++) {
-    const r=.55+j*.19;
-    const ring=mesh(new T.TorusGeometry(r,.012,6,96),gold);ring.position.set(0,-.25,.5);
-  }
-  const jewel=mesh(new T.OctahedronGeometry(.3),gold);jewel.position.set(0,-.25,.7);
-  // Mirrored chevron hems complete the vertical rhythm below the sun.
-  for (let j=0;j<11;j++) {
-    const y=-1.6-j*.17, w=.4+j*.20;
-    line([[-w,y+.32,.22],[0,y-.13,.22],[w,y+.32,.22]], ink);
-  }
-  return { scene,camera, cam:{target:[0,0,0],radius:16.9,pitch:0,yaw:0,fov:39,lock:true},
-    exposure:.93,brightThreshold:1.1,grain:.0008,
-    update(t,a,spec){
-      woven.uniforms.time.value=t;woven.uniforms.tre.value=a.tre;
-      key.position.x=-4+Math.sin(t*Math.PI/16)*2.3;
-      key.intensity=65+a.bass*50+a.kick*25;edge.intensity=30+a.mid*50;
-      gold.emissiveIntensity=.12+a.bass*.55;glow.opacity=.35+a.tre*.6;
-      gold.color.setHSL(.105+(spec.hue-.5)*.10,.42,.53);
-      jewel.rotation.z=t*Math.PI/32+a.mid*.8;
-      jewel.scale.setScalar(1+a.kick*.65+a.bass*.35);
-      // Bass opens the radial fan; mids articulate the outer reeds. Camera stays anchored.
-      fans.forEach(({bar,angle,radius})=>{
-        const theta=Math.PI/2+(angle-Math.PI/2)*(.72+a.bass*.36)+.035*Math.sin(t*.4)*Math.sin(angle*2);
-        const r=radius*(.87+a.bass*.15);
-        bar.position.set(Math.cos(theta)*r,Math.sin(theta)*r-.25,.16+a.bass*.22);
-        bar.rotation.z=theta-Math.PI/2;bar.scale.y=.65+a.bass*.55+a.kick*.15;
-      });
-      wings.forEach(({object,x,y,row,side})=>{
-        object.scale.y=.65+a.mid*.6+a.bass*.2*Math.sin(row*.6+t);
-        object.rotation.z=side*(a.mid*.14*Math.sin(row*.6+t*.4));
-        object.position.set(x,y,.18+a.tre*.35*Math.sin(row*.8));
-      });
-    }, bloom:a=>.22+a.tre*.16, dispose:s.dispose };
-}
+export { buildTapestryII } from './decoTapestryII';
 
 /** FUTURIST / RADICAL_MINIMAL + GENERATIVE: a navigable orbital instrument. */
 export function buildLattice(T: any): SceneInst {

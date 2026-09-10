@@ -92,6 +92,12 @@ class MainActivity : BridgeActivity() {
         }
         super.onCreate(savedInstanceState)
         // Render edge-to-edge — Compose and the WebView both respect system bar insets
+        intent.getStringExtra("platformContentUrl")?.let { requested ->
+            val target = android.net.Uri.parse(requested)
+            if (target.scheme == "https" && target.host == "plajah.com") {
+                bridge?.webView?.loadUrl(requested)
+            }
+        }
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         // The WebView paints white by default, so a held splash could still hand over to a white
@@ -102,7 +108,26 @@ class MainActivity : BridgeActivity() {
         } catch (_: Throwable) { /* pre-bridge or unavailable — the theme background still covers */ }
 
         televisionMode = isTelevision()
-        if (!televisionMode) return
+        if (!televisionMode) {
+            // Keep the entry point in the APK: the remote web deployment may predate Compose.
+            val switch = android.widget.Button(this).apply {
+                text = "Native UI"
+                contentDescription = "Switch to the native Jetpack Compose interface"
+                setOnClickListener {
+                    ShellPrefs.setNativeEnabled(this@MainActivity, true)
+                    startActivity(Intent(this@MainActivity, NativeActivity::class.java))
+                    finish()
+                }
+            }
+            val density = resources.displayMetrics.density
+            val params = android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                android.view.Gravity.TOP or android.view.Gravity.END,
+            ).apply { topMargin = (48 * density).toInt(); rightMargin = (12 * density).toInt() }
+            addContentView(switch, params)
+            return
+        }
 
         // Keep D-pad keys inside the WebView.
         //

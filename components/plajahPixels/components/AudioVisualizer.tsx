@@ -1909,6 +1909,23 @@ const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ a
     const dataArray = new Uint8Array(bufferLength);
     analyser.getByteFrequencyData(dataArray);
 
+    // Detect if the incoming FFT is completely zero/flat (e.g. track gap, paused, or suspended)
+    let isFlat = true;
+    for (let i = 0; i < Math.min(bufferLength, 64); i++) {
+        if (dataArray[i] > 1) { isFlat = false; break; }
+    }
+    if (isFlat) {
+        // Ambient rest state: generate gentle, smooth organic motion across frequencies
+        const t = performance.now() / 1000;
+        for (let i = 0; i < bufferLength; i++) {
+            const freqNorm = i / bufferLength;
+            const wave1 = Math.sin(t * 1.6 + i * 0.12) * 0.5 + 0.5;
+            const wave2 = Math.cos(t * 2.4 - i * 0.08) * 0.5 + 0.5;
+            const falloff = Math.exp(-freqNorm * 4.0);
+            dataArray[i] = Math.floor((wave1 * 0.6 + wave2 * 0.4) * falloff * 42);
+        }
+    }
+
     // --- Bass Shake Logic ---
     if (config.enableBassShake) {
         let bassSum = 0;

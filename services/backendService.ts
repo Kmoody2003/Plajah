@@ -6379,6 +6379,24 @@ export const fetchPersonalAlbums = async () => {
   }
 };
 
+export const updatePersonalAlbum = async (id: string, updates: Partial<Album>) => {
+  if (!auth.currentUser || !id) return;
+  try {
+    await setDoc(doc(db, 'personal_albums', id), removeUndefined(updates as any), { merge: true });
+  } catch (e) {
+    handleFirestoreError(e, OperationType.UPDATE, `personal_albums/${id}`);
+  }
+};
+
+export const deletePersonalAlbum = async (id: string) => {
+  if (!auth.currentUser || !id) return;
+  try {
+    await deleteDoc(doc(db, 'personal_albums', id));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, `personal_albums/${id}`);
+  }
+};
+
 /** Merge-update a locker track (e.g. enriched lyrics/art). Owner-gated by rules. */
 export const updatePersonalTrack = async (id: string, updates: Partial<Track>) => {
   if (!auth.currentUser || !id) return;

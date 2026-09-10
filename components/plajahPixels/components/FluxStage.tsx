@@ -7,7 +7,7 @@
 import React, { useEffect, useRef } from 'react';
 import { VisualizationConfig, MODE_TO_FLUX_SCENE } from '../types';
 import { renderFluxLatest } from '../engine/core/flux';
-import { fluxBandsFromFreq } from '../../../services/fabula/fluxNode';
+import { FluxMusicSampler } from '../../../services/fabula/fluxMusic';
 
 interface Props {
   analyser: AnalyserNode | null;
@@ -26,6 +26,7 @@ const FluxStage: React.FC<Props> = ({ analyser, config, isPlaying, id }) => {
     const ctx = cv.getContext('2d')!;
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
     let freq = new Uint8Array(2048);
+    const music=new FluxMusicSampler();
     const start = performance.now();
 
     function resize() {
@@ -49,7 +50,37 @@ const FluxStage: React.FC<Props> = ({ analyser, config, isPlaying, id }) => {
         if (n > freq.length) freq = new Uint8Array(n);
         const d = freq.length === n ? freq : freq.subarray(0, n);
         a.getByteFrequencyData(d as Uint8Array);
-        bands = fluxBandsFromFreq(d, a.context.sampleRate);
+
+        // Detect if audio buffer is completely silent/flat
+        let hasEnergy = false;
+        for (let i = 0; i < Math.min(d.length, 64); i++) {
+          if (d[i] > 2) { hasEnergy = true; break; }
+        }
+
+        if (hasEnergy) {
+          bands = music.sample(d, (now - start) / 1000, a.context.sampleRate);
+        } else {
+          // Graceful rest state: gentle sinusoidal breathing when music is quiet or paused
+          const timeSec = (now - start) / 1000;
+          const ambientPulse = 0.08 + Math.sin(timeSec * 1.5) * 0.04;
+          bands = {
+            bass: ambientPulse,
+            mid: ambientPulse * 0.7,
+            treble: ambientPulse * 0.5,
+            level: ambientPulse * 0.8,
+            beat: 0,
+          };
+        }
+      } else {
+        const timeSec = (now - start) / 1000;
+        const ambientPulse = 0.08 + Math.sin(timeSec * 1.5) * 0.04;
+        bands = {
+          bass: ambientPulse,
+          mid: ambientPulse * 0.7,
+          treble: ambientPulse * 0.5,
+          level: ambientPulse * 0.8,
+          beat: 0,
+        };
       }
       const t = (now - start) / 1000;
       const src = renderFluxLatest(

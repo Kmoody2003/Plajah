@@ -12,7 +12,13 @@
 // (a scene), and the DJ console (a program-out visual).
 
 /** Audio bands driving a Flux scene. Matches the engine's AudioBands so any surface can feed it. */
-export interface FluxAudio { bass: number; mid: number; treble: number; level: number; beat: number }
+export interface FluxAudio {
+  bass: number; mid: number; treble: number; level: number; beat: number;
+  bpm?: number; tempoConfidence?: number; beatPosition?: number;
+  /** Harmonic/formant-based vocal estimate, not a separated vocal stem. */
+  voice?: number;
+  intensity?: number;
+}
 export const SILENT_AUDIO: FluxAudio = { bass: 0, mid: 0, treble: 0, level: 0, beat: 0 };
 
 export type FluxSceneId = 'field' | 'tapestry' | 'tapestry-ii' | 'lattice' | 'tunnel' | 'aurora' | 'porcelain-tide' | 'velvet-bloom' | 'prism-archive';
@@ -33,7 +39,7 @@ export const FLUX_SCENES: FluxSceneInfo[] = [
   { id: 'tapestry', name: 'Deco Tapestry', cat: 'Deco', built: true,
     line: 'An embroidered Art Deco tapestry on a marble gallery wall whose gilt motifs shape-shift, kaleidoscope and brighten to the music. A static shot.' },
   { id: 'tapestry-ii', name: 'Deco Tapestry II', cat: 'Deco', built: true,
-    line: 'Midnight enamel and layered brass: a sunburst relief, stepped wings and woven light. Bass warms the gold; treble catches the filigree.' },
+    line: 'Twenty-four brass-and-enamel Deco arrangements. Quiet music drifts through fine ornament; energy jumps accelerate radical morphs, reorientation and intricate woven patterns.' },
   { id: 'lattice', name: 'Flux Lattice', cat: 'Form', built: true,
     line: 'A suspended porcelain-and-copper orbital instrument. Interlaced meridians turn around a dark pearl; sound illuminates their intersections.' },
   { id: 'tunnel', name: 'Flux Tunnel', cat: 'Mir', built: true,
@@ -56,6 +62,8 @@ export function fluxSceneBuilt(id: FluxSceneId): boolean {
 }
 
 export interface FluxSpec {
+  /** -1 lets the music conduct; 0..23 holds a Deco arrangement for exploration. */
+  decoSeed?: number;
   scene: FluxSceneId;
   /** Camera behaviour. 'static' holds a fixed angle; 'orbit' auto-orbits by orbitSpeed over clip time. */
   camera: 'static' | 'orbit';
@@ -71,6 +79,7 @@ export interface FluxSpec {
 }
 
 export const FLUX_DEFAULT: FluxSpec = {
+  decoSeed: -1,
   scene: 'field',
   // yaw/pitch are OFFSETS on top of each scene's own framing (0 = the scene's default camera).
   camera: 'static', orbitSpeed: 6, yaw: 0, pitch: 0, distance: 1,
@@ -79,6 +88,7 @@ export const FLUX_DEFAULT: FluxSpec = {
 };
 
 const RANGES: Partial<Record<keyof FluxSpec, [number, number]>> = {
+  decoSeed: [-1,23],
   orbitSpeed: [-90, 90], yaw: [-360, 360], pitch: [-80, 80], distance: [0.4, 3],
   exposure: [0.2, 3], bloom: [0, 3], hue: [0, 1], sensitivity: [0.2, 3],
 };
@@ -120,8 +130,8 @@ export function fluxOrbitEye(target: { x: number; y: number; z: number }, yawDeg
 // same way. Stateful for smoothness; frame-rate-independent so a 30fps export and a 60fps monitor
 // feel the same. A backward or large time jump (a timeline seek) snaps rather than smears.
 
-/** Bands from a byte FFT array (analyser or offline spectrum), resolution-independent via fractional
- *  band edges — so a 256-bin DJ analyser and a 1024-bin export spectrum read the same. */
+/** Perceptual bands from a byte FFT array (analyser or offline spectrum).
+ * Pass the analyser's sample rate so bass/mid/treble represent physical Hz. */
 export function fluxBandsFromFreq(freq: Uint8Array | null | undefined, sampleRate = 48000): FluxAudio {
   const n = freq ? freq.length : 0;
   if (!n) return { ...SILENT_AUDIO };
@@ -139,10 +149,10 @@ export function fluxBandsFromFreq(freq: Uint8Array | null | undefined, sampleRat
   return { bass, mid, treble, level: bass * .5 + mid * .35 + treble * .15, beat: 0 };
 }
 
-export interface FluxDriven { bass: number; mid: number; tre: number; kick: number; snare: number; energy: number; beat: number }
-export interface FluxAudioState { lastT: number; energy: number; kick: number; snare: number; prevTre: number; bass: number; mid: number; tre: number }
+export interface FluxDriven { bass: number; mid: number; tre: number; kick: number; snare: number; energy: number; beat: number; bpm:number; tempoConfidence:number; beatPosition?:number; voice:number; intensity:number }
+export interface FluxAudioState { lastT: number; energy: number; kick: number; snare: number; prevTre: number; bass: number; mid: number; tre: number; voice:number; intensity:number }
 export function newFluxAudioState(): FluxAudioState {
-  return { lastT: -1, energy: 0, kick: 0, snare: 0, prevTre: 0, bass: 0, mid: 0, tre: 0 };
+  return { lastT: -1, energy: 0, kick: 0, snare: 0, prevTre: 0, bass: 0, mid: 0, tre: 0, voice:0, intensity:0 };
 }
 
 /** Advance the envelope by one frame at clip-local time `t`, returning the driven values for uniforms. */
@@ -165,5 +175,10 @@ export function driveFluxAudio(st: FluxAudioState, a: FluxAudio, t: number, sens
   st.kick = snap ? kf : Math.max(st.kick * Math.pow(0.80, dtN), Math.min(1, kf));
   const sf = Math.max(0, tre - st.prevTre * 1.25); st.prevTre = st.prevTre * 0.9 + tre * 0.1;
   st.snare = snap ? 0 : Math.max(st.snare * Math.pow(0.78, dtN), Math.min(1, sf * 6.0));
-  return { bass: st.bass, mid: st.mid, tre: st.tre, kick: st.kick, snare: st.snare, energy: st.energy, beat: st.kick };
+  const voice=clamp(Number.isFinite(a.voice)?a.voice!:0,0,1);
+  const intensity=clamp((Number.isFinite(a.intensity)?a.intensity!:a.level)*sens,0,1);
+  st.voice=snap?voice:L(st.voice,voice,.075);st.intensity=snap?intensity:L(st.intensity,intensity,.06);
+  return { bass: st.bass, mid: st.mid, tre: st.tre, kick: st.kick, snare: st.snare, energy: st.energy, beat: st.kick,
+    voice:st.voice,intensity:st.intensity,bpm:clamp(a.bpm||120,40,240),tempoConfidence:clamp(a.tempoConfidence||0,0,1),
+    beatPosition:Number.isFinite(a.beatPosition)?a.beatPosition:undefined };
 }

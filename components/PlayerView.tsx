@@ -19,11 +19,12 @@ import AlbumTvView from './tv/AlbumTvView';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
 import FxStageVisualizers, { type FxEngine, fxPresetName, FX_ENGINE_PRESETS, loadMilkdropNames, loadShaderNames } from './FxStageVisualizers';
 import Logo from './Logo';
-import { publishToCloud, postComment, subscribeToComments, updateAlbum, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost, auth } from '../services/backendService';
+import { publishToCloud, postComment, subscribeToComments, updateAlbum, updatePersonalAlbum, updatePersonalTrack, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost, auth } from '../services/backendService';
 import ShareButton from './ShareButton';
 import ChoraQualityButton from './ChoraQualityButton';
 import OfflineDownloadButton from './OfflineDownloadButton';
 import PlaylistPickerModal from './PlaylistPickerModal';
+import LockerEditModal from './LockerEditModal';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { createParty, partyShareUrl, shouldResync } from '../services/partyService';
 import { useParty } from '../hooks/useParty';
@@ -662,10 +663,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   }, [gatefoldOn, gatefoldStageMode, isStageCycling, stageCycleStarted, selectGatefoldStage]);
   const [milkdropNames, setMilkdropNames] = useState<string[]>([]);
   const [shaderNames, setShaderNames] = useState<string[]>([]);
-  const isPixelsEngine = fxEngine === 'MILKDROP' || fxEngine === 'SHADER' || fxEngine === 'GENERATOR';
+  const isPixelsEngine = fxEngine === 'MILKDROP' || fxEngine === 'SHADER' || fxEngine === 'GENERATOR' || fxEngine === 'FLUX';
   const FX_OPTIONS = [
     { id: 'FLOW' as const, label: 'Flow' }, { id: 'PAINT' as const, label: 'Paint' },
-    { id: 'MILKDROP' as const, label: 'MilkDrops' }, { id: 'SHADER' as const, label: 'Shaders' }, { id: 'GENERATOR' as const, label: 'Generators' },
+    { id: 'FLUX' as const, label: 'Flux 3D' },
+    { id: 'SHADER' as const, label: 'Shaders' }, { id: 'GENERATOR' as const, label: 'Generators' }, { id: 'MILKDROP' as const, label: 'MilkDrops' },
   ];
   // Lazily fetch each async engine's full preset name list the first time it's used —
   // butterchurn's presets, and the Signature Series shader library.
@@ -720,7 +722,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             <>
               <div className="fixed inset-0 z-40" onClick={() => setFxMenuOpen(false)} />
               <div className="absolute top-full right-0 mt-2 w-56 max-h-72 overflow-y-auto no-scrollbar rounded-2xl bg-[#141414] border border-white/10 shadow-2xl z-50 p-1">
-                <div className="px-3 pt-1.5 pb-1 text-[8px] font-black uppercase tracking-[0.2em] text-white/25">{fxEngine === 'MILKDROP' ? 'MilkDrops' : fxEngine === 'SHADER' ? 'Shaders' : 'Generators'} · {fxPresetList.length || '…'}</div>
+                <div className="px-3 pt-1.5 pb-1 text-[8px] font-black uppercase tracking-[0.2em] text-white/25">{fxEngine === 'MILKDROP' ? 'MilkDrops' : fxEngine === 'SHADER' ? 'Shaders' : fxEngine === 'FLUX' ? 'Flux 3D' : 'Generators'} · {fxPresetList.length || '…'}</div>
                 {fxPresetList.length === 0 && <div className="px-3 py-2 text-[10px] text-white/30">Loading presets…</div>}
                 {fxPresetList.map((name, idx) => (
                   <button key={idx} onClick={() => { setFxPresetIndex(idx); setFxMenuOpen(false); }}
@@ -817,6 +819,47 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { track: currentTrack, album } }));
   }, [currentTrack, album]);
   const isOwner = user && album.ownerId === user.uid;
+  const isLockerRelease = Boolean(album.isPrivate || album.id.startsWith('locker-') || album.id.startsWith('palbum_'));
+  const [isLockerEditOpen, setIsLockerEditOpen] = useState(false);
+
+  const handleOpenEdit = () => {
+    if (isLockerRelease) {
+      setIsLockerEditOpen(true);
+    } else if (onEdit) {
+      onEdit(album);
+    }
+  };
+
+  const handleSaveLockerEdit = async (updated: {
+    title: string;
+    artist?: string;
+    genre?: string;
+    coverUrl?: string;
+    tracks: Track[];
+  }) => {
+    const updates: Partial<Album> = {
+      title: updated.title,
+      artist: updated.artist || album.artist,
+      genre: updated.genre,
+      coverImage: updated.coverUrl,
+      tracks: updated.tracks,
+    };
+    if (album.id.startsWith('palbum_')) {
+      await updatePersonalAlbum(album.id, updates);
+    }
+    setLocalTracks(updated.tracks);
+    if (onUpdate) {
+      onUpdate({ ...album, ...updates });
+    }
+    for (const t of updated.tracks) {
+      await updatePersonalTrack(t.id, {
+        title: t.title,
+        artist: t.artist,
+        albumTitle: updated.title,
+        albumCover: updated.coverUrl,
+      });
+    }
+  };
 
   // Sample clearance: if the artist cleared this track for sampling, offer "Sample this".
   const [sampleClearance, setSampleClearance] = useState<SampleClearance | null>(null);
@@ -1277,17 +1320,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 <button onClick={() => setIsVisualizerLayout(false)} aria-label="Exit FX Stage" className="shrink-0 p-2 rounded-full bg-black/60 border border-white/10 text-white/60 hover:text-white transition-all"><X size={14} /></button>
                 <div className="flex-1 flex items-center justify-center min-w-0">{fxSelectorEl}</div>
                 <button
-                  onClick={() => {
-                    const stage = document.getElementById('mobile-video-container');
-                    if (!stage) return;
-                    if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
-                      if (document.exitFullscreen) void document.exitFullscreen();
-                      else (document as any).webkitExitFullscreen?.();
-                    } else {
-                      if (stage.requestFullscreen) void stage.requestFullscreen();
-                      else (stage as any).webkitRequestFullscreen?.();
-                    }
-                  }}
+                  onClick={() => setIsTvFxActive(true)}
                   aria-label="Full screen FX Stage"
                   title="Full screen"
                   className="shrink-0 p-2 rounded-full bg-white/10 border border-white/20 text-white/80 hover:bg-white/20 transition-all"
@@ -2939,13 +2972,13 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           {/* Helper: icon + expandable label pill */}
           {[
             ...(isPublic ? [{ key: 'live', icon: Globe, label: 'Live Microsite', onClick: undefined, style: { color: 'rgb(74 222 128)' } }] : []),
-            ...(isOwner && onEdit ? [{ key: 'edit', icon: Zap, label: 'Edit Album', onClick: () => onEdit(album), style: { color: '#FF8C00' } }] : []),
+            ...(isOwner ? [{ key: 'edit', icon: Zap, label: isLockerRelease ? 'Edit Locker' : 'Edit Album', onClick: handleOpenEdit, style: { color: '#FF8C00' } }] : []),
             ...(isVisualizerLayout ? [{ key: 'fx', icon: Activity, label: 'FX Stage On', onClick: () => setIsVisualizerLayout(false), style: { color: '#FF8C00' } }] : []),
             { key: 'tv', icon: VideoIcon, label: isTVMode ? 'TV On' : 'TV Mode', onClick: () => setIsTVMode(!isTVMode), style: isTVMode ? { color: '#FF8C00' } : {} },
             { key: 'dj', icon: Disc, label: 'DJ Mode', onClick: () => { getAudioContext?.(); setIsDJMode(true); }, style: {} },
             { key: 'lights', icon: Zap, label: 'Lights', onClick: () => setIsLightingOpen(true), style: isLightingOpen ? { color: '#FF8C00' } : {} },
             { key: 'pixels', icon: Sparkles, label: 'Pixels', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { album } })), style: {} },
-            ...(!isOwner && !isPreview ? [
+            ...(!isOwner && !isPreview && !isLockerRelease ? [
               { key: 'gifts', icon: HeartHandshake, label: 'Gifts & Tips', onClick: () => setIsDonationModalOpen(true), style: { color: '#FF8C00' } },
               { key: 'pif', icon: Heart, label: 'Pay It Forward', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_PIF_MODAL')), style: {} },
             ] : []),
@@ -3077,13 +3110,13 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 ...(album.galleryUrl ? [{ key: 'gallery', icon: Globe, label: 'Gallery', onClick: () => window.open(album.galleryUrl!, '_blank'), active: false }] : []),
                 { key: 'captions', icon: MessageSquare, label: showCaptions ? 'Hide Captions' : 'Captions', onClick: () => setShowCaptions(!showCaptions), active: showCaptions },
                 ...(!isPublic ? [{ key: 'share', icon: Share2, label: 'Share', onClick: () => setShowShareModal(true), active: false }] : []),
-                ...(isOwner && onEdit ? [{ key: 'edit', icon: Zap, label: 'Edit Album', onClick: () => onEdit(album), active: false }] : []),
+                ...(isOwner ? [{ key: 'edit', icon: Zap, label: isLockerRelease ? 'Edit Locker' : 'Edit Album', onClick: handleOpenEdit, active: false }] : []),
                 ...(isVisualizerLayout ? [{ key: 'fx', icon: Activity, label: 'FX Stage On', onClick: () => setIsVisualizerLayout(false), active: true }] : []),
                 { key: 'tv', icon: VideoIcon, label: isTVMode ? 'TV On' : 'TV Mode', onClick: () => setIsTVMode(!isTVMode), active: isTVMode },
                 { key: 'dj', icon: Disc, label: 'DJ Mode', onClick: () => { getAudioContext?.(); setIsDJMode(true); }, active: false },
                 { key: 'lights', icon: Zap, label: 'Lights', onClick: () => setIsLightingOpen(true), active: isLightingOpen },
                 { key: 'pixels', icon: Sparkles, label: 'Pixels', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { album } })), active: false },
-                ...(!isOwner && !isPreview ? [
+                ...(!isOwner && !isPreview && !isLockerRelease ? [
                   { key: 'gifts', icon: HeartHandshake, label: 'Gifts & Tips', onClick: () => setIsDonationModalOpen(true), active: false },
                   { key: 'pif', icon: Heart, label: 'Pay It Forward', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_PIF_MODAL')), active: false },
                 ] : []),
@@ -3549,10 +3582,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                   <p className="text-sm font-black uppercase tracking-[0.3em]">No lyrics available for this transmission.</p>
                                   {isOwner && (
                                     <button 
-                                      onClick={() => onEdit?.(album)}
+                                      onClick={handleOpenEdit}
                                       className="px-8 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest"
                                     >
-                                      Add Lyrics in Creator
+                                      {isLockerRelease ? 'Edit Details' : 'Add Lyrics in Creator'}
                                     </button>
                                   )}
                                 </div>
@@ -3945,7 +3978,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         <div className="flex items-center justify-between">
                           <span className="text-[11px] font-black uppercase tracking-[0.4em] text-small-orange">Operational Overview</span>
                           {isOwner && (
-                            <button onClick={() => onEdit?.(album)} className="text-[10px] font-bold text-white/20 hover:text-white uppercase tracking-widest flex items-center gap-2">
+                            <button onClick={handleOpenEdit} className="text-[10px] font-bold text-white/20 hover:text-white uppercase tracking-widest flex items-center gap-2">
                               <Pen size={12} /> Edit Notes
                             </button>
                           )}
@@ -4080,197 +4113,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         <React.Suspense fallback={null}><TvFxSurface /></React.Suspense>
       )}
 
-      {/* ─────────────────── VISUALIZER FULLSCREEN STAGE (legacy desktop overlay, superseded by the TV FX surface above) ─────────────────── */}
-      <AnimatePresence>
-        {isVisualizerFullscreen && !isMobile && !isTVMode && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
-            className="fixed inset-0 z-[500] bg-black overflow-hidden"
-          >
-            {/* ── Background: full-canvas visualizer ── */}
-            <div className="absolute inset-0 z-0">
-              {isPixelsEngine ? (
-                <div className="absolute inset-0">
-                  <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={true} />
-                </div>
-              ) : (
-                <>
-                  <div className="absolute inset-0" style={{ opacity: fxEngine === 'PAINT' ? 0.5 : 1, transition: 'opacity 0.8s ease' }}>
-                    <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} alwaysAnimate={true} />
-                  </div>
-                  {fxEngine === 'PAINT' && (
-                    <div className="absolute inset-0 pointer-events-none">
-                      <PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} alwaysAnimate={true} />
-                    </div>
-                  )}
-                  {gatefoldOn && (
-                    <button
-                      onClick={() => { setIsStageCycling(v => !v); setStageCycleStarted(true); }}
-                      aria-pressed={isStageCycling}
-                      className={`px-4 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border flex items-center gap-2 ${isStageCycling ? 'bg-white/10 border-white/25 text-white' : 'bg-white/[0.04] border-white/10 text-white/35 hover:text-white'}`}
-                      title={isStageCycling ? 'Stop automatic stage cycling' : 'Resume automatic stage cycling'}
-                    >
-                      <RefreshCw size={10} className={isStageCycling ? 'animate-spin [animation-duration:8s]' : ''} /> Cycle {isStageCycling ? 'On' : 'Off'}
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
 
-            {/* ── Right half gradient darkener for lyric readability ── */}
-            <div className="absolute right-0 top-0 w-1/2 h-full z-10 pointer-events-none bg-gradient-to-l from-black/85 via-black/60 to-transparent" />
-
-            {/* ── Right half: dominant synced lyrics — active line stays center, others scroll past ── */}
-            <div className="absolute right-0 top-0 w-1/2 h-[calc(100%-88px)] z-20 px-12 py-8">
-              {(() => {
-                const track = album.tracks[currentTrackIndex];
-                if (track?.timeCodedLyrics && track.timeCodedLyrics.length > 0) {
-                  return (
-                    <TimeCodedLyrics
-                      tracks={track.timeCodedLyrics}
-                      currentTime={globalCurrentTime}
-                      seek={seek}
-                      paintMode
-                      offset={lyricsOffset}
-                      isResyncMode={isResyncMode}
-                      onResync={handleResync}
-                    />
-                  );
-                } else if (track?.lyrics) {
-                  return (
-                    <div className="h-full flex flex-col justify-center space-y-4 overflow-hidden pointer-events-none">
-                      {track.lyrics.split('\n').filter(Boolean).map((line, idx) => (
-                        <p key={idx} className="text-3xl lg:text-4xl font-display font-black uppercase leading-tight text-white/20">{line}</p>
-                      ))}
-                    </div>
-                  );
-                }
-                return (
-                  <div className="h-full flex flex-col items-center justify-center gap-6 opacity-20 pointer-events-none">
-                    <Music2 size={64} />
-                    <p className="text-sm font-black uppercase tracking-[0.4em]">No lyrics available</p>
-                  </div>
-                );
-              })()}
-            </div>
-
-            {/* ── Bottom: essential control bar ── */}
-            <div className="absolute bottom-0 left-0 right-0 z-30 min-h-[88px] bg-black/70 backdrop-blur-2xl border-t border-white/10 flex flex-wrap lg:flex-nowrap items-center px-4 sm:px-6 lg:px-8 py-3 gap-3 lg:gap-6">
-              {/* Album art thumbnail – bottom left */}
-              <div
-                className="w-12 h-12 rounded-xl overflow-hidden border border-white/20 shadow-[0_0_20px_rgba(0,0,0,0.6)] shrink-0 cursor-pointer hover:scale-105 transition-all"
-                onClick={() => { setIsVisualizerFullscreen(false); setIsVisualizerLayout(true); }}
-                title="Back to stage"
-              >
-                <img src={thumb(album.coverImage, THUMB.small) || undefined} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="w-full h-full object-cover" />
-              </div>
-
-              {/* Track info */}
-              <div className="flex flex-col min-w-0 shrink-0 max-w-[180px]">
-                <span className="text-[11px] font-black uppercase tracking-widest text-white truncate">{currentTrack?.title || 'No Track'}</span>
-                <span className="text-[9px] font-bold text-small-orange uppercase tracking-widest truncate opacity-70">{album.artist}</span>
-              </div>
-
-              {/* Playback controls */}
-              <div className="flex items-center gap-4 shrink-0">
-                <button onClick={globalPrev} className="p-2 text-white/40 hover:text-white transition-all hover:scale-110 active:scale-95">
-                  <SkipBack size={18} />
-                </button>
-                <button
-                  onClick={togglePlay}
-                  className="w-11 h-11 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.25)] hover:scale-110 active:scale-95 transition-all"
-                >
-                  {globalIsPlaying ? <Pause size={20} fill="black" /> : <Play size={20} fill="black" className="ml-0.5" />}
-                </button>
-                <button onClick={globalNext} className="p-2 text-white/40 hover:text-white transition-all hover:scale-110 active:scale-95">
-                  <SkipForward size={18} />
-                </button>
-              </div>
-
-              {/* Progress bar */}
-              <div className="flex-1 flex items-center gap-3">
-                <span className="text-[9px] font-black text-white/30 w-8 text-right shrink-0">{formatTime(globalCurrentTime)}</span>
-                <div
-                  className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden cursor-pointer relative group/fs-progress hover:h-1.5 transition-all"
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    seek(((e.clientX - rect.left) / rect.width) * globalDuration);
-                  }}
-                >
-                  <motion.div
-                    className="absolute inset-y-0 left-0 bg-small-orange shadow-[0_0_10px_rgba(255,140,0,0.5)]"
-                    animate={{ width: `${(globalCurrentTime / (globalDuration || 1)) * 100}%` }}
-                    transition={{ duration: 0.1 }}
-                  />
-                </div>
-                <span className="text-[9px] font-black text-white/30 w-8 shrink-0">{formatTime(globalDuration)}</span>
-              </div>
-
-              {/* Visualizer type selector */}
-              <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-full p-1 shrink-0">
-                <button
-                  onClick={() => setVisualizerType('FLOW')}
-                  className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${visualizerType === 'FLOW' ? 'bg-white text-black shadow' : 'text-white/30 hover:text-white'}`}
-                >
-                  Flow
-                </button>
-                <button
-                  onClick={() => setVisualizerType('PAINT')}
-                  className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${visualizerType === 'PAINT' ? 'bg-white text-black shadow' : 'text-white/30 hover:text-white'}`}
-                >
-                  Paint
-                </button>
-              </div>
-
-              {/* Spatial audio mode cycle + Dolby badge */}
-              <div className="flex items-center gap-2 shrink-0">
-                {isAtmosActive && (
-                  <div
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest select-none"
-                    style={{ background: 'rgba(0,112,255,0.18)', border: '1px solid rgba(0,112,255,0.45)', color: '#60a5fa' }}
-                    title="Dolby Atmos passthrough active on this device"
-                  >
-                    <span style={{ fontStyle: 'italic', letterSpacing: '0.04em' }}>DOLBY</span>
-                    <span className="text-[7px]">ATMOS</span>
-                  </div>
-                )}
-                {dolbySupport.ec3 && !isAtmosActive && (
-                  <div
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest select-none opacity-40"
-                    style={{ border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)' }}
-                    title="This device supports Dolby Atmos passthrough"
-                  >
-                    <span style={{ fontStyle: 'italic' }}>DOLBY</span>
-                  </div>
-                )}
-                <div className="flex items-center bg-white/5 border border-white/10 rounded-full p-0.5">
-                  {(['off', 'orbit', 'reactive'] as const).map(m => (
-                    <button
-                      key={m}
-                      onClick={() => setSpatialMode(m)}
-                      className={`px-2.5 py-1 rounded-full text-[7px] font-black uppercase tracking-widest transition-all ${spatialMode === m ? 'bg-indigo-500 text-white shadow' : 'text-white/30 hover:text-white'}`}
-                      title={m === 'off' ? 'Spatial audio off' : m === 'orbit' ? 'Orbit — slow 3D circle (HRTF)' : 'Reactive — bass, beat & treble drive 3D position'}
-                    >
-                      {m === 'off' ? '2D' : m === 'orbit' ? '3D' : '3D+'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Exit fullscreen */}
-              <button
-                onClick={() => setIsVisualizerFullscreen(false)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/20 transition-all shrink-0"
-              >
-                <Minimize2 size={12} /> Exit
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {showShareModal && (() => {
         const shareText = `Check out ${album.title} by ${album.artist} on Plajah.com`;
@@ -4474,6 +4317,17 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       {/* Add-to-playlist picker — opened from the track header or any track row */}
       {playlistPickerTrack && (
         <PlaylistPickerModal track={playlistPickerTrack} onClose={() => setPlaylistPickerTrack(null)} />
+      )}
+
+      {/* Locker Edit Modal for personal albums/playlists — isolated from commercial AlbumCreator */}
+      {isLockerEditOpen && (
+        <LockerEditModal
+          item={album}
+          tracks={localTracks}
+          isOpen={true}
+          onClose={() => setIsLockerEditOpen(false)}
+          onSave={handleSaveLockerEdit}
+        />
       )}
     </div>
   );

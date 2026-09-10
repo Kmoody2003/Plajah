@@ -583,6 +583,21 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
   }, []);
 
+  // Continuous reactivity watchdog: when isPlaying is true, ensure AudioContext stays active
+  // and ensureAnalyserTap / connectAudioSource stays connected through full songs and track changes.
+  useEffect(() => {
+    if (!isPlaying) return;
+    const checkInterval = setInterval(() => {
+      if (audioContextRef.current?.state === 'suspended') {
+        audioContextRef.current.resume().catch(() => {});
+      }
+      try {
+        ensureAnalyserTap();
+      } catch { /* ignore */ }
+    }, 2500);
+    return () => clearInterval(checkInterval);
+  }, [isPlaying, ensureAnalyserTap]);
+
   useEffect(() => {
     stateRef.current = { repeatMode, isShuffle, currentAlbum, currentTrack, currentVideo, isPlaying, audioSource, currentTime, ytPlayer: ytPlayerRef.current };
   }, [repeatMode, isShuffle, currentAlbum, currentTrack, currentVideo, isPlaying, audioSource, currentTime]);

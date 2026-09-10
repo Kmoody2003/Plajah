@@ -30,7 +30,8 @@ import {
   CheckSquare,
   Square,
   ListPlus,
-  Check
+  Check,
+  Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Track, UserProfile, Album, Playlist, FeedItem } from '../types';
@@ -48,6 +49,8 @@ import {
   updatePlaylist,
   deletePlaylist,
   createPersonalAlbum,
+  updatePersonalAlbum,
+  deletePersonalAlbum,
   deletePersonalTrack,
   updatePersonalTrack,
   uploadFile,
@@ -59,6 +62,8 @@ import { fetchLyrics, fetchCoverArtBlob } from '../services/musicEnrichment';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import OfflineDownloadButton from './OfflineDownloadButton';
 import PlaylistPickerModal from './PlaylistPickerModal';
+import LockerEditModal from './LockerEditModal';
+import MelosPickerModal from './MelosPickerModal';
 import {
   listCachedItems, removeCachedMedia, clearAllOfflineMedia, getOfflineStorageUsed,
   type OfflineCacheEntry,
@@ -99,6 +104,8 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
   // Multi-select for bulk playlist add/remove across the locker.
   const [selectMode, setSelectMode] = useState(false);
   const [playlistPickerTracks, setPlaylistPickerTracks] = useState<Track[] | null>(null);
+  const [melosPickerTracks, setMelosPickerTracks] = useState<Track[] | null>(null);
+  const [editingLockerItem, setEditingLockerItem] = useState<{ item: Album | Playlist; tracks: Track[] } | null>(null);
 
   const loadOffline = async () => {
     try {
@@ -418,11 +425,18 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
           try { coverUrl = await uploadFile(`personal/${auth.currentUser.uid}/covers/${Date.now()}_${(displayAlbum || 'album').replace(/[^a-z0-9]/gi, '_')}.jpg`, coverBlob); } catch { /* art optional */ }
         }
 
+        // Intelligent compilation / mixtape detection:
+        // If folder contains >2 distinct artists or has an explicit playlist sidecar, or user wants a playlist,
+        // we create a personal playlist. Otherwise, we create a personal album.
+        const distinctArtists = new Set(items.map(i => (i.tags.artist || '').trim().toLowerCase()).filter(Boolean));
+        const isCompilation = distinctArtists.size > 2 || !!pl;
+
         let albumId: string | undefined;
-        if (!isSingles) {
-          const album = await createPersonalAlbum({ title: displayAlbum, artist: albumArtist, coverImage: coverUrl || undefined });
-          albumId = album?.id;
-          if (album) setPersonalAlbums(prev => [album, ...prev]);
+        let createdAlbum: Album | undefined;
+        if (!isSingles && !isCompilation) {
+          createdAlbum = await createPersonalAlbum({ title: displayAlbum, artist: albumArtist, coverImage: coverUrl || undefined });
+          albumId = createdAlbum?.id;
+          if (createdAlbum) setPersonalAlbums(prev => [createdAlbum!, ...prev]);
         }
 
         const albumTrackIds: string[] = [];
@@ -447,9 +461,13 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
           setUploadProgress({ done, total: audio.length });
         }
 
-        // Persist the folder's playlist as a Chora playlist too.
-        if (pl && albumTrackIds.length) {
-          try { await createPlaylist({ title: pl.name.replace(/\.[^/.]+$/, ''), trackIds: albumTrackIds, coverUrl: coverUrl || undefined } as any); } catch { /* optional */ }
+        // If compilation/playlist sidecar or multi-artist, create a playlist:
+        if ((isCompilation || pl) && albumTrackIds.length) {
+          const playlistTitle = pl ? pl.name.replace(/\.[^/.]+$/, '') : displayAlbum;
+          try {
+            const newPl = await createPlaylist({ title: playlistTitle, trackIds: albumTrackIds, coverUrl: coverUrl || undefined } as any);
+            if (newPl) setPlaylists(prev => [newPl, ...prev]);
+          } catch { /* optional */ }
         }
       }
 
@@ -483,6 +501,129 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
   const handleDeletePersonal = async (trackId: string) => {
     await deletePersonalTrack(trackId);
     setPersonalTracks(prev => prev.filter(t => t.id !== trackId));
+  };
+
+  const handleSaveLockerItem = async (updated: {
+    title: string;
+    artist?: string;
+    genre?: string;
+    coverUrl?: string;
+    tracks: Track[];
+  }) => {
+    if (!editingLockerItem) return;
+    const { item } = editingLockerItem;
+    const isPlaylist = 'trackIds' in item;
+
+    if (isPlaylist) {
+      const pl = item as Playlist;
+      const trackIds = updated.tracks.map(t => t.id);
+      const updates: Partial<Playlist> = {
+        title: updated.title,
+        coverUrl: updated.coverUrl,
+        trackIds,
+      };
+      await updatePlaylist(pl.id, updates);
+      setPlaylists(prev => prev.map(p => p.id === pl.id ? { ...p, ...updates } : p));
+    } else {
+      const alb = item as Album;
+      const updates: Partial<Album> = {
+        title: updated.title,
+        artist: updated.artist || alb.artist,
+        genre: updated.genre,
+        coverImage: updated.coverUrl,
+        tracks: updated.tracks,
+      };
+      if (alb.id.startsWith('palbum_')) {
+        await updatePersonalAlbum(alb.id, updates);
+      }
+      setPersonalAlbums(prev => prev.map(a => a.id === alb.id ? { ...a, ...updates } : a));
+
+      // Also persist track-level updates (title, artist, albumTitle, albumCover)
+      for (const t of updated.tracks) {
+        await updatePersonalTrack(t.id, {
+          title: t.title,
+          artist: t.artist,
+          albumTitle: updated.title,
+          albumCover: updated.coverUrl,
+        });
+        setPersonalTracks(prev => prev.map(pt => pt.id === t.id ? {
+          ...pt,
+          title: t.title,
+          artist: t.artist,
+          albumTitle: updated.title,
+          albumCover: updated.coverUrl,
+        } : pt));
+      }
+    }
+    setEditingLockerItem(null);
+  };
+
+  const handleConvertToPlaylist = async () => {
+    if (!editingLockerItem) return;
+    const { item, tracks } = editingLockerItem;
+    const title = item.title || 'Playlist';
+    const coverUrl = (item as Album).coverImage || (item as Playlist).coverUrl;
+    const trackIds = tracks.map(t => t.id);
+
+    try {
+      const newPl = await createPlaylist({
+        title,
+        trackIds,
+        coverUrl,
+      } as any);
+      if (newPl) {
+        setPlaylists(prev => [newPl, ...prev]);
+        // If it was a personal album, delete it from personal_albums
+        if (!('trackIds' in item) && item.id.startsWith('palbum_')) {
+          await deletePersonalAlbum(item.id);
+          setPersonalAlbums(prev => prev.filter(a => a.id !== item.id));
+        }
+      }
+    } catch (e) {
+      console.error('Failed to convert album to playlist:', e);
+    }
+    setEditingLockerItem(null);
+  };
+
+  const handleConvertToAlbum = async () => {
+    if (!editingLockerItem) return;
+    const { item, tracks } = editingLockerItem;
+    const title = item.title || 'Album';
+    const artist = tracks[0]?.artist || profile.displayName || 'My Collection';
+    const coverImage = (item as Playlist).coverUrl || (item as Album).coverImage;
+
+    try {
+      const created = await createPersonalAlbum({
+        title,
+        artist,
+        coverImage,
+      });
+      if (created) {
+        setPersonalAlbums(prev => [created, ...prev]);
+        // Update track metadata to point to the new personal album
+        for (const t of tracks) {
+          await updatePersonalTrack(t.id, {
+            albumId: created.id,
+            albumTitle: title,
+            albumCover: coverImage,
+          });
+          setPersonalTracks(prev => prev.map(pt => pt.id === t.id ? {
+            ...pt,
+            albumId: created.id,
+            albumTitle: title,
+            albumCover: coverImage,
+          } : pt));
+        }
+        // If it was a playlist, delete it
+        if ('trackIds' in item) {
+          await deletePlaylist(item.id);
+          setPlaylists(prev => prev.filter(p => p.id !== item.id));
+        }
+      }
+    } catch (e) {
+      console.error('Failed to convert playlist to album:', e);
+    }
+    setEditingLockerItem(null);
   };
 
   const handleCreatePlaylist = async () => {
@@ -931,9 +1072,22 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
                     <div className="min-w-0">
                       <h3 className="text-2xl font-black uppercase tracking-tight truncate">{album?.title || 'Album'}</h3>
                       <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest">{album?.artist} · {tracks.length} track{tracks.length !== 1 ? 's' : ''}</p>
-                      <button onClick={() => tracks[0] && playTrackFromList(tracks[0], tracks, album?.title || 'Album')} className="mt-3 flex items-center gap-2 px-5 py-2 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">
-                        <Play size={12} fill="black" /> Play album
-                      </button>
+                      <div className="mt-3 flex items-center gap-3">
+                        <button onClick={() => tracks[0] && playTrackFromList(tracks[0], tracks, album?.title || 'Album')} className="flex items-center gap-2 px-5 py-2 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">
+                          <Play size={12} fill="black" /> Play album
+                        </button>
+                        {album && (
+                          <button
+                            onClick={() => {
+                              const syntheticAlbum: Album = buildLockerRelease(tracks[0] || {} as any, tracks, album.title);
+                              setEditingLockerItem({ item: syntheticAlbum, tracks });
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-[10px] font-black uppercase tracking-widest transition-all"
+                          >
+                            <Settings size={12} /> Edit Album
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex flex-col gap-2">{tracks.map(t => renderLockerRow(t, tracks))}</div>
@@ -951,14 +1105,27 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-4">Albums</h4>
                     <AdaptiveGrid phone={2} tablet={3} desktop={4} gap="1.5rem">
                       {lockerAlbums.albums.map(a => (
-                        <button key={a.key} onClick={() => a.tracks[0] && (onSelectAlbum ? onSelectAlbum(buildLockerRelease(a.tracks[0], a.tracks, a.title)) : setLockerAlbumId(a.key))} className="group text-left">
-                          <div className="relative aspect-square rounded-[2rem] overflow-hidden mb-3 bg-white/5 flex items-center justify-center">
-                            {a.cover ? <img src={a.cover} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={a.title} /> : <Disc size={48} className="text-white/10 group-hover:scale-110 transition-transform" />}
-                            <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/60 text-[9px] font-black text-white/80">{a.tracks.length}</div>
-                          </div>
-                          <h4 className="text-xs font-black uppercase tracking-widest truncate">{a.title}</h4>
-                          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest truncate">{a.artist}</p>
-                        </button>
+                        <div key={a.key} className="group relative text-left">
+                          <button onClick={() => a.tracks[0] && (onSelectAlbum ? onSelectAlbum(buildLockerRelease(a.tracks[0], a.tracks, a.title)) : setLockerAlbumId(a.key))} className="w-full text-left">
+                            <div className="relative aspect-square rounded-[2rem] overflow-hidden mb-3 bg-white/5 flex items-center justify-center">
+                              {a.cover ? <img src={a.cover} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={a.title} /> : <Disc size={48} className="text-white/10 group-hover:scale-110 transition-transform" />}
+                              <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/60 text-[9px] font-black text-white/80">{a.tracks.length}</div>
+                            </div>
+                            <h4 className="text-xs font-black uppercase tracking-widest truncate">{a.title}</h4>
+                            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest truncate">{a.artist}</p>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const syntheticAlbum: Album = buildLockerRelease(a.tracks[0] || {} as any, a.tracks, a.title);
+                              setEditingLockerItem({ item: syntheticAlbum, tracks: a.tracks });
+                            }}
+                            className="absolute top-2 right-2 p-2 rounded-full bg-black/70 text-white/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-md"
+                            title="Edit album"
+                          >
+                            <Settings size={14} />
+                          </button>
+                        </div>
                       ))}
                     </AdaptiveGrid>
                   </div>
@@ -990,20 +1157,40 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
             </div>
 
             <AdaptiveGrid phone={2} tablet={3} desktop={4} gap="2rem">
-              {playlists.map(playlist => (
-                <div key={playlist.id} className="group cursor-pointer">
-                  <div className="relative aspect-square rounded-[2.5rem] overflow-hidden mb-4 bg-white/5 shadow-2xl">
-                    <img src={playlist.coverUrl || null} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={playlist.title} />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <button className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-black">
-                        <Play size={28} fill="black" />
+              {playlists.map(playlist => {
+                const playlistTracks = personalTracks.filter(t => playlist.trackIds?.includes(t.id));
+                return (
+                  <div key={playlist.id} className="group relative cursor-pointer">
+                    <div className="relative aspect-square rounded-[2.5rem] overflow-hidden mb-4 bg-white/5 shadow-2xl">
+                      <img src={playlist.coverUrl || null} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={playlist.title} />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                        <button
+                          onClick={() => {
+                            if (playlistTracks.length > 0) {
+                              playTrackFromList(playlistTracks[0], playlistTracks, playlist.title);
+                            }
+                          }}
+                          className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-black"
+                        >
+                          <Play size={28} fill="black" />
+                        </button>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingLockerItem({ item: playlist, tracks: playlistTracks });
+                        }}
+                        className="absolute top-3 right-3 p-2.5 rounded-full bg-black/70 text-white/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-md z-10"
+                        title="Edit playlist"
+                      >
+                        <Settings size={15} />
                       </button>
                     </div>
+                    <h4 className="text-sm font-black uppercase tracking-widest truncate mb-1">{playlist.title}</h4>
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{playlist.trackIds.length} Tracks</p>
                   </div>
-                  <h4 className="text-sm font-black uppercase tracking-widest truncate mb-1">{playlist.title}</h4>
-                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{playlist.trackIds.length} Tracks</p>
-                </div>
-              ))}
+                );
+              })}
               {playlists.length === 0 && (
                 <div className="col-span-full py-20 text-center border-2 border-dashed border-white/5 rounded-[3rem]">
                   <ListMusic size={48} className="text-white/5 mx-auto mb-4" />
@@ -1171,6 +1358,12 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
               <ListPlus size={14} /> Add / remove to playlist
             </button>
             <button
+              onClick={() => { if (selectedTracks.length) setMelosPickerTracks(selectedTracks); }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase tracking-widest transition-all"
+            >
+              <Layers size={14} /> Add to Melos
+            </button>
+            <button
               onClick={bulkRemoveFromLocker}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 text-white/60 hover:text-red-400 text-[10px] font-black uppercase tracking-widest transition-colors"
             >
@@ -1235,6 +1428,28 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
           </motion.div>
         )}
       </AnimatePresence>, document.body)}
+
+      {/* Melos Picker Modal */}
+      {melosPickerTracks && (
+        <MelosPickerModal
+          tracks={melosPickerTracks}
+          onClose={() => setMelosPickerTracks(null)}
+          onDone={() => { setMelosPickerTracks(null); exitSelectMode(); }}
+        />
+      )}
+
+      {/* Locker Edit Modal for personal albums and playlists */}
+      {editingLockerItem && (
+        <LockerEditModal
+          item={editingLockerItem.item}
+          tracks={editingLockerItem.tracks}
+          isOpen={true}
+          onClose={() => setEditingLockerItem(null)}
+          onSave={handleSaveLockerItem}
+          onConvertToPlaylist={'trackIds' in editingLockerItem.item ? undefined : handleConvertToPlaylist}
+          onConvertToAlbum={'trackIds' in editingLockerItem.item ? handleConvertToAlbum : undefined}
+        />
+      )}
     </div>
   );
 };

@@ -68,8 +68,13 @@ export function presetShelf(): LibraryItem[] {
   for (const w of SIGNATURE_WORKS as any[])
     out.push({ id: 'shader:' + w.id, name: w.name, source: 'presets', kind: 'shader', category: 'Series ' + w.series, author: w.setTitle || 'Signature', tags: (w.reacts || []).map((r: any) => r[0]), typeLabel: 'SHADER', preview: { mode: 'shader', effectId: w.id, shaderSrc: signatureSource(w), params: (w.params || []).map((p: any) => p.def ?? 0) } });
 
-  for (const g of SCENE_CATALOG as any[])
-    out.push({ id: 'gen:' + g.mode, name: g.name, source: 'presets', kind: 'gen', category: g.cat, author: 'Plajah', typeLabel: 'GENERATOR', preview: { mode: 'gen', genMode: g.mode } });
+  for (const g of SCENE_CATALOG as any[]) {
+    // A scene is implemented as a generator, while the library presents it as a
+    // reusable visualizer template. Flux keeps the generator preview/runtime but
+    // gets the clearer user-facing label.
+    const isFlux = String(g.cat || '').startsWith('Flux ·');
+    out.push({ id: 'gen:' + g.mode, name: g.name, source: 'presets', kind: 'gen', category: g.cat, author: 'Plajah', typeLabel: isFlux ? 'VISUALIZER' : 'GENERATOR', preview: { mode: 'gen', genMode: g.mode } });
+  }
 
   for (const lk of FORGE_LOOKS as any[])
     out.push({ id: 'look:' + lk.id, name: lk.name, source: 'presets', kind: 'look', category: lk.category, author: lk.builtIn ? 'Plajah' : 'You', tags: lk.steps?.map((s: any) => s.effectId), typeLabel: 'LOOK', preview: { mode: 'look', effectId: lk.id, look: resolveLookChain(lk.steps) } });
@@ -99,7 +104,10 @@ const FILTER_KINDS: Record<LibraryFilter, LibraryKind[] | null> = {
   audio: ['bassline', 'groove', 'media'],
   footage: ['media'],
   presets: ['fx', 'shader', 'gen', 'look', 'trans', 'groove', 'bassline'],
-  templates: ['template'],
+  // Generator scenes are reusable visualizer templates. Keeping their internal
+  // `gen` kind means Pixels can run them directly while this filter makes them
+  // discoverable alongside layout templates.
+  templates: ['template', 'gen'],
   fx: ['fx', 'gen', 'look', 'trans'],
   shaders: ['shader'],
   grooves: ['groove', 'bassline'],

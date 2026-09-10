@@ -39,6 +39,10 @@ accepts.
   `SceneInst` builders in `fluxCouncilScenes.ts`, registered in the shared renderer,
   Pixels modes and DJ catalog. *Built.* See [the collection notes](FLUX_COUNCIL_COLLECTION.md)
   for creative direction, council-run limitations, preview and verification.
+- **Porcelain Tide / Velvet Bloom / Prism Archive** — three original kinetic
+  installations in `fluxAtelierScenes.ts`. Deco Tapestry II was subsequently rebuilt
+  in `decoTapestryII.ts` with new ornaments and kaleidoscopic motif transformations.
+  The gallery now uses real audio through an analyser, including its audible test groove.
 
 ### Audio contract
 
