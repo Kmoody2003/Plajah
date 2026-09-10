@@ -799,6 +799,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     setSelectMode(false);
   }, [trackSelection]);
 
+  const toggleSelectMode = useCallback(() => {
+    trackSelection.clear();
+    setSelectMode(current => !current);
+  }, [trackSelection]);
+
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
   useEffect(() => {
     fetchPersonalPlaylists().then(pl => setUserPlaylists(pl || [])).catch(() => {});
