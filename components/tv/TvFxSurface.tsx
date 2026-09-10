@@ -39,7 +39,7 @@ const fmt = (s?: number): string => {
 const TvFxSurface: React.FC = () => {
   const {
     isTvFxActive, setIsTvFxActive, analyser, isPlaying, togglePlay, next, prev,
-    currentTrack, currentAlbum, currentTime, duration, isSlideshowActive, playTrack,
+    currentTrack, currentAlbum, currentTime, duration, playTrack,
   } = useGlobalPlayer();
 
   const [engineIdx, setEngineIdx] = useState(0);
@@ -55,7 +55,7 @@ const TvFxSurface: React.FC = () => {
   const [pickerSearch, setPickerSearch] = useState('');
   const hideTimer = useRef<any>(null);
 
-  const showing = isTvFxActive && !isSlideshowActive;
+  const showing = isTvFxActive;
   const engine = TV_ENGINES[engineIdx];
 
   const currentEnginePresets = useMemo(() => {
@@ -195,7 +195,8 @@ const TvFxSurface: React.FC = () => {
                 <button
                   key={track.id}
                   ref={isActive ? activeTrackRef : null}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     if (!isActive) playTrack(track, currentAlbum, 'LIBRARY');
                   }}
                   className={`text-right font-black uppercase tracking-widest transition-all duration-300 cursor-pointer max-w-full ${
@@ -430,7 +431,7 @@ const TvFxSurface: React.FC = () => {
                 onMouseLeave={() => setIsPlaylistHovered(false)}
               >
                 <button
-                  onClick={() => setIsPlaylistLocked(p => !p)}
+                  onClick={(e) => { e.stopPropagation(); setIsPlaylistLocked(p => !p); }}
                   aria-label="Toggle Playlist"
                   className={`cursor-pointer transition-colors ${isPlaylistLocked || isPlaylistHovered ? 'text-[#FF8C00]' : 'text-white/60 hover:text-white'}`}
                 >
