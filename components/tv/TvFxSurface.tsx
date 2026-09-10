@@ -355,6 +355,29 @@ const TvFxSurface: React.FC = () => {
         </div>
       )}
 
+      {/* Playlist toggle — always-visible button above branding, lower-right */}
+      {currentAlbum?.tracks?.length ? (
+        <div
+          className="absolute right-12 z-[50] pointer-events-auto transition-opacity duration-300"
+          style={{ bottom: '14rem', opacity: controls ? 1 : 0.4 }}
+          onMouseEnter={() => { setIsPlaylistHovered(true); wake(); }}
+          onMouseLeave={() => setIsPlaylistHovered(false)}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); setIsPlaylistLocked(p => !p); }}
+            aria-label="Toggle Playlist"
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-full transition-all cursor-pointer backdrop-blur-sm ${
+              isPlaylistLocked ? 'bg-[#FF8C00]/20 border border-[#FF8C00]/50 text-[#FF8C00]' :
+              isPlaylistHovered ? 'bg-white/10 border border-white/20 text-white' :
+              'bg-white/5 border border-white/10 text-white/40 hover:text-white/70'
+            }`}
+          >
+            <ListMusic size={18} />
+            <span className="text-[9px] font-black uppercase tracking-widest">{isPlaylistLocked ? 'Hide List' : 'Tracklist'}</span>
+          </button>
+        </div>
+      ) : null}
+
       {/* Plajah Full Stage Mode — branding logo bug, lower-right above transport */}
       <div
         className="absolute right-12 z-10 flex items-center gap-2 pointer-events-none select-none transition-opacity duration-500"
