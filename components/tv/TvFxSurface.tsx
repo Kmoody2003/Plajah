@@ -42,7 +42,7 @@ const TvFxSurface: React.FC = () => {
     currentTrack, currentAlbum, currentTime, duration, playTrack,
   } = useGlobalPlayer();
 
-  const [engineIdx, setEngineIdx] = useState(0);
+  const [engineIdx, setEngineIdx] = useState(2); // default to FLUX (index 2 in TV_ENGINES)
   const [isPlaylistLocked, setIsPlaylistLocked] = useState(false);
   const [isPlaylistHovered, setIsPlaylistHovered] = useState(false);
   const activeTrackRef = useRef<HTMLButtonElement>(null);

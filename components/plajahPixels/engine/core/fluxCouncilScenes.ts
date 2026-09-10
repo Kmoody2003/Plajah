@@ -34,11 +34,13 @@ const NOISE_GLSL = `
  */
 export function buildLattice(T: any): SceneInst {
   const scene = new T.Scene();
-  scene.fog = new T.FogExp2(0x040812, 0.015);
+  scene.fog = new T.FogExp2(0x040812, 0.008);
   const camera = new T.PerspectiveCamera(48, 1, 0.1, 200);
 
-  // Forty thousand ordered points on a breathing sphere (Fibonacci distribution)
-  const CNT = 40000;
+  // 40000 points for sphere + 15000 points for concentric orbital rings
+  const S_CNT = 40000;
+  const R_CNT = 15000;
+  const CNT = S_CNT + R_CNT;
   const pos = new Float32Array(CNT * 3);
   const uvIdx = new Float32Array(CNT * 2);
 
@@ -46,8 +48,8 @@ export function buildLattice(T: any): SceneInst {
   const goldenAngle = Math.PI * 2 * (1 - 1 / phi);
   const R_BASE = 7.2;
 
-  for (let i = 0; i < CNT; i++) {
-    const y = 1 - (i / (CNT - 1)) * 2;
+  for (let i = 0; i < S_CNT; i++) {
+    const y = 1 - (i / (S_CNT - 1)) * 2;
     const radiusAtY = Math.sqrt(Math.max(0, 1 - y * y));
     const theta = goldenAngle * i;
 
@@ -57,6 +59,25 @@ export function buildLattice(T: any): SceneInst {
 
     uvIdx[i * 2] = (y + 1) * 0.5;
     uvIdx[i * 2 + 1] = (theta % (Math.PI * 2)) / (Math.PI * 2);
+  }
+
+  // Concentric orbital rings at equator
+  for (let i = 0; i < R_CNT; i++) {
+    const idx = S_CNT + i;
+    // radii from 9 to 16
+    const rProgress = i / (R_CNT - 1);
+    const radius = 9.0 + rProgress * 7.0;
+    const theta = goldenAngle * i * 3.0; // spin them a bit differently
+    
+    // y roughly 0, slight variance
+    const y = (Math.random() - 0.5) * 0.4;
+    
+    pos[idx * 3] = Math.cos(theta) * radius;
+    pos[idx * 3 + 1] = y;
+    pos[idx * 3 + 2] = Math.sin(theta) * radius;
+
+    uvIdx[idx * 2] = 0.5;
+    uvIdx[idx * 2 + 1] = (theta % (Math.PI * 2)) / (Math.PI * 2);
   }
 
   const geo = new T.BufferGeometry();
@@ -88,48 +109,65 @@ export function buildLattice(T: any): SceneInst {
 
       void main() {
         vec3 p0 = position;
+        float r0 = length(p0);
         vec3 n = normalize(p0);
+        
+        bool isRing = r0 > 8.5;
 
-        // 1. Bass swells the globe
-        float swell = 1.0 + uBass * 0.46 + smoothstep(0.35, 1.0, uEnergy) * 0.24;
+        vec3 p = p0;
+        float h = 0.0;
+        float crest = 0.0;
+        float ripple = 0.0;
 
-        // 2. Highs light the crests (fbm3 3D harmonic displacement)
-        vec3 noiseCoord = n * 2.2 + vec3(0.0, uTime * 0.22, 0.0);
-        float h = fbm3(noiseCoord);
-        float crest = smoothstep(0.36, 0.82, h);
-        float displacement = h * (0.8 + uMid * 1.1 + uTre * 0.7);
+        vec3 colBase = vec3(0.05, 0.35, 1.0);
+        vec3 colMid = vec3(0.1, 1.0, 1.0);
+        vec3 colCrest = vec3(1.0, 0.6, 0.1);
+        vec3 colGold = vec3(1.0, 0.85, 0.15);
+        vec3 c = colBase;
 
-        // 3. Kick fires a ripple across the surface
-        float lat = p0.y / (length(p0) + 0.001);
-        float ripplePhase = lat * 15.0 - uTime * 7.5;
-        float ripple = sin(ripplePhase) * uKick * 1.7 * exp(-abs(lat) * 0.35);
+        if (!isRing) {
+          // 1. Bass swells the globe
+          float swell = 1.0 + uBass * 0.46 + smoothstep(0.35, 1.0, uEnergy) * 0.24;
 
-        // Displaced position
-        vec3 p = n * (length(p0) * swell + displacement + ripple);
+          // 2. Highs light the crests (fbm3 3D harmonic displacement)
+          vec3 noiseCoord = n * 2.2 + vec3(0.0, uTime * 0.22, 0.0);
+          h = fbm3(noiseCoord);
+          crest = smoothstep(0.36, 0.82, h);
+          float displacement = h * (0.8 + uMid * 1.1 + uTre * 0.7);
 
-        // Palette: Deep sapphire base -> electric cyan mid -> crest light -> kick gold flare
-        vec3 colBase = vec3(0.04, 0.28, 0.95);
-        vec3 colMid = vec3(0.08, 0.92, 1.0);
-        vec3 colCrest = vec3(1.0, 0.72, 0.32);
-        vec3 colGold = vec3(1.0, 0.88, 0.22);
+          // 3. Kick fires a ripple across the surface
+          float lat = p0.y / (r0 + 0.001);
+          float ripplePhase = lat * 15.0 - uTime * 7.5;
+          ripple = sin(ripplePhase) * uKick * 1.7 * exp(-abs(lat) * 0.35);
 
-        vec3 c = mix(colBase, colMid, smoothstep(0.12, 0.62, h));
-        c = mix(c, colCrest, crest);
-        // Highs light the crests
-        c += colCrest * (crest * uTre * 1.6);
-        // Kick fires gold shockwave
-        c = mix(c, colGold, smoothstep(0.4, 0.95, abs(ripple)) * uKick * 0.8);
+          p = n * (r0 * swell + displacement + ripple);
+          
+          c = mix(colBase, colMid, smoothstep(0.12, 0.62, h));
+          c = mix(c, colCrest, crest);
+          c += colCrest * (crest * uTre * 1.6);
+          c = mix(c, colGold, smoothstep(0.4, 0.95, abs(ripple)) * uKick * 0.8);
+        } else {
+          // Gentle breathing and rotation for rings
+          float breath = 1.0 + sin(uTime + r0 * 2.0) * 0.05 + uBass * 0.1;
+          p.x *= breath;
+          p.z *= breath;
+          
+          float ringBand = sin(r0 * 3.0 - uTime * 2.0);
+          c = mix(colCrest, colGold, smoothstep(-0.5, 0.5, ringBand));
+          c += colGold * uMid * 0.5;
+          crest = smoothstep(0.0, 1.0, ringBand) * 0.5;
+        }
 
         c = mix(c, c.bgr, (uHue - 0.5) * 0.35);
-
         vCol = c;
-        vAlpha = (0.55 + crest * 0.45) * (0.75 + uEnergy * 0.25);
+        vAlpha = (0.7 + crest * 0.45) * (0.75 + uEnergy * 0.25);
 
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         gl_Position = projectionMatrix * mv;
 
-        float sz = (0.55 + crest * 0.85) * (1.0 + uEnergy * 0.25 + uKick * 0.3);
-        gl_PointSize = clamp(sz * uPix * (34.0 / max(0.1, -mv.z)), 1.0, 6.0);
+        float sz = (0.75 + crest * 1.2) * (1.0 + uEnergy * 0.3 + uKick * 0.4);
+        if (isRing) sz *= 1.2;
+        gl_PointSize = clamp(sz * uPix * (34.0 / max(0.1, -mv.z)), 1.0, 8.0);
       }
     `,
     fragmentShader: `
@@ -147,6 +185,7 @@ export function buildLattice(T: any): SceneInst {
   });
 
   const points = new T.Points(geo, mat);
+  points.frustumCulled = false;
   scene.add(points);
 
   return {
@@ -170,7 +209,7 @@ export function buildLattice(T: any): SceneInst {
       U.uEnergy.value = a.energy;
       U.uHue.value = spec.hue;
     },
-    bloom: (a) => 0.30 + a.kick * 0.18 + a.energy * 0.14,
+    bloom: (a) => 0.35 + a.kick * 0.18 + a.energy * 0.14,
     dispose: () => {
       geo.dispose();
       mat.dispose();
@@ -355,7 +394,7 @@ export function buildTunnel(T: any): SceneInst {
  */
 export function buildAurora(T: any): SceneInst {
   const scene = new T.Scene();
-  scene.fog = new T.FogExp2(0x02070c, 0.014);
+  scene.fog = new T.FogExp2(0x02070c, 0.008);
   const camera = new T.PerspectiveCamera(48, 1, 0.1, 220);
 
   // Thirty thousand points woven into 6 flowing aurora curtains (6 x 100 cols x 50 rows)
@@ -447,10 +486,10 @@ export function buildAurora(T: any): SceneInst {
         float kickSurge = uKick * 0.8;
 
         // Palette: Vibrant atmospheric aurora borealis
-        vec3 colJade = vec3(0.02, 1.0, 0.42);
-        vec3 colCyan = vec3(0.04, 0.88, 1.0);
-        vec3 colViolet = vec3(0.92, 0.12, 0.72);
-        vec3 colRay = vec3(0.82, 1.0, 0.88);
+        vec3 colJade = vec3(0.0, 1.0, 0.35);
+        vec3 colCyan = vec3(0.0, 0.95, 1.0);
+        vec3 colViolet = vec3(1.0, 0.1, 0.7);
+        vec3 colRay = vec3(0.9, 1.0, 0.92);
 
         // Vertical ribbon blend: Jade green base -> Cyan mid -> Violet ray crowns
         vec3 c = mix(colJade, colCyan, smoothstep(0.08, 0.48, v));
@@ -462,6 +501,8 @@ export function buildAurora(T: any): SceneInst {
         c += colJade * (kickSurge * 0.3);
 
         c = mix(c, c.bgr, (uHue - 0.5) * 0.4);
+        
+        c *= 1.4;
 
         // Curtain envelope: fade left/right edges, glow at lower hem, fade at top
         float horizFade = smoothstep(0.0, 0.15, u) * (1.0 - smoothstep(0.85, 1.0, u));
@@ -473,8 +514,8 @@ export function buildAurora(T: any): SceneInst {
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         gl_Position = projectionMatrix * mv;
 
-        float sz = (0.7 + shimmer * 0.5 + kickSurge * 0.35) * uPix * (52.0 / max(1.0, -mv.z));
-        gl_PointSize = clamp(sz, 1.5, 7.0);
+        float sz = (1.2 + shimmer * 0.7 + kickSurge * 0.4) * uPix * (52.0 / max(1.0, -mv.z));
+        gl_PointSize = clamp(sz, 2.0, 9.0);
       }
     `,
     fragmentShader: `
@@ -545,7 +586,7 @@ export function buildAurora(T: any): SceneInst {
       U.uEnergy.value = a.energy;
       U.uHue.value = spec.hue;
     },
-    bloom: (a) => 0.28 + a.mid * 0.16 + a.kick * 0.18,
+    bloom: (a) => 0.32 + a.mid * 0.16 + a.kick * 0.18,
     dispose: () => {
       geo.dispose();
       mat.dispose();

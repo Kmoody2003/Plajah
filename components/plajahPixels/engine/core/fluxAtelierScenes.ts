@@ -1,5 +1,5 @@
 // Rebuilt Flux Atelier Scenes — Trapcode Form point-cloud particle implementations.
-// Porcelain Tide, Velvet Bloom, Prism Archive: now 30-40k ordered dots with full audio reactivity.
+// Porcelain Tide, Velvet Bloom, Prism Archive: geometry-accurate to mockup designs.
 import type { SceneInst } from './flux';
 
 const NOISE_GLSL = `
@@ -10,15 +10,15 @@ const NOISE_GLSL = `
   float fbm3(vec3 p){float s=0.,a=.5;for(int i=0;i<5;i++){s+=a*vnoise(p);p=p*2.02+vec3(1.7,9.2,3.3);a*=.5;}return s;}
 `;
 
-/** PORCELAIN TILE — 40,000 dots in a sacred geometric mandala.
- * Concentric Fibonacci rings forming an intricate tiled rosette.
- * Bass pulses outward, mid drives rotation, treble sparks lattice lines, kick shockwave from center. */
+// ════════════════════════════════════════════════════════════════════════════
+// PORCELAIN TIDE — 45,000 dots in a sacred geometric mandala rosette
+// ════════════════════════════════════════════════════════════════════════════
 export function buildPorcelainTide(T: any): SceneInst {
   const scene = new T.Scene();
-  scene.fog = new T.FogExp2(0x020810, 0.012);
+  scene.fog = new T.FogExp2(0x010408, 0.006);
   const camera = new T.PerspectiveCamera(46, 1, 0.1, 200);
 
-  const CNT = 40000;
+  const CNT = 45000;
   const pos = new Float32Array(CNT * 3);
   const uvs = new Float32Array(CNT * 2);
 
@@ -27,7 +27,7 @@ export function buildPorcelainTide(T: any): SceneInst {
 
   for (let i = 0; i < CNT; i++) {
     const t = i / CNT;
-    const radius = Math.sqrt(t) * 12.0;
+    const radius = Math.sqrt(t) * 13.0;
     const theta = goldenAngle * i;
     pos[i * 3] = Math.cos(theta) * radius;
     pos[i * 3 + 1] = Math.sin(theta) * radius;
@@ -50,45 +50,50 @@ export function buildPorcelainTide(T: any): SceneInst {
     vertexShader: NOISE_GLSL + `
       uniform float uTime, uBass, uMid, uTre, uKick, uEnergy, uPix, uHue;
       attribute vec2 aUv;
-      varying vec3 vCol;
-      varying float vAlpha;
+      varying vec3 vCol; varying float vAlpha;
       void main() {
         vec2 p0 = position.xy;
         float r = length(p0);
         float angle = atan(p0.y, p0.x);
-        float breathe = 1.0 + uBass * 0.45 + uEnergy * 0.15;
-        float expandedR = r * breathe;
-        float innerRot = uTime * 0.35 + uMid * 1.2;
-        float outerRot = uTime * -0.18 + uMid * -0.6;
-        float rotBlend = smoothstep(0.0, 12.0, r);
-        float rot = mix(innerRot, outerRot, rotBlend);
-        float newAngle = angle + rot;
-        vec3 nCoord = vec3(cos(newAngle) * expandedR * 0.35, sin(newAngle) * expandedR * 0.35, uTime * 0.12);
-        float lattice = fbm3(nCoord * 2.5);
-        float latticeLine = pow(0.5 + 0.5 * sin(expandedR * 3.8 + lattice * 6.0), 6.0);
-        float sparkHash = fract(sin(dot(vec2(aUv.x * 400.0, aUv.y * 300.0) + floor(uTime * 12.0) * 0.13, vec2(12.9898, 78.233))) * 43758.5453);
-        float spark = smoothstep(0.88, 0.99, sparkHash) * (0.3 + uTre * 2.8);
-        float kickWave = sin(expandedR * 2.5 - uTime * 12.0) * uKick * 1.6 * exp(-r * 0.18);
-        float z = sin(expandedR * 0.6 + lattice * 3.0) * (0.8 + uBass * 1.2) + kickWave * 0.5;
-        vec3 p = vec3(cos(newAngle) * expandedR, sin(newAngle) * expandedR, z);
-        vec3 colCyan = vec3(0.04, 0.88, 1.0);
-        vec3 colSapphire = vec3(0.08, 0.22, 0.92);
-        vec3 colWhite = vec3(0.96, 0.98, 1.0);
-        vec3 colGold = vec3(1.0, 0.85, 0.22);
-        vec3 c = mix(colSapphire, colCyan, smoothstep(0.2, 0.7, lattice));
-        c = mix(c, colWhite, latticeLine * (0.4 + uTre * 0.6));
-        c += colWhite * spark * 1.4;
-        c = mix(c, colGold, smoothstep(0.3, 0.9, abs(kickWave)) * uKick * 0.85);
-        float ringGlow = pow(0.5 + 0.5 * sin(expandedR * 4.2), 8.0) * (0.3 + uEnergy * 0.5);
-        c += colCyan * ringGlow * 0.6;
-        c = mix(c, c.bgr, (uHue - 0.5) * 0.35);
-        float edgeFade = 1.0 - smoothstep(10.0, 12.5, r);
+        // Bass breathing expansion
+        float breathe = 1.0 + uBass * 0.5 + uEnergy * 0.2;
+        float eR = r * breathe;
+        // Inner/outer counter-rotation driven by mid
+        float rot = mix(uTime*0.4 + uMid*1.5, uTime*-0.2 + uMid*-0.8, smoothstep(0.0, 13.0, r));
+        float newA = angle + rot;
+        // Lattice pattern from noise
+        float lattice = fbm3(vec3(cos(newA)*eR*0.4, sin(newA)*eR*0.4, uTime*0.12) * 2.5);
+        float latticeLine = pow(0.5 + 0.5*sin(eR*4.0 + lattice*6.0), 5.0);
+        // Ring glow (concentric rings)
+        float ringGlow = pow(0.5 + 0.5*sin(eR*5.0), 6.0);
+        // Treble sparks
+        float sparkH = fract(sin(dot(vec2(aUv.x*400.0, aUv.y*300.0) + floor(uTime*12.0)*0.13, vec2(12.9898,78.233)))*43758.5453);
+        float spark = smoothstep(0.92, 0.99, sparkH) * (0.5 + uTre*3.0);
+        // Kick shockwave
+        float kickW = sin(eR*2.5 - uTime*12.0) * uKick * 2.0 * exp(-r*0.15);
+        // Z displacement
+        float z = sin(eR*0.6 + lattice*3.0) * (1.0 + uBass*1.5) + kickW*0.6;
+        vec3 p = vec3(cos(newA)*eR, sin(newA)*eR, z);
+        // Vivid palette: electric cyan, sapphire, pure white, bright gold
+        vec3 colCyan = vec3(0.0, 1.0, 1.0);
+        vec3 colSapphire = vec3(0.1, 0.3, 1.0);
+        vec3 colWhite = vec3(1.0, 1.0, 1.0);
+        vec3 colGold = vec3(1.0, 0.82, 0.12);
+        vec3 c = mix(colSapphire, colCyan, smoothstep(0.15, 0.65, lattice));
+        c = mix(c, colWhite, latticeLine * (0.5 + uTre*0.5));
+        c += colWhite * spark * 1.5;
+        c = mix(c, colGold, smoothstep(0.3, 0.9, abs(kickW)) * uKick);
+        c += colCyan * ringGlow * 0.8;
+        // Brightness boost
+        c *= 1.5;
+        c = mix(c, c.bgr, (uHue-0.5)*0.3);
+        float edgeFade = 1.0 - smoothstep(11.0, 13.5, r);
         vCol = c;
-        vAlpha = (0.45 + latticeLine * 0.45 + spark * 0.4) * edgeFade * (0.75 + uEnergy * 0.25);
+        vAlpha = (0.65 + latticeLine*0.35 + spark*0.5) * edgeFade * (0.8 + uEnergy*0.2);
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         gl_Position = projectionMatrix * mv;
-        float sz = (0.55 + latticeLine * 0.65 + spark * 0.5) * (1.0 + uEnergy * 0.2);
-        gl_PointSize = clamp(sz * uPix * (42.0 / max(0.5, -mv.z)), 1.0, 6.5);
+        float sz = (0.7 + latticeLine*0.8 + spark*0.6) * (1.0 + uEnergy*0.3);
+        gl_PointSize = clamp(sz * uPix * (50.0 / max(0.5, -mv.z)), 1.0, 8.0);
       }
     `,
     fragmentShader: `
@@ -97,7 +102,7 @@ export function buildPorcelainTide(T: any): SceneInst {
       void main() {
         vec2 d = gl_PointCoord - 0.5; float r = length(d);
         if (r > 0.5) discard;
-        float core = 1.0 - smoothstep(0.1, 0.5, r);
+        float core = 1.0 - smoothstep(0.08, 0.45, r);
         gl_FragColor = vec4(vCol, core * vAlpha);
       }
     `,
@@ -109,8 +114,8 @@ export function buildPorcelainTide(T: any): SceneInst {
 
   return {
     scene, camera,
-    cam: { target: [0, 0, 0], radius: 26, pitch: 35, yaw: 0, fov: 46 },
-    exposure: 1.05, brightThreshold: 0.82, grain: 0.0006,
+    cam: { target: [0,0,0], radius: 24, pitch: 38, yaw: 0, fov: 46 },
+    exposure: 1.1, brightThreshold: 0.6, grain: 0.0005,
     update(t, a, spec) {
       points.rotation.z = t * 0.04;
       const U = mat.uniforms;
@@ -118,43 +123,65 @@ export function buildPorcelainTide(T: any): SceneInst {
       U.uTre.value = a.tre; U.uKick.value = a.kick; U.uEnergy.value = a.energy;
       U.uHue.value = spec.hue;
     },
-    bloom: (a) => 0.28 + a.kick * 0.18 + a.energy * 0.14,
+    bloom: (a) => 0.35 + a.kick * 0.2 + a.energy * 0.15,
     dispose: () => { geo.dispose(); mat.dispose(); },
   };
 }
 
-/** VELVET BLOOM — 30,000 dots in organic blooming petal surfaces.
- * Layered rose/peony shapes that unfold and breathe.
- * Bass swells petals, mid drives unfurling speed, treble inner glow, kick light surge. */
+// ════════════════════════════════════════════════════════════════════════════
+// VELVET BLOOM — 50,000 dots shaped as a ROSE FLOWER
+// Curved petal surfaces wrapping around center, viewed from above
+// ════════════════════════════════════════════════════════════════════════════
 export function buildVelvetBloom(T: any): SceneInst {
   const scene = new T.Scene();
-  scene.fog = new T.FogExp2(0x0a0208, 0.014);
+  scene.fog = new T.FogExp2(0x060008, 0.006);
   const camera = new T.PerspectiveCamera(46, 1, 0.1, 200);
 
-  const LAYERS = 8, RADIAL = 60, ALONG = 63;
-  const CNT = LAYERS * RADIAL * ALONG;
+  // Rose parametric: 5 main petals x 3 layers = 15 petals total, each a curved sheet
+  // Each petal: 100 rows along length x ~33 cols across width = 3333 dots/petal
+  // 15 petals x 3333 ≈ 50,000
+  const PETALS = 5;
+  const LAYERS = 3;
+  const ROWS = 100;  // along petal length (base to tip)
+  const COLS = 33;   // across petal width
+  const TOTAL_PETALS = PETALS * LAYERS;
+  const CNT = TOTAL_PETALS * ROWS * COLS;
   const pos = new Float32Array(CNT * 3);
-  const attrs = new Float32Array(CNT * 3);
+  const attrs = new Float32Array(CNT * 3); // petalId, u (length 0..1), v (width 0..1)
 
   let idx = 0;
   for (let layer = 0; layer < LAYERS; layer++) {
-    const layerAngleOffset = (layer / LAYERS) * Math.PI * 2;
-    const layerSize = 3.0 + layer * 0.9;
-    for (let r = 0; r < RADIAL; r++) {
-      const u = r / (RADIAL - 1);
-      for (let a = 0; a < ALONG; a++) {
-        const v = a / (ALONG - 1);
-        const vC = (v - 0.5) * 2.0;
-        const petalR = u * layerSize;
-        const widthEnv = Math.sin(u * Math.PI) * layerSize * 0.22;
-        const petalAngle = layerAngleOffset + vC * widthEnv / (petalR + 0.1);
-        pos[idx * 3] = Math.cos(petalAngle) * petalR;
-        pos[idx * 3 + 1] = Math.sin(petalAngle) * petalR;
-        pos[idx * 3 + 2] = 0;
-        attrs[idx * 3] = layer;
-        attrs[idx * 3 + 1] = u;
-        attrs[idx * 3 + 2] = v;
-        idx++;
+    const layerScale = 1.0 + layer * 0.8;  // outer petals are larger
+    const layerTwist = layer * 0.45;         // each layer rotated slightly
+    for (let petal = 0; petal < PETALS; petal++) {
+      const baseAngle = (petal / PETALS) * Math.PI * 2 + layerTwist;
+      const petalIdx = layer * PETALS + petal;
+      for (let row = 0; row < ROWS; row++) {
+        const u = row / (ROWS - 1);  // 0 = base (center), 1 = tip (outer)
+        for (let col = 0; col < COLS; col++) {
+          const v = col / (COLS - 1);  // 0..1 across width
+          const vC = (v - 0.5) * 2.0;  // -1..1
+
+          // Petal radial extent
+          const petalR = u * 6.0 * layerScale;
+          // Width envelope: widest in middle, tapers at base and tip
+          const widthEnv = Math.sin(u * Math.PI) * 2.5 * layerScale;
+          // Petal curl angle (wraps around the center like a real rose petal)
+          const curl = u * u * 1.8 + layer * 0.3;
+          const petalAngle = baseAngle + curl + vC * 0.15 * widthEnv / Math.max(0.5, petalR);
+
+          // Z: inner petals cup upward steeply, outer petals flatter
+          const cupHeight = (1.0 - u) * 4.0 * (1.0 - layer * 0.25);
+          const petalCurve = Math.sin(u * Math.PI) * 1.5;
+
+          pos[idx * 3] = Math.cos(petalAngle) * petalR;
+          pos[idx * 3 + 1] = Math.sin(petalAngle) * petalR;
+          pos[idx * 3 + 2] = cupHeight + petalCurve;
+          attrs[idx * 3] = petalIdx;
+          attrs[idx * 3 + 1] = u;
+          attrs[idx * 3 + 2] = v;
+          idx++;
+        }
       }
     }
   }
@@ -172,47 +199,87 @@ export function buildVelvetBloom(T: any): SceneInst {
     },
     vertexShader: NOISE_GLSL + `
       uniform float uTime, uBass, uMid, uTre, uKick, uEnergy, uPix, uHue;
-      attribute vec3 aPetal;
+      attribute vec3 aPetal; // petalId, u (0..1 along length), v (0..1 across width)
       varying vec3 vCol; varying float vAlpha;
       void main() {
-        float layer = aPetal.x, u = aPetal.y, v = aPetal.z;
+        float petalId = aPetal.x;
+        float u = aPetal.y;  // 0=center, 1=tip
+        float v = aPetal.z;
         float vC = (v - 0.5) * 2.0;
-        float layerCount = 8.0;
-        float layerAngle = (layer / layerCount) * 6.28318 + uTime * 0.08;
-        float layerSize = 3.0 + layer * 0.9;
-        float openness = 0.5 + uBass * 0.5 + uEnergy * 0.15;
-        float curlSpeed = 0.3 + uMid * 0.8;
-        float curl = u * u * (1.2 + curlSpeed) + 0.04 * sin(uTime * 0.5 + layer * 0.7);
-        float petalR = u * layerSize * openness;
-        float widthEnv = pow(sin(u * 3.14159), 0.7) * layerSize * 0.24;
-        float petalAngle = layerAngle + curl + vC * widthEnv / max(0.1, petalR);
-        float z = sin(u * 3.14159) * (1.8 + (1.0 - openness) * 3.0) + pow(u, 4.0) * 0.8;
-        z += 0.12 * sin(u * 8.0 - uTime * 0.4 + layer) * sin(u * 3.14159);
-        float kickSurge = uKick * 1.4 * exp(-u * 2.5);
-        vec3 p = vec3(cos(petalAngle) * petalR, sin(petalAngle) * petalR, z + layer * 0.3);
-        vec3 colMagenta = vec3(0.88, 0.04, 0.35);
-        vec3 colPink = vec3(1.0, 0.22, 0.55);
-        vec3 colViolet = vec3(0.62, 0.08, 0.82);
-        vec3 colRoseGold = vec3(1.0, 0.72, 0.52);
-        vec3 colFuchsia = vec3(0.98, 0.12, 0.78);
-        float layerT = layer / layerCount;
-        vec3 c = mix(colPink, colMagenta, layerT);
-        c = mix(c, colViolet, smoothstep(0.5, 1.0, layerT));
-        float tipGlow = smoothstep(0.6, 0.95, u) * (0.3 + uTre * 2.0);
-        c = mix(c, colRoseGold, tipGlow * (1.0 - layerT * 0.6));
-        c += colFuchsia * kickSurge * 0.7;
-        c += vec3(1.0, 0.9, 0.8) * kickSurge * 0.3;
-        float edgeShimmer = smoothstep(0.85, 1.0, abs(vC)) * (0.4 + uTre * 1.2);
-        c += colRoseGold * edgeShimmer * 0.5;
-        c = mix(c, c.bgr, (uHue - 0.5) * 0.4);
-        float petalFade = smoothstep(0.0, 0.1, u) * (1.0 - smoothstep(0.92, 1.0, u));
+        float layer = floor(petalId / 5.0);
+        float layerT = layer / 3.0;
+        float layerScale = 1.0 + layer * 0.8;
+        float layerTwist = layer * 0.45;
+        float petal = mod(petalId, 5.0);
+        float baseAngle = (petal / 5.0) * 6.28318 + layerTwist;
+
+        // Bass swells petals open (breathing bloom)
+        float openness = 0.55 + uBass * 0.45 + uEnergy * 0.15;
+        // Mid drives curl animation
+        float curlAnim = uTime * (0.08 + uMid * 0.15);
+        float curl = u * u * (1.8 * openness) + layer * 0.3 + curlAnim;
+
+        float petalR = u * 6.0 * layerScale * openness;
+        float widthEnv = pow(sin(u * 3.14159), 0.65) * 2.5 * layerScale;
+        float petalAngle = baseAngle + curl + vC * 0.15 * widthEnv / max(0.5, petalR);
+
+        // Rose petal 3D cupping — inner petals stand tall, outer petals flatter
+        float cupHeight = (1.0 - u) * 4.0 * (1.0 - layerT * 0.3) * (0.6 + (1.0 - openness) * 1.5);
+        float petalCurve = sin(u * 3.14159) * (1.5 + uBass * 0.5);
+        // Pleating (subtle ridges along the petal)
+        float pleat = sin(vC * 20.0 + u * 4.0) * 0.08 * sin(u * 3.14159);
+
+        float z = cupHeight + petalCurve + pleat + layer * 0.15;
+
+        // Kick surge from center
+        float kickSurge = uKick * 2.0 * exp(-u * 2.0);
+        z += kickSurge * 0.5;
+
+        vec3 p = vec3(cos(petalAngle) * petalR, sin(petalAngle) * petalR, z);
+
+        // VIVID rose palette — hot pink, magenta, violet, fuchsia, rose-gold
+        vec3 colHotPink = vec3(1.0, 0.15, 0.55);
+        vec3 colMagenta = vec3(0.95, 0.0, 0.45);
+        vec3 colViolet = vec3(0.7, 0.05, 1.0);
+        vec3 colRoseGold = vec3(1.0, 0.65, 0.45);
+        vec3 colFuchsia = vec3(1.0, 0.0, 0.85);
+        vec3 colWhite = vec3(1.0, 0.9, 0.95);
+
+        // Inner petals (low layer) glow bright hot pink, outer petals shift to magenta/violet
+        vec3 c = mix(colHotPink, colMagenta, layerT);
+        c = mix(c, colViolet, smoothstep(0.4, 0.9, layerT) * 0.6);
+
+        // Petal edge highlights — bright fuchsia edges
+        float edgeGlow = smoothstep(0.75, 1.0, abs(vC)) * (0.6 + uTre * 1.5);
+        c = mix(c, colFuchsia, edgeGlow * 0.5);
+
+        // Tip glow — bright rose-gold at the tips, driven by treble
+        float tipGlow = smoothstep(0.6, 0.95, u) * (0.4 + uTre * 2.5);
+        c = mix(c, colRoseGold, tipGlow * (1.0 - layerT * 0.4));
+
+        // Center glow — white-hot inner petals
+        float centerGlow = (1.0 - u) * (1.0 - layerT) * (0.6 + uEnergy * 0.8);
+        c = mix(c, colWhite, centerGlow * 0.5);
+
+        // Kick surge brightens everything from center
+        c += colFuchsia * kickSurge * 0.6;
+        c += colWhite * kickSurge * 0.25;
+
+        // Overall brightness boost
+        c *= 1.6;
+        c = mix(c, c.bgr, (uHue - 0.5) * 0.35);
+
+        // Alpha: fade at petal base, tip edges, and width borders
+        float petalFade = smoothstep(0.0, 0.08, u) * (1.0 - smoothstep(0.93, 1.0, u));
         float widthFade = 1.0 - smoothstep(0.7, 1.0, abs(vC));
+
         vCol = c;
-        vAlpha = petalFade * widthFade * (0.55 + tipGlow * 0.3 + kickSurge * 0.35) * (0.75 + uEnergy * 0.25);
+        vAlpha = petalFade * widthFade * (0.7 + tipGlow * 0.2 + kickSurge * 0.25) * (0.8 + uEnergy * 0.2);
+
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         gl_Position = projectionMatrix * mv;
-        float sz = (0.6 + tipGlow * 0.5 + kickSurge * 0.4) * (1.0 + uEnergy * 0.2);
-        gl_PointSize = clamp(sz * uPix * (48.0 / max(0.5, -mv.z)), 1.0, 6.0);
+        float sz = (0.65 + tipGlow * 0.5 + centerGlow * 0.4 + kickSurge * 0.4) * (1.0 + uEnergy * 0.25);
+        gl_PointSize = clamp(sz * uPix * (55.0 / max(0.5, -mv.z)), 1.0, 7.5);
       }
     `,
     fragmentShader: `
@@ -221,7 +288,7 @@ export function buildVelvetBloom(T: any): SceneInst {
       void main() {
         vec2 d = gl_PointCoord - 0.5; float r = length(d);
         if (r > 0.5) discard;
-        float core = 1.0 - smoothstep(0.1, 0.5, r);
+        float core = 1.0 - smoothstep(0.08, 0.45, r);
         gl_FragColor = vec4(vCol, core * vAlpha);
       }
     `,
@@ -233,66 +300,122 @@ export function buildVelvetBloom(T: any): SceneInst {
 
   return {
     scene, camera,
-    cam: { target: [0, 0, 1.5], radius: 20, pitch: 12, yaw: 0, fov: 46 },
-    exposure: 1.08, brightThreshold: 0.78, grain: 0.0006,
+    cam: { target: [0, 0, 2.5], radius: 22, pitch: 55, yaw: 0, fov: 46 },
+    exposure: 1.12, brightThreshold: 0.5, grain: 0.0005,
     update(t, a, spec) {
-      points.rotation.z = t * 0.06;
-      points.rotation.x = Math.sin(t * 0.15) * 0.08;
+      points.rotation.z = t * 0.04;
       const U = mat.uniforms;
       U.uTime.value = t; U.uBass.value = a.bass; U.uMid.value = a.mid;
       U.uTre.value = a.tre; U.uKick.value = a.kick; U.uEnergy.value = a.energy;
       U.uHue.value = spec.hue;
     },
-    bloom: (a) => 0.30 + a.kick * 0.22 + a.energy * 0.15,
+    bloom: (a) => 0.35 + a.kick * 0.22 + a.energy * 0.16,
     dispose: () => { geo.dispose(); mat.dispose(); },
   };
 }
 
-/** PRISM ARCHIVE — 35,000 dots in nested rotating polyhedra.
- * Icosahedron inside dodecahedron, each facet surface filled with dots.
- * Bass swells outer, mid counter-rotates, treble refracts rainbow, kick prismatic flash. */
+// ════════════════════════════════════════════════════════════════════════════
+// PRISM ARCHIVE — 50,000 dots forming a DODECAHEDRON with inner ICOSAHEDRON
+// Dots fill the triangular FACES of each polyhedron, with bright edges
+// ════════════════════════════════════════════════════════════════════════════
+
+// Dodecahedron and Icosahedron vertex data (platonic solids)
+const ICO_VERTS: [number,number,number][] = [];
+const DODEC_VERTS: [number,number,number][] = [];
+
+// Generate icosahedron vertices (12 vertices)
+{
+  const t = (1 + Math.sqrt(5)) / 2;
+  const n = Math.sqrt(1 + t * t);
+  const iv: [number,number,number][] = [
+    [-1,t,0],[1,t,0],[-1,-t,0],[1,-t,0],
+    [0,-1,t],[0,1,t],[0,-1,-t],[0,1,-t],
+    [t,0,-1],[t,0,1],[-t,0,-1],[-t,0,1],
+  ];
+  iv.forEach(v => ICO_VERTS.push([v[0]/n, v[1]/n, v[2]/n]));
+}
+
+// Icosahedron faces (20 triangles)
+const ICO_FACES = [
+  [0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],
+  [1,5,9],[5,11,4],[11,10,2],[10,7,6],[7,1,8],
+  [3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],
+  [4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1],
+];
+
+// Dodecahedron faces (12 pentagons) — vertices from icosahedron face centroids
+{
+  ICO_FACES.forEach(f => {
+    const cx = (ICO_VERTS[f[0]][0] + ICO_VERTS[f[1]][0] + ICO_VERTS[f[2]][0]) / 3;
+    const cy = (ICO_VERTS[f[0]][1] + ICO_VERTS[f[1]][1] + ICO_VERTS[f[2]][1]) / 3;
+    const cz = (ICO_VERTS[f[0]][2] + ICO_VERTS[f[1]][2] + ICO_VERTS[f[2]][2]) / 3;
+    const len = Math.sqrt(cx*cx + cy*cy + cz*cz);
+    DODEC_VERTS.push([cx/len, cy/len, cz/len]);
+  });
+}
+
 export function buildPrismArchive(T: any): SceneInst {
   const scene = new T.Scene();
-  scene.fog = new T.FogExp2(0x04020c, 0.012);
+  scene.fog = new T.FogExp2(0x020108, 0.005);
   const camera = new T.PerspectiveCamera(46, 1, 0.1, 200);
 
-  const OUTER = 25000, INNER = 10000, CNT = OUTER + INNER;
+  // Distribute dots on icosahedron faces (inner) and dodecahedron faces (outer)
+  // Outer: 20 triangular faces x 1500 dots = 30,000
+  // Inner: 20 triangular faces x 1000 dots = 20,000
+  // Total: 50,000
+  const OUTER_PER_FACE = 1500;
+  const INNER_PER_FACE = 1000;
+  const OUTER_TOTAL = 20 * OUTER_PER_FACE;  // 30,000
+  const INNER_TOTAL = 20 * INNER_PER_FACE;  // 20,000
+  const CNT = OUTER_TOTAL + INNER_TOTAL;
   const pos = new Float32Array(CNT * 3);
-  const shellAttr = new Float32Array(CNT);
-  const uvIdx = new Float32Array(CNT * 2);
-  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+  const shellAttr = new Float32Array(CNT);   // 0=outer dodec, 1=inner ico
+  const faceAttr = new Float32Array(CNT);    // face index for color
+  const edgeDist = new Float32Array(CNT);    // distance to nearest edge (0..1)
 
-  const R_OUTER = 8.0;
-  for (let i = 0; i < OUTER; i++) {
-    const y = 1 - (i / (OUTER - 1)) * 2;
-    const rAtY = Math.sqrt(Math.max(0, 1 - y * y));
-    const theta = goldenAngle * i;
-    pos[i * 3] = Math.cos(theta) * rAtY * R_OUTER;
-    pos[i * 3 + 1] = y * R_OUTER;
-    pos[i * 3 + 2] = Math.sin(theta) * rAtY * R_OUTER;
-    shellAttr[i] = 0;
-    uvIdx[i * 2] = (y + 1) * 0.5;
-    uvIdx[i * 2 + 1] = (theta % (Math.PI * 2)) / (Math.PI * 2);
+  // Helper: fill triangle with random barycentric samples
+  function fillFace(v0: number[], v1: number[], v2: number[], radius: number, startIdx: number, count: number, shellVal: number, faceIdx: number) {
+    for (let i = 0; i < count; i++) {
+      let r1 = Math.random(), r2 = Math.random();
+      if (r1 + r2 > 1) { r1 = 1 - r1; r2 = 1 - r2; }
+      const r3 = 1 - r1 - r2;
+      const x = v0[0]*r1 + v1[0]*r2 + v2[0]*r3;
+      const y = v0[1]*r1 + v1[1]*r2 + v2[1]*r3;
+      const z = v0[2]*r1 + v1[2]*r2 + v2[2]*r3;
+      // Project to sphere surface then scale
+      const len = Math.sqrt(x*x + y*y + z*z);
+      const j = startIdx + i;
+      pos[j*3] = (x/len) * radius;
+      pos[j*3+1] = (y/len) * radius;
+      pos[j*3+2] = (z/len) * radius;
+      shellAttr[j] = shellVal;
+      faceAttr[j] = faceIdx;
+      // Edge distance — minimum of barycentric coords (0 at edge, ~0.33 at center)
+      edgeDist[j] = Math.min(r1, r2, r3) * 3.0; // normalize to 0..1
+    }
   }
 
-  const R_INNER = 4.2;
-  for (let i = 0; i < INNER; i++) {
-    const j = OUTER + i;
-    const y = 1 - (i / (INNER - 1)) * 2;
-    const rAtY = Math.sqrt(Math.max(0, 1 - y * y));
-    const theta = goldenAngle * i;
-    pos[j * 3] = Math.cos(theta) * rAtY * R_INNER;
-    pos[j * 3 + 1] = y * R_INNER;
-    pos[j * 3 + 2] = Math.sin(theta) * rAtY * R_INNER;
-    shellAttr[j] = 1;
-    uvIdx[j * 2] = (y + 1) * 0.5;
-    uvIdx[j * 2 + 1] = (theta % (Math.PI * 2)) / (Math.PI * 2);
+  // Outer dodecahedron — use icosahedron faces projected to larger radius
+  let offset = 0;
+  const R_OUTER = 9.0;
+  for (let f = 0; f < 20; f++) {
+    const face = ICO_FACES[f];
+    fillFace(ICO_VERTS[face[0]], ICO_VERTS[face[1]], ICO_VERTS[face[2]], R_OUTER, offset, OUTER_PER_FACE, 0, f);
+    offset += OUTER_PER_FACE;
+  }
+  // Inner icosahedron — same faces, smaller radius
+  const R_INNER = 4.5;
+  for (let f = 0; f < 20; f++) {
+    const face = ICO_FACES[f];
+    fillFace(ICO_VERTS[face[0]], ICO_VERTS[face[1]], ICO_VERTS[face[2]], R_INNER, offset, INNER_PER_FACE, 1, f);
+    offset += INNER_PER_FACE;
   }
 
   const geo = new T.BufferGeometry();
   geo.setAttribute('position', new T.BufferAttribute(pos, 3));
   geo.setAttribute('aShell', new T.BufferAttribute(shellAttr, 1));
-  geo.setAttribute('aUv', new T.BufferAttribute(uvIdx, 2));
+  geo.setAttribute('aFace', new T.BufferAttribute(faceAttr, 1));
+  geo.setAttribute('aEdge', new T.BufferAttribute(edgeDist, 1));
 
   const mat = new T.ShaderMaterial({
     transparent: true, depthWrite: false, blending: T.AdditiveBlending,
@@ -301,45 +424,47 @@ export function buildPrismArchive(T: any): SceneInst {
       uTre: { value: 0 }, uKick: { value: 0 }, uEnergy: { value: 0 },
       uPix: { value: 1 }, uHue: { value: 0.5 },
     },
-    vertexShader: NOISE_GLSL + `
+    vertexShader: `
       uniform float uTime, uBass, uMid, uTre, uKick, uEnergy, uPix, uHue;
-      attribute float aShell;
-      attribute vec2 aUv;
+      attribute float aShell, aFace, aEdge;
       varying vec3 vCol; varying float vAlpha;
-      vec3 rotY(vec3 p, float a) { float c = cos(a), s = sin(a); return vec3(c*p.x+s*p.z, p.y, -s*p.x+c*p.z); }
-      vec3 rotX(vec3 p, float a) { float c = cos(a), s = sin(a); return vec3(p.x, c*p.y-s*p.z, s*p.y+c*p.z); }
+      vec3 rotY(vec3 p, float a) { float c=cos(a),s=sin(a); return vec3(c*p.x+s*p.z, p.y, -s*p.x+c*p.z); }
+      vec3 rotX(vec3 p, float a) { float c=cos(a),s=sin(a); return vec3(p.x, c*p.y-s*p.z, s*p.y+c*p.z); }
       void main() {
         vec3 p0 = position;
-        vec3 n = normalize(p0);
         float isOuter = 1.0 - aShell;
-        float outerScale = 1.0 + uBass * 0.4;
-        float innerScale = 1.0 - uBass * 0.2 + uEnergy * 0.15;
-        float scale = mix(outerScale, innerScale, aShell);
-        float facetFreq = mix(5.0, 3.0, aShell);
-        vec3 noiseP = n * facetFreq + vec3(0.0, uTime * 0.05, 0.0);
-        float facet = fbm3(noiseP * 1.5);
-        float edgeBright = pow(0.5 + 0.5 * sin(facet * 18.0), 6.0);
-        vec3 p = n * (length(p0) * scale + facet * (0.3 + uBass * 0.4));
-        float outerRot = uTime * 0.18 + uMid * 0.4;
-        float innerRot = -uTime * 0.28 - uMid * 0.6;
-        float rotAngle = mix(outerRot, innerRot, aShell);
-        float tiltAngle = mix(uTime * 0.08, -uTime * 0.12, aShell);
+        float isInner = aShell;
+        // Bass swells outer, compresses inner
+        float scale = mix(1.0 + uBass*0.45, 1.0 - uBass*0.15 + uEnergy*0.2, aShell);
+        vec3 p = normalize(p0) * (length(p0) * scale);
+        // Mid counter-rotates shells
+        float rotAngle = mix(uTime*0.2 + uMid*0.5, -uTime*0.3 - uMid*0.7, aShell);
+        float tiltAngle = mix(uTime*0.08, -uTime*0.12, aShell);
         p = rotY(p, rotAngle);
-        p = rotX(p, tiltAngle + sin(uTime * 0.2) * 0.15);
-        float spectrum = aUv.x * 0.65 + aUv.y * 0.35 + facet * 0.3 + uTre * 0.15;
+        p = rotX(p, tiltAngle + sin(uTime*0.2)*0.12);
+        // EDGE detection — bright edges, dimmer face interiors
+        float edge = 1.0 - smoothstep(0.0, 0.15, aEdge); // 1.0 at edges, 0.0 at face center
+        // Rainbow prismatic color based on face index
+        float spectrum = aFace / 20.0 + uTre * 0.1 + uTime * 0.02;
         vec3 c = 0.5 + 0.5 * cos(6.28318 * (spectrum + vec3(0.0, 0.33, 0.67)));
-        c = pow(c, vec3(0.7)) * 1.3;
-        c += vec3(0.9, 0.95, 1.0) * edgeBright * (0.3 + uTre * 0.7);
-        float kickFlash = uKick * edgeBright * 1.8;
-        c += vec3(1.0, 0.85, 0.95) * kickFlash;
-        c *= (1.0 + aShell * 0.3);
-        c = mix(c, c.bgr, (uHue - 0.5) * 0.3);
+        // Boost saturation and vibrancy massively
+        c = pow(c, vec3(0.55)) * 1.8;
+        // Bright white-hot edges
+        c += vec3(1.0, 0.95, 1.0) * edge * (0.8 + uTre * 1.5);
+        // Kick prismatic flash — edges flare
+        float kickFlash = uKick * edge * 2.5;
+        c += vec3(1.0, 0.8, 0.95) * kickFlash;
+        // Inner shell slightly brighter
+        c *= (1.0 + isInner * 0.25);
+        c = mix(c, c.bgr, (uHue-0.5)*0.25);
         vCol = c;
-        vAlpha = (0.4 + edgeBright * 0.5 + kickFlash * 0.3) * (0.7 + uEnergy * 0.3);
+        // Alpha: edges always bright, faces semi-transparent
+        float faceAlpha = mix(0.35, 0.85, edge);
+        vAlpha = faceAlpha * (0.75 + uEnergy*0.25 + kickFlash*0.15);
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         gl_Position = projectionMatrix * mv;
-        float sz = (0.5 + edgeBright * 0.6 + kickFlash * 0.4) * (1.0 + uEnergy * 0.2);
-        gl_PointSize = clamp(sz * uPix * (40.0 / max(0.5, -mv.z)), 1.0, 6.0);
+        float sz = (0.5 + edge * 1.0 + kickFlash * 0.5) * (1.0 + uEnergy*0.25);
+        gl_PointSize = clamp(sz * uPix * (48.0 / max(0.5, -mv.z)), 1.0, 8.0);
       }
     `,
     fragmentShader: `
@@ -348,7 +473,7 @@ export function buildPrismArchive(T: any): SceneInst {
       void main() {
         vec2 d = gl_PointCoord - 0.5; float r = length(d);
         if (r > 0.5) discard;
-        float core = 1.0 - smoothstep(0.1, 0.5, r);
+        float core = 1.0 - smoothstep(0.08, 0.45, r);
         gl_FragColor = vec4(vCol, core * vAlpha);
       }
     `,
@@ -360,15 +485,15 @@ export function buildPrismArchive(T: any): SceneInst {
 
   return {
     scene, camera,
-    cam: { target: [0, 0, 0], radius: 24, pitch: 15, yaw: 0, fov: 46 },
-    exposure: 1.06, brightThreshold: 0.78, grain: 0.0006,
+    cam: { target: [0,0,0], radius: 22, pitch: 10, yaw: 15, fov: 46 },
+    exposure: 1.1, brightThreshold: 0.5, grain: 0.0005,
     update(t, a, spec) {
       const U = mat.uniforms;
       U.uTime.value = t; U.uBass.value = a.bass; U.uMid.value = a.mid;
       U.uTre.value = a.tre; U.uKick.value = a.kick; U.uEnergy.value = a.energy;
       U.uHue.value = spec.hue;
     },
-    bloom: (a) => 0.32 + a.kick * 0.20 + a.tre * 0.16,
+    bloom: (a) => 0.38 + a.kick * 0.22 + a.tre * 0.18,
     dispose: () => { geo.dispose(); mat.dispose(); },
   };
 }
