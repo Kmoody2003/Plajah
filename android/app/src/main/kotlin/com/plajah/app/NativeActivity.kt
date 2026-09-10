@@ -39,6 +39,10 @@ class NativeActivity : ComponentActivity() {
                     contentColor=androidx.compose.ui.graphics.Color.White,
                 ) {
                     com.plajah.app.ui.screens.ChoraNightScreen(
+                        initialAlbumId = intent.getStringExtra("platformContentUrl")?.let { url ->
+                            val uri=android.net.Uri.parse(url)
+                            if(uri.scheme=="https"&&uri.host=="plajah.com"&&uri.getQueryParameter("type")=="album")uri.getQueryParameter("id")else null
+                        },
                         onOpenPlatform = { url -> returnToClassic(url) },
                         onExit = { returnToClassic() },
                     )
@@ -48,6 +52,7 @@ class NativeActivity : ComponentActivity() {
     }
 
     private fun returnToClassic(url: String? = null) {
+        stopService(Intent(this,PlajahMediaService::class.java))
         ShellPrefs.setNativeEnabled(this, false)
         startActivity(
             Intent(this, MainActivity::class.java)

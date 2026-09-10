@@ -14,7 +14,7 @@ import {
   newFluxAudioState, driveFluxAudio, SILENT_AUDIO,
   type FluxSpec, type FluxSceneId, type FluxAudio, type FluxDriven, type FluxAudioState,
 } from '../../../../services/fabula/fluxNode';
-import { buildTapestryII, buildLattice, buildTunnel, buildAurora } from './fluxCouncilScenes';
+import { buildTapestryII, buildLattice, buildTunnel, buildAurora, buildSanctum } from './fluxCouncilScenes';
 import { buildPorcelainTide, buildVelvetBloom, buildPrismArchive } from './fluxAtelierScenes';
 
 let status: 'idle' | 'loading' | 'ready' | 'failed' = 'idle';
@@ -128,6 +128,7 @@ const SCENE_BUILDERS: Record<FluxSceneId, ((THREE: any, renderer: any) => SceneI
   lattice: buildLattice,
   tunnel: buildTunnel,
   aurora: buildAurora,
+  sanctum: buildSanctum,
   'porcelain-tide': buildPorcelainTide,
   'velvet-bloom': buildVelvetBloom,
   'prism-archive': buildPrismArchive,

@@ -1072,7 +1072,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
                     <div className="min-w-0">
                       <h3 className="text-2xl font-black uppercase tracking-tight truncate">{album?.title || 'Album'}</h3>
                       <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest">{album?.artist} · {tracks.length} track{tracks.length !== 1 ? 's' : ''}</p>
-                      <div className="mt-3 flex items-center gap-3">
+                      <div className="mt-3 flex items-center gap-3 flex-wrap">
                         <button onClick={() => tracks[0] && playTrackFromList(tracks[0], tracks, album?.title || 'Album')} className="flex items-center gap-2 px-5 py-2 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">
                           <Play size={12} fill="black" /> Play album
                         </button>
@@ -1085,6 +1085,31 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
                             className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-[10px] font-black uppercase tracking-widest transition-all"
                           >
                             <Settings size={12} /> Edit Album
+                          </button>
+                        )}
+                        <button
+                          onClick={toggleSelectMode}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all ${
+                            selectMode ? 'bg-small-orange text-black border-small-orange' : 'bg-white/10 text-white border-white/10 hover:bg-white/20'
+                          }`}
+                        >
+                          <CheckSquare size={12} />
+                          {selectMode ? 'Done' : 'Select'}
+                        </button>
+                        {selectMode && (
+                          <button
+                            onClick={() => {
+                              const albumTrackIds = tracks.map(t => t.id);
+                              const allSelected = albumTrackIds.length > 0 && albumTrackIds.every(id => selection.selectedSet.has(id));
+                              if (allSelected) {
+                                albumTrackIds.forEach(id => selection.selectedSet.has(id) && selection.handleSelect(id));
+                              } else {
+                                albumTrackIds.forEach(id => !selection.selectedSet.has(id) && selection.handleSelect(id));
+                              }
+                            }}
+                            className="px-3 py-2 rounded-full border border-white/10 bg-white/5 text-white/60 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all"
+                          >
+                            {tracks.length > 0 && tracks.every(t => selection.selectedSet.has(t.id)) ? 'Clear all' : 'Select all'}
                           </button>
                         )}
                       </div>

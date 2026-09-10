@@ -22,10 +22,13 @@ import Logo from './Logo';
 import { publishToCloud, postComment, subscribeToComments, updateAlbum, updatePersonalAlbum, updatePersonalTrack, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost, auth } from '../services/backendService';
 import ShareButton from './ShareButton';
 import ChoraQualityButton from './ChoraQualityButton';
+import { createPortal } from 'react-dom';
 import OfflineDownloadButton from './OfflineDownloadButton';
 import PlaylistPickerModal from './PlaylistPickerModal';
+import { MelosPickerModal } from './MelosPickerModal';
 import LockerEditModal from './LockerEditModal';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
+import { useUniversalMultiSelect } from '../hooks/useUniversalMultiSelect';
 import { createParty, partyShareUrl, shouldResync } from '../services/partyService';
 import { useParty } from '../hooks/useParty';
 import { motion, AnimatePresence } from 'motion/react';
@@ -37,7 +40,7 @@ import {
   Layers, Music2, Plus, MessageSquare, Send, User, Users, Clock, Activity, BookOpen, ChevronDown, ChevronUp, Image as ImageIcon,
   AlertCircle, Video as VideoIcon, Radio, List, HeartHandshake, Heart, Pen, Maximize2, Minimize2, GripVertical, Upload, EyeOff, Eye,
   SkipBack, SkipForward, ChevronLeft, ChevronRight, Waves, RotateCcw, ListPlus,
-  Languages, RefreshCw, Film, ZapOff, Scissors
+  Languages, RefreshCw, Film, ZapOff, Scissors, CheckSquare, Square
 } from 'lucide-react';
 
 import { User as FirebaseUser } from 'firebase/auth';
@@ -755,6 +758,27 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const dragTrackIndexRef = useRef<number | null>(null);
   const [dragOverTrackIndex, setDragOverTrackIndex] = useState<number | null>(null);
   const [localTracks, setLocalTracks] = useState<Track[]>(album.tracks);
+
+  // Multi-track selection state for album tracklists
+  const [selectMode, setSelectMode] = useState(false);
+  const [bulkPlaylistTracks, setBulkPlaylistTracks] = useState<Track[] | null>(null);
+  const [melosPickerTracks, setMelosPickerTracks] = useState<Track[] | null>(null);
+  const trackOrderedIds = useMemo(() => (localTracks || []).map(t => t.id), [localTracks]);
+  const trackSelection = useUniversalMultiSelect(trackOrderedIds);
+  const selectedTracks = useMemo(() => (localTracks || []).filter(t => trackSelection.selectedSet.has(t.id)), [localTracks, trackSelection.selectedSet]);
+
+  const exitSelectMode = useCallback(() => {
+    trackSelection.clear();
+    setSelectMode(false);
+  }, [trackSelection]);
+
+  const toggleSelectMode = useCallback(() => {
+    if (selectMode) {
+      exitSelectMode();
+    } else {
+      setSelectMode(true);
+    }
+  }, [selectMode, exitSelectMode]);
   // HnS per-track dropdown
   const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null); // "{trackId}_slot{1|2}"
@@ -1320,11 +1344,14 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 <button onClick={() => setIsVisualizerLayout(false)} aria-label="Exit FX Stage" className="shrink-0 p-2 rounded-full bg-black/60 border border-white/10 text-white/60 hover:text-white transition-all"><X size={14} /></button>
                 <div className="flex-1 flex items-center justify-center min-w-0">{fxSelectorEl}</div>
                 <button
+                  type="button"
                   onClick={() => setIsTvFxActive(true)}
                   aria-label="Full screen FX Stage"
-                  title="Full screen"
-                  className="shrink-0 p-2 rounded-full bg-white/10 border border-white/20 text-white/80 hover:bg-white/20 transition-all"
-                ><Maximize2 size={14} /></button>
+                  title="Full screen FX Stage"
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-small-orange text-black font-black uppercase tracking-widest text-[9px] hover:scale-105 active:scale-95 transition-all shadow-[0_0_15px_rgba(255,140,0,0.35)] cursor-pointer"
+                >
+                  <Maximize2 size={11} /> Full Stage
+                </button>
                 <button onClick={openPlajahPixels} aria-label="Open Plajah Pixels" title="Open the full Plajah Pixels experience" className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-200 text-[9px] font-black uppercase tracking-widest"><Sparkles size={11} /> PP</button>
                 {sampleClearance && currentTrack && (
                   <button onClick={() => setSampleOpen(true)} aria-label="Sample this" title="Sample this track — the artist cleared it" className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-full bg-cyan-500/20 border border-cyan-400/30 text-cyan-200 text-[9px] font-black uppercase tracking-widest"><Scissors size={11} /> Sample</button>
@@ -1699,6 +1726,32 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
               {/* Edge-to-edge track list — break out of the content padding so rows span the full width */}
               <div className="-mx-6">
+                <div className="flex items-center justify-between px-6 py-2 border-b border-white/[0.06] bg-white/[0.02]">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white/40">
+                    {localTracks.length} {album.type === 'BOOK' ? 'chapters' : 'tracks'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {selectMode && (
+                      <button
+                        type="button"
+                        onClick={() => trackSelection.selectedIds.length === localTracks.length ? trackSelection.clear() : trackSelection.selectAll()}
+                        className="px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 text-white/60 hover:text-white text-[8px] font-black uppercase tracking-widest transition-all"
+                      >
+                        {trackSelection.selectedIds.length === localTracks.length ? 'Clear all' : 'Select all'}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={toggleSelectMode}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
+                        selectMode ? 'bg-small-orange text-black border-small-orange' : 'bg-white/5 text-white/60 border-white/10 hover:text-white'
+                      }`}
+                    >
+                      <CheckSquare size={12} />
+                      {selectMode ? 'Done' : 'Select'}
+                    </button>
+                  </div>
+                </div>
               {localTracks.map((t, i) => {
                 const isActive = currentTrackIndex === i;
                 const isExpanded = expandedTrackId === t.id;
@@ -1708,7 +1761,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 return (
                   <div
                     key={t.id}
-                    draggable={!!isOwner}
+                    draggable={!!isOwner && !selectMode}
                     onDragStart={() => { dragTrackIndexRef.current = i; }}
                     onDragOver={(e) => { e.preventDefault(); }}
                     onDrop={(e) => { e.preventDefault(); const from = dragTrackIndexRef.current; if (from !== null && from !== i) reorderTracks(from, i); dragTrackIndexRef.current = null; }}
@@ -1726,9 +1779,33 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     {isActive && isEndingSoon && (
                       <div className="absolute inset-0 pointer-events-none track-ending-flash" aria-hidden="true" />
                     )}
-                    <div className={`relative flex items-center gap-3 px-4 py-3.5 ${isActive ? '' : 'hover:bg-white/[0.03]'}`}>
-                      {isOwner && <GripVertical size={14} className="text-white/20 shrink-0 cursor-grab active:cursor-grabbing" />}
-                      <button onClick={() => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }} className="flex items-center gap-3 text-left flex-1 min-w-0">
+                    <div
+                      onClick={selectMode ? (e) => trackSelection.handleSelect(t.id, e) : undefined}
+                      className={`relative flex items-center gap-3 px-4 py-3.5 ${isActive ? '' : 'hover:bg-white/[0.03]'} ${selectMode ? 'cursor-pointer' : ''}`}
+                    >
+                      {selectMode ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            trackSelection.handleSelect(t.id, e);
+                          }}
+                          className="p-1 text-white/50 hover:text-white transition-colors shrink-0 z-10"
+                        >
+                          {trackSelection.selectedSet.has(t.id) ? (
+                            <CheckSquare size={16} className="text-small-orange" />
+                          ) : (
+                            <Square size={16} className="text-white/30" />
+                          )}
+                        </button>
+                      ) : (
+                        isOwner && <GripVertical size={14} className="text-white/20 shrink-0 cursor-grab active:cursor-grabbing" />
+                      )}
+                      <button
+                        type="button"
+                        onClick={selectMode ? (e) => { e.stopPropagation(); trackSelection.handleSelect(t.id, e); } : () => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }}
+                        className="flex items-center gap-3 text-left flex-1 min-w-0"
+                      >
                         <span className="text-[10px] font-black text-small-orange w-4 shrink-0 self-start pt-0.5">{i + 1}</span>
                         <div className="min-w-0 flex-1">
                           {/* Track-list titles stay a single line (the full title is the big header above) */}
@@ -2684,12 +2761,13 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                  >
                    <Sparkles size={11} /> PP
                  </button>
-                 <button
-                   onClick={() => setIsTvFxActive(true)}
-                   className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/20 transition-all"
-                 >
-                   <Maximize2 size={11} /> Full
-                 </button>
+                  <button
+                    onClick={() => setIsTvFxActive(true)}
+                    title="Open Fullscreen FX Stage"
+                    className="flex items-center gap-2 px-4 py-2 bg-small-orange text-black hover:bg-white hover:text-black border border-small-orange rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(255,140,0,0.3)] hover:scale-105 active:scale-95"
+                  >
+                    <Maximize2 size={12} /> Full Stage
+                  </button>
                </div>
              </div>
 
@@ -2764,7 +2842,20 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                       <div className="absolute inset-x-0 top-0 z-20 p-3 flex items-center justify-center bg-gradient-to-b from-black/75 to-transparent rounded-t-[2rem]">
                         {fxSelectorEl}
                       </div>
-                      <div className="absolute inset-x-0 bottom-0 p-5 bg-gradient-to-t from-black/80 to-transparent flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.22em] text-small-orange rounded-b-[2rem]"><Activity size={12} /> FX Stage</div>
+                      <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/85 via-black/50 to-transparent flex items-center justify-between gap-2 text-[9px] font-black uppercase tracking-[0.22em] text-small-orange rounded-b-[2rem]">
+                        <span className="flex items-center gap-2"><Activity size={12} /> FX Stage</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsTvFxActive(true);
+                          }}
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-small-orange text-black font-black uppercase tracking-widest text-[9px] hover:bg-white hover:scale-105 active:scale-95 transition-all shadow-[0_0_15px_rgba(255,140,0,0.4)] cursor-pointer"
+                          title="Open Fullscreen FX Stage"
+                        >
+                          <Maximize2 size={11} /> Full Stage
+                        </button>
+                      </div>
                     </motion.div>
                   ) : (
                     <motion.div key="art" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.6, type: 'spring', damping: 20 }} className="relative w-[min(460px,48vh)] max-w-full aspect-square rounded-[2rem] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.6)] border border-white/10 group">
@@ -2834,12 +2925,22 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                      view can do, so a television does not offer it. Everything else does — a
                      listener asking for it on their own machine should get it. */}
                  {canUseFxStage() && (
-                   <button
-                      onClick={() => selectGatefoldStage('FX')}
-                      className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border flex items-center gap-2 ${gatefoldStageMode === 'FX' ? 'bg-small-orange/20 border-small-orange/60 text-small-orange' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white hover:border-small-orange/50 hover:bg-small-orange/10'}`}
-                   >
-                     <Activity size={10} /> FX Stage
-                   </button>
+                   <div className="flex items-center gap-1.5">
+                     <button
+                        onClick={() => selectGatefoldStage('FX')}
+                        className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border flex items-center gap-2 ${gatefoldStageMode === 'FX' ? 'bg-small-orange/20 border-small-orange/60 text-small-orange' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white hover:border-small-orange/50 hover:bg-small-orange/10'}`}
+                     >
+                       <Activity size={10} /> FX Stage
+                     </button>
+                     <button
+                       type="button"
+                       onClick={() => setIsTvFxActive(true)}
+                       title="Open Fullscreen FX Stage"
+                       className="px-3.5 py-2.5 rounded-full bg-small-orange text-black hover:bg-white transition-all text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-[0_0_15px_rgba(255,140,0,0.3)] hover:scale-105 active:scale-95 cursor-pointer"
+                     >
+                       <Maximize2 size={11} /> Full Stage
+                     </button>
+                   </div>
                  )}
                </div>
 
@@ -2973,7 +3074,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           {[
             ...(isPublic ? [{ key: 'live', icon: Globe, label: 'Live Microsite', onClick: undefined, style: { color: 'rgb(74 222 128)' } }] : []),
             ...(isOwner ? [{ key: 'edit', icon: Zap, label: isLockerRelease ? 'Edit Locker' : 'Edit Album', onClick: handleOpenEdit, style: { color: '#FF8C00' } }] : []),
-            ...(isVisualizerLayout ? [{ key: 'fx', icon: Activity, label: 'FX Stage On', onClick: () => setIsVisualizerLayout(false), style: { color: '#FF8C00' } }] : []),
+            { key: 'fx', icon: Activity, label: isVisualizerLayout ? 'Exit FX' : 'FX Stage', onClick: () => { if (isVisualizerLayout) setIsVisualizerLayout(false); else setIsTvFxActive(true); }, style: isVisualizerLayout ? { color: '#FF8C00' } : {} },
             { key: 'tv', icon: VideoIcon, label: isTVMode ? 'TV On' : 'TV Mode', onClick: () => setIsTVMode(!isTVMode), style: isTVMode ? { color: '#FF8C00' } : {} },
             { key: 'dj', icon: Disc, label: 'DJ Mode', onClick: () => { getAudioContext?.(); setIsDJMode(true); }, style: {} },
             { key: 'lights', icon: Zap, label: 'Lights', onClick: () => setIsLightingOpen(true), style: isLightingOpen ? { color: '#FF8C00' } : {} },
@@ -3111,7 +3212,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 { key: 'captions', icon: MessageSquare, label: showCaptions ? 'Hide Captions' : 'Captions', onClick: () => setShowCaptions(!showCaptions), active: showCaptions },
                 ...(!isPublic ? [{ key: 'share', icon: Share2, label: 'Share', onClick: () => setShowShareModal(true), active: false }] : []),
                 ...(isOwner ? [{ key: 'edit', icon: Zap, label: isLockerRelease ? 'Edit Locker' : 'Edit Album', onClick: handleOpenEdit, active: false }] : []),
-                ...(isVisualizerLayout ? [{ key: 'fx', icon: Activity, label: 'FX Stage On', onClick: () => setIsVisualizerLayout(false), active: true }] : []),
+                { key: 'fx', icon: Activity, label: isVisualizerLayout ? 'Exit FX' : 'FX Stage', onClick: () => { if (isVisualizerLayout) setIsVisualizerLayout(false); else setIsTvFxActive(true); }, active: isVisualizerLayout },
                 { key: 'tv', icon: VideoIcon, label: isTVMode ? 'TV On' : 'TV Mode', onClick: () => setIsTVMode(!isTVMode), active: isTVMode },
                 { key: 'dj', icon: Disc, label: 'DJ Mode', onClick: () => { getAudioContext?.(); setIsDJMode(true); }, active: false },
                 { key: 'lights', icon: Zap, label: 'Lights', onClick: () => setIsLightingOpen(true), active: isLightingOpen },
@@ -3614,7 +3715,24 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                           </div>
                           )}
                           <div className="flex items-center gap-2">
-                            {isOwner && <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Drag to reorder</span>}
+                            {selectMode && (
+                              <button
+                                type="button"
+                                onClick={() => trackSelection.selectedIds.length === localTracks.length ? trackSelection.clear() : trackSelection.selectAll()}
+                                className="px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 text-white/60 hover:text-white text-[8px] font-black uppercase tracking-widest transition-all"
+                              >
+                                {trackSelection.selectedIds.length === localTracks.length ? 'Clear all' : 'Select all'}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={toggleSelectMode}
+                              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${selectMode ? 'bg-small-orange text-black border-small-orange' : 'bg-white/5 text-white/60 border-white/10 hover:text-white'}`}
+                            >
+                              <CheckSquare size={12} />
+                              {selectMode ? 'Done' : 'Select'}
+                            </button>
+                            {isOwner && !selectMode && <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Drag to reorder</span>}
                             <button onClick={() => setIsTracksCollapsed(!isTracksCollapsed)} className="p-2 hover:bg-white/5 rounded-lg transition-all text-white/20 hover:text-white">
                               {isTracksCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
                             </button>
@@ -4327,6 +4445,76 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           isOpen={true}
           onClose={() => setIsLockerEditOpen(false)}
           onSave={handleSaveLockerEdit}
+        />
+      )}
+
+      {/* Floating bulk-selection action bar for album tracklist */}
+      {createPortal(
+        <AnimatePresence>
+          {selectMode && selectedTracks.length > 0 && !bulkPlaylistTracks && !melosPickerTracks && (
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 40 }}
+              transition={{ duration: 0.2 }}
+              className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[150] flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-[#0f0f0f]/95 backdrop-blur-xl border border-white/15 shadow-2xl"
+            >
+              <span className="px-3 text-[11px] font-black uppercase tracking-widest text-white whitespace-nowrap">
+                {selectedTracks.length} selected
+              </span>
+              <button
+                type="button"
+                onClick={() => setBulkPlaylistTracks(selectedTracks)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-small-orange text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform cursor-pointer"
+              >
+                <ListPlus size={14} /> Add / remove to playlist
+              </button>
+              <button
+                type="button"
+                onClick={() => setMelosPickerTracks(selectedTracks)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+              >
+                <Layers size={14} /> Add to Melos
+              </button>
+              <button
+                type="button"
+                onClick={exitSelectMode}
+                className="p-2 rounded-xl bg-white/5 text-white/40 hover:text-white transition-colors cursor-pointer"
+                title="Cancel"
+              >
+                <X size={14} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {bulkPlaylistTracks && (
+        <PlaylistPickerModal
+          tracks={bulkPlaylistTracks}
+          onClose={() => {
+            setBulkPlaylistTracks(null)
+            exitSelectMode();
+          }}
+          onDone={() => {
+            setBulkPlaylistTracks(null);
+            exitSelectMode();
+          }}
+        />
+      )}
+
+      {melosPickerTracks && (
+        <MelosPickerModal
+          tracks={melosPickerTracks}
+          onClose={() => {
+            setMelosPickerTracks(null);
+            exitSelectMode();
+          }}
+          onDone={() => {
+            setMelosPickerTracks(null);
+            exitSelectMode();
+          }}
         />
       )}
     </div>

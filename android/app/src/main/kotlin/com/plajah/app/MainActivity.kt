@@ -60,7 +60,8 @@ class MainActivity : BridgeActivity() {
         // otherwise the default and stays fully intact; this is opt-in, like "Try New Nav" on web.
         if (!isTelevision() && ShellPrefs.isNativeEnabled(this)) {
             super.onCreate(savedInstanceState)
-            startActivity(Intent(this, NativeActivity::class.java))
+            startActivity(Intent(this, NativeActivity::class.java)
+                .putExtra("platformContentUrl",intent.getStringExtra("platformContentUrl")))
             finish()
             return
         }

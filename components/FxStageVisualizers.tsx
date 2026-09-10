@@ -91,6 +91,7 @@ export const FLUX_MODES: { name: string; mode: VisualizerMode }[] = [
   { name: 'Flux Lattice', mode: VisualizerMode.FluxLattice },
   { name: 'Flux Tunnel', mode: VisualizerMode.FluxTunnel },
   { name: 'Flux Aurora', mode: VisualizerMode.FluxAurora },
+  { name: 'The Sanctum', mode: VisualizerMode.FluxSanctum },
   { name: 'Porcelain Tide', mode: VisualizerMode.PorcelainTide },
   { name: 'Velvet Bloom', mode: VisualizerMode.VelvetBloom },
   { name: 'Prism Archive', mode: VisualizerMode.PrismArchive },

@@ -21,7 +21,7 @@ export interface FluxAudio {
 }
 export const SILENT_AUDIO: FluxAudio = { bass: 0, mid: 0, treble: 0, level: 0, beat: 0 };
 
-export type FluxSceneId = 'field' | 'tapestry' | 'tapestry-ii' | 'lattice' | 'tunnel' | 'aurora' | 'porcelain-tide' | 'velvet-bloom' | 'prism-archive';
+export type FluxSceneId = 'field' | 'tapestry' | 'tapestry-ii' | 'lattice' | 'tunnel' | 'aurora' | 'sanctum' | 'porcelain-tide' | 'velvet-bloom' | 'prism-archive';
 
 export interface FluxSceneInfo {
   id: FluxSceneId;
@@ -46,6 +46,8 @@ export const FLUX_SCENES: FluxSceneInfo[] = [
     line: 'A procession of monumental vermilion portals over an ink-blue causeway. The clock carries you forward; sound lights the ribs.' },
   { id: 'aurora', name: 'Flux Aurora', cat: 'Mir', built: true,
     line: 'Pleated jade and violet light suspended above a black arctic horizon. Slow overlapping curtains, fine spectral threads and a distant moon.' },
+  { id: 'sanctum', name: 'The Sanctum', cat: 'Sanctuary', built: true,
+    line: 'A monumental neoclassical cloister rendered in fluted marble, bronze coffering, and sacred geometry under an oculus. A tranquil, fixed architectural sanctuary.' },
   { id: 'porcelain-tide', name: 'Porcelain Tide', cat: 'Sculpture', built: true,
     line: 'A ceramic sea above a museum basin. Bass raises its crests, mids fold the porcelain scales, and treble exposes their copper undersides.' },
   { id: 'velvet-bloom', name: 'Velvet Bloom', cat: 'Couture', built: true,

@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,17 +32,18 @@ import java.time.temporal.ChronoUnit
 
 /** Chora is the only native destination under reconstruction. Other products retain
  * their existing platform entry rather than showing unrelated native demo screens. */
-@Composable fun ChoraNightScreen(onOpenPlatform:(String)->Unit,onExit:()->Unit) {
+@Composable fun ChoraNightScreen(initialAlbumId:String?=null,onOpenPlatform:(String)->Unit,onExit:()->Unit) {
     var albums by remember { mutableStateOf<List<PlatformItem>>(emptyList()) }
-    var selected by remember { mutableStateOf<PlatformItem?>(null) }
+    var selectedId by rememberSaveable { mutableStateOf(initialAlbumId) }
+    val selected=albums.firstOrNull{it.id==selectedId}
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     var attempt by remember { mutableIntStateOf(0) }
     var search by remember { mutableStateOf("") }
     var tab by remember { mutableStateOf("NEW") }
     LaunchedEffect(attempt) { loading=true;error=null;try { albums=PlatformCatalog.load("chora") }catch(e:CancellationException){throw e}catch(e:Exception){error=e.message}finally{loading=false} }
-    BackHandler(selected!=null) { selected=null }
-    if(selected!=null){ChoraAlbumScreen(selected!!,{selected=null},onOpenPlatform);return}
+    BackHandler(selectedId!=null) { selectedId=null }
+    if(selected!=null){ChoraAlbumScreen(selected,{selectedId=null},onOpenPlatform);return}
     Column(Modifier.fillMaxSize().background(Color(0xFF04030A)).safeDrawingPadding()) {
         Row(Modifier.fillMaxWidth().height(52.dp).padding(horizontal=16.dp),verticalAlignment=Alignment.CenterVertically) {
             ChoraBackMark(Modifier.clickable(onClick=onExit))
@@ -54,7 +56,7 @@ import java.time.temporal.ChronoUnit
                 val issue=ChronoUnit.DAYS.between(LocalDate.of(2026,1,1),LocalDate.now())+1
                 Text("THE SKY TONIGHT  ·  ISSUE Nº $issue",Modifier.padding(top=8.dp),fontSize=10.sp,fontWeight=FontWeight.ExtraBold,letterSpacing=2.6.sp,color=Color.White.copy(.38f))
                 Text("${albums.size} WORKS IN THE CATALOG",Modifier.padding(top=4.dp),fontSize=10.sp,fontWeight=FontWeight.ExtraBold,letterSpacing=2.6.sp,color=ChoraCyan)
-                NightSky(albums){selected=it}
+                NightSky(albums){selectedId=it.id}
             } }
             item(span={GridItemSpan(2)}) { Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
                 Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
@@ -69,9 +71,9 @@ import java.time.temporal.ChronoUnit
                 val groups=filtered.groupBy{if(tab=="ARTISTS")it.creator else it.genre.ifBlank{"Uncategorized"}}
                 groups.forEach { (name,releases)->item(span={GridItemSpan(2)},key=name){Column {
                     Text(name.uppercase(),fontSize=16.sp,fontWeight=FontWeight.Black)
-                    Row(Modifier.horizontalScroll(rememberScrollState()).padding(top=12.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){releases.forEach { album->NightRelease(album,{selected=album},Modifier.width(142.dp)) }}
+                    Row(Modifier.horizontalScroll(rememberScrollState()).padding(top=12.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){releases.forEach { album->NightRelease(album,{selectedId=album.id},Modifier.width(142.dp)) }}
                 }} }
-            } else items(filtered,key={it.id}) { album->NightRelease(album,{selected=album},Modifier.fillMaxWidth()) }
+            } else items(filtered,key={it.id}) { album->NightRelease(album,{selectedId=album.id},Modifier.fillMaxWidth()) }
         }
     }
 }

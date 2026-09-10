@@ -136,3 +136,149 @@ export function buildAurora(T:any):SceneInst {
     update(t,a,spec){curtains.forEach(m=>{const u=m.uniforms;u.time.value=t;u.bass.value=a.bass;u.mid.value=a.mid;u.tre.value=a.tre;u.hue.value=spec.hue;});},
     bloom:a=>.55+a.mid*.25,dispose:s.dispose};
 }
+
+/** CLASSICAL / NEOCLASSICAL MONUMENTAL ARCHITECTURE: The Sanctum.
+ * A tranquil, rendered architectural sanctuary: stepped plinth, fluted colonnade,
+ * circular marble rotunda with an oculus casting ray shafts, and sacred geometry.
+ * Camera is fixed (table specification: Camera = fixed). */
+export function buildSanctum(T: any): SceneInst {
+  const s = stage(T), { scene, camera, own, mesh, line } = s;
+
+  // Atmospheric lighting & fog
+  scene.fog = new T.FogExp2(0x0c0c14, 0.018);
+  scene.add(new T.HemisphereLight(0xe8eef5, 0x181424, 1.4));
+
+  // Celestial oculus shaft light
+  const oculusLight = new T.SpotLight(0xfff3db, 65, 45, Math.PI / 4.5, 0.6, 1.5);
+  oculusLight.position.set(0, 16, 0);
+  oculusLight.target.position.set(0, 0, 0);
+  scene.add(oculusLight);
+  scene.add(oculusLight.target);
+
+  // Warm perimeter altar brazier lights
+  const brazierA = new T.PointLight(0xff9944, 25, 20); brazierA.position.set(-5.5, 1.2, -4); scene.add(brazierA);
+  const brazierB = new T.PointLight(0xff9944, 25, 20); brazierB.position.set(5.5, 1.2, -4); scene.add(brazierB);
+
+  // Materials
+  const marble = own(new T.MeshStandardMaterial({ color: 0xdfdcd6, roughness: 0.28, metalness: 0.12 }));
+  const darkMarble = own(new T.MeshStandardMaterial({ color: 0x16181f, roughness: 0.35, metalness: 0.4 }));
+  const bronze = own(new T.MeshStandardMaterial({ color: 0xb58849, roughness: 0.32, metalness: 0.82, emissive: 0x3d2508, emissiveIntensity: 0.2 }));
+  const goldInk = own(new T.LineBasicMaterial({ color: 0xd4af37, transparent: true, opacity: 0.75 }));
+  const cyanGlow = own(new T.LineBasicMaterial({ color: 0x82d9ea, transparent: true, opacity: 0.6 }));
+
+  // Stepped Plinth (Octagonal / circular base)
+  for (let step = 0; step < 4; step++) {
+    const r = 13.5 - step * 0.9;
+    const h = 0.38;
+    const p = mesh(new T.CylinderGeometry(r, r, h, 64), step % 2 === 0 ? marble : darkMarble);
+    p.position.y = -1.2 + step * h;
+  }
+
+  // Pavement Inlay: Concentric Sacred Geometry circles & star polygons
+  for (let r of [2.2, 4.4, 6.8, 9.2]) {
+    const pts = Array.from({ length: 129 }, (_, i) => {
+      const a = (i / 128) * Math.PI * 2;
+      return [r * Math.cos(a), 0.34, r * Math.sin(a)];
+    });
+    line(pts, goldInk);
+  }
+  // 12-point star inscribed on floor
+  const starPts: number[][] = [];
+  for (let i = 0; i <= 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const r = i % 2 === 0 ? 6.8 : 4.4;
+    starPts.push([r * Math.cos(a), 0.342, r * Math.sin(a)]);
+  }
+  line(starPts, cyanGlow);
+
+  // Colonnade: 16 fluted classical columns in an open peristyle semicircular colonnade
+  const colCount = 16;
+  const colRadius = 8.8;
+  const colGeo = own(new T.CylinderGeometry(0.38, 0.44, 7.2, 32));
+  const capGeo = own(new T.BoxGeometry(1.1, 0.36, 1.1));
+  const baseGeo = own(new T.BoxGeometry(1.2, 0.32, 1.2));
+
+  for (let i = 0; i < colCount; i++) {
+    const a = (i / (colCount - 1)) * (Math.PI * 1.35) - Math.PI * 0.675;
+    const x = Math.sin(a) * colRadius;
+    const z = -Math.cos(a) * colRadius * 0.75 - 1.5;
+
+    const col = mesh(colGeo, marble);
+    col.position.set(x, 3.8, z);
+
+    const base = mesh(baseGeo, darkMarble);
+    base.position.set(x, 0.42, z);
+
+    const cap = mesh(capGeo, bronze);
+    cap.position.set(x, 7.3, z);
+  }
+
+  // Entablature & Architrave ring
+  const archRing = mesh(new T.TorusGeometry(8.6, 0.42, 12, 96), marble);
+  archRing.rotation.x = Math.PI / 2;
+  archRing.position.set(0, 7.6, -1.5);
+
+  // Coffered Dome Ceiling with Central Oculus
+  const domeMat = own(new T.MeshStandardMaterial({ color: 0x1a1a24, roughness: 0.5, metalness: 0.3, side: T.BackSide }));
+  const dome = mesh(new T.SphereGeometry(12, 36, 18, 0, Math.PI * 2, 0, Math.PI * 0.42), domeMat);
+  dome.rotation.x = Math.PI;
+  dome.position.set(0, 15.5, -1.5);
+
+  // Oculus Bronze Ring (opening in ceiling)
+  const oculusRing = mesh(new T.TorusGeometry(2.4, 0.16, 16, 64), bronze);
+  oculusRing.rotation.x = Math.PI / 2;
+  oculusRing.position.set(0, 15.2, -1.5);
+
+  // Central Altar Pedestal with Floating Monolith
+  const altarBase = mesh(new T.CylinderGeometry(1.4, 1.6, 1.1, 8), darkMarble);
+  altarBase.position.set(0, 0.85, -1.5);
+  const altarRing = mesh(new T.TorusGeometry(1.6, 0.08, 8, 32), bronze);
+  altarRing.rotation.x = Math.PI / 2;
+  altarRing.position.set(0, 1.4, -1.5);
+
+  // Floating geometric monolith at the sanctuary focus
+  const monolithMat = own(new T.MeshStandardMaterial({
+    color: 0x243542,
+    metalness: 0.85,
+    roughness: 0.18,
+    emissive: 0x1b384a,
+    emissiveIntensity: 0.35,
+  }));
+  const monolith = mesh(new T.OctahedronGeometry(1.15, 0), monolithMat);
+  monolith.position.set(0, 3.2, -1.5);
+
+  return {
+    scene,
+    camera,
+    cam: {
+      target: [0, 2.6, -1.5],
+      radius: 17.5,
+      pitch: 3.5,
+      yaw: 0,
+      fov: 42,
+      lock: true, // Camera is fixed as specified
+    },
+    exposure: 1.02,
+    brightThreshold: 0.88,
+    grain: 0.0006,
+    update(t, a) {
+      // Gentle sacred architectural rotation of the floating monolith
+      monolith.rotation.y = t * 0.18;
+      monolith.rotation.z = Math.sin(t * 0.25) * 0.12;
+      monolith.position.y = 3.2 + Math.sin(t * 0.7) * 0.18;
+
+      // Lighting responsiveness
+      const flicker = 0.95 + 0.05 * Math.sin(t * 12.0);
+      brazierA.intensity = 22 * flicker;
+      brazierB.intensity = 22 * flicker;
+      oculusLight.intensity = 60 + Math.sin(t * 0.4) * 8;
+
+      // Audio reactivity: audio radiates through the monolith's core and altar rings
+      monolithMat.emissiveIntensity = 0.35 + (a?.bass ?? 0) * 0.65;
+      bronze.emissiveIntensity = 0.15 + (a?.tre ?? 0) * 0.45;
+      cyanGlow.opacity = 0.45 + (a?.mid ?? 0) * 0.45;
+    },
+    bloom: (a) => 0.24 + (a?.energy ?? 0) * 0.16,
+    dispose: s.dispose,
+  };
+}
