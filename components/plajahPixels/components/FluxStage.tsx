@@ -24,7 +24,7 @@ const FluxStage: React.FC<Props> = ({ analyser, config, isPlaying, id }) => {
   useEffect(() => {
     const cv = vizRef.current!;
     const ctx = cv.getContext('2d')!;
-    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+    const DPR = 1; // capped to 1 — bloom + grain hides pixel detail; 2x would render at 4K on Retina
     let freq = new Uint8Array(2048);
     const music=new FluxMusicSampler();
     const start = performance.now();

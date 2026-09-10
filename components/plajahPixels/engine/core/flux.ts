@@ -29,7 +29,7 @@ const NOISE = `
     return mix(mix(mix(h31(i+vec3(0,0,0)),h31(i+vec3(1,0,0)),u.x),mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),u.x),u.y),
                mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),u.x),mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),u.x),u.y),u.z);}
   mat3 rotY(float a){float c=cos(a),s=sin(a);return mat3(c,0.,s, 0.,1.,0., -s,0.,c);}
-  float fbm3(vec3 p){float s=0.,a=.5;mat3 R=rotY(0.7);for(int i=0;i<5;i++){s+=a*vnoise(p);p=R*p*2.02+vec3(1.7,9.2,3.3);a*=.5;}return s;}`;
+  float fbm3(vec3 p){float s=0.,a=.5;mat3 R=rotY(0.7);for(int i=0;i<3;i++){s+=a*vnoise(p);p=R*p*2.02+vec3(1.7,9.2,3.3);a*=.5;}return s;}`;
 
 // ── scene contract ─────────────────────────────────────────────────────────────────────────────
 interface CamBase {
@@ -453,9 +453,9 @@ function renderFrame(e: Env, inst: SceneInst, spec: FluxSpec, w: number, h: numb
   e.brightMat.uniforms.uThresh.value = inst.brightThreshold ?? 0.85;
   e.brightMat.uniforms.tDiffuse.value = e.rtScene.texture; pass(e, e.brightMat, e.rtA);
   const tx = 1 / e.hW, ty = 1 / e.hH;
-  for (let r = 1; r <= 3; r++) {
-    e.blurMat.uniforms.tDiffuse.value = e.rtA.texture; e.blurMat.uniforms.uDir.value.set(tx * r * 1.2, 0); pass(e, e.blurMat, e.rtB);
-    e.blurMat.uniforms.tDiffuse.value = e.rtB.texture; e.blurMat.uniforms.uDir.value.set(0, ty * r * 1.2); pass(e, e.blurMat, e.rtA);
+  for (let r = 1; r <= 2; r++) {
+    e.blurMat.uniforms.tDiffuse.value = e.rtA.texture; e.blurMat.uniforms.uDir.value.set(tx * r * 1.8, 0); pass(e, e.blurMat, e.rtB);
+    e.blurMat.uniforms.tDiffuse.value = e.rtB.texture; e.blurMat.uniforms.uDir.value.set(0, ty * r * 1.8); pass(e, e.blurMat, e.rtA);
   }
   e.compMat.uniforms.uTime.value = localT;
   e.compMat.uniforms.uGrain.value = inst.grain ?? 0.022;

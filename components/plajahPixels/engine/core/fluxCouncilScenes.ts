@@ -24,7 +24,7 @@ const NOISE_GLSL = `
     return mix(mix(mix(h31(i+vec3(0,0,0)),h31(i+vec3(1,0,0)),u.x),mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),u.x),u.y),
                mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),u.x),mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),u.x),u.y),u.z);}
   mat3 rotY(float a){float c=cos(a),s=sin(a);return mat3(c,0.,s, 0.,1.,0., -s,0.,c);}
-  float fbm3(vec3 p){float s=0.,a=.5;mat3 R=rotY(0.7);for(int i=0;i<5;i++){s+=a*vnoise(p);p=R*p*2.02+vec3(1.7,9.2,3.3);a*=.5;}return s;}
+  float fbm3(vec3 p){float s=0.,a=.5;mat3 R=rotY(0.7);for(int i=0;i<3;i++){s+=a*vnoise(p);p=R*p*2.02+vec3(1.7,9.2,3.3);a*=.5;}return s;}
 `;
 
 /** FUTURIST / TRAPCODE FORM: Flux Lattice (Claude Artifact ef97e6c1)
