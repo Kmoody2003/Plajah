@@ -1682,7 +1682,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 {gatefoldOn ? (
                   <>
                     <h2 className="text-2xl font-black italic tracking-tight leading-none mb-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">{currentTrack?.title || album.title}</h2>
-                    <p className="text-[11px] font-black uppercase tracking-[0.18em] w-fit bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#6B0099] bg-clip-text text-transparent drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)]">{album.artist}</p>
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] w-fit bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#6B0099] bg-clip-text text-transparent drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)] cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => { e.stopPropagation(); if (onVisitUser && (album.artistId || album.userId)) onVisitUser(album.artistId || album.userId!); }}>{album.artist}</p>
                     <div className="h-[3px] rounded-full bg-white/15 mt-2 overflow-hidden">
                       <div className="h-full rounded-full bg-gradient-to-r from-[#D40055] to-[#FF8C00] transition-[width] duration-500" style={{ width: `${isCurrentTrackGlobal && globalDuration > 0 ? Math.min(100, (globalCurrentTime / globalDuration) * 100) : 0}%` }} />
                     </div>
@@ -1690,7 +1690,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 ) : (
                   <>
                     <h2 className="text-2xl font-black uppercase tracking-tightest leading-none mb-1 shadow-md">{currentTrack?.title}</h2>
-                    <p className="text-xs font-bold text-small-orange uppercase tracking-widest shadow-md">{album.artist}</p>
+                    <p className="text-xs font-bold text-small-orange uppercase tracking-widest shadow-md cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => { e.stopPropagation(); if (onVisitUser && (album.artistId || album.userId)) onVisitUser(album.artistId || album.userId!); }}>{album.artist}</p>
                   </>
                 )}
               </div>
@@ -3039,8 +3039,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                  <div className="w-[min(460px,48vh)] max-w-full hidden [@media(min-height:820px)]:block">
                    <h2 className="text-2xl font-black italic tracking-tight text-white leading-[1.02]" style={{ textWrap: 'balance' } as React.CSSProperties}>{album.title}</h2>
                    <p
-                     className="mt-1 text-[11px] font-black uppercase tracking-[0.22em] inline-block"
+                     className="mt-1 text-[11px] font-black uppercase tracking-[0.22em] inline-block cursor-pointer hover:opacity-80 transition-opacity"
                      style={{ background: 'var(--pj-grad-ember, linear-gradient(135deg,#D40055,#FF8C00))', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}
+                     onClick={() => { if (onVisitUser && (album.artistId || album.userId)) onVisitUser(album.artistId || album.userId!); }}
                    >
                      {album.artist}
                    </p>
@@ -3724,7 +3725,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                   <h1 className={`font-black uppercase tracking-tighter leading-[0.9] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] ${isVisualizerLayout ? 'text-lg lg:text-2xl' : 'text-3xl lg:text-5xl'}`}>{currentTrack?.title || album.title}</h1>
                 )}
                 {!isVisualizerLayout && !gatefoldOn && (
-                  <p className="text-lg lg:text-2xl font-display font-black italic tracking-tight bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#6B0099] bg-clip-text text-transparent w-fit drop-shadow-[0_1px_8px_rgba(0,0,0,0.4)]">{album.artist}</p>
+                  <p className="text-lg lg:text-2xl font-display font-black italic tracking-tight bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#6B0099] bg-clip-text text-transparent w-fit drop-shadow-[0_1px_8px_rgba(0,0,0,0.4)] cursor-pointer hover:opacity-80 transition-opacity" onClick={() => { if (onVisitUser && (album.artistId || album.userId)) onVisitUser(album.artistId || album.userId!); }}>{album.artist}</p>
                 )}
                 {(() => { const ecl = currentTrack?.isEclipsa || album.tracks?.some(t => t.isEclipsa); const atm = currentTrack?.isAtmos || album.tracks?.some(t => t.isAtmos); return (ecl || atm) ? <ImmersiveBadge isEclipsa={ecl} isAtmos={atm} showHint className="mt-3" /> : null; })()}
              </div>
@@ -3739,7 +3740,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                   <div className="flex-1 space-y-8">
                     <div>
                       <span className="text-[11px] font-black uppercase tracking-[0.5em] text-small-orange mb-4 block">Archive Identity</span>
-                      <h2 className="text-5xl font-display font-black tracking-tighter leading-none mb-6">{album.artist}</h2>
+                      <h2 className="text-5xl font-display font-black tracking-tighter leading-none mb-6 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => { if (onVisitUser && (album.artistId || album.userId)) onVisitUser(album.artistId || album.userId!); }}>{album.artist}</h2>
                       <div className="w-20 h-1 bg-white" />
                     </div>
                     <p className="text-lg lg:text-xl font-medium leading-relaxed text-white/60 italic font-display">{album.artistBio}</p>

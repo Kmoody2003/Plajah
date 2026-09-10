@@ -311,6 +311,26 @@ const TvFxSurface: React.FC = () => {
         </div>
       )}
 
+      {/* Plajah Full Stage Mode — branding logo bug, lower-right above transport */}
+      <div
+        className="absolute right-12 z-10 flex items-center gap-2 pointer-events-none select-none transition-opacity duration-500"
+        style={{ opacity: controls ? 0.7 : 0.25, bottom: '11rem' }}
+      >
+        <span className="text-[11px] font-black uppercase tracking-[0.35em] text-white/70">Plajah</span>
+        {/* Plajah chevron mark — inline SVG */}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+          <defs>
+            <linearGradient id="pj-chev-grad" x1="6" y1="2" x2="18" y2="22" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor="#8B5CF6" />
+              <stop offset="50%" stopColor="#D40055" />
+              <stop offset="100%" stopColor="#FF8C00" />
+            </linearGradient>
+          </defs>
+          <path d="M7 3.5C7 2.67 7.67 2 8.5 2c.4 0 .77.16 1.06.44l8 8.5a1.5 1.5 0 0 1 0 2.12l-8 8.5A1.5 1.5 0 0 1 7 20.5V3.5Z" fill="url(#pj-chev-grad)" />
+        </svg>
+        <span className="text-[11px] font-black uppercase tracking-[0.35em] text-white/70">Full Stage Mode</span>
+      </div>
+
       {/* Bottom transport — present, like the slideshow. Progress + prev / play-pause / next, plus the
           current preset name and the control legend. */}
       <div
