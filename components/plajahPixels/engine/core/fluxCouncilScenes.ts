@@ -108,10 +108,10 @@ export function buildLattice(T: any): SceneInst {
         vec3 p = n * (length(p0) * swell + displacement + ripple);
 
         // Palette: Deep sapphire base -> electric cyan mid -> crest light -> kick gold flare
-        vec3 colBase = vec3(0.06, 0.25, 0.68);
-        vec3 colMid = vec3(0.12, 0.88, 0.98);
-        vec3 colCrest = vec3(0.96, 0.98, 1.0);
-        vec3 colGold = vec3(1.0, 0.82, 0.42);
+        vec3 colBase = vec3(0.04, 0.28, 0.95);
+        vec3 colMid = vec3(0.08, 0.92, 1.0);
+        vec3 colCrest = vec3(1.0, 0.72, 0.32);
+        vec3 colGold = vec3(1.0, 0.88, 0.22);
 
         vec3 c = mix(colBase, colMid, smoothstep(0.12, 0.62, h));
         c = mix(c, colCrest, crest);
@@ -123,7 +123,7 @@ export function buildLattice(T: any): SceneInst {
         c = mix(c, c.bgr, (uHue - 0.5) * 0.35);
 
         vCol = c;
-        vAlpha = (0.42 + crest * 0.58) * (0.7 + uEnergy * 0.3);
+        vAlpha = (0.55 + crest * 0.45) * (0.75 + uEnergy * 0.25);
 
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         gl_Position = projectionMatrix * mv;
@@ -170,7 +170,7 @@ export function buildLattice(T: any): SceneInst {
       U.uEnergy.value = a.energy;
       U.uHue.value = spec.hue;
     },
-    bloom: (a) => 0.22 + a.kick * 0.16 + a.energy * 0.12,
+    bloom: (a) => 0.30 + a.kick * 0.18 + a.energy * 0.14,
     dispose: () => {
       geo.dispose();
       mat.dispose();
@@ -447,10 +447,10 @@ export function buildAurora(T: any): SceneInst {
         float kickSurge = uKick * 0.8;
 
         // Palette: Vibrant atmospheric aurora borealis
-        vec3 colJade = vec3(0.04, 0.98, 0.46);
-        vec3 colCyan = vec3(0.08, 0.72, 0.98);
-        vec3 colViolet = vec3(0.72, 0.16, 0.86);
-        vec3 colRay = vec3(0.88, 1.0, 0.96);
+        vec3 colJade = vec3(0.02, 1.0, 0.42);
+        vec3 colCyan = vec3(0.04, 0.88, 1.0);
+        vec3 colViolet = vec3(0.92, 0.12, 0.72);
+        vec3 colRay = vec3(0.82, 1.0, 0.88);
 
         // Vertical ribbon blend: Jade green base -> Cyan mid -> Violet ray crowns
         vec3 c = mix(colJade, colCyan, smoothstep(0.08, 0.48, v));
@@ -468,7 +468,7 @@ export function buildAurora(T: any): SceneInst {
         float vertFade = smoothstep(0.0, 0.08, v) * (exp(-v * 1.4) * 0.9 + sin(v * 3.14159) * 0.35);
 
         vCol = c;
-        vAlpha = horizFade * vertFade * (0.6 + shimmer * 0.4 + kickSurge * 0.3) * (0.7 + uEnergy * 0.3);
+        vAlpha = horizFade * vertFade * (0.72 + shimmer * 0.38 + kickSurge * 0.35) * (0.75 + uEnergy * 0.25);
 
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         gl_Position = projectionMatrix * mv;
@@ -545,7 +545,7 @@ export function buildAurora(T: any): SceneInst {
       U.uEnergy.value = a.energy;
       U.uHue.value = spec.hue;
     },
-    bloom: (a) => 0.20 + a.mid * 0.14 + a.kick * 0.16,
+    bloom: (a) => 0.28 + a.mid * 0.16 + a.kick * 0.18,
     dispose: () => {
       geo.dispose();
       mat.dispose();

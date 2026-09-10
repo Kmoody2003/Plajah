@@ -1,167 +1,374 @@
-// New concepts, independent of the earlier Field/Lattice/Tunnel/Aurora catalog.
-// Sound articulates geometry; the camera remains a stable viewing position.
+// Rebuilt Flux Atelier Scenes — Trapcode Form point-cloud particle implementations.
+// Porcelain Tide, Velvet Bloom, Prism Archive: now 30-40k ordered dots with full audio reactivity.
 import type { SceneInst } from './flux';
 
-export function atelier(T:any, renderer:any) {
-  const owned=new Set<any>(),scene=new T.Scene(),camera=new T.PerspectiveCamera(43,1,.1,180);
-  const own=<A,>(a:A):A=>{owned.add(a);return a;};
-  const mesh=(g:any,m:any,parent=scene)=>{const o=new T.Mesh(own(g),m);parent.add(o);return o;};
-  const room=new T.Scene();
-  const roomGeo=new T.BoxGeometry(60,40,60),roomMat=new T.MeshBasicMaterial({color:0x777983,side:T.BackSide});
-  room.add(new T.Mesh(roomGeo,roomMat));
-  const panels:any[]=[];
-  for(const [x,y,z,sx,sy,c] of [[-12,8,4,7,15,0xffe2c7],[12,6,-5,5,18,0xb8dce5],[0,17,0,18,7,0xffffff]]){
-    const g=new T.PlaneGeometry(sx,sy),m=new T.MeshBasicMaterial({color:c});
-    const p=new T.Mesh(g,m);p.position.set(x,y,z);p.lookAt(0,0,0);room.add(p);panels.push(g,m);
-  }
-  const pmrem=new T.PMREMGenerator(renderer),target=own(pmrem.fromScene(room,.06));
-  scene.environment=target.texture;pmrem.dispose();roomGeo.dispose();roomMat.dispose();panels.forEach(p=>p.dispose());
-  scene.add(new T.HemisphereLight(0xe9edf1,0x202638,1.6));
-  const key=new T.DirectionalLight(0xffe4ce,3.2);key.position.set(-6,12,8);scene.add(key);
-  const fill=new T.DirectionalLight(0xa4d6e7,1.8);fill.position.set(9,5,-7);scene.add(fill);
-  return {scene,camera,own,mesh,key,dispose:()=>{owned.forEach(o=>o.dispose?.());owned.clear();}};
-}
+const NOISE_GLSL = `
+  float h31(vec3 p){p=fract(p*0.3183099+0.1);p*=17.0;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
+  float vnoise(vec3 p){vec3 i=floor(p),f=fract(p);vec3 u=f*f*f*(f*(f*6.0-15.0)+10.0);
+    return mix(mix(mix(h31(i+vec3(0,0,0)),h31(i+vec3(1,0,0)),u.x),mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),u.x),u.y),
+               mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),u.x),mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),u.x),u.y),u.z);}
+  float fbm3(vec3 p){float s=0.,a=.5;for(int i=0;i<5;i++){s+=a*vnoise(p);p=p*2.02+vec3(1.7,9.2,3.3);a*=.5;}return s;}
+`;
 
-/** A ceramic kinetic installation: hundreds of individual scales expose copper
- * at each wave crest. Physical relief, specular glaze and a grounded stone basin. */
-export function buildPorcelainTide(T:any,renderer:any):SceneInst {
-  const s=atelier(T,renderer),{scene,camera,own,mesh}=s;
-  const ceramic=own(new T.MeshStandardMaterial({color:0xe0e5df,metalness:.08,roughness:.23}));
-  const copper=own(new T.MeshStandardMaterial({color:0x925933,metalness:.82,roughness:.28,emissive:0x542210,emissiveIntensity:.15}));
-  const stone=own(new T.MeshStandardMaterial({color:0x0c2830,metalness:.25,roughness:.36}));
-  const basin=mesh(new T.BoxGeometry(22,.7,17.5),stone);basin.position.y=-1;
-  const rim=own(new T.MeshStandardMaterial({color:0xaa7845,metalness:.7,roughness:.3}));
-  for(const side of [-1,1]){
-    mesh(new T.BoxGeometry(22,.04,.045),rim).position.set(0,-.63,side*8.7);
-    mesh(new T.BoxGeometry(.045,.04,17.5),rim).position.set(side*10.9,-.63,0);
+/** PORCELAIN TILE — 40,000 dots in a sacred geometric mandala.
+ * Concentric Fibonacci rings forming an intricate tiled rosette.
+ * Bass pulses outward, mid drives rotation, treble sparks lattice lines, kick shockwave from center. */
+export function buildPorcelainTide(T: any): SceneInst {
+  const scene = new T.Scene();
+  scene.fog = new T.FogExp2(0x020810, 0.012);
+  const camera = new T.PerspectiveCamera(46, 1, 0.1, 200);
+
+  const CNT = 40000;
+  const pos = new Float32Array(CNT * 3);
+  const uvs = new Float32Array(CNT * 2);
+
+  const phi = (1 + Math.sqrt(5)) / 2;
+  const goldenAngle = Math.PI * 2 * (1 - 1 / phi);
+
+  for (let i = 0; i < CNT; i++) {
+    const t = i / CNT;
+    const radius = Math.sqrt(t) * 12.0;
+    const theta = goldenAngle * i;
+    pos[i * 3] = Math.cos(theta) * radius;
+    pos[i * 3 + 1] = Math.sin(theta) * radius;
+    pos[i * 3 + 2] = 0;
+    uvs[i * 2] = t;
+    uvs[i * 2 + 1] = (theta % (Math.PI * 2)) / (Math.PI * 2);
   }
-  const floor=mesh(new T.PlaneGeometry(160,160),own(new T.MeshStandardMaterial({color:0x10151d,roughness:.8})));floor.rotation.x=-Math.PI/2;floor.position.y=-1.4;
-  const shape=new T.Shape();
-  shape.moveTo(-.20,-.24);shape.lineTo(.20,-.24);shape.quadraticCurveTo(.26,-.24,.26,-.18);
-  shape.lineTo(.26,.18);shape.quadraticCurveTo(.26,.24,.20,.24);shape.lineTo(-.20,.24);
-  shape.quadraticCurveTo(-.26,.24,-.26,.18);shape.lineTo(-.26,-.18);shape.quadraticCurveTo(-.26,-.24,-.20,-.24);
-  const g=own(new T.ExtrudeGeometry(shape,{depth:.065,bevelEnabled:true,bevelSegments:2,steps:1,bevelSize:.025,bevelThickness:.025}));g.rotateX(-Math.PI/2);
-  const NX=38,NZ=29,tiles=new T.InstancedMesh(g,[ceramic,copper],NX*NZ);scene.add(tiles);
-  // Deformation exceeds the undeformed mesh's bounds; avoid incorrect CPU frustum culling.
-  tiles.frustumCulled=false;
-  const pose=new T.Object3D(),color=new T.Color();
-  for(let j=0;j<NZ;j++)for(let i=0;i<NX;i++){
-    color.setHSL(.50+.04*Math.sin(i*.11+j*.17),.08+.10*(j/NZ),.68+.1*Math.sin(i*.3+j*.13));tiles.setColorAt(j*NX+i,color);
-  }
-  return {scene,camera,cam:{target:[0,.5,0],radius:35,pitch:39,yaw:23,fov:42},grain:.0005,exposure:1.03,brightThreshold:1.2,
-    update(t,a){
-      const amp=.16+Math.min(1.4,a.bass)*2.45,fold=a.mid*.64;
-      for(let j=0;j<NZ;j++)for(let i=0;i<NX;i++){
-        const x=(i-(NX-1)/2)*.55,z=(j-(NZ-1)/2)*.55;
-        const phase=x*.42+z*.3-t*1.15;
-        const crest=Math.sin(phase),second=Math.sin(z*.67-x*.15+t*.6);
-        const y=.35+amp*(.6+.50*crest)+fold*(.5+.5*second);
-        pose.position.set(x,y,z);
-        pose.rotation.set(Math.cos(phase)*amp*.23+Math.cos(z*.67+t*.6)*fold*.6,0,-Math.cos(phase)*amp*.20);
-        pose.scale.set(1,1,1);pose.updateMatrix();tiles.setMatrixAt(j*NX+i,pose.matrix);
+
+  const geo = new T.BufferGeometry();
+  geo.setAttribute('position', new T.BufferAttribute(pos, 3));
+  geo.setAttribute('aUv', new T.BufferAttribute(uvs, 2));
+
+  const mat = new T.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: T.AdditiveBlending,
+    uniforms: {
+      uTime: { value: 0 }, uBass: { value: 0 }, uMid: { value: 0 },
+      uTre: { value: 0 }, uKick: { value: 0 }, uEnergy: { value: 0 },
+      uPix: { value: 1 }, uHue: { value: 0.5 },
+    },
+    vertexShader: NOISE_GLSL + `
+      uniform float uTime, uBass, uMid, uTre, uKick, uEnergy, uPix, uHue;
+      attribute vec2 aUv;
+      varying vec3 vCol;
+      varying float vAlpha;
+      void main() {
+        vec2 p0 = position.xy;
+        float r = length(p0);
+        float angle = atan(p0.y, p0.x);
+        float breathe = 1.0 + uBass * 0.45 + uEnergy * 0.15;
+        float expandedR = r * breathe;
+        float innerRot = uTime * 0.35 + uMid * 1.2;
+        float outerRot = uTime * -0.18 + uMid * -0.6;
+        float rotBlend = smoothstep(0.0, 12.0, r);
+        float rot = mix(innerRot, outerRot, rotBlend);
+        float newAngle = angle + rot;
+        vec3 nCoord = vec3(cos(newAngle) * expandedR * 0.35, sin(newAngle) * expandedR * 0.35, uTime * 0.12);
+        float lattice = fbm3(nCoord * 2.5);
+        float latticeLine = pow(0.5 + 0.5 * sin(expandedR * 3.8 + lattice * 6.0), 6.0);
+        float sparkHash = fract(sin(dot(vec2(aUv.x * 400.0, aUv.y * 300.0) + floor(uTime * 12.0) * 0.13, vec2(12.9898, 78.233))) * 43758.5453);
+        float spark = smoothstep(0.88, 0.99, sparkHash) * (0.3 + uTre * 2.8);
+        float kickWave = sin(expandedR * 2.5 - uTime * 12.0) * uKick * 1.6 * exp(-r * 0.18);
+        float z = sin(expandedR * 0.6 + lattice * 3.0) * (0.8 + uBass * 1.2) + kickWave * 0.5;
+        vec3 p = vec3(cos(newAngle) * expandedR, sin(newAngle) * expandedR, z);
+        vec3 colCyan = vec3(0.04, 0.88, 1.0);
+        vec3 colSapphire = vec3(0.08, 0.22, 0.92);
+        vec3 colWhite = vec3(0.96, 0.98, 1.0);
+        vec3 colGold = vec3(1.0, 0.85, 0.22);
+        vec3 c = mix(colSapphire, colCyan, smoothstep(0.2, 0.7, lattice));
+        c = mix(c, colWhite, latticeLine * (0.4 + uTre * 0.6));
+        c += colWhite * spark * 1.4;
+        c = mix(c, colGold, smoothstep(0.3, 0.9, abs(kickWave)) * uKick * 0.85);
+        float ringGlow = pow(0.5 + 0.5 * sin(expandedR * 4.2), 8.0) * (0.3 + uEnergy * 0.5);
+        c += colCyan * ringGlow * 0.6;
+        c = mix(c, c.bgr, (uHue - 0.5) * 0.35);
+        float edgeFade = 1.0 - smoothstep(10.0, 12.5, r);
+        vCol = c;
+        vAlpha = (0.45 + latticeLine * 0.45 + spark * 0.4) * edgeFade * (0.75 + uEnergy * 0.25);
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        gl_Position = projectionMatrix * mv;
+        float sz = (0.55 + latticeLine * 0.65 + spark * 0.5) * (1.0 + uEnergy * 0.2);
+        gl_PointSize = clamp(sz * uPix * (42.0 / max(0.5, -mv.z)), 1.0, 6.5);
       }
-      tiles.instanceMatrix.needsUpdate=true;copper.emissiveIntensity=.08+a.tre*.55;
-      s.key.intensity=2.6+a.energy*.8;
-    },bloom:a=>.12+a.tre*.12,dispose:s.dispose};
+    `,
+    fragmentShader: `
+      precision highp float;
+      varying vec3 vCol; varying float vAlpha;
+      void main() {
+        vec2 d = gl_PointCoord - 0.5; float r = length(d);
+        if (r > 0.5) discard;
+        float core = 1.0 - smoothstep(0.1, 0.5, r);
+        gl_FragColor = vec4(vCol, core * vAlpha);
+      }
+    `,
+  });
+
+  const points = new T.Points(geo, mat);
+  points.frustumCulled = false;
+  scene.add(points);
+
+  return {
+    scene, camera,
+    cam: { target: [0, 0, 0], radius: 26, pitch: 35, yaw: 0, fov: 46 },
+    exposure: 1.05, brightThreshold: 0.82, grain: 0.0006,
+    update(t, a, spec) {
+      points.rotation.z = t * 0.04;
+      const U = mat.uniforms;
+      U.uTime.value = t; U.uBass.value = a.bass; U.uMid.value = a.mid;
+      U.uTre.value = a.tre; U.uKick.value = a.kick; U.uEnergy.value = a.energy;
+      U.uHue.value = spec.hue;
+    },
+    bloom: (a) => 0.28 + a.kick * 0.18 + a.energy * 0.14,
+    dispose: () => { geo.dispose(); mat.dispose(); },
+  };
 }
 
-const PETAL_VERTEX=`
-uniform float time,bass,mid,angle,size,seed;varying vec2 q;varying vec3 world;
-void main(){q=uv;float u=uv.y,v=uv.x*2.-1.;
-  float openness=.54+bass*.46;
-  float radius=.42+u*size*openness;
-  float width=pow(max(.001,sin(u*3.14159)),.7)*size*.27;
-  float phi=angle+u*u*(.3+mid*.75)+.035*sin(time*.4+seed);
-  vec2 radial=vec2(cos(phi),sin(phi)),tangent=vec2(-radial.y,radial.x);
-  vec2 xy=radial*radius+tangent*v*width;
-  float pleat=sin(v*28.+u*4.)*.085*sin(u*3.14159);
-  float z=sin(u*3.14159)*(1.1+(1.-openness)*2.)+pow(u,5.)*(.2+mid*.75)+pleat;
-  z+=.15*sin(u*9.-time*.45+seed)*sin(u*3.14159);
-  vec4 wp=modelMatrix*vec4(xy,z,1.);world=wp.xyz;gl_Position=projectionMatrix*viewMatrix*wp;}`;
-const PETAL_FRAGMENT=`
-uniform float tre,hue,seed;varying vec2 q;varying vec3 world;
-void main(){vec3 n=normalize(cross(dFdx(world),dFdy(world)));if(!gl_FrontFacing)n=-n;
-  vec3 eye=normalize(cameraPosition-world),key=normalize(vec3(-.5,.7,1.));
-  float diffuse=.25+.75*abs(dot(n,key));float rim=pow(1.-abs(dot(n,eye)),2.7);
-  float sheen=pow(max(0.,dot(reflect(-key,n),eye)),24.);
-  float ribs=.5+.5*sin(q.x*56.+q.y*4.);
-  vec3 velvet=mix(vec3(.17,.006,.028),vec3(.55,.028,.085),diffuse);
-  velvet=mix(velvet,vec3(.56,.20,.14),smoothstep(.75,1.,q.y)*.36);
-  velvet=mix(velvet,velvet.bgr,abs(hue-.5)*.35);
-  vec3 c=velvet*(.66+.34*ribs)+vec3(.84,.38,.32)*(sheen*.5+rim*(.35+tre*.65));
-  float edge=smoothstep(.94,1.,abs(q.x*2.-1.));c+=edge*vec3(.52,.19,.08)*(.25+tre*.7);
-  gl_FragColor=vec4(c,1.);}`;
+/** VELVET BLOOM — 30,000 dots in organic blooming petal surfaces.
+ * Layered rose/peony shapes that unfold and breathe.
+ * Bass swells petals, mid drives unfurling speed, treble inner glow, kick light surge. */
+export function buildVelvetBloom(T: any): SceneInst {
+  const scene = new T.Scene();
+  scene.fog = new T.FogExp2(0x0a0208, 0.014);
+  const camera = new T.PerspectiveCamera(46, 1, 0.1, 200);
 
-/** Pleated couture as a kinetic sculpture. Opening is an actual bass-driven
- * change of silhouette and depth, not a time animation with a brightness knob. */
-export function buildVelvetBloom(T:any,renderer:any):SceneInst {
-  const s=atelier(T,renderer),{scene,camera,own,mesh}=s;
-  const materials:any[]=[];
-  const petalG=own(new T.PlaneGeometry(1,1,64,64));
-  for(let layer=0;layer<2;layer++)for(let i=0;i<(layer?7:11);i++){
-    const n=layer?7:11,seed=i+layer*17;
-    const m=own(new T.ShaderMaterial({side:T.DoubleSide,uniforms:{time:{value:0},bass:{value:0},mid:{value:0},tre:{value:0},hue:{value:.5},angle:{value:i/n*Math.PI*2+layer*.31},size:{value:layer?3.05:5.7},seed:{value:seed}},vertexShader:PETAL_VERTEX,fragmentShader:PETAL_FRAGMENT}));
-    materials.push(m);const p=new T.Mesh(petalG,m);p.frustumCulled=false;p.position.z=layer*.65;scene.add(p);
+  const LAYERS = 8, RADIAL = 60, ALONG = 63;
+  const CNT = LAYERS * RADIAL * ALONG;
+  const pos = new Float32Array(CNT * 3);
+  const attrs = new Float32Array(CNT * 3);
+
+  let idx = 0;
+  for (let layer = 0; layer < LAYERS; layer++) {
+    const layerAngleOffset = (layer / LAYERS) * Math.PI * 2;
+    const layerSize = 3.0 + layer * 0.9;
+    for (let r = 0; r < RADIAL; r++) {
+      const u = r / (RADIAL - 1);
+      for (let a = 0; a < ALONG; a++) {
+        const v = a / (ALONG - 1);
+        const vC = (v - 0.5) * 2.0;
+        const petalR = u * layerSize;
+        const widthEnv = Math.sin(u * Math.PI) * layerSize * 0.22;
+        const petalAngle = layerAngleOffset + vC * widthEnv / (petalR + 0.1);
+        pos[idx * 3] = Math.cos(petalAngle) * petalR;
+        pos[idx * 3 + 1] = Math.sin(petalAngle) * petalR;
+        pos[idx * 3 + 2] = 0;
+        attrs[idx * 3] = layer;
+        attrs[idx * 3 + 1] = u;
+        attrs[idx * 3 + 2] = v;
+        idx++;
+      }
+    }
   }
-  const brass=own(new T.MeshStandardMaterial({color:0xb27844,metalness:.8,roughness:.28}));
-  const heart=mesh(new T.IcosahedronGeometry(.46,2),brass);heart.position.z=1.9;
-  const halo=mesh(new T.TorusGeometry(.63,.028,8,96),brass);halo.position.z=1.6;
-  const plinth=own(new T.MeshStandardMaterial({color:0x15151d,metalness:.2,roughness:.45}));
-  mesh(new T.CylinderGeometry(2.2,2.4,.4,64),plinth).position.set(0,-5.25,-.5);
-  const stem=mesh(new T.CylinderGeometry(.075,.14,4.8,20),brass);stem.position.set(0,-2.7,-.8);
-  const backdrop=mesh(new T.PlaneGeometry(100,70),own(new T.MeshStandardMaterial({color:0x211b25,roughness:.9})));backdrop.position.z=-5;
-  return {scene,camera,cam:{target:[0,-.15,0],radius:22.5,pitch:8,yaw:-7,fov:43},grain:.0005,exposure:1.08,brightThreshold:1.1,
-    update(t,a,spec){materials.forEach(m=>{const u=m.uniforms;u.time.value=t;u.bass.value=Math.min(1.35,a.bass);u.mid.value=a.mid;u.tre.value=a.tre;u.hue.value=spec.hue;});heart.rotation.z=t*.09+a.mid*.3;heart.scale.setScalar(.85+a.kick*.35);},
-    bloom:a=>.14+a.tre*.14,dispose:s.dispose};
+
+  const geo = new T.BufferGeometry();
+  geo.setAttribute('position', new T.BufferAttribute(pos, 3));
+  geo.setAttribute('aPetal', new T.BufferAttribute(attrs, 3));
+
+  const mat = new T.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: T.AdditiveBlending,
+    uniforms: {
+      uTime: { value: 0 }, uBass: { value: 0 }, uMid: { value: 0 },
+      uTre: { value: 0 }, uKick: { value: 0 }, uEnergy: { value: 0 },
+      uPix: { value: 1 }, uHue: { value: 0.5 },
+    },
+    vertexShader: NOISE_GLSL + `
+      uniform float uTime, uBass, uMid, uTre, uKick, uEnergy, uPix, uHue;
+      attribute vec3 aPetal;
+      varying vec3 vCol; varying float vAlpha;
+      void main() {
+        float layer = aPetal.x, u = aPetal.y, v = aPetal.z;
+        float vC = (v - 0.5) * 2.0;
+        float layerCount = 8.0;
+        float layerAngle = (layer / layerCount) * 6.28318 + uTime * 0.08;
+        float layerSize = 3.0 + layer * 0.9;
+        float openness = 0.5 + uBass * 0.5 + uEnergy * 0.15;
+        float curlSpeed = 0.3 + uMid * 0.8;
+        float curl = u * u * (1.2 + curlSpeed) + 0.04 * sin(uTime * 0.5 + layer * 0.7);
+        float petalR = u * layerSize * openness;
+        float widthEnv = pow(sin(u * 3.14159), 0.7) * layerSize * 0.24;
+        float petalAngle = layerAngle + curl + vC * widthEnv / max(0.1, petalR);
+        float z = sin(u * 3.14159) * (1.8 + (1.0 - openness) * 3.0) + pow(u, 4.0) * 0.8;
+        z += 0.12 * sin(u * 8.0 - uTime * 0.4 + layer) * sin(u * 3.14159);
+        float kickSurge = uKick * 1.4 * exp(-u * 2.5);
+        vec3 p = vec3(cos(petalAngle) * petalR, sin(petalAngle) * petalR, z + layer * 0.3);
+        vec3 colMagenta = vec3(0.88, 0.04, 0.35);
+        vec3 colPink = vec3(1.0, 0.22, 0.55);
+        vec3 colViolet = vec3(0.62, 0.08, 0.82);
+        vec3 colRoseGold = vec3(1.0, 0.72, 0.52);
+        vec3 colFuchsia = vec3(0.98, 0.12, 0.78);
+        float layerT = layer / layerCount;
+        vec3 c = mix(colPink, colMagenta, layerT);
+        c = mix(c, colViolet, smoothstep(0.5, 1.0, layerT));
+        float tipGlow = smoothstep(0.6, 0.95, u) * (0.3 + uTre * 2.0);
+        c = mix(c, colRoseGold, tipGlow * (1.0 - layerT * 0.6));
+        c += colFuchsia * kickSurge * 0.7;
+        c += vec3(1.0, 0.9, 0.8) * kickSurge * 0.3;
+        float edgeShimmer = smoothstep(0.85, 1.0, abs(vC)) * (0.4 + uTre * 1.2);
+        c += colRoseGold * edgeShimmer * 0.5;
+        c = mix(c, c.bgr, (uHue - 0.5) * 0.4);
+        float petalFade = smoothstep(0.0, 0.1, u) * (1.0 - smoothstep(0.92, 1.0, u));
+        float widthFade = 1.0 - smoothstep(0.7, 1.0, abs(vC));
+        vCol = c;
+        vAlpha = petalFade * widthFade * (0.55 + tipGlow * 0.3 + kickSurge * 0.35) * (0.75 + uEnergy * 0.25);
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        gl_Position = projectionMatrix * mv;
+        float sz = (0.6 + tipGlow * 0.5 + kickSurge * 0.4) * (1.0 + uEnergy * 0.2);
+        gl_PointSize = clamp(sz * uPix * (48.0 / max(0.5, -mv.z)), 1.0, 6.0);
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      varying vec3 vCol; varying float vAlpha;
+      void main() {
+        vec2 d = gl_PointCoord - 0.5; float r = length(d);
+        if (r > 0.5) discard;
+        float core = 1.0 - smoothstep(0.1, 0.5, r);
+        gl_FragColor = vec4(vCol, core * vAlpha);
+      }
+    `,
+  });
+
+  const points = new T.Points(geo, mat);
+  points.frustumCulled = false;
+  scene.add(points);
+
+  return {
+    scene, camera,
+    cam: { target: [0, 0, 1.5], radius: 20, pitch: 12, yaw: 0, fov: 46 },
+    exposure: 1.08, brightThreshold: 0.78, grain: 0.0006,
+    update(t, a, spec) {
+      points.rotation.z = t * 0.06;
+      points.rotation.x = Math.sin(t * 0.15) * 0.08;
+      const U = mat.uniforms;
+      U.uTime.value = t; U.uBass.value = a.bass; U.uMid.value = a.mid;
+      U.uTre.value = a.tre; U.uKick.value = a.kick; U.uEnergy.value = a.energy;
+      U.uHue.value = spec.hue;
+    },
+    bloom: (a) => 0.30 + a.kick * 0.22 + a.energy * 0.15,
+    dispose: () => { geo.dispose(); mat.dispose(); },
+  };
 }
 
-/** A hanging archive of optically patterned glass. Each page is a separate
- * rigid volume, with a coordinated analytic light projection on its plinth. */
-export function buildPrismArchive(T:any,renderer:any):SceneInst {
-  const s=atelier(T,renderer),{scene,camera,own,mesh}=s;
-  const glassG=own(new T.BoxGeometry(2.7,6.4,.10));
-  const edgesG=own(new T.EdgesGeometry(glassG));
-  const edgeMat=own(new T.LineBasicMaterial({color:0xb9d6db,transparent:true,opacity:.62}));
-  const metal=own(new T.MeshStandardMaterial({color:0x75888f,metalness:.88,roughness:.2}));
-  const pages:{group:any;mat:any;wire:any;index:number}[]=[];
-  for(let i=0;i<15;i++){
-    const m=own(new T.ShaderMaterial({transparent:true,depthWrite:false,side:T.DoubleSide,
-      uniforms:{time:{value:0},mid:{value:0},tre:{value:0},hue:{value:.5},index:{value:i}},
-      vertexShader:'varying vec2 q;varying vec3 n,w;void main(){q=uv;n=normalize(mat3(modelMatrix)*normal);vec4 p=modelMatrix*vec4(position,1.);w=p.xyz;gl_Position=projectionMatrix*viewMatrix*p;}',
-      fragmentShader:`uniform float time,mid,tre,hue,index;varying vec2 q;varying vec3 n,w;
-      void main(){float f=pow(1.-abs(dot(normalize(n),normalize(cameraPosition-w))),2.);
-        float spectrum=q.x*.65+index*.067+hue*.3+mid*.12;
-        vec3 c=.5+.5*cos(6.28318*(spectrum+vec3(0.,.33,.67)));
-        float lines=pow(.5+.5*sin(q.y*180.+sin(q.x*9.+time*.3)*2.),18.);
-        float border=1.-smoothstep(0.,.025,min(min(q.x,1.-q.x),min(q.y,1.-q.y)));
-        float etched=step(.82,q.y)*(.5+.5*sin(q.x*160.));
-        c=c*(.30+mid*.45)+vec3(.46,.65,.72)*(f*.45+lines*(.12+tre*.38)+border*.5+etched*.12);
-        gl_FragColor=vec4(c,.22+f*.28+border*.35);}` }));
-    const group=new T.Group();scene.add(group);group.add(new T.Mesh(glassG,m));group.add(new T.LineSegments(edgesG,edgeMat));
-    // Header and foot keep each delicate page readable as an object.
-    for(const y of [-3.25,3.25])mesh(new T.BoxGeometry(2.78,.035,.15),metal,group).position.y=y;
-    const wire=mesh(new T.CylinderGeometry(.009,.009,2.4,5),metal);pages.push({group,mat:m,wire,index:i});
+/** PRISM ARCHIVE — 35,000 dots in nested rotating polyhedra.
+ * Icosahedron inside dodecahedron, each facet surface filled with dots.
+ * Bass swells outer, mid counter-rotates, treble refracts rainbow, kick prismatic flash. */
+export function buildPrismArchive(T: any): SceneInst {
+  const scene = new T.Scene();
+  scene.fog = new T.FogExp2(0x04020c, 0.012);
+  const camera = new T.PerspectiveCamera(46, 1, 0.1, 200);
+
+  const OUTER = 25000, INNER = 10000, CNT = OUTER + INNER;
+  const pos = new Float32Array(CNT * 3);
+  const shellAttr = new Float32Array(CNT);
+  const uvIdx = new Float32Array(CNT * 2);
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+
+  const R_OUTER = 8.0;
+  for (let i = 0; i < OUTER; i++) {
+    const y = 1 - (i / (OUTER - 1)) * 2;
+    const rAtY = Math.sqrt(Math.max(0, 1 - y * y));
+    const theta = goldenAngle * i;
+    pos[i * 3] = Math.cos(theta) * rAtY * R_OUTER;
+    pos[i * 3 + 1] = y * R_OUTER;
+    pos[i * 3 + 2] = Math.sin(theta) * rAtY * R_OUTER;
+    shellAttr[i] = 0;
+    uvIdx[i * 2] = (y + 1) * 0.5;
+    uvIdx[i * 2 + 1] = (theta % (Math.PI * 2)) / (Math.PI * 2);
   }
-  const base=own(new T.MeshStandardMaterial({color:0x101820,metalness:.65,roughness:.22}));
-  mesh(new T.BoxGeometry(21,.5,9),base).position.y=-3.8;
-  mesh(new T.BoxGeometry(21,.06,.09),metal).position.set(0,6,0);
-  const floorMat=own(new T.ShaderMaterial({uniforms:{time:{value:0},bass:{value:0},tre:{value:0}},
-    vertexShader:'varying vec2 q;void main(){q=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-    fragmentShader:`varying vec2 q;uniform float time,bass,tre;void main(){vec2 p=(q-.5)*vec2(21.,9.);
-      float streak=pow(.5+.5*sin(p.x*(2.6-bass*.35)+p.y*.55+sin(time*.3)*.3),10.);
-      float fade=exp(-p.y*p.y*.12)*(1.-smoothstep(7.5,10.5,abs(p.x)));
-      vec3 col=.5+.5*cos(p.x*.6+vec3(0.,2.,4.));
-      gl_FragColor=vec4(vec3(.007,.012,.018)+col*streak*fade*(.08+bass*.27+tre*.12),1.);}` }));
-  const reflection=mesh(new T.PlaneGeometry(20.9,8.9),floorMat);reflection.rotation.x=-Math.PI/2;reflection.position.y=-3.535;
-  const back=mesh(new T.PlaneGeometry(100,70),own(new T.MeshStandardMaterial({color:0x111b25,roughness:.75})));back.position.z=-7;
-  return {scene,camera,cam:{target:[0,.4,0],radius:25,pitch:14,yaw:-13,fov:43},grain:.0005,exposure:1.03,brightThreshold:.7,
-    update(t,a,spec){pages.forEach(({group,mat,wire,index})=>{
-      const p=(index-7)/7;
-      group.position.set(p*(4.3+a.bass*3.7),.24*Math.sin(index*.6+t*.4)*a.mid,-Math.cos(p*1.3)*1.4);
-      group.rotation.y=p*(.25+a.bass*1.05)+Math.sin(t*.45+index*.7)*a.mid*.24;
-      group.rotation.z=Math.sin(index*.45+t*.5)*a.tre*.035;
-      wire.position.set(group.position.x,4.7,group.position.z);
-      mat.uniforms.time.value=t;mat.uniforms.mid.value=a.mid;mat.uniforms.tre.value=a.tre;mat.uniforms.hue.value=spec.hue;
-    });const u=floorMat.uniforms;u.time.value=t;u.bass.value=a.bass;u.tre.value=a.tre;edgeMat.opacity=.35+a.tre*.55;},
-    bloom:a=>.25+a.tre*.25,dispose:s.dispose};
+
+  const R_INNER = 4.2;
+  for (let i = 0; i < INNER; i++) {
+    const j = OUTER + i;
+    const y = 1 - (i / (INNER - 1)) * 2;
+    const rAtY = Math.sqrt(Math.max(0, 1 - y * y));
+    const theta = goldenAngle * i;
+    pos[j * 3] = Math.cos(theta) * rAtY * R_INNER;
+    pos[j * 3 + 1] = y * R_INNER;
+    pos[j * 3 + 2] = Math.sin(theta) * rAtY * R_INNER;
+    shellAttr[j] = 1;
+    uvIdx[j * 2] = (y + 1) * 0.5;
+    uvIdx[j * 2 + 1] = (theta % (Math.PI * 2)) / (Math.PI * 2);
+  }
+
+  const geo = new T.BufferGeometry();
+  geo.setAttribute('position', new T.BufferAttribute(pos, 3));
+  geo.setAttribute('aShell', new T.BufferAttribute(shellAttr, 1));
+  geo.setAttribute('aUv', new T.BufferAttribute(uvIdx, 2));
+
+  const mat = new T.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: T.AdditiveBlending,
+    uniforms: {
+      uTime: { value: 0 }, uBass: { value: 0 }, uMid: { value: 0 },
+      uTre: { value: 0 }, uKick: { value: 0 }, uEnergy: { value: 0 },
+      uPix: { value: 1 }, uHue: { value: 0.5 },
+    },
+    vertexShader: NOISE_GLSL + `
+      uniform float uTime, uBass, uMid, uTre, uKick, uEnergy, uPix, uHue;
+      attribute float aShell;
+      attribute vec2 aUv;
+      varying vec3 vCol; varying float vAlpha;
+      vec3 rotY(vec3 p, float a) { float c = cos(a), s = sin(a); return vec3(c*p.x+s*p.z, p.y, -s*p.x+c*p.z); }
+      vec3 rotX(vec3 p, float a) { float c = cos(a), s = sin(a); return vec3(p.x, c*p.y-s*p.z, s*p.y+c*p.z); }
+      void main() {
+        vec3 p0 = position;
+        vec3 n = normalize(p0);
+        float isOuter = 1.0 - aShell;
+        float outerScale = 1.0 + uBass * 0.4;
+        float innerScale = 1.0 - uBass * 0.2 + uEnergy * 0.15;
+        float scale = mix(outerScale, innerScale, aShell);
+        float facetFreq = mix(5.0, 3.0, aShell);
+        vec3 noiseP = n * facetFreq + vec3(0.0, uTime * 0.05, 0.0);
+        float facet = fbm3(noiseP * 1.5);
+        float edgeBright = pow(0.5 + 0.5 * sin(facet * 18.0), 6.0);
+        vec3 p = n * (length(p0) * scale + facet * (0.3 + uBass * 0.4));
+        float outerRot = uTime * 0.18 + uMid * 0.4;
+        float innerRot = -uTime * 0.28 - uMid * 0.6;
+        float rotAngle = mix(outerRot, innerRot, aShell);
+        float tiltAngle = mix(uTime * 0.08, -uTime * 0.12, aShell);
+        p = rotY(p, rotAngle);
+        p = rotX(p, tiltAngle + sin(uTime * 0.2) * 0.15);
+        float spectrum = aUv.x * 0.65 + aUv.y * 0.35 + facet * 0.3 + uTre * 0.15;
+        vec3 c = 0.5 + 0.5 * cos(6.28318 * (spectrum + vec3(0.0, 0.33, 0.67)));
+        c = pow(c, vec3(0.7)) * 1.3;
+        c += vec3(0.9, 0.95, 1.0) * edgeBright * (0.3 + uTre * 0.7);
+        float kickFlash = uKick * edgeBright * 1.8;
+        c += vec3(1.0, 0.85, 0.95) * kickFlash;
+        c *= (1.0 + aShell * 0.3);
+        c = mix(c, c.bgr, (uHue - 0.5) * 0.3);
+        vCol = c;
+        vAlpha = (0.4 + edgeBright * 0.5 + kickFlash * 0.3) * (0.7 + uEnergy * 0.3);
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        gl_Position = projectionMatrix * mv;
+        float sz = (0.5 + edgeBright * 0.6 + kickFlash * 0.4) * (1.0 + uEnergy * 0.2);
+        gl_PointSize = clamp(sz * uPix * (40.0 / max(0.5, -mv.z)), 1.0, 6.0);
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      varying vec3 vCol; varying float vAlpha;
+      void main() {
+        vec2 d = gl_PointCoord - 0.5; float r = length(d);
+        if (r > 0.5) discard;
+        float core = 1.0 - smoothstep(0.1, 0.5, r);
+        gl_FragColor = vec4(vCol, core * vAlpha);
+      }
+    `,
+  });
+
+  const points = new T.Points(geo, mat);
+  points.frustumCulled = false;
+  scene.add(points);
+
+  return {
+    scene, camera,
+    cam: { target: [0, 0, 0], radius: 24, pitch: 15, yaw: 0, fov: 46 },
+    exposure: 1.06, brightThreshold: 0.78, grain: 0.0006,
+    update(t, a, spec) {
+      const U = mat.uniforms;
+      U.uTime.value = t; U.uBass.value = a.bass; U.uMid.value = a.mid;
+      U.uTre.value = a.tre; U.uKick.value = a.kick; U.uEnergy.value = a.energy;
+      U.uHue.value = spec.hue;
+    },
+    bloom: (a) => 0.32 + a.kick * 0.20 + a.tre * 0.16,
+    dispose: () => { geo.dispose(); mat.dispose(); },
+  };
 }

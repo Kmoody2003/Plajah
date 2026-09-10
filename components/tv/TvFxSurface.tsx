@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback, Suspense } from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkles, Play, Pause, SkipBack, SkipForward, Music2, X, ChevronDown, Search, Check } from 'lucide-react';
+import { Sparkles, Play, Pause, SkipBack, SkipForward, Music2, X, ChevronDown, Search, Check, ListMusic } from 'lucide-react';
 import FxStageVisualizers, { type FxEngine, fxPresetName, loadShaderNames, loadMilkdropNames, FX_ENGINE_PRESETS } from '../FxStageVisualizers';
 import { useGlobalPlayer } from '../../contexts/GlobalPlayerContext';
 import { thumb, THUMB } from '../../src/lib/imageThumb';
@@ -39,10 +39,13 @@ const fmt = (s?: number): string => {
 const TvFxSurface: React.FC = () => {
   const {
     isTvFxActive, setIsTvFxActive, analyser, isPlaying, togglePlay, next, prev,
-    currentTrack, currentAlbum, currentTime, duration, isSlideshowActive,
+    currentTrack, currentAlbum, currentTime, duration, isSlideshowActive, playTrack,
   } = useGlobalPlayer();
 
   const [engineIdx, setEngineIdx] = useState(0);
+  const [isPlaylistLocked, setIsPlaylistLocked] = useState(false);
+  const [isPlaylistHovered, setIsPlaylistHovered] = useState(false);
+  const activeTrackRef = useRef<HTMLButtonElement>(null);
   const [presetIndex, setPresetIndex] = useState(0);
   // MilkDrops and Shaders name their presets from pools loaded on demand; hold them in
   // state so the caption below names the real preset instead of a placeholder.
@@ -92,6 +95,14 @@ const TvFxSurface: React.FC = () => {
     const from = Math.max(0, active - 2);
     return { lines: lyrics.slice(from, from + 6).map((l, i) => ({ text: l.text, on: from + i === active })) };
   }, [lyrics, currentTime]);
+
+  const showPlaylist = (isPlaylistLocked || isPlaylistHovered) && !lyricWindow;
+
+  useEffect(() => {
+    if (showPlaylist && activeTrackRef.current) {
+      activeTrackRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [showPlaylist, currentTrack?.id]);
 
   const exit = useCallback(() => setIsTvFxActive(false), [setIsTvFxActive]);
   const cycleEngine = useCallback((dir: number) => {
@@ -166,6 +177,38 @@ const TvFxSurface: React.FC = () => {
           <FxStageVisualizers engine={engine} presetIndex={presetIndex} analyser={analyser} isPlaying={isPlaying} />
         </Suspense>
       </div>
+
+      {/* Floating Atmospheric Playlist Overlay */}
+      {currentAlbum?.tracks?.length ? (
+        <div
+          className={`absolute top-0 right-12 bottom-0 w-96 flex flex-col justify-center transition-opacity duration-500 z-[45] pointer-events-none ${showPlaylist ? 'opacity-100' : 'opacity-0'}`}
+          style={{ WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 20%)', maskImage: 'linear-gradient(to right, transparent 0%, black 20%)' }}
+        >
+          <div
+            className="flex flex-col gap-6 overflow-y-auto no-scrollbar max-h-[75vh] py-20 pointer-events-auto items-end pr-4"
+            onMouseEnter={() => setIsPlaylistHovered(true)}
+            onMouseLeave={() => setIsPlaylistHovered(false)}
+          >
+            {currentAlbum.tracks.map((track) => {
+              const isActive = track.id === currentTrack?.id;
+              return (
+                <button
+                  key={track.id}
+                  ref={isActive ? activeTrackRef : null}
+                  onClick={() => {
+                    if (!isActive) playTrack(track, currentAlbum, 'LIBRARY');
+                  }}
+                  className={`text-right font-black uppercase tracking-widest transition-all duration-300 cursor-pointer max-w-full ${
+                    isActive ? 'text-[#FF8C00] text-xl scale-[1.02] opacity-100' : 'text-white opacity-[0.25] hover:opacity-[0.4] text-sm font-bold'
+                  }`}
+                >
+                  {track.title}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       {/* Right-hand synced lyrics — identical to the slideshow (no blur; TV fill-rate). */}
       {lyricWindow && (
@@ -379,6 +422,22 @@ const TvFxSurface: React.FC = () => {
               {isPlaying ? <Pause size={26} fill="currentColor" /> : <Play size={26} fill="currentColor" className="ml-0.5" />}
             </button>
             <button onClick={() => next()} aria-label="Next" className="cursor-pointer hover:text-white transition-colors"><SkipForward size={26} fill="currentColor" /></button>
+            
+            {currentAlbum?.tracks?.length ? (
+              <div 
+                className="flex items-center ml-2 relative"
+                onMouseEnter={() => setIsPlaylistHovered(true)}
+                onMouseLeave={() => setIsPlaylistHovered(false)}
+              >
+                <button
+                  onClick={() => setIsPlaylistLocked(p => !p)}
+                  aria-label="Toggle Playlist"
+                  className={`cursor-pointer transition-colors ${isPlaylistLocked || isPlaylistHovered ? 'text-[#FF8C00]' : 'text-white/60 hover:text-white'}`}
+                >
+                  <ListMusic size={22} />
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
         <div className="mt-4 flex items-center gap-3">
