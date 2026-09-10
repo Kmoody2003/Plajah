@@ -19,7 +19,7 @@ import AlbumTvView from './tv/AlbumTvView';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
 import FxStageVisualizers, { type FxEngine, fxPresetName, FX_ENGINE_PRESETS, loadMilkdropNames, loadShaderNames } from './FxStageVisualizers';
 import Logo from './Logo';
-import { publishToCloud, postComment, subscribeToComments, updateAlbum, updatePersonalAlbum, updatePersonalTrack, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost, auth } from '../services/backendService';
+import { publishToCloud, postComment, subscribeToComments, updateAlbum, updatePersonalAlbum, updatePersonalTrack, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost, auth, fetchPersonalPlaylists, addTracksToPlaylist } from '../services/backendService';
 import ShareButton from './ShareButton';
 import ChoraQualityButton from './ChoraQualityButton';
 import { createPortal } from 'react-dom';
@@ -31,6 +31,7 @@ import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/Globa
 import { useUniversalMultiSelect } from '../hooks/useUniversalMultiSelect';
 import { createParty, partyShareUrl, shouldResync } from '../services/partyService';
 import { useParty } from '../hooks/useParty';
+import useContextMenu from './ui/ContextMenu';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Play, Pause, ArrowLeft, Disc, Globe,
@@ -40,7 +41,7 @@ import {
   Layers, Music2, Plus, MessageSquare, Send, User, Users, Clock, Activity, BookOpen, ChevronDown, ChevronUp, Image as ImageIcon,
   AlertCircle, Video as VideoIcon, Radio, List, HeartHandshake, Heart, Pen, Maximize2, Minimize2, GripVertical, Upload, EyeOff, Eye,
   SkipBack, SkipForward, ChevronLeft, ChevronRight, Waves, RotateCcw, ListPlus,
-  Languages, RefreshCw, Film, ZapOff, Scissors, CheckSquare, Square
+  Languages, RefreshCw, Film, ZapOff, Scissors, CheckSquare, Square, MoreHorizontal, Search
 } from 'lucide-react';
 
 import { User as FirebaseUser } from 'firebase/auth';
@@ -474,6 +475,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     next: globalNext,
     prev: globalPrev,
     repeatMode,
+    setRepeatMode,
     isShuffle,
     setIsShuffle,
     nextTrackId,
@@ -666,6 +668,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   }, [gatefoldOn, gatefoldStageMode, isStageCycling, stageCycleStarted, selectGatefoldStage]);
   const [milkdropNames, setMilkdropNames] = useState<string[]>([]);
   const [shaderNames, setShaderNames] = useState<string[]>([]);
+  const [fxSearch, setFxSearch] = useState('');
   const isPixelsEngine = fxEngine === 'MILKDROP' || fxEngine === 'SHADER' || fxEngine === 'GENERATOR' || fxEngine === 'FLUX';
   const FX_OPTIONS = [
     { id: 'FLOW' as const, label: 'Flow' }, { id: 'PAINT' as const, label: 'Paint' },
@@ -685,7 +688,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     if (isVisualizerLayout && isPixelsEngine && !globalAnalyser) getAudioContext?.();
   }, [isVisualizerLayout, isPixelsEngine, globalAnalyser, getAudioContext]);
   const selectFxEngine = React.useCallback((id: 'FLOW' | 'PAINT' | FxEngine) => {
-    setFxEngine(id); setFxPresetIndex(0); setFxMenuOpen(false);
+    setFxEngine(id); setFxPresetIndex(0); setFxMenuOpen(false); setFxSearch('');
     if (id === 'FLOW' || id === 'PAINT') setVisualizerType(id);
   }, [setVisualizerType]);
   const cycleFxPreset = React.useCallback((dir: 1 | -1) => setFxPresetIndex(p => p + dir), []);
@@ -713,26 +716,50 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       {isPixelsEngine && (
         <div className="relative flex items-center gap-1 shrink-0">
           <button onClick={() => cycleFxPreset(-1)} aria-label="Previous preset"
-            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-black/50 border border-white/10 text-white/60 hover:text-white transition-all"><ChevronLeft size={14} /></button>
+            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-black/50 border border-white/10 text-white/60 hover:text-white transition-all cursor-pointer"><ChevronLeft size={14} /></button>
           <button onClick={() => setFxMenuOpen(o => !o)}
-            className="shrink-0 flex items-center gap-1.5 h-7 px-3 rounded-full bg-black/50 border border-white/10 text-white text-[9px] font-bold hover:bg-black/70 transition-all max-w-[150px]">
+            className="shrink-0 flex items-center gap-1.5 h-7 px-3 rounded-full bg-black/50 border border-white/10 text-white text-[9px] font-bold hover:bg-black/70 transition-all max-w-[170px] cursor-pointer">
             <span className="truncate">{fxCurrentPreset || (fxEngine === 'MILKDROP' || fxEngine === 'SHADER' ? 'Loading…' : `Preset ${fxPresetIndex + 1}`)}</span>
             <ChevronDown size={12} className={`shrink-0 transition-transform ${fxMenuOpen ? 'rotate-180' : ''}`} />
           </button>
           <button onClick={() => cycleFxPreset(1)} aria-label="Next preset"
-            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-black/50 border border-white/10 text-white/60 hover:text-white transition-all"><ChevronRight size={14} /></button>
+            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-black/50 border border-white/10 text-white/60 hover:text-white transition-all cursor-pointer"><ChevronRight size={14} /></button>
           {fxMenuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setFxMenuOpen(false)} />
-              <div className="absolute top-full right-0 mt-2 w-56 max-h-72 overflow-y-auto no-scrollbar rounded-2xl bg-[#141414] border border-white/10 shadow-2xl z-50 p-1">
-                <div className="px-3 pt-1.5 pb-1 text-[8px] font-black uppercase tracking-[0.2em] text-white/25">{fxEngine === 'MILKDROP' ? 'MilkDrops' : fxEngine === 'SHADER' ? 'Shaders' : fxEngine === 'FLUX' ? 'Flux 3D' : 'Generators'} · {fxPresetList.length || '…'}</div>
-                {fxPresetList.length === 0 && <div className="px-3 py-2 text-[10px] text-white/30">Loading presets…</div>}
-                {fxPresetList.map((name, idx) => (
-                  <button key={idx} onClick={() => { setFxPresetIndex(idx); setFxMenuOpen(false); }}
-                    className={`w-full text-left px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors truncate ${(((fxPresetIndex % fxPresetList.length) + fxPresetList.length) % fxPresetList.length) === idx ? 'bg-small-orange/20 text-small-orange' : 'text-white/50 hover:text-white hover:bg-white/5'}`}>
-                    {name}
-                  </button>
-                ))}
+              <div className="absolute top-full right-0 mt-2 w-64 max-h-80 overflow-hidden flex flex-col rounded-2xl bg-[#141418] border border-white/15 shadow-2xl z-50 p-2">
+                <div className="px-2 pt-1 pb-2 flex items-center justify-between text-[9px] font-black uppercase tracking-[0.15em] text-white/40 border-b border-white/5">
+                  <span>{fxEngine === 'MILKDROP' ? 'MilkDrops' : fxEngine === 'SHADER' ? 'Shaders' : fxEngine === 'FLUX' ? 'Flux 3D' : 'Generators'}</span>
+                  <span>{fxPresetList.length || 0}</span>
+                </div>
+                {fxPresetList.length > 8 && (
+                  <div className="p-1.5 border-b border-white/5">
+                    <div className="relative flex items-center">
+                      <Search size={12} className="absolute left-2.5 text-white/30" />
+                      <input
+                        type="text"
+                        value={fxSearch}
+                        onChange={(e) => setFxSearch(e.target.value)}
+                        placeholder="Search presets..."
+                        className="w-full bg-white/5 border border-white/10 rounded-lg pl-7 pr-2 py-1 text-[10px] text-white placeholder-white/40 focus:outline-none focus:border-small-orange/60"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                )}
+                <div className="flex-1 overflow-y-auto no-scrollbar space-y-0.5 pt-1">
+                  {fxPresetList.length === 0 && <div className="px-3 py-2 text-[10px] text-white/30">Loading presets…</div>}
+                  {fxPresetList
+                    .map((name, idx) => ({ name, idx }))
+                    .filter(item => !fxSearch.trim() || item.name.toLowerCase().includes(fxSearch.toLowerCase()))
+                    .map(({ name, idx }) => (
+                      <button key={idx} onClick={() => { setFxPresetIndex(idx); setFxMenuOpen(false); setFxSearch(''); }}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors truncate flex items-center justify-between cursor-pointer ${(((fxPresetIndex % fxPresetList.length) + fxPresetList.length) % fxPresetList.length) === idx ? 'bg-small-orange/20 text-small-orange font-black' : 'text-white/60 hover:text-white hover:bg-white/5'}`}>
+                        <span className="truncate">{name}</span>
+                        {(((fxPresetIndex % fxPresetList.length) + fxPresetList.length) % fxPresetList.length) === idx && <span className="text-small-orange ml-1 text-xs">✓</span>}
+                      </button>
+                    ))}
+                </div>
               </div>
             </>
           )}
@@ -772,13 +799,131 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     setSelectMode(false);
   }, [trackSelection]);
 
-  const toggleSelectMode = useCallback(() => {
-    if (selectMode) {
-      exitSelectMode();
-    } else {
-      setSelectMode(true);
-    }
-  }, [selectMode, exitSelectMode]);
+  const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
+  useEffect(() => {
+    fetchPersonalPlaylists().then(pl => setUserPlaylists(pl || [])).catch(() => {});
+  }, [user]);
+
+  const trackContextMenu = useContextMenu<Track>((targetTrack) => {
+    const isTargetSelected = trackSelection.selectedSet.has(targetTrack.id);
+    const targets = isTargetSelected && selectedTracks.length > 1 ? selectedTracks : [targetTrack];
+    const isMulti = targets.length > 1;
+
+    return [
+      {
+        kind: 'header' as const,
+        label: isMulti ? `${targets.length} songs selected` : targetTrack.title,
+      },
+      {
+        id: 'play',
+        label: isMulti ? 'Play First Song' : 'Play',
+        icon: <Play size={13} />,
+        onSelect: () => {
+          const idx = localTracks.findIndex(t => t.id === targetTrack.id);
+          if (idx !== -1) setCurrentTrackIndex(idx);
+          playTrack(targetTrack, album, 'LIBRARY');
+        },
+      },
+      {
+        kind: 'separator' as const,
+      },
+      {
+        id: 'add-to-playlist',
+        label: isMulti ? `Add ${targets.length} Songs to Playlist` : 'Add to Playlist',
+        icon: <ListPlus size={13} />,
+        submenu: [
+          ...(userPlaylists.length > 0
+            ? userPlaylists.map(pl => ({
+                id: `pl-${pl.id}`,
+                label: pl.title,
+                icon: <List size={13} />,
+                onSelect: async () => {
+                  await addTracksToPlaylist(pl.id, targets);
+                },
+              }))
+            : [{
+                id: 'no-playlists',
+                label: 'No personal playlists yet',
+                disabled: true,
+              }]),
+          { kind: 'separator' as const },
+          {
+            id: 'open-playlist-modal',
+            label: 'New Playlist or Manage…',
+            icon: <Plus size={13} />,
+            onSelect: () => {
+              if (isMulti) {
+                setBulkPlaylistTracks(targets);
+              } else {
+                setPlaylistPickerTrack(targetTrack);
+              }
+            },
+          },
+        ],
+      },
+      {
+        kind: 'separator' as const,
+      },
+      {
+        id: 'repeat-one',
+        label: 'Loop This Song (Repeat 1)',
+        icon: <RotateCcw size={13} />,
+        checked: repeatMode === 'ONE',
+        keepOpen: true,
+        onSelect: () => {
+          setRepeatMode(repeatMode === 'ONE' ? 'OFF' : 'ONE');
+        },
+      },
+      {
+        id: 'repeat-all',
+        label: 'Loop Album (Repeat All)',
+        icon: <RotateCcw size={13} />,
+        checked: repeatMode === 'ALL',
+        keepOpen: true,
+        onSelect: () => {
+          setRepeatMode(repeatMode === 'ALL' ? 'OFF' : 'ALL');
+        },
+      },
+      {
+        id: 'shuffle',
+        label: 'Shuffle',
+        checked: isShuffle,
+        keepOpen: true,
+        onSelect: () => {
+          setIsShuffle(!isShuffle);
+        },
+      },
+      {
+        kind: 'separator' as const,
+      },
+      ...(onVisitUser && (album.artistId || album.userId) ? [{
+        id: 'artist-profile',
+        label: `Artist Profile (${album.artist})`,
+        icon: <User size={13} />,
+        onSelect: () => {
+          onVisitUser(album.artistId || album.userId!);
+        },
+      }] : []),
+      {
+        id: 'melos',
+        label: 'Add to Melos (Studio)',
+        icon: <Music2 size={13} />,
+        onSelect: () => {
+          setMelosPickerTracks(targets);
+        },
+      },
+      {
+        id: 'share',
+        label: 'Share Song Link',
+        icon: <Share2 size={13} />,
+        onSelect: () => {
+          const url = buildShareUrl({ albumId: album.id, trackId: targetTrack.id });
+          navigator.clipboard?.writeText(url);
+        },
+      },
+    ];
+  });
+
   // HnS per-track dropdown
   const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null); // "{trackId}_slot{1|2}"
@@ -1782,6 +1927,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                       <div className="absolute inset-0 pointer-events-none track-ending-flash" aria-hidden="true" />
                     )}
                     <div
+                      {...trackContextMenu.bind(t)}
                       onClick={selectMode ? (e) => trackSelection.handleSelect(t.id, e) : undefined}
                       className={`relative flex items-center gap-3 px-4 py-3.5 ${isActive ? '' : 'hover:bg-white/[0.03]'} ${selectMode ? 'cursor-pointer' : ''}`}
                     >
@@ -1874,6 +2020,17 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition-all"
                           />
                         </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            trackContextMenu.openFrom(e.currentTarget, t);
+                          }}
+                          className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                          title="Track options (right-click also available)"
+                        >
+                          <MoreHorizontal size={14} />
+                        </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); setExpandedTrackId(isExpanded ? null : t.id); }}
                           title="More"
@@ -3765,6 +3922,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                 >
                                   {/* Gatefold registry rows are quiet glass; the classic skin keeps its gradient wash. */}
                                   <div
+                                    {...trackContextMenu.bind(t)}
                                     onClick={selectMode ? (e) => trackSelection.handleSelect(t.id, e) : undefined}
                                     className={`flex items-center gap-3 px-3 py-[9px] relative overflow-hidden group ${gatefoldOn ? 'rounded-[10px]' : 'rounded-2xl'} ${selectMode ? 'cursor-pointer' : ''} ${isActive ? 'backdrop-blur-2xl shadow-[0_0_30px_rgba(107,0,153,0.3)]' : gatefoldOn ? 'bg-white/[0.03] hover:bg-white/[0.07] backdrop-blur-xl' : 'bg-gradient-to-r from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-xl hover:from-[#6B0099]/20 hover:to-[#FF8C00]/20'} ${isExpanded ? '!rounded-b-none' : ''}`}
                                   >
@@ -3849,6 +4007,20 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                       {isActive && globalIsPlaying && isCurrentTrackGlobal
                                         ? <div className="flex gap-0.5 items-end h-3">{[0,1,2].map(b => <motion.div key={b} animate={{height:[4,12,6,10,4]}} transition={{duration:1,repeat:Infinity,delay:b*0.2}} className="w-0.5 bg-small-orange rounded-full" />)}</div>
                                         : <Play size={13} className="text-white/10 group-hover:text-white/40" fill="currentColor" />}
+                                      
+                                      {/* Context Menu Button */}
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          trackContextMenu.openFrom(e.currentTarget, t);
+                                        }}
+                                        title="Track options (right-click also available)"
+                                        className="p-1 rounded-lg text-white/25 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                                      >
+                                        <MoreHorizontal size={14} />
+                                      </button>
+
                                       {/* Breakdown / PP / Use-in-film live in the collapsible drawer below (all rows) */}
                                       <button onClick={(e) => { e.stopPropagation(); setExpandedTrackId(isExpanded ? null : t.id); }} title="More actions" className={`p-1.5 rounded-lg transition-all ${isExpanded ? 'bg-small-orange/20 text-small-orange' : 'text-white/25 hover:text-white'}`}>
                                         <ChevronDown size={13} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
@@ -4537,6 +4709,18 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               </button>
               <button
                 type="button"
+                onClick={(e) => {
+                  if (selectedTracks.length > 0) {
+                    trackContextMenu.openFrom(e.currentTarget, selectedTracks[0]);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+                title="More actions for selection"
+              >
+                <MoreHorizontal size={14} /> Menu
+              </button>
+              <button
+                type="button"
                 onClick={exitSelectMode}
                 className="p-2 rounded-xl bg-white/5 text-white/40 hover:text-white transition-colors cursor-pointer"
                 title="Cancel"
@@ -4548,6 +4732,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         </AnimatePresence>,
         document.body
       )}
+
+      {trackContextMenu.node}
 
       {bulkPlaylistTracks && (
         <PlaylistPickerModal

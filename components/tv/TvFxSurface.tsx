@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback, Suspense } from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkles, Play, Pause, SkipBack, SkipForward, Music2, X } from 'lucide-react';
-import FxStageVisualizers, { type FxEngine, fxPresetName, loadShaderNames, loadMilkdropNames } from '../FxStageVisualizers';
+import { Sparkles, Play, Pause, SkipBack, SkipForward, Music2, X, ChevronDown, Search, Check } from 'lucide-react';
+import FxStageVisualizers, { type FxEngine, fxPresetName, loadShaderNames, loadMilkdropNames, FX_ENGINE_PRESETS } from '../FxStageVisualizers';
 import { useGlobalPlayer } from '../../contexts/GlobalPlayerContext';
 import { thumb, THUMB } from '../../src/lib/imageThumb';
 import { getPlatformInfo } from '../../hooks/usePlatform';
@@ -48,10 +48,24 @@ const TvFxSurface: React.FC = () => {
   // state so the caption below names the real preset instead of a placeholder.
   const [presetNames, setPresetNames] = useState<Record<string, string[]>>({});
   const [controls, setControls] = useState(true);   // show controls on open so the scheme is visible
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState('');
   const hideTimer = useRef<any>(null);
 
   const showing = isTvFxActive && !isSlideshowActive;
   const engine = TV_ENGINES[engineIdx];
+
+  const currentEnginePresets = useMemo(() => {
+    if (engine === 'SHADER') return presetNames.SHADER || [];
+    if (engine === 'MILKDROP') return presetNames.MILKDROP || [];
+    return FX_ENGINE_PRESETS[engine] || [];
+  }, [engine, presetNames]);
+
+  const filteredPresets = useMemo(() => {
+    if (!pickerSearch.trim()) return currentEnginePresets;
+    const q = pickerSearch.toLowerCase();
+    return currentEnginePresets.filter(p => p.toLowerCase().includes(q));
+  }, [currentEnginePresets, pickerSearch]);
 
   useEffect(() => {
     if (!showing) return;   // don't pull either pool until the surface is actually open
@@ -185,17 +199,117 @@ const TvFxSurface: React.FC = () => {
         {TV_ENGINES.map((e, i) => (
           <button
             key={e}
-            onClick={() => { setEngineIdx(i); setPresetIndex(0); wake(); }}
-            className="px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer"
+            onClick={() => { setEngineIdx(i); setPresetIndex(0); setIsPickerOpen(true); wake(); }}
+            className="px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1.5"
             style={i === engineIdx
               ? { background: '#FF8C00', color: '#000' }
               : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}
           >
-            {ENGINE_LABEL[e]}
+            <span>{ENGINE_LABEL[e]}</span>
+            <ChevronDown size={11} className={i === engineIdx ? 'text-black/60' : 'text-white/40'} />
           </button>
         ))}
         <span className="ml-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/35">▲▼ engine</span>
       </div>
+
+      {/* Preset & Engine Dropdown Picker Modal */}
+      {isPickerOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-2xl pointer-events-auto"
+          onClick={() => setIsPickerOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl bg-[#121217] border border-white/15 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[82vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Sparkles size={18} className="text-[#FF8C00]" />
+                <h3 className="text-sm font-black text-white uppercase tracking-wider">Select {ENGINE_LABEL[engine]} Preset</h3>
+              </div>
+              <button
+                onClick={() => setIsPickerOpen(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Engine Tabs */}
+            <div className="flex items-center gap-2 px-6 pt-3 pb-2 border-b border-white/5 overflow-x-auto no-scrollbar">
+              {TV_ENGINES.map((e, i) => (
+                <button
+                  key={e}
+                  onClick={() => { setEngineIdx(i); setPresetIndex(0); }}
+                  className={`px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                    i === engineIdx
+                      ? 'bg-[#FF8C00] text-black shadow-[0_0_15px_rgba(255,140,0,0.3)]'
+                      : 'bg-white/5 text-white/50 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  {ENGINE_LABEL[e]} ({e === 'SHADER' ? (presetNames.SHADER?.length || '…') : e === 'MILKDROP' ? (presetNames.MILKDROP?.length || '…') : (FX_ENGINE_PRESETS[e]?.length || 0)})
+                </button>
+              ))}
+            </div>
+
+            {/* Search Input */}
+            <div className="px-6 py-3 border-b border-white/5">
+              <div className="relative flex items-center">
+                <Search size={15} className="absolute left-3.5 text-white/40" />
+                <input
+                  type="text"
+                  value={pickerSearch}
+                  onChange={(e) => setPickerSearch(e.target.value)}
+                  placeholder={`Filter ${ENGINE_LABEL[engine]} presets...`}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:border-[#FF8C00]/60 transition-colors"
+                  autoFocus
+                />
+                {pickerSearch && (
+                  <button
+                    onClick={() => setPickerSearch('')}
+                    className="absolute right-3.5 text-[10px] font-bold text-white/40 hover:text-white cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Presets List / Grid */}
+            <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {filteredPresets.length === 0 ? (
+                <div className="col-span-full py-12 text-center text-white/40 text-xs font-medium">
+                  {currentEnginePresets.length === 0 ? 'Loading presets…' : 'No presets match your search.'}
+                </div>
+              ) : (
+                filteredPresets.map((name) => {
+                  const originalIdx = currentEnginePresets.indexOf(name);
+                  const isCurrent = ((presetIndex % (currentEnginePresets.length || 1)) + (currentEnginePresets.length || 1)) % (currentEnginePresets.length || 1) === originalIdx;
+                  return (
+                    <button
+                      key={name}
+                      onClick={() => {
+                        setPresetIndex(originalIdx >= 0 ? originalIdx : 0);
+                        setIsPickerOpen(false);
+                        wake();
+                      }}
+                      className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                        isCurrent
+                          ? 'bg-[#FF8C00]/20 border-[#FF8C00] text-white shadow-[0_0_15px_rgba(255,140,0,0.2)]'
+                          : 'bg-white/[0.03] border-white/5 text-white/70 hover:text-white hover:bg-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      <span className="text-xs font-bold truncate">{name}</span>
+                      {isCurrent && <Check size={13} className="text-[#FF8C00] shrink-0" />}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom transport — present, like the slideshow. Progress + prev / play-pause / next, plus the
           current preset name and the control legend. */}
@@ -213,20 +327,25 @@ const TvFxSurface: React.FC = () => {
               <p className="text-base text-white/55 truncate">
                 {currentTrack?.artist || ''} <span className="text-white/30">· {ENGINE_LABEL[engine]}:</span>
               </p>
-              <div className="flex items-center gap-1 bg-white/10 rounded-full px-3 py-0.5 text-xs text-white/80">
+              <div className="flex items-center gap-1 bg-white/10 rounded-full px-3 py-1 text-xs text-white/80">
                 <button
                   onClick={() => { setPresetIndex(p => p - 1); wake(); }}
-                  className="hover:text-white transition-colors cursor-pointer px-1"
+                  className="hover:text-white transition-colors cursor-pointer px-1 text-white/60 hover:text-white"
                   aria-label="Previous preset"
                 >
                   ◀
                 </button>
-                <span className="font-bold text-white px-1">
-                  {fxPresetName(engine, presetIndex, presetNames[engine])}
-                </span>
+                <button
+                  onClick={() => { setIsPickerOpen(true); wake(); }}
+                  className="font-bold text-white px-2 hover:text-[#FF8C00] transition-colors flex items-center gap-1.5 cursor-pointer max-w-[240px]"
+                  title="Click to view full preset list"
+                >
+                  <span className="truncate">{fxPresetName(engine, presetIndex, presetNames[engine])}</span>
+                  <ChevronDown size={14} className="opacity-60 shrink-0" />
+                </button>
                 <button
                   onClick={() => { setPresetIndex(p => p + 1); wake(); }}
-                  className="hover:text-white transition-colors cursor-pointer px-1"
+                  className="hover:text-white transition-colors cursor-pointer px-1 text-white/60 hover:text-white"
                   aria-label="Next preset"
                 >
                   ▶
