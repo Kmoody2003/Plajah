@@ -4,6 +4,7 @@ import { Sparkles, Play, Pause, SkipBack, SkipForward, Music2, X } from 'lucide-
 import FxStageVisualizers, { type FxEngine, fxPresetName, loadShaderNames, loadMilkdropNames } from '../FxStageVisualizers';
 import { useGlobalPlayer } from '../../contexts/GlobalPlayerContext';
 import { thumb, THUMB } from '../../src/lib/imageThumb';
+import { getPlatformInfo } from '../../hooks/usePlatform';
 
 /**
  * The FX Stage on a television — the slideshow's shell with the visualizer as the backdrop.

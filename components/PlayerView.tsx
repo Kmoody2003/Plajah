@@ -1743,11 +1743,13 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     <button
                       type="button"
                       onClick={toggleSelectMode}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                        selectMode ? 'bg-small-orange text-black border-small-orange' : 'bg-white/5 text-white/60 border-white/10 hover:text-white'
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                        selectMode
+                          ? 'bg-small-orange text-black border-small-orange shadow-[0_0_10px_rgba(255,140,0,0.4)] font-bold'
+                          : 'bg-white/10 text-white border-white/25 hover:bg-white/20'
                       }`}
                     >
-                      <CheckSquare size={12} />
+                      <CheckSquare size={12} className={selectMode ? 'text-black' : 'text-small-orange'} />
                       {selectMode ? 'Done' : 'Select'}
                     </button>
                   </div>
@@ -3727,9 +3729,13 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             <button
                               type="button"
                               onClick={toggleSelectMode}
-                              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${selectMode ? 'bg-small-orange text-black border-small-orange' : 'bg-white/5 text-white/60 border-white/10 hover:text-white'}`}
+                              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                                selectMode
+                                  ? 'bg-small-orange text-black border-small-orange shadow-[0_0_12px_rgba(255,140,0,0.4)] font-bold'
+                                  : 'bg-white/10 text-white border-white/25 hover:bg-white/20 hover:border-white/40'
+                              }`}
                             >
-                              <CheckSquare size={12} />
+                              <CheckSquare size={13} className={selectMode ? 'text-black' : 'text-small-orange'} />
                               {selectMode ? 'Done' : 'Select'}
                             </button>
                             {isOwner && !selectMode && <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Drag to reorder</span>}
@@ -3749,23 +3755,76 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                               return (
                                 <div
                                   key={t.id}
-                                  draggable={!!isOwner}
+                                  draggable={!!isOwner && !selectMode}
                                   onDragStart={() => { dragTrackIndexRef.current = i; }}
                                   onDragOver={(e) => { e.preventDefault(); setDragOverTrackIndex(i); }}
                                   onDragLeave={() => setDragOverTrackIndex(null)}
                                   onDrop={(e) => { e.preventDefault(); const from = dragTrackIndexRef.current; setDragOverTrackIndex(null); if (from !== null && from !== i) reorderTracks(from, i); dragTrackIndexRef.current = null; }}
                                   onDragEnd={() => { dragTrackIndexRef.current = null; setDragOverTrackIndex(null); }}
-                                  className={`relative shrink-0 min-h-[3.25rem] overflow-hidden border transition-all ${gatefoldOn ? 'rounded-[10px]' : 'rounded-2xl'} ${isNextUp ? 'track-next-glow' : ''} ${dragOverTrackIndex === i ? 'scale-[1.01] border-small-orange/60' : isActive ? 'border-[#FF8C00]/50' : gatefoldOn ? 'border-transparent' : 'border-white/5'}`}
+                                  className={`relative shrink-0 min-h-[3.25rem] overflow-hidden border transition-all ${gatefoldOn ? 'rounded-[10px]' : 'rounded-2xl'} ${isNextUp ? 'track-next-glow' : ''} ${dragOverTrackIndex === i ? 'scale-[1.01] border-small-orange/60' : isActive ? 'border-[#FF8C00]/50' : gatefoldOn ? 'border-transparent' : 'border-white/5'} ${trackSelection.selectedSet.has(t.id) ? '!border-small-orange/80 bg-small-orange/15 shadow-[0_0_15px_rgba(255,140,0,0.2)]' : ''}`}
                                 >
                                   {/* Gatefold registry rows are quiet glass; the classic skin keeps its gradient wash. */}
-                                  <div className={`flex items-center gap-3 px-3 py-[9px] relative overflow-hidden group ${gatefoldOn ? 'rounded-[10px]' : 'rounded-2xl'} ${isActive ? 'backdrop-blur-2xl shadow-[0_0_30px_rgba(107,0,153,0.3)]' : gatefoldOn ? 'bg-white/[0.03] hover:bg-white/[0.07] backdrop-blur-xl' : 'bg-gradient-to-r from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-xl hover:from-[#6B0099]/20 hover:to-[#FF8C00]/20'} ${isExpanded ? '!rounded-b-none' : ''}`}>
+                                  <div
+                                    onClick={selectMode ? (e) => trackSelection.handleSelect(t.id, e) : undefined}
+                                    className={`flex items-center gap-3 px-3 py-[9px] relative overflow-hidden group ${gatefoldOn ? 'rounded-[10px]' : 'rounded-2xl'} ${selectMode ? 'cursor-pointer' : ''} ${isActive ? 'backdrop-blur-2xl shadow-[0_0_30px_rgba(107,0,153,0.3)]' : gatefoldOn ? 'bg-white/[0.03] hover:bg-white/[0.07] backdrop-blur-xl' : 'bg-gradient-to-r from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-xl hover:from-[#6B0099]/20 hover:to-[#FF8C00]/20'} ${isExpanded ? '!rounded-b-none' : ''}`}
+                                  >
                                     {/* Active row: animated brand gradient + repeat-one green + final-10s red flash */}
                                     {isActive && <div className="absolute inset-0 track-gradient-active pointer-events-none" aria-hidden="true" />}
                                     {isActive && repeatOneGreenOpacity > 0 && <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ background: 'linear-gradient(90deg, rgba(34,197,94,0.55) 0%, rgba(34,197,94,0) 34%)', opacity: repeatOneGreenOpacity }} />}
                                     {isActive && isEndingSoon && <div className="absolute inset-0 pointer-events-none track-ending-flash" aria-hidden="true" />}
-                                    {isOwner && <GripVertical size={14} className="text-white/20 shrink-0 cursor-grab active:cursor-grabbing relative z-10" />}
-                                    <button onClick={() => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }} className="flex items-center gap-4 text-left flex-1 min-w-0 relative z-10">
-                                      <span className={`text-[10px] font-black w-4 shrink-0 ${gatefoldOn ? 'font-mono tabular-nums' : ''} ${isActive ? 'text-small-orange' : 'text-white/20'}`}>{i + 1}</span>
+                                    
+                                    {/* Selection Checkbox & Track Number */}
+                                    <div className="flex items-center gap-2 shrink-0 relative z-10">
+                                      {selectMode ? (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            trackSelection.handleSelect(t.id, e);
+                                          }}
+                                          className="p-1 text-white hover:text-small-orange transition-colors cursor-pointer"
+                                          title={trackSelection.selectedSet.has(t.id) ? 'Deselect track' : 'Select track'}
+                                        >
+                                          {trackSelection.selectedSet.has(t.id) ? (
+                                            <CheckSquare size={17} className="text-small-orange fill-small-orange/20" />
+                                          ) : (
+                                            <Square size={17} className="text-white/50 hover:text-white" />
+                                          )}
+                                        </button>
+                                      ) : (
+                                        <div className="relative w-5 h-5 flex items-center justify-center">
+                                          <span className={`text-[10px] font-black group-hover:opacity-0 transition-opacity ${gatefoldOn ? 'font-mono tabular-nums' : ''} ${isActive ? 'text-small-orange' : 'text-white/30'}`}>
+                                            {i + 1}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectMode(true);
+                                              trackSelection.handleSelect(t.id, e);
+                                            }}
+                                            className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white/50 hover:text-white cursor-pointer"
+                                            title="Select track"
+                                          >
+                                            <Square size={15} />
+                                          </button>
+                                        </div>
+                                      )}
+                                      {isOwner && !selectMode && (
+                                        <GripVertical size={13} className="text-white/20 hover:text-white/50 shrink-0 cursor-grab active:cursor-grabbing" />
+                                      )}
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={selectMode ? (e) => { e.stopPropagation(); trackSelection.handleSelect(t.id, e); } : () => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }}
+                                      className="flex items-center gap-3 text-left flex-1 min-w-0 relative z-10"
+                                    >
+                                      {selectMode && (
+                                        <span className={`text-[10px] font-black w-4 shrink-0 ${gatefoldOn ? 'font-mono tabular-nums' : ''} ${isActive ? 'text-small-orange' : 'text-white/30'}`}>
+                                          {i + 1}
+                                        </span>
+                                      )}
                                       <span className="min-w-0 flex-1">
                                         {/* Track-list titles stay a single line (full title is the big header above).
                                             Gatefold registry: sentence-case bold, no letterspacing shout. */}
