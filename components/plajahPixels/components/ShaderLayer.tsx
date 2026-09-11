@@ -174,12 +174,19 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
     // instead of being pushed to the next vsync and halving the effective rate to 15.
     const minFrameMs = fpsCap && fpsCap > 0 ? (1000 / fpsCap) - 2 : 0;
     let lastDrawn = 0;
+    let lastResume = 0;
     const loop = () => {
       const gl = glRef.current, prog = progRef.current, canvas = canvasRef.current;
       const tNow = performance.now();
       if (minFrameMs && tNow - lastDrawn < minFrameMs) { rafRef.current = requestAnimationFrame(loop); return; }
       lastDrawn = tNow;
       if (gl && prog && canvas) {
+        // Periodically resume suspended AudioContext (~every 5 seconds)
+        if (analyser && tNow - lastResume > 5000) {
+          lastResume = tNow;
+          const ctx = analyser.context as AudioContext;
+          if (ctx?.state === 'suspended') ctx.resume().catch(() => {});
+        }
         const now = tNow;
         const dt = lastRef.current ? (now - lastRef.current) / 1000 : 0; lastRef.current = now;
 

@@ -106,8 +106,15 @@ const ButterchurnLayer: React.FC<Props> = ({
         // being deferred to the next vsync and halving the effective rate.
         const minFrameMs = fpsCap && fpsCap > 0 ? (1000 / fpsCap) - 2 : 0;
         let lastDrawn = 0;
+        let lastResume = 0;
         const render = () => {
           const tNow = performance.now();
+          // Periodically resume suspended AudioContext (~every 5 seconds)
+          if (tNow - lastResume > 5000) {
+            lastResume = tNow;
+            const ctx = analyser.context as AudioContext;
+            if (ctx?.state === 'suspended') ctx.resume().catch(() => {});
+          }
           if (!minFrameMs || tNow - lastDrawn >= minFrameMs) {
             lastDrawn = tNow;
             try { vizRef.current?.render(); } catch { /* frame skip */ }

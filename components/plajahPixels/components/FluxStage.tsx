@@ -40,10 +40,18 @@ const FluxStage: React.FC<Props> = ({ analyser, config, isPlaying, id }) => {
     ro.observe(cv.parentElement!);
 
     let raf = 0;
+    let lastResume = 0;
     function loop(now: number) {
       const cfg = cfgRef.current;
       const scene = MODE_TO_FLUX_SCENE[cfg.mode] || 'field';
       const a = analyserRef.current;
+      // Chrome silently suspends AudioContexts after inactivity. Periodically
+      // resume to keep the FFT data flowing (~every 5 seconds to avoid spam).
+      if (a && now - lastResume > 5000) {
+        lastResume = now;
+        const ctx = a.context as AudioContext;
+        if (ctx?.state === 'suspended') ctx.resume().catch(() => {});
+      }
       let bands = { bass: 0, mid: 0, treble: 0, level: 0, beat: 0 };
       if (a) {
         const n = a.frequencyBinCount;

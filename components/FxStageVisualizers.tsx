@@ -195,7 +195,14 @@ export default function FxStageVisualizers({
   const gp = useGlobalPlayer();
   useEffect(() => {
     if (!isPlaying) return;
-    try { gp?.ensureAnalyserTap?.(); } catch { /* never let a diagnostic concern break the visual */ }
+    try {
+      // Mobile: establish the passive analyser tap (captureStream).
+      gp?.ensureAnalyserTap?.();
+      // All platforms: resume the AudioContext if the browser suspended it (Chrome does this
+      // for energy-saving on contexts that haven't been used recently). Without this, the
+      // analyser reads flat zeros even though the audio element is playing fine.
+      gp?.getAudioContext?.();
+    } catch { /* never let a diagnostic concern break the visual */ }
   }, [isPlaying, gp]);
 
   const startTimeMs = useMemo(() => (typeof performance !== 'undefined' ? performance.now() : 0), [engine, presetIndex]);

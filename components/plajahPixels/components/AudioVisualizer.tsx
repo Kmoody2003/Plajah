@@ -140,6 +140,7 @@ const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ a
   
   // Frame Rate Control
   const lastFrameTimeRef = useRef<number>(0);
+  const lastResumeRef = useRef<number>(0);
 
   // Object Pooling for Particles
   const MAX_PARTICLES = 300;
@@ -1889,6 +1890,13 @@ const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ a
     const canvas = canvasRef.current;
     if (!canvas || !analyser) return;
 
+    // Periodically resume suspended AudioContext (~every 5 seconds)
+    if (time - lastResumeRef.current > 5000) {
+      lastResumeRef.current = time;
+      const actx = analyser.context as AudioContext;
+      if (actx?.state === 'suspended') actx.resume().catch(() => {});
+    }
+
     const ctx = canvas.getContext('2d', { alpha: true } as CanvasRenderingContext2DSettings);
     if (!ctx) return;
 
@@ -2202,10 +2210,25 @@ const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ a
 
   useEffect(() => {
       if (analyser) {
+          // Save originals so we can restore when this component unmounts — other engines
+          // (Shaders, Flux) share the same analyser and may have allocated buffers based on
+          // the original frequencyBinCount / decibel range.
+          const origSmoothing = analyser.smoothingTimeConstant;
+          const origMinDb = analyser.minDecibels;
+          const origMaxDb = analyser.maxDecibels;
+          const origFftSize = analyser.fftSize;
           analyser.smoothingTimeConstant = config.smoothingTimeConstant;
           analyser.minDecibels = config.minDecibels;
           analyser.maxDecibels = config.maxDecibels;
           analyser.fftSize = config.fftSize;
+          return () => {
+            try {
+              analyser.smoothingTimeConstant = origSmoothing;
+              analyser.minDecibels = origMinDb;
+              analyser.maxDecibels = origMaxDb;
+              analyser.fftSize = origFftSize;
+            } catch { /* analyser may have been GC'd */ }
+          };
       }
   }, [analyser, config]);
 

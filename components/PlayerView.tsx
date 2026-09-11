@@ -688,12 +688,14 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     if (fxEngine === 'MILKDROP' && milkdropNames.length === 0) loadMilkdropNames().then(setMilkdropNames);
     if (fxEngine === 'SHADER' && shaderNames.length === 0) loadShaderNames().then(setShaderNames);
   }, [fxEngine, milkdropNames.length, shaderNames.length]);
-  // Pixels engines (Generators / MilkDrops / Shaders) need a live analyser; it's only created on
-  // first play. If the FX Stage is opened on a Pixels engine before anything has played, create the
-  // audio graph now so the visualizer isn't stuck on "Loading…" (it re-publishes via analyserEpoch).
+  // Pixels engines (Generators / MilkDrops / Shaders / Flux) need a live analyser; it's only
+  // created on first play. If the FX Stage is opened on a Pixels engine before anything has
+  // played, create the audio graph now so the visualizer isn't stuck on "Loading…" (it
+  // re-publishes via analyserEpoch). Covers BOTH the mobile drawer layout AND the gatefold FX stage.
+  const needsFxAnalyser = (isVisualizerLayout || gatefoldStageMode === 'FX') && isPixelsEngine;
   React.useEffect(() => {
-    if (isVisualizerLayout && isPixelsEngine && !globalAnalyser) getAudioContext?.();
-  }, [isVisualizerLayout, isPixelsEngine, globalAnalyser, getAudioContext]);
+    if (needsFxAnalyser && !globalAnalyser) getAudioContext?.();
+  }, [needsFxAnalyser, globalAnalyser, getAudioContext]);
   const selectFxEngine = React.useCallback((id: 'FLOW' | 'PAINT' | FxEngine) => {
     setFxEngine(id); setFxPresetIndex(0); setFxMenuOpen(false); setFxSearch('');
     if (id === 'FLOW' || id === 'PAINT') setVisualizerType(id);
