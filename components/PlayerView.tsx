@@ -2573,7 +2573,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             {/* RIGHT: COMPACT CONTENT GRID (42%) */}
             <section className="w-full lg:w-[42%] flex flex-col gap-10 overflow-hidden">
               {/* COMPACT TRACKLIST */}
-              <div className={`transition-all duration-700 overflow-hidden bg-gradient-to-br from-[#6B0099]/20 via-[#D40055]/10 to-[#FF8C00]/20 backdrop-blur-3xl border border-white/10 rounded-[3.5rem] p-10 flex flex-col shadow-[0_0_50px_rgba(107,0,153,0.15)] ${activeHUD === 'TRACKS' ? 'flex-1' : 'h-48 shrink-0'}`}>
+              <div className={`transition-all duration-700 overflow-hidden bg-gradient-to-br from-[#6B0099]/20 via-[#D40055]/10 to-[#D40055]/15 backdrop-blur-3xl border border-white/10 rounded-[3.5rem] p-10 flex flex-col shadow-[0_0_50px_rgba(107,0,153,0.15)] ${activeHUD === 'TRACKS' ? 'flex-1' : 'h-48 shrink-0'}`}>
                 <div className="flex items-center justify-between mb-6">
                   <h4 className="text-[10px] font-black uppercase tracking-[0.5em] text-white/50">Operational Tracks</h4>
                   <span className="text-[10px] font-bold text-small-orange/40 uppercase tracking-widest">{currentTrackIndex + 1} / {localTracks.length}</span>
@@ -3548,7 +3548,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             leaf (classic skin keeps the overlapping floating-card layout). */}
         <div
           className={`pointer-events-auto flex flex-col gap-6 flex-1 overflow-hidden ${isVisualizerLayout ? 'lg:w-[38%] lg:ml-[62%] xl:w-[34%] xl:ml-[66%] 2xl:w-[30%] 2xl:ml-[70%] lg:mr-0' : gatefoldOn ? 'lg:w-[50%] lg:ml-[50%] lg:mr-auto rounded-[1.75rem] border border-white/12 p-5' : 'lg:w-[50%] lg:ml-[44%] lg:mr-auto'}`}
-          style={gatefoldOn && !isVisualizerLayout ? { background: 'rgba(10,6,16,0.6)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } : undefined}
+          style={gatefoldOn && !isVisualizerLayout ? { background: 'rgba(10,6,16,0.4)', backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)' } : undefined}
         >
           {/* ── Compact album art strip (shown only in visualizer layout mode) ── */}
           {isVisualizerLayout && (
@@ -3586,8 +3586,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               Every action chip below survives unchanged. Classic keeps the big card. */}
           <div className={`relative overflow-hidden w-full bg-theme-card backdrop-blur-3xl ${gatefoldOn ? 'rounded-2xl border border-white/12 shadow-lg' : 'rounded-[2.5rem] shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_8px_40px_rgba(0,0,0,0.25)]'} ${isVisualizerLayout ? 'p-4 lg:p-5' : gatefoldOn ? 'p-4' : 'p-6 lg:p-8'}`}>
              {/* Animated Plajah brand gradient — living sweep, weighted to purple + magenta */}
-             <div className="absolute inset-0 audio-session-gradient opacity-40 pointer-events-none" aria-hidden="true" />
-             <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/20 to-black/45 pointer-events-none" aria-hidden="true" />
+             <div className="absolute inset-0 audio-session-gradient opacity-25 pointer-events-none" aria-hidden="true" />
+             <div className="absolute inset-0 bg-gradient-to-r from-black/25 via-black/10 to-black/25 pointer-events-none" aria-hidden="true" />
              <div className={`relative z-10 flex flex-col ${gatefoldOn ? 'gap-3' : 'gap-4'}`}>
                 {gatefoldOn && (
                   <div className="flex items-center gap-3">
@@ -3801,7 +3801,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
              {activeHUD !== 'ABOUT' && (
                <div className="flex-1 animate-in slide-in-from-right-20 duration-1000 overflow-hidden flex flex-col">
-                  <div className="w-full h-full bg-gradient-to-br from-[#6B0099]/30 via-black/40 to-[#FF8C00]/30 backdrop-blur-3xl p-6 lg:p-10 rounded-[2.5rem] lg:rounded-[3rem] shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_0_60px_rgba(107,0,153,0.08),0_16px_48px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col">
+                  <div className="relative w-full h-full backdrop-blur-3xl p-6 lg:p-10 rounded-[2.5rem] lg:rounded-[3rem] shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_0_60px_rgba(107,0,153,0.08),0_16px_48px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col border border-white/[0.06]" style={{ background: 'rgba(10,6,16,0.35)' }}>
+                    {/* Animated Plajah gradient — slow sweep, purple→magenta (no orange) */}
+                    <div className="absolute inset-0 tracklist-gradient pointer-events-none" aria-hidden="true" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/20 pointer-events-none" aria-hidden="true" />
                     {activeHUD === 'LYRICS' && (
                       <div className="flex-1 flex flex-col gap-6 overflow-hidden">
                         <div className="flex items-center justify-between mb-4">

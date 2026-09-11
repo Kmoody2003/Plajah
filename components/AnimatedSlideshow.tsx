@@ -118,7 +118,7 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
             <img
               src={heroImage(images[nextIndex]) || undefined}
               alt=""
-              className="w-full h-full object-cover scale-125 blur-[24px] opacity-40"
+              className="w-full h-full object-cover scale-125 blur-[32px] opacity-40"
               loading="eager"
               decoding="async"
             />
