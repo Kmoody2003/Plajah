@@ -3029,8 +3029,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                       </div>
                     </motion.div>
                   ) : gatefoldOn ? (
-                    <motion.div key="art-gatefold" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.6, type: 'spring', damping: 20 }} className="absolute inset-0 overflow-hidden group">
-                      <img src={thumb(album.coverImage, THUMB.large) || undefined} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                    <motion.div key="art-gatefold" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.6, type: 'spring', damping: 20 }} className="absolute inset-0 overflow-hidden group flex items-center justify-center">
+                      <img src={thumb(album.coverImage, THUMB.large) || undefined} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="max-w-full max-h-full object-contain transition-transform duration-700 group-hover:scale-105" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                       {album.worldId && <div className="absolute bottom-4 left-4 right-4"><WorldBadge worldId={album.worldId} contentTitle={album.title} contentType="album" onNavigate={onNavigateToWorld} /></div>}
                       <div className="pointer-events-none absolute top-4 left-4 right-4 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-300"><h2 className="text-lg font-black uppercase tracking-tight drop-shadow-lg text-white">{album.title}</h2><p className="text-[10px] font-bold text-white/70 uppercase tracking-widest drop-shadow-md">{album.artist}</p></div>
