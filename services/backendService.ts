@@ -3114,15 +3114,19 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
 
   // 3. Upload Slideshow
   const finalSlideshow: string[] = [];
+  // Keep any previously-saved URLs (not blob: URLs which are local-only previews)
+  if (album.slideshow) {
+    for (const url of album.slideshow) {
+      if (url && !url.startsWith('blob:')) finalSlideshow.push(url);
+    }
+  }
+  // Upload new files and append them
   if (album.slideshowFiles && album.slideshowFiles.length > 0) {
     for (let i = 0; i < album.slideshowFiles.length; i++) {
       const file = album.slideshowFiles[i];
-      const url = await uploadFile(`albums/${album.id}/slideshow/img_${i}.png`, file);
+      const url = await uploadFile(`albums/${album.id}/slideshow/img_${Date.now()}_${i}.png`, file);
       finalSlideshow.push(url);
     }
-  } else {
-    // Fallback for existing URLs
-    if (album.slideshow) finalSlideshow.push(...album.slideshow);
   }
 
   // 4. Upload Tracks — label by the actual content type, not always "Track"

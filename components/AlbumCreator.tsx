@@ -2782,7 +2782,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Photos & slideshow assets</p>
           </div>
           <div className="relative">
-            <input type="file" multiple accept="image/*" onChange={(e) => { const files = Array.from(e.target.files || []); const urls = files.map(f => URL.createObjectURL(f)); setSlideshow(prev => [...prev, ...urls]); setSlideshowFiles(prev => [...prev, ...files]); }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+            <input type="file" multiple accept="image/*" onChange={(e) => { const files = Array.from(e.target.files || []); if (!files.length) return; const urls = files.map(f => URL.createObjectURL(f)); setSlideshow(prev => [...prev, ...urls]); setSlideshowFiles(prev => [...prev, ...files]); e.target.value = ''; }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
             <button type="button" className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl"><Plus size={14} /> Add Photos</button>
           </div>
         </div>
