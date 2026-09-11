@@ -2743,7 +2743,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   }
 
   return (
-    <div className={`h-[100dvh] bg-transparent text-primary overflow-hidden relative selection:bg-white selection:text-black font-sans${gatefoldOn ? (choraNext.isNight ? ' chora-next chora-night' : ' chora-next') : ''}`}>
+    <div className={`fixed inset-0 z-10 bg-transparent text-primary overflow-hidden selection:bg-white selection:text-black font-sans${gatefoldOn ? (choraNext.isNight ? ' chora-next chora-night' : ' chora-next') : ''}`}>
       {/* ── Full-page cover art — clear, fades to transparent at bottom ── */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
         {/* Ambient blurred base (very soft, low opacity) */}
@@ -2809,7 +2809,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         </AnimatePresence>
 
         {/* Vignette edges */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/15 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/15 via-transparent to-black/15 pointer-events-none" />
         <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/75 to-transparent pointer-events-none" />
       </div>
 
