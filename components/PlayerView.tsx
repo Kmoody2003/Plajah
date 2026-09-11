@@ -3801,7 +3801,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
              {activeHUD !== 'ABOUT' && (
                <div className="flex-1 animate-in slide-in-from-right-20 duration-1000 overflow-hidden flex flex-col">
-                  <div className="relative w-full h-full backdrop-blur-3xl p-6 lg:p-10 rounded-[2.5rem] lg:rounded-[3rem] shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_0_60px_rgba(107,0,153,0.08),0_16px_48px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col border border-white/[0.06]" style={{ background: 'rgba(10,6,16,0.35)' }}>
+                  <div className="relative w-full h-full backdrop-blur-3xl p-6 lg:p-10 rounded-[2.5rem] lg:rounded-[3rem] shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_0_60px_rgba(107,0,153,0.08),0_16px_48px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col border border-white/[0.06]" style={{ background: 'rgba(10,6,16,0.20)' }}>
                     {/* Animated Plajah gradient — slow sweep, purple→magenta (no orange) */}
                     <div className="absolute inset-0 tracklist-gradient pointer-events-none" aria-hidden="true" />
                     <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/20 pointer-events-none" aria-hidden="true" />

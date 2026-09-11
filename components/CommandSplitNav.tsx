@@ -287,7 +287,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
       <div className="relative flex sticky top-0 h-screen z-50 shrink-0">
         {/* Tier 1 — category rail */}
         <nav className="flex flex-col items-center gap-1.5 py-3.5 h-screen overflow-y-auto custom-scrollbar border-r border-white/[0.07]"
-          style={{ width: tier1W, background: 'linear-gradient(180deg,#140D20,#0E0A16)' }}>
+          style={{ width: tier1W, background: 'linear-gradient(180deg,rgba(20,13,32,0.45),rgba(14,10,22,0.50))', backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)' }}>
           <button onClick={() => setCollapsed(c => !c)} title={collapsed ? 'Expand' : 'Collapse'}
             className="grid place-items-center w-10 h-6 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] mb-1">
             {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -332,7 +332,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
         {/* Tier 2 — labelled sub-column (inline when expanded) */}
         {!collapsed && (
           <div className="flex flex-col h-screen overflow-hidden border-r border-white/[0.07]"
-            style={{ width: tier2W, background: 'linear-gradient(160deg,rgba(20,13,32,.96),rgba(14,10,22,.98))' }}>
+            style={{ width: tier2W, background: 'linear-gradient(160deg,rgba(20,13,32,0.40),rgba(14,10,22,0.45))', backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)' }}>
             {Tier2List}
           </div>
         )}
@@ -340,7 +340,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
         {/* Collapsed flyout */}
         {collapsed && (
           <div className={`absolute top-0 h-screen flex flex-col z-40 border-r border-white/[0.14] shadow-2xl transition-all duration-200 ${flyoutOpen ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 -translate-x-2 pointer-events-none'}`}
-            style={{ left: tier1W, width: tier2W, background: 'linear-gradient(160deg,rgba(20,13,32,.98),rgba(14,10,22,.99))' }}
+            style={{ left: tier1W, width: tier2W, background: 'linear-gradient(160deg,rgba(20,13,32,0.42),rgba(14,10,22,0.48))', backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)' }}
             onMouseLeave={() => setFlyoutOpen(false)}>
             {Tier2List}
           </div>
