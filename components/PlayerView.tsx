@@ -2985,19 +2985,20 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                )}
              </div>
 
-             {/* Layer 1 — album art card / stage viewport.
-                 Gatefold stages fill the entire panel via absolute positioning. */}
-             <div className={`flex-1 relative z-10 ${gatefoldOn ? '' : 'flex flex-col items-center justify-center gap-5 px-8 pt-8'}`}>
+             {/* Layer 1 — stage viewport (gatefold only).
+                 Stages fill the entire panel via absolute positioning. */}
+             {gatefoldOn && (
+              <div className="flex-1 relative z-10 min-h-0">
                 <AnimatePresence mode="wait" initial={false}>
-                  {gatefoldOn && gatefoldStageMode === 'ORRERY' ? (
+                  {gatefoldStageMode === 'ORRERY' ? (
                     <motion.div key="orrery" className="absolute inset-0 flex items-center justify-center" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.7 }}>
                       <OrreryStage album={album} tracks={localTracks} activeIndex={currentTrackIndex} isPlaying={globalIsPlaying && isCurrentTrackGlobal} onPlayTrack={(t, i) => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }} />
                     </motion.div>
-                  ) : gatefoldOn && gatefoldStageMode === 'SLIDESHOW' ? (
+                  ) : gatefoldStageMode === 'SLIDESHOW' ? (
                     <motion.div key="slideshow" className="absolute inset-0 overflow-hidden" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.7 }}>
                       <AnimatedSlideshow key={`gatefold-slide-${album.id}-${currentTrack?.id || 'album'}`} images={gatefoldSlides} startIndex={gatefoldSlides.length > 1 ? 1 : 0} presentation="panel" isPlaying={globalIsPlaying && isCurrentTrackGlobal} themeColor={album.themeColor} />
                     </motion.div>
-                  ) : gatefoldOn && gatefoldStageMode === 'FX' ? (
+                  ) : gatefoldStageMode === 'FX' ? (
                     <motion.div key="fx" className="absolute inset-0 overflow-hidden bg-black" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.7 }}>
                       <div className="absolute inset-0">
                         {isPixelsEngine ? (
@@ -3009,7 +3010,6 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                           </>
                         )}
                       </div>
-                      {/* Reactor/engine + preset controls */}
                       <div className="absolute inset-x-0 top-0 z-20 p-3 flex items-center justify-center bg-gradient-to-b from-black/75 to-transparent">
                         {fxSelectorEl}
                       </div>
@@ -3028,114 +3028,119 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         </button>
                       </div>
                     </motion.div>
-                  ) : gatefoldOn ? (
+                  ) : (
                     <motion.div key="art-gatefold" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.6, type: 'spring', damping: 20 }} className="absolute inset-0 overflow-hidden group flex items-center justify-center">
                       <img src={thumb(album.coverImage, THUMB.large) || undefined} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="max-w-full max-h-full object-contain transition-transform duration-700 group-hover:scale-105" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                       {album.worldId && <div className="absolute bottom-4 left-4 right-4"><WorldBadge worldId={album.worldId} contentTitle={album.title} contentType="album" onNavigate={onNavigateToWorld} /></div>}
                       <div className="pointer-events-none absolute top-4 left-4 right-4 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-300"><h2 className="text-lg font-black uppercase tracking-tight drop-shadow-lg text-white">{album.title}</h2><p className="text-[10px] font-bold text-white/70 uppercase tracking-widest drop-shadow-md">{album.artist}</p></div>
                     </motion.div>
-                  ) : (
-                    <motion.div key="art" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.6, type: 'spring', damping: 20 }} className="relative w-[min(460px,48vh)] max-w-full aspect-square rounded-[2rem] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.6)] border border-white/10 group">
-                      <img src={thumb(album.coverImage, THUMB.large) || undefined} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                      {album.worldId && <div className="absolute bottom-4 left-4 right-4"><WorldBadge worldId={album.worldId} contentTitle={album.title} contentType="album" onNavigate={onNavigateToWorld} /></div>}
-                      <div className="pointer-events-none absolute top-4 left-4 right-4 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-300"><h2 className="text-lg font-black uppercase tracking-tight drop-shadow-lg text-white">{album.title}</h2><p className="text-[10px] font-bold text-white/70 uppercase tracking-widest drop-shadow-md">{album.artist}</p></div>
-                    </motion.div>
                   )}
                 </AnimatePresence>
+              </div>
+             )}
 
-               {/* ── Gatefold left leaf — permanent credits under the art (Chora Next
-                     only): the record sleeve's front matter. Title, gradient artist,
-                     release chips, and a liner-notes excerpt (full notes stay in the
-                     Notes panel). Hidden on short viewports so nothing overflows. */}
+               {/* ── Gatefold bottom section — credits, view mode buttons, share.
+                    Sits below the viewport as a flex-column sibling so it stays at the bottom. */}
                {gatefoldOn && (
-                 <div className="w-full px-8 hidden [@media(min-height:820px)]:block">
-                   <h2 className="text-2xl font-black italic tracking-tight text-white leading-[1.02]" style={{ textWrap: 'balance' } as React.CSSProperties}>{album.title}</h2>
-                   <p
-                     className="mt-1 text-[11px] font-black uppercase tracking-[0.22em] inline-block cursor-pointer hover:opacity-80 transition-opacity"
-                     style={{ background: 'var(--pj-grad-ember, linear-gradient(135deg,#D40055,#FF8C00))', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}
-                     onClick={() => { if (onVisitUser && (album.artistId || album.userId)) onVisitUser(album.artistId || album.userId!); }}
-                   >
-                     {album.artist}
-                   </p>
-                   <div className="mt-2.5 flex flex-wrap gap-1.5">
-                     {(album.releaseDate || album.createdAt) && (
-                       <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-black uppercase tracking-widest text-white/60">{new Date(album.releaseDate || album.createdAt).getFullYear()}</span>
-                     )}
-                     {album.genre && (
-                       <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-black uppercase tracking-widest text-white/60">{album.genre}</span>
-                     )}
-                     <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-black uppercase tracking-widest text-white/60">
-                       {album.type === 'BOOK' ? `${album.bookChapters?.length || 0} chapters` : `${album.tracks?.length || 0} tracks`}
-                     </span>
+                 <div className="shrink-0 px-6 pb-4 pt-3 relative z-10">
+                   {/* Credits */}
+                   <div className="hidden [@media(min-height:820px)]:block mb-2">
+                    <h2 className="text-xl font-black italic tracking-tight text-white leading-[1.02]" style={{ textWrap: 'balance' } as React.CSSProperties}>{album.title}</h2>
+                    <p
+                      className="mt-0.5 text-[10px] font-black uppercase tracking-[0.22em] inline-block cursor-pointer hover:opacity-80 transition-opacity"
+                      style={{ background: 'var(--pj-grad-ember, linear-gradient(135deg,#D40055,#FF8C00))', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}
+                      onClick={() => { if (onVisitUser && (album.artistId || album.userId)) onVisitUser(album.artistId || album.userId!); }}
+                    >
+                      {album.artist}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {(album.releaseDate || album.createdAt) && (
+                        <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-black uppercase tracking-widest text-white/60">{new Date(album.releaseDate || album.createdAt).getFullYear()}</span>
+                      )}
+                      {album.genre && (
+                        <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-black uppercase tracking-widest text-white/60">{album.genre}</span>
+                      )}
+                      <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-black uppercase tracking-widest text-white/60">
+                        {album.type === 'BOOK' ? `${album.bookChapters?.length || 0} chapters` : `${album.tracks?.length || 0} tracks`}
+                      </span>
+                    </div>
+                    {(album.linerNotes || cleanDescription(album.description)) && (
+                      <p className="mt-2 text-[10px] leading-relaxed text-white/55 line-clamp-2">{album.linerNotes || cleanDescription(album.description)}</p>
+                    )}
                    </div>
-                   {(album.linerNotes || cleanDescription(album.description)) && (
-                     <p className="mt-3 text-[11px] leading-relaxed text-white/55 line-clamp-3">{album.linerNotes || cleanDescription(album.description)}</p>
+
+                   {/* View mode toggle */}
+                   <div className="flex items-center justify-center gap-2 flex-wrap py-2">
+                  <button
+                    onClick={() => selectGatefoldStage('ART')}
+                    className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${gatefoldStageMode === 'ART' ? 'bg-white text-black border-white' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white'}`}
+                  >
+                    Art
+                  </button>
+                  <button
+                    onClick={() => selectGatefoldStage('SLIDESHOW')}
+                    className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${gatefoldStageMode === 'SLIDESHOW' ? 'bg-white text-black border-white' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white'}`}
+                  >
+                    Slideshow
+                  </button>
+                  {gatefoldOn && (
+                    <button
+                       onClick={() => selectGatefoldStage('ORRERY')}
+                       className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${gatefoldStageMode === 'ORRERY' ? 'text-white border-transparent' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white hover:border-[#00DAF3]/50'}`}
+                       style={gatefoldStageMode === 'ORRERY' ? { backgroundImage: 'var(--pj-grad-spatial, linear-gradient(135deg,#6B0099,#00DAF3))' } : {}}
+                    >
+                      Orrery
+                    </button>
+                  )}
+                  {canUseFxStage() && (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                         onClick={() => selectGatefoldStage('FX')}
+                         className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border flex items-center gap-2 ${gatefoldStageMode === 'FX' ? 'bg-small-orange/20 border-small-orange/60 text-small-orange' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white hover:border-small-orange/50 hover:bg-small-orange/10'}`}
+                      >
+                        <Activity size={10} /> FX Stage
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsTvFxActive(true)}
+                        title="Open Fullscreen FX Stage"
+                        className="px-3 py-2 rounded-full bg-small-orange text-black hover:bg-white transition-all text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-[0_0_15px_rgba(255,140,0,0.3)] hover:scale-105 active:scale-95 cursor-pointer"
+                      >
+                        <Maximize2 size={11} /> Full Stage
+                      </button>
+                    </div>
+                  )}
+                   </div>
+
+                   {/* Share */}
+                   {!isPublic && (
+                     <button
+                       onClick={() => setShowShareModal(true)}
+                       className="w-full flex items-center justify-center gap-2.5 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 group mt-1"
+                       style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff' }}
+                       onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,140,0,0.15)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,140,0,0.35)'; (e.currentTarget as HTMLButtonElement).style.color = '#FF8C00'; }}
+                       onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.12)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }}
+                     >
+                       <Share2 size={14} /> Share This Album
+                     </button>
                    )}
                  </div>
                )}
 
-               {/* View mode toggle */}
-                <div className="flex items-center justify-center gap-2.5 flex-wrap px-8 py-3">
-                  <button
-                    onClick={() => selectGatefoldStage('ART')}
-                    className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${gatefoldStageMode === 'ART' ? 'bg-white text-black border-white' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white'}`}
-                 >
-                   Art
-                 </button>
-                 <button
-                    onClick={() => selectGatefoldStage('SLIDESHOW')}
-                    className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${gatefoldStageMode === 'SLIDESHOW' ? 'bg-white text-black border-white' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white'}`}
-                 >
-                   Slideshow
-                 </button>
-                 {/* Orrery — the Observatory's orbital stage (Gatefold skin only) */}
-                 {gatefoldOn && (
-                   <button
-                      onClick={() => selectGatefoldStage('ORRERY')}
-                      className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${gatefoldStageMode === 'ORRERY' ? 'text-white border-transparent' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white hover:border-[#00DAF3]/50'}`}
-                      style={gatefoldStageMode === 'ORRERY' ? { backgroundImage: 'var(--pj-grad-spatial, linear-gradient(135deg,#6B0099,#00DAF3))' } : {}}
-                   >
-                     Orrery
-                   </button>
-                 )}
-                 {/* FX Stage is a continuous full-screen shader and the heaviest thing this
-                     view can do, so a television does not offer it. Everything else does — a
-                     listener asking for it on their own machine should get it. */}
-                 {canUseFxStage() && (
-                   <div className="flex items-center gap-1.5">
-                     <button
-                        onClick={() => selectGatefoldStage('FX')}
-                        className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border flex items-center gap-2 ${gatefoldStageMode === 'FX' ? 'bg-small-orange/20 border-small-orange/60 text-small-orange' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white hover:border-small-orange/50 hover:bg-small-orange/10'}`}
-                     >
-                       <Activity size={10} /> FX Stage
-                     </button>
-                     <button
-                       type="button"
-                       onClick={() => setIsTvFxActive(true)}
-                       title="Open Fullscreen FX Stage"
-                       className="px-3.5 py-2.5 rounded-full bg-small-orange text-black hover:bg-white transition-all text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-[0_0_15px_rgba(255,140,0,0.3)] hover:scale-105 active:scale-95 cursor-pointer"
-                     >
-                       <Maximize2 size={11} /> Full Stage
-                     </button>
-                   </div>
-                 )}
-               </div>
-
-               {/* Share This Album — centered below the Art / Slideshow / FX Stage row */}
-               {!isPublic && (
-                 <button
-                   onClick={() => setShowShareModal(true)}
-                   className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 group"
-                   style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff' }}
-                   onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,140,0,0.15)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,140,0,0.35)'; (e.currentTarget as HTMLButtonElement).style.color = '#FF8C00'; }}
-                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.12)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }}
-                 >
-                   <Share2 size={14} /> Share This Album
-                 </button>
+               {/* Non-gatefold: keep original layout inside viewport */}
+               {!gatefoldOn && (
+                 <div className="flex-1 flex flex-col items-center justify-center gap-5 px-8 pt-8 relative z-10">
+                   <AnimatePresence mode="wait" initial={false}>
+                     <motion.div key="art" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.6, type: 'spring', damping: 20 }} className="relative w-[min(460px,48vh)] max-w-full aspect-square rounded-[2rem] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.6)] border border-white/10 group">
+                       <img src={thumb(album.coverImage, THUMB.large) || undefined} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                       {album.worldId && <div className="absolute bottom-4 left-4 right-4"><WorldBadge worldId={album.worldId} contentTitle={album.title} contentType="album" onNavigate={onNavigateToWorld} /></div>}
+                       <div className="pointer-events-none absolute top-4 left-4 right-4 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-300"><h2 className="text-lg font-black uppercase tracking-tight drop-shadow-lg text-white">{album.title}</h2><p className="text-[10px] font-bold text-white/70 uppercase tracking-widest drop-shadow-md">{album.artist}</p></div>
+                     </motion.div>
+                   </AnimatePresence>
+                 </div>
                )}
-             </div>
 
              {/* Layer 2 — World + character info cards just below album art */}
              <div className="relative z-10 px-6 pb-6 space-y-3">
