@@ -96,8 +96,7 @@ const TvFxSurface: React.FC = () => {
     return { lines: lyrics.slice(from, from + 6).map((l, i) => ({ text: l.text, on: from + i === active })) };
   }, [lyrics, currentTime]);
 
-  const showPlaylist = isPlaylistLocked || isPlaylistHovered;
-  const showLyrics = !!lyricWindow && !showPlaylist; // playlist takes priority when user toggles it
+  const showPlaylist = isPlaylistLocked;
 
   useEffect(() => {
     if (showPlaylist && activeTrackRef.current) {
@@ -179,16 +178,14 @@ const TvFxSurface: React.FC = () => {
         </Suspense>
       </div>
 
-      {/* Floating Atmospheric Playlist Overlay (Option B) */}
+      {/* Floating Atmospheric Playlist Overlay (Option B) — right edge, coexists with lyrics */}
       {currentAlbum && currentAlbum.tracks && currentAlbum.tracks.length > 0 && (
         <div
-          className={`absolute top-0 right-0 bottom-0 w-96 flex flex-col justify-center transition-all duration-500 z-[300] ${showPlaylist ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8 pointer-events-none'}`}
-          style={{ paddingRight: '3rem', WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 25%)', maskImage: 'linear-gradient(to right, transparent 0%, black 25%)' }}
+          className={`absolute top-0 bottom-[12rem] right-0 w-80 flex flex-col justify-center transition-all duration-500 ease-out z-[10] pointer-events-none ${showPlaylist ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-12'}`}
+          style={{ paddingRight: '2.5rem', WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 30%)', maskImage: 'linear-gradient(to right, transparent 0%, black 30%)' }}
         >
           <div
-            className="flex flex-col gap-5 overflow-y-auto no-scrollbar max-h-[70vh] py-16 pointer-events-auto items-end"
-            onMouseEnter={() => setIsPlaylistHovered(true)}
-            onMouseLeave={() => setIsPlaylistHovered(false)}
+            className="flex flex-col gap-4 overflow-y-auto no-scrollbar max-h-[65vh] py-12 items-end pointer-events-auto"
           >
             {currentAlbum.tracks.map((track: any) => {
               const isActive = track.id === currentTrack?.id;
@@ -202,9 +199,13 @@ const TvFxSurface: React.FC = () => {
                   }}
                   className={`text-right transition-all duration-300 cursor-pointer max-w-full leading-tight ${
                     isActive
-                      ? 'text-[#FF8C00] text-lg font-black uppercase tracking-widest scale-[1.02] opacity-100'
-                      : 'text-white/25 hover:text-white/50 text-sm font-bold uppercase tracking-wider'
+                      ? 'text-2xl font-black uppercase tracking-widest'
+                      : 'text-sm font-bold tracking-wider opacity-40 hover:opacity-70'
                   }`}
+                  style={isActive
+                    ? { background: 'linear-gradient(90deg, #8B5CF6, #D40055, #FF8C00)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }
+                    : { color: '#FF8C00' }
+                  }
                 >
                   {track.title}
                 </button>
@@ -214,11 +215,15 @@ const TvFxSurface: React.FC = () => {
         </div>
       )}
 
-      {/* Right-hand synced lyrics — identical to the slideshow (no blur; TV fill-rate). */}
-      {showLyrics && lyricWindow && (
+      {/* Right-hand synced lyrics — slides left when tracklist is open */}
+      {lyricWindow && (
         <div
-          className="absolute top-0 right-0 bottom-0 w-[46%] flex flex-col justify-center px-14 pointer-events-none"
-          style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(6,2,12,0.45) 35%, rgba(6,2,12,0.78) 100%)' }}
+          className="absolute top-0 bottom-0 flex flex-col justify-center px-14 pointer-events-none transition-all duration-500 ease-out"
+          style={{
+            right: showPlaylist ? '20rem' : '0',
+            width: '46%',
+            background: 'linear-gradient(90deg, transparent 0%, rgba(6,2,12,0.45) 35%, rgba(6,2,12,0.78) 100%)',
+          }}
         >
           <div className="space-y-5">
             {lyricWindow.lines.map((ln, i) => (
@@ -234,14 +239,14 @@ const TvFxSurface: React.FC = () => {
       <button
         onClick={exit}
         aria-label="Close FX Stage"
-        className="absolute top-8 right-10 z-10 flex items-center gap-2.5 pl-4 pr-5 py-2.5 rounded-full bg-black/60 border border-white/20 text-white hover:bg-black/80 hover:border-white/40 transition-all duration-300 pointer-events-auto cursor-pointer"
+        className="absolute top-8 right-10 z-[20] flex items-center gap-2.5 pl-4 pr-5 py-2.5 rounded-full bg-black/60 border border-white/20 text-white hover:bg-black/80 hover:border-white/40 transition-all duration-300 pointer-events-auto cursor-pointer"
         style={{ opacity: controls ? 1 : 0 }}
       >
         <X size={20} /><span className="text-[11px] font-black uppercase tracking-widest">Close</span>
       </button>
 
       {/* Engine selector (top-left) — clickable pills so it's easy on mouse, touch, or remote */}
-      <div className="absolute top-8 left-10 z-10 flex items-center gap-2 transition-opacity duration-300 pointer-events-auto" style={{ opacity: controls ? 1 : 0 }}>
+      <div className="absolute top-8 left-10 z-[20] flex items-center gap-2 transition-opacity duration-300 pointer-events-auto" style={{ opacity: controls ? 1 : 0 }}>
         <Sparkles size={18} className="text-[#FF8C00] mr-1" />
         {TV_ENGINES.map((e, i) => (
           <button
@@ -262,7 +267,7 @@ const TvFxSurface: React.FC = () => {
       {/* Preset & Engine Dropdown Picker Modal */}
       {isPickerOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-2xl pointer-events-auto"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/80 backdrop-blur-2xl pointer-events-auto"
           onClick={() => setIsPickerOpen(false)}
         >
           <div
@@ -361,17 +366,22 @@ const TvFxSurface: React.FC = () => {
       {/* Playlist toggle — always-visible button above branding, lower-right */}
       {currentAlbum && (
         <div
-          className="absolute right-12 z-[50] pointer-events-auto transition-opacity duration-300"
+          className="absolute right-12 z-[20] pointer-events-auto transition-opacity duration-300"
           style={{ bottom: '14rem', opacity: controls ? 1 : 0.4 }}
-          onMouseEnter={() => { setIsPlaylistHovered(true); wake(); }}
-          onMouseLeave={() => setIsPlaylistHovered(false)}
         >
           <button
-            onClick={(e) => { e.stopPropagation(); setIsPlaylistLocked(p => !p); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isPlaylistLocked) {
+                setIsPlaylistLocked(false);
+                setIsPlaylistHovered(false);
+              } else {
+                setIsPlaylistLocked(true);
+              }
+            }}
             aria-label="Toggle Playlist"
             className={`flex items-center gap-2 px-3.5 py-2 rounded-full transition-all cursor-pointer backdrop-blur-sm ${
               isPlaylistLocked ? 'bg-[#FF8C00]/20 border border-[#FF8C00]/50 text-[#FF8C00]' :
-              isPlaylistHovered ? 'bg-white/10 border border-white/20 text-white' :
               'bg-white/5 border border-white/10 text-white/40 hover:text-white/70'
             }`}
           >
@@ -383,7 +393,7 @@ const TvFxSurface: React.FC = () => {
 
       {/* Plajah Full Stage Mode — branding logo bug, lower-right above transport */}
       <div
-        className="absolute right-12 z-10 flex items-center gap-2 pointer-events-none select-none transition-opacity duration-500"
+        className="absolute right-12 z-[5] flex items-center gap-2 pointer-events-none select-none transition-opacity duration-500"
         style={{ opacity: controls ? 0.7 : 0.25, bottom: '11rem' }}
       >
         <span className="text-[11px] font-black uppercase tracking-[0.35em] text-white/70">Plajah</span>
@@ -401,10 +411,9 @@ const TvFxSurface: React.FC = () => {
         <span className="text-[11px] font-black uppercase tracking-[0.35em] text-white/70">Full Stage Mode</span>
       </div>
 
-      {/* Bottom transport — present, like the slideshow. Progress + prev / play-pause / next, plus the
-          current preset name and the control legend. */}
+      {/* Bottom transport */}
       <div
-        className="absolute left-0 right-0 bottom-0 px-12 pb-9 pt-24 bg-gradient-to-t from-black/85 via-black/40 to-transparent transition-opacity duration-300 pointer-events-auto"
+        className="absolute left-0 right-0 bottom-0 px-12 pb-9 pt-24 bg-gradient-to-t from-black/85 via-black/40 to-transparent transition-opacity duration-300 pointer-events-auto z-[15]"
         style={{ opacity: controls ? 1 : 0 }}
       >
         <div className="flex items-center gap-6">
