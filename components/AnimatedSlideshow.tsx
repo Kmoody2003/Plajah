@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import ThreeDImage from './ThreeDImage';
@@ -32,6 +32,10 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
   const [pulse] = useState(1);
   const tv = getPlatformInfo().isTV;
 
+  // The NEXT image in the rotation — used as the blurred background behind the viewport
+  // so the bg is always a different image from the foreground, giving depth.
+  const nextIndex = useMemo(() => images.length > 1 ? (index + 1) % images.length : index, [index, images.length]);
+
   useEffect(() => {
     if (!images.length) return;
     const interval = setInterval(() => {
@@ -55,21 +59,30 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
   // Preload the NEXT couple of (resized) images so a slide never arrives half-drawn or after a
   // black gap — the browser has them decoded and cached before the crossfade begins.
   useEffect(() => {
-    if (!tv || images.length < 2) return;
-    for (let k = 1; k <= 2; k++) {
+    if (images.length < 2) return;
+    for (let k = 1; k <= 3; k++) {
       const nextUrl = images[(index + k) % images.length];
       if (nextUrl) { const im = new Image(); im.decoding = 'async'; im.src = heroImage(nextUrl); }
     }
-  }, [index, images, tv]);
+  }, [index, images]);
 
   if (!images.length) return null;
 
-  // TV: opacity-only crossfade, no blur. Desktop: the original blur-in reveal.
+  // ALL modes now use 'sync' so old and new slides OVERLAP during the crossfade.
+  // The old 'wait' mode caused a black gap because the exit completed before the enter began.
+  // The crossfade duration is generous (1.4s shared overlap) for a cinematic dissolve feel.
   const slideMotion = presentation === 'panel'
     ? {
         initial: { opacity: 0, scale: 1.015, x: '1.2%' },
-        animate: { opacity: 1, scale: 1.09, x: '-1.2%', transition: { opacity: { duration: 1.4, ease: 'easeOut' }, scale: { duration: 10, ease: 'linear' }, x: { duration: 10, ease: 'linear' } } },
-        exit: { opacity: 0, transition: { duration: 1.2, ease: 'easeInOut' } },
+        animate: {
+          opacity: 1, scale: 1.09, x: '-1.2%',
+          transition: {
+            opacity: { duration: 1.6, ease: 'easeOut' },
+            scale: { duration: 10, ease: 'linear' },
+            x: { duration: 10, ease: 'linear' },
+          },
+        },
+        exit: { opacity: 0, transition: { duration: 1.6, ease: 'easeInOut' } },
       }
     : tv
     ? {
@@ -78,20 +91,46 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
         exit: { opacity: 0, transition: { duration: 1 } },
       }
     : {
-        initial: { opacity: 0, scale: 1.1, filter: 'blur(10px)' },
+        initial: { opacity: 0, scale: 1.04 },
         animate: {
-          opacity: 1, scale: 1, filter: 'blur(0px)',
-          transition: { opacity: { duration: 2, ease: 'circOut' }, scale: { duration: 0.1, ease: 'linear' }, filter: { duration: 2.5, ease: 'circOut' } },
+          opacity: 1, scale: 1,
+          transition: {
+            opacity: { duration: 1.6, ease: 'easeOut' },
+            scale: { duration: 8, ease: 'linear' },
+          },
         },
-        exit: { opacity: 0, scale: 1.05, filter: 'blur(5px)', transition: { duration: 1.5 } },
+        exit: { opacity: 0, scale: 1.02, transition: { duration: 1.6, ease: 'easeInOut' } },
       };
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-black">
-      {/* TV crossfades (mode sync): old and new overlap so there is no black gap between slides.
-          Desktop keeps the blur-in reveal (mode wait). */}
-      <AnimatePresence mode={tv ? 'sync' : 'wait'}>
-        <motion.div key={index} {...(slideMotion as any)} className="absolute inset-0 w-full h-full">
+      {/* Blurred background layer — shows the NEXT upcoming image (not the current one)
+          for visual depth. Softly blurred so it reads as ambient atmosphere, not a duplicate. */}
+      {images.length > 1 && !tv && (
+        <AnimatePresence mode="sync">
+          <motion.div
+            key={`bg-${nextIndex}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: { duration: 2, ease: 'easeOut' } }}
+            exit={{ opacity: 0, transition: { duration: 2 } }}
+            className="absolute inset-0 z-0"
+          >
+            <img
+              src={heroImage(images[nextIndex]) || undefined}
+              alt=""
+              className="w-full h-full object-cover scale-125 blur-[24px] opacity-40"
+              loading="eager"
+              decoding="async"
+            />
+            <div className="absolute inset-0 bg-black/40" />
+          </motion.div>
+        </AnimatePresence>
+      )}
+
+      {/* Main slide — always uses 'sync' mode so old and new overlap during crossfade.
+          No more black gap between slides. */}
+      <AnimatePresence mode="sync">
+        <motion.div key={index} {...(slideMotion as any)} className="absolute inset-0 w-full h-full z-[1]">
           {tv || presentation === 'panel' ? (
             // Full-bleed (object-COVER) so a non-16:9 photo fills the screen — but anchored to the
             // TOP (object-top), so an over-tall image spills off the BOTTOM only and never clips a
@@ -157,7 +196,7 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
       {/* A single ambient glow — desktop only. One more infinite animation is not worth a dropped
           frame on the TV. */}
       {!tv && presentation !== 'panel' && (
-        <div className="absolute inset-0 pointer-events-none border border-white/5 rounded-inherit overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none border border-white/5 rounded-inherit overflow-hidden z-[2]">
           <motion.div
             animate={{ opacity: isPlaying ? [0.1, 0.3, 0.1] : 0.1, scale: 1 }}
             transition={{ duration: 4, repeat: Infinity }}
