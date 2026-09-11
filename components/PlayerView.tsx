@@ -2985,20 +2985,20 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                )}
              </div>
 
-             {/* Layer 1 — album art card (centered top half) + WorldBadge overlay.
-                 Gatefold's Orrery stage swaps in for the cover card when toggled. */}
-             <div className={`flex-1 flex flex-col items-center justify-center relative z-10 ${gatefoldOn ? 'p-0' : 'gap-5 px-8 pt-8'}`}>
+             {/* Layer 1 — album art card / stage viewport.
+                 Gatefold stages fill the entire panel via absolute positioning. */}
+             <div className={`flex-1 relative z-10 ${gatefoldOn ? '' : 'flex flex-col items-center justify-center gap-5 px-8 pt-8'}`}>
                 <AnimatePresence mode="wait" initial={false}>
                   {gatefoldOn && gatefoldStageMode === 'ORRERY' ? (
-                    <motion.div key="orrery" className="w-full h-full flex items-center justify-center" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.7 }}>
+                    <motion.div key="orrery" className="absolute inset-0 flex items-center justify-center" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.7 }}>
                       <OrreryStage album={album} tracks={localTracks} activeIndex={currentTrackIndex} isPlaying={globalIsPlaying && isCurrentTrackGlobal} onPlayTrack={(t, i) => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }} />
                     </motion.div>
                   ) : gatefoldOn && gatefoldStageMode === 'SLIDESHOW' ? (
-                    <motion.div key="slideshow" className="relative w-full h-full overflow-hidden" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.7 }}>
+                    <motion.div key="slideshow" className="absolute inset-0 overflow-hidden" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.7 }}>
                       <AnimatedSlideshow key={`gatefold-slide-${album.id}-${currentTrack?.id || 'album'}`} images={gatefoldSlides} startIndex={gatefoldSlides.length > 1 ? 1 : 0} presentation="panel" isPlaying={globalIsPlaying && isCurrentTrackGlobal} themeColor={album.themeColor} />
                     </motion.div>
                   ) : gatefoldOn && gatefoldStageMode === 'FX' ? (
-                    <motion.div key="fx" className="relative w-full h-full overflow-hidden bg-black" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.7 }}>
+                    <motion.div key="fx" className="absolute inset-0 overflow-hidden bg-black" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.7 }}>
                       <div className="absolute inset-0">
                         {isPixelsEngine ? (
                           <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
@@ -3009,7 +3009,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                           </>
                         )}
                       </div>
-                      {/* Reactor/engine + preset controls — kept in view so the FX stage is controllable while it's on */}
+                      {/* Reactor/engine + preset controls */}
                       <div className="absolute inset-x-0 top-0 z-20 p-3 flex items-center justify-center bg-gradient-to-b from-black/75 to-transparent">
                         {fxSelectorEl}
                       </div>
@@ -3028,8 +3028,15 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         </button>
                       </div>
                     </motion.div>
+                  ) : gatefoldOn ? (
+                    <motion.div key="art-gatefold" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.6, type: 'spring', damping: 20 }} className="absolute inset-0 overflow-hidden group">
+                      <img src={thumb(album.coverImage, THUMB.large) || undefined} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                      {album.worldId && <div className="absolute bottom-4 left-4 right-4"><WorldBadge worldId={album.worldId} contentTitle={album.title} contentType="album" onNavigate={onNavigateToWorld} /></div>}
+                      <div className="pointer-events-none absolute top-4 left-4 right-4 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-300"><h2 className="text-lg font-black uppercase tracking-tight drop-shadow-lg text-white">{album.title}</h2><p className="text-[10px] font-bold text-white/70 uppercase tracking-widest drop-shadow-md">{album.artist}</p></div>
+                    </motion.div>
                   ) : (
-                    <motion.div key="art" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.6, type: 'spring', damping: 20 }} className={`relative overflow-hidden group ${gatefoldOn ? 'w-full h-full' : 'w-[min(460px,48vh)] max-w-full aspect-square rounded-[2rem] shadow-[0_24px_80px_rgba(0,0,0,0.6)] border border-white/10'}`}>
+                    <motion.div key="art" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.6, type: 'spring', damping: 20 }} className="relative w-[min(460px,48vh)] max-w-full aspect-square rounded-[2rem] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.6)] border border-white/10 group">
                       <img src={thumb(album.coverImage, THUMB.large) || undefined} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                       {album.worldId && <div className="absolute bottom-4 left-4 right-4"><WorldBadge worldId={album.worldId} contentTitle={album.title} contentType="album" onNavigate={onNavigateToWorld} /></div>}
@@ -3043,7 +3050,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                      release chips, and a liner-notes excerpt (full notes stay in the
                      Notes panel). Hidden on short viewports so nothing overflows. */}
                {gatefoldOn && (
-                 <div className="w-[min(460px,48vh)] max-w-full hidden [@media(min-height:820px)]:block">
+                 <div className="w-full px-8 hidden [@media(min-height:820px)]:block">
                    <h2 className="text-2xl font-black italic tracking-tight text-white leading-[1.02]" style={{ textWrap: 'balance' } as React.CSSProperties}>{album.title}</h2>
                    <p
                      className="mt-1 text-[11px] font-black uppercase tracking-[0.22em] inline-block cursor-pointer hover:opacity-80 transition-opacity"
@@ -3070,7 +3077,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                )}
 
                {/* View mode toggle */}
-                <div className="flex items-center justify-center gap-2 flex-wrap">
+                <div className="flex items-center justify-center gap-2.5 flex-wrap px-8 py-3">
                   <button
                     onClick={() => selectGatefoldStage('ART')}
                     className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${gatefoldStageMode === 'ART' ? 'bg-white text-black border-white' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white'}`}
