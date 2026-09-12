@@ -128,7 +128,7 @@ export const Hearts: React.FC<{ value: number; onChange?: (v: number) => void; s
 // Bridges the workspace to the instrument tier: the production's samples reach the pads with
 // their clearance state, and a bounce lands as a take on the selected song.
 
-const BeatsHost: React.FC = () => {
+const BeatsHost: React.FC<{ musicLabAdmin?: boolean }> = ({ musicLabAdmin }) => {
   const { prodId, samples, selectedSong, editSong } = useMelos();
   const melosSamples = useMemo(() => toMelosSampleRefs(samples), [samples]);
 
@@ -170,6 +170,7 @@ const BeatsHost: React.FC = () => {
           melosSamples={melosSamples}
           onRenderTake={selectedSong ? (t) => { void onRenderTake(t); } : undefined}
           takeTargetName={selectedSong?.title}
+          musicLabAdmin={musicLabAdmin}
         />
       </Suspense>
     </div>
@@ -546,7 +547,7 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
               {room === 'tracklist' && <TracklistRoom />}
               {room === 'arrange'   && <ArrangeRoom />}
               {room === 'board'     && <BoardRoom />}
-              {room === 'beats'     && <BeatsHost />}
+              {room === 'beats'     && <BeatsHost musicLabAdmin={currentUser?.role === 'admin' || currentUser?.email?.toLowerCase() === 'kmoody2003@gmail.com'} />}
             </motion.div>
           </AnimatePresence>
         </div>

@@ -1,10 +1,23 @@
 import { auth } from '../../firebase';
-import type { MusicEngineId } from '../../musicEnginePolicy';
-import type { GenerationJob, GenerationKind, GenerationRequest } from './types';
+import { MUSIC_ENGINES, type MusicEngineId } from '../../musicEnginePolicy';
+import { ENGINE_KINDS, type GenerationJob, type GenerationKind, type GenerationRequest } from './types';
 
 export interface EngineStatus {
   id: MusicEngineId; name: string; purpose: string; kinds: GenerationKind[];
   runtimeConnected: boolean; access: { allowed: boolean; reason: string };
+}
+
+/** Keeps the admin-only controls discoverable on frontend-only previews. The API still
+ * authorizes every generation request and replaces these statuses when it is available. */
+export function unavailableMusicEngines(reason = 'Music lab backend is not connected on this preview'): EngineStatus[] {
+  return MUSIC_ENGINES.map(engine => ({
+    id: engine.id,
+    name: engine.name,
+    purpose: engine.purpose,
+    kinds: [...ENGINE_KINDS[engine.id]],
+    runtimeConnected: false,
+    access: { allowed: false, reason: engine.permissionRequired ? 'Written evaluation permission pending' : reason },
+  }));
 }
 async function authorizedFetch(path: string, init: RequestInit = {}) {
   const token = await auth.currentUser?.getIdToken();

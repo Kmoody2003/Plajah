@@ -150,6 +150,7 @@ export default function GenerationPanel({ doc, engines, startBeats, initialDesti
   return <aside aria-label="Generate music" className="w-[340px] max-w-full shrink-0 border-l border-white/10 bg-[#100b19] overflow-y-auto p-4 space-y-3 text-white">
     <div className="flex items-center justify-between"><h2 className="font-semibold flex items-center gap-2"><Sparkles size={16} /> Generate</h2><button aria-label="Close generation panel" onClick={onClose}><X size={16} /></button></div>
     <p className="text-[11px] text-white/50">Private music lab · local or configured runtime</p>
+    {!engines.some(engine => engine.runtimeConnected) && <p role="status" className="rounded-lg border border-amber-300/20 bg-amber-300/10 p-2 text-[11px] leading-relaxed text-amber-100">The interface is available for preview. Connect the Melos music-lab backend or run it locally to generate audio and scores.</p>}
     <fieldset disabled={running || inserting} className="space-y-3 disabled:opacity-60">
       <label className="block text-xs">Create<select className={field} value={kind} onChange={event => { setKind(event.target.value as GenerationKind); setReady(null); }}>
         <option value="audio">Audio clip</option><option value="midi">MIDI notes</option><option value="sample">Sample for a pad</option><option value="transcribe">Notes from a recording</option>

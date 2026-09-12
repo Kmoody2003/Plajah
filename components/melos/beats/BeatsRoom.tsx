@@ -57,7 +57,7 @@ import BreakdownImporter from './composer/BreakdownImporter';
 import { breakdownToTracks } from '../../../services/melos/composition/breakdownToTracks';
 import { SELECT, WASH_BG } from './theme';
 import { onAuthStateChanged } from 'firebase/auth';
-import { getMusicEngines, type EngineStatus } from '../../../services/melos/generation/client';
+import { getMusicEngines, unavailableMusicEngines, type EngineStatus } from '../../../services/melos/generation/client';
 import { insertGeneratedAudio, insertGeneratedNotes } from '../../../services/melos/generation/insert';
 import GenerationPanel, { type GenerationInsertion } from './composer/GenerationPanel';
 import { encodeWav } from '../../../services/audio/wavEncode';
@@ -82,11 +82,13 @@ interface BeatsRoomProps {
   onRenderTake?: (take: { blob: Blob; name: string; durationSec: number }) => void;
   /** The song a bounce would attach to, for the button label. */
   takeTargetName?: string;
+  /** Client-side discovery only. Generation remains protected by server-side admin checks. */
+  musicLabAdmin?: boolean;
 }
 
 const AVAILABLE_VIEWS: BeatsViewId[] = ['machine', 'glass', 'timeline', 'mixer', 'project'];
 
-const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, embedded, melosSamples, onRenderTake, takeTargetName }) => {
+const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, embedded, melosSamples, onRenderTake, takeTargetName, musicLabAdmin = false }) => {
   const { doc, saveState, grooves, mutate, undo, redo, canUndo, canRedo, replace, saveNow, openGroove, newGroove, removeGroove } =
     useBeatsDoc(payload?.grooveId, production?.prodId || payload?.productionId);
   const snap = useEngineBridge();
@@ -131,7 +133,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   // Where a freshly-picked instrument lands: a MEKA pad, or its own independent (clip-driven) MIDI track.
   const [instrumentDest, setInstrumentDest] = useState<'meka' | 'track'>('meka');
   const [showBreakdownImport, setShowBreakdownImport] = useState(false);
-  const [musicEngines, setMusicEngines] = useState<EngineStatus[] | null>(null);
+  const [musicEngines, setMusicEngines] = useState<EngineStatus[] | null>(() => musicLabAdmin ? unavailableMusicEngines() : null);
   const [showGeneration, setShowGeneration] = useState(false);
   const currentDocRef = React.useRef(doc);
   currentDocRef.current = doc;
@@ -140,13 +142,14 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     const unsubscribe = onAuthStateChanged(auth, user => {
       request?.abort(); request = new AbortController();
       const signal = request.signal;
-      setMusicEngines(null); setShowGeneration(false);
-      if (user) void getMusicEngines(signal).then(engines => {
+      const canDiscover = musicLabAdmin || user?.email?.toLowerCase() === 'kmoody2003@gmail.com';
+      setMusicEngines(canDiscover ? unavailableMusicEngines() : null); setShowGeneration(false);
+      if (user && canDiscover) void getMusicEngines(signal).then(engines => {
         if (!signal.aborted) setMusicEngines(engines);
-      }).catch(() => { /* Public users have no lab controls. Server checks every request too. */ });
+      }).catch(() => { /* Keep the disabled preview statuses visible; the server still protects generation. */ });
     });
     return () => { request?.abort(); unsubscribe(); };
-  }, []);
+  }, [musicLabAdmin]);
   const insertGeneration = async (value: GenerationInsertion) => {
     const checkProject = () => {
       if (currentDocRef.current.id !== value.projectId) throw new Error('The project changed during generation. Return to the original project before inserting.');
@@ -1070,8 +1073,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           className={`h-6 px-2.5 rounded-lg text-[10px] border flex items-center gap-1 ${ulOpen ? 'border-[#8B5CFF]/70 text-white bg-[#8B5CFF]/15' : 'border-[#8B5CFF]/40 text-[#D0BCFF] hover:bg-[#8B5CFF]/12'}`}>▦ Library</button>
         <button onClick={() => setShowBreakdownImport(true)} title="Score from Chora — turn a song's Breakdown into instrument tracks"
           className="h-6 px-2.5 rounded-lg text-[10px] border border-[#00DAF3]/35 text-[#00DAF3] hover:bg-[#00DAF3]/10 flex items-center gap-1">♪ From Chora</button>
-        {musicEngines && <button onClick={() => setShowGeneration(value => !value)} title="Generate audio, MIDI notes or a sample (private music lab)"
-          className="h-6 px-2.5 rounded-lg text-[10px] border border-[#D0BCFF]/40 text-[#D0BCFF] flex items-center gap-1"><Sparkles size={10} /> Generate</button>}
+        {musicEngines && <button data-testid="music-lab-generate" onClick={() => setShowGeneration(value => !value)} title="Generate audio, MIDI notes or a sample (private music lab)"
+          className={`h-6 px-2.5 rounded-lg text-[10px] border text-[#D0BCFF] flex items-center gap-1 ${showGeneration ? 'border-[#D0BCFF] bg-[#8B5CFF]/20' : 'border-[#D0BCFF]/40 hover:bg-[#8B5CFF]/10'}`}><Sparkles size={10} /> AI Generate</button>}
         <div className="flex-1" />
         <button
           onClick={() => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) autoFill(d, p, 4); }); }}
