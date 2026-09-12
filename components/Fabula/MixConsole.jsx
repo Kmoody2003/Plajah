@@ -6,11 +6,17 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import {
-  meterRegistry, setMasterGain, setMasterLimiter, masterReduction,
+  meterRegistry, setMasterGain, setMasterLimiter, masterReduction, setMasterInserts, masterMeterTap,
+  setMasterEq, setMasterMastering, setGroupInserts,
   audioEngineInfo, listOutputDevices, setOutputDevice, setOutputChannels, resumeAudioCtx,
   setReverb, setDelay, REVERB_PRESETS,
 } from "../../services/fabula/audioGraph";
+import { ERA_PROFILES, ENGINEERS, defaultMastering, applyEra, eraById, defaultSpectra } from "../../services/fabula/audioFx";
+import MeterBridge from "../shared/MeterBridge";
 import AnalogFX from "./AnalogFX";
+// Melos Studio's effect rack + catalog, shared verbatim so Fabula's audio FX
+// mirror Melos exactly (see services/fabula/audioFx.ts).
+import { FxRack } from "../melos/beats/project/FxRack";
 
 // dB helpers for a musical fader taper (0..1.5 linear gain shown as dB).
 const toDb = (g) => (g <= 0.0001 ? -Infinity : 20 * Math.log10(g));
@@ -37,13 +43,17 @@ const EQ3 = [{ i: 0, label: "LO" }, { i: 2, label: "MID" }, { i: 4, label: "HI" 
 // Plajah-toned channel tab colors, cycled per strip (Bitwig-style multi-color channels).
 const TAB_COLORS = ["#f97316", "#00A3FF", "#22c55e", "#a855f7", "#ffcf33", "#ff6b9d"];
 
-function ChannelStrip({ tr, ts, onPatch, midiLearnId, onMidiLearn, tab }) {
+function ChannelStrip({ tr, ts, onPatch, midiLearnId, onMidiLearn, tab, selected, onSelect }) {
   const vol = ts.vol == null ? 1 : ts.vol, pan = ts.pan || 0;
   const eq = ts.eq || [0, 0, 0, 0, 0];
   const comp = ts.comp || {};
+  const fxCount = Array.isArray(ts.inserts) ? ts.inserts.filter((i) => i && i.on).length : 0;
   const setEq = (i, v) => { const n = [...eq]; n[i] = v; onPatch({ eq: n }); };
   return (
-    <div className="mcstrip" style={{ "--tab": tab }}>
+    <div className="mcstrip" onClick={onSelect}
+      style={{ "--tab": tab, cursor: "pointer", ...(selected ? { outline: "2px solid var(--tab)", outlineOffset: "-2px" } : {}) }}>
+      <button className={`mcbtn ${fxCount ? "on" : ""}`} title="Edit this track's FX inserts (Melos effect rack)"
+        onClick={(e) => { e.stopPropagation(); onSelect(); }} style={{ fontSize: 9 }}>FX{fxCount ? ` ${fxCount}` : ""}</button>
       <div className="mctop">
         {EQ3.map(({ i, label }) => (
           <div className="mcknob" key={i} title={`${label} EQ ${(eq[i] || 0) > 0 ? "+" : ""}${eq[i] || 0}dB`}>
@@ -79,6 +89,10 @@ function ChannelStrip({ tr, ts, onPatch, midiLearnId, onMidiLearn, tab }) {
         <button className={`mcms ${ts.solo ? "on solo" : ""}`} onClick={() => onPatch({ solo: !ts.solo })}>S</button>
         <button className={`mcms ${midiLearnId === tr.id ? "on learn" : ""}`} title="MIDI-learn this fader: click, then move a MIDI control" onClick={() => onMidiLearn(tr.id)}>◎</button>
       </div>
+      <button className={`mcms ${ts.group ? "on" : ""}`} style={{ width: "100%", fontSize: 9 }}
+        title="Route this track to a group submix bus (A–D) or straight to master. Click to cycle."
+        onClick={() => { const order = ["", "A", "B", "C", "D"]; const i = (order.indexOf(ts.group || "") + 1) % order.length; onPatch({ group: order[i] || undefined }); }}>
+        {ts.group ? `▸ BUS ${ts.group}` : "▸ MASTER"}</button>
       <span className="mcname">{tr.name}</span>
     </div>
   );
@@ -92,6 +106,43 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
   const [masterVol, setMasterVol] = useState(() => (trackSettings?.master?.vol == null ? 1 : trackSettings.master.vol));
   const [midiStatus, setMidiStatus] = useState("MIDI: not connected");
   const [midiLearnId, setMidiLearnId] = useState(null);
+  const [showMeters, setShowMeters] = useState(true);
+  // Which track's FX-insert rack is open below the console.
+  const [selTrack, setSelTrack] = useState(null);
+  useEffect(() => {
+    // 'master' and 'group:*' are valid non-track selections; only reset a STALE track id.
+    const special = selTrack === "master" || (typeof selTrack === "string" && selTrack.startsWith("group:"));
+    if (!special && (selTrack == null || !audioTracks.some((t) => t.id === selTrack)) && audioTracks.length) setSelTrack(audioTracks[0].id);
+    if (!audioTracks.length && !special && selTrack != null) setSelTrack(null);
+  }, [audioTracks, selTrack]);
+  const selName = selTrack === "master" ? "MASTER"
+    : selTrack?.startsWith("group:") ? `BUS ${selTrack.slice(6)}`
+    : (audioTracks.find((t) => t.id === selTrack)?.name || "");
+  const selInserts = (trackSettings?.[selTrack]?.inserts) || [];
+  // Apply each group bus's insert chain (flat keys group:A … group:D) to the graph.
+  const groupInsertsKey = JSON.stringify(["A", "B", "C", "D"].map((g) => trackSettings?.[`group:${g}`]?.inserts || []));
+  useEffect(() => {
+    ["A", "B", "C", "D"].forEach((g, i) => setGroupInserts(i, trackSettings?.[`group:${g}`]?.inserts || []));
+    /* eslint-disable-next-line */
+  }, [groupInsertsKey]);
+  // Master FX suite is on the master bus (not a track bus), so apply it directly.
+  const masterInsertsKey = JSON.stringify(trackSettings?.master?.inserts || []);
+  useEffect(() => { setMasterInserts(trackSettings?.master?.inserts || []); /* eslint-disable-next-line */ }, [masterInsertsKey]);
+  // Master "Pressing" (Era × Engineer mastering chain) + surgical Spectra EQ.
+  const masterMastering = trackSettings?.master?.mastering || null;
+  const masterEqState = trackSettings?.master?.eq || null;
+  useEffect(() => { if (masterMastering) setMasterMastering(masterMastering); /* eslint-disable-next-line */ }, [JSON.stringify(masterMastering)]);
+  useEffect(() => { if (masterEqState) setMasterEq(masterEqState); /* eslint-disable-next-line */ }, [JSON.stringify(masterEqState)]);
+  const applyPressing = (patch) => {
+    const base = trackSettings?.master?.mastering || defaultMastering();
+    const eraId = patch.eraId !== undefined ? patch.eraId : base.eraId;
+    const engineerId = patch.engineerId !== undefined ? patch.engineerId : base.engineerId;
+    const era = eraById(eraId);
+    const merged = { ...base, eraId, engineerId };
+    const next = era ? { ...applyEra(merged, era, base.authenticity ?? 0.7), on: true } : { ...merged, on: !!eraId || !!engineerId ? base.on : false };
+    setTrackSetting("master", { mastering: next });
+  };
+  const toggleMasterEq = () => { const cur = trackSettings?.master?.eq; setTrackSetting("master", { eq: cur ? { ...cur, on: !cur.on } : { ...defaultSpectra(), on: true } }); };
   const grRef = useRef(null);
   const midiMap = useRef({});      // CC number → trackId
   const learnRef = useRef(null);
@@ -146,17 +197,23 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
         <span className="dim small" style={{ marginLeft: 8, letterSpacing: 0 }}>
           {info.sampleRate ? `${(info.sampleRate / 1000).toFixed(1)}kHz · ${info.outputLatencyMs || info.baseLatencyMs}ms out · ${info.maxChannels}ch max · ${midiStatus}` : "engine idle — press play"}
         </span>
+        <button className="minibtn" style={{ marginLeft: "auto" }} onClick={() => setShowMeters((v) => !v)} title="Mastering-engineer meter bridge">{showMeters ? "▾ METERS" : "▸ METERS"}</button>
       </div>
+      {showMeters && <div style={{ marginBottom: 12 }}><MeterBridge tap={masterMeterTap} /></div>}
       <div className="mcrow">
         {audioTracks.map((tr, i) => (
           <ChannelStrip key={tr.id} tr={tr} ts={trackSettings?.[tr.id] || {}} tab={TAB_COLORS[i % TAB_COLORS.length]}
-            onPatch={(p) => setTrackSetting(tr.id, p)} midiLearnId={midiLearnId} onMidiLearn={learn} />
+            onPatch={(p) => setTrackSetting(tr.id, p)} midiLearnId={midiLearnId} onMidiLearn={learn}
+            selected={selTrack === tr.id} onSelect={() => setSelTrack(tr.id)} />
         ))}
         {!audioTracks.length && <div className="dim small" style={{ padding: 12 }}>No audio tracks. Add one from the timeline (+ AUDIO), or drop music/dialogue on A1/A2.</div>}
         {/* MASTER */}
-        <div className="mcstrip master">
+        <div className="mcstrip master" onClick={() => setSelTrack("master")}
+          style={{ cursor: "pointer", ...(selTrack === "master" ? { outline: "2px solid var(--org)", outlineOffset: "-2px" } : {}) }}>
           <div className="mctop"><div className="dim small" style={{ textAlign: "center", width: "100%", fontWeight: 900, letterSpacing: ".1em" }}>MASTER</div></div>
-          <button className={`mcbtn ${limiterOn ? "on" : ""}`} title="Brickwall limiter — clip-proof output" onClick={() => setLimiterOn((v) => !v)}>LIMIT</button>
+          <button className={`mcbtn ${(trackSettings?.master?.inserts || []).some((i) => i && i.on) ? "on" : ""}`} title="Edit the master FX suite (Melos effect rack on the whole mix)"
+            onClick={(e) => { e.stopPropagation(); setSelTrack("master"); }} style={{ fontSize: 9 }}>FX{(() => { const n = (trackSettings?.master?.inserts || []).filter((i) => i && i.on).length; return n ? ` ${n}` : ""; })()}</button>
+          <button className={`mcbtn ${limiterOn ? "on" : ""}`} title="Brickwall limiter — clip-proof output" onClick={(e) => { e.stopPropagation(); setLimiterOn((v) => !v); }}>LIMIT</button>
           <div className="mcgr" title="Limiter gain reduction"><i ref={grRef} style={{ width: "0%" }} /></div>
           <div className="mcfaderrow">
             <div className="mcfader">
@@ -169,6 +226,16 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
           <button className={`mcms ${midiLearnId === "master" ? "on learn" : ""}`} title="MIDI-learn the master fader" onClick={() => learn("master")}>◎</button>
           <span className="mcname">MAIN</span>
         </div>
+      </div>
+      {/* Group submix buses — route tracks with the ▸ BUS button on each strip, then
+          add FX here to process the whole group (all drums, all vocals) at once. */}
+      <div className="btnrow" style={{ gap: 8, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <span className="lbl" title="Group submix buses">GROUP BUSES</span>
+        {["A", "B", "C", "D"].map((g) => {
+          const n = (trackSettings?.[`group:${g}`]?.inserts || []).filter((i) => i && i.on).length;
+          return <button key={g} className={`minibtn ${selTrack === `group:${g}` ? "on" : ""}`} onClick={() => setSelTrack(`group:${g}`)} title={`Edit BUS ${g} insert FX`}>BUS {g}{n ? ` · ${n}` : ""}</button>;
+        })}
+        <span className="dim small">Add FX to a bus to process every track routed to it.</span>
       </div>
       {/* hardware output routing */}
       <div className="btnrow" style={{ gap: 8, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -188,6 +255,36 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
         <button className="minibtn" onClick={() => listOutputDevices().then(setDevices)}>↻ DEVICES</button>
         <span className="dim small">Faders/pan/EQ/comp/sends are live and bake into the export. Solo mutes the rest. MIDI-learn (◎) maps a controller to any fader.</span>
       </div>
+      {/* Master mastering "Pressing" (Era × Engineer) + surgical Spectra EQ — the same
+          mastering chain Melos uses, on the whole mix. Bakes into the export. */}
+      <div className="btnrow" style={{ gap: 8, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <span className="lbl" title="Master mastering chain — era voicing × mixing engineer, applied to the whole mix">MASTERING</span>
+        <select className="sel" value={masterMastering?.eraId || ""} onChange={(e) => applyPressing({ eraId: e.target.value || null })} title="Pressing era — decade/medium voicing (tilt, drive, width, tape)">
+          <option value="">— Pressing —</option>
+          {ERA_PROFILES.map((er) => <option key={er.id} value={er.id}>{er.name}</option>)}
+        </select>
+        <select className="sel" value={masterMastering?.engineerId || ""} onChange={(e) => applyPressing({ engineerId: e.target.value || null })} title="Mastering engineer — a signature bias on top of the era">
+          <option value="">— Engineer —</option>
+          {ENGINEERS.map((en) => <option key={en.id} value={en.id}>{en.name}</option>)}
+        </select>
+        <button className={`minibtn ${masterMastering?.on ? "on" : ""}`} onClick={() => masterMastering && setTrackSetting("master", { mastering: { ...masterMastering, on: !masterMastering.on } })} disabled={!masterMastering?.eraId} title="Toggle the mastering chain">{masterMastering?.on ? "PRESS ON" : "PRESS OFF"}</button>
+        <span className="lbl" style={{ marginLeft: 6 }}>MASTER EQ</span>
+        <button className={`minibtn ${masterEqState?.on ? "on" : ""}`} onClick={toggleMasterEq} title="Master surgical / dynamic EQ (Spectra)">{masterEqState?.on ? "ON" : "OFF"}</button>
+      </div>
+      {/* Melos-shared FX insert rack for the selected track — the full 30-device
+          catalog (EQ, dynamics, saturation, reverb/delay, modulation, amp rig,
+          repair…). Writes to trackSettings[id].inserts; the engine applies them live. */}
+      {selTrack && (
+        <div className="mcfxrack" style={{ marginTop: 10, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 10 }}>
+          <FxRack
+            key={selTrack}
+            instances={selInserts}
+            onChange={(next) => setTrackSetting(selTrack, { inserts: next })}
+            title={`INSERTS · ${selName}`}
+            emptyHint="Add an effect — the same rack Melos Studio uses"
+          />
+        </div>
+      )}
       {/* FX rack — vintage analog units (rotary knobs + VU needles) over the shared aux buses */}
       <AnalogFX rvb={rvb} setRvb={setRvb} dly={dly} setDly={setDly} />
     </div>

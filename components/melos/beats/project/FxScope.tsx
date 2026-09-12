@@ -25,11 +25,13 @@ interface FxScopeProps {
   /** Live gain reduction in dB (≤0) for dynamics devices. */
   gr?: number;
   height?: number;
+  /** Direct manipulation for response devices. EQ nodes write the same parameters as knobs. */
+  onParamsChange?: (patch: Record<string, number>) => void;
 }
 
 const F_MIN = 20, F_MAX = 20000;
 
-export const FxScope: React.FC<FxScopeProps> = ({ node, type, params, color, category, gr = 0, height = 92 }) => {
+export const FxScope: React.FC<FxScopeProps> = ({ node, type, params, color, category, gr = 0, height = 92, onParamsChange }) => {
   const ref = useRef<HTMLCanvasElement>(null);
   // Params/gr change every render; keep them in refs so the rAF loop never restarts.
   const live = useRef({ node, type, params, color, category, gr });
@@ -165,6 +167,20 @@ export const FxScope: React.FC<FxScopeProps> = ({ node, type, params, color, cat
         // 0 dB reference for the curve
         g.strokeStyle = 'rgba(255,255,255,0.10)';
         g.beginPath(); g.moveTo(0, mid); g.lineTo(w, mid); g.stroke();
+        if (L.type === 'eq') {
+          const nodes = [
+            ['hp', null], ['f1', 'g1'], ['f2', 'g2'], ['f3', 'g3'], ['f4', 'g4'], ['lp', null],
+          ] as const;
+          for (let i = 0; i < nodes.length; i++) {
+            const [fk, gk] = nodes[i]; const freq = L.params[fk] ?? ([20, 120, 500, 3000, 12000, 20000][i]);
+            const gain = gk ? (L.params[gk] ?? 0) : 0;
+            const x = (Math.log(freq / F_MIN) / Math.log(F_MAX / F_MIN)) * w;
+            const y = mid - (gain / 24) * (h / 2);
+            g.beginPath(); g.arc(x, y, 5.5, 0, Math.PI * 2); g.fillStyle = L.color; g.fill();
+            g.strokeStyle = '#081014'; g.lineWidth = 1.5; g.stroke();
+            g.fillStyle = '#081014'; g.font = 'bold 7px ui-monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(i + 1), x, y); g.textAlign = 'start';
+          }
+        }
       }
     };
 
@@ -172,9 +188,36 @@ export const FxScope: React.FC<FxScopeProps> = ({ node, type, params, color, cat
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  const editEq = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (type !== 'eq' || !onParamsChange) return;
+    const cv = ref.current; if (!cv) return;
+    const r = cv.getBoundingClientRect(), mid = r.height / 2;
+    const defs = [
+      { f: 'hp', g: null, df: 20 }, { f: 'f1', g: 'g1', df: 120 }, { f: 'f2', g: 'g2', df: 500 },
+      { f: 'f3', g: 'g3', df: 3000 }, { f: 'f4', g: 'g4', df: 12000 }, { f: 'lp', g: null, df: 20000 },
+    ];
+    const current = live.current.params;
+    const hit = defs.map((d) => {
+      const x = Math.log((current[d.f] ?? d.df) / F_MIN) / Math.log(F_MAX / F_MIN) * r.width;
+      const y = mid - ((d.g ? current[d.g] ?? 0 : 0) / 24) * mid;
+      return { d, distance: Math.hypot(e.clientX - r.left - x, e.clientY - r.top - y) };
+    }).sort((a, b) => a.distance - b.distance)[0];
+    if (!hit || hit.distance > 15) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const move = (ev: PointerEvent) => {
+      const x = Math.max(0, Math.min(r.width, ev.clientX - r.left));
+      const freq = Math.round(F_MIN * Math.pow(F_MAX / F_MIN, x / r.width));
+      const patch: Record<string, number> = { [hit.d.f]: freq };
+      if (hit.d.g) patch[hit.d.g] = Math.round(Math.max(-24, Math.min(24, ((mid - (ev.clientY - r.top)) / mid) * 24)) * 10) / 10;
+      onParamsChange(patch);
+    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  };
+
   return (
     <div className="rounded-[8px] border border-white/[0.08] bg-black/30 overflow-hidden" style={{ height }}>
-      <canvas ref={ref} className="w-full h-full block" />
+      <canvas ref={ref} onPointerDown={editEq} className={`w-full h-full block ${type === 'eq' ? 'cursor-crosshair touch-none' : ''}`} title={type === 'eq' ? 'Drag EQ points directly: left/right changes frequency, up/down changes gain' : undefined} />
     </div>
   );
 };

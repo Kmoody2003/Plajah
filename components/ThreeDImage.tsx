@@ -8,7 +8,11 @@ interface ThreeDImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   depth?: number;
   animate?: any;
   transition?: any;
+  /** How the image sits in its frame. 'contain' letterboxes — see MediaThumb. */
+  fit?: 'cover' | 'contain';
 }
+
+const FIT_CLASS = { cover: 'object-cover', contain: 'object-contain' } as const;
 
 const ThreeDImage: React.FC<ThreeDImageProps> = ({ 
   src, 
@@ -18,6 +22,7 @@ const ThreeDImage: React.FC<ThreeDImageProps> = ({
   depth = 20,
   animate,
   transition,
+  fit = 'cover',
   ...props 
 }) => {
   const { isThreeDEnabled } = useGlobalPlayerState();
@@ -116,14 +121,15 @@ const ThreeDImage: React.FC<ThreeDImageProps> = ({
         <motion.div
           style={{
             translateZ: 0,
-            scale: 1.1,
+            // A letterboxed frame must not be scaled past its edges — that crops it again.
+            scale: fit === 'contain' ? 1 : 1.1,
           }}
           className="relative w-full h-full rounded-inherit overflow-hidden shadow-2xl"
         >
           <img 
             src={src} 
             alt={alt} 
-            className={`w-full h-full object-cover ${className}`} 
+            className={`w-full h-full ${FIT_CLASS[fit]} ${className}`}
             {...(props as any)} 
             referrerPolicy="no-referrer"
           />

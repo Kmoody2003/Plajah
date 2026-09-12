@@ -37,7 +37,8 @@ import {
 } from '../services/backendService';
 import { startCloudRecording, type LiveCloudSink } from '../services/liveCloudRecorder';
 import { unlockAchievementByTrigger } from '../services/achievementService';
-import { publishLiveDiscovery, endLiveDiscovery, endLiveDiscoveryByStream, saveSessionRecording } from '../services/liveStreamService';
+import { publishLiveDiscovery, endLiveDiscovery, endLiveDiscoveryByStream, saveSessionRecording, heartbeatLiveDiscovery } from '../services/liveStreamService';
+import { HEARTBEAT_INTERVAL_MS } from '../services/liveFeedLiveness';
 import { buildShareUrl } from '../services/deepLinkService';
 import { useRtcSession } from '../hooks/useRtcSession';
 import { HQ_AUDIO } from '../services/rtcCore';
@@ -537,6 +538,11 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const [permError, setPermError] = useState('');
   const [goLiveError, setGoLiveError] = useState('');
   const discoveryFeedIdRef = useRef<string | null>(null);
+  // Heartbeat keeps the discovery mirror trusted as live; stopping it lets the feed go stale on its own
+  // (services/liveFeedLiveness). Cleared on end AND on unmount, so navigating away stops the heartbeat
+  // and the stream correctly reads as ended rather than lingering as live.
+  const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => () => { if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current); }, []);
   const [saving, setSaving] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -1015,7 +1021,16 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
           clubId, isPublic: !isPrivate,
           ...(typeof channelNumber === 'number' ? { channelNumber } : {}),
           ...(asChannel ? { asChannel: true } : {}),
-        }).then(fid => { discoveryFeedIdRef.current = fid; }).catch(() => {});
+        }).then(fid => {
+          discoveryFeedIdRef.current = fid;
+          // Begin heartbeating so this stream reads as genuinely live — and stops reading live the
+          // moment the heartbeats stop (end, crash, or navigate-away).
+          if (fid) {
+            heartbeatLiveDiscovery(fid);
+            if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
+            heartbeatTimerRef.current = setInterval(() => heartbeatLiveDiscovery(fid), HEARTBEAT_INTERVAL_MS);
+          }
+        }).catch(() => {});
       });
 
       // Interrupt my FAST channel: cut the looping channel over to this live stream a few seconds
@@ -1054,6 +1069,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     }
     // Drop the discovery mirror out of "what's live now" — by feedId AND by streamId, so it clears
     // even if the in-memory feedId was lost (publish resolved late, reload, etc.).
+    if (heartbeatTimerRef.current) { clearInterval(heartbeatTimerRef.current); heartbeatTimerRef.current = null; }
     endLiveDiscovery(discoveryFeedIdRef.current);
     if (streamId) endLiveDiscoveryByStream(streamId);
     rtc.leave();

@@ -9,6 +9,7 @@ interface AudioVisualizerProps {
   hasBackground: boolean;
   backgroundMediaRef?: React.RefObject<HTMLDivElement | null>;
   id?: string;
+  renderScale?: number;
 }
 
 // Shard Type for Mosaic
@@ -133,12 +134,13 @@ const LAYOUT_RADIAL = Array.from({length: 14}).map((_, i) => {
 
 const STAGE_LAYOUTS = [LAYOUT_CHEVRONS, LAYOUT_DIAMONDS, LAYOUT_RADIAL];
 
-const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ analyser, config, isPlaying, hasBackground, backgroundMediaRef }, ref) => {
+const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ analyser, config, isPlaying, hasBackground, backgroundMediaRef, renderScale = 1 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
   
   // Frame Rate Control
   const lastFrameTimeRef = useRef<number>(0);
+  const lastResumeRef = useRef<number>(0);
 
   // Object Pooling for Particles
   const MAX_PARTICLES = 300;
@@ -1888,12 +1890,19 @@ const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ a
     const canvas = canvasRef.current;
     if (!canvas || !analyser) return;
 
+    // Periodically resume suspended AudioContext (~every 5 seconds)
+    if (time - lastResumeRef.current > 5000) {
+      lastResumeRef.current = time;
+      const actx = analyser.context as AudioContext;
+      if (actx?.state === 'suspended') actx.resume().catch(() => {});
+    }
+
     const ctx = canvas.getContext('2d', { alpha: true } as CanvasRenderingContext2DSettings);
     if (!ctx) return;
 
     // Cap DPR at 2 — rendering this heavy 2D path at 3×/4× backing resolution on
     // hi-DPI screens quadruples fill cost for no visible gain. Caps fill rate.
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2) * Math.max(.35, Math.min(1, renderScale));
     const rect = canvas.getBoundingClientRect();
     const desiredWidth = rect.width * dpr;
     const desiredHeight = rect.height * dpr;
@@ -1907,6 +1916,23 @@ const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ a
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
     analyser.getByteFrequencyData(dataArray);
+
+    // Detect if the incoming FFT is completely zero/flat (e.g. track gap, paused, or suspended)
+    let isFlat = true;
+    for (let i = 0; i < Math.min(bufferLength, 64); i++) {
+        if (dataArray[i] > 1) { isFlat = false; break; }
+    }
+    if (isFlat) {
+        // Ambient rest state: generate gentle, smooth organic motion across frequencies
+        const t = performance.now() / 1000;
+        for (let i = 0; i < bufferLength; i++) {
+            const freqNorm = i / bufferLength;
+            const wave1 = Math.sin(t * 1.6 + i * 0.12) * 0.5 + 0.5;
+            const wave2 = Math.cos(t * 2.4 - i * 0.08) * 0.5 + 0.5;
+            const falloff = Math.exp(-freqNorm * 4.0);
+            dataArray[i] = Math.floor((wave1 * 0.6 + wave2 * 0.4) * falloff * 42);
+        }
+    }
 
     // --- Bass Shake Logic ---
     if (config.enableBassShake) {
@@ -2169,7 +2195,7 @@ const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ a
     if (isPlaying) {
         requestRef.current = requestAnimationFrame(render);
     }
-  }, [analyser, config, isPlaying, hasBackground]);
+  }, [analyser, config, isPlaying, hasBackground, renderScale]);
 
   useEffect(() => {
     if (isPlaying) {
@@ -2184,10 +2210,25 @@ const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ a
 
   useEffect(() => {
       if (analyser) {
+          // Save originals so we can restore when this component unmounts — other engines
+          // (Shaders, Flux) share the same analyser and may have allocated buffers based on
+          // the original frequencyBinCount / decibel range.
+          const origSmoothing = analyser.smoothingTimeConstant;
+          const origMinDb = analyser.minDecibels;
+          const origMaxDb = analyser.maxDecibels;
+          const origFftSize = analyser.fftSize;
           analyser.smoothingTimeConstant = config.smoothingTimeConstant;
           analyser.minDecibels = config.minDecibels;
           analyser.maxDecibels = config.maxDecibels;
           analyser.fftSize = config.fftSize;
+          return () => {
+            try {
+              analyser.smoothingTimeConstant = origSmoothing;
+              analyser.minDecibels = origMinDb;
+              analyser.maxDecibels = origMaxDb;
+              analyser.fftSize = origFftSize;
+            } catch { /* analyser may have been GC'd */ }
+          };
       }
   }, [analyser, config]);
 

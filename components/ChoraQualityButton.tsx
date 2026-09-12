@@ -9,6 +9,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AudioLines, Gauge, Sparkles, Check } from 'lucide-react';
 import { getQuality, setQuality, type ChoraQuality } from '../services/choraStreamService';
+import AnchoredPopover from './ui/AnchoredPopover';
 
 const TIERS: { id: ChoraQuality; label: string; sub: string; icon: React.ReactNode; badge: string }[] = [
   { id: 'data',     label: 'Data Saver', sub: 'AAC ~96 kbps · lightest on mobile data', icon: <Gauge size={15} />,      badge: 'DATA' },
@@ -26,7 +27,7 @@ interface Props {
 export default function ChoraQualityButton({ className = '', variant = 'icon' }: Props) {
   const [open, setOpen] = useState(false);
   const [quality, setQualityState] = useState<ChoraQuality>('high');
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   // Initialise from the persisted preference, and stay in sync if another surface changes it.
   useEffect(() => {
@@ -36,15 +37,6 @@ export default function ChoraQualityButton({ className = '', variant = 'icon' }:
     return () => window.removeEventListener('chora:quality-changed', sync);
   }, []);
 
-  // Close on outside click / Escape.
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false); };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
-  }, [open]);
 
   const current = TIERS.find(t => t.id === quality) ?? TIERS[1];
 
@@ -55,8 +47,10 @@ export default function ChoraQualityButton({ className = '', variant = 'icon' }:
   };
 
   return (
-    <div ref={wrapRef} className="relative">
+    <div className="relative">
       <button
+        ref={triggerRef}
+        aria-expanded={open}
         onClick={() => setOpen(o => !o)}
         aria-label={`Audio quality: ${current.label}`}
         title={`Audio quality — ${current.label}`}
@@ -68,8 +62,8 @@ export default function ChoraQualityButton({ className = '', variant = 'icon' }:
         )}
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-[#161616] border border-white/10 shadow-2xl overflow-hidden z-[60] animate-in fade-in duration-150">
+      {open && triggerRef.current && (
+        <AnchoredPopover anchor={triggerRef.current} onClose={() => setOpen(false)} align="end" className="w-64 rounded-2xl bg-[#161616] border border-white/10 shadow-2xl">
           <div className="px-4 pt-3 pb-2 text-[8px] font-black uppercase tracking-[0.25em] text-white/30">Audio Quality</div>
           {TIERS.map(t => {
             const active = t.id === quality;
@@ -91,7 +85,7 @@ export default function ChoraQualityButton({ className = '', variant = 'icon' }:
           <div className="px-4 py-2 border-t border-white/5 text-[8px] text-white/25 leading-relaxed">
             Applies instantly to the current track when a HiFi stream is ready; otherwise on the next track.
           </div>
-        </div>
+        </AnchoredPopover>
       )}
     </div>
   );

@@ -151,7 +151,10 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
   };
 
   return (
-    <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className={`${editingPhoto ? 'min-w-0 overflow-hidden bg-[#08090b]' : 'flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700'}`}>
+      {editingPhoto ? (
+        <PhotoEditPanel photo={editingPhoto} variant="workflow" onClose={() => setEditingPhoto(null)} onApply={() => {}} />
+      ) : <>
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
@@ -570,15 +573,6 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
           </motion.div>
         )}
       </AnimatePresence>
-      {editingPhoto && (
-        <PhotoEditPanel
-          photo={editingPhoto}
-          variant="drawer"
-          onClose={() => setEditingPhoto(null)}
-          onApply={() => {}}
-        />
-      )}
-
       {/* My Galleries manager — list saved galleries, open / edit / delete */}
       <AnimatePresence>
         {showGalleries && (
@@ -642,6 +636,7 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
           </motion.div>
         )}
       </AnimatePresence>
+      </>}
     </div>
   );
 };

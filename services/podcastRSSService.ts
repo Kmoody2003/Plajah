@@ -1,5 +1,6 @@
 import type { Album, Track } from '../types';
 
+import { cleanDescription } from '../utils/description';
 // ── RSS 2.0 + iTunes namespace feed generator ─────────────────────────────────
 // Generates a valid podcast RSS feed from a Plajah album with podcast tracks.
 // The XML string can be downloaded or submitted to podcast directories.
@@ -74,7 +75,7 @@ export function generatePodcastRSS(album: Album, opts: PodcastFeedOptions = {}):
   <channel>
     <title>${esc(album.title)}</title>
     <link>${siteUrl}</link>
-    <description><![CDATA[${album.description ?? ''}]]></description>
+    <description><![CDATA[${cleanDescription(album.description)}]]></description>
     <language>${language}</language>
     <copyright>© ${new Date().getFullYear()} ${esc(album.artist)}</copyright>
     <lastBuildDate>${formatRFC2822(Date.now())}</lastBuildDate>

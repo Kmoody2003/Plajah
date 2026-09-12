@@ -14,8 +14,9 @@ import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
 const ButterchurnLayer = React.lazy(() => import('./plajahPixels/components/ButterchurnLayer'));
 const ShaderLayer = React.lazy(() => import('./plajahPixels/components/ShaderLayer'));
 const AudioVisualizer = React.lazy(() => import('./plajahPixels/components/AudioVisualizer'));
+const FluxStage = React.lazy(() => import('./plajahPixels/components/FluxStage'));
 
-export type FxEngine = 'MILKDROP' | 'SHADER' | 'GENERATOR';
+export type FxEngine = 'MILKDROP' | 'SHADER' | 'GENERATOR' | 'FLUX';
 
 /**
  * Frames per second the Pixels engines should target on this device. 0 = uncapped.
@@ -26,8 +27,14 @@ export type FxEngine = 'MILKDROP' | 'SHADER' | 'GENERATOR';
  * forgiving thing to run at a lower rate — nobody is reading motion cues off a shader.
  * Deliberately not applied off-TV: desktop has the headroom and should use it.
  */
+export function fxPerformanceProfile(): { fps: 0 | 30; renderScale: number } {
+  if (!getPlatformInfo().isTV) return { fps: 0, renderScale: 1 };
+  const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 2 : 2;
+  const memory = typeof navigator !== 'undefined' ? Number((navigator as any).deviceMemory || 2) : 2;
+  return cores >= 8 && memory >= 6 ? { fps: 30, renderScale: .75 } : { fps: 30, renderScale: .5 };
+}
 export function fxFrameCap(): number {
-  return getPlatformInfo().isTV ? 30 : 0;
+  return fxPerformanceProfile().fps;
 }
 
 // ── Shaders: the Plajah Pixels SIGNATURE SERIES ──
@@ -76,6 +83,20 @@ export async function loadShaderNames(): Promise<string[]> {
   return (await loadSignatureShaders()).map(s => s.name);
 }
 
+// ── Flux 3D Real-Time Scenes (Trapcode Form / Mir lineage) ──
+export const FLUX_MODES: { name: string; mode: VisualizerMode }[] = [
+  { name: 'Flux Field', mode: VisualizerMode.FluxField },
+  { name: 'Deco Tapestry', mode: VisualizerMode.FluxTapestry },
+  { name: 'Deco Tapestry II', mode: VisualizerMode.FluxTapestryII },
+  { name: 'Flux Lattice', mode: VisualizerMode.FluxLattice },
+  { name: 'Flux Tunnel', mode: VisualizerMode.FluxTunnel },
+  { name: 'Flux Aurora', mode: VisualizerMode.FluxAurora },
+  { name: 'The Sanctum', mode: VisualizerMode.FluxSanctum },
+  { name: 'Porcelain Tide', mode: VisualizerMode.PorcelainTide },
+  { name: 'Velvet Bloom', mode: VisualizerMode.VelvetBloom },
+  { name: 'Prism Archive', mode: VisualizerMode.PrismArchive },
+];
+
 // ── Generator presets — every Plajah Pixels scene, chrome stripped ──
 const GEN_MODES: { name: string; mode: VisualizerMode }[] = [
   { name: 'Nebula', mode: VisualizerMode.Nebula }, { name: 'Vortex', mode: VisualizerMode.Vortex },
@@ -110,6 +131,7 @@ export const FX_ENGINE_PRESETS: Record<FxEngine, string[]> = {
   MILKDROP: [], // filled at runtime via loadMilkdropNames()
   SHADER: [],   // filled at runtime via loadSignatureShaders()
   GENERATOR: GEN_MODES.map(g => g.name),
+  FLUX: FLUX_MODES.map(f => f.name),
 };
 
 /** `names` supplies the runtime list for the async engines (MilkDrops, Shaders); the
@@ -173,7 +195,14 @@ export default function FxStageVisualizers({
   const gp = useGlobalPlayer();
   useEffect(() => {
     if (!isPlaying) return;
-    try { gp?.ensureAnalyserTap?.(); } catch { /* never let a diagnostic concern break the visual */ }
+    try {
+      // Mobile: establish the passive analyser tap (captureStream).
+      gp?.ensureAnalyserTap?.();
+      // All platforms: resume the AudioContext if the browser suspended it (Chrome does this
+      // for energy-saving on contexts that haven't been used recently). Without this, the
+      // analyser reads flat zeros even though the audio element is playing fine.
+      gp?.getAudioContext?.();
+    } catch { /* never let a diagnostic concern break the visual */ }
   }, [isPlaying, gp]);
 
   const startTimeMs = useMemo(() => (typeof performance !== 'undefined' ? performance.now() : 0), [engine, presetIndex]);
@@ -188,7 +217,7 @@ export default function FxStageVisualizers({
     ? shaders[((presetIndex % shaders.length) + shaders.length) % shaders.length]
     : null;
   const genMode = GEN_MODES[((presetIndex % GEN_MODES.length) + GEN_MODES.length) % GEN_MODES.length];
-  const fps = fxFrameCap();
+  const { fps, renderScale } = fxPerformanceProfile();
   // The canvas generators already take a frame target through their config, so the cap reaches
   // all three engines rather than only the two WebGL ones.
   const genConfig = useMemo<VisualizationConfig>(
@@ -196,16 +225,25 @@ export default function FxStageVisualizers({
     [genMode.mode, fps],
   );
 
+  const fluxMode = FLUX_MODES[((presetIndex % FLUX_MODES.length) + FLUX_MODES.length) % FLUX_MODES.length];
+  const fluxConfig = useMemo<VisualizationConfig>(
+    () => ({ ...BASE_CONFIG, mode: fluxMode.mode, targetFrameRate: fps || BASE_CONFIG.targetFrameRate }),
+    [fluxMode.mode, fps],
+  );
+
   if (!analyser) return <Loading />;
 
   return (
     <Suspense fallback={<Loading />}>
-      {engine === 'MILKDROP' && <ButterchurnLayer analyser={analyser} presetIndex={presetIndex} fpsCap={fps} />}
+      {engine === 'MILKDROP' && <ButterchurnLayer analyser={analyser} presetIndex={presetIndex} fpsCap={fps} renderScale={renderScale} />}
       {engine === 'SHADER' && (shader
-        ? <ShaderLayer key={shader.name} analyser={analyser} source={shader.source} startTimeMs={startTimeMs} params={shader.params} fpsCap={fps} />
+        ? <ShaderLayer key={shader.name} analyser={analyser} source={shader.source} startTimeMs={startTimeMs} params={shader.params} fpsCap={fps} renderScale={renderScale} />
         : <Loading />)}
       {engine === 'GENERATOR' && (
-        <AudioVisualizer analyser={analyser} config={genConfig} isPlaying={isPlaying} hasBackground={false} />
+        <AudioVisualizer analyser={analyser} config={genConfig} isPlaying={isPlaying} hasBackground={false} renderScale={renderScale} />
+      )}
+      {engine === 'FLUX' && (
+        <FluxStage analyser={analyser} config={fluxConfig} isPlaying={isPlaying} />
       )}
     </Suspense>
   );

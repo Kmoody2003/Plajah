@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Pin, PinOff } from 'lucide-react';
+import { usePersistentFloating } from '../../hooks/usePersistentFloating';
 import { IconButton } from '../ui';
 import { getProfile, getCheckin, saveCheckin, today } from '../../services/oraService';
 import type { AppView } from '../../types';
@@ -53,6 +54,7 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
   const [done, setDone] = useState(false);
   const [saving, setSaving] = useState<number | null>(null);
   const holdTimer = useRef<number | null>(null);
+  const floating = usePersistentFloating('plajah:floating:ora', () => ({ x: window.innerWidth - 60, y: window.innerHeight - 205 }));
 
   // Ora is opt-in. Until the profile says so, this component renders nothing
   // and — just as importantly — reads and writes nothing.
@@ -93,6 +95,7 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
     holdTimer.current = window.setTimeout(() => { holdTimer.current = null; onOpenRoom(); }, 450);
   };
   const endHold = () => {
+    if (floating.didDragRef.current) { if (holdTimer.current !== null) window.clearTimeout(holdTimer.current); holdTimer.current = null; return; }
     if (holdTimer.current === null) return; // hold already fired
     window.clearTimeout(holdTimer.current);
     holdTimer.current = null;
@@ -103,8 +106,8 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
     <div
       style={{
         position: 'fixed',
-        right: 'max(1rem, env(safe-area-inset-right))',
-        bottom: 'calc(max(1.5rem, env(safe-area-inset-bottom)) + 84px)',
+        left: floating.pos.x,
+        top: floating.pos.y,
         zIndex: 60,
         display: 'flex',
         alignItems: 'center',
@@ -112,6 +115,7 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
         gap: 'var(--pj-space-2)',
         pointerEvents: 'none',
       }}
+      {...floating.dragProps}
     >
       {open && (
         <div
@@ -202,6 +206,7 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
           }}
         />
       </button>
+      <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={floating.togglePinned} aria-label={floating.pinned ? 'Unpin Ora' : 'Pin Ora here'} aria-pressed={floating.pinned} style={{ pointerEvents: 'auto', position: 'absolute', right: -5, top: -7, width: 20, height: 20, borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'var(--bg-color)', border: '1px solid var(--pj-border-strong)', color: 'var(--on-surface-variant)' }}>{floating.pinned ? <Pin size={10} /> : <PinOff size={10} />}</button>
     </div>
   );
 };

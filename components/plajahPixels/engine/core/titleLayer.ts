@@ -6,7 +6,11 @@
 // bright-on-black so a screen/lighten blend keys out the background — consistent
 // with how captions already composite.
 
+import { glyphStates, isTitleAnimating, type TitleAnim } from '../../../../services/fabula/titleAnimators';
+
 export type TitleStyle = 'modern' | 'classic' | 'minimal';
+/** Per-glyph animation for the title line: the animator, the clip-local time and clip duration. */
+export interface TitleMotion { anim?: TitleAnim | null; t?: number; duration?: number }
 
 const cache = new Map<string, HTMLCanvasElement>();
 const W = 1280, H = 720;
@@ -27,8 +31,10 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number): string
 export interface TitleOpts { font?: string; color?: string; subColor?: string; size?: number; x?: number; y?: number }
 
 /** A cached lower-third title canvas. `accent` is the brand/accent color. */
-export function getTitleCanvas(title: string, subtitle = '', style: TitleStyle = 'modern', accent = '#FF8C00', opts: TitleOpts = {}): HTMLCanvasElement {
-  const key = `${title}|${subtitle}|${style}|${accent}|${opts.font || ''}|${opts.color || ''}|${opts.subColor || ''}|${opts.size ?? ''}|${opts.x ?? ''}|${opts.y ?? ''}`;
+export function getTitleCanvas(title: string, subtitle = '', style: TitleStyle = 'modern', accent = '#FF8C00', opts: TitleOpts = {}, motion: TitleMotion = {}): HTMLCanvasElement {
+  const animating = !!motion.anim && motion.anim.type !== 'none' && isTitleAnimating(motion.t ?? 0, motion.anim, motion.duration ?? Infinity);
+  const tq = animating ? Math.round((motion.t ?? 0) * 120) / 120 : -1;
+  const key = `${title}|${subtitle}|${style}|${accent}|${opts.font || ''}|${opts.color || ''}|${opts.subColor || ''}|${opts.size ?? ''}|${opts.x ?? ''}|${opts.y ?? ''}|${animating ? motion.anim!.type + ':' + tq : ''}`;
   const hit = cache.get(key);
   if (hit) return hit;
 
@@ -66,7 +72,37 @@ export function getTitleCanvas(title: string, subtitle = '', style: TitleStyle =
   ctx.fillStyle = opts.color || '#fff';
   ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = titleSize * 0.25;
   const tx = leftX;
-  for (const ln of titleLines) { ctx.strokeText(ln, tx, y); ctx.fillText(ln, tx, y); y += lineH; }
+  if (animating) {
+    // Per-glyph draw: measure each character, apply the animator's offset/opacity/scale/blur.
+    const states = glyphStates(titleLines.join(' '), motion.t ?? 0, motion.anim!, motion.duration ?? Infinity);
+    let gi = 0;
+    const savedAlign = ctx.textAlign; ctx.textAlign = 'left';
+    for (const ln of titleLines) {
+      const chars = Array.from(ln);
+      const adv = chars.map((ch, k) => ctx.measureText(ch).width + (states[gi + k]?.spacing || 0) * titleSize);
+      const lineW = adv.reduce((a, b) => a + b, 0);
+      let x = savedAlign === 'center' ? tx - lineW / 2 : tx;
+      for (let k = 0; k < chars.length; k++) {
+        const s = states[gi + k];
+        if (s && s.opacity > 0.002) {
+          ctx.save();
+          ctx.globalAlpha = Math.min(1, s.opacity);
+          const cxg = x + adv[k] / 2, cyg = y - titleSize * 0.35;
+          ctx.translate(cxg + s.dx * titleSize, cyg + s.dy * titleSize); ctx.scale(s.scale, s.scale); ctx.translate(-cxg, -cyg);
+          if (s.blur > 0.01 && 'filter' in ctx) (ctx as any).filter = `blur(${(s.blur * titleSize).toFixed(1)}px)`;
+          ctx.strokeText(s.char, x, y); ctx.fillText(s.char, x, y);
+          ctx.restore();
+        }
+        x += adv[k];
+      }
+      gi += chars.length + 1; y += lineH;
+    }
+    ctx.textAlign = savedAlign;
+    // Subtitle follows the last glyph's visibility.
+    ctx.globalAlpha = Math.min(1, states[states.length - 1]?.opacity ?? 1);
+  } else {
+    for (const ln of titleLines) { ctx.strokeText(ln, tx, y); ctx.fillText(ln, tx, y); y += lineH; }
+  }
   ctx.shadowBlur = 0;
 
   // subtitle
@@ -79,6 +115,7 @@ export function getTitleCanvas(title: string, subtitle = '', style: TitleStyle =
     if (style === 'classic') { ctx.fillStyle = accent; ctx.fillRect(leftX - 60, y - subSize * 0.4, 120, 3); } // rule below
   }
 
+  ctx.globalAlpha = 1;
   cache.set(key, c);
   if (cache.size > 160) { const k = cache.keys().next().value; if (k) cache.delete(k); }
   return c;

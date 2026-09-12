@@ -1,0 +1,415 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0}img{max-width:100%}</style>
+<title>Universal Library</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#08070C; --ground-2:#0B0910; --surf:#14101B; --surf-2:#1B1626; --surf-3:#241D31;
+  --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.16);
+  --ink:#F5F2F9; --ink-2:#B7AEC7; --muted:#877E9B; --faint:#5F5872;
+  --purple:#6B0099; --magenta:#D40055; --orange:#FF8C00; --cyan:#00DAF3; --lilac:#D0BCFF;
+  --brand:linear-gradient(135deg,#6B0099,#D40055); --warm:linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00);
+  --spatial:linear-gradient(135deg,#6B0099,#00DAF3); --ethereal:linear-gradient(135deg,#D0BCFF,#00DAF3);
+  --accent:#D40055; --accent-soft:rgba(212,0,85,.16);
+  --disp:'Space Grotesk',system-ui,sans-serif; --body:'Inter',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+  --r-sm:10px; --r-md:14px; --r-lg:20px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:
+  radial-gradient(1200px 600px at 80% -10%, rgba(107,0,153,.20), transparent 60%),
+  radial-gradient(900px 500px at 0% 110%, rgba(0,218,243,.10), transparent 55%),
+  var(--ground);
+  color:var(--ink);font:14px/1.55 var(--body);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px}
+a{color:var(--cyan)}
+h1,h2,h3{font-family:var(--disp);margin:0}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+.mono{font-family:var(--mono)}
+
+/* header */
+header{padding:52px 0 20px}
+h1{font-weight:300;font-size:clamp(32px,5vw,56px);line-height:1.02;letter-spacing:-.02em;text-wrap:balance}
+h1 b{font-weight:700;background:var(--warm);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.lede{font-size:16px;color:var(--ink-2);max-width:70ch;margin:16px 0 0}
+.appswitch{display:flex;gap:6px;flex-wrap:wrap;margin:22px 0 0}
+.appchip{display:flex;align-items:center;gap:7px;font:600 12px var(--body);color:var(--ink-2);background:var(--surf);border:1px solid var(--line);border-radius:999px;padding:7px 14px;cursor:pointer;transition:.15s}
+.appchip .dot{width:8px;height:8px;border-radius:50%}
+.appchip.on{color:#fff;border-color:transparent;background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.appchip:hover{border-color:var(--line-2)}
+
+section{padding:26px 0}
+.shead{display:flex;align-items:baseline;gap:12px;margin:0 0 4px}
+.shead h2{font-size:clamp(20px,2.4vw,26px);font-weight:700;letter-spacing:-.01em}
+.shead .n{font-family:var(--mono);font-size:11px;color:var(--faint)}
+.sub{color:var(--ink-2);font-size:14px;max-width:80ch;margin:2px 0 20px}
+
+/* ── APP SHELL MOCK ─────────────────────────────────────────── */
+.shell{border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;background:var(--ground-2);box-shadow:0 30px 70px -20px rgba(0,0,0,.7)}
+.shell-top{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:linear-gradient(var(--surf),var(--ground-2))}
+.tdot{width:11px;height:11px;border-radius:50%}
+.shell-title{font-family:var(--disp);font-weight:500;font-size:13px;margin-left:4px}
+.shell-title b{background:var(--brand);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:700}
+.shell-tools{margin-left:auto;display:flex;gap:6px}
+.pill{font-family:var(--mono);font-size:10px;color:var(--ink-2);border:1px solid var(--line);border-radius:7px;padding:4px 9px;background:var(--surf)}
+.shell-body{display:grid;grid-template-columns:1fr var(--railw,384px);min-height:520px}
+.shell-body.collapsed{grid-template-columns:1fr 48px}
+.shell-body.floating{grid-template-columns:1fr}
+
+/* left = editor canvas */
+.canvas{position:relative;padding:16px;background:
+  repeating-linear-gradient(0deg,rgba(255,255,255,.015) 0 1px,transparent 1px 40px),
+  repeating-linear-gradient(90deg,rgba(255,255,255,.015) 0 1px,transparent 1px 40px),
+  var(--ground)}
+.canvas .prog{aspect-ratio:16/9;border-radius:var(--r-md);border:1px solid var(--line);overflow:hidden;position:relative;background:#000}
+.canvas .prog canvas{width:100%;height:100%;display:block}
+.canvas .caplbl{position:absolute;top:26px;left:26px;font-family:var(--mono);font-size:10px;color:var(--ink-2);background:rgba(0,0,0,.5);border:1px solid var(--line);padding:4px 8px;border-radius:6px;backdrop-filter:blur(4px)}
+.timeline{margin-top:14px;height:120px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--ground-2);padding:8px;display:flex;flex-direction:column;gap:6px}
+.trk{height:26px;border-radius:7px;background:var(--surf);position:relative;overflow:hidden;display:flex;align-items:center}
+.trk .clip{position:absolute;top:3px;bottom:3px;border-radius:5px}
+.trk .lbl{font-family:var(--mono);font-size:8px;color:var(--faint);padding:0 6px;z-index:1}
+
+/* right = the universal library panel */
+.lib{border-left:1px solid var(--line);display:flex;flex-direction:column;min-width:0;background:linear-gradient(180deg,var(--surf),var(--ground-2));position:relative}
+.lib::before{content:"";position:absolute;left:-3px;top:0;bottom:0;width:6px;cursor:col-resize;background:linear-gradient(var(--magenta),var(--cyan));opacity:0;transition:.15s}
+.lib:hover::before{opacity:.5}
+.lib-top{display:flex;align-items:center;gap:8px;padding:11px 12px;border-bottom:1px solid var(--line)}
+.lib-badge{width:26px;height:26px;border-radius:8px;background:var(--brand);display:grid;place-items:center;font-size:13px}
+.lib-name{font-family:var(--disp);font-weight:700;font-size:13px}
+.lib-src{font-family:var(--mono);font-size:9px;color:var(--muted);margin-left:2px}
+.winbtns{margin-left:auto;display:flex;gap:3px}
+.winbtn{width:24px;height:24px;border-radius:7px;border:1px solid var(--line);background:var(--surf);color:var(--ink-2);display:grid;place-items:center;cursor:pointer;font-size:11px;transition:.15s}
+.winbtn:hover{color:#fff;border-color:var(--line-2);background:var(--surf-2)}
+.winbtn.on{color:#fff;border-color:var(--accent);background:var(--accent-soft)}
+
+.lib-cols{display:grid;grid-template-columns:132px 1fr;flex:1;min-height:0}
+/* source sidebar */
+.sources{border-right:1px solid var(--line);padding:8px 6px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.src-h{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;color:var(--faint);text-transform:uppercase;padding:8px 8px 4px}
+.src{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;color:var(--ink-2);font-size:11.5px;transition:.12s;border:1px solid transparent}
+.src .ico{width:16px;text-align:center;font-size:12px;flex:none}
+.src .c{margin-left:auto;font-family:var(--mono);font-size:8.5px;color:var(--faint)}
+.src:hover{background:var(--surf)}
+.src.on{color:#fff;background:var(--accent-soft);border-color:rgba(255,255,255,.08)}
+.src.on .c{color:var(--lilac)}
+
+/* browse area */
+.browse{display:flex;flex-direction:column;min-width:0;min-height:0}
+.btoolbar{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.search{flex:1;min-width:90px;display:flex;align-items:center;gap:6px;height:28px;padding:0 9px;border-radius:8px;background:var(--ground-2);border:1px solid var(--line);color:var(--muted);font-size:11px}
+.chips{display:flex;gap:4px;padding:7px 10px 2px;flex-wrap:wrap}
+.chip{font-family:var(--mono);font-size:9px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);background:var(--surf);border:1px solid var(--line);border-radius:999px;padding:4px 9px;cursor:pointer;transition:.12s}
+.chip.on{color:#fff;border-color:transparent;background:var(--accent);box-shadow:var(--pj-glow)}
+.chip:hover{border-color:var(--line-2)}
+.grid{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(2,1fr);gap:9px;padding:10px;align-content:start}
+.card{border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden;cursor:pointer;background:var(--surf);transition:.15s;position:relative}
+.card:hover{border-color:var(--line-2);transform:translateY(-2px)}
+.card.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.thumb{aspect-ratio:16/9;position:relative;overflow:hidden;background:#0d0b12}
+.thumb canvas,.thumb .fill{position:absolute;inset:0;width:100%;height:100%;display:block}
+.srcbadge{position:absolute;top:5px;left:5px;font-family:var(--mono);font-size:7.5px;letter-spacing:.08em;text-transform:uppercase;padding:2px 5px;border-radius:5px;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);z-index:2}
+.typepill{position:absolute;bottom:5px;right:5px;font-family:var(--mono);font-size:7.5px;text-transform:uppercase;padding:2px 5px;border-radius:5px;background:rgba(0,0,0,.5);color:#fff;z-index:2}
+.cmeta{padding:7px 8px}
+.cname{font-size:11px;font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cauth{font-family:var(--mono);font-size:8.5px;color:var(--faint);margin-top:1px;display:block}
+/* inspector footer */
+.insp{border-top:1px solid var(--line);padding:10px 12px;display:flex;gap:10px;align-items:center;background:var(--ground-2)}
+.insp .sw{width:44px;height:32px;border-radius:8px;flex:none;border:1px solid var(--line-2)}
+.insp .meta{flex:1;min-width:0}
+.insp .meta b{font-size:12px;font-weight:600}
+.insp .meta .r{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px}
+.usebtn{flex:none;height:32px;padding:0 14px;border:none;border-radius:9px;color:#fff;font:700 11px var(--body);letter-spacing:.03em;cursor:pointer;background:var(--brand);box-shadow:0 6px 18px -6px rgba(212,0,85,.6)}
+/* collapsed rail */
+.collrail{display:none;flex-direction:column;align-items:center;gap:14px;padding:14px 0;border-left:1px solid var(--line);background:var(--surf)}
+.shell-body.collapsed .lib{display:none}
+.shell-body.collapsed .collrail{display:flex}
+.collrail .cbadge{width:26px;height:26px;border-radius:8px;background:var(--brand);display:grid;place-items:center;font-size:12px;cursor:pointer}
+.collrail .vtxt{writing-mode:vertical-rl;font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--muted);text-transform:uppercase}
+.collrail .vdot{width:7px;height:7px;border-radius:50%}
+/* floating window */
+.floatwin{position:absolute;top:40px;right:40px;width:360px;border:1px solid var(--line-2);border-radius:var(--r-md);overflow:hidden;box-shadow:0 40px 80px -20px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.04);background:var(--ground-2);display:none;flex-direction:column;z-index:5}
+.shell-body.floating .floatwin{display:flex}
+.shell-body.floating .canvas{grid-column:1/-1}
+.floatwin .lib-cols{height:360px}
+.dragbar{cursor:grab}
+
+/* state buttons under shell */
+.staterow{display:flex;gap:8px;margin:14px 0 0;flex-wrap:wrap}
+.statebtn{display:flex;align-items:center;gap:8px;padding:9px 13px;border-radius:11px;border:1px solid var(--line);background:var(--surf);color:var(--ink-2);cursor:pointer;font:600 12px var(--body);transition:.15s}
+.statebtn.on{color:#fff;border-color:var(--accent);background:var(--accent-soft)}
+.statebtn small{display:block;font-weight:400;font-size:10px;color:var(--faint)}
+.statebtn:hover{border-color:var(--line-2)}
+
+/* ── generic card grids for the explainer sections ── */
+.cards3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.ex{border:1px solid var(--line);border-radius:var(--r-md);padding:16px;background:var(--surf);position:relative;overflow:hidden}
+.ex .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.ex h3{font-size:15px;font-weight:700;margin:8px 0 6px}
+.ex p{font-size:12.5px;color:var(--ink-2);margin:0;line-height:1.5}
+.ex .bar{height:3px;border-radius:3px;margin:0 0 14px;width:38px}
+
+/* retrofit two-up */
+.twoup{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.panelcard{border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:var(--surf-2)}
+.panelcard .ph{display:flex;align-items:center;gap:8px;padding:10px 13px;border-bottom:1px solid var(--line);font-family:var(--disp);font-weight:600;font-size:13px}
+.panelcard .pb{padding:12px 13px}
+.binrow{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;font-size:11.5px;color:var(--ink-2)}
+.binrow .fico{font-size:12px}
+.binrow .cc{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--faint)}
+.moved{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.movchip{font-size:10.5px;color:var(--ink-2);border:1px dashed var(--line-2);border-radius:8px;padding:5px 9px;background:var(--ground-2)}
+.arrow{font-family:var(--mono);font-size:10px;color:var(--orange)}
+
+footer{padding:34px 0 60px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);margin-top:30px}
+.note{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+
+/* animated preview fills (approximate the live engine) */
+@keyframes drift{0%{transform:translate(-10%,-6%) scale(1.2)}50%{transform:translate(8%,6%) scale(1.35)}100%{transform:translate(-10%,-6%) scale(1.2)}}
+@keyframes sweep{from{left:-10%}to{left:110%}}
+.anim{animation:drift 7s var(--pj-ease,ease-in-out) infinite}
+.ph{position:absolute;top:0;bottom:0;width:2px;background:rgba(255,255,255,.8);box-shadow:0 0 6px rgba(255,255,255,.6);animation:sweep 2.2s linear infinite}
+@media (max-width:820px){ .shell-body{grid-template-columns:1fr} .lib{display:none} .twoup{grid-template-columns:1fr} }
+@media (prefers-reduced-motion:reduce){ .anim,.ph{animation:none} }
+</style>
+
+<div class="wrap">
+<header>
+  <p class="eyebrow">Plajah · one library, every studio</p>
+  <h1>The <b>Universal Library</b><br>lives in every creative app.</h1>
+  <p class="lede">One dockable panel — media, presets, templates and effects — shared across Fabula, Melos, Tela and Plajah Pixels. It reaches past the current project into everything you own and everything the platform offers: your assets, your organization's, licensed stock, and what the Plajah community shares. Dock it, float it, collapse it, resize it — the same library, wherever you're working.</p>
+  <div class="appswitch" id="apps"></div>
+</header>
+
+<section>
+  <div class="shead"><h2 id="ctxTitle">In Fabula</h2><span class="n" id="ctxNote">// docked to the right rail</span></div>
+  <div class="shell">
+    <div class="shell-top">
+      <span class="tdot" style="background:#FF5F57"></span><span class="tdot" style="background:#FEBC2E"></span><span class="tdot" style="background:#28C840"></span>
+      <span class="shell-title"><b id="appName">Fabula</b> <span style="color:var(--faint)" id="projName">— Northlight_Spot_v4</span></span>
+      <div class="shell-tools"><span class="pill" id="fpsPill">24 fps</span><span class="pill">4K · Rec.709</span></div>
+    </div>
+    <div class="shell-body" id="body">
+      <div class="canvas">
+        <div class="prog"><canvas id="prog" width="640" height="360"></canvas><span class="caplbl" id="progCap">PROGRAM · broadcast lower third · 6.0s</span></div>
+        <div class="timeline" id="tl"></div>
+      </div>
+
+      <!-- docked library -->
+      <div class="lib" id="lib">
+        <div class="lib-top">
+          <span class="lib-badge">▦</span>
+          <span class="lib-name">Library</span><span class="lib-src" id="libSrc">// community</span>
+          <div class="winbtns">
+            <button class="winbtn" data-state="docked" title="Dock right">▐</button>
+            <button class="winbtn" data-state="floating" title="Undock — float">❐</button>
+            <button class="winbtn" data-state="collapsed" title="Collapse away">⟨</button>
+          </div>
+        </div>
+        <div class="lib-cols">
+          <div class="sources" id="sources"></div>
+          <div class="browse">
+            <div class="chips" id="chips"></div>
+            <div class="btoolbar"><span class="search">⌕ <span id="searchTxt">Search the library…</span></span></div>
+            <div class="grid" id="grid"></div>
+            <div class="insp" id="insp"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- collapsed rail -->
+      <div class="collrail" id="collrail" title="Click to expand the library">
+        <div class="cbadge" data-state="docked">▦</div>
+        <span class="vtxt">Library</span>
+        <span class="vdot" style="background:var(--magenta)"></span>
+        <span class="vdot" style="background:var(--cyan)"></span>
+        <span class="vdot" style="background:var(--orange)"></span>
+      </div>
+
+      <!-- floating window -->
+      <div class="floatwin" id="floatwin">
+        <div class="lib-top dragbar">
+          <span class="lib-badge">▦</span><span class="lib-name">Library</span><span class="lib-src">// floating</span>
+          <div class="winbtns"><button class="winbtn" data-state="docked" title="Dock back">▐</button><button class="winbtn on" data-state="floating">❐</button><button class="winbtn" data-state="collapsed">⟨</button></div>
+        </div>
+        <div class="lib-cols">
+          <div class="sources" id="sources2"></div>
+          <div class="browse"><div class="grid" id="grid2" style="grid-template-columns:repeat(2,1fr)"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="staterow" id="states">
+    <button class="statebtn on" data-state="docked">▐ Docked<small>Right rail, resizable</small></button>
+    <button class="statebtn" data-state="floating">❐ Floating<small>Undocked window, draggable</small></button>
+    <button class="statebtn" data-state="collapsed">⟨ Collapsed<small>Tucked to a thin rail</small></button>
+  </div>
+  <p class="note" style="margin-top:12px">Drag the panel's left edge to resize · double-click the title bar to float · every instance in every app behaves the same way.</p>
+</section>
+
+<section>
+  <div class="shead"><h2>What it taps into</h2><span class="n">// one asset service, five shelves</span></div>
+  <p class="sub">The library is a window onto Plajah's asset-management service. The same panel resolves the assets you own, the ones your team or business shares, licensed stock, and what the community makes public — plus every preset, template and effect built into the platform.</p>
+  <div class="cards3" id="shelves"></div>
+</section>
+
+<section>
+  <div class="shead"><h2>The Fabula media retrofit</h2><span class="n">// pool vs. library</span></div>
+  <p class="sub">Fabula's right side becomes the Universal Library. The <b>Media Pool</b> stops being a catch-all and becomes exactly what a Resolve pool is — the contents of <i>this</i> project. The import, sync and music actions move to a dedicated <b>Media page</b>.</p>
+  <div class="twoup">
+    <div class="panelcard">
+      <div class="ph" style="border:none"><span style="width:22px;height:22px;border-radius:6px;background:var(--spatial);display:grid;place-items:center;font-size:12px">▤</span>Media Pool — this project</div>
+      <div class="pb">
+        <div class="binrow"><span class="fico">📁</span> Camera A · dailies <span class="cc">42</span></div>
+        <div class="binrow"><span class="fico">📁</span> Selects <span class="cc">11</span></div>
+        <div class="binrow"><span class="fico">📁</span> VO + music <span class="cc">6</span></div>
+        <div class="binrow"><span class="fico">📁</span> Graphics · from Tela <span class="cc">8</span></div>
+        <div class="binrow" style="color:var(--faint)"><span class="fico">📁</span> Renders <span class="cc">3</span></div>
+        <p class="note" style="margin:10px 2px 0">Only what belongs to Northlight_Spot_v4 — like a real NLE pool.</p>
+      </div>
+    </div>
+    <div class="panelcard">
+      <div class="ph" style="border:none"><span style="width:22px;height:22px;border-radius:6px;background:var(--warm);display:grid;place-items:center;font-size:12px">▦</span>Media page — bring things in</div>
+      <div class="pb">
+        <p style="font-size:12.5px;color:var(--ink-2);margin:0 0 8px">The panel from the old pool header moves here, given room to breathe:</p>
+        <div class="moved">
+          <span class="movchip">⭱ Import to timeline</span>
+          <span class="movchip">📂 Sync folders · auto-import</span>
+          <span class="movchip">♫ My music (on-platform)</span>
+          <span class="movchip">🛍 License music — store</span>
+          <span class="movchip">▶ My videos + live</span>
+          <span class="movchip">⚙ Project frame rate</span>
+        </div>
+        <p class="note" style="margin:12px 2px 0">Import lands in the Media Pool. Browsing everything else is the Library's job. <span class="arrow">→ one clear path in, one clear place to browse.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <b style="color:var(--ink-2)">Universal Library</b> — a design study to the Plajah design language. The thumbnails here are illustrative; in-app they are the real live previews (WebGL for FX/shaders, the pattern renderer for Melos grooves) already shipped in the FX and library surfaces. Dock / float / collapse / resize behave identically in Fabula, Melos, Tela and Plajah Pixels.
+</footer>
+</div>
+
+<script>
+const APPS=[
+  {id:'fabula',name:'Fabula',accent:'#D40055',grad:'linear-gradient(135deg,#6B0099,#D40055)',proj:'Northlight_Spot_v4',cap:'PROGRAM · broadcast lower third · 6.0s',fps:'24 fps',note:'docked to the right rail'},
+  {id:'melos',name:'Melos',accent:'#FF8C00',grad:'linear-gradient(135deg,#D40055,#FF8C00)',proj:'Midnight_EP · A2',cap:'PATTERN · House · 124 BPM',fps:'—',note:'docked beside the arranger'},
+  {id:'tela',name:'Tela',accent:'#8B5CFF',grad:'linear-gradient(135deg,#6B0099,#8B5CFF)',proj:'Issue_07 · cover',cap:'CANVAS · editorial spread',fps:'—',note:'docked to the design rail'},
+  {id:'pixels',name:'Pixels',accent:'#00DAF3',grad:'linear-gradient(135deg,#6B0099,#00DAF3)',proj:'Live_Set · Room B',cap:'PROGRAM · signature shader',fps:'60 fps',note:'the library rail, now universal'},
+];
+const SOURCES=[
+  {id:'personal',ico:'👤',label:'Personal',c:'1.2k',badge:'#00DAF3'},
+  {id:'org',ico:'🏢',label:'Organization',c:'380',badge:'#D0BCFF'},
+  {id:'business',ico:'🛍',label:'Business',c:'94',badge:'#FF8C00'},
+  {id:'community',ico:'🌐',label:'Community',c:'48k',badge:'#D40055'},
+  {id:'stock',ico:'🎞',label:'Stock',c:'∞',badge:'#06D6A0'},
+  {id:'presets',ico:'✦',label:'Presets',c:'640',badge:'#8B5CFF'},
+];
+const CHIPS=['All','Media','Audio','Footage','Presets','Templates','FX','Shaders'];
+// preview tile "kinds" → an animated CSS fill approximating the live engine
+function fillFor(kind,seed){
+  const g={
+    shader:['linear-gradient(120deg,#3a1d6e,#00DAF3,#D40055)','radial-gradient(circle at 30% 30%,#8B5CFF,#0a0a12 70%)'],
+    fx:['linear-gradient(120deg,#10243c,#8f5a20,#d8d2c4)','radial-gradient(circle at 60% 40%,#ff8c42,#24174b 70%)'],
+    gen:['conic-gradient(from 0deg,#6B0099,#00DAF3,#FF8C00,#6B0099)','radial-gradient(circle at 40% 40%,#31c6a8,#0a0a12 72%)'],
+    footage:['linear-gradient(120deg,#1b2a3a,#3a4a5a)','linear-gradient(120deg,#2a1b30,#5a3a4a)'],
+    audio:['linear-gradient(120deg,#241d31,#3a2d4a)','linear-gradient(120deg,#1d2431,#2d3a4a)'],
+    template:['linear-gradient(135deg,#fff,#e9e4f0)','linear-gradient(135deg,#f4ead5,#d8b55b)'],
+    pattern:['#0d0b12','#0d0b12'],
+  }[kind]||['#181320','#181320'];
+  return g[seed%g.length];
+}
+function tile(kind,name,author,src,type){
+  const bg=fillFor(kind,name.length);
+  const anim=(kind==='shader'||kind==='gen'||kind==='fx')?'anim':'';
+  const dark=kind==='template'?'#141019':'#fff';
+  const ph=(kind==='pattern')?'<span class="ph"></span>':'';
+  let inner='';
+  if(kind==='pattern'){ // draw a tiny drum grid look
+    inner='<span class="fill" style="background:'+patternBg()+'"></span>'+ph;
+  } else {
+    inner='<span class="fill '+anim+'" style="background:'+bg+';filter:saturate(1.05)"></span>';
+  }
+  const badgeColor=(SOURCES.find(s=>s.id===src)||{}).badge||'#888';
+  return '<article class="card" data-name="'+name+'" data-author="'+author+'" data-type="'+type+'" data-src="'+src+'">'
+    +'<div class="thumb">'+inner
+      +'<span class="srcbadge" style="color:'+badgeColor+'">'+src+'</span>'
+      +'<span class="typepill">'+type+'</span>'
+    +'</div>'
+    +'<div class="cmeta"><span class="cname">'+name+'</span><span class="cauth">'+author+'</span></div></article>';
+}
+function patternBg(){
+  // fake a drum-grid via layered repeating gradients
+  return 'repeating-linear-gradient(90deg,rgba(255,140,0,.9) 0 6%,transparent 6% 25%),repeating-linear-gradient(90deg,transparent 0 50%,rgba(0,218,243,.8) 50% 56%,transparent 56% 100%),#0d0b12';
+}
+// per-source sample content
+const CONTENT={
+  personal:[['shader','Aurora Drift','you · Pixels','presets','SHADER'],['footage','Rooftop_B_004','you','footage','4K'],['fx','Teal & Amber','you · Fabula','presets','LOOK'],['audio','VO_take_07','you','audio','WAV'],['pattern','My House Kit','you · Melos','presets','GROOVE'],['template','Cover_grid_A','you · Tela','presets','LAYOUT']],
+  org:[['template','Brand Lower Third','Studio North','presets','TEMPLATE'],['fx','House Grade','Studio North','presets','LOOK'],['footage','Logo_sting_master','Studio North','footage','ProRes'],['shader','Room B Backdrop','Studio North','presets','SHADER'],['audio','Bumper_bed','Studio North','audio','WAV'],['pattern','Show Intro Beat','Studio North','presets','GROOVE']],
+  business:[['template','Menu Card · Fall','Cafe Lumen','presets','TEMPLATE'],['footage','Storefront_loop','Cafe Lumen','footage','1080p'],['fx','Warm Product','Cafe Lumen','presets','LOOK'],['template','Promo Story 9:16','Cafe Lumen','presets','SOCIAL']],
+  community:[['shader','Hypergate','@nova · CC0','community','SHADER'],['gen','Retro Grid','@synthwave','community','GENERATOR'],['fx','VHS Rewind','@lofi','community','LOOK'],['pattern','Amapiano Log','@dlala','community','GROOVE'],['template','Zine Spread','@risograph','community','TEMPLATE'],['shader','Liquid Chrome','@chrome','community','SHADER'],['fx','Anamorphic Night','@noir','community','LOOK'],['gen','Kaleidoscope','@mirror','community','GENERATOR']],
+  stock:[['footage','Aerial · coastline','Plajah Stock','stock','4K HDR'],['footage','City · timelapse','Plajah Stock','stock','4K'],['audio','Cinematic Rise','Plajah Stock','stock','STEM'],['footage','Ink · macro','Plajah Stock','stock','6K'],['audio','Lo-fi Beat Bed','Plajah Stock','stock','LOOP'],['footage','Forest · dusk','Plajah Stock','stock','4K']],
+  presets:[['fx','Prestige Drama','Plajah','presets','LOOK'],['shader','Black Sun','Signature','presets','SHADER'],['gen','Aurora','Plajah','presets','GENERATOR'],['pattern','Boom Bap','Plajah','presets','GROOVE'],['template','Swiss Signal','Council','presets','LOWER 3RD'],['fx','Film Dissolve','Plajah','presets','TRANSITION'],['shader','Cloud Sea','Signature','presets','SHADER'],['pattern','Deep House Walk','Plajah','presets','BASSLINE']],
+};
+let cur={app:'fabula',source:'community',chip:'All',sel:null};
+
+// build app switcher
+document.getElementById('apps').innerHTML=APPS.map(a=>`<button class="appchip${a.id==='fabula'?' on':''}" data-app="${a.id}"><span class="dot" style="background:${a.accent}"></span>${a.name}</button>`).join('');
+function renderSources(el){el.innerHTML='<div class="src-h">Your shelves</div>'+SOURCES.map(s=>`<div class="src${s.id===cur.source?' on':''}" data-src="${s.id}"><span class="ico">${s.ico}</span>${s.label}<span class="c">${s.c}</span></div>`).join('');}
+function renderChips(){document.getElementById('chips').innerHTML=CHIPS.map(c=>`<span class="chip${c===cur.chip?' on':''}" data-chip="${c}">${c}</span>`).join('');}
+function renderGrid(el,list){el.innerHTML=list.map(([k,n,a,s,t])=>tile(k,n,a,s,t)).join('');}
+function applyAccent(){const a=APPS.find(x=>x.id===cur.app);document.documentElement.style.setProperty('--accent',a.accent);document.documentElement.style.setProperty('--brand',a.grad);document.documentElement.style.setProperty('--pj-glow','0 4px 16px -4px '+a.accent);
+  document.getElementById('appName').textContent=a.name;document.getElementById('projName').textContent='— '+a.proj;
+  document.getElementById('ctxTitle').textContent='In '+a.name;document.getElementById('ctxNote').textContent='// '+a.note;
+  document.getElementById('progCap').textContent=a.cap;document.getElementById('fpsPill').textContent=a.fps;document.getElementById('fpsPill').style.display=a.fps==='—'?'none':'';
+}
+function contentFor(){let list=CONTENT[cur.source]||[];if(cur.chip!=='All'){const map={Media:['footage','template','audio'],Audio:['audio'],Footage:['footage'],Presets:['fx','shader','gen','pattern','template'],Templates:['template'],FX:['fx','gen'],Shaders:['shader']};const ks=map[cur.chip]||[];const f=list.filter(x=>ks.includes(x[0]));list=f.length?f:list;}return list;}
+function refresh(){renderSources(document.getElementById('sources'));renderSources(document.getElementById('sources2'));renderChips();const list=contentFor();renderGrid(document.getElementById('grid'),list);renderGrid(document.getElementById('grid2'),list.slice(0,6));document.getElementById('libSrc').textContent='// '+cur.source;
+  // default selection = first
+  const first=list[0];if(first)selectCard(first);}
+function selectCard(item){cur.sel=item;const[k,n,a,s,t]=item;document.querySelectorAll('#grid .card').forEach(c=>c.classList.toggle('sel',c.dataset.name===n));
+  const sw=fillFor(k,n.length);
+  document.getElementById('insp').innerHTML=`<span class="sw" style="background:${sw}"></span><div class="meta"><b>${n}</b><div class="r">${s} · ${t} · ${s==='community'||s==='stock'?'licensed':s==='presets'?'platform':'yours'}</div></div><button class="usebtn">${t==='4K'||t==='footage'||t==='WAV'||t==='STEM'?'Add to pool':'Use'}</button>`;}
+
+// state (dock/float/collapse)
+function setState(st){const b=document.getElementById('body');b.className='shell-body'+(st==='collapsed'?' collapsed':st==='floating'?' floating':'');
+  document.querySelectorAll('#states .statebtn').forEach(x=>x.classList.toggle('on',x.dataset.state===st));
+  document.querySelectorAll('.lib .winbtn').forEach(x=>x.classList.toggle('on',x.dataset.state===st));
+  document.getElementById('ctxNote').textContent='// '+({docked:'docked to the right rail',floating:'undocked — floating window',collapsed:'collapsed to a thin rail'}[st]);}
+
+// shelves explainer
+document.getElementById('shelves').innerHTML=[
+  ['#00DAF3','Personal','Everything you upload or create — footage, stems, your saved presets and templates — synced to your account across every studio.'],
+  ['#D0BCFF','Organization','Your team\'s shared brand kit: approved lower thirds, grades, logos, bumpers. Everyone in the org pulls from one source of truth.'],
+  ['#FF8C00','Business','A small business\'s storefront assets — menus, promos, product loops — ready to drop into a post, a story or a screen.'],
+  ['#D40055','Community','What the Plajah community publishes: CC0 shaders, looks, grooves, templates. Credit travels with the asset; remix freely.'],
+  ['#06D6A0','Stock','Licensed footage, audio beds and stems from the Plajah stock shelf — cleared for use, metered per plan.'],
+  ['#8B5CFF','Presets','Every effect, transition, look, generator, shader, template and groove built into the platform — the live-preview library you already have.'],
+].map(([c,k,p])=>`<div class="ex"><div class="bar" style="background:${c}"></div><div class="k">${k}</div><p>${p}</p></div>`).join('');
+
+// tiny animated program canvas (a mock broadcast lower third / shader)
+(function(){const cv=document.getElementById('prog');if(!cv)return;const x=cv.getContext('2d');let t=0;function draw(){t+=0.016;const w=cv.width,h=cv.height;const g=x.createLinearGradient(0,0,w,h);g.addColorStop(0,'#0b1020');g.addColorStop(1,'#1a0e22');x.fillStyle=g;x.fillRect(0,0,w,h);
+  // moving accent shapes
+  x.globalAlpha=.5;for(let i=0;i<3;i++){x.fillStyle=['#6B0099','#00DAF3','#D40055'][i];x.beginPath();x.arc(w*(.3+.2*i)+Math.sin(t+i)*40,h*.4+Math.cos(t*.8+i)*30,60,0,7);x.fill();}x.globalAlpha=1;
+  // lower third strap sliding in
+  const p=Math.min(1,(Math.sin(t*.6)*.5+.5)*1.4);const sx=w*.08-(1-p)*w*.5;
+  x.fillStyle='rgba(10,8,16,.86)';x.fillRect(sx,h*.66,w*.5,h*.2);x.fillStyle=(APPS.find(a=>a.id===cur.app)||APPS[0]).accent;x.fillRect(sx,h*.66,6,h*.2);
+  x.fillStyle='#fff';x.font='600 20px Space Grotesk, sans-serif';x.fillText('LIVE FROM THE LIBRARY',sx+20,h*.74);x.fillStyle='rgba(255,255,255,.6)';x.font='11px JetBrains Mono, monospace';x.fillText('universal · dockable · resizable',sx+20,h*.8);
+  requestAnimationFrame(draw);}draw();})();
+
+// timeline tracks
+document.getElementById('tl').innerHTML=[
+  {c:'#6B0099',clips:[[4,30],[40,25]]},{c:'#00DAF3',clips:[[10,45]]},{c:'#D40055',clips:[[2,20],[55,30]]},
+].map(t=>`<div class="trk"><span class="lbl">${''}</span>${t.clips.map(([l,w])=>`<span class="clip" style="left:${l}%;width:${w}%;background:${t.c}55;border:1px solid ${t.c}">`).join('')}</div>`).join('');
+
+// events
+document.addEventListener('click',e=>{
+  const app=e.target.closest('[data-app]');if(app){cur.app=app.dataset.app;document.querySelectorAll('.appchip').forEach(c=>c.classList.toggle('on',c.dataset.app===cur.app));applyAccent();refresh();return;}
+  const src=e.target.closest('[data-src]');if(src){cur.source=src.dataset.src;refresh();return;}
+  const chip=e.target.closest('[data-chip]');if(chip){cur.chip=chip.dataset.chip;renderChips();renderGrid(document.getElementById('grid'),contentFor());const f=contentFor()[0];if(f)selectCard(f);return;}
+  const card=e.target.closest('.card');if(card){const item=(CONTENT[cur.source]||[]).find(x=>x[1]===card.dataset.name);if(item)selectCard(item);return;}
+  const st=e.target.closest('[data-state]');if(st){setState(st.dataset.state);return;}
+});
+document.addEventListener('dblclick',e=>{if(e.target.closest('.lib-top'))setState('floating');});
+
+applyAccent();refresh();
+</script>
+</head><body></body></html>

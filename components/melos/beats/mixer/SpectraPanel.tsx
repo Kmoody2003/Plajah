@@ -3,7 +3,7 @@
 // dynamic EQ. Presets are named engineer moves with the reason shown.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { X, Repeat } from 'lucide-react';
+import { X, Repeat, Headphones } from 'lucide-react';
 import type { GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import {
@@ -41,6 +41,12 @@ export const SpectraPanel: React.FC<Props> = ({ doc, onMutate, onClose }) => {
 
   // ensure the live device exists so the spectrum shows
   useEffect(() => { BeatsEngine.get().masterEqDevice()?.setState(stateRef.current); }, []);
+  // Band-solo is a transient "listen" — never let it survive leaving the panel (the master would stay
+  // band-passed). Clear it on unmount, live + persisted.
+  useEffect(() => () => {
+    const s = stateRef.current;
+    if (s.solo) { s.solo = undefined; try { BeatsEngine.get().updateMasterEq(s); } catch { /* */ } onMutate((d) => { const eq = d.mixer.master.eq as Record<string, unknown> | undefined; if (eq) eq.solo = undefined; }); }
+  }, [onMutate]);
 
   const bands = state.bands;
   const band = bands[sel] || bands[0];
@@ -162,6 +168,9 @@ export const SpectraPanel: React.FC<Props> = ({ doc, onMutate, onClose }) => {
             <button onClick={() => setMode(5)} className="h-6 px-2.5 rounded-md text-[10px] font-mono" style={state.mode === 5 ? { background: PLAYHEAD, color: '#06222a', fontWeight: 700 } : { color: 'rgba(255,255,255,0.45)' }}>5-band</button>
             <button onClick={() => setMode(30)} className="h-6 px-2.5 rounded-md text-[10px] font-mono" style={state.mode === 30 ? { background: PLAYHEAD, color: '#06222a', fontWeight: 700 } : { color: 'rgba(255,255,255,0.45)' }}>30-band</button>
           </div>
+          <button onClick={() => { stateRef.current.linearPhase = !stateRef.current.linearPhase; commit(); }}
+            title="Linear-phase FIR — zero phase distortion for mastering, adds latency. Off = real-time minimum-phase."
+            className="h-7 px-3 rounded-lg text-[10px] font-mono border" style={state.linearPhase ? { borderColor: '#00DAF3', color: '#00DAF3', background: 'rgba(0,218,243,0.12)' } : { borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)' }}>Linear phase {state.linearPhase ? 'on' : 'off'}</button>
           <button onClick={() => setShowPresets((v) => !v)} className="h-7 px-3 rounded-lg text-[11px] font-semibold" style={{ color: SELECT }}>Presets ▾</button>
           <span className="flex-1" />
           <button onClick={onClose} aria-label="Close" className="w-8 h-8 grid place-items-center rounded-lg border border-white/10 text-white/50 hover:text-white"><X size={15} /></button>
@@ -206,6 +215,11 @@ export const SpectraPanel: React.FC<Props> = ({ doc, onMutate, onClose }) => {
             <button onClick={() => editBand((b) => { b.dynamic = b.dynamic?.on ? { ...b.dynamic, on: false } : { on: true, threshold: b.dynamic?.threshold ?? -18, range: b.dynamic?.range ?? -4 }; })}
               className="h-7 px-3 rounded-lg text-[10px] font-mono border flex items-center gap-1.5" style={band.dynamic?.on ? { borderColor: '#FFC24B', color: '#FFC24B', background: 'rgba(255,194,75,0.12)' } : { borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.45)' }}>
               <Repeat size={11} /> Dynamic {band.dynamic?.on ? 'on' : 'off'}
+            </button>
+            <button onClick={() => { stateRef.current.solo = stateRef.current.solo === band.id ? undefined : band.id; commit(); }}
+              title="Solo-listen this band (band-pass) to find the resonance, then notch it"
+              className="h-7 px-3 rounded-lg text-[10px] font-mono border flex items-center gap-1.5" style={state.solo === band.id ? { borderColor: '#00DAF3', color: '#00DAF3', background: 'rgba(0,218,243,0.12)' } : { borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.45)' }}>
+              <Headphones size={11} /> {state.solo === band.id ? 'Listening' : 'Listen'}
             </button>
             {band.dynamic?.on && (<>
               <Field label="Thr" value={`${band.dynamic.threshold}`} onDown={() => editBand((b) => { if (b.dynamic) b.dynamic.threshold = Math.max(-48, b.dynamic.threshold - 1); })} onUp={() => editBand((b) => { if (b.dynamic) b.dynamic.threshold = Math.min(0, b.dynamic.threshold + 1); })} />

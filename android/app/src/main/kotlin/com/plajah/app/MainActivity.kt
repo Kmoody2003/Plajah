@@ -2,15 +2,19 @@ package com.plajah.app
 
 import android.app.UiModeManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Bundle
+import com.plajah.app.ui.ShellPrefs
 import android.util.Log
+import android.view.KeyEvent
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import com.getcapacitor.BridgeActivity
 
 class MainActivity : BridgeActivity() {
+    private var televisionMode = false
 
     /**
      * Tell the web layer, authoritatively, that this is a television.
@@ -50,6 +54,18 @@ class MainActivity : BridgeActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // NATIVE SHELL HANDOFF. If the user has toggled into the native Compose UI, hand off to
+        // NativeActivity before building the Capacitor bridge (phones/tablets/Android-laptop
+        // windows only — TV keeps the web leanback UI, which is D-pad-tuned). The web app is
+        // otherwise the default and stays fully intact; this is opt-in, like "Try New Nav" on web.
+        if (!isTelevision() && ShellPrefs.isNativeEnabled(this)) {
+            super.onCreate(savedInstanceState)
+            startActivity(Intent(this, NativeActivity::class.java)
+                .putExtra("platformContentUrl",intent.getStringExtra("platformContentUrl")))
+            finish()
+            return
+        }
+
         // Capacitor requires custom plugins to be registered BEFORE super.onCreate builds the
         // bridge — after that the registry is sealed and the JS `WatchNext` proxy resolves to
         // nothing. It writes the TV home-screen "continue watching" row (Reello + Taleo); on a
@@ -58,6 +74,8 @@ class MainActivity : BridgeActivity() {
         // PlajahCamera (Phase N1): native max-quality local recording + real per-lens enumeration.
         // On a phone without CameraX wired it simply reports unavailable to JS (harmless).
         registerPlugin(PlajahCameraPlugin::class.java)
+        // PlajahShell: lets the web app's "Switch to Native" toggle hand off to the Compose shell.
+        registerPlugin(PlajahShellPlugin::class.java)
 
         // Hold the native splash until the web layer has something on screen, then hand over.
         //
@@ -75,6 +93,12 @@ class MainActivity : BridgeActivity() {
         }
         super.onCreate(savedInstanceState)
         // Render edge-to-edge — Compose and the WebView both respect system bar insets
+        intent.getStringExtra("platformContentUrl")?.let { requested ->
+            val target = android.net.Uri.parse(requested)
+            if (target.scheme == "https" && target.host == "plajah.com") {
+                bridge?.webView?.loadUrl(requested)
+            }
+        }
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         // The WebView paints white by default, so a held splash could still hand over to a white
@@ -84,7 +108,27 @@ class MainActivity : BridgeActivity() {
             bridge?.webView?.setBackgroundColor(android.graphics.Color.parseColor("#04030A"))
         } catch (_: Throwable) { /* pre-bridge or unavailable — the theme background still covers */ }
 
-        if (!isTelevision()) return
+        televisionMode = isTelevision()
+        if (!televisionMode) {
+            // Keep the entry point in the APK: the remote web deployment may predate Compose.
+            val switch = android.widget.Button(this).apply {
+                text = "Native UI"
+                contentDescription = "Switch to the native Jetpack Compose interface"
+                setOnClickListener {
+                    ShellPrefs.setNativeEnabled(this@MainActivity, true)
+                    startActivity(Intent(this@MainActivity, NativeActivity::class.java))
+                    finish()
+                }
+            }
+            val density = resources.displayMetrics.density
+            val params = android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                android.view.Gravity.TOP or android.view.Gravity.END,
+            ).apply { topMargin = (48 * density).toInt(); rightMargin = (12 * density).toInt() }
+            addContentView(switch, params)
+            return
+        }
 
         // Keep D-pad keys inside the WebView.
         //
@@ -120,6 +164,10 @@ class MainActivity : BridgeActivity() {
             // rendering at roughly 2x. Verified over CDP: window.innerWidth was still 960.
             settings.useWideViewPort = true
             settings.loadWithOverviewMode = true
+            // Taleo's preroll is intentionally audible. TV playback is already initiated
+            // by the viewer's Watch action; allow the resulting media element to retain
+            // audio when React mounts it a frame later.
+            settings.mediaPlaybackRequiresUserGesture = false
 
             val ua = settings.userAgentString
             // Idempotent: onCreate runs again after a configuration change.
@@ -131,6 +179,30 @@ class MainActivity : BridgeActivity() {
             // Worst case the UA is untouched and the web layer falls back to its own heuristics.
             Log.w(TAG, "UA tagging failed: ${e.message}")
         }
+    }
+
+    /** Normalize vendor D-pad delivery before Android focus search can swallow a direction. */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (televisionMode && event.action == KeyEvent.ACTION_DOWN) {
+            val key = when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_UP -> "ArrowUp"
+                KeyEvent.KEYCODE_DPAD_DOWN -> "ArrowDown"
+                KeyEvent.KEYCODE_DPAD_LEFT -> "ArrowLeft"
+                KeyEvent.KEYCODE_DPAD_RIGHT -> "ArrowRight"
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> "Enter"
+                KeyEvent.KEYCODE_CHANNEL_UP -> "ChannelUp"
+                KeyEvent.KEYCODE_CHANNEL_DOWN -> "ChannelDown"
+                else -> null
+            }
+            if (key != null) {
+                bridge?.webView?.evaluateJavascript(
+                    "window.dispatchEvent(new KeyboardEvent('keydown',{key:'$key',bubbles:true,cancelable:true,repeat:${event.repeatCount > 0}}));",
+                    null
+                )
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     companion object {

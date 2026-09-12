@@ -7,15 +7,31 @@
 // so it never overwrites an existing project.
 
 import { serializeGroove, deserializeGroove, type GrooveDoc } from './grooveDoc';
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
+import { getBytes, putBytes } from '../../fabula/mediaStore';
 
 const MAGIC = 'melos.groove';
 const uid = () => Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
 
 /** Download the current groove as a `.melos` file. */
-export function exportGrooveFile(doc: GrooveDoc): void {
-  const payload = { format: MAGIC, version: 1, exportedAt: Date.now(), doc: serializeGroove(doc) };
+export async function exportGrooveFile(doc: GrooveDoc): Promise<void> {
+  const refs = new Map<string, string>();
+  for (const pad of doc.kit) if (pad.sample) refs.set(pad.sample.key, pad.sample.name);
+  for (const track of doc.arrangement) for (const clip of track.clips) if (clip.audio) refs.set(clip.audio.sampleKey, clip.audio.name);
+  const files: Record<string, Uint8Array> = {};
+  const assets: { key: string; path: string; name: string }[] = [];
+  let index = 0;
+  for (const [key, name] of refs) {
+    const blob = await getBytes(key);
+    if (!blob) continue;
+    const path = `audio/${index++}-${key.split('/').pop()}.bin`;
+    files[path] = new Uint8Array(await blob.arrayBuffer());
+    assets.push({ key, path, name });
+  }
+  const payload = { format: MAGIC, version: 2, exportedAt: Date.now(), doc: serializeGroove(doc), assets };
+  files['project.json'] = strToU8(JSON.stringify(payload));
   const safe = (doc.name || 'Groove').replace(/[^\w.-]+/g, '_').slice(0, 60) || 'Groove';
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const blob = new Blob([zipSync(files, { level: 0 }) as BlobPart], { type: 'application/x-melos-project' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `${safe}.melos`;
@@ -26,7 +42,17 @@ export function exportGrooveFile(doc: GrooveDoc): void {
 /** Read a `.melos` (or a bare exported groove JSON) into a fresh GrooveDoc, or null if unreadable. */
 export async function importGrooveFile(file: Blob): Promise<GrooveDoc | null> {
   try {
-    const parsed = JSON.parse(await file.text());
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let parsed: any;
+    if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
+      const files = unzipSync(bytes);
+      if (!files['project.json']) return null;
+      parsed = JSON.parse(strFromU8(files['project.json']));
+      for (const asset of parsed.assets || []) {
+        const data = files[asset.path];
+        if (data && typeof asset.key === 'string') await putBytes(asset.key, new Blob([data as BlobPart], { type: 'application/octet-stream' }));
+      }
+    } else parsed = JSON.parse(strFromU8(bytes));
     const raw = parsed?.format === MAGIC ? parsed.doc : parsed; // accept our wrapper or a bare doc
     const doc = deserializeGroove(raw);
     if (!doc) return null;

@@ -40,6 +40,8 @@ export interface AriaContextSnapshot {
   surface: string;
   /** Broad domain — lets Aria pick the right voice/skillset. */
   domain?: 'writing' | 'music' | 'video' | 'image' | 'learning' | 'business' | 'code' | 'general' | (string & {});
+  /** Expert lens Aria should use while remaining one consistent personality. */
+  creativeRole?: { id: string; label: string; promise: string; disciplines?: string[] };
   /** Human label of the current object, e.g. "Editing article: The Long Road". */
   title?: string;
   /** Short natural-language description of the current state Aria should know. */
@@ -179,6 +181,7 @@ export function serializeAriaContextForWire(
   return {
     surface: s.surface,
     domain: s.domain,
+    creativeRole: s.creativeRole,
     title: s.title,
     summary: s.summary,
     selection: s.selection ? String(s.selection).slice(0, maxSelection) : undefined,

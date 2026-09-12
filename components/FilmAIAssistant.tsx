@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { cleanDescription } from '../utils/description';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Sparkles, Film, Copy, Check, ChevronDown, Loader2,
@@ -27,7 +28,7 @@ function buildMetadataPrompt(album: Album): string {
 Title: ${album.title}
 Director: ${album.artist}
 Genre: ${album.genre || 'Not specified'}
-Synopsis: ${album.description || 'Not provided'}
+Synopsis: ${cleanDescription(album.description) || 'Not provided'}
 Year: ${album.movieMetadata?.releaseYear || 'Unknown'}
 Tagline: ${album.movieMetadata?.tagline || 'None'}
 
@@ -47,7 +48,7 @@ function buildPressKitPrompt(album: Album): string {
 Film: "${album.title}"
 Director: ${album.artist}
 Genre: ${album.genre}
-Synopsis: ${album.description || 'An independent film.'}
+Synopsis: ${cleanDescription(album.description) || 'An independent film.'}
 Tagline: ${album.movieMetadata?.tagline || ''}
 Year: ${album.movieMetadata?.releaseYear || new Date().getFullYear()}
 
@@ -66,7 +67,7 @@ function buildSocialPrompt(album: Album): string {
 
 Film: "${album.title}" by ${album.artist}
 Genre: ${album.genre}
-Tagline: ${album.movieMetadata?.tagline || album.description?.slice(0, 80) || ''}
+Tagline: ${album.movieMetadata?.tagline || cleanDescription(album.description).slice(0, 80) || ''}
 
 Write 3 social media posts:
 
@@ -82,7 +83,7 @@ function buildComparablesPrompt(album: Album): string {
 
 Film: "${album.title}"
 Genre: ${album.genre}
-Synopsis: ${album.description || 'An independent film.'}
+Synopsis: ${cleanDescription(album.description) || 'An independent film.'}
 Year: ${album.movieMetadata?.releaseYear || new Date().getFullYear()}
 
 Provide:

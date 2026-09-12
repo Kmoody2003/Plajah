@@ -1,0 +1,339 @@
+# Fabula FX Suite — autonomous build log
+
+Owner: Claude (autonomous overnight run authorised by Kenne, 2026-09-02). Companion docs:
+`FORGE_CLAUDE_HANDOFF.md` (Forge state: 106 effects / 287 presets / 17 transitions built by the
+Forge session), `FORGE_PHASE_1_2_BUILD_MATRIX.md` (evidence-based status), the FX Suite spec
+artifact (https://claude.ai/code/artifact/0e03675e-8f3f-427e-a898-27122510a12e).
+
+## Ground rules for every continuation
+- OFX is DEFERRED (Kenne, 2026-09-02): do not spend continuations on the Rust shell or manifest until the desktop build compiles. Native Fabula features only.
+- Video FX/plugins only. Native Fabula first; the OFX adapter later translates the same registry
+  (stable ids, ordered params, inputs). Do not build a parallel effect system — extend
+  `components/plajahPixels/engine/fx/effects.ts` and its packs.
+- The worktree carries other sessions' uncommitted work. Commit ONLY files you touched, with a
+  clear message, no push. Never revert or reformat others' hunks. Check `git status --short` first.
+- Validation after every batch: `npm run test:forge`, `npm run test:vectortrack`, `npx esbuild <file> --loader:.ts=ts --outfile=/dev/null` (or
+  `--loader:.jsx=jsx`) on touched files. Optional: in the browser, import the compositor from the
+  dev server and compile every registered effect (see "GLSL compile sweep" below).
+- Monitor == export: anything added to the renderer must land in `compositor.ts` (live + offline),
+  `offlineRenderer.ts` (pass-through), `fabulaRender.ts` (resolve) and `ForgeClipPreview` /
+  `MonitorLayer` in `Fabula.jsx`.
+
+## Re-scoped waves (Forge already covers most of W0/W1)
+| Wave | Item | Status |
+|---|---|---|
+| W0 | Effect stack, named params, presets, monitor/export parity | DONE (Forge) |
+| W1 | Kernel mass: 106 effects across light/blur/color/key/stylize/distort + 17 transitions | DONE (Forge); gaps listed in backlog |
+| W2a | DONE 2026-09-02 (commit 072d37d) — **Temporal frame access** (feedback buffer: `prev()` / `prevSrc()` in the FX header, per-instance history, reset on time jumps) + **Time pack** (Trails, Echo, Temporal Blur, Motion Detect, Deflicker, Time Displace-lite, Datamosh-lite, Frame Blend, Ghosting, Strobe) | DONE |
+| W2b | **Mask input per effect (PixelChooser)**: shape masks (ellipse/rect/polygon, feather, invert), aux-luma masks, planar-tracked masks; mask editor overlay; mix stage in FxRenderer | DONE 2026-09-02 (services/fabula/forgeBindings.ts, MaskOverlay in Fabula.jsx). Aux-luma masks were marked open here but are in fact complete — the 'asset luma' option, the monitor's element loading and the export's maskUrl path all exist, and a GPU probe on 2026-09-03 confirmed the effect applies only where the mask is white, with invert flipping the side. |
+| W2c | **Track binding**: bind any effect param / mask / window to VectorTrack point or planar data (`instance.bindings`) — resolved identically in monitor + export | DONE 2026-09-02 (LINK select per param when the clip has a track) |
+| W2d | VectorTrack: track backward + AdjustTrack (drag corners on a tracked frame) + corner-pin JSON export DONE 2026-09-02 (af7f588); FCPXML transform keyframes open | DONE (core) |
+| W3a | DONE 2026-09-02 (phase3ParticleEffects.ts: Emitter · Field + Emitter · Burst, 17 presets) — **Emitter (stateless particles)**: closed-form GPU particle fields (rain/snow/sparks/embers/dust/bokeh/streaks), forces via curl noise, 3D-ish depth, motion blur; preset library by category | DONE (fluid sim / 3D model emitters remain open) |
+| W3b | Text animators on the titler DONE 2026-09-02 (services/fabula/titleAnimators.ts: type on, fade up/in, tracking, scramble, word slide, blur in, drop in, with out phase; DOM monitor spans + canvas export per glyph; inspector ANIMATION block). Counters and HUD text tools DONE 2026-09-03 via the text aux input (services/fabula/textOverlay.ts) | DONE |
+| W3c | Form/Mir/Tao-class 3D generators | DONE 2026-09-03 as RAYMARCHED registry effects. Imported geometry now has a REAL 3D node (2026-09-05): three.js renders a loaded .glb/.obj/.fbx/.stl to a canvas the compositor uploads like an image — see 'Done this run'. |
+| W4 | ML tier: MediaPipe subject matte (mask kind `subject`, 2026-09-02), depth (kind `depth`, 2026-09-02), and PROMPTED+TRACKED object matte via SAM (mask kind `sam`, 2026-09-05) — all live + offline | DONE. The "Crossover SAM2 server endpoint" was never needed: SlimSAM runs in the browser through transformers.js. |
+| W5 | OFX: descriptor export (`services/fabula/ofxManifest.ts`) generated from the registry; Rust shell later | descriptor generator DONE 2026-09-02 (services/fabula/ofxManifest.ts, tests/ofxManifest.test.ts); Rust shell step 1 DONE 2026-09-02 (rust/fabula-ofx: dependency-free cdylib, generated src/manifest_gen.rs, describe / describe-in-context / passthrough render; `npm run ofx:check`). Step 2 = wgpu kernel execution |
+
+## Done this run
+- (2026-09-05, continuation 22) QA SWEEP across the whole FX suite after the SAM + 3D-node builds.
+  Test surface all green: test:forge 152, test:vectortrack 11, test:fabulagen 57, test:signature 10,
+  model3dNode 7, council 6. GLSL COMPILE SWEEP on the GPU: **186 effects, 0 compile failures** — the
+  registry is clean. Every new module (samMatte, model3d, model3dNode, forgeBindings, effectCost)
+  imports in the browser with the expected exports, and stackCost / the model3d camera math produce
+  the same numbers in the browser as in the unit tests.
+- **The 3D node is now GPU-VERIFIED end to end, not just browser-verified-later.** Rendered a real
+  .obj through `renderModel3d` on the GPU: the mesh draws (12,585 lit px) over a transparent
+  background (opaque == lit), orbiting the camera changes the image (4,063 px at 0→20°, 3,461 at
+  20→45°), EXPOSURE changes it (11,444 px), and — the parity-critical property — AUTO-ROTATE
+  advances the picture deterministically from clip-local time (7,235 px between t=0 and t=1). A
+  first pass reported "0 changed" on a 35→125° orbit; that was the cube's exact 90° symmetry, not a
+  bug — an asymmetric angle moves thousands of pixels. SAM's runtime API (SamModel/AutoProcessor)
+  and three.js's (PMREMGenerator/ACES + all four loaders + RoomEnvironment) are both confirmed
+  present, so the only piece still unexercised on real data is SAM's model download + segment.
+- **One finding that is NOT ours:** test:tela reports 3 failures (comic panels, historical-style
+  document, Hokusai provenance string). They belong to a CONCURRENT session actively editing Tela —
+  its new test files are still untracked and its source is uncommitted, so the test and the copy
+  disagree mid-flight. Not a Fabula FX regression; left untouched per the shared-checkout rule.
+- (2026-09-05, continuation 21) THE 3D NODE — imported geometry, the last genuinely-unbuilt item.
+  A raymarcher covers the LOOK of a particle field or terrain but cannot load a mesh; this loads a
+  real .glb/.gltf/.obj/.fbx/.stl and renders it with three.js.
+- **The architecture decision that keeps parity free.** three.js renders to its OWN offscreen
+  canvas, and that canvas is handed to the compositor as an ordinary layer element (the
+  LayerInput.element "wrap-first bridge") — NOT a second GL context sharing the compositor's. So
+  the monitor and the export composite the identical frame, every Forge effect / grade / mask
+  applies on top for free, and the compositor learned nothing new. The one rule that makes it hold:
+  the model's own animation and the auto-rotate are driven to CLIP-LOCAL TIME, never a wall clock,
+  so scrubbing is deterministic and export == monitor.
+- `services/fabula/model3dNode.ts` is PURE (no three, no DOM): the spec, its clamped defaults, and
+  ALL the camera/framing maths — orbit position, sphere-fit framing distance (narrower axis wins,
+  so portrait sits further back), light directions, deterministic yaw-at-time. That is the part
+  worth unit-testing, and it is: `tests/model3dNode.test.ts` (7) covers the framing, the orbit
+  (distance preserved at any angle, target offset honoured), the deterministic rotation and the
+  file-type sniff.
+- `components/plajahPixels/engine/core/model3d.ts` turns those numbers into a three.js render:
+  one reused WebGLRenderer, lazy-imported three + loaders (a project with no 3D node never pays
+  for them), a three-point light rig scaled to the model, an optional RoomEnvironment IBL and a
+  shadow-catcher ground, ACES tone mapping, transparent or solid background, and an AnimationMixer
+  driven with setTime(localT). Two entry points like the mattes: renderModel3d (exact, offline)
+  and renderModel3dLatest (live).
+- Wired the whole path: fabulaRender maps a `model` asset to a `model3d` render clip and merges the
+  per-clip camera/light spec; offlineRenderer renders the exact canvas per frame with effects+grade;
+  Fabula.jsx gets a `Model3DLayer` live-preview component + a MonitorLayer branch, a drop-to-
+  timeline branch (`model` asset → model3d clip), and a full camera/light/background inspector.
+- **Verified:** 7 pure-maths tests green; three.js 0.184 confirmed to load with PMREMGenerator +
+  ACES, and all four example loaders + RoomEnvironment resolve on disk, so the runtime API is real;
+  esbuild clean on all five touched files; test:forge 152, test:vectortrack 11. A full in-editor render is browser-verified-later, but the RENDERER itself is now GPU-verified
+  (continuation 22): a real .obj rendered through renderModel3d draws, orbits, exposes and
+  auto-rotates deterministically over clip time.
+- **Honest scope of "start".** This is a working node end to end — load, frame, light, orbit,
+  animate, composite, export — but it is a FIRST version: no material editor, no per-clip animation-
+  clip selection, no camera keyframing beyond auto-rotate, and the live preview shows the raw 3D
+  render (the EXPORT applies the Forge stack; live Forge-on-3D is the obvious next step). The
+  foundation — a real second renderer bridged as a layer — is the hard part, and it is in.
+- Only my Fabula.jsx hunks are staged; the file's other uncommitted work is untouched. Run the
+  new test with `npx tsx --test tests/model3dNode.test.ts` (standalone, like the other node tests).
+- (2026-09-05, continuation 20) SAM OBJECT MATTE (`services/fabula/samMatte.ts`) — the item the log
+  filed as "Crossover SAM2 tracked mattes (no server endpoint, genuinely blocked)". It was not
+  blocked. Segment Anything runs in the browser through transformers.js (already a dependency,
+  the same runtime as depthMatte), so no server is needed — the block was an assumption, and this
+  makes four wrongly-"blocked" items that turned out mis-scoped.
+- **What it adds that subjectMatte could not.** The MediaPipe matte answers one question, "person
+  or background". SAM is PROMPTED: you point at ONE object and it mattes THAT object. Mask kind
+  `sam` stores the prompt as the mask's existing `cx,cy` (a point, not a shape), so it reuses the
+  ellipse-marker overlay and every mask control — feather, invert, follow — for free.
+- **Tracked comes free from W2c.** The prompt point is moved to each frame by the SAME
+  `maskTransformAt` a shape mask uses, so binding it to a VectorTrack point or planar surface keeps
+  the object selected as it moves, and it resolves identically in monitor and export. Honest
+  naming: this is SAM-image + a tracked prompt, not SAM2's learned video memory — but the
+  user-facing result (point at an object, it's matted across the clip) is the same, with no server.
+- SlimSAM (`Xenova/slimsam-77-uniform`, a 77M distillation) on WebGPU→wasm, the house lazy-load
+  pattern. Two entry points like the other mattes: `segmentSam` (exact, per frame, offline) and
+  `segmentSamLatest` (throttled last-known, live, ~4 fps since SAM's encoder is heavier than the
+  selfie segmenter). Picks the highest-IoU of SAM's three candidate masks (whole-object far more
+  often than not); optional feather in the matte canvas.
+- Wired through the full parity chain: `forgeBindings` (kind + `samMask` on ResolvedInstance +
+  resolver), `offlineRenderer` (exact per seeked frame, video + image), `Fabula.jsx` MonitorLayer
+  (live) and the mask inspector (a `object (SAM · AI)` kind, a hint, the marker overlay).
+- **Verified:** the resolver flags a sam mask with its prompt point, moves it along a point track
+  (prompt at .3,.4 → .5,.6 across the clip, matching the track), and drops a disabled one —
+  `tests/forgeBindings.test.ts` +3 (8 in the file). transformers.js 4.2.0 confirmed to export
+  `SamModel` / `AutoProcessor` / `RawImage`, so the runtime API is real. test:forge 152 green,
+  test:vectortrack 11 green, esbuild clean on all touched files. Model download + on-GPU segment
+  is browser-verified-later, the same standard the log set for the subject and depth mattes.
+- Only my Fabula.jsx hunks (the sam import, the live line, and the four mask-UI edits) are staged;
+  the file's other uncommitted work is untouched.
+- (2026-09-05, continuation 19) STACK-LEVEL COST TOTAL — the last of the two "unblocked ideas" the
+  log left for a continuation. The per-effect cost badge already warned that a raymarcher is not a
+  colour tweak, but it could not say the thing that actually bites: five effects each labelled
+  "fine on their own" are not fine together. `stackCost()` in `services/fabula/effectCost.ts` sums
+  the loop-weighted score across a stack and tiers the TOTAL, so six moderate blurs read heavy even
+  though no single one does.
+- **The stack it sums is the stack the compositor renders, not the stored one.** The inspector
+  passes `expandStack(enabled-only, customLookup())` mapped to registry effects, so a custom effect
+  is counted as the built-in steps it expands into (a user effect hiding four raymarchers must not
+  read as one cheap step) and a disabled step costs nothing. A broken/deleted reference arrives as
+  null and is skipped, never thrown — a dangling id costs nothing rather than crashing mid-render.
+- `effectCostById()` memoises per effect id: an effect's shader never changes at runtime, and the
+  inspector re-reads the whole stack every render, so re-parsing each shader every frame was waste.
+  Kept the module dependency-free — the caller does the registry lookup and the expansion, this
+  only sums — so nothing new couples to `effects.ts` or `customEffects.ts`.
+- UI: a `STACK · HEAVY / VERY HEAVY` badge beside the "N effects" line in the FX inspector, shown
+  only for a 2+ stack whose total clears light; its tooltip names the heaviest step to disable
+  first. Same `fxcost` class and tier words as the per-effect badge, so the two read as one system.
+- `tests/effectCost.test.ts` +5 (16 total): the sum matches, a repeated effect scales, the heaviest
+  is named and heavy effects counted, nulls are skipped, and the per-id cache returns the same
+  object. `test:forge` 149 green; `test:vectortrack` 11 green; esbuild clean on effectCost.ts and
+  Fabula.jsx. Not driven in the browser — reaching a 2+ stack in the live editor headlessly is not
+  practical, and the aggregation is a pure, unit-tested function rendered exactly like the existing
+  per-effect badge.
+- NOTE for the next continuation: the OTHER unblocked idea (preview-resolution scaling when a
+  stack's cost is high) is now the more useful one, since `stackCost().score` gives the trigger it
+  needs — but heed the caution already logged: pixel-unit effects (scanlines, grain) look different
+  at reduced size, so it must be explicit and labelled, never silent, to keep monitor==export.
+- (2026-09-04, continuation 18) PARTICLES WITH STATE (`phase4ParticleStateEffects.ts`): **particleforge**. 186 effects. This closes the last item that the persistent state buffers made reachable.
+- The suite already had particle FIELDS (phase3ParticleEffects), but those are closed form: every frame recomputes where a particle "would" be from a hash and the clock, so nothing that happens to a particle can persist. It cannot be pushed, slowed, born or killed — only follow the formula it was always going to follow. Each particle now owns two texels in the effect's `state` buffers and integrates the forces acting on it, so a gust is still visible in its motion seconds later and a particle that runs out of life is genuinely replaced.
+- **Precision is the whole design constraint, and it is why the effect declares TWO buffers.** The buffers are 8-bit; a position in one byte moves in 0.4%-of-frame steps, which reads as a stutter. Position therefore takes two channels per axis as 16-bit fixed point in state0; velocity is coarser but only feeds an integration, so its quantisation never shows directly. Three passes: position → state0, velocity → state1, then the visible draw.
+- **Three faults, all found by looking at the picture rather than the numbers:**
+  1. `fx()` receives a y-UP coordinate, and the emitter was hard-coded at 0.82 — so it sat near the top and every preset read upside down. The origin is now a parameter (it earned its slot ahead of drag, which is a constant nobody reaches for first) and the launch direction throws away from whichever edge the emitter sits nearest.
+  2. Particles piled along the frame edges instead of recycling. Position is stored clamped into 0..1, so a particle that flies past the edge is written back as exactly 1.0 and can NEVER test as out of bounds — it sits there fully lit until old age takes it. The death bound now sits just inside the storable range.
+  3. Death is computed identically in both simulation passes from the same previous state, so position and velocity can never disagree about whether a particle is alive.
+- Verified on the GPU: populations reach equilibrium rather than growing without bound (embers 32869 → 29987 → 31607 lit pixels over seven seconds), and the reference sweep is deterministic across two consecutive runs, which matters far more for a simulation that accumulates than for a stateless shader. Baseline regenerated at 186 (1 added, 0 changed). `test:forge` 144 green; vectortrack 11 green.
+- **Repaired two of another session's in-flight files** on the way past: `services/fabula/forgeLooks.ts` and `services/fabula/forgeTransitions.ts` had every backtick written escaped (`\``), which is a syntax error, and it took `test:forge` from 144 green to 4 failing suites. Both files contained ZERO real backticks, so the repair was unambiguous and semantic content was untouched. LEFT UNCOMMITTED — that session owns the commit. This is the same over-escaping class as the Series VI shader bodies; a generator somewhere is escaping template delimiters.
+- (2026-09-03, continuation 17c) MESH TRACKING RUNNER + UI — PowerMesh is now usable end to end. It reuses the SURFACE quad the planar tracker already places, so there is no second overlay to learn: put the surface on the thing that bends, set GRID, press MESH. Density 1..10, resume-from-playhead and backward tracking behave exactly as the planar runner does.
+- **The thresholds were wrong, and only a multi-frame run showed it.** The first calibration rejected frame ONE of a clean translation at "confidence 28% under 40%". `trackPoint` returns `sqrt(ambiguity * quality)`, so a GOOD match on real footage scores around 0.3-0.6, not near 1 — measured across a lattice on a translating noise field the values ran 0.09 to 0.95 with a 0.43 median. Thresholds picked as if 1.0 were typical reject every usable frame. `minVertexConfidence` is now 0.3, matching what the planar tracker already uses per feature.
+- The frame confidence formula was also wrong in kind, not just in value: multiplying the mean per-vertex score in directly CAPS a frame's confidence at a typical per-vertex score, so no sane threshold can pass. It now leads with how many vertices matched (`trustedRatio`), with match quality modulating gently and folds penalising.
+- **The unit test did not catch either problem**, because it tracked ONE frame and only asserted the direction of motion. A tracker that dies on frame two passes that. There is now a test that walks six frames and asserts every one is accepted.
+- Verified end to end on a synthetic clip that translates AND breathes: 25 frames tracked with no early stop, final confidence 96%, 96% of vertices matched on their own, mean displacement 27.7px against 28.8px expected (~4%), 6.8px of non-rigid spread that a translation-only model would have missed, zero folds. `test:forge` 144 green; vectortrack 11 green.
+- **Note on the reference harness:** it renders every effect with no aux input, so the text and mesh effects are fingerprinted with the SOURCE frame standing in for their generated input. Those fingerprints are still deterministic and still catch shader edits, but they do not exercise the real generated-aux path — that is covered by the GPU probes instead.
+- (2026-09-03, continuation 17b) MESH TRACKING (`services/fabula/meshTrack.ts`) + **meshtrackwarp** (Mesh Track Warp). 185 effects. The Mocha PowerMesh equivalent.
+- **The third mis-scoping corrected.** The log filed this as "needs dense optical flow". It does not. PowerMesh tracks a MESH of points and warps the surface between them; dense per-pixel flow is a different and much more expensive tool solving a different problem. Everything needed was already in the repo — `trackPoint` block-matches one feature and the planar tracker already lays a feature lattice inside a quad.
+- **What actually makes mesh tracking different from planar tracking** is what happens when a vertex matches badly. Planar has a global model to fall back on: throw the outlier away and the homography still says where it belongs. A mesh has no global model, so a bad vertex must be repaired from its NEIGHBOURS or the surface tears. Hence: block-match every vertex, rebuild any untrusted one by flooding trusted displacements outwards, Laplacian-smooth the field (this is what stops noise reading as boiling), then refuse any move that turns a quad inside out — a folded mesh samples back-to-front and reads as a shredded, flickering patch.
+- The mesh reaches the shader as an aux image the size of the LATTICE (7x7 for a 6x6 mesh), not a full-resolution displacement map. GPU bilinear filtering interpolates it back up: far cheaper than rasterising per pixel in JS, and smoother than drawing the quads flat-shaded. Same host-generated aux pattern as text, so monitor and export share one generator.
+- **Two traps, both silent rather than loud:**
+  1. *A half-step encoding bias.* Mapping displacement onto the full 0..255 byte range puts zero at 127.5, and 128/255 decodes to 0.50196 rather than 0.5. An untracked mesh therefore shifted the picture by a fraction of a pixel instead of leaving it alone. Encoding as 128 +/- 127 and decoding through the byte values makes zero decode to exactly zero, and "no track" is now a byte-exact passthrough.
+  2. *A checkerboard is the worst possible test fixture for block matching.* The first tracking test used one and the tracker confidently reported motion in the WRONG DIRECTION — every patch matches every other patch one period away. That is the aperture problem in its purest form, and it tests the fixture, not the tracker. The fixture is now a deterministic non-repeating texture.
+- `meshtrackwarp` also collided with an existing `meshwarp` (the manual centre/radius/twist deformer in phase1DistortEffects); the uniqueness test caught it immediately.
+- Verified on the GPU: no track is an exact passthrough, Amount 0 is an exact passthrough, a bulge/wave/twist mesh deforms smoothly with no faceting, hold-still differs from follow, and a frame past the tracked range holds the last sample. `tests/meshTrack.test.ts` (23) added to `test:forge`, now 143 green; vectortrack 11 green. Baseline regenerated at 185 (1 added, 0 changed).
+- **NEXT STEP for this feature:** the tracking RUNNER and its UI are not built. There is no way for a user to lay a mesh on a clip and track it yet — the decode-and-step loop the planar tracker has (`Track Forward`) needs its mesh equivalent, plus an overlay to place and adjust the lattice. Everything below that line is done and tested.
+- (2026-09-03, continuation 17) PERSISTENT SIMULATION STATE in the engine (`effect.state`, `FxPass.target`) + **fluidflow** (Fluid Flow). 184 effects, all compiling.
+- **The second mis-scoping corrected.** The log filed fluid dynamics as "needs compute/WebGPU". That was never the obstacle — stable fluids has run in WebGL fragment shaders for two decades. What was missing was somewhere to KEEP the velocity field: `prev()` returns an effect's previous VISIBLE output, and a velocity field is not something the viewer should see, so there was nowhere to put it.
+- An effect may now declare `state: 1 | 2` and a pass may declare `target: 'state0' | 'state1'`. A state pass writes the buffer's other slot and leaves the visible chain untouched, so every pass in a frame reads one consistent previous state; the slots swap after the frame. State rides on the same History record as temporal access, so ONE reset rule governs both, and buffers are cleared to zero on creation and on any time jump — an uninitialised texture would make the same timeline render differently on every run.
+- `temporal` and `state` are now independent: an effect can have simulation buffers without paying for output/source history. The history-advance block only runs its temporal bookkeeping when `temporal` is declared.
+- **fluidflow** self-advects velocity, forces it with curl noise, damps it, and advects dye emitted from the bright parts of the shot. Honest about what it is: there is NO pressure projection, so it is not an incompressible solver — the curl-noise forcing (divergence-free by construction) stands in for the swirl projection would produce. Velocity lives in 8 bits, so the ranges are chosen to keep quantisation reading as texture rather than banding.
+- **The regression harness earned its keep a second time, on an ENGINE change rather than a shader one.** Touching `FxRenderer.render` could have perturbed any of the 183 existing effects; the sweep confirmed 0 changed, 0 added, 0 removed, 0 errored. It also confirmed the stateful effect is deterministic across two consecutive sweeps, which matters far more for a simulation that accumulates than for a stateless shader.
+- `tests/forgeRegistryIntegrity.test.ts` pins the state contract: an effect declaring buffers must write at least one and must still draw something visible, no pass may address a buffer beyond the declared count, and the simulation pass must be ordered BEFORE the visible one (the reverse reads a buffer written a frame late, which looks like unexplainable lag). `test:forge` 120 green; vectortrack 11 green.
+- **A trap for the next continuation:** `render()` had no local `gl` binding. New code calling `makeTarget(gl, ...)` there compiles fine under esbuild — which does no scope analysis — and throws only at runtime.
+- (2026-09-03, continuation 16) FRAGMENT EFFECTS (`phase4FragmentEffects.ts`): **shatterpieces** (Shatter — triangular shards flying from an origin, tumbling, fading) and **carddance** (Card Dance — a card grid offset, turned and shrunk by row / column / distance / random). 183 effects, all compiling.
+- **This was a mis-scoping of mine, corrected.** The log filed "imported geometry and shatter" together as needing a real 3D node. Shatter needs no meshes: scattering pixels forward is what a fragment shader cannot do, but the problem INVERTS — for each output pixel, walk the pieces that could cover it, apply each piece's inverse transform, and keep the front-most whose original footprint contains the result. Imported geometry is still genuinely blocked; shatter never was.
+- **The trap in this design is the SEARCH BOUND, and it fails silently.** A piece is only drawn if its home cell falls inside the neighbourhood walked, so a shard travelling further than that neighbourhood stops being drawn — it vanishes mid-flight rather than flying off screen. The first cut searched 3x3 cells around the output pixel: with fade off and spread 2.5, retained pixels went 36864 → 24152 → 4058 → **0** → **0** across progress. The whole frame disappeared while the shards were supposedly still in the air.
+- Fix: make the BULK of the motion exactly invertible so the search only has to cover the remainder. Pieces move by a radial expansion about the origin, which inverts in closed form, plus a uniform gravity offset, which is a subtraction. Only per-piece jitter and each piece's rotation about its own pivot are unaccounted for, and both are bounded in CELL WIDTHS rather than scene units — so a fixed 5x5 neighbourhood is correct at every spread and every piece count. Retained pixels now fall smoothly (36864 → 28485 → 16557 → 8731 → 3897 → 1568) instead of collapsing.
+- Card Dance displaces in cell widths for the same reason, which also suits it: a card grid should shuffle in place, not fly across the frame.
+- Both default to a no-op (progress/amount 0), and every preset ships un-triggered, so dropping one on a clip changes nothing until it is keyframed. `tests/forgeEffects.test.ts` pins that, since the shaders' identity-at-zero guarantee is worthless if the default is not zero.
+- **The regression harness paid for itself on its first real use.** `test:forge` failed immediately on the two unfingerprinted effects, and the sweep then confirmed the registry change perturbed nothing: 2 added, 0 changed, 0 removed, 0 errored. Baseline regenerated (183 entries, a 2-line diff). `test:forge` 119 green; vectortrack 11 green.
+- (2026-09-03, continuation 15) VISUAL REGRESSION HARNESS (`components/plajahPixels/engine/fx/fxReference.ts` + `docs/fabula/fx-reference-hashes.json`). Every bug this suite has actually shipped compiled, rendered a non-black frame and animated — unit tests are structurally blind to them, because what was wrong was the PICTURE. The sweep renders all 181 effects under fixed conditions at three clip times and fingerprints the pixels, so an edit that changes an effect nobody meant to touch shows up as a changed hash. Baseline stored; two consecutive sweeps agree exactly.
+- **The harness's own first result was 11 false positives.** `suspiciousStatic` flagged datamosh, deflicker, frameblend, motiondetect, objectremover, strobefreeze, temporalblur, temporalmedian, temporalrepair, timedisplace and trails — i.e. every temporal effect at once. They were right to be static: the sweep fed the SAME source frame every time, so an effect that compares frames correctly output a constant. The reference source now MOVES between frames, and the list is empty. A harness that exercises temporal effects with a frozen input tests nothing about them.
+- Being static is not itself a fault (a colour grade should not move), so the check is the mismatch: an effect that reaches for `uTime`/`uFrame`/`uDeltaT` or declares `temporal` yet renders identically at every sampled time.
+- Hashes mask off the low 2 bits, so a driver's last-place rounding does not trip them, and are comparable only on the SAME machine and browser. This answers "did my edit change something else", not "does this render identically everywhere".
+- **How to use it after a shader edit:** in the browser, `const r = await import('/components/plajahPixels/engine/fx/fxReference.ts'); r.compareHashes(baseline.effects, await r.sweepReferenceHashes())`. Anything in `changed` that you did not mean to touch is a regression. Regenerate the JSON only once the diff is understood.
+- `tests/fxReference.test.ts` (9) covers the pure comparison logic and pins the stored baseline to the registry, so a new effect cannot be added without a fingerprint. `test:forge` now 118 green; vectortrack 11 green.
+- (2026-09-03, continuation 14) EFFECT COST ESTIMATE (`services/fabula/effectCost.ts`) + a badge in the inspector. The GPU pass established that a raymarched generator costs roughly an order of magnitude more than a colour operation, but a user stacking four of them got no warning at all. Live GPU timing is not shippable as a signal — it needs a timer-query extension, a warmed GPU and interleaved A/B runs to mean anything — so this reads the SHADER instead: count the expensive operations, multiply anything inside a loop by its trip count, bucket the result. It ranks; it does not predict milliseconds, and says so.
+- **Two failures on the way, both of which produced a confidently inverted answer:**
+  1. Reading only the text of `fx()` scored `terrain3d` at 28 — the LIGHTEST tier for the most expensive effect in the suite — because all its work sits two calls deep (`v3ter` → `v3fbm` → `v3noise` → hash). The analyser now collects top-level function bodies and folds a helper's cost in at the caller's loop weight, memoised, with a recursion guard.
+  2. Counting only texture fetches and transcendentals STILL scored it light, because optimising it had replaced `fract(sin(...))` with multiply/dot/fract — the effect became ALU-bound, and the model was blind to plain arithmetic. Arithmetic and cheap builtins now carry a small weight.
+- Final ranking matches the measured order: terrain3d (2899) > pathextrude3d (1741) ≈ particlefield3d (1629) >> problur (121) > invert (7). 9 of 181 effects flag heavy, which a test pins below 12% — a warning everything triggers is a warning nobody reads.
+- `tests/effectCost.test.ts` (11) added to `test:forge`, now 109 green; vectortrack 11 green.
+- (2026-09-03, continuation 13) GPU COST PASS on the 3D generators. Nothing had ever measured what an effect costs, and the three raymarchers turned out to be roughly an order of magnitude more expensive than anything else in the suite. `terrain3d` is the most expensive effect Forge has.
+- **terrain3d is ~2.3x faster with better image quality** (53.1 -> 23.2 ms, measured interleaved in one session). Three changes: `fract(sin(...))` hashes replaced with multiply/dot/fract hashes (the terrain was doing well over a thousand `sin` calls per pixel), fbm cut from 5 octaves to 3, and the march from 72 fine steps to 48 coarse ones.
+- A coarse march overshoots thin ridges and punches through them, which showed up as vertical spikes on the high-relief presets — a quality regression I traded for speed and then had to buy back. Five bisections between the last step above the surface and the first below it fix it completely and cost 4% (20.81 -> 21.68 ms, same-session A/B). A finer march instead would have cost more AND still overshot. The wireframe now reads as a grid draped over the terrain, which it never did before.
+- The `pathextrude3d` trig hoist was a NO-OP (7.05 -> 7.05 ms): the compiler was already hoisting the loop-invariant `cos`/`sin`. Kept because `v3cam` names the camera transform, but it bought nothing. Its real win was the earlier segment-count cut.
+- **Benchmarking traps, all of which produced confidently wrong answers before being caught:**
+  1. *Wall-clock timing of `Compositor.render` measures nothing.* It presents to a visible canvas and is vsync-bound: the baseline alone varied 4.33 ms across identical runs, and both a trivial effect and a heavy raymarcher measured as NEGATIVE cost against it. An early "worst 15 effects" table built this way was pure noise — `splittone` outranked every raymarcher.
+  2. *Use `EXT_disjoint_timer_query_webgl2` against `FxRenderer` directly*, which renders to an FBO and skips presentation. That is the only setup here that separates shader cost from harness overhead.
+  3. *The GPU ramps its clock under load.* The first measurement of a session can read 3x the steady-state value; successive identical runs fell 56.9 -> 26.4 -> 19.1 ms. Warm up before measuring, and take the minimum of several rounds.
+  4. *Absolute numbers do not reproduce across page loads* even warmed, because the dev app competes for the GPU — the same `problur` read 2.63 ms and 0.79 ms in two sessions. **Only interleaved same-session A/B is trustworthy. Do not record an absolute ms table; it will not reproduce.**
+  5. `FxRenderer.render` resolves the effect from the registry BY ID, so benchmarking a variant means swapping `getEffect(id).glsl` and using a fresh `FxRenderer` (its program cache is keyed by effect id). Passing an ad-hoc effect object silently renders nothing and times as 0 ms.
+- `step` is a GLSL built-in; a local variable named `step` shadows it and breaks any `step()` call in the same scope.
+- (2026-09-03, continuation 12) W3c 3D GENERATORS (`phase4Volumetric3DEffects.ts`): **particlefield3d** (Trapcode Form class), **terrain3d** (Mir class), **pathextrude3d** (Tao class). 181 effects, all compiling.
+- **Deliberate architecture change from the original W3c scope.** These were scoped as a three.js layer node, which would mean a SECOND renderer feeding the compositor, and every feature built since — masks, track bindings, keyframes, the offline export — would need teaching about it. They are raymarched inside the existing registry instead, so they are ordinary effects with no new plumbing and parity for free. The honest cost: this covers the LOOK of a particle field, a displaced terrain and an extruded path, but NOT arbitrary imported geometry. A model-loading 3D node is still genuinely unbuilt and stays on the backlog.
+- **Three real bugs, all found by looking at the output rather than by the tests.** They compiled, rendered non-black and animated, and were still wrong:
+  1. *Additive saturation.* Both the particle field and the path summed a contribution per sample with no normalisation, so 40–72 samples blew out to solid white. The path is now shaded as an OPAQUE ribbon (strongest sample wins, only the halo accumulates) and the field normalises by the march-step/lattice-gap ratio.
+  2. *Sampling finer than the feature.* The field measured distance at each march point, so any particle smaller than the step was simply missed — a dense lattice rendered nearly empty. It now measures the ray's CLOSEST APPROACH to each cell centre, which is sampling-independent.
+  3. *Dotted line.* The path shaded its samples, which sit further apart on screen than the ribbon is wide. It now shades the SEGMENT between consecutive samples.
+- Two further traps worth keeping: a fully populated lattice streaks wherever the ray runs near a lattice axis (every cell along it reads as a near hit), so cells are sparsely populated; and `step` is a GLSL built-in — a local named `step` shadows it and breaks any `step()` call in scope.
+- The `data-lattice` preset was described as a "tight ordered grid" but sparse cells make it a starfield; the description now says what it actually renders rather than overselling it.
+- (2026-09-03, continuation 11) USER-AUTHORED EFFECTS (`services/fabula/customEffects.ts`) — the S_Effect-style builder, the last unblocked backlog item. A LOOK applies a stack and steps aside, so editing it afterwards means editing every effect in it. A CUSTOM EFFECT keeps the chain but hides it behind controls the author names ("Grit", "Damage"), each wired to parameters across several steps at once, and appears in the library as one effect with its own sliders.
+- **It reaches the renderer by expanding into ordinary instances before anything else looks at the stack** (`expandStack`), called in the monitor tick and in `fabulaRender` ahead of the enabled-filter and the resolver. Nothing new arrives at the compositor, so parity is free — the same property that makes looks safe. Step instance ids derive from the parent (`<id>#<n>`) so temporal history, aux textures and rasterised masks stay keyed per step across frames.
+- `customEffectDescriptor` publishes the promoted controls as a registry-shaped `FxEffect`, which is what lets the inspector rows, the keyframe sampler and the track-binding resolver treat a user-built effect exactly like a built-in one with no special cases. Control→parameter mapping is a range remap; a target may narrow the range or invert it (min > max), which is how one knob raises noise while it lowers sharpness. Values are clamped to the PARAMETER's declared range, never the target's, so a badly authored target still cannot push a shader out of bounds.
+- Degrades rather than breaks: a step whose effect no longer exists is dropped without taking the chain with it, a control target whose parameter disappeared is ignored, and an instance whose definition was deleted drops out instead of throwing.
+- **Verified on the GPU:** a custom effect renders BYTE-IDENTICALLY to the explicit chain it stands for (same framebuffer hash), and moving a promoted control changes the picture. `tests/customEffects.test.ts` (25) added to `test:forge`, now 98 green; vectortrack 11 green.
+- UI: BUILD EFFECT beside SAVE AS LOOK captures the tuned stack; a promotion editor lists every parameter of every step and exposes the ones you pick, each keeping its current value as the control default so adding a knob never changes how the effect already looks. Definitions persist per browser like user looks.
+- **Known limit, deliberate:** promoted controls support keyframes and track links (both resolve in the shared resolver, before expansion) but NOT audio bindings, which resolve later inside the compositor against per-instance state. The Beat Reactor select is therefore not offered on custom-effect controls rather than being offered and quietly doing nothing.
+- (2026-09-03, continuation 10) TEXT AS AN EFFECT INPUT — closes three backlog items with one mechanism instead of three one-offs. The gap behind "VHS status text", "Universe HUD text variants" and W3b's open counters was the same: no way to get a string into a shader. Rather than build a glyph atlas, the host rasterises the string into the effect's EXISTING aux texture (`services/fabula/textOverlay.ts`) and the shader treats it as coverage. Any future effect that declares an aux input can consume text for free.
+- `FxEffect.auxInput` gained `kind?: 'image' | 'text'`. Three effects declare it: **vhsstatus** (tape wobble, per-line jitter, chroma smear, dropouts chewing the glyphs), **hudreadout** (tint, scanlines, flicker, glow, and a darkened backing plate derived from the glow field so it stays legible over a busy shot) and **terminaltext** (phosphor, `temporal: true` so the previous OUTPUT decays into a real persistence trail). 178 effects total, all compiling.
+- **Tokens resolve per frame, from clip-local time only:** `{tc} {frame} {sec} {ms} {count} {count:start,step,pad} {date} {clock} {ampm}`. Date and clock read from a pinned `epochMs`, never `Date.now()` — a wall-clock burn-in would drift between the monitor and the export, which is exactly the parity rule this suite exists to hold. Unknown tokens pass through verbatim so a stray brace never eats someone's text.
+- **The trap this design had to dodge:** `FxRenderer` falls back to the SOURCE frame when an effect has no aux input (`aux || input`), which a text effect reads as 100% glyph coverage — an unbound text effect would have flooded the picture white. Both hosts now hand over a transparent 1×1 canvas instead, and a headless GPU probe confirms an unbound text effect leaves the frame byte-identical to a clean render.
+- Rasterising is cached per instance and keyed on the resolved string, so a static burn-in is drawn once while a counter re-renders only on the frames where its text actually changes.
+- Verified on the GPU: text adds bright pixels, the HUD plate darkens the frame, no-text is an exact passthrough, and the rasteriser produced 1064 ink pixels. Verified through `renderTimeline`: 1,819 bytes clean, 34,405 with static text, 108,162 with a running timecode — per-frame token resolution reaches the encoder. `tests/textOverlay.test.ts` (12) added to `test:forge`, now 73 green; vectortrack 11 green.
+- `tests/forgeEffects.test.ts` pinned an exact list of aux-input effects; it is now scoped to image-kind slots, with text-kind effects asserted separately, because a text slot has no asset to bind.
+- (2026-09-03, continuation 9) MONITOR/EXPORT PARITY BREAK on stills. `offlineRenderer` attaches the Forge chain to any `media` clip, which covers both `<video>` and `<img>` elements, but the monitor gated `hasForge` on `asset.type === "video"` alone. An image or graphic clip therefore previewed CLEAN and exported PROCESSED — the one thing the project's ground rule forbids. `MonitorLayer` now treats image/graphic as a Forge source, hands the `<img>` the shared `vRef`, and hides it behind the processed canvas; `ForgeClipPreview` reads `readyState` for a video and `complete`/`naturalWidth` for an image, and every intrinsic-size read now goes through one `srcW`/`srcH` pair instead of `videoWidth`/`videoHeight`.
+- Sampling a still into WebGL needs CORS, so a host that refuses it would have failed the image outright and left the monitor blank — strictly worse than the bug being fixed. The `<img>` requests `crossOrigin="anonymous"` and, on error, remounts once without it and drops back to the unprocessed picture, the same fallback the audio graph already uses.
+- Verified in the browser against the real compositor: an `HTMLImageElement` layer renders exactly its 400-pixel white square clean, spreads to 1200 pixels under max Prob Blur, and lights 14000 pixels under Invert. Export verified end to end through `renderTimeline` on an image clip with a keyframed blur (7,544 bytes clean vs 35,656 animated).
+- **Trap for the next sweep:** `Compositor` needs an explicit `resize(w, h)` before the first `render()` in a headless probe, and `readPixels` must `bindFramebuffer(null)` first — without both, every readback is zeroes and a working effect looks dead.
+- (2026-09-03, continuation 8) ENDPOINT SWEEP of all 49 transitions — the 28 registry ones were checked when written, the 17 legacy ones inherited from the Forge session never were. Two bugs: **shape-wipe** (legacy) mixed its two sources the wrong way round, so it showed the INCOMING shot at progress 0 and the outgoing one at 1 — every cut using it played backwards; its start edge also had to clear the diamond metric's 1.0 maximum, not the circle's 0.707, or the corners leak on frame one. **channel-surf** (mine) drove its vertical roll and scanlines from p directly instead of sin(pi*p), so at progress 1 the picture was still offset by the full roll and the scanlines stayed on the incoming shot; both now settle to nothing at each end. All 49 now start exactly on the outgoing frame, end exactly on the incoming one, and move at the midpoint.
+- The legacy renderer silently falls back to film-dissolve's parameter mapping for any id missing from its DEFAULTS / PARAM_KEYS tables, which would present sliders that move nothing. Those tables are now exported and `tests/forgeTransitions.test.ts` asserts every legacy id carries its own mapping, that the names the renderer reads are the names the library publishes with matching defaults, and that the two transition generations never collide on an id.
+- **Sweep snippet to reuse:** render each transition at p=0 / 0.5 / 1 against the outgoing and incoming frames and assert |diff| < .06 at the ends and > .01 in the middle.
+- (2026-09-03, continuation 7) FULL BEHAVIOURAL SWEEP of all 175 effects — until now they were only ever compile-checked, never verified to actually change the picture. Rendered every effect at every preset against a test frame and measured the difference (temporal effects over 6 frames; RGBA diff so alpha-only tools count). Found and fixed two dead effects: **glofi** used P2 (its pattern SCALE, default 3) as the highlight threshold, so `max(colour - 3, 0)` clamped every sample to zero and it rendered its input untouched at all three presets; **echo**'s "over" mode blended by the SOURCE alpha, which is 1 for any opaque clip, so the echo was always fully covered. Result: 168/175 verifiably change the frame; the remaining 7 are correctly inert without an input they need (edgecolor / garbagecorematte need an existing matte, lightwrap / referencecolormatch need an aux clip, developtone / developfinish / color are identity at their neutral defaults and ship no presets).
+- New guard `tests/forgeRegistryIntegrity.test.ts`: no effect or transition shader may read a P-slot it does not declare (the glofi bug class), every effect declares an fx() entry point, parameter keys are unique with non-empty ranges, and no shader redefines a helper the shared header provides. Registry is clean on all four.
+- (2026-09-02, continuation 6) EFFECT-PARAMETER KEYFRAMES — until now a Forge param could be static, track-bound or audio-bound but could not be animated by hand, which every rival suite does. `resolveKeyframedParams()` in forgeBindings samples `instance.kf` (param key -> KfTrack, clip-local seconds) using the EXISTING clip keyframe sampler, inside the shared resolver so monitor and export animate identically. Precedence is documented and tested: keyframes animate the value, an explicit track link overrides it, audio modulates whatever survives (in the compositor). The inspector reuses the same `kfdiamond` control as clip keyframes — the slider writes a key at the playhead while a param is animated. Verified on the GPU: a keyframed blur radius reads 0 / 30 / 60 across time with the edge softening to match, and the control with keyframes removed stays hard.
+- (2026-09-02, continuation 5) BEAT REACTOR + fixed a real bug: the compositor's Forge audio texture (`fxAudio`) was constructed and NEVER updated, so iBass/iMid/iTreble/iLevel were pinned at 0 for every effect in Fabula and audio-reactive effects were silently dead. `Compositor.updateAudio(freq, wave)` / `updateAudioFromAnalyser()` / `audioLevels()` added; the offline renderer now feeds the effect chain the same exact per-frame spectrum it already fed generators/shaders, and the monitor feeds it the master bus (new `masterAnalyser()` in audioGraph). On top of that, `engine/fx/audioReact.ts` lets ANY declared parameter of ANY effect be driven by level/bass/mid/treble with amount, threshold, gamma and invert — resolved inside the compositor so a bound parameter and an iBass-reading shader always agree, and preview/export share one path. Per-param ♪ selector + amount slider in the inspector. Verified on the GPU with a controlled test: silent audio = hard edge, loud audio with the binding = smeared edge, loud audio without the binding = unchanged.
+- (2026-09-02, continuation 4) FORGE LOOKS (`services/fabula/forgeLooks.ts`) — a look is a named ordered STACK of effects (the Magic Bullet Looks idea), stored as data (effect id + optional preset + param overrides + mix) so applying one just builds the ForgeEffectInstance array the inspector already edits; monitor/export parity is inherited, nothing new reaches the renderer. 24 curated built-ins across cinematic / vintage / music / doc / genre / graphic, a LOOKS tab in the library, SAVE AS LOOK on any stack of 2+, user looks in localStorage. Verified in-browser: all 24 render through the compositor, none is a no-op, none goes black. `validateLook()` + tests enforce that every step names a real effect, a real preset and in-range params.
+- (2026-09-02, continuation 3) TRANSITIONS are now a registry, not a mega-shader: `phase3Transitions.ts` holds data-driven defs (up to 4 named params + own GLSL `vec4 tx(vec2 uv, float p)` over `outg()`/`inc()`), ForgeTransitionRenderer compiles one cached program per id and still falls back to the legacy 17-kind shader. 28 new transitions (circle/clock/star/checker/stripes/dots/cells/pixelate/wedge wipes; static/tiles/vortex/waves/puddle/flash/diffuse/dither dissolves; cube/fold/stretch/dolly/swish 3D; channel surf, exposure blur, film burn, turbulence, colour mosaic, glint) = 45 total. Verified in-browser: all compile, all vary across progress, and every one resolves exactly to the outgoing frame at p=0 and the incoming at p=1 (that check caught a reversed wedge wipe and a fold that darkened the endpoints).
+- (2026-09-02, continuation 2) Data tile dynamic text (Universe Text Tile: generated columns, kinds n/h/w/t/p/i). Backlog kernel pack (phase3BacklogEffects.ts): Symbol Mapper (ASCII), Retrograde (8/16 mm), Carousel (slide), Dither & Palettes (Bayer/threshold/noise into 1-bit / Game Boy / CGA / 8-bit / duotone / quantised), Glo Fi, Heatwave, ChromaTown, Sketchify, Muzzle Flash. 175 effects.
+- (2026-09-02, continuation 2) N-frame source history in FxRenderer (`temporal: 4` keeps a 4-frame ring; `prevSrcN(n, uv)` in the FX header) + Temporal Median (denoise / rain & dust) + Object Remover (clean-plate fill inside a mask: median / oldest / most-stable history). 166 effects.
+- (2026-09-02, continuation) Cleanup pack (phase3CleanupEffects.ts): Wire Remover (line endpoints bindable to tracks, fills from both sides with grain match), Spot Fix (ring heal), Clone Patch (offset clone with brightness match). 164 effects. Not a temporal clean-plate Remover — that needs multi-frame history (feedback gives one frame).
+- (2026-09-02, continuation) Track sharing: USE TRACK FROM… copies another clip of the same footage's planar/point track re-based to this clip's source time (services/fabula/trackShare.ts; tests).
+- (2026-09-02, continuation) VectorTrack motion → FCPXML `<adjust-transform>` keyframes (services/fabula/fcpxmlTransform.ts: planar stabilise via inverse-plane affine decomposition, point stabilise translation, pinned overlays via the placement matrix; centre-origin pixels, y up, rotation CCW; linear-run thinning). Perspective is dropped (FCPXML has no corner pin). `npm run test:forge` bundles all Forge/title/OFX/FCPXML tests.
+- (2026-09-02, continuation) AI depth map as an AUX source: any aux-input effect (external depth defocus, displacement, etc.) can pick "AI depth map of this clip" instead of an asset — exact per frame in export, throttled live. OFX step 3 (wgpu kernel execution) is BLOCKED on this machine: wgpu dependencies need native build scripts and there is no MSVC linker; leave it for a machine with Build Tools.
+- (2026-09-02) Mask kind `aux` (any pool image/video as a luma mask; live + export). Dynamic title text (services/fabula/titleDynamic.ts: counter, percent, timecode, countdown, terminal screen) — same function in the DOM monitor and the export resolver; inspector DYNAMIC TEXT block.
+- (2026-09-02) Flare Rig (element-stack lens flare: glow, anamorphic streak, starburst, iris ghosts, halo, rainbow arc, luma obscuration; light bindable to tracks) + Light Sweep; DVE pack: Page Curl, Cube Face, Cylinder, Sphere, Card Flip (aux back face). 161 effects. Track-bound Y positions now flip into GL space (effect position params are y-UP because frames upload Y-flipped).
+- Test trap: in the browser, importing a module with a cache-busting query (`?t=`) creates a SECOND module instance — the FxRenderer then reads a different effects registry than the one you inspect. Reload the page and import without the query when verifying registry changes.
+- (2026-09-02) W5 step 2: OFX shell crate rust/fabula-ofx — OpenFX 1.4 C ABI declared by hand; plugin table + typed params generated from the registry into src/manifest_gen.rs (no deps, no build.rs, so `cargo check` passes here — this machine has NO MSVC linker, only the Windows SDK; the .ofx bundle needs Build Tools or clang). Passthrough render copies Source→Output; wgpu kernel execution is next.
+- Note: `npm run lint` crashes Node (heap OOM, exit 134) on this machine — pre-existing, not a lint failure.
+- Shell trap: never put backticks inside a double-quoted `node -e "..."` in Git Bash — they run as command substitutions. Use a script file.
+- (2026-09-02) W4 step 2: depth window mask kind (services/fabula/depthMatte.ts — Depth Anything V2 small via transformers.js, WebGPU→wasm; near/far/feather window; exact in export, ~4 fps live). Model download is large on first use; runtime verified only as far as module load in this session.
+- (2026-09-02) W2d track backward / AdjustTrack / corner-pin export; W3b per-glyph title animators (monitor == export).
+- (2026-09-02) W4 step 1: subject (AI) matte as a mask kind on any effect — MediaPipe selfie segmenter (lazy CDN, GPU→CPU), exact per-frame in the offline renderer (after the seek), throttled last-matte reuse in the live monitor. Verified the model loads and returns a matte canvas in the browser (~14 s first load).
+- (2026-09-02) Kernel batch: phase3GradsTintsEffects (ND grad, colour grad, dual grad, radial tint, split tone, gels, skin tone, sunset; Net/Silk/Frost/Mist/Center Spot/Split Field/Double Fog glass), phase3StylizeVariantsEffects (kaleidoscope, halftone pro, fly-eye, tile scramble, emboss glass, pseudo colour, zebra, roman tile, strip slide, infinite zoom, parallax strips, warp repeat), phase3GraphicsEffects (array gun, HUD rings, progress bar, long shadow, luster, laser beam, zap, aurora, night sky). 154 effects / 448 presets; compile sweep 154/154.
+- (2026-09-02) W5 step 1: OFX descriptor generator (choice/int/bool typing from labels, clips, contexts, kernel ABI + header hash). W3a: Emitter Field (rest-frame hashed, 3 parallax layers, 7 shapes) + Emitter Burst (64 closed-form particles, bindable emitter position); compile sweep 118/118, deterministic.
+- (2026-09-02) W2a temporal access + 10 Time effects; fixed compositor VAO rebind after effects/grade layers/transitions (effects rendered BLACK before), two Forge shaders that did not compile, cube LUT sampler3D precision.
+- (2026-09-02) W2b masks (ellipse/rect/poly, feather, invert, follow point/planar) + W2c track-bound params via one resolver (resolveInstanceForFrame) used by ForgeClipPreview and fabulaRender. Verified by GL readback in the browser.
+- (2026-09-02) VectorTrack planar tracker end to end — see `plajah-vectortrack` memory / build matrix.
+
+## Saved for the next phase (deferred 2026-09-05, entering a prove-it-out / QA-in-production phase)
+The Fabula FX suite is feature-complete across all six waves; what remains is polish and real-data
+proving, not new foundations:
+1. PREVIEW-RESOLUTION SCALING — `stackCost().score` now gives the trigger. Build it EXPLICIT and
+   LABELLED (never silent) so pixel-unit effects (scanlines, grain) that look different at reduced
+   size don't quietly break monitor==export.
+2. 3D NODE follow-ups (the foundation is in and GPU-verified): a material editor, per-clip
+   animation-clip selection, camera keyframing beyond auto-rotate, and LIVE Forge-on-3D (export
+   already applies the stack; the live preview shows the raw render).
+3. SAM real-data pass: the runtime API is verified but the model download + on-GPU segment on a real
+   clip is still browser-verified-later.
+4. STILL DEFERRED by Kenne: OFX host / wgpu kernel execution, until the desktop/Crossover build
+   compiles (needs MSVC Build Tools; the manifest + Rust shell stay as-is).
+5. STILL BLOCKED: Crossover SAM2 *video-memory* tracking (the client SAM+tracked-prompt covers the
+   feature; SAM2's learned video memory would need a server or the desktop app).
+
+## Next up (in order)
+Every unblocked item in the six waves is now done (2026-09-03). What remains is either blocked on
+infrastructure or deferred by Kenne:
+1. DEFERRED by Kenne 2026-09-02: OFX host work, until the desktop/Crossover version compiles. Keep
+   the manifest + Rust shell as-is; do NOT regenerate them, even though the registry has grown.
+2. DONE 2026-09-05 (continuation 20): SAM tracked mattes — client-side SlimSAM via transformers.js,
+   no server endpoint needed. Mask kind `sam`, prompt point tracked by the existing maskTransformAt.
+3. DONE 2026-09-04: fluid dynamics needed persistent state, not compute (`fluidflow`), and the
+   particle-indexed system that state made reachable is now `particleforge` — 96 particles, each
+   owning two texels of the effect's state buffers. A Particular-class count (100k) still needs
+   point-sprite rendering, which a single-pass quad renderer cannot do; that is a real limit, not
+   a mis-scoping.
+4. DONE 2026-09-03: PowerMesh needed a tracked MESH, not dense optical flow.
+   `services/fabula/meshTrack.ts` + `meshtrackwarp` + the MESH runner in the inspector, which
+   reuses the planar tracker's SURFACE quad rather than adding a second overlay.
+5. DONE 2026-09-05 (continuation 21, first version): imported geometry via a real 3D node —
+   three.js renders .glb/.obj/.fbx/.stl to a canvas bridged as a compositor layer. Follow-ups:
+   material editor, animation-clip selection, camera keyframing, live Forge-on-3D. (shatter was
+   wrongly filed here — it needs no geometry and shipped as an inverse-mapped registry effect.)
+
+Unblocked ideas if a continuation wants one:
+- Preview resolution scaling when a stack's estimated cost is high (`services/fabula/effectCost.ts`
+  exists to drive it). CAUTION: effects that read `uResolution` — scanlines, grain, anything in
+  pixel units — look different at a reduced preview size, so this trades against the monitor==export
+  ground rule. Make it explicit and labelled, not silent.
+- A stack-level cost total in the inspector — DONE 2026-09-05 (continuation 19).
+
+Integration verified 2026-09-03: one export exercising a keyframed parameter, a shape-masked
+effect, a tokenised text overlay and a user-built effect together produced a valid MP4 at ~3.7x the
+plain-clip size, with the custom effect expanded in place into the chain.
+
+## Backlog (remaining gaps vs the Boris/Red Giant catalog)
+(Looks now cover the "one click to a finished result" gap; effect-level parts are broadly complete.)
+Remaining: imported geometry (needs a real 3D node — IN PROGRESS 2026-09-05). SAM tracked
+mattes are DONE 2026-09-05 (client-side SlimSAM, no server) — a FOURTH "blocked" item that was
+mis-scoped. The particle-indexed system shipped earlier as `particleforge`.
+THREE items filed here as blocked turned out to be mis-scoped and are now built: shatter (needed
+inverse mapping, not meshes), fluid dynamics (needed persistent state, not compute) and PowerMesh
+(needed a tracked mesh, not dense flow). Three for three. Read any remaining "blocked" claim as a
+hypothesis to test rather than a fact. DONE 2026-09-03:
+VHS status text, HUD text variants and counters via the text aux input
+(services/fabula/textOverlay.ts); user-authored effects (services/fabula/customEffects.ts).
+
+## GLSL compile sweep (browser)
+```js
+const fx = await import('/components/plajahPixels/engine/fx/effects.ts');
+const r = await import('/components/plajahPixels/engine/fx/fxRenderer.ts');
+const gl = document.createElement('canvas').getContext('webgl2');
+const R = new r.FxRenderer(gl); const bad = [];
+for (const e of fx.FX_EFFECTS) { for (const p of (e.passes?.length ? e.passes : [{id:'main', glsl:e.glsl}])) { try { R['program'](e, p.id, p.glsl); if (!R['progs'].get(e.id+':'+p.id).p) bad.push(e.id+':'+p.id); } catch (err) { bad.push(e.id+':'+p.id+' '+err.message); } } }
+JSON.stringify(bad);
+```

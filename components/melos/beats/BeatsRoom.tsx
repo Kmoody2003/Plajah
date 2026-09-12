@@ -11,6 +11,8 @@ import { useContextMenu, type MenuNode } from '../../ui/ContextMenu';
 import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveTools';
 import { GENRE_PRESETS, applyGenrePreset, type GenrePreset } from '../../../services/melos/beats/genrePresets';
 import { BASSLINES, applyBassline, type BasslinePreset } from '../../../services/melos/beats/bassLines';
+import { DrumPatternThumb, BasslineThumb, cachedPattern } from './PatternThumb';
+import { UniversalLibraryPanel } from '../../shared/UniversalLibrary/UniversalLibraryPanel';
 import { useAriaSurface } from '../../../services/aria/useAriaSurface';
 import { ingestSample, backupToLocker } from '../../../services/melos/beats/sampleStore';
 import { renderGroove, publishGroove, downloadBlob } from '../../../services/melos/beats/render';
@@ -50,8 +52,15 @@ import { BajoPanel } from './instrument/BajoPanel';
 import { isSuite } from '../../../services/melos/beats/instrumentFactory';
 import { SpectraPanel } from './mixer/SpectraPanel';
 import { MuseLibrary } from './muse/MuseLibrary';
-import { addPadInstrument, addInstrumentToNextPad, detachPadInstrument } from '../../../services/melos/beats/instrumentFactory';
+import { addPadInstrument, addInstrumentToNextPad, detachPadInstrument, addInstrument } from '../../../services/melos/beats/instrumentFactory';
+import BreakdownImporter from './composer/BreakdownImporter';
+import { breakdownToTracks } from '../../../services/melos/composition/breakdownToTracks';
 import { SELECT, WASH_BG } from './theme';
+import { onAuthStateChanged } from 'firebase/auth';
+import { getMusicEngines, unavailableMusicEngines, type EngineStatus } from '../../../services/melos/generation/client';
+import { insertGeneratedAudio, insertGeneratedNotes } from '../../../services/melos/generation/insert';
+import GenerationPanel, { type GenerationInsertion } from './composer/GenerationPanel';
+import { encodeWav } from '../../../services/audio/wavEncode';
 
 export interface BeatsLaunchPayload {
   grooveId?: string;
@@ -73,12 +82,14 @@ interface BeatsRoomProps {
   onRenderTake?: (take: { blob: Blob; name: string; durationSec: number }) => void;
   /** The song a bounce would attach to, for the button label. */
   takeTargetName?: string;
+  /** Client-side discovery only. Generation remains protected by server-side admin checks. */
+  musicLabAdmin?: boolean;
 }
 
 const AVAILABLE_VIEWS: BeatsViewId[] = ['machine', 'glass', 'timeline', 'mixer', 'project'];
 
-const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, embedded, melosSamples, onRenderTake, takeTargetName }) => {
-  const { doc, saveState, grooves, mutate, replace, saveNow, openGroove, newGroove, removeGroove } =
+const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, embedded, melosSamples, onRenderTake, takeTargetName, musicLabAdmin = false }) => {
+  const { doc, saveState, grooves, mutate, undo, redo, canUndo, canRedo, replace, saveNow, openGroove, newGroove, removeGroove } =
     useBeatsDoc(payload?.grooveId, production?.prodId || payload?.productionId);
   const snap = useEngineBridge();
   const vp = useViewport();
@@ -97,6 +108,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const selectedPadRef = React.useRef(0);
   useEffect(() => { selectedPadRef.current = selectedPad; }, [selectedPad]);
   const [playMode, setPlayMode] = useState<'pattern' | 'song'>('pattern');
+  // Song/arrangement play position — the timeline playhead. Defaults to the very start so Play in the
+  // timeline always begins at bar 1 on first load; a ruler click moves it (and remembers it).
+  const [songStartBeats, setSongStartBeats] = useState(0);
   const [activePatternId, setActivePatternId] = useState(doc.patterns[0]?.id || '');
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showGrooves, setShowGrooves] = useState(false);
@@ -116,6 +130,84 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   }, [metronomeOn]);
   useEffect(() => { try { localStorage.setItem('plajah_beats_preroll', String(preRollBars)); } catch { /* */ } }, [preRollBars]);
   const [showInstrumentPicker, setShowInstrumentPicker] = useState(false);
+  // Where a freshly-picked instrument lands: a MEKA pad, or its own independent (clip-driven) MIDI track.
+  const [instrumentDest, setInstrumentDest] = useState<'meka' | 'track'>('meka');
+  const [showBreakdownImport, setShowBreakdownImport] = useState(false);
+  const [musicEngines, setMusicEngines] = useState<EngineStatus[] | null>(() => musicLabAdmin ? unavailableMusicEngines() : null);
+  const [showGeneration, setShowGeneration] = useState(false);
+  const currentDocRef = React.useRef(doc);
+  currentDocRef.current = doc;
+  useEffect(() => {
+    let request: AbortController | undefined;
+    const unsubscribe = onAuthStateChanged(auth, user => {
+      request?.abort(); request = new AbortController();
+      const signal = request.signal;
+      const canDiscover = musicLabAdmin || user?.email?.toLowerCase() === 'kmoody2003@gmail.com';
+      setMusicEngines(canDiscover ? unavailableMusicEngines() : null); setShowGeneration(false);
+      if (user && canDiscover) void getMusicEngines(signal).then(engines => {
+        if (!signal.aborted) setMusicEngines(engines);
+      }).catch(() => { /* Keep the disabled preview statuses visible; the server still protects generation. */ });
+    });
+    return () => { request?.abort(); unsubscribe(); };
+  }, [musicLabAdmin]);
+  const insertGeneration = async (value: GenerationInsertion) => {
+    const checkProject = () => {
+      if (currentDocRef.current.id !== value.projectId) throw new Error('The project changed during generation. Return to the original project before inserting.');
+      if (currentDocRef.current.bpm !== value.bpm) throw new Error('The project tempo changed during generation. Restore the original tempo before inserting this take.');
+    };
+    checkProject();
+    const engine = BeatsEngine.get(); await engine.init(); checkProject();
+    let sample: Awaited<ReturnType<typeof ingestSample>> = null;
+    if (value.audio) {
+      const ctx = engine.getContext(); if (!ctx) throw new Error('Audio engine is unavailable');
+      let blob = value.audio;
+      if (value.kind === 'sample') {
+        const source = await ctx.decodeAudioData(await blob.arrayBuffer());
+        if (!Number.isFinite(value.sampleStart) || !Number.isFinite(value.sampleLength) || value.sampleStart < 0 || value.sampleStart >= source.duration || value.sampleLength <= 0) throw new Error('Choose a sample region inside the generated audio');
+        const offset = Math.floor(value.sampleStart * source.sampleRate);
+        const frames = Math.min(source.length - offset, Math.ceil(value.sampleLength * source.sampleRate));
+        const trimmed = ctx.createBuffer(source.numberOfChannels, frames, source.sampleRate);
+        const fade = Math.min(Math.floor(source.sampleRate * 0.005), Math.floor(frames / 2));
+        for (let c = 0; c < source.numberOfChannels; c++) {
+          const samples = trimmed.getChannelData(c); samples.set(source.getChannelData(c).subarray(offset, offset + frames));
+          for (let i = 0; i < fade; i++) { samples[i] *= i / fade; samples[frames - 1 - i] *= i / fade; }
+        }
+        blob = encodeWav(trimmed, 24);
+      }
+      sample = await ingestSample(blob, value.target.name, ctx);
+      if (!sample) throw new Error('Could not decode or save the generated audio');
+      engine.setSampleBuffer(sample.ref.key, sample.buffer);
+    }
+    checkProject();
+    // Validate on a draft first so a failed insertion never leaves a half-mutated project.
+    const draft: GrooveDoc = JSON.parse(JSON.stringify(currentDocRef.current));
+    const outcome = sample ? insertGeneratedAudio(draft, sample.ref, value.target, value.kind === 'sample')
+      : insertGeneratedNotes(draft, value.result.notes || [], value.target);
+    mutate(d => { d.kit = draft.kit; d.patterns = draft.patterns; d.arrangement = draft.arrangement; });
+    engine.syncInstruments();
+    if ('padIdx' in outcome && typeof outcome.padIdx === 'number') setSelectedPad(outcome.padIdx);
+    if ('patternId' in outcome && outcome.patternId) setActivePatternId(outcome.patternId);
+    setView(value.kind === 'sample' ? 'machine' : value.target.destination === 'meka' ? 'machine' : value.target.destination);
+    // Generated audio remains in the device's OPFS; it is not published or uploaded here.
+  };
+  // Score a Chora breakdown → one instrument track per part (Melody/Harmony/Bass/Accent).
+  const scoreFromBreakdown = (bd: Parameters<typeof breakdownToTracks>[0]) => {
+    const scored = breakdownToTracks(bd);
+    if (!scored.tracks.length) return;
+    mutate((d) => {
+      if (scored.tempo) d.bpm = Math.max(20, Math.min(300, Math.round(scored.tempo)));
+      for (const st of scored.tracks) {
+        const trackId = addInstrument(d, st.instrumentType);
+        const t = d.arrangement.find((x) => x.id === trackId);
+        if (!t) continue;
+        t.name = st.name;
+        const end = st.notes.reduce((m, n) => Math.max(m, n.startBeats + n.lengthBeats), 0);
+        t.clips.push({ id: grooveUid(), startBeats: 0, lengthBeats: Math.max(4, Math.ceil(end / 4) * 4), notes: st.notes });
+      }
+    });
+    void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
+    setView('timeline');
+  };
   const [openInstrumentId, setOpenInstrumentId] = useState<string | null>(null);
   // When set, the instrument picker is targeting a PAD (turn the pad into an ONDA/KERA instrument)
   // rather than adding a new arranger track.
@@ -124,6 +216,18 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const [showLibrary, setShowLibrary] = useState(false);
   const [showMidi, setShowMidi] = useState(false);
   const [midiConnected, setMidiConnected] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el?.matches('input, textarea, select, [contenteditable="true"]')) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      if (e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+      else if (e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
   // Poll the WebMIDI device list so the transport dot lights when a controller is present.
   useEffect(() => { const t = setInterval(() => setMidiConnected(midiStatus().connected.length > 0), 2000); return () => clearInterval(t); }, []);
 
@@ -166,8 +270,15 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     const engine = BeatsEngine.get();
     // Recording with a pre-roll: count the metronome in for N bars before beat 1.
     const countInBeats = recordingRef.current ? preRollBars * 4 : 0;
-    void engine.init().then(() => engine.play(playMode, { patternId: pattern?.id, countInBeats }));
-  }, [playMode, pattern?.id, preRollBars]);
+    // In the timeline (arrangement) view, Play means play the SONG from the playhead — which defaults
+    // to bar 1 — not audition the loose pattern. Every other view auditions the current pattern.
+    if (view === 'timeline') {
+      setPlayMode('song');
+      void engine.init().then(() => engine.play('song', { fromBeats: songStartBeats, countInBeats }));
+    } else {
+      void engine.init().then(() => engine.play(playMode, { patternId: pattern?.id, countInBeats }));
+    }
+  }, [view, playMode, pattern?.id, preRollBars, songStartBeats]);
 
   const handleStop = useCallback(() => { BeatsEngine.get().stop(); }, []);
 
@@ -486,6 +597,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
 
   // Genre drum presets — drop a ready-made pattern in and set its tempo/swing.
   const [showGenres, setShowGenres] = useState(false);
+  const [ulOpen, setUlOpen] = useState(false);
   const applyGenre = useCallback((preset: GenrePreset) => {
     let id = '';
     mutate((d: GrooveDoc) => { id = applyGenrePreset(d, preset); });
@@ -612,21 +724,32 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           onStop={handleStop}
           onToggleRecord={() => setRecording((v) => !v)}
           onSetPlayMode={setPlayMode}
-          onPlayFrom={(fromBeats) => { setPlayMode('song'); void BeatsEngine.get().init().then(() => BeatsEngine.get().play('song', { fromBeats })); }}
+          onPlayFrom={(fromBeats) => { setPlayMode('song'); setSongStartBeats(fromBeats); void BeatsEngine.get().init().then(() => BeatsEngine.get().play('song', { fromBeats })); }}
           onLoadSampleFile={(padIdx, file) => { void loadSampleFile(padIdx, file); }}
           melosSamples={melosSamples}
           onLoadMelosSample={(padIdx, ref) => { void loadMelosSample(padIdx, ref); }}
           onOpenInstrument={(id) => setOpenInstrumentId(id)}
-          onAddInstrument={() => setShowInstrumentPicker(true)}
+          onAddInstrument={(dest?: 'meka' | 'track') => { setInstrumentDest(dest || 'meka'); setShowInstrumentPicker(true); }}
           onClose={onClose}
           hideClose={embedded}
           embedded={embedded}
         />
         {showInstrumentPicker && (
           <InstrumentPicker
+            destination={instrumentDest === 'track' ? 'as an independent MIDI track' : undefined}
             onClose={() => setShowInstrumentPicker(false)}
             onPick={(type) => {
               let newId = ''; let landedPad = 0;
+              if (instrumentDest === 'track') {
+                // Independent, clip-driven MIDI track — behaves like an audio track (own mixer strip,
+                // draw MIDI clips on its lane). Send it to a MEKA pad later via the track's right-click.
+                mutate((d) => { newId = addInstrument(d, type); });
+                void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
+                setShowInstrumentPicker(false);
+                setView('timeline'); // the arranger — its new lane is there
+                if (newId) setTimeout(() => setOpenInstrumentId(newId), 60);
+                return;
+              }
               mutate((d) => { const r = addInstrumentToNextPad(d, type); newId = r.trackId; landedPad = r.padIdx; });
               setSelectedPad(landedPad);
               void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
@@ -683,12 +806,12 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       items: [
         { id: 'new', label: 'New project', onSelect: newGroove },
         // The projects drawer is anchored in the pattern bar, which Mixer/Project don't show.
-        { id: 'open', label: 'Open…', hint: 'projects', onSelect: () => { if (view === 'mixer' || view === 'project') setView('machine'); setShowGrooves(true); } },
+        { id: 'open', label: 'My Productions…', hint: 'projects', onSelect: () => { if (view === 'mixer' || view === 'project') setView('machine'); setShowGrooves(true); } },
         { id: 'save', label: 'Save now', onSelect: () => { void saveNow(); } },
         { id: 'copy', label: 'Save a copy', onSelect: handleSaveCopy },
         'sep',
         { id: 'open-melos', label: 'Open Melos Project…', hint: '.melos', onSelect: () => melosFileRef.current?.click() },
-        { id: 'save-melos', label: 'Save Melos Project', hint: '.melos', onSelect: () => { exportGrooveFile(doc); } },
+        { id: 'save-melos', label: 'Save Melos Project', hint: '.melos + audio', onSelect: () => { void exportGrooveFile(doc); } },
         'sep',
         { id: 'import-song', label: 'Import Melos Song…', hint: '.dawproject', onSelect: () => dawFileRef.current?.click() },
         { id: 'export-song', label: 'Export Melos Song', hint: '.dawproject', disabled: !!busy, onSelect: () => { void handleExportDawproject(); } },
@@ -701,6 +824,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     {
       label: 'Edit',
       items: [
+        { id: 'undo', label: 'Undo', hint: 'Ctrl+Z', disabled: !canUndo, onSelect: undo },
+        { id: 'redo', label: 'Redo', hint: 'Ctrl+Shift+Z / Ctrl+Y', disabled: !canRedo, onSelect: redo },
+        'sep',
         { id: 'quantize', label: 'Quantize pattern', disabled: !pattern, onSelect: () => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) quantizePattern(p, 1); }); } },
         { id: 'fill', label: 'Auto-fill last bar', disabled: !pattern, onSelect: () => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) autoFill(d, p, 4); }); } },
         { id: 'clear', label: 'Clear pattern steps', danger: true, disabled: !pattern, onSelect: () => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) p.steps = {}; }); } },
@@ -811,6 +937,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         </div>
       )}
 
+      <div className="flex-1 min-h-0 flex">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
       {/* The pattern bar belongs to the pattern-editing pages — Mixer and Project have no
           business showing pattern chips. */}
       {view !== 'mixer' && view !== 'project' && (
@@ -850,7 +978,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                 <FilePlus2 size={10} /> Save a copy
               </button>
               <div className="flex gap-1 px-1 pb-1.5 mb-1 border-b border-white/10">
-                <button onClick={() => { exportGrooveFile(doc); }} className="flex-1 h-7 rounded-lg text-[10px] border border-white/12 text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-center gap-1.5" title="Save this groove as a local .melos file">
+                <button onClick={() => { void exportGrooveFile(doc); }} className="flex-1 h-7 rounded-lg text-[10px] border border-white/12 text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-center gap-1.5" title="Save this groove and its audio as a portable .melos file">
                   <Download size={10} /> Save as file
                 </button>
                 <button onClick={() => melosFileRef.current?.click()} className="flex-1 h-7 rounded-lg text-[10px] border border-white/12 text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-center gap-1.5" title="Open a .melos file as a new groove">
@@ -903,12 +1031,13 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                 <div className="px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-white/30">Genre patterns</div>
                 {GENRE_PRESETS.map(g => (
                   <button key={g.id} onClick={() => applyGenre(g)}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/8 transition-colors">
-                    <div className="flex items-center justify-between gap-2">
+                    className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/8 transition-colors">
+                    <DrumPatternThumb pattern={cachedPattern(g.id, g.make)} bpm={g.bpm} style={{ marginBottom: 6 }} />
+                    <div className="flex items-center justify-between gap-2 px-1">
                       <span className="text-[12px] font-bold text-white">{g.name}</span>
                       <span className="text-[9px] font-mono text-white/35 shrink-0">{g.bpm} BPM</span>
                     </div>
-                    <div className="text-[10px] text-white/45 leading-snug mt-0.5">{g.hint}</div>
+                    <div className="text-[10px] text-white/45 leading-snug mt-0.5 px-1">{g.hint}</div>
                   </button>
                 ))}
               </div>
@@ -927,18 +1056,25 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                 <div className="px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-white/30">MIDI basslines · adds a BAJO</div>
                 {BASSLINES.map(b => (
                   <button key={b.id} onClick={() => applyBass(b)}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/8 transition-colors">
-                    <div className="flex items-center justify-between gap-2">
+                    className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/8 transition-colors">
+                    <BasslineThumb notes={b.notes} bpm={b.bpm} style={{ marginBottom: 6 }} />
+                    <div className="flex items-center justify-between gap-2 px-1">
                       <span className="text-[12px] font-bold text-white">{b.name}</span>
                       <span className="text-[9px] font-mono text-white/35 shrink-0">{b.genre}</span>
                     </div>
-                    <div className="text-[10px] text-white/45 leading-snug mt-0.5">{b.hint}</div>
+                    <div className="text-[10px] text-white/45 leading-snug mt-0.5 px-1">{b.hint}</div>
                   </button>
                 ))}
               </div>
             </>
           )}
         </div>
+        <button onClick={() => setUlOpen((v) => !v)} title="Universal Library — grooves, basslines and your assets — docks on the right"
+          className={`h-6 px-2.5 rounded-lg text-[10px] border flex items-center gap-1 ${ulOpen ? 'border-[#8B5CFF]/70 text-white bg-[#8B5CFF]/15' : 'border-[#8B5CFF]/40 text-[#D0BCFF] hover:bg-[#8B5CFF]/12'}`}>▦ Library</button>
+        <button onClick={() => setShowBreakdownImport(true)} title="Score from Chora — turn a song's Breakdown into instrument tracks"
+          className="h-6 px-2.5 rounded-lg text-[10px] border border-[#00DAF3]/35 text-[#00DAF3] hover:bg-[#00DAF3]/10 flex items-center gap-1">♪ From Chora</button>
+        {musicEngines && <button data-testid="music-lab-generate" onClick={() => setShowGeneration(value => !value)} title="Generate audio, MIDI notes or a sample (private music lab)"
+          className={`h-6 px-2.5 rounded-lg text-[10px] border text-[#D0BCFF] flex items-center gap-1 ${showGeneration ? 'border-[#D0BCFF] bg-[#8B5CFF]/20' : 'border-[#D0BCFF]/40 hover:bg-[#8B5CFF]/10'}`}><Sparkles size={10} /> AI Generate</button>}
         <div className="flex-1" />
         <button
           onClick={() => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) autoFill(d, p, 4); }); }}
@@ -961,15 +1097,17 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           beats={snap.beats}
           running={snap.running}
           playMode={playMode}
+          songStartBeats={songStartBeats}
           meters={snap.meters}
           onMutate={mutate}
           onPlayFrom={(fromBeats) => {
             setPlayMode('song');
+            setSongStartBeats(fromBeats);
             const engine = BeatsEngine.get();
             void engine.init().then(() => engine.play('song', { fromBeats }));
           }}
           onOpenInstrument={(id) => setOpenInstrumentId(id)}
-          onAddInstrument={() => setShowInstrumentPicker(true)}
+          onAddInstrument={(dest?: 'meka' | 'track') => { setInstrumentDest(dest || 'meka'); setShowInstrumentPicker(true); }}
         />
       )}
 
@@ -1006,7 +1144,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           playMode={playMode}
           onSelectPad={setSelectedPad}
           onMutate={mutate}
-          onAddInstrument={() => setShowInstrumentPicker(true)}
+          onAddInstrument={(dest?: 'meka' | 'track') => { setInstrumentDest(dest || 'meka'); setShowInstrumentPicker(true); }}
           onOpenInstrument={(id) => setOpenInstrumentId(id)}
         />
       )}
@@ -1029,6 +1167,19 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           onEditPadInstrument={(padIdx) => { const id = doc.kit[padIdx]?.instrumentTrackId; if (id) setOpenInstrumentId(id); }}
         />
       )}
+      </div>
+      {showGeneration && musicEngines && <GenerationPanel key={doc.id} doc={doc} engines={musicEngines} startBeats={songStartBeats}
+        initialDestination={view === 'machine' ? 'meka' : view === 'glass' ? 'glass' : 'timeline'} onClose={() => setShowGeneration(false)} onInsert={insertGeneration} />}
+      {showLibrary && <MuseLibrary docked doc={doc} onMutate={mutate} onClose={() => setShowLibrary(false)} />}
+      {ulOpen && (
+        <UniversalLibraryPanel accent="#FF8C00" side="right" defaultDock="docked" storageKey="melos.ullib.geo.v2" accepts={['groove', 'bassline']}
+          onClose={() => setUlOpen(false)}
+          onUse={(it) => {
+            if (it.kind === 'groove') { const g = GENRE_PRESETS.find((x) => 'groove:' + x.id === it.id); if (g) applyGenre(g); }
+            else if (it.kind === 'bassline') { const b = BASSLINES.find((x) => 'bass:' + x.id === it.id); if (b) applyBass(b); }
+          }} />
+      )}
+      </div>
 
       {showDiagnostics && (
         <DiagnosticsReadout snap={snap} hidStatus={hid.status} onConnectHid={() => { void hid.connect(); }} />
@@ -1049,6 +1200,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         </button>
       )}
 
+      {showBreakdownImport && (
+        <BreakdownImporter onClose={() => setShowBreakdownImport(false)} onImport={scoreFromBreakdown} />
+      )}
       {showInstrumentPicker && (
         <InstrumentPicker
           onClose={() => setShowInstrumentPicker(false)}
@@ -1068,8 +1222,6 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       )}
 
       {showEq && <SpectraPanel doc={doc} onMutate={mutate} onClose={() => setShowEq(false)} />}
-      {showLibrary && <MuseLibrary doc={doc} onMutate={mutate} onClose={() => setShowLibrary(false)} />}
-
       {/* Pad → instrument: the picker targets a specific pad. On pick we mint a padOwned instrument
           track, link it to the pad, and open its editor — the same panels a track instrument uses. */}
       {padPickerFor !== null && (

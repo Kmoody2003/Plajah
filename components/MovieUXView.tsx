@@ -1002,7 +1002,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
         muxPlaybackId: t0.muxPlaybackId,
         embedUrl: archiveId ? `https://archive.org/embed/${archiveId}?autoplay=1` : undefined,
         artist: album.artist, timestamp: album.createdAt || Date.now(),
-        description: album.description, thumbnailUrl: album.coverImage,
+        description: cleanDescription(album.description), thumbnailUrl: album.coverImage,
         genre: album.genre, movieMetadata: album.movieMetadata, subType: 'MOVIE',
       } as Video;
     } else if (album.customVideoUrl) {

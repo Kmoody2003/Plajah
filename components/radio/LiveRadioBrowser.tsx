@@ -25,7 +25,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Radio, Search, Play, Pause, Globe, ShieldAlert, AlertTriangle,
-  Loader2, RefreshCw, Signal, ChevronLeft, X,
+  Loader2, RefreshCw, Signal, ChevronLeft, X, Plus,
 } from 'lucide-react';
 import { Track, Album } from '../../types';
 import { useGlobalPlayerState } from '../../contexts/GlobalPlayerContext';
@@ -34,6 +34,19 @@ import {
   fetchTopVoted, fetchCountries, reportStationClick, clearRadioCache,
 } from '../../services/radioBrowser';
 import { RADIO_SHELVES, SHELF_GROUPS, RadioShelf, getShelf } from '../../data/radioShelves';
+import { auth } from '../../services/backendService';
+import { fetchRecentLinkedStations, linkedToRadioStation } from '../../services/linkedStations';
+import AddStationModal from './AddStationModal';
+
+/** The "On Plajah" shelf — creator stations brought on by link (not a Radio Browser query). Handled
+ *  specially in the loader since its rows come from Firestore, not the external directory API. */
+const CREATOR_SHELF: RadioShelf = {
+  id: 'creator-stations',
+  title: 'Creator Stations',
+  eyebrow: 'On Plajah',
+  blurb: 'Internet radio stations Plajah creators broadcast — brought on-platform by link.',
+  kind: 'query',
+};
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
 type PlayState = 'connecting' | 'playing' | 'error';
@@ -144,11 +157,14 @@ const LiveRadioBrowser: React.FC<LiveRadioBrowserProps> = ({ onBack, onExit }) =
   const [hidePlayable, setHidePlayable] = useState(true); // hide streams we know are blocked
   const [playState, setPlayState] = useState<PlayState>('connecting');
   const [tuningUuid, setTuningUuid] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
 
   const watchdogRef = useRef<any>(null);
   const reqRef = useRef(0); // guards against out-of-order responses
 
-  const activeShelf = getShelf(activeShelfId);
+  const me = auth.currentUser;
+  const activeShelf: RadioShelf | undefined =
+    getShelf(activeShelfId) ?? (activeShelfId === CREATOR_SHELF.id ? CREATOR_SHELF : undefined);
 
   // ── Loading ────────────────────────────────────────────────────────────────
 
@@ -181,11 +197,18 @@ const LiveRadioBrowser: React.FC<LiveRadioBrowserProps> = ({ onBack, onExit }) =
     return runLoad(() => searchStations(shelf.query || {}));
   }, [runLoad]);
 
+  /** The On-Plajah shelf loads creator stations from Firestore, mapped into the RadioStation shape. */
+  const loadCreator = useCallback(
+    () => runLoad(async () => (await fetchRecentLinkedStations(80)).map(linkedToRadioStation)),
+    [runLoad],
+  );
+
   useEffect(() => {
     if (searchMode) return;
+    if (activeShelfId === CREATOR_SHELF.id) { setActiveCountry(null); loadCreator(); return; }
     const shelf = getShelf(activeShelfId);
     if (shelf) loadShelf(shelf);
-  }, [activeShelfId, searchMode, loadShelf]);
+  }, [activeShelfId, searchMode, loadShelf, loadCreator]);
 
   // Debounced name search.
   useEffect(() => {
@@ -204,6 +227,7 @@ const LiveRadioBrowser: React.FC<LiveRadioBrowserProps> = ({ onBack, onExit }) =
   const refresh = () => {
     clearRadioCache();
     if (searchMode && query.trim()) runLoad(() => searchByName(query.trim(), 80));
+    else if (activeShelfId === CREATOR_SHELF.id) loadCreator();
     else if (activeCountry) openCountry(activeCountry);
     else if (activeShelf) loadShelf(activeShelf);
   };
@@ -276,6 +300,7 @@ const LiveRadioBrowser: React.FC<LiveRadioBrowserProps> = ({ onBack, onExit }) =
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
+    <>
     <div className="h-full bg-transparent text-white flex flex-col lg:flex-row overflow-hidden">
       {/* Shelf rail */}
       <aside className="w-full lg:w-72 border-r border-white/5 bg-theme-card/30 flex flex-col lg:h-full shrink-0">
@@ -295,6 +320,30 @@ const LiveRadioBrowser: React.FC<LiveRadioBrowserProps> = ({ onBack, onExit }) =
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+          {/* On Plajah — creator stations brought on by link. Leads the rail. */}
+          <div>
+            <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-3 px-2">On Plajah</h4>
+            <div className="space-y-1">
+              <button
+                onClick={() => { setSearchMode(false); setQuery(''); setActiveShelfId(CREATOR_SHELF.id); }}
+                className={`w-full px-3 py-2.5 rounded-2xl text-left transition-all ${
+                  !searchMode && activeShelfId === CREATOR_SHELF.id ? 'bg-[#00DAF3] text-black' : 'hover:bg-white/5 text-white/70'
+                }`}
+              >
+                <p className="text-[11px] font-black uppercase tracking-tight truncate">{CREATOR_SHELF.title}</p>
+              </button>
+              {me && (
+                <button
+                  onClick={() => setShowAdd(true)}
+                  className="w-full px-3 py-2.5 rounded-2xl text-left hover:bg-white/5 text-[#00DAF3] flex items-center gap-2"
+                >
+                  <Plus size={14} />
+                  <span className="text-[11px] font-black uppercase tracking-tight">Add your station</span>
+                </button>
+              )}
+            </div>
+          </div>
+
           {SHELF_GROUPS.map(group => (
             <div key={group.label}>
               <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-3 px-2">
@@ -356,6 +405,15 @@ const LiveRadioBrowser: React.FC<LiveRadioBrowserProps> = ({ onBack, onExit }) =
                 </button>
               )}
             </div>
+            {me && (
+              <button
+                onClick={() => setShowAdd(true)}
+                className="px-4 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white inline-flex items-center gap-2 transition-all"
+                style={{ background: 'linear-gradient(135deg,#6B0099,#D40055)', boxShadow: '0 6px 22px rgba(212,0,85,0.34)' }}
+              >
+                <Plus size={15} /> <span className="hidden sm:inline">Add your station</span>
+              </button>
+            )}
             <button
               onClick={refresh}
               className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-colors"
@@ -493,6 +551,21 @@ const LiveRadioBrowser: React.FC<LiveRadioBrowserProps> = ({ onBack, onExit }) =
         </div>
       </div>
     </div>
+
+    {showAdd && me && (
+      <AddStationModal
+        ownerUid={me.uid}
+        ownerName={me.displayName || 'Me'}
+        ownerAvatar={me.photoURL || undefined}
+        onClose={() => setShowAdd(false)}
+        onAdded={() => {
+          setShowAdd(false);
+          if (activeShelfId === CREATOR_SHELF.id) loadCreator();
+          else { setSearchMode(false); setActiveShelfId(CREATOR_SHELF.id); }
+        }}
+      />
+    )}
+    </>
   );
 };
 

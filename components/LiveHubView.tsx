@@ -4,6 +4,8 @@ import PageHeader from './PageHeader';
 import { fetchAllLiveFeeds, publishLiveFeed, deleteLiveFeed, searchLiveChannels, fetchStreamArchives, fetchAllFastChannels, type FastChannelListing } from '../services/backendService';
 import { ArrowLeft, Radio, Plus, X, User, ExternalLink, Trash2, Search, Tv, Maximize2, VolumeX, Play, FlaskConical, Clock, PlayCircle } from 'lucide-react';
 import { canGoLive } from '../services/tvCapabilities';
+import { isChannelFeed } from '../services/fast/guideLineup';
+import { isFeedLive } from '../services/liveFeedLiveness';
 import { User as FirebaseUser } from 'firebase/auth';
 import { ACTIVE_SCIENCE_STREAMS, SCIENCE_BAND_ENABLED, SCIENCE_CATEGORIES, ScienceCategory, ScienceStream } from './scienceStreams';
 
@@ -23,7 +25,7 @@ interface LiveHubViewProps {
   onJoinPool: (poolId: string) => void;
   onOpenTVStudio?: () => void;
   /** A shared-channel deep-link: open TV+ tuned to this channel. */
-  initialChannelFocus?: { ownerId?: string; plajahId?: string; number?: string } | null;
+  initialChannelFocus?: { ownerId?: string; plajahId?: string; number?: string; sourceId?: string } | null;
   onChannelFocusConsumed?: () => void;
 }
 
@@ -90,20 +92,23 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
   const [tunePlajahId, setTunePlajahId] = useState<string | undefined>(undefined);
   const [tuneNumber, setTuneNumber] = useState<string | undefined>(undefined);
 
+  const [tuneSourceId, setTuneSourceId] = useState<string | undefined>();
+
   // A shared-channel deep-link: land on TV+ tuned to the channel, then clear it so navigating away
   // and back does not re-tune.
   useEffect(() => {
     if (!initialChannelFocus) return;
     setActiveTab('TV_PLUS');
-    if (initialChannelFocus.ownerId) setTuneOwnerId(initialChannelFocus.ownerId);
-    if (initialChannelFocus.plajahId) setTunePlajahId(initialChannelFocus.plajahId);
-    if (initialChannelFocus.number) setTuneNumber(initialChannelFocus.number);
+    setTuneOwnerId(initialChannelFocus.ownerId);
+    setTunePlajahId(initialChannelFocus.plajahId);
+    setTuneNumber(initialChannelFocus.number);
+    setTuneSourceId(initialChannelFocus.sourceId);
     onChannelFocusConsumed?.();
   }, [initialChannelFocus, onChannelFocusConsumed]);
 
   // Tune a channel from the EPG guide: FAST → TV+ focused on it; live/science → their existing viewers.
   const tuneChannel = (ch: any) => {
-    if (ch.kind === 'fast' && ch.ownerId) { setTuneOwnerId(ch.ownerId); setActiveTab('TV_PLUS'); return; }
+    if (ch.kind === 'fast') { setTuneOwnerId(ch.ownerId); setTunePlajahId(ch.plajahId); setTuneNumber(undefined); setTuneSourceId(ch.id); setActiveTab('TV_PLUS'); return; }
     if (ch.kind === 'science') { setFullScreenFeed(ch.feed); return; }
     if (ch.feed) window.dispatchEvent(new CustomEvent('OPEN_LIVE_FEED', { detail: { feed: ch.feed } }));
   };
@@ -139,8 +144,9 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
   };
 
   const filteredFeeds = feeds.filter(f =>
-    // Only ACTUAL live streams belong in the live tab — an ended stream is a replay, not live.
-    (f as any).status !== 'ENDED' && (f as any).status !== 'OFFLINE' &&
+    // Only ACTUAL live streams belong in the live tab — an ended OR stale (broadcaster gone) stream is
+    // a replay, not live. isFeedLive is the single liveness authority (heartbeat + staleness).
+    (isChannelFeed(f) || isFeedLive(f)) &&
     (f.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
      f.ownerName.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -175,7 +181,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
 
   const handleFeelingLucky = () => {
     triggerAction('USE_FEELING_LUCKY');
-    const allLive = [...feeds.filter(f => (f as any).status !== 'ENDED' && (f as any).status !== 'OFFLINE'), ...liveArtists.map(a => ({
+    const allLive = [...feeds.filter(f => isChannelFeed(f) || isFeedLive(f)), ...liveArtists.map(a => ({
       id: a.uid,
       title: a.liveStreamConfig?.title || 'Live Stream',
       url: a.liveStreamConfig?.fastChannelUrl || a.liveStreamConfig?.streamUrl || '',
@@ -301,6 +307,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
         focusOwnerId={tuneOwnerId}
         focusPlajahId={tunePlajahId}
         focusNumber={tuneNumber}
+        focusSourceId={tuneSourceId}
         currentUser={currentUser}
         onOpenClassic={() => setActiveTab('LIVE_TV')}
         onWatchWebrtc={(feed) => { if (feed) window.dispatchEvent(new CustomEvent('OPEN_LIVE_FEED', { detail: { feed } })); }}

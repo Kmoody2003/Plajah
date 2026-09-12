@@ -38,6 +38,7 @@ import { fetchGlobalApps, fetchUserApps, saveWebApp, fetchAppReviews, submitAppR
 import Logo from './Logo';
 import { Browser } from '@capacitor/browser';
 import { Capacitor } from '@capacitor/core';
+import { FLUX_SCENES } from '../services/fabula/fluxNode';
 
 interface AppsViewProps {
   onBack: () => void;
@@ -454,6 +455,16 @@ const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, 
               exit={{ opacity: 0 }}
               className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8 lg:gap-12"
             >
+              {activeTab === 'DISCOVER' && FLUX_SCENES.filter(s => ['tapestry-ii','porcelain-tide','velvet-bloom','prism-archive'].includes(s.id) && `${s.name} flux pixels visualizer`.toLowerCase().includes(searchQuery.toLowerCase())).map(scene => (
+                <button key={scene.id} className="text-left rounded-3xl border border-amber-300/20 bg-gradient-to-br from-teal-950 to-zinc-950 p-7 space-y-4 hover:border-amber-300/60"
+                  onClick={() => window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS',{detail:{fluxScene:scene.id}}))}>
+                  <Sparkles className="text-amber-200" size={36}/>
+                  <span className="block text-xs uppercase tracking-widest text-amber-200/70">Flux · Visualizer preset</span>
+                  <strong className="block text-xl text-white">{scene.name}</strong>
+                  <span className="block text-sm text-white/60">{scene.line}</span>
+                  <span className="block text-sm text-amber-100">Apply in Pixels →</span>
+                </button>
+              ))}
               {/* Native platform app — Plajah Pixels (audio-reactive visualizer) */}
               {activeTab === 'DISCOVER' && ('plajah pixels visualizer'.includes(searchQuery.toLowerCase()) || searchQuery === '') && (
                 <div

@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback, Suspense } from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkles, Play, Pause, SkipBack, SkipForward, Music2, X } from 'lucide-react';
-import FxStageVisualizers, { type FxEngine, fxPresetName, loadShaderNames, loadMilkdropNames } from '../FxStageVisualizers';
+import { Sparkles, Play, Pause, SkipBack, SkipForward, Music2, X, ChevronDown, Search, Check, ListMusic } from 'lucide-react';
+import FxStageVisualizers, { type FxEngine, fxPresetName, loadShaderNames, loadMilkdropNames, FX_ENGINE_PRESETS } from '../FxStageVisualizers';
 import { useGlobalPlayer } from '../../contexts/GlobalPlayerContext';
 import { thumb, THUMB } from '../../src/lib/imageThumb';
+import { getPlatformInfo } from '../../hooks/usePlatform';
 
 /**
  * The FX Stage on a television — the slideshow's shell with the visualizer as the backdrop.
@@ -21,9 +22,13 @@ import { thumb, THUMB } from '../../src/lib/imageThumb';
  * sweet spot while still looking clean at ten feet. SHADER (lightest) is the default engine.
  */
 
-const TV_ENGINES: FxEngine[] = ['SHADER', 'GENERATOR', 'MILKDROP'];
-const ENGINE_LABEL: Record<FxEngine, string> = { SHADER: 'Shader', GENERATOR: 'Generator', MILKDROP: 'MilkDrop' };
-const RENDER_SCALE = 0.66;   // render at 66% then upscale — a DPR-agnostic fill-rate cut
+const TV_ENGINES: FxEngine[] = ['SHADER', 'GENERATOR', 'FLUX', 'MILKDROP'];
+const ENGINE_LABEL: Record<FxEngine, string> = { SHADER: 'Shader', GENERATOR: 'Generator', FLUX: 'Flux 3D', MILKDROP: 'MilkDrop' };
+const getSurfaceRenderScale = () => {
+  if (typeof window === 'undefined') return 1;
+  const isTV = getPlatformInfo().isTV;
+  return isTV ? 0.66 : 1; // 100% on desktop/laptop/tablet for crisp visuals, 66% on TV for Mali GPU budget
+};
 
 const fmt = (s?: number): string => {
   if (!s || !isFinite(s)) return '0:00';
@@ -34,19 +39,36 @@ const fmt = (s?: number): string => {
 const TvFxSurface: React.FC = () => {
   const {
     isTvFxActive, setIsTvFxActive, analyser, isPlaying, togglePlay, next, prev,
-    currentTrack, currentAlbum, currentTime, duration, isSlideshowActive,
+    currentTrack, currentAlbum, currentTime, duration, playTrack,
   } = useGlobalPlayer();
 
-  const [engineIdx, setEngineIdx] = useState(0);
+  const [engineIdx, setEngineIdx] = useState(2); // default to FLUX (index 2 in TV_ENGINES)
+  const [isPlaylistLocked, setIsPlaylistLocked] = useState(false);
+  const [isPlaylistHovered, setIsPlaylistHovered] = useState(false);
+  const activeTrackRef = useRef<HTMLButtonElement>(null);
   const [presetIndex, setPresetIndex] = useState(0);
   // MilkDrops and Shaders name their presets from pools loaded on demand; hold them in
   // state so the caption below names the real preset instead of a placeholder.
   const [presetNames, setPresetNames] = useState<Record<string, string[]>>({});
   const [controls, setControls] = useState(true);   // show controls on open so the scheme is visible
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState('');
   const hideTimer = useRef<any>(null);
 
-  const showing = isTvFxActive && !isSlideshowActive;
+  const showing = isTvFxActive;
   const engine = TV_ENGINES[engineIdx];
+
+  const currentEnginePresets = useMemo(() => {
+    if (engine === 'SHADER') return presetNames.SHADER || [];
+    if (engine === 'MILKDROP') return presetNames.MILKDROP || [];
+    return FX_ENGINE_PRESETS[engine] || [];
+  }, [engine, presetNames]);
+
+  const filteredPresets = useMemo(() => {
+    if (!pickerSearch.trim()) return currentEnginePresets;
+    const q = pickerSearch.toLowerCase();
+    return currentEnginePresets.filter(p => p.toLowerCase().includes(q));
+  }, [currentEnginePresets, pickerSearch]);
 
   useEffect(() => {
     if (!showing) return;   // don't pull either pool until the surface is actually open
@@ -73,6 +95,14 @@ const TvFxSurface: React.FC = () => {
     const from = Math.max(0, active - 2);
     return { lines: lyrics.slice(from, from + 6).map((l, i) => ({ text: l.text, on: from + i === active })) };
   }, [lyrics, currentTime]);
+
+  const showPlaylist = isPlaylistLocked;
+
+  useEffect(() => {
+    if (showPlaylist && activeTrackRef.current) {
+      activeTrackRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [showPlaylist, currentTrack?.id]);
 
   const exit = useCallback(() => setIsTvFxActive(false), [setIsTvFxActive]);
   const cycleEngine = useCallback((dir: number) => {
@@ -126,25 +156,74 @@ const TvFxSurface: React.FC = () => {
 
   const pct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
   const art = (currentTrack as any)?.albumCover || (currentAlbum as any)?.coverImage;
-  const scalePct = `${Math.round(100 / RENDER_SCALE)}%`;
+  const renderScale = getSurfaceRenderScale();
+  const scalePct = `${Math.round(100 / renderScale)}%`;
 
   return createPortal(
-    <div className="fixed inset-0 z-[290] bg-black overflow-hidden" data-tv-no-trap role="img" aria-label="FX Stage visualizer">
-      {/* Reduced-resolution render, CSS-upscaled to fill. */}
+    <div
+      className="fixed inset-0 z-[290] bg-black overflow-hidden select-none"
+      data-tv-no-trap
+      role="img"
+      aria-label="FX Stage visualizer"
+      onMouseMove={wake}
+      onClick={wake}
+    >
+      {/* Dynamic resolution render, CSS-upscaled to fill. */}
       <div
         className="absolute top-0 left-0 origin-top-left"
-        style={{ width: scalePct, height: scalePct, transform: `scale(${RENDER_SCALE})` }}
+        style={{ width: scalePct, height: scalePct, transform: `scale(${renderScale})` }}
       >
         <Suspense fallback={<div className="w-full h-full grid place-items-center text-white/25 text-xs font-black uppercase tracking-widest">Loading FX Stage…</div>}>
           <FxStageVisualizers engine={engine} presetIndex={presetIndex} analyser={analyser} isPlaying={isPlaying} />
         </Suspense>
       </div>
 
-      {/* Right-hand synced lyrics — identical to the slideshow (no blur; TV fill-rate). */}
+      {/* Floating Atmospheric Playlist Overlay (Option B) — right edge, coexists with lyrics */}
+      {currentAlbum && currentAlbum.tracks && currentAlbum.tracks.length > 0 && (
+        <div
+          className={`absolute top-0 bottom-[12rem] right-0 w-80 flex flex-col justify-center transition-all duration-500 ease-out z-[10] pointer-events-none ${showPlaylist ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-12'}`}
+          style={{ paddingRight: '2.5rem', WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 30%)', maskImage: 'linear-gradient(to right, transparent 0%, black 30%)' }}
+        >
+          <div
+            className="flex flex-col gap-4 overflow-y-auto no-scrollbar max-h-[65vh] py-12 items-end pointer-events-auto"
+          >
+            {currentAlbum.tracks.map((track: any) => {
+              const isActive = track.id === currentTrack?.id;
+              return (
+                <button
+                  key={track.id}
+                  ref={isActive ? activeTrackRef : null}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!isActive) playTrack(track, currentAlbum, 'LIBRARY');
+                  }}
+                  className={`text-right transition-all duration-300 cursor-pointer max-w-full leading-tight ${
+                    isActive
+                      ? 'text-2xl font-black uppercase tracking-widest'
+                      : 'text-sm font-bold tracking-wider opacity-40 hover:opacity-70'
+                  }`}
+                  style={isActive
+                    ? { background: 'linear-gradient(90deg, #8B5CF6, #D40055, #FF8C00)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }
+                    : { color: '#FF8C00' }
+                  }
+                >
+                  {track.title}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Right-hand synced lyrics — slides left when tracklist is open */}
       {lyricWindow && (
         <div
-          className="absolute top-0 right-0 bottom-0 w-[46%] flex flex-col justify-center px-14 pointer-events-none"
-          style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(6,2,12,0.45) 35%, rgba(6,2,12,0.78) 100%)' }}
+          className="absolute top-0 bottom-0 flex flex-col justify-center px-14 pointer-events-none transition-all duration-500 ease-out"
+          style={{
+            right: showPlaylist ? '20rem' : '0',
+            width: '46%',
+            background: 'linear-gradient(90deg, transparent 0%, rgba(6,2,12,0.45) 35%, rgba(6,2,12,0.78) 100%)',
+          }}
         >
           <div className="space-y-5">
             {lyricWindow.lines.map((ln, i) => (
@@ -160,34 +239,181 @@ const TvFxSurface: React.FC = () => {
       <button
         onClick={exit}
         aria-label="Close FX Stage"
-        className="absolute top-8 right-10 z-10 flex items-center gap-2.5 pl-4 pr-5 py-2.5 rounded-full bg-black/60 border border-white/20 text-white transition-opacity duration-300"
+        className="absolute top-8 right-10 z-[20] flex items-center gap-2.5 pl-4 pr-5 py-2.5 rounded-full bg-black/60 border border-white/20 text-white hover:bg-black/80 hover:border-white/40 transition-all duration-300 pointer-events-auto cursor-pointer"
         style={{ opacity: controls ? 1 : 0 }}
       >
         <X size={20} /><span className="text-[11px] font-black uppercase tracking-widest">Close</span>
       </button>
 
-      {/* Engine selector (top-left) — three pills so it's obvious which engine is live and that ▲▼
-          switches them. This is the "make it deliberate" fix: the choice is shown, not hidden. */}
-      <div className="absolute top-8 left-10 z-10 flex items-center gap-2 transition-opacity duration-300" style={{ opacity: controls ? 1 : 0 }}>
+      {/* Engine selector (top-left) — clickable pills so it's easy on mouse, touch, or remote */}
+      <div className="absolute top-8 left-10 z-[20] flex items-center gap-2 transition-opacity duration-300 pointer-events-auto" style={{ opacity: controls ? 1 : 0 }}>
         <Sparkles size={18} className="text-[#FF8C00] mr-1" />
         {TV_ENGINES.map((e, i) => (
-          <span
+          <button
             key={e}
-            className="px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-widest transition-colors"
+            onClick={() => { setEngineIdx(i); setPresetIndex(0); setIsPickerOpen(true); wake(); }}
+            className="px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1.5"
             style={i === engineIdx
               ? { background: '#FF8C00', color: '#000' }
               : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}
           >
-            {ENGINE_LABEL[e]}
-          </span>
+            <span>{ENGINE_LABEL[e]}</span>
+            <ChevronDown size={11} className={i === engineIdx ? 'text-black/60' : 'text-white/40'} />
+          </button>
         ))}
         <span className="ml-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/35">▲▼ engine</span>
       </div>
 
-      {/* Bottom transport — present, like the slideshow. Progress + prev / play-pause / next, plus the
-          current preset name and the control legend. */}
+      {/* Preset & Engine Dropdown Picker Modal */}
+      {isPickerOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/80 backdrop-blur-2xl pointer-events-auto"
+          onClick={() => setIsPickerOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl bg-[#121217] border border-white/15 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[82vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Sparkles size={18} className="text-[#FF8C00]" />
+                <h3 className="text-sm font-black text-white uppercase tracking-wider">Select {ENGINE_LABEL[engine]} Preset</h3>
+              </div>
+              <button
+                onClick={() => setIsPickerOpen(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Engine Tabs */}
+            <div className="flex items-center gap-2 px-6 pt-3 pb-2 border-b border-white/5 overflow-x-auto no-scrollbar">
+              {TV_ENGINES.map((e, i) => (
+                <button
+                  key={e}
+                  onClick={() => { setEngineIdx(i); setPresetIndex(0); }}
+                  className={`px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                    i === engineIdx
+                      ? 'bg-[#FF8C00] text-black shadow-[0_0_15px_rgba(255,140,0,0.3)]'
+                      : 'bg-white/5 text-white/50 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  {ENGINE_LABEL[e]} ({e === 'SHADER' ? (presetNames.SHADER?.length || '…') : e === 'MILKDROP' ? (presetNames.MILKDROP?.length || '…') : (FX_ENGINE_PRESETS[e]?.length || 0)})
+                </button>
+              ))}
+            </div>
+
+            {/* Search Input */}
+            <div className="px-6 py-3 border-b border-white/5">
+              <div className="relative flex items-center">
+                <Search size={15} className="absolute left-3.5 text-white/40" />
+                <input
+                  type="text"
+                  value={pickerSearch}
+                  onChange={(e) => setPickerSearch(e.target.value)}
+                  placeholder={`Filter ${ENGINE_LABEL[engine]} presets...`}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:border-[#FF8C00]/60 transition-colors"
+                  autoFocus
+                />
+                {pickerSearch && (
+                  <button
+                    onClick={() => setPickerSearch('')}
+                    className="absolute right-3.5 text-[10px] font-bold text-white/40 hover:text-white cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Presets List / Grid */}
+            <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {filteredPresets.length === 0 ? (
+                <div className="col-span-full py-12 text-center text-white/40 text-xs font-medium">
+                  {currentEnginePresets.length === 0 ? 'Loading presets…' : 'No presets match your search.'}
+                </div>
+              ) : (
+                filteredPresets.map((name) => {
+                  const originalIdx = currentEnginePresets.indexOf(name);
+                  const isCurrent = ((presetIndex % (currentEnginePresets.length || 1)) + (currentEnginePresets.length || 1)) % (currentEnginePresets.length || 1) === originalIdx;
+                  return (
+                    <button
+                      key={name}
+                      onClick={() => {
+                        setPresetIndex(originalIdx >= 0 ? originalIdx : 0);
+                        setIsPickerOpen(false);
+                        wake();
+                      }}
+                      className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                        isCurrent
+                          ? 'bg-[#FF8C00]/20 border-[#FF8C00] text-white shadow-[0_0_15px_rgba(255,140,0,0.2)]'
+                          : 'bg-white/[0.03] border-white/5 text-white/70 hover:text-white hover:bg-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      <span className="text-xs font-bold truncate">{name}</span>
+                      {isCurrent && <Check size={13} className="text-[#FF8C00] shrink-0" />}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Playlist toggle — always-visible button above branding, lower-right */}
+      {currentAlbum && (
+        <div
+          className="absolute right-12 z-[20] pointer-events-auto transition-opacity duration-300"
+          style={{ bottom: '14rem', opacity: controls ? 1 : 0.4 }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isPlaylistLocked) {
+                setIsPlaylistLocked(false);
+                setIsPlaylistHovered(false);
+              } else {
+                setIsPlaylistLocked(true);
+              }
+            }}
+            aria-label="Toggle Playlist"
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-full transition-all cursor-pointer backdrop-blur-sm ${
+              isPlaylistLocked ? 'bg-[#FF8C00]/20 border border-[#FF8C00]/50 text-[#FF8C00]' :
+              'bg-white/5 border border-white/10 text-white/40 hover:text-white/70'
+            }`}
+          >
+            <ListMusic size={18} />
+            <span className="text-[9px] font-black uppercase tracking-widest">{isPlaylistLocked ? 'Hide List' : 'Tracklist'}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Plajah Full Stage Mode — branding logo bug, lower-right above transport */}
       <div
-        className="absolute left-0 right-0 bottom-0 px-12 pb-9 pt-24 bg-gradient-to-t from-black/85 via-black/40 to-transparent transition-opacity duration-300"
+        className="absolute right-12 z-[5] flex items-center gap-2 pointer-events-none select-none transition-opacity duration-500"
+        style={{ opacity: controls ? 0.7 : 0.25, bottom: '11rem' }}
+      >
+        <span className="text-[11px] font-black uppercase tracking-[0.35em] text-white/70">Plajah</span>
+        {/* Plajah chevron mark — inline SVG */}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+          <defs>
+            <linearGradient id="pj-chev-grad" x1="6" y1="2" x2="18" y2="22" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor="#8B5CF6" />
+              <stop offset="50%" stopColor="#D40055" />
+              <stop offset="100%" stopColor="#FF8C00" />
+            </linearGradient>
+          </defs>
+          <path d="M7 3.5C7 2.67 7.67 2 8.5 2c.4 0 .77.16 1.06.44l8 8.5a1.5 1.5 0 0 1 0 2.12l-8 8.5A1.5 1.5 0 0 1 7 20.5V3.5Z" fill="url(#pj-chev-grad)" />
+        </svg>
+        <span className="text-[11px] font-black uppercase tracking-[0.35em] text-white/70">Full Stage Mode</span>
+      </div>
+
+      {/* Bottom transport */}
+      <div
+        className="absolute left-0 right-0 bottom-0 px-12 pb-9 pt-24 bg-gradient-to-t from-black/85 via-black/40 to-transparent transition-opacity duration-300 pointer-events-auto z-[15]"
         style={{ opacity: controls ? 1 : 0 }}
       >
         <div className="flex items-center gap-6">
@@ -196,16 +422,42 @@ const TvFxSurface: React.FC = () => {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-2xl font-black text-white truncate">{currentTrack?.title || ''}</p>
-            <p className="text-base text-white/55 truncate">
-              {currentTrack?.artist || ''} <span className="text-white/30">· {ENGINE_LABEL[engine]}: {fxPresetName(engine, presetIndex, presetNames[engine])}</span>
-            </p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-base text-white/55 truncate">
+                {currentTrack?.artist || ''} <span className="text-white/30">· {ENGINE_LABEL[engine]}:</span>
+              </p>
+              <div className="flex items-center gap-1 bg-white/10 rounded-full px-3 py-1 text-xs text-white/80">
+                <button
+                  onClick={() => { setPresetIndex(p => p - 1); wake(); }}
+                  className="hover:text-white transition-colors cursor-pointer px-1 text-white/60 hover:text-white"
+                  aria-label="Previous preset"
+                >
+                  ◀
+                </button>
+                <button
+                  onClick={() => { setIsPickerOpen(true); wake(); }}
+                  className="font-bold text-white px-2 hover:text-[#FF8C00] transition-colors flex items-center gap-1.5 cursor-pointer max-w-[240px]"
+                  title="Click to view full preset list"
+                >
+                  <span className="truncate">{fxPresetName(engine, presetIndex, presetNames[engine])}</span>
+                  <ChevronDown size={14} className="opacity-60 shrink-0" />
+                </button>
+                <button
+                  onClick={() => { setPresetIndex(p => p + 1); wake(); }}
+                  className="hover:text-white transition-colors cursor-pointer px-1 text-white/60 hover:text-white"
+                  aria-label="Next preset"
+                >
+                  ▶
+                </button>
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-5 shrink-0 text-white/85">
-            <button onClick={() => prev()} aria-label="Previous"><SkipBack size={26} fill="currentColor" /></button>
-            <button onClick={() => togglePlay()} aria-label={isPlaying ? 'Pause' : 'Play'} className="w-14 h-14 rounded-full grid place-items-center" style={{ background: '#FF8C00', color: '#000' }}>
+            <button onClick={() => prev()} aria-label="Previous" className="cursor-pointer hover:text-white transition-colors"><SkipBack size={26} fill="currentColor" /></button>
+            <button onClick={() => togglePlay()} aria-label={isPlaying ? 'Pause' : 'Play'} className="w-14 h-14 rounded-full grid place-items-center cursor-pointer hover:scale-105 transition-transform" style={{ background: '#FF8C00', color: '#000' }}>
               {isPlaying ? <Pause size={26} fill="currentColor" /> : <Play size={26} fill="currentColor" className="ml-0.5" />}
             </button>
-            <button onClick={() => next()} aria-label="Next"><SkipForward size={26} fill="currentColor" /></button>
+            <button onClick={() => next()} aria-label="Next" className="cursor-pointer hover:text-white transition-colors"><SkipForward size={26} fill="currentColor" /></button>
           </div>
         </div>
         <div className="mt-4 flex items-center gap-3">

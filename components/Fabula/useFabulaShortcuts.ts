@@ -20,7 +20,7 @@ export function useFabulaShortcuts(handlers: Handlers, opts: { enabled?: boolean
       if (isEditableTarget(e.target)) return;
       const combo = comboFromEvent(e);
       if (!combo) return;
-      const actionId = keymap.get(combo);
+      const actionId = combo === 'Ctrl+Y' ? 'edit.redo' : keymap.get(combo);
       if (!actionId) return;
       const fn = handlersRef.current[actionId];
       if (typeof fn === 'function') { e.preventDefault(); fn(); }

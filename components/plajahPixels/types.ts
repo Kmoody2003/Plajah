@@ -23,7 +23,19 @@ export enum VisualizerMode {
   KineticMirror = 'STUDIO_KINETIC',
   RippleField = 'STUDIO_RIPPLE',
   PlasmaFluid = 'STUDIO_PLASMA',
-  RaymarchField = 'STUDIO_RAYMARCH'
+  RaymarchField = 'STUDIO_RAYMARCH',
+
+  // ─── Flux 3D scenes (three.js real-3D generators — Trapcode Form / Mir) ───
+  FluxField = 'FLUX_FIELD',
+  FluxTapestry = 'FLUX_TAPESTRY',
+  FluxTapestryII = 'FLUX_TAPESTRY_II',
+  FluxLattice = 'FLUX_LATTICE',
+  FluxTunnel = 'FLUX_TUNNEL',
+  FluxAurora = 'FLUX_AURORA',
+  FluxSanctum = 'FLUX_SANCTUM',
+  PorcelainTide = 'FLUX_PORCELAIN_TIDE',
+  VelvetBloom = 'FLUX_VELVET_BLOOM',
+  PrismArchive = 'FLUX_PRISM_ARCHIVE',
 }
 
 /** Studio scene id (engine-side) ↔ VisualizerMode mapping. */
@@ -43,6 +55,25 @@ export const MODE_TO_STUDIO_SCENE: Record<string, string> =
 
 export function isStudioMode(mode: VisualizerMode): boolean {
   return mode in MODE_TO_STUDIO_SCENE;
+}
+
+/** VisualizerMode ↔ Flux scene id (three.js real-3D generators, hosted by FluxStage). */
+export const MODE_TO_FLUX_SCENE: Record<string, string> = {
+  [VisualizerMode.FluxField]: 'field',
+  [VisualizerMode.FluxTapestry]: 'tapestry',
+  [VisualizerMode.FluxTapestryII]: 'tapestry-ii',
+  [VisualizerMode.FluxLattice]: 'lattice',
+  [VisualizerMode.FluxTunnel]: 'tunnel',
+  [VisualizerMode.FluxAurora]: 'aurora',
+  [VisualizerMode.FluxSanctum]: 'sanctum',
+  [VisualizerMode.PorcelainTide]: 'porcelain-tide',
+  [VisualizerMode.VelvetBloom]: 'velvet-bloom',
+  [VisualizerMode.PrismArchive]: 'prism-archive',
+};
+export const FLUX_SCENE_TO_MODE: Record<string, VisualizerMode> =
+  Object.fromEntries(Object.entries(MODE_TO_FLUX_SCENE).map(([k, v]) => [v, k as VisualizerMode]));
+export function isFluxMode(mode: VisualizerMode): boolean {
+  return mode in MODE_TO_FLUX_SCENE;
 }
 
 export type BlendMode = 'normal' | 'screen' | 'overlay' | 'difference' | 'lighten' | 'color-dodge' | 'hard-light' | 'multiply' | 'darken' | 'exclusion';

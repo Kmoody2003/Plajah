@@ -9,6 +9,7 @@ import { Play, Square, ArrowRight, Plus } from 'lucide-react';
 import type { GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { grooveUid, defaultPattern } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
+import { DrumPatternThumb } from '../PatternThumb';
 import { PLAYHEAD, SELECT } from '../theme';
 
 interface Props {
@@ -97,7 +98,8 @@ export const ClipLauncher: React.FC<Props> = ({ doc, activePatternId, playMode, 
               >
                 <Play size={11} fill={playing ? 'currentColor' : 'none'} />
               </button>
-              <span className="flex-1 min-w-0 py-1.5 text-[10.5px] text-white/75 truncate self-center">{pat.name}</span>
+              <DrumPatternThumb pattern={pat} bpm={doc.bpm} className="self-center flex-none" style={{ width: 54 }} />
+              <span className="flex-1 min-w-0 py-1.5 text-[10.5px] text-white/75 truncate self-center pl-0.5">{pat.name}</span>
               <button
                 onClick={() => capture(pat.id)}
                 className="w-6 grid place-items-center flex-none text-white/30 hover:text-white"

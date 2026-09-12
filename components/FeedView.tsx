@@ -29,6 +29,7 @@ import FediversePostCard from './FediversePostCard';
 import RightNowFeed, { PresenceSync } from './RightNowFeed';
 import { RightNowOnboardingController, RightNowAnnouncementBanner, STORAGE_KEY as NOW_STORAGE_KEY } from './RightNowOnboarding';
 import { updateUserProfile as _updatePresence } from '../services/backendService';
+import { isFeedLive } from '../services/liveFeedLiveness';
 import { useFediverse } from '../contexts/FediverseContext';
 import MiniMusicPlayer from './MiniMusicPlayer';
 import UniversalPostComposer from './UniversalPostComposer';
@@ -812,7 +813,7 @@ const DeepLinkPost: React.FC<{ type: 'WATCH_ALONG' | 'LIVE_FEED'; url: string; t
   useEffect(() => {
     if (!isLiveFeed || !authorId) return;
     const unsub = fetchAllLiveFeeds((feeds) => {
-      const stillLive = feeds.some(f => f.ownerId === authorId && (f as any).status !== 'ENDED' && (f as any).status !== 'OFFLINE');
+      const stillLive = feeds.some(f => f.ownerId === authorId && isFeedLive(f));
       setLiveState(stillLive ? 'LIVE' : 'ENDED');
     });
     return () => { try { (unsub as any)?.(); } catch { /* */ } };

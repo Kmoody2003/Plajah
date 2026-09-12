@@ -63,6 +63,15 @@ export const AMP_MODELS: AmpModel[] = [
   { id: 'recto', label: 'Cali Rectified', blurb: 'Modern high gain — scooped, tight, brutal',
     stages: 4, driveScale: 8.5, asym: 0.12, couplingHz: 95, brightDb: 0.5,
     bassHz: 90, midHz: 620, midQ: 1, scoopDb: -6, trebleHz: 3000, presenceHz: 4600, resonanceHz: 75, sag: 0.25, outputTrimDb: -3 },
+  { id: 'jazz', label: 'Jazz Solid State', blurb: 'Fast, glassy transient response with enormous clean headroom',
+    stages: 1, driveScale: 1.15, asym: 0.02, couplingHz: 24, brightDb: 2.5,
+    bassHz: 75, midHz: 780, midQ: 0.65, scoopDb: -2, trebleHz: 3800, presenceHz: 6500, resonanceHz: 72, sag: 0.02, outputTrimDb: 1 },
+  { id: 'boutique', label: 'Boutique Class A', blurb: 'Harmonic bloom, chewy mids and articulate breakup',
+    stages: 3, driveScale: 4.8, asym: 0.34, couplingHz: 52, brightDb: 3,
+    bassHz: 105, midHz: 820, midQ: 0.62, scoopDb: 1, trebleHz: 3100, presenceHz: 5400, resonanceHz: 105, sag: 0.62, outputTrimDb: -1.5 },
+  { id: 'doom', label: 'Doom Matriarch', blurb: 'Loose low end, thick clipping and collapsing power supply',
+    stages: 4, driveScale: 9.5, asym: 0.28, couplingHz: 35, brightDb: 0,
+    bassHz: 78, midHz: 430, midQ: 0.75, scoopDb: 2.5, trebleHz: 2300, presenceHz: 3900, resonanceHz: 68, sag: 0.88, outputTrimDb: -4 },
 ];
 
 export const ampModelAt = (i: number): AmpModel => AMP_MODELS[Math.max(0, Math.min(AMP_MODELS.length - 1, Math.round(i)))];
@@ -88,6 +97,9 @@ export const CAB_MODELS: CabModel[] = [
   { id: '2x12blue', label: '2×12 Blue Alnico', lowCutHz: 80, bumpHz: 120, bumpDb: 2.5, notchHz: 2100, notchDb: -3, notchQ: 1.4, presenceHz: 3800, presenceDb: 4.5, rolloffHz: 6000, rolloffQ: 1.4 },
   { id: '4x12british', label: '4×12 British Greens', lowCutHz: 75, bumpHz: 105, bumpDb: 5, notchHz: 1600, notchDb: -6, notchQ: 1.8, presenceHz: 3000, presenceDb: 3, rolloffHz: 4600, rolloffQ: 1.6 },
   { id: '4x10tweed', label: '4×10 Tweed', lowCutHz: 95, bumpHz: 150, bumpDb: 2, notchHz: 1300, notchDb: -3, notchQ: 1.2, presenceHz: 3600, presenceDb: 4, rolloffHz: 5600, rolloffQ: 1.2 },
+  { id: '1x15bass', label: '1×15 Deep Bass', lowCutHz: 42, bumpHz: 72, bumpDb: 5, notchHz: 700, notchDb: -2, notchQ: 1.1, presenceHz: 2200, presenceDb: 1.5, rolloffHz: 4200, rolloffQ: 0.9 },
+  { id: '2x12modern', label: '2×12 Modern Tight', lowCutHz: 72, bumpHz: 95, bumpDb: 3, notchHz: 1250, notchDb: -4, notchQ: 1.5, presenceHz: 4100, presenceDb: 5, rolloffHz: 6800, rolloffQ: 1.2 },
+  { id: '4x12dark', label: '4×12 Dark Oversize', lowCutHz: 62, bumpHz: 88, bumpDb: 6, notchHz: 1850, notchDb: -7, notchQ: 1.6, presenceHz: 2700, presenceDb: 2, rolloffHz: 3900, rolloffQ: 1.8 },
 ];
 
 export const cabModelAt = (i: number): CabModel => CAB_MODELS[Math.max(0, Math.min(CAB_MODELS.length - 1, Math.round(i)))];
@@ -100,6 +112,8 @@ export const MIC_MODELS: MicModel[] = [
   { id: 'dyn57', label: 'Dynamic 57', tiltDb: 1.5, peakHz: 5500, peakDb: 4 },
   { id: 'ribbon', label: 'Ribbon 121', tiltDb: -2.5, peakHz: 2200, peakDb: 1.5 },
   { id: 'cond414', label: 'Condenser 414', tiltDb: 0.5, peakHz: 8000, peakDb: 2.5 },
+  { id: 'dyn421', label: 'Dynamic 421', tiltDb: 0.4, peakHz: 3600, peakDb: 3 },
+  { id: 'ribbon-dark', label: 'Dark Ribbon', tiltDb: -4, peakHz: 1800, peakDb: 1 },
 ];
 export const micModelAt = (i: number): MicModel => MIC_MODELS[Math.max(0, Math.min(MIC_MODELS.length - 1, Math.round(i)))];
 
@@ -131,6 +145,14 @@ export const PEDAL_MODELS: PedalModel[] = [
     preHpHz: 90, midHz: 1000, midDb: -8, midQ: 0.9, hardness: 0.85, asym: 0.3, toneHz: 2600 },
   { id: 'cleanboost', label: 'Clean Boost', blurb: 'Just more — hits the amp harder', color: '#0288D1',
     preHpHz: 40, midHz: 1200, midDb: 0, midQ: 0.7, hardness: 0.05, asym: 0.04, toneHz: 12000 },
+  { id: 'ratdrive', label: 'Rodent Drive', blurb: 'Hard, grainy distortion with a cutting upper-mid voice', color: '#7A7A72',
+    preHpHz: 180, midHz: 1450, midDb: 3.5, midQ: 0.9, hardness: 0.72, asym: 0.12, toneHz: 4200 },
+  { id: 'octafuzz', label: 'Octave Fuzz', blurb: 'Asymmetric octave-rich fuzz for leads and synth bass', color: '#7C3AED',
+    preHpHz: 120, midHz: 1100, midDb: 2, midQ: 0.7, hardness: 0.92, asym: 0.4, toneHz: 3500 },
+  { id: 'bassdrive', label: 'Bass Driver', blurb: 'Low-end preserving grind with focused definition', color: '#0F766E',
+    preHpHz: 55, midHz: 780, midDb: 2.5, midQ: 0.65, hardness: 0.42, asym: 0.2, toneHz: 6200 },
+  { id: 'trebleboost', label: 'Treble Booster', blurb: 'Lean low end and singing upper mids into a breaking amp', color: '#F97316',
+    preHpHz: 850, midHz: 2100, midDb: 6, midQ: 0.72, hardness: 0.24, asym: 0.3, toneHz: 7600 },
 ];
 
 export const pedalModelAt = (i: number): PedalModel => PEDAL_MODELS[Math.max(0, Math.min(PEDAL_MODELS.length - 1, Math.round(i)))];
@@ -154,4 +176,16 @@ export const RIG_PRESETS: RigPreset[] = [
     params: { amp: 6, gain: 0.8, bass: 0.65, mid: 0.3, treble: 0.65, presence: 0.65, resonance: 0.7, master: 0.7, cab: 3, mic: 0, micEdge: 0.3, pedal1: 0, pedal1On: 1, pedal1Drive: 0.25, pedal2: 0, pedal2On: 0, pedal2Drive: 0.4, sagAmt: 0.2 } },
   { id: 'fuzzed', label: 'Fuzz Wall', blurb: 'Violin sustain and scooped fuzz',
     params: { amp: 3, gain: 0.5, bass: 0.6, mid: 0.5, treble: 0.55, presence: 0.5, resonance: 0.6, master: 0.7, cab: 1, mic: 1, micEdge: 0.5, pedal1: 2, pedal1On: 1, pedal1Drive: 0.7, pedal2: 0, pedal2On: 0, pedal2Drive: 0.4, sagAmt: 0.6 } },
+  { id: 'jazz-direct', label: 'Polished Jazz', blurb: 'Fast, wide clean tone for chords and fingerstyle',
+    params: { amp: 7, gain: 0.18, bass: 0.52, mid: 0.46, treble: 0.62, presence: 0.58, resonance: 0.42, master: 0.78, cab: 6, mic: 2, micEdge: 0.55, pedal1: 3, pedal1On: 0, pedal1Drive: 0.2, pedal2: 0, pedal2On: 0, pedal2Drive: 0.2, sagAmt: 0.04 } },
+  { id: 'boutique-edge', label: 'Boutique Edge', blurb: 'Touch-sensitive harmonic bloom for indie rhythm work',
+    params: { amp: 8, gain: 0.52, bass: 0.48, mid: 0.66, treble: 0.58, presence: 0.56, resonance: 0.48, master: 0.72, cab: 2, mic: 3, micEdge: 0.48, pedal1: 1, pedal1On: 1, pedal1Drive: 0.22, pedal2: 0, pedal2On: 0, pedal2Drive: 0.2, sagAmt: 0.62 } },
+  { id: 'doom', label: 'Doom Cathedral', blurb: 'Huge collapsing lows and dark sustained distortion',
+    params: { amp: 9, gain: 0.88, bass: 0.82, mid: 0.68, treble: 0.34, presence: 0.28, resonance: 0.88, master: 0.68, cab: 7, mic: 4, micEdge: 0.72, pedal1: 2, pedal1On: 1, pedal1Drive: 0.82, pedal2: 6, pedal2On: 1, pedal2Drive: 0.5, sagAmt: 0.92 } },
+  { id: 'bass-grind', label: 'Bass Grind', blurb: 'Preserved sub weight with articulate distorted mids',
+    params: { amp: 0, gain: 0.42, bass: 0.72, mid: 0.62, treble: 0.46, presence: 0.5, resonance: 0.7, master: 0.74, cab: 5, mic: 3, micEdge: 0.62, pedal1: 6, pedal1On: 1, pedal1Drive: 0.64, pedal2: 3, pedal2On: 0, pedal2Drive: 0.2, sagAmt: 0.18 } },
+  { id: 'garage', label: 'Garage Knife', blurb: 'Small, bright, rude rhythm tone that owns the midrange',
+    params: { amp: 5, gain: 0.7, bass: 0.32, mid: 0.72, treble: 0.76, presence: 0.7, resonance: 0.3, master: 0.68, cab: 1, mic: 0, micEdge: 0.18, pedal1: 7, pedal1On: 1, pedal1Drive: 0.52, pedal2: 0, pedal2On: 0, pedal2Drive: 0.2, sagAmt: 0.5 } },
+  { id: 'industrial', label: 'Industrial Razor', blurb: 'Dry, tight, abrasive distortion for machine-like riffs',
+    params: { amp: 6, gain: 0.74, bass: 0.42, mid: 0.4, treble: 0.78, presence: 0.82, resonance: 0.38, master: 0.65, cab: 6, mic: 0, micEdge: 0.12, pedal1: 4, pedal1On: 1, pedal1Drive: 0.7, pedal2: 3, pedal2On: 1, pedal2Drive: 0.3, sagAmt: 0.08 } },
 ];

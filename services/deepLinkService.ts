@@ -56,7 +56,7 @@ export function buildShareUrl(asset: ShareAsset, id: string, extra?: Record<stri
     // for an account's channel — and `n` is the guide number (8.1, 42.1) carried for display and to
     // re-tune the dial. The /share route injects the channel's OG card then bounces humans into the
     // Live guide focused on it.
-    case 'channel':    return `${base}/share?${qs({ type: 'channel', id, n: extra?.n })}`;
+    case 'channel':    return `${base}/share?${qs({ type: 'channel', id, n: extra?.n, source: extra?.source })}`;
     case 'club':       return `${base}/?${qs({ club: id })}`;
     case 'debate':     return `${base}/?${qs({ debate: id })}`;
     case 'clubPost':   return `${base}/?${qs({ club: extra?.club, post: id })}`;

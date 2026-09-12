@@ -16,6 +16,7 @@
 // from the album), and a song that already exists is matched by its source track id.
 
 import type { Album, Track } from '../../types';
+import { cleanDescription } from '../../utils/description';
 import {
   createProduction, fetchProduction, putSong, putArrangement, newSong, uid,
   type MelosSong, type MelosArrangement, type LyricBlock, type BlockKind,
@@ -147,7 +148,7 @@ export async function importAlbumToMelos(
     year: String((album as { releaseYear?: string | number }).releaseYear ?? project.publishing.year ?? ''),
     label: (album as { recordLabel?: string }).recordLabel || project.publishing.label,
     copyright: (album as { copyrightLine?: string }).copyrightLine || project.publishing.copyright,
-    description: album.description || project.publishing.description,
+    description: cleanDescription(album.description) || project.publishing.description,
   };
   if (album.coverImage) project.coverImage = album.coverImage;
 

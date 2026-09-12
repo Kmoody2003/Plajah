@@ -1317,6 +1317,65 @@ export interface FeaturedProjectRef {
   setAt: number;
 }
 
+/**
+ * A creator's own internet-radio station brought on-platform by pasting its public stream URL.
+ *
+ * Lives in the `linked_stations` Firestore collection (public read, owner write) so it can appear
+ * in the Radio directory (LiveRadioBrowser "Creator Stations" shelf) and on the owner's profile
+ * alongside their other broadcasting. Playback goes through the shared RADIO transport, so a linked
+ * station behaves like every other station on the platform. Verified best-effort at link time —
+ * see services/linkedStations.ts. Writes must strip `undefined` (Firestore rejects it).
+ */
+export interface LinkedRadioStation {
+  id: string;
+  ownerUid: string;
+  ownerName: string;
+  ownerAvatar?: string;
+  name: string;
+  /** The public stream URL the owner already broadcasts on (played straight through the transport). */
+  streamUrl: string;
+  homepage?: string;
+  favicon?: string;
+  tags: string[];
+  country?: string;
+  countryCode?: string;
+  language?: string;
+  genre?: string;
+  /** Best-effort at link time (guessed from the URL) or user-declared. */
+  codec?: string;
+  bitrate?: number;
+  /** The stream is an HLS (.m3u8) playlist rather than an ICY/progressive stream. */
+  isHls: boolean;
+  /** URL is https — an http-only stream is blocked as mixed content on the https app. */
+  isSecure: boolean;
+  /** The last verification actually reached playable audio. */
+  lastCheckOk: boolean;
+  verifiedAt: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type BroadcastDestinationKind = 'restream' | 'youtube' | 'twitch' | 'facebook' | 'kick' | 'custom';
+
+/**
+ * A place an account can simulcast a broadcast out to — Restream, or a platform's RTMP directly.
+ *
+ * SECRET-BEARING: `streamKey` is a credential, so these live in `broadcast_destinations/{uid}`
+ * (owner-only READ, unlike the public `linked_stations`). Configured in any host; the actual RTMP
+ * push runs where the host can do it — the desktop/Capacitor app today (see
+ * services/mediaEngine/capabilities.ts), a server relay later. Supports both models the owner chose:
+ * Restream as one destination AND direct per-platform RTMP side by side.
+ */
+export interface BroadcastDestination {
+  id: string;
+  kind: BroadcastDestinationKind;
+  label: string;
+  rtmpUrl: string;
+  streamKey: string;
+  enabled: boolean;
+  createdAt: number;
+}
+
 export interface UserProfile {
   uid: string;
   displayName: string;
@@ -1516,6 +1575,9 @@ export interface UserProfile {
   isPioneer?: boolean;
   pioneerRewardClaimed?: boolean;
   hasSeenWelcomePackage?: boolean;
+  /** Existing-user launch campaign: set once we've sent the "Welcome Package is ready"
+   *  notification (or when a brand-new user gets it live), so it is never re-sent. */
+  welcomePackageNotified?: boolean;
   tier?: 'FREE' | 'PIONEER' | 'PRO' | 'ELITE';
   storageLimit: number; // 0 means unlimited
   storageUsage: {
@@ -2797,6 +2859,7 @@ export interface ParentalControls {
 
 export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'PRAXIS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS' | 'CREATOR_PAYMENTS' | 'ARTIST_MANAGER' | 'MELOS' | 'CAREER_IMPORT' | 'ARTIST_BOARDS' | 'EVENT_PRODUCTION_STUDIO' | 'TICKET_DESIGNER' | 'PLAJAH_PIXELS' | 'BIBLE' | 'AMBO' | 'AMBO_PRO' | 'FOLLOW_ALONG' | 'VESPERS' | 'SACRED_LIBRARY' | 'ATHLETE_SHOWCASE' | 'MATCH_FAN_ROOMS' | 'CLASS_POINTS' | 'ACADEMIA_TOUR' | 'ACADEMIA_HOME' | 'ACADEMIA_LANDING' | 'ACADEMIA_COURSES' | 'SCHOOL_PACKAGE' | 'LANGUAGE_QUEST' | 'EDU_SOCIAL' | 'KIDS_LIBRARY' | 'ROOM' | 'PODCAST_STUDIO' | 'LIVE_TRANSLATION' | 'PODCAST_CALLIN' | 'PODCAST_LISTEN' | 'ORG_HUB' | 'TELEPROMPTER' | 'SPATIAL_MIXER' | 'MELOS_BEATS' | 'MEDIA_CONVERTER' | 'COMIC_MUSEUM' | 'AUDIUS_ARTIST' | 'PLAJAH_ELEVATE' | 'PLATFORM_CHANGELOG' | 'MEDIA_ROUTER' | 'CROSSOVER' | 'SMART_DIRECTOR' | 'HISTORY_QUEST' | 'TV_SEARCH' | 'TERRA' | 'TERRA_MAP' | 'TERRA_PASSPORT' | 'TERRA_STUDIO' | 'TERRA_SCOUT' | 'TERRA_FILM' | 'TERRA_FEED' | 'TERRA_LISTINGS' | 'TELA' | 'TELA_EMBED_DEMO' | 'CREATOR_HUB'
   | 'DJ_CONSOLE'
+  | 'WELCOME_PACKAGE'
   | 'EVENTS' | 'EVENT_DETAIL' | 'EVENT_CREATE' | 'EVENT_DASHBOARD' | 'MY_TICKETS' | 'EVENT_KIOSK'
   | 'EVENT_PRODUCTION' | 'EVENT_PRODUCTION_DETAIL' | 'ARTIST_SERVICES'
   // Internal pitch documents — not linked in nav. Access via ?view=pitch-music|pitch-film|pitch-writer
@@ -6223,6 +6286,7 @@ export interface TelaVectorNode {
   smooth?: boolean;
 }
 
+export interface TelaShadow { x: number; y: number; blur: number; color: string; }
 export interface TelaGradientStop { offset: number; color: string; opacity?: number; }
 export interface TelaGradientPaint {
   kind: 'LINEAR' | 'RADIAL';
@@ -6252,6 +6316,26 @@ export interface TelaVectorObject {
   fontSize?: number;
   fontFamily?: string;
   fontWeight?: number;
+  // ── Typography controls (template engine) ──
+  fontStyle?: 'normal' | 'italic';
+  textAlign?: 'left' | 'center' | 'right';
+  /** Tracking as a fraction of the font size (0.12 = 12%). */
+  letterSpacing?: number;
+  /** Leading as a multiple of the font size (default 1.22). */
+  lineHeight?: number;
+  textTransform?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+  /** Word-wrap the text inside the object's width (explicit \n still breaks). */
+  wrap?: boolean;
+  // ── Shape finish ──
+  /** Corner radius for RECT (px). */
+  rx?: number;
+  shadow?: TelaShadow;
+  blendMode?: TelaBlendMode;
+  /** Gaussian blur radius (px). */
+  blur?: number;
+  strokeDash?: number[];
+  /** Template semantics — galleries, Aria and "replace image" affordances read this. */
+  templateRole?: 'GROUND' | 'IMAGE_SLOT' | 'HEADLINE' | 'DECK' | 'BODY' | 'CAPTION' | 'LABEL' | 'FOLIO' | 'ORNAMENT' | 'RULE' | 'LOGO';
   /**
    * When set, a TEXT object renders the plain text of that Writer device live
    * (the binding-graph "text" edge). The object's own `text` is kept as a
@@ -6397,9 +6481,88 @@ export interface TelaImageDevice {
   groups?: TelaImageLayerGroup[];
 }
 
+// ── Chart device — live 2D/3D data visualization (P3) ───────────────────────
+
+export type TelaChartKind =
+  | 'BAR' | 'LINE' | 'AREA' | 'DONUT' | 'SCATTER' | 'RADAR'
+  | 'WATERFALL' | 'FUNNEL' | 'GAUGE' | 'BAR_3D' | 'SCATTER_3D' | 'SURFACE_3D';
+
+export type TelaChartStyle =
+  | 'PLAJAH' | 'SWISS' | 'BAUHAUS' | 'EDITORIAL' | 'NEON' | 'GLASS'
+  | 'INK' | 'TOPOGRAPHIC' | 'SPORTS' | 'BROADCAST' | 'MONO' | 'CEREMONIAL'
+  | 'CLASSICAL' | 'REBEL' | 'FUTURIST' | 'WORLD_ATLAS' | 'BAROQUE' | 'RADICAL_MINIMAL';
+
+export interface TelaChartSeries {
+  id: string;
+  name: string;
+  /** GRID source: A1 range such as B2:B12. Formula cells are evaluated live. */
+  range?: string;
+  /** BASE source: field id containing numeric values. */
+  fieldId?: string;
+  /** INLINE source or durable fallback when a source is detached. */
+  values?: number[];
+  color?: string;
+}
+
+export interface TelaChartDataBinding {
+  sourceType: 'INLINE' | 'GRID' | 'BASE';
+  sourceDeviceId?: string;
+  /** GRID label range (A2:A12). */
+  labelRange?: string;
+  /** BASE field id used for labels. */
+  labelFieldId?: string;
+  labels?: string[];
+  series: TelaChartSeries[];
+}
+
+export interface TelaChartDevice {
+  id: string;
+  type: 'CHART';
+  name?: string;
+  title: string;
+  subtitle?: string;
+  width: number;
+  height: number;
+  kind: TelaChartKind;
+  style: TelaChartStyle;
+  binding: TelaChartDataBinding;
+  showLegend: boolean;
+  showValues: boolean;
+  interactive: boolean;
+  animation: {
+    preset: 'NONE' | 'RISE' | 'DRAW' | 'CASCADE' | 'ORBIT' | 'MORPH';
+    durationMs: number;
+    staggerMs: number;
+    loop?: boolean;
+  };
+  transition: {
+    in: 'NONE' | 'FADE' | 'WIPE' | 'ZOOM' | 'FLIP';
+    out: 'NONE' | 'FADE' | 'WIPE' | 'ZOOM' | 'FLIP';
+  };
+  camera?: { yaw: number; pitch: number; depth: number };
+}
+
+export type TelaMediaKind = 'IMAGE' | 'AUDIO' | 'VIDEO' | 'MODEL_3D' | 'PDF' | 'FONT' | 'ARCHIVE' | 'FILE';
+
+/** A portable asset placed on any Tela canvas. The URL is durable for signed-in
+ * users and may be session-only for guests (mirroring image-layer behavior). */
+export interface TelaMediaDevice {
+  id: string;
+  type: 'MEDIA';
+  kind: TelaMediaKind;
+  name: string;
+  src: string;
+  mimeType: string;
+  size: number;
+  width: number;
+  height: number;
+  storagePath?: string;
+  sessionOnly?: boolean;
+}
+
 export type TelaDevice =
   | TelaWriterDevice | TelaGridDevice | TelaBaseDevice | TelaFormDevice
-  | TelaVectorDevice | TelaImageDevice | TelaNotesDevice;
+  | TelaVectorDevice | TelaImageDevice | TelaChartDevice | TelaNotesDevice | TelaMediaDevice;
 
 // ── The binding graph — typed, directional links between devices (P1) ─────────
 // A binding is `source device · selector → target device · role`. Edits flow

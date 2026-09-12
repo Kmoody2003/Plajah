@@ -132,10 +132,11 @@ function toCamelot(key?: string, scale?: string): string | null {
 // this is what stops the decks from being silent. primeDJAudio() is only a FALLBACK for the
 // rare case that context isn't available; it still must be called from a click (gesture) to
 // unlock, since an AudioContext born in a React effect stays suspended in Chrome.
+import { platformAudio } from '../services/mediaEngine/audioRuntime';
 let sharedDJCtx: AudioContext | null = null;
 export function primeDJAudio(): AudioContext {
   if (!sharedDJCtx || sharedDJCtx.state === 'closed') {
-    sharedDJCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    sharedDJCtx = platformAudio.getContext();
   }
   if (sharedDJCtx.state === 'suspended') sharedDJCtx.resume().catch(() => {});
   return sharedDJCtx;
@@ -551,7 +552,7 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
 
     const master = ctx.createGain();
     master.gain.value = 1;
-    master.connect(ctx.destination);
+    master.connect(ctx === platformAudio.getContext() ? platformAudio.output('dj') : ctx.destination);
     masterGainRef.current = master;
 
     const reverbBuf = createReverb(ctx);

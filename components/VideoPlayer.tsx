@@ -7,7 +7,10 @@ import {
   followUser, unfollowUser, isFollowing,
 } from '../services/backendService';
 import { buildShareUrl } from '../services/deepLinkService';
+import MediaThumb from './ui/MediaThumb';
 import { recordProgress, getResumePosition } from '../services/watchHistoryService';
+import { trackStart, trackProgress, trackComplete } from '../services/contentMetrics';
+import { setVideoReaction } from '../services/videoTasteService';
 import { createParty, partyShareUrl, shouldResync } from '../services/partyService';
 import { useParty } from '../hooks/useParty';
 import { Users, Radio } from 'lucide-react';
@@ -728,6 +731,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
     if (!video?.id) return;
     if (!(duration > 0) || isNaN(duration)) return;      // guard NaN / 0 duration
     if (!(currentTime > 0) || isNaN(currentTime)) return;
+    // Creator metrics. Separate from the watch-history write below: that one is this viewer's
+    // private resume position, this one is the aggregate view count and retention curve. Reello
+    // reported NEITHER before — every `playsCount` on screen (and the play-weighted ranking in
+    // relloFeedService) was reading a field nothing ever wrote.
+    trackStart(video.id, 'video', (video as any).ownerId);
+    trackProgress(video.id, 'video', currentTime, duration, (video as any).ownerId);
     recordProgress({
       id: video.id,
       kind: 'VIDEO',
@@ -737,6 +746,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
       positionSec: currentTime,
       durationSec: duration,
       worldId: video.worldId,
+      // Taste facets — see services/videoTasteService. Watching something through is a real
+      // signal; abandoning it in the first quarter is too.
+      genre: video.genre,
+      category: video.category,
+      creatorId: (video as any).ownerId,
+      tags: video.tags,
     }).catch(() => { /* non-fatal */ });
   }, [video?.id, video?.title, video?.thumbnailUrl, video?.coverImageUrl, video?.artist, video?.worldId, ownerProfile?.displayName, currentTime, duration]);
 
@@ -802,6 +817,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
 
   const handleVideoEnded = useCallback(() => {
     doRecord();
+    if (video?.id) trackComplete(video.id, 'video', duration, (video as any).ownerId);
     if (autoplayNext && nextInQueue && onPlayQueued) { setUpNextIn(5); return; }
     // On a TV, don't dead-end on a frozen last frame — offer an "up next" (suggest next + more from
     // this world + characters). The overlay itself falls back to a plain exit if it has nothing to
@@ -854,6 +870,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
     if (!currentUser) return;
     if (isLiked) { await unlikeVideo(video.id); setIsLiked(false); setVideo(v => ({ ...v, likesCount: Math.max(0, (v.likesCount || 1) - 1) })); }
     else { await likeVideo(video.id); setIsLiked(true); setVideo(v => ({ ...v, likesCount: (v.likesCount || 0) + 1 })); }
+    // Feed the personal taste vector too. A heart on Reello is the strongest explicit signal
+    // there is (LOVE), and it is stamped with this video's facets so the vector learns the kind
+    // of thing that was liked. Done here rather than inside likeVideo() because that helper only
+    // receives an id — the facets are only in scope at the call site.
+    void setVideoReaction(video as any, isLiked ? null : 'LOVE');
   };
 
   const handleShare = () => {
@@ -1307,14 +1328,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
           <AnimatePresence>
             {upNextIn !== null && nextInQueue && (() => {
               const nq = nextInQueue as any;
-              const nthumb = nq.muxPlaybackId ? `https://image.mux.com/${nq.muxPlaybackId}/thumbnail.png?width=320&height=180&time=5` : (nq.thumbnailUrl || nq.coverImageUrl || '');
+              const nthumb = nq.muxPlaybackId ? `https://image.mux.com/${nq.muxPlaybackId}/thumbnail.png?width=320&time=5` : (nq.thumbnailUrl || nq.coverImageUrl || '');
               return (
                 <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}
                   className="absolute bottom-20 right-4 z-30 w-[min(16rem,90vw)] p-3 bg-black/85 backdrop-blur-md rounded-2xl border border-white/10 pointer-events-auto" onClick={e => e.stopPropagation()}>
                   <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-2">Up next in {upNextIn}s</p>
                   <div className="flex gap-2.5 items-start">
-                    <div className="w-20 aspect-video rounded-lg overflow-hidden bg-white/10 shrink-0">
-                      {nthumb ? <img src={nthumb} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Play size={14} className="text-white/30" /></div>}
+                    <div className="relative w-20 aspect-video rounded-lg overflow-hidden bg-white/10 shrink-0">
+                      {nthumb ? <MediaThumb src={nthumb} alt="" /> : <div className="w-full h-full flex items-center justify-center"><Play size={14} className="text-white/30" /></div>}
                     </div>
                     <p className="text-xs font-bold text-white line-clamp-2 flex-1">{nextInQueue.title}</p>
                   </div>

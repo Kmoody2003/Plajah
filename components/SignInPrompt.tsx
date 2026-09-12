@@ -1,11 +1,21 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, LogIn, Mail, Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
-import { loginWithGoogle, loginWithTwitter, loginWithFacebook, loginWithMicrosoft, loginWithEmail, registerWithEmail, sendPasswordReset } from '../services/backendService';
+import { X, LogIn, Mail, Eye, EyeOff, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
+import { loginWithGoogle, loginWithTwitter, loginWithFacebook, loginWithMicrosoft, loginWithEmail, registerWithEmail, sendPasswordReset, WrongProviderError, auth } from '../services/backendService';
+import { GoogleIcon, FacebookIcon, MicrosoftIcon, XIcon } from './ui/ProviderIcons';
 import { childLogin } from '../services/learnerAuthService';
 
 type Mode = 'SOCIAL' | 'EMAIL' | 'STUDENT';
 type EmailMode = 'SIGN_IN' | 'REGISTER' | 'RESET';
+
+// Keyed by Firebase providerId so a "you signed up with Google" error can offer the exact
+// button that will actually work.
+const SOCIALS = [
+  { id: 'google.com',    label: 'Google',        Icon: GoogleIcon,    fn: () => loginWithGoogle(), bg: 'bg-white text-black' },
+  { id: 'twitter.com',   label: 'X / Twitter',   Icon: XIcon,         fn: loginWithTwitter,        bg: 'bg-[#1a1a1a] border border-white/10 text-white' },
+  { id: 'facebook.com',  label: 'Facebook',      Icon: FacebookIcon,  fn: loginWithFacebook,       bg: 'bg-[#1877F2] text-white' },
+  { id: 'microsoft.com', label: 'Microsoft',     Icon: MicrosoftIcon, fn: loginWithMicrosoft,      bg: 'bg-[#2f2f2f] border border-white/10 text-white' },
+] as const;
 
 interface SignInPromptProps {
   action?: string;
@@ -24,6 +34,9 @@ const SignInPrompt: React.FC<SignInPromptProps> = ({ action = 'interact', initia
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [resetSent, setResetSent] = useState(false);
+  // Set when the failure is "this address belongs to Google/Facebook/…, not a password", so the
+  // error can carry the button that actually works instead of just naming the problem.
+  const [suggestProviders, setSuggestProviders] = useState<string[]>([]);
 
   const handleStudentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,12 +53,16 @@ const SignInPrompt: React.FC<SignInPromptProps> = ({ action = 'interact', initia
     }
   };
 
+  // Await the popup BEFORE closing. Closing first meant a blocked popup, a cancelled sign-in
+  // or a provider error all looked identical to success: the sheet vanished and nothing
+  // happened, with the explanation set on a component that no longer existed.
   const handle = async (fn: () => Promise<any>) => {
     setLoading(true);
     setError('');
+    setSuggestProviders([]);
     try {
-      onClose();
       await fn();
+      if (auth.currentUser) onClose();
     } catch (e: any) {
       setError(e.message || 'Something went wrong.');
     } finally {
@@ -59,6 +76,7 @@ const SignInPrompt: React.FC<SignInPromptProps> = ({ action = 'interact', initia
     setLoading(true);
     setError('');
     try {
+      setSuggestProviders([]);
       if (emailMode === 'RESET') {
         await sendPasswordReset(email);
         setResetSent(true);
@@ -74,6 +92,7 @@ const SignInPrompt: React.FC<SignInPromptProps> = ({ action = 'interact', initia
       }
       onClose();
     } catch (e: any) {
+      setSuggestProviders(e instanceof WrongProviderError ? e.providers.filter((x: string) => x !== 'password') : []);
       setError(e.message || 'Something went wrong.');
     } finally {
       setLoading(false);
@@ -127,6 +146,11 @@ const SignInPrompt: React.FC<SignInPromptProps> = ({ action = 'interact', initia
         <AnimatePresence mode="wait">
           {mode === 'SOCIAL' && (
             <motion.div key="social" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="flex flex-col gap-3">
+              {error && (
+                <div className="flex items-start gap-2 text-[10px] text-red-300 bg-red-500/10 border border-red-500/25 rounded-xl px-3 py-2.5">
+                  <AlertCircle size={12} className="shrink-0 mt-0.5" /> <span>{error}</span>
+                </div>
+              )}
               {/* Google */}
               <button
                 onClick={() => handle(loginWithGoogle)}
@@ -219,8 +243,22 @@ const SignInPrompt: React.FC<SignInPromptProps> = ({ action = 'interact', initia
                     </div>
                   )}
                   {error && (
-                    <div className="flex items-center gap-2 text-[10px] text-red-400">
-                      <AlertCircle size={12} /> {error}
+                    <div className="flex flex-col gap-2 text-[10px] text-red-300 bg-red-500/10 border border-red-500/25 rounded-xl px-3 py-2.5">
+                      <div className="flex items-start gap-2"><AlertCircle size={12} className="shrink-0 mt-0.5" /> <span>{error}</span></div>
+                      {/* The way out, not just the diagnosis. */}
+                      {suggestProviders.map(pid => {
+                        const o = SOCIALS.find(x => x.id === pid);
+                        if (!o) return null;
+                        return (
+                          <button
+                            key={pid} type="button" onClick={() => handle(o.fn)} disabled={loading}
+                            className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-60 ${o.bg}`}
+                          >
+                            {loading ? <Loader2 size={13} className="animate-spin" /> : <o.Icon size={13} />}
+                            Continue with {o.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                   <button
@@ -231,6 +269,15 @@ const SignInPrompt: React.FC<SignInPromptProps> = ({ action = 'interact', initia
                     {loading ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <ArrowRight size={14} />}
                     {emailMode === 'RESET' ? 'Send Reset Link' : emailMode === 'REGISTER' ? 'Create Account' : 'Sign In'}
                   </button>
+                  {/* An account made with Google has no password to type here. Saying so up front
+                      is the difference between one tap and a locked-out support email. */}
+                  {emailMode !== 'REGISTER' && (
+                    <p className="text-[10px] text-white/35 leading-relaxed">
+                      {emailMode === 'RESET'
+                        ? 'Reset only works for accounts created with an email & password. Joined with Google, Facebook, Microsoft or X? There\u2019s no password to reset \u2014 use the Social tab.'
+                        : 'This is for accounts created with an email & password. If you joined with Google, Facebook, Microsoft or X, use the Social tab instead.'}
+                    </p>
+                  )}
 
                   <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-white/30 mt-1">
                     {emailMode === 'SIGN_IN' ? (

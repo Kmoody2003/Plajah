@@ -3,6 +3,7 @@ import { Video, VideoPlaylist, Album, Track } from '../types';
 import { fetchUserVideos, deleteVideo, updateVideoSettings, fetchVideoPlaylists, createVideoPlaylist, fetchUserAlbums, updateAlbum, updateUserProfile, uploadVideo, activateFastChannel, updateFastChannelEnabled } from '../services/backendService';
 import { Video as VideoIcon, Plus, Trash2, ArrowLeft, Play, Settings, ListMusic, Check, X, Globe, Lock, Tv, Layers, Radio, ShieldCheck, Upload, Film, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import UploadManager from './UploadManager';
+import MediaThumb from './ui/MediaThumb';
 import PodcastManager from './PodcastManager';
 import FastChannelManager from './FastChannelManager';
 import { motion, AnimatePresence } from 'motion/react';
@@ -522,7 +523,7 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
                 >
                   <div className="aspect-video bg-black relative">
                     {video.thumbnailUrl ? (
-                      <img src={video.thumbnailUrl || null} alt={video.title} className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity" />
+                      <MediaThumb src={video.thumbnailUrl || undefined} alt={video.title} className="opacity-70 group-hover:opacity-100 transition-opacity" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <VideoIcon size={48} className="text-white/20" />

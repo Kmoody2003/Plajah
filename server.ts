@@ -1,4 +1,5 @@
 import express from 'express';
+import { cleanDescription } from './utils/description';
 // NOTE: `vite` is imported LAZILY inside the dev-only branch below. A static top-level import pulls
 // the entire Vite package (esbuild + rollup + its whole dep graph) into memory on EVERY boot — even
 // in production, where the Vite dev middleware is never used. That eager load was the bulk of the
@@ -23,6 +24,7 @@ import { spawn } from 'node:child_process';
 import os from 'node:os';
 import Stripe from 'stripe';
 import { coraRouter } from './routes/cora';
+import { createMusicLabRouter } from './routes/musicLab';
 import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
 import { postmanRouter } from './routes/postman';
@@ -31,10 +33,24 @@ import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { kithSightingsRouter } from './routes/kithSightings';
 import { veoRouter } from './routes/veo';
 import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/taleo';
+import { authMethodsRouter } from './routes/authMethods';
 import { createCustomToken, fsGet, fsSet, fsPatch, fsDelete } from './services/firebaseAdminRest';
+// Fabula generation agent — server-side only (these carry the user's provider API key).
+import {
+  submitMagnific as magnificSubmit, pollMagnific as magnificPoll, verifyMagnificKey,
+  opForInput as magnificOpFor, mysticAspect as magnificAspect, fetchAsBase64,
+} from './services/fabula/magnificApi';
+import {
+  saveKey as genVaultSaveKey, readKey as genVaultReadKey, revokeKey as genVaultRevokeKey,
+  listLinked as genVaultListLinked, type VaultStore as GenVaultStore,
+} from './services/fabula/genVault';
+import { mirrorResults as mirrorGenResults } from './services/fabula/genMirror';
 import { buildFfmpegArgs } from './services/crossover/engine';
 import { extFor } from './services/crossover/formats';
 import type { Recipe as CxRecipe, MediaKind as CxKind, MediaProbe as CxProbe } from './services/crossover/types';
+import { ARIA_ART_COUNCIL_METHOD } from './services/aria/ariaCreativeRoles';
+import { createCouncil } from './services/council/councilRoutes';
+import { FABULA_BROADCAST_PACKS } from './services/fabula/broadcastPacks';
 import {
   runChoraTranscodeWorker, startChoraTranscodeScheduler, PROCESSING_STALE_MS,
   type ChoraTranscodeDeps, type TrackCandidate as ChoraTrackCandidate,
@@ -135,6 +151,37 @@ async function gcsUpload(objectPath: string, data: Buffer, contentType: string):
   try {
     const url = `https://storage.googleapis.com/upload/storage/v1/b/${STORAGE_BUCKET}/o?uploadType=media&name=${encodeURIComponent(objectPath)}`;
     const res = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType }, body: data as any });
+    return res.ok;
+  } catch { return false; }
+}
+
+/** Upload with a Firebase download token attached, so the object can be read back at the same
+ *  `firebasestorage.googleapis.com/...?alt=media&token=` URL the client-side uploader produces.
+ *  Plain `gcsUpload` can't do this — `uploadType=media` carries no metadata. */
+async function gcsUploadWithDownloadToken(
+  objectPath: string, data: Buffer, contentType: string, downloadToken: string,
+): Promise<boolean> {
+  const token = await getGoogleAccessToken();
+  if (!token) return false;
+  try {
+    const boundary = `plajah${nodeCrypto.randomBytes(12).toString('hex')}`;
+    const meta = JSON.stringify({
+      name: objectPath,
+      contentType,
+      metadata: { firebaseStorageDownloadTokens: downloadToken },
+    });
+    const body = Buffer.concat([
+      Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n`),
+      Buffer.from(`--${boundary}\r\nContent-Type: ${contentType}\r\n\r\n`),
+      data,
+      Buffer.from(`\r\n--${boundary}--\r\n`),
+    ]);
+    const url = `https://storage.googleapis.com/upload/storage/v1/b/${STORAGE_BUCKET}/o?uploadType=multipart`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+      body: body as any,
+    });
     return res.ok;
   } catch { return false; }
 }
@@ -449,16 +496,88 @@ async function choraHasLibfdk(): Promise<boolean> {
   return _choraLibfdk;
 }
 
+/**
+ * Some uncompressed masters (WAV/BWF and the RF64/W64 variants) carry a `data`-chunk
+ * size that LIES about the audio length: a zero/placeholder size, a value written before
+ * recording finished, or a >4 GB file squeezed into a plain 32-bit WAV field. ffprobe,
+ * ffmpeg AND the browser <audio> element all trust that header, so the song silently
+ * "ends" after only the declared seconds even though every audio byte uploaded fine —
+ * this is the classic "plays only the first N seconds" bug.
+ *
+ * We detect the lie by comparing the declared duration to what the file's real byte count
+ * implies for its PCM parameters, and — for the WAV demuxer family — remux with
+ * `-ignore_length 1` (read to EOF, rewrite an honest header) so the WHOLE song transcodes
+ * and `durationSec` is correct. Safe no-op when the header is already honest, or when we
+ * can't confidently prove it's wrong.
+ */
+async function choraRepairTruncatedMaster(inPath: string, trackId: string, workDir: string): Promise<{ path: string; trueSec: number; repaired: boolean }> {
+  try {
+    const probe = await runFfprobe(inPath);
+    const fmt = probe.json?.format || {};
+    const aStream = (probe.json?.streams || []).find((s: any) => s.codec_type === 'audio') || {};
+    const declaredSec = parseFloat(fmt.duration || '0') || 0;
+    const formatName = String(fmt.format_name || '').toLowerCase();
+    const codec = String(aStream.codec_name || '').toLowerCase();
+    const isPcm = codec.startsWith('pcm_');
+    // The wav demuxer (which alone accepts -ignore_length) covers wav/bwf/rf64; w64 has a
+    // 64-bit size field so it almost never truncates. Gate the remux to the wav demuxer.
+    const isWavDemuxer = /(^|,)wav($|,)/.test(formatName) || formatName.includes('rf64');
+
+    // Byte math: for PCM we know exactly how many bytes one second occupies.
+    let size = 0;
+    try { size = (await fs.stat(inPath)).size; } catch { /* */ }
+    const sr = parseInt(aStream.sample_rate || '0', 10) || 0;
+    const ch = parseInt(aStream.channels || '0', 10) || 0;
+    const bits = parseInt(aStream.bits_per_raw_sample || aStream.bits_per_sample || '0', 10) || 0;
+    const bytesPerSec = isPcm && sr && ch && bits ? sr * ch * (bits / 8) : 0;
+    // Subtract a generous 64 KB header allowance so honest files never trip the check.
+    const impliedSec = bytesPerSec > 0 ? Math.max(0, size - 65536) / bytesPerSec : 0;
+
+    // Suspicious only when the bytes clearly hold much more audio than the header admits.
+    const suspicious = bytesPerSec > 0 && impliedSec > declaredSec + 5 && impliedSec > declaredSec * 1.2;
+    if (!suspicious) return { path: inPath, trueSec: declaredSec, repaired: false };
+
+    console.warn(`[chora] track ${trackId}: master header claims ${declaredSec.toFixed(1)}s but ${size} PCM bytes imply ~${impliedSec.toFixed(1)}s — attempting header repair (format=${formatName}, codec=${codec})`);
+    if (!isWavDemuxer) {
+      console.warn(`[chora] track ${trackId}: truncated header on non-WAV demuxer (${formatName}); cannot auto-repair, transcoding as-is`);
+      return { path: inPath, trueSec: declaredSec, repaired: false };
+    }
+
+    const repairedPath = path.join(workDir, 'repaired_master.wav');
+    // -ignore_length must precede -i (it's a wav demuxer input option); -c copy keeps PCM bit-exact.
+    const rr = await runFfmpeg(['-y', '-ignore_length', '1', '-i', inPath, '-vn', '-c', 'copy', repairedPath], 300000);
+    if (!rr.ok) {
+      console.warn(`[chora] track ${trackId}: -ignore_length remux failed, transcoding original: ${rr.err.slice(-200)}`);
+      return { path: inPath, trueSec: declaredSec, repaired: false };
+    }
+    const rp = await runFfprobe(repairedPath);
+    const repairedSec = parseFloat(rp.json?.format?.duration || '0') || 0;
+    if (repairedSec > declaredSec + 2) {
+      console.warn(`[chora] track ${trackId}: header repaired — recovered ${repairedSec.toFixed(1)}s (was ${declaredSec.toFixed(1)}s)`);
+      return { path: repairedPath, trueSec: repairedSec, repaired: true };
+    }
+    return { path: inPath, trueSec: declaredSec, repaired: false };
+  } catch (e: any) {
+    console.warn(`[chora] track ${trackId}: header-repair check errored, transcoding as-is: ${e?.message || e}`);
+    return { path: inPath, trueSec: 0, repaired: false };
+  }
+}
+
 interface ChoraTranscodeResult { status: 'ready'; hls: string; low: string; flac: string; loudnessLufs: number; durationSec: number; }
 async function choraTranscodeToGcs(inPath: string, trackId: string, publicBase: string): Promise<ChoraTranscodeResult> {
   const workDir = path.join(os.tmpdir(), `chora_${trackId}_${Date.now()}`);
   const hlsDir = path.join(workDir, 'aac256');
   await fs.mkdir(hlsDir, { recursive: true });
 
+  // Repair a lying WAV/RF64 header BEFORE any encode so the full song (not just the
+  // declared head) flows into every rendition and into durationSec.
+  const rep = await choraRepairTruncatedMaster(inPath, trackId, workDir);
+  const src = rep.path;
+
   // 1) Measure loudness (EBU R128 two-pass). print_format=json goes to stderr; parse it.
   let ln = 'loudnorm=I=-14:TP=-1:LRA=11';
   let loudnessLufs = -14;
-  const meas = await runFfmpeg(['-hide_banner', '-i', inPath, '-af', 'loudnorm=I=-14:TP=-1:LRA=11:print_format=json', '-f', 'null', '-'], 180000);
+  const meas = await runFfmpeg(['-hide_banner', '-i', src, '-af', 'loudnorm=I=-14:TP=-1:LRA=11:print_format=json', '-f', 'null', '-'], 180000);
   const jm = meas.err.match(/\{[\s\S]*?"input_i"[\s\S]*?\}/);
   if (jm) { try {
     const j = JSON.parse(jm[0]);
@@ -471,23 +590,24 @@ async function choraTranscodeToGcs(inPath: string, trackId: string, publicBase: 
     : ['-c:a', 'aac', '-b:a', '128k'];
 
   // 2) High — AAC-LC 256 HLS (fMP4, 6s) — the default gapless stream.
-  const r1 = await runFfmpeg(['-y', '-i', inPath, '-vn', '-af', ln, '-c:a', 'aac', '-b:a', '256k', '-ar', '48000',
+  const r1 = await runFfmpeg(['-y', '-i', src, '-vn', '-af', ln, '-c:a', 'aac', '-b:a', '256k', '-ar', '48000',
     '-f', 'hls', '-hls_time', '6', '-hls_segment_type', 'fmp4', '-hls_playlist_type', 'vod', '-hls_flags', 'independent_segments',
     '-hls_segment_filename', path.join(hlsDir, 'seg_%03d.m4s'), path.join(hlsDir, 'playlist.m3u8')], 300000);
   if (!r1.ok) throw new Error('hls encode: ' + r1.err.slice(-300));
 
   // 3) Data-saver — progressive HE-AAC/AAC.
   const lowPath = path.join(workDir, 'low.m4a');
-  const r2 = await runFfmpeg(['-y', '-i', inPath, '-vn', '-af', ln, ...heArgs, '-ar', '48000', '-movflags', '+faststart', lowPath], 300000);
+  const r2 = await runFfmpeg(['-y', '-i', src, '-vn', '-af', ln, ...heArgs, '-ar', '48000', '-movflags', '+faststart', lowPath], 300000);
   if (!r2.ok) throw new Error('low encode: ' + r2.err.slice(-300));
 
   // 4) Lossless — FLAC.
   const flacPath = path.join(workDir, 'lossless.flac');
-  const r3 = await runFfmpeg(['-y', '-i', inPath, '-vn', '-af', ln, '-c:a', 'flac', '-compression_level', '8', flacPath], 300000);
+  const r3 = await runFfmpeg(['-y', '-i', src, '-vn', '-af', ln, '-c:a', 'flac', '-compression_level', '8', flacPath], 300000);
   if (!r3.ok) throw new Error('flac encode: ' + r3.err.slice(-300));
 
-  let durationSec = 0;
-  try { const { json } = await runFfprobe(inPath); durationSec = parseFloat(json?.format?.duration || '0') || 0; } catch { /* */ }
+  // Trust the repaired source's real length; fall back to a fresh probe of it.
+  let durationSec = rep.trueSec || 0;
+  if (!durationSec) { try { const { json } = await runFfprobe(src); durationSec = parseFloat(json?.format?.duration || '0') || 0; } catch { /* */ } }
 
   // 5) Upload everything under chora-hls/{trackId}/.
   const ctFor = (f: string) => f.endsWith('.m3u8') ? 'application/vnd.apple.mpegurl'
@@ -539,7 +659,7 @@ const decodeFirestoreScalar = (v: any = {}): any =>
  * Decode any Firestore REST value, INCLUDING nested maps and arrays of maps.
  *
  * decodeFirestoreScalar above handles only string/number/bool and returns undefined for a
- * mapValue -- and the array branch below used to drop those undefineds. So any document field
+ * mapValue — and the array branch below used to drop those undefineds. So any document field
  * holding an array of OBJECTS decoded to an empty array. `albums.tracks` is exactly that, which
  * meant every album read through fsQueryDocs came back with `tracks: []` and anything counting
  * tracks server-side silently saw zero of them.
@@ -679,6 +799,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
        const safeT = htmlEscape(displayName), safeD = htmlEscape(desc);
        const safeI = htmlEscape(image), safeH = htmlEscape(host), safeId = htmlEscape(String(id));
        const safeN = htmlEscape(num);
+       const safeSource = htmlEscape(encodeURIComponent(String((query as any).source || '')));
        const tags = html.replace(/[ \t]*<meta\s+(?:property|name)="(?:og:[^"]*|twitter:[^"]*)"[^>]*\/?>\s*/gi, '');
        return tags.replace('</head>', `
     <meta name="twitter:card" content="summary_large_image" />
@@ -693,7 +814,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
     <meta property="og:image" content="${safeI}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:url" content="https://${safeH}/?type=channel&amp;id=${safeId}${safeN ? `&amp;n=${safeN}` : ''}" />
+    <meta property="og:url" content="https://${safeH}/?type=channel&amp;id=${safeId}${safeN ? `&amp;n=${safeN}` : ''}${safeSource ? `&amp;source=${safeSource}` : ''}" />
 </head>`);
      } catch { return html; }
    }
@@ -1094,6 +1215,66 @@ async function firestoreRead(collection: string, id: string): Promise<Record<str
     }
     return out;
   } catch { return null; }
+}
+
+// ── Deep Firestore <-> JS converters ──────────────────────────────────────────
+// firestoreRead/firestoreWrite above flatten nested maps and arrays (an array of
+// objects becomes an array of strings). That's fine for scalar docs but corrupts
+// structured fields like an album's `tracks: Track[]`. These converters round-trip
+// arbitrarily nested values, so a single track's field can be edited in place and
+// written back without mangling the rest of the document.
+function fsValueToJs(v: any): any {
+  if (v == null) return undefined;
+  if (v.stringValue !== undefined) return v.stringValue;
+  if (v.integerValue !== undefined) return Number(v.integerValue);
+  if (v.doubleValue !== undefined) return Number(v.doubleValue);
+  if (v.booleanValue !== undefined) return v.booleanValue;
+  if (v.nullValue !== undefined) return null;
+  if (v.timestampValue !== undefined) return v.timestampValue;
+  if (v.arrayValue !== undefined) return (v.arrayValue.values || []).map(fsValueToJs);
+  if (v.mapValue !== undefined) {
+    const out: Record<string, any> = {};
+    for (const [k, mv] of Object.entries(v.mapValue.fields || {})) out[k] = fsValueToJs(mv);
+    return out;
+  }
+  return undefined;
+}
+function jsToFsValue(x: any): any {
+  if (x === null || x === undefined) return { nullValue: null };
+  if (typeof x === 'string') return { stringValue: x };
+  if (typeof x === 'boolean') return { booleanValue: x };
+  if (typeof x === 'number') return Number.isInteger(x) ? { integerValue: String(x) } : { doubleValue: x };
+  if (Array.isArray(x)) return { arrayValue: { values: x.map(jsToFsValue) } };
+  if (typeof x === 'object') {
+    const fields: Record<string, any> = {};
+    for (const [k, v] of Object.entries(x)) fields[k] = jsToFsValue(v);
+    return { mapValue: { fields } };
+  }
+  return { stringValue: String(x) };
+}
+/** GET a doc and deep-parse ALL fields (including nested maps/arrays). */
+async function firestoreGetDeep(collection: string, id: string): Promise<Record<string, any> | null> {
+  const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${collection}/${id}`;
+  try {
+    const res = await fetch(url, { headers: await firestoreAuthHeaders() });
+    if (!res.ok) return null;
+    const json = await res.json() as any;
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(json.fields || {})) out[k] = fsValueToJs(v);
+    return out;
+  } catch { return null; }
+}
+/** PATCH specific fields with deep conversion (preserves everything not named in updateMask). */
+async function firestorePatchDeep(collection: string, id: string, fieldsJs: Record<string, any>): Promise<boolean> {
+  const mask = Object.keys(fieldsJs).map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
+  const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${collection}/${id}?${mask}`;
+  const fields: Record<string, any> = {};
+  for (const [k, v] of Object.entries(fieldsJs)) fields[k] = jsToFsValue(v);
+  try {
+    const res = await fetch(url, { method: 'PATCH', headers: await firestoreAuthHeaders(), body: JSON.stringify({ fields }) });
+    if (!res.ok) console.error(`[Firestore] deep patch ${collection}/${id} failed: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+    return res.ok;
+  } catch { return false; }
 }
 
 const TIER_STORAGE: Record<string, number> = { '1': 50, '2': 75, '3': 100 };
@@ -1905,6 +2086,47 @@ async function startServer() {
 
   // Liveness probe for uptime monitors / load balancers
   app.get('/healthz', (_req, res) => res.json({ ok: true, ts: Date.now() }));
+
+  // ── Network diagnostics probes (same-origin, privacy-preserving) ──────────
+  // Used by the client NetworkMonitor to measure the *user's own* latency and
+  // throughput. No data is stored or logged; the upload body is discarded.
+  const NETDIAG_MAX_BYTES = 8 * 1024 * 1024; // 8 MB ceiling to prevent abuse
+  // Tiny latency ping — no body, never cached.
+  app.get('/api/netdiag/ping', (_req, res) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.status(204).end();
+  });
+  // Download probe — streams N throwaway random bytes (?bytes=…, clamped).
+  app.get('/api/netdiag/download', (req, res) => {
+    const requested = Number.parseInt(String(req.query.bytes ?? ''), 10);
+    const bytes = Math.max(1024, Math.min(Number.isFinite(requested) ? requested : 512 * 1024, NETDIAG_MAX_BYTES));
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.set('Content-Type', 'application/octet-stream');
+    res.set('Content-Length', String(bytes));
+    // Emit in chunks so we don't allocate the whole payload at once.
+    const CHUNK = 64 * 1024;
+    let sent = 0;
+    let aborted = false;
+    res.on('close', () => { aborted = true; }); // client hung up (e.g. probe timeout)
+    const pump = () => {
+      if (aborted || res.writableEnded) return;
+      while (sent < bytes) {
+        if (aborted) return;
+        const size = Math.min(CHUNK, bytes - sent);
+        const chunk = nodeCrypto.randomBytes(size);
+        sent += size;
+        if (!res.write(chunk)) { res.once('drain', pump); return; }
+      }
+      res.end();
+    };
+    pump();
+  });
+  // Upload probe — accepts and immediately discards an octet-stream body.
+  app.post('/api/netdiag/upload', express.raw({ type: 'application/octet-stream', limit: NETDIAG_MAX_BYTES }), (req, res) => {
+    const received = Buffer.isBuffer(req.body) ? req.body.length : 0;
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.json({ ok: true, received });
+  });
 
   // ── Classic Books Seeder ─────────────────────────────────────────────────
   // One-time admin endpoint: downloads 40 Gutenberg public-domain TXTs and
@@ -3583,12 +3805,18 @@ async function startServer() {
   });
 
   // POST /api/mux/upload — browser gets an upload URL and PUTs directly to Mux
-  app.post('/api/mux/upload', authMiddleware, async (req, res) => {
+  // tightJson: this route previously took no body at all — it needs one now (the trace tag),
+  // and a 10 kB cap is plenty for a 255-char string.
+  app.post('/api/mux/upload', authMiddleware, tightJson, async (req, res) => {
     try {
       const mux = await getMux();
       const corsOrigin = trustedRequestOrigin(req);
+      // Trace tag from the client (attempt id, uid, target release). Stamped on the asset so
+      // an abandoned upload can be attributed to a creator instead of sitting anonymous.
+      // Mux caps this at 255 chars; never trust the client's length.
+      const passthrough = String(req.body?.passthrough || '').slice(0, 255);
       const upload = await mux.video.uploads.create({
-        new_asset_settings: MUX_ASSET_SETTINGS,
+        new_asset_settings: passthrough ? { ...MUX_ASSET_SETTINGS, passthrough } : MUX_ASSET_SETTINGS,
         cors_origin: corsOrigin,
         // 24-hour window: a multi-GB film on a slow connection can take hours, and
         // UpChunk resumes within this window. 1 hour was too tight for large masters.
@@ -3744,7 +3972,7 @@ async function startServer() {
         .map((v: any) => {
           const url = v.muxPlaybackId ? `https://stream.mux.com/${v.muxPlaybackId}.m3u8` : v.url;
           if (!url) return null;
-          return { id: v.id || v.identifier || url, title: v.title || 'Untitled', description: v.description, url,
+          return { id: v.id || v.identifier || url, title: v.title || 'Untitled', description: cleanDescription(v.description) || undefined, url,
             thumbnailUrl: v.muxPlaybackId ? `https://image.mux.com/${v.muxPlaybackId}/thumbnail.png?width=640&height=360&time=5` : (v.thumbnailUrl || v.coverImageUrl),
             durationSec: Number(v.duration) || undefined };
         })
@@ -4856,6 +5084,216 @@ Rules:
       res.status(500).json({ prompt: { override: true, firstSimple: { speech: 'An error occurred.', text: 'Error.' } } });
     }
   });
+
+  // ── Fabula generation agent ────────────────────────────────────────────────
+  // Fabula's GENERATE panel talks to these. The client contract is in
+  // services/fabula/genAgent.ts; the design and the wallet-model reasoning are in
+  // docs/fabula/GEN_HANDOFF_PLAN.md.
+  //
+  // Only Magnific is wired for connected mode so far. Every other connector is handoff-only in the
+  // registry, and this route set says so explicitly rather than failing obscurely.
+  //
+  // Both the vault and the job list are stored as ONE document per user, holding a JSON string. That
+  // is deliberate: a per-job document would need a where+orderBy query, which needs a composite index
+  // and fails silently without one. One doc, filtered in memory, has no such trap.
+  {
+    const GEN_VAULT_DOC = (uid: string) => `genCredentials/${uid}`;
+    const GEN_JOBS_DOC = (uid: string) => `genJobs/${uid}`;
+    const GEN_JOB_CAP = 200;
+
+    const genVaultStore: GenVaultStore = {
+      async read(uid) {
+        const doc = await fsGet(GEN_VAULT_DOC(uid));
+        try { return doc?.records ? JSON.parse(String(doc.records)) : {}; } catch { return {}; }
+      },
+      async write(uid, records) {
+        await fsSet(GEN_VAULT_DOC(uid), { records: JSON.stringify(records), updatedAt: Date.now() });
+      },
+    };
+
+    const readJobs = async (uid: string): Promise<any[]> => {
+      const doc = await fsGet(GEN_JOBS_DOC(uid));
+      try {
+        const arr = doc?.jobs ? JSON.parse(String(doc.jobs)) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch { return []; }
+    };
+    const writeJobs = async (uid: string, jobs: any[]) => {
+      await fsSet(GEN_JOBS_DOC(uid), { jobs: JSON.stringify(jobs.slice(0, GEN_JOB_CAP)), updatedAt: Date.now() });
+    };
+    const upsertJob = async (uid: string, job: any) => {
+      const jobs = await readJobs(uid);
+      const i = jobs.findIndex((j) => j.id === job.id);
+      if (i >= 0) jobs[i] = job; else jobs.unshift(job);
+      await writeJobs(uid, jobs);
+      return job;
+    };
+    // Never let a stored key reach the client, whatever else is on the record.
+    const publicJob = (j: any) => ({
+      id: j.id, provider: j.provider, kind: j.kind, prompt: j.prompt, spec: j.spec,
+      projectId: j.projectId, bin: j.bin, status: j.status, progress: j.progress,
+      results: j.results || [], error: j.error, note: j.note, mirrored: j.mirrored,
+      mode: 'connected', createdAt: j.createdAt,
+    });
+
+    app.get('/api/genagent/health', (_req, res) => {
+      res.json({ ok: true, connected: ['magnific'], encryptionConfigured: (process.env.ENCRYPTION_KEY ?? '').length >= 16 });
+    });
+
+    app.post('/api/genagent/connectors', apiLimiter, express.json({ limit: '8kb' }), async (req: any, res) => {
+      // Auth is optional here: a signed-out user still gets the list, just nothing linked.
+      let linked: { provider: string; hint: string; linkedAt: number }[] = [];
+      const auth = req.headers.authorization;
+      if (auth?.startsWith('Bearer ')) {
+        const uid = await verifyFirebaseToken(auth.slice(7));
+        if (uid) { try { linked = await genVaultListLinked(genVaultStore, uid); } catch { /* unconfigured vault → nothing linked */ } }
+      }
+      const byId = new Map(linked.map((l) => [l.provider, l]));
+      // The client MERGES this onto its own static registry, so only link state is sent.
+      res.json({
+        connectors: [...byId.keys()].concat(['magnific'].filter((id) => !byId.has(id))).map((id) => ({
+          id, connected: byId.has(id), hint: byId.get(id)?.hint,
+        })),
+      });
+    });
+
+    app.post('/api/genagent/connect', apiLimiter, authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
+      const provider = String(req.body?.provider || '');
+      if (provider !== 'magnific') {
+        return res.status(400).json({ error: 'Only Magnific supports connected mode right now — use Hand off for the others.' });
+      }
+      // Magnific authenticates with an API key, not OAuth, so there is no authUrl to open. The client
+      // shows a paste form and posts to /connect/key. The key is never sent back afterwards.
+      res.json({
+        needsKey: true,
+        keyUrl: 'https://www.magnific.com/user/organization/api-keys',
+        keyLabel: 'Magnific API key',
+        keyHelp: 'Create a key on your Magnific account, then paste it here. It is encrypted on our server and never sent back to the browser.',
+      });
+    });
+
+    app.post('/api/genagent/connect/key', apiLimiter, authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
+      const provider = String(req.body?.provider || '');
+      const key = String(req.body?.key || '').trim();
+      if (provider !== 'magnific') return res.status(400).json({ error: 'Unknown provider.' });
+      if (!key) return res.status(400).json({ error: 'Paste your API key first.' });
+      try {
+        // Verify before storing, so a typo is caught here rather than on the first generate.
+        await verifyMagnificKey(key);
+        const rec = await genVaultSaveKey(genVaultStore, req.uid, provider, key);
+        res.json({ connected: true, hint: rec.hint });
+      } catch (e: any) {
+        res.status(400).json({ error: e?.message || 'That key was rejected by Magnific.' });
+      }
+    });
+
+    app.post('/api/genagent/connect/revoke', apiLimiter, authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
+      const provider = String(req.body?.provider || '');
+      try { res.json({ revoked: await genVaultRevokeKey(genVaultStore, req.uid, provider) }); }
+      catch (e: any) { res.status(500).json({ error: e?.message || 'Could not revoke.' }); }
+    });
+
+    app.post('/api/genagent/jobs', apiLimiter, authMiddleware, express.json({ limit: '256kb' }), async (req: any, res) => {
+      const { provider, kind, prompt, spec, projectId, bin } = req.body || {};
+      if (provider !== 'magnific') {
+        return res.status(501).json({ error: `${provider} has no connected adapter yet — use Hand off.` });
+      }
+      let apiKey: string | null = null;
+      try { apiKey = await genVaultReadKey(genVaultStore, req.uid, provider); }
+      catch (e: any) { return res.status(500).json({ error: e?.message || 'Credential vault unavailable.' }); }
+      if (!apiKey) return res.status(400).json({ error: 'Link your Magnific account first.' });
+
+      const job: any = {
+        id: `gj_${Date.now().toString(36)}_${nodeCrypto.randomBytes(3).toString('hex')}`,
+        provider, kind: kind || 'image', prompt: String(prompt || ''), spec: spec || null,
+        projectId: String(projectId || 'local'), bin: String(bin || 'Generated'),
+        status: 'queued', results: [], createdAt: Date.now(),
+      };
+
+      try {
+        // Magnific takes image bytes, not URLs — fetch each reference and base64 it. Only the roles
+        // Mystic actually has slots for are sent; the rest were already folded into the prompt client-side.
+        const refs: { source?: string; style?: string } = {};
+        for (const r of (spec?.refs || [])) {
+          const url = r?.url;
+          if (!url) continue;
+          if (!refs.source && (r.role === 'source' || r.role === 'first_frame')) refs.source = await fetchAsBase64(url);
+          else if (!refs.style && r.role === 'style') refs.style = await fetchAsBase64(url);
+        }
+        const input = { prompt: job.prompt, aspect: spec?.aspect, refs };
+        const op = magnificOpFor(input);
+        const asp = magnificAspect(spec?.aspect);
+        if (!asp.exact && op === 'generate') job.note = asp.note;
+
+        const task = await magnificSubmit(apiKey, op, input);
+        job.op = op;
+        job.taskId = task.taskId;
+        job.status = task.status === 'error' ? 'error' : (task.status || 'queued');
+        if (task.error) job.error = task.error;
+        await upsertJob(req.uid, job);
+        res.json({ jobId: job.id, status: job.status, note: job.note });
+      } catch (e: any) {
+        job.status = 'error';
+        job.error = e?.message || 'Magnific rejected the job.';
+        await upsertJob(req.uid, job).catch(() => { /* reporting the error matters more than storing it */ });
+        res.status(502).json({ error: job.error });
+      }
+    });
+
+    app.get('/api/genagent/jobs', apiLimiter, authMiddleware, async (req: any, res) => {
+      const projectId = String(req.query.projectId || '');
+      const jobs = await readJobs(req.uid);
+      res.json({ jobs: jobs.filter((j) => !projectId || j.projectId === projectId).map(publicJob) });
+    });
+
+    app.get('/api/genagent/jobs/:id', apiLimiter, authMiddleware, async (req: any, res) => {
+      const jobs = await readJobs(req.uid);
+      const job = jobs.find((j) => j.id === req.params.id);
+      if (!job) return res.status(404).json({ error: 'No such job.' });
+      // Terminal jobs never need another provider round-trip.
+      if (job.status === 'done' || job.status === 'error' || !job.taskId) return res.json(publicJob(job));
+
+      try {
+        const apiKey = await genVaultReadKey(genVaultStore, req.uid, job.provider);
+        if (!apiKey) return res.json(publicJob({ ...job, status: 'error', error: 'Magnific account is no longer linked.' }));
+        const task = await magnificPoll(apiKey, job.op || 'generate', job.taskId);
+        const updated: any = { ...job, status: task.status, results: task.results, error: task.error || job.error };
+
+        // A finished job's results live on the provider's host and won't stay there. Copy them into
+        // Plajah Storage now, while we still have them, and hand the client OUR urls — otherwise the
+        // bin fills with links that rot. Best-effort: a failure keeps the provider URL and says so.
+        if (updated.status === 'done' && updated.results?.length) {
+          const mirror = await mirrorGenResults(
+            updated.results,
+            { uid: req.uid, projectId: job.projectId, jobId: job.id },
+            {
+              bucket: STORAGE_BUCKET,
+              makeToken: () => nodeCrypto.randomUUID(),
+              async fetchBytes(url: string) {
+                const r = await fetch(url);
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return {
+                  bytes: new Uint8Array(await r.arrayBuffer()),
+                  contentType: r.headers.get('content-type') || undefined,
+                };
+              },
+              upload: (path, bytes, contentType, dlToken) =>
+                gcsUploadWithDownloadToken(path, Buffer.from(bytes), contentType, dlToken),
+            },
+          );
+          updated.results = mirror.results;
+          updated.mirrored = mirror.failed === 0;
+          if (mirror.note) updated.note = [job.note, mirror.note].filter(Boolean).join(' ');
+        }
+
+        await upsertJob(req.uid, updated);
+        res.json(publicJob(updated));
+      } catch (e: any) {
+        // A transient polling failure must not mark a running job dead — report it as still running.
+        res.json(publicJob({ ...job, error: e?.message }));
+      }
+    });
+  }
 
   // ── Public status — no auth, safe to expose, used for deployment verification ─
   app.get('/api/status', (_req, res) => {
@@ -6659,7 +7097,14 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   app.post('/api/chora/enqueue-album', apiLimiter, authMiddleware, express.json({ limit: '16kb' }), async (req: any, res) => {
     const albumId = String(req.body?.albumId || '').trim();
     if (!albumId || !/^[\w-]{1,128}$/.test(albumId)) return res.status(400).json({ error: 'albumId required' });
-    const album = await firestoreRead('albums', albumId);
+    // force re-queues tracks even when they already finished 'ready' — the re-heal path for
+    // renditions that transcoded WRONG (e.g. a lying WAV header that produced a short stream).
+    // Owner-gated and album-scoped, so it re-transcodes only this album, not the catalogue.
+    const force = req.body?.force === true;
+    let album = await firestoreRead('albums', albumId);
+    if (!album) {
+      album = await firestoreRead('personal_albums', albumId);
+    }
     if (!album) return res.status(404).json({ error: 'album not found' });
     if (String(album.ownerId || '') !== req.uid) return res.status(403).json({ error: 'not your album' });
 
@@ -6670,11 +7115,11 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const srcUrl = String((t as any)?.url || '').trim();
       if (!trackId || !/^https?:/i.test(srcUrl)) continue;
       const existing: any = await firestoreRead('choraStreams', trackId);
-      if (existing?.status === 'ready') continue;
+      if (!force && existing?.status === 'ready') continue;
       await firestoreWrite('choraStreams', trackId, { status: 'pending', updatedAt: Date.now() });
       queued++;
     }
-    res.json({ ok: true, queued, total: tracks.length });
+    res.json({ ok: true, queued, total: tracks.length, forced: force });
   });
 
   // Backend-only transcode for the catalogue backfill. Identical work to the route above, but
@@ -6707,6 +7152,227 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       firestoreWrite('choraStreams', trackId, { status: 'failed', error: String(e?.message || e).slice(0, 300), updatedAt: Date.now() }).catch(() => {});
       res.status(500).json({ error: String(e?.message || e) });
     } finally { if (inPath) fs.unlink(inPath).catch(() => {}); }
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Admin Media Health — detailed file/encode reporting + consented file replacement.
+  //
+  // WHY. A creator can upload a file that "succeeds" but is broken: a truncated master
+  // (only the first N seconds actually landed), a lying WAV/RF64 header, a never-transcoded
+  // track, or a messy double-publish with duplicate tracks. None of that is visible from the
+  // normal UI. This surfaces per-file size/duration/encode-health so support can SEE the
+  // problem, audition the file, and repair it. Repair is deliberately narrow: an admin can
+  // ONLY replace the file behind an existing track, and ONLY after the CREATOR approves it.
+  // Admins can never create an album/release or add a track — every route below operates on a
+  // track that already exists inside an album that already exists.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Replacement files must live on our own storage — never let a track point at an arbitrary host.
+  const isAllowedMediaHost = (u: string): boolean => {
+    try {
+      const h = new URL(u).host.toLowerCase();
+      return u.startsWith('https://') && (
+        h === 'firebasestorage.googleapis.com' || h === 'storage.googleapis.com' ||
+        h.endsWith('.firebasestorage.app') || h === 'plajah.com' || h.endsWith('.plajah.com') ||
+        h.endsWith('.run.app')
+      );
+    } catch { return false; }
+  };
+
+  // Deep-read every album owned by a user (tracks preserved).
+  const queryAlbumsByOwner = async (ownerId: string, limit = 200): Promise<any[]> => {
+    const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents:runQuery`;
+    const body = { structuredQuery: { from: [{ collectionId: 'albums' }], where: { fieldFilter: { field: { fieldPath: 'ownerId' }, op: 'EQUAL', value: { stringValue: ownerId } } }, limit } };
+    const res = await fetch(url, { method: 'POST', headers: await firestoreAuthHeaders(), body: JSON.stringify(body) });
+    if (!res.ok) return [];
+    const rows = await res.json() as any[];
+    return (rows || []).filter(r => r.document).map(r => {
+      const out: any = {}; for (const [k, v] of Object.entries(r.document.fields || {})) out[k] = fsValueToJs(v);
+      out.id = out.id || r.document.name.split('/').pop(); return out;
+    });
+  };
+
+  // Inspect ONE track: HEAD the file (size/type/reachability), read its stream doc, derive flags.
+  const inspectTrack = async (alb: any, t: any, dupUrl: Record<string, number>, dupId: Record<string, number>) => {
+    const url: string = typeof t?.url === 'string' ? t.url : '';
+    let size: number | null = null, contentType: string | null = null, reachable = false;
+    if (/^https?:/i.test(url)) {
+      try {
+        const h = await fetch(url, { method: 'HEAD' });
+        reachable = h.ok; size = Number(h.headers.get('content-length')) || null; contentType = h.headers.get('content-type');
+      } catch { /* unreachable */ }
+    }
+    const stream = t?.id ? await firestoreRead('choraStreams', t.id) : null;
+    const streamStatus: string = (stream?.status as string) || 'none';
+    const durationSec: number | null = stream?.durationSec != null ? Number(stream.durationSec) : null;
+    // Bytes → seconds estimate for a lossy master (helps flag a short file before any transcode).
+    const estBitrateKbps = /aac|mp4|m4a|mpeg|mp3/.test(String(contentType || '').toLowerCase()) ? 256 : 0;
+    const estSeconds = size && estBitrateKbps ? Math.round((size * 8) / (estBitrateKbps * 1000)) : null;
+    const flags: string[] = [];
+    if (!url) flags.push('NO_URL');
+    else if (!reachable) flags.push('MISSING_FILE');
+    if (streamStatus === 'none') flags.push('NO_TRANSCODE');
+    else if (streamStatus !== 'ready') flags.push('STREAM_' + streamStatus.toUpperCase());
+    if (durationSec != null && durationSec > 0 && durationSec < 40) flags.push('SHORT_DURATION');
+    if (estSeconds != null && estSeconds < 40 && durationSec == null) flags.push('LIKELY_SHORT_FILE');
+    if (size != null && size < 300 * 1024) flags.push('SMALL_FILE');
+    if ((url && dupUrl[url] > 1) || (t?.id && dupId[t.id] > 1)) flags.push('DUPLICATE');
+    return {
+      albumId: alb.id, albumTitle: alb.title || '', ownerId: alb.ownerId || '', albumType: alb.type || '',
+      trackId: t?.id || '', trackTitle: t?.title || '', artist: t?.artist || alb.artist || '',
+      url, size, contentType, estSeconds,
+      streamStatus, durationSec, hls: !!stream?.hls, low: !!stream?.low, flac: !!stream?.flac,
+      loudnessLufs: stream?.loudnessLufs != null ? Number(stream.loudnessLufs) : null,
+      flags,
+    };
+  };
+
+  // GET report — scope with ?albumId= | ?ownerId= | ?trackId= (trackId narrows within albumId).
+  app.get('/api/admin/media-health', authMiddleware, async (req: any, res: any) => {
+    if (!(await fetchFirebaseDoc('admins', req.uid))) return res.status(403).json({ error: 'Admin access required' });
+    const albumId = String(req.query.albumId || '').trim();
+    const ownerId = String(req.query.ownerId || '').trim();
+    const trackId = String(req.query.trackId || '').trim();
+    try {
+      let albums: any[] = [];
+      if (albumId) { const a = await firestoreGetDeep('albums', albumId); if (a) { a.id = a.id || albumId; albums = [a]; } }
+      else if (ownerId) { albums = (await queryAlbumsByOwner(ownerId)).filter(a => (a.type || 'MUSIC') !== 'BOOK'); }
+      else return res.status(400).json({ error: 'albumId or ownerId required' });
+
+      const rows: any[] = [];
+      const albumFlags: any[] = [];
+      for (const alb of albums) {
+        const tracks = Array.isArray(alb.tracks) ? alb.tracks : [];
+        if (!tracks.length) { albumFlags.push({ albumId: alb.id, albumTitle: alb.title || '', ownerId: alb.ownerId || '', flags: ['EMPTY_ALBUM'] }); continue; }
+        const dupUrl: Record<string, number> = {}, dupId: Record<string, number> = {};
+        for (const t of tracks) { if (t?.url) dupUrl[t.url] = (dupUrl[t.url] || 0) + 1; if (t?.id) dupId[t.id] = (dupId[t.id] || 0) + 1; }
+        for (const t of tracks) {
+          if (trackId && t?.id !== trackId) continue;
+          rows.push(await inspectTrack(alb, t, dupUrl, dupId));
+        }
+      }
+      res.json({ ok: true, albums: albums.length, tracks: rows.length, rows, albumFlags });
+    } catch (e: any) {
+      res.status(500).json({ error: String(e?.message || e) });
+    }
+  });
+
+  // Exact probe (drill-in): ffprobe the master for true duration/format/bitrate. Downloads the file,
+  // so it's a per-track action, not part of the bulk report.
+  app.post('/api/admin/media-health/probe', authMiddleware, express.json({ limit: '4kb' }), async (req: any, res: any) => {
+    if (!(await fetchFirebaseDoc('admins', req.uid))) return res.status(403).json({ error: 'Admin access required' });
+    const url = String(req.body?.url || '').trim();
+    if (!/^https?:/i.test(url)) return res.status(400).json({ error: 'url required' });
+    let tmp: string | null = null;
+    try {
+      tmp = await fetchToTmp(url, 'media');
+      if (!tmp) return res.status(502).json({ error: 'could not fetch file' });
+      const { json } = await runFfprobe(tmp);
+      const a = (json?.streams || []).find((s: any) => s.codec_type === 'audio') || {};
+      res.json({
+        ok: true,
+        durationSec: parseFloat(json?.format?.duration || '0') || 0,
+        bitRate: Number(json?.format?.bit_rate) || null,
+        formatName: json?.format?.format_name || '',
+        codec: a.codec_name || '', sampleRate: Number(a.sample_rate) || null, channels: Number(a.channels) || null,
+        sizeBytes: Number(json?.format?.size) || null,
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: String(e?.message || e) });
+    } finally { if (tmp) fs.unlink(tmp).catch(() => {}); }
+  });
+
+  // Admin proposes replacing a track's file. Writes a pending request + notifies the CREATOR.
+  // Does NOT change anything live — the swap only happens after the owner approves.
+  app.post('/api/admin/media-repair/request', authMiddleware, express.json({ limit: '8kb' }), async (req: any, res: any) => {
+    if (!(await fetchFirebaseDoc('admins', req.uid))) return res.status(403).json({ error: 'Admin access required' });
+    const albumId = String(req.body?.albumId || '').trim();
+    const trackId = String(req.body?.trackId || '').trim();
+    const newUrl = String(req.body?.newUrl || '').trim();
+    const note = String(req.body?.note || '').slice(0, 500);
+    if (!albumId || !trackId || !newUrl) return res.status(400).json({ error: 'albumId, trackId, newUrl required' });
+    if (!isAllowedMediaHost(newUrl)) return res.status(400).json({ error: 'replacement file must be on Plajah storage' });
+    const alb = await firestoreGetDeep('albums', albumId);
+    if (!alb) return res.status(404).json({ error: 'album not found' });
+    const tracks = Array.isArray(alb.tracks) ? alb.tracks : [];
+    const track = tracks.find((t: any) => t?.id === trackId);
+    if (!track) return res.status(404).json({ error: 'track not found in album' });
+    const ownerId = String(alb.ownerId || '');
+    if (!ownerId) return res.status(409).json({ error: 'album has no owner to ask' });
+    const now = Date.now();
+    const requestId = await firestoreCreate('mediaRepairRequests', {
+      albumId, trackId, ownerId, albumTitle: alb.title || '', trackTitle: track.title || '',
+      adminUid: req.uid, oldUrl: typeof track.url === 'string' ? track.url : '', newUrl,
+      note, status: 'pending', createdAt: now,
+    });
+    if (!requestId) return res.status(500).json({ error: 'could not create request' });
+    // Notify the creator (SYSTEM notification; link resolves to the in-app approval surface).
+    await firestoreCreate('notifications', {
+      userId: ownerId, senderId: 'plajah-support', senderName: 'Plajah Support', senderPhoto: '',
+      type: 'SYSTEM', title: 'File repair needs your approval',
+      message: `Support wants to replace the file for "${track.title || 'your track'}" on "${alb.title || 'your release'}". Review and approve.`,
+      link: 'MEDIA_REPAIR', targetId: requestId, isRead: false, timestamp: now,
+    });
+    res.json({ ok: true, requestId, ownerId });
+  });
+
+  // Owner lists THEIR pending repair requests (the approval inbox).
+  app.get('/api/media-repair/mine', authMiddleware, async (req: any, res: any) => {
+    try {
+      const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents:runQuery`;
+      const body = { structuredQuery: { from: [{ collectionId: 'mediaRepairRequests' }], where: { compositeFilter: { op: 'AND', filters: [
+        { fieldFilter: { field: { fieldPath: 'ownerId' }, op: 'EQUAL', value: { stringValue: req.uid } } },
+        { fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'pending' } } },
+      ] } } } };
+      const r = await fetch(url, { method: 'POST', headers: await firestoreAuthHeaders(), body: JSON.stringify(body) });
+      const rows = (await r.json() as any[]) || [];
+      const out = rows.filter(x => x.document).map(x => { const o: any = {}; for (const [k, v] of Object.entries(x.document.fields || {})) o[k] = fsValueToJs(v); o.id = x.document.name.split('/').pop(); return o; });
+      res.json({ ok: true, requests: out });
+    } catch (e: any) { res.status(500).json({ error: String(e?.message || e) }); }
+  });
+
+  // Owner approves/denies. Approve = swap the track's url (deep-preserving every other field) and
+  // re-enqueue transcode. Only the OWNER of the album may respond; admins cannot self-approve.
+  app.post('/api/media-repair/respond', authMiddleware, express.json({ limit: '4kb' }), async (req: any, res: any) => {
+    const requestId = String(req.body?.requestId || '').trim();
+    const approve = req.body?.approve === true;
+    if (!requestId) return res.status(400).json({ error: 'requestId required' });
+    const reqDoc = await firestoreGetDeep('mediaRepairRequests', requestId);
+    if (!reqDoc) return res.status(404).json({ error: 'request not found' });
+    if (String(reqDoc.ownerId) !== req.uid) return res.status(403).json({ error: 'not your request' });
+    if (reqDoc.status !== 'pending') return res.json({ ok: true, already: reqDoc.status });
+    const now = Date.now();
+    if (!approve) {
+      await firestorePatchDeep('mediaRepairRequests', requestId, { status: 'denied', resolvedAt: now });
+      return res.json({ ok: true, applied: false });
+    }
+    const alb = await firestoreGetDeep('albums', String(reqDoc.albumId));
+    const tracks = Array.isArray(alb?.tracks) ? alb!.tracks : [];
+    const idx = tracks.findIndex((t: any) => t?.id === reqDoc.trackId);
+    if (idx < 0) {
+      await firestorePatchDeep('mediaRepairRequests', requestId, { status: 'failed', error: 'track no longer exists', resolvedAt: now });
+      return res.status(409).json({ error: 'track no longer exists in album' });
+    }
+    tracks[idx] = { ...tracks[idx], url: reqDoc.newUrl };
+    const ok = await firestorePatchDeep('albums', String(reqDoc.albumId), { tracks });
+    if (!ok) return res.status(500).json({ error: 'failed to update album' });
+    // Re-enqueue transcode so the streaming ladder rebuilds from the corrected file.
+    await firestoreWrite('choraStreams', String(reqDoc.trackId), { status: 'pending', updatedAt: now });
+    await firestorePatchDeep('mediaRepairRequests', requestId, { status: 'approved', resolvedAt: now });
+    res.json({ ok: true, applied: true });
+  });
+
+  // Admin lists repair requests (any status) to track outcomes.
+  app.get('/api/admin/media-repair/list', authMiddleware, async (req: any, res: any) => {
+    if (!(await fetchFirebaseDoc('admins', req.uid))) return res.status(403).json({ error: 'Admin access required' });
+    try {
+      const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/mediaRepairRequests?pageSize=100`;
+      const r = await fetch(url, { headers: await firestoreAuthHeaders() });
+      const j = await r.json() as any;
+      const out = (j.documents || []).map((d: any) => { const o: any = {}; for (const [k, v] of Object.entries(d.fields || {})) o[k] = fsValueToJs(v); o.id = d.name.split('/').pop(); return o; })
+        .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
+      res.json({ ok: true, requests: out });
+    } catch (e: any) { res.status(500).json({ error: String(e?.message || e) }); }
   });
 
   // Serve a transcoded asset from GCS with Range + permissive CORS (HLS playlists resolve their
@@ -8223,6 +8889,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
 
   const ARIA_SYSTEM_PROMPT = `You are Aria, the single AI presence across all of Plajah — a multi-format creator platform (writing, music, video, film, learning, business, live, and more). You are ONE consistent personality everywhere; you simply put on whatever hat the current task needs. You are the user's collaborator, not a chatbot bolted onto the side.
 
+${ARIA_ART_COUNCIL_METHOD}
+
 CORE BEHAVIOUR — BE CONTEXT-AWARE:
 A message may include a "[LIVE CONTEXT]" block describing exactly what the user is doing right now: which surface they're on, the document or project they're working on, their current selection, and the ACTIONS you're allowed to take there. Treat this as your working memory. Ground every answer in it. Never echo the context back verbatim — use it.
 
@@ -8231,6 +8899,16 @@ YOU CAN DO REAL WORK IN EACH DOMAIN:
 - MUSIC: help with the actual music process — suggest chords/progressions/basslines/drum patterns, explain and adjust instrument or effect parameters, propose arrangement or mix moves. Use any offered actions to change the project when asked.
 - LEARNING / FILM / BUSINESS / etc.: assist with that domain's real work using the live context and offered actions.
 - GENERAL: answer any question directly and well. Not every message is about the current surface — if the user just asks a question, answer it.
+
+CREATIVE DIRECTION PHILOSOPHY:
+Aria may work through an Art Director, Writing Director, or Music Director expert lens, but these are roles within Aria — never separate egos. Guide, do not commandeer. Understand the user's audience, feeling, and intended outcome. Offer a small number of purposeful directions and explain their tradeoffs. Recommend honestly without pretending there is one correct answer. In critique, notice what works, then identify the highest-leverage improvement. Teach the craft while helping finish the work. Preserve the user's voice and taste; never replace them with generic polish. Be warm, lightly whimsical when fitting, candid about uncertainty, and never pushy. Ask before sweeping changes; perform clearly requested or easily reversible actions directly.
+
+DESIGN REFERENCE STUDIES:
+When asked to analyze an attached design, inspect the actual image. Separate visible evidence from interpretation. Describe hierarchy, grid, spacing, type classification, color relationships, imagery, texture/material, rhythm, symbols, and likely production constraints. Relate it to relevant art and design histories and to useful search paths through Plajah's art, architecture, fashion, photography, poster, comic, film, and cultural museum collections. Label analogies and confidence; never claim a provenance, artist, movement, or date from appearance alone. Extract 3–8 representative HEX colors with functional roles, approximate proportions, and contrast cautions. Produce a design-language system and an original editable template direction based on transferable principles—not a trace, replica, logo, character, trademark, or near-duplicate composition. For recognizable brands or living artists, stay broad and transform substantially. Call out uncertainty from lighting, white balance, crop, glare, perspective, and resolution.
+
+When a full study is requested, include a concise readable explanation and exactly one machine-readable block using this protocol:
+<DESIGN_STUDY>{"title":"…","accurateDescription":"…","observedEvidence":["…"],"artisticInterpretation":"…","historicalContexts":[{"movement":"…","relationship":"analogy, influence candidate, or contrast","confidence":"HIGH|MEDIUM|LOW"}],"museumConnections":[{"collection":"Plajah museum or wing","connection":"…","searchTerms":["…"]}],"palette":[{"hex":"#RRGGBB","name":"…","role":"BACKGROUND|SURFACE|PRIMARY|ACCENT|TEXT|MUTED","proportion":0.0,"contrastNote":"…"}],"designLanguage":{"principles":["…"],"typography":"…","composition":"…","shapeAndImage":"…","textureAndMaterial":"…","motion":"…","accessibility":["…"],"avoid":["elements that would copy rather than transform"]},"template":{"name":"…","category":"DOCUMENT|POSTER|LOWER_THIRD|MENU|PRESENTATION|SOCIAL|WEB","width":816,"height":1056,"tone":"BOLD|EDITORIAL|MINIMAL|PLAYFUL","creativeBrief":"…"},"uncertainty":["…"]}</DESIGN_STUDY>
+If the active surface offers createInspiredTemplate, invoke it with the same study object after explaining what will be created.
 
 TAKING ACTIONS (the ARIA_ACTION protocol):
 When the LIVE CONTEXT lists actions and the user's intent calls for one, DO it. Emit one action per block:
@@ -8244,11 +8922,20 @@ Rules:
 PLATFORM BUILDS (existing protocol, still supported):
 - BUILD MODULE / GALLERY / PLAYLIST / CURATION experiences via <BUILD_MODULE>{...}</BUILD_MODULE> etc. Always include type, title, description, layout, theme (colorPalette, gradient), sections[], tags[]. Precede every build block with a human-readable explanation.
 
+THE COUNCIL (the team behind you):
+Six art directors work as a team behind you — the Classical Mind, the Rebellious Hand, the Futurist, the World-Eclectic Traveller, the Baroque Dramatist and the Radical Minimalist. They are real agents with their own evolving taste, not roles you play. You are the only one who speaks to the user. Refer to them as "the council" or "the team"; name an individual only to credit a position or quote a line. When the user asks for visual direction, a look, an identity, a design system, art direction for a piece, or says "ask the council" / "take it to the team", convene them by emitting exactly one block:
+<COUNCIL_CONVENE>{"ask":"the brief in one or two sentences, in the user's terms","audience":"…","feeling":"…"}</COUNCIL_CONVENE>
+Write one short human sentence before it ("Let me take this to the council."). The team's synthesis is appended to your reply for you; do not invent their positions yourself. Do not convene for small edits, questions of fact, or anything that is not a design direction.
+
 RESEARCH: When web search is available, use it for current facts, biographies, and public-domain material.
 
 PRIVACY: Never reveal other users' data. This is a private 1:1 session. Only the current user's own context is ever shared with you.
 
 TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a request is genuinely ambiguous, ask ONE sharp clarifying question — otherwise just do the work.`;
+
+  // ── The Council of Art Directors — a working team behind Aria ──────────────
+  const council = createCouncil({ authMiddleware, apiLimiter, firestoreAuthHeaders, libraries: { packs: FABULA_BROADCAST_PACKS.map(p => ({ id: p.id, name: p.name, councilStyle: p.councilStyle })) } });
+  council.register(app);
 
   app.post('/api/agent/chat', authMiddleware, express.json({ limit: '10mb' }), async (req: any, res) => {
     try {
@@ -8343,6 +9030,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 
       // Append current user message (include attachment text inline)
       let userContent = message;
+      const visionAttachments: Array<{ name: string; mimeType: string; dataUrl: string; base64: string }> = [];
 
       // ── Rich live-context injection ──────────────────────────────────────────
       // `context.surface` is an AriaContextSnapshot published by whatever the user
@@ -8353,6 +9041,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       if (surface && surface.surface) {
         const parts: string[] = [];
         parts.push(`SURFACE: ${surface.surface}${surface.domain ? ` (domain: ${surface.domain})` : ''}`);
+        if (surface.creativeRole) parts.push(`EXPERT LENS: ${surface.creativeRole.label} — ${surface.creativeRole.promise}${Array.isArray(surface.creativeRole.disciplines) ? `\nCRAFT DEPTH: ${surface.creativeRole.disciplines.join(', ')}` : ''}`);
         if (surface.title)   parts.push(`WHAT THE USER IS DOING: ${surface.title}`);
         if (surface.summary) parts.push(`STATE: ${surface.summary}`);
         if (surface.selection) parts.push(`USER'S CURRENT SELECTION:\n"""\n${String(surface.selection).slice(0, 2000)}\n"""`);
@@ -8382,7 +9071,15 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
           const text = Buffer.from(att.dataUrl.split(',')[1] || att.dataUrl, 'base64').toString('utf8').slice(0, 6000);
           userContent += `\n\n[Attached: "${att.name}"]\n${text}`;
         } else if (att.type?.startsWith('image/')) {
-          userContent += `\n[Image attached: "${att.name}" — describe it if relevant]`;
+          const mimeType = String(att.type).toLowerCase();
+          const dataUrl = String(att.dataUrl || '');
+          const base64 = dataUrl.includes(',') ? dataUrl.slice(dataUrl.indexOf(',') + 1) : dataUrl;
+          if (/^image\/(png|jpe?g|webp|gif|avif)$/.test(mimeType) && base64.length > 0 && base64.length <= 14_000_000) {
+            visionAttachments.push({ name: String(att.name || 'reference image'), mimeType, dataUrl, base64 });
+            userContent += `\n[Visual reference attached: "${att.name}". Inspect the image itself; note camera/lighting uncertainty.]`;
+          } else {
+            userContent += `\n[Image attachment "${att.name}" could not be inspected because its format or size is unsupported.]`;
+          }
         }
       }
       chatHistory.push({ role: 'user', content: userContent });
@@ -8412,6 +9109,13 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
         replyText = String(localReply);
       } else if (MAI_KEY && !MAI_ENDPOINT.includes('TODO')) {
         // ── Microsoft MAI (primary) ──────────────────────────────────────────────
+        const maiMessages: any[] = chatHistory.map((entry, index) => {
+          if (index !== chatHistory.length - 1 || entry.role !== 'user' || !visionAttachments.length) return entry;
+          return { ...entry, content: [
+            { type: 'text', text: entry.content },
+            ...visionAttachments.map(image => ({ type: 'image_url', image_url: { url: image.dataUrl, detail: 'high' } })),
+          ] };
+        });
         const maiRes = await fetch(`${MAI_ENDPOINT}/chat/completions?api-version=2025-05-15-preview`, {
           method: 'POST',
           headers: {
@@ -8422,7 +9126,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
           },
           body: JSON.stringify({
             model: MAI_MODEL,
-            messages: chatHistory,
+            messages: maiMessages,
             // Thinking model params — ignored by non-thinking models, so safe to always send.
             // When the MAI thinking model is active it applies chain-of-thought reasoning
             // before producing its final reply.  The thinking budget controls cost/depth.
@@ -8502,7 +9206,10 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
           config: { systemInstruction: ARIA_SYSTEM_PROMPT, tools: geminiTools, maxOutputTokens: 2048, temperature: 0.8, thinkingConfig: { thinkingLevel: 'minimal' } },
           history: geminiHistory,
         });
-        const geminiRes = await chat.sendMessage({ message: [{ text: userContent }] });
+        const geminiRes = await chat.sendMessage({ message: [
+          { text: userContent },
+          ...visionAttachments.map(image => ({ inlineData: { data: image.base64, mimeType: image.mimeType } })),
+        ] });
         replyText = geminiRes.text || '';
         usedSearch = !!(geminiRes as any).candidates?.[0]?.groundingMetadata?.webSearchQueries?.length;
         if (usedSearch) toolCalls.push({ name: 'search_web', label: 'Searched the web', status: 'done' });
@@ -8525,6 +9232,29 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 
       // ── Parse build outputs ──
       let buildOutput: any = null;
+      // ── The council convenes (the <COUNCIL_CONVENE> protocol) ──
+      // Aria never invents the team's positions: the block is replaced by the synthesis the six
+      // directors actually reached, and the session id travels with the reply so the client can
+      // open the room. QUICK depth inside chat; the full room lives in the Council Room.
+      let councilSession: any = undefined;
+      const conveneMatch = replyText.match(/<COUNCIL_CONVENE>([\s\S]*?)<\/COUNCIL_CONVENE>/);
+      if (conveneMatch && !isLocalTurn) {
+        try {
+          const b = JSON.parse(conveneMatch[1]);
+          const surfaceCtx = (context as any)?.surface || {};
+          const d = await council.deliberate(uid, { ask: String(b.ask || message).slice(0, 2000), audience: b.audience ? String(b.audience).slice(0, 300) : undefined, feeling: b.feeling ? String(b.feeling).slice(0, 300) : undefined, surface: surfaceCtx.surface, domain: surfaceCtx.domain }, { depth: 'QUICK' });
+          if (d.status === 'DONE' && d.synthesis) {
+            councilSession = { id: d.id, lead: d.synthesis.lead, counterpoint: d.synthesis.counterpoint, editor: d.synthesis.editor, openDecision: d.synthesis.openDecision };
+            replyText = replyText.replace(conveneMatch[0], `\n\n${d.synthesis.ariaSummary}\n\n${d.synthesis.quotes.map(q => `"${q.line}" — ${q.directorId.replace('_', ' ').toLowerCase()}`).join('\n')}`);
+          } else {
+            replyText = replyText.replace(conveneMatch[0], '\n\nThe council could not finish this one just now — ask me again in a moment and I will bring it back to them.');
+          }
+        } catch (e: any) {
+          console.warn('[Aria] council convene failed:', e?.message || e);
+          replyText = replyText.replace(conveneMatch[0], '');
+        }
+      }
+
       const buildMatch = replyText.match(/<BUILD_(MODULE|GALLERY|PLAYLIST|CURATION)>([\s\S]*?)<\/BUILD_\1>/);
       if (buildMatch) {
         try {
@@ -8560,10 +9290,29 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
         } catch { /* skip malformed action block */ }
       }
 
+      // A design study is kept as structured data for Tela and future style-guide
+      // renderers while the readable interpretation remains in the chat reply.
+      let designStudy: any = null;
+      const designStudyMatch = replyText.match(/<DESIGN_STUDY>([\s\S]*?)<\/DESIGN_STUDY>/);
+      if (designStudyMatch) {
+        try {
+          const candidate = JSON.parse(designStudyMatch[1].trim());
+          const colors = Array.isArray(candidate?.palette)
+            ? candidate.palette.filter((color: any) => /^#[0-9a-f]{6}$/i.test(String(color?.hex || ''))).slice(0, 8)
+            : [];
+          if (candidate?.title && candidate?.accurateDescription && candidate?.designLanguage && candidate?.template && colors.length >= 3) {
+            designStudy = { ...candidate, palette: colors };
+            toolCalls.push({ name: 'design_reference_study', label: 'Created design-language study', status: 'done' });
+          }
+        } catch { /* malformed studies stay visible as ordinary prose only */ }
+      }
+
       // Strip raw build + action blocks from reply text for cleaner display
       const cleanReply = replyText
         .replace(/<BUILD_\w+>[\s\S]*?<\/BUILD_\w+>/g, '')
         .replace(/<ARIA_ACTION>[\s\S]*?<\/ARIA_ACTION>/g, '')
+        .replace(/<DESIGN_STUDY>[\s\S]*?<\/DESIGN_STUDY>/g, '')
+        .replace(/<COUNCIL_CONVENE>[\s\S]*?<\/COUNCIL_CONVENE>/g, '')
         .trim();
 
       // ── Persist message to Firestore ──
@@ -8583,6 +9332,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
               ...( extra.buildOutput ? { buildOutput: { stringValue: JSON.stringify(extra.buildOutput) } } : {} ),
               ...( extra.toolCalls?.length ? { toolCalls: { stringValue: JSON.stringify(extra.toolCalls) } } : {} ),
               ...( extra.error ? { error: { booleanValue: true } } : {} ),
+              ...( extra.councilSession ? { councilSession: { stringValue: JSON.stringify(extra.councilSession) } } : {} ),
               ...( attachments.length ? { attachmentNames: { stringValue: JSON.stringify(attachments.map((a: any) => a.name)) } } : {} ),
             },
           }),
@@ -8590,7 +9340,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       };
 
       await persistMsg('user', message);
-      await persistMsg('muse', cleanReply, { buildOutput, toolCalls: toolCalls.length ? toolCalls : undefined, error: replyError });
+      await persistMsg('muse', cleanReply, { buildOutput, toolCalls: toolCalls.length ? toolCalls : undefined, error: replyError, councilSession });
 
       // ── Update daily usage counters ──
       // On-device turns are free — don't count them against the daily cap.
@@ -8625,6 +9375,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
         toolCalls: toolCalls.length ? toolCalls : undefined,
         buildOutput: buildOutput || undefined,
         actionCalls: actionCalls.length ? actionCalls : undefined,
+        designStudy: designStudy || undefined,
+        councilSession,
         usage: {
           dailyMessages: newDaily,
           dailySearches: newSearches,
@@ -8746,6 +9498,12 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   });
 
   // ── Cora Music Analysis ───────────────────────────────────────────────────────
+  app.use('/api/admin/music-lab', createMusicLabRouter({
+    authenticate: authMiddleware,
+    isAdmin: async uid => !!await fetchFirebaseDoc('admins', uid),
+    evaluationPermission: id => id === 'yue2' ? process.env.YUE2_EVALUATION_PERMISSION_REF
+      : id === 'sheetsage2' ? process.env.SHEETSAGE2_EVALUATION_PERMISSION_REF : undefined,
+  }));
   app.use('/api/cora', express.json({ limit: '1mb' }), coraRouter);
 
   // ── Learner identity (child username/password → custom token; provision; claim) ──
@@ -8782,6 +9540,12 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 
   // Taleo Story Intelligence enqueue (worker poke; see routes/taleo.ts + worker/story/).
   app.use('/api/taleo', express.json({ limit: '16kb' }), taleoRouter);
+
+  // "Which way did I sign up?" — the sign-in form asks this when an email/password attempt
+  // fails, so a Google/Facebook user gets told to use their button instead of bouncing off
+  // "Invalid email or password." authLimiter because it takes an unauthenticated email.
+  app.use('/api/auth-methods', authLimiter);
+  app.use('/api/auth-methods', express.json({ limit: '2kb' }), authMethodsRouter);
 
   if (process.env.SPORTS_INGESTION_WORKER !== 'false') {
     const intervalMs = Number(process.env.SPORTS_INGESTION_INTERVAL_MS) || undefined;

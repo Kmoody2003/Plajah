@@ -142,7 +142,7 @@ function peakOf(analyser: AnalyserNode, buf: Float32Array): number {
   } catch { return 0; }
 }
 
-export function buildGraph(ctx: BaseAudioContext, padCount = 16): BeatsGraph {
+export function buildGraph(ctx: BaseAudioContext, padCount = 16, output: AudioNode = ctx.destination): BeatsGraph {
   // ---- master ----
   const input = ctx.createGain();
   const glue = ctx.createDynamicsCompressor();
@@ -161,7 +161,7 @@ export function buildGraph(ctx: BaseAudioContext, padCount = 16): BeatsGraph {
 
   // Default patch: input → fader → limiter → makeup → analyser → destination (glue off).
   input.connect(fader); fader.connect(limiter); limiter.connect(makeup);
-  makeup.connect(analyser); analyser.connect(ctx.destination);
+  makeup.connect(analyser); analyser.connect(output);
 
   const master = {
     input, glue, glueOn: false, fader, limiter, limiterOn: true, makeup, analyser,

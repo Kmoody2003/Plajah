@@ -106,6 +106,7 @@ const TvSpine: React.FC<{
     ...(currentTrack ? [{ kind: 'util' as const, key: 'NOW_PLAYING' as const }] : []),
   ];
   const [idx, setIdx] = useState(0);
+  const itemRefs = useRef(new Map<number, HTMLButtonElement>());
 
   const focusedRef = useRef(focused); focusedRef.current = focused;
   const idxRef = useRef(idx); idxRef.current = idx;
@@ -118,6 +119,13 @@ const TvSpine: React.FC<{
     setIdx(i >= 0 ? i : 1);  // default to the first real row (index 0 is Search), not Search itself
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focused, activeView]);
+
+  // This rail uses a virtual highlight instead of DOM focus, so browsers do not
+  // automatically reveal the selected row. Keep remote navigation visible.
+  useEffect(() => {
+    if (!focused) return;
+    itemRefs.current.get(idx)?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+  }, [focused, idx]);
 
   // ── Rail navigation, while the shell holds focus. ──────────────────────────
   // Up/Down move the highlight AND navigate immediately — the pane "tunes
@@ -230,7 +238,7 @@ const TvSpine: React.FC<{
         <span className="whitespace-nowrap">Search</span>
       </button>
 
-      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col [scrollbar-width:none]">
         {(['apps', 'live', 'system'] as const).map((group) => {
           const rows = LINEUP_ROWS.filter(r => r.group === group);
           const meta = GROUP_META[group];
@@ -241,12 +249,17 @@ const TvSpine: React.FC<{
                 {meta.label}
               </p>
               {rows.map((row) => {
+                const itemIndex = items.findIndex(it => it.kind === 'row' && it.row.view === row.view);
                 const Icon = ROW_ICON[row.view];
                 const isCurrentView = activeView === row.view;
                 const isHighlighted = active.kind === 'row' && active.row.view === row.view;
                 return (
                   <button
                     key={row.view}
+                    ref={(node) => {
+                      if (node) itemRefs.current.set(itemIndex, node);
+                      else itemRefs.current.delete(itemIndex);
+                    }}
                     role="tab"
                     aria-selected={isCurrentView}
                     data-tv-focusable

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { cleanDescription } from '../utils/description';
 import {
   Search, X, User, Music, Film, BookOpen, Play, Gamepad2,
   Globe, Newspaper, Tv, Camera, AppWindow, Mic, MessageCircle, Zap, Users,
@@ -205,7 +206,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
 
     // Albums
     albums.forEach(a => {
-      const s = maxPublicSearchScore([a.title, (a as any).artist, a.genre, a.description,
+      const s = maxPublicSearchScore([a.title, (a as any).artist, a.genre, cleanDescription(a.description),
         ...((a as any).tags || [])], q);
       if (s > 0) all.push({
         id: a.id, title: a.title,
@@ -223,7 +224,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
     videos.forEach(v => {
       const cat = ((v as any).category || '').toUpperCase();
       const vType: ResultType = cat === 'MOVIE' ? 'MOVIE' : cat === 'TV_EPISODE' ? 'TV' : 'VIDEO';
-      const s = maxPublicSearchScore([v.title, (v as any).artist, v.genre, v.description,
+      const s = maxPublicSearchScore([v.title, (v as any).artist, v.genre, cleanDescription(v.description),
         ...((v as any).tags || [])], q);
       if (s > 0) all.push({
         id: v.id, title: v.title,

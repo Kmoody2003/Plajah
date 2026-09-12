@@ -8,6 +8,20 @@
 
 ---
 
+## Platform rule: menus open in view
+
+Every dropdown and submenu must open beside its actual trigger or parent row and remain inside the visible viewport. This applies across Chora and every other platform surface.
+
+- Use `useContextMenu` for command menus and nested commands. Use `AnchoredPopover` for custom dropdown content. Both render outside transformed and overflow-clipped ancestors.
+- Measure the exact trigger in viewport coordinates before showing content. Never fall back to `(0, 0)`, the document top, a stale highlighted row, or a guessed parent item when an anchor is missing.
+- Flip at viewport edges; constrain oversized menus and scroll their contents. Account for the visual viewport on zoomed/mobile layouts.
+- Menu scrolling and focus restoration must not jump the page. Keyboard navigation must reveal the active row within the menu.
+- New or changed custom menu surfaces must use these primitives or provide equivalent browser regression coverage for scrolled/transformed parents, nested menus, viewport edges and constrained screens.
+
+Regression harness: `node scripts/verifyMenuPosition.mjs`.
+
+---
+
 ## Why this exists — the audit
 
 Measured across `components/**/*.tsx` on 2026-08-12:

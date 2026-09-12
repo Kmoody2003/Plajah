@@ -52,7 +52,7 @@ const ATTR_TIPS: Record<string, Tip> = {
   "Nebula": { icon: "🌌", label: "Nebula Theme", desc: "A deep indigo cosmic theme, inspired by galaxies and deep space." },
 
   // Nano quick-nav (back face)
-  "Home":       { icon: "🏠", label: "Home / Global Archive", desc: "Go to the Global Archive — every public album, video, and book on Plajah." },
+  "Home":       { icon: "🏠", label: "Home / Front Row", desc: "Go to Front Row — every public album, video, and book on Plajah." },
   "My Profile": { icon: "👤", label: "Your Profile", desc: "View your public artist profile — the page other people see when they visit your account." },
   "Search":     { icon: "🔍", label: "Find People & Content", desc: "Search for artists, fans, albums, videos, articles, and games across the whole platform at once." },
 
@@ -128,7 +128,8 @@ const ATTR_TIPS: Record<string, Tip> = {
 const TEXT_TIPS: Record<string, Tip> = {
   // Sidebar nav
   "my profile":         { icon: "👤", label: "Your Profile Page", desc: "This takes you to your public artist page — what other people see when they visit your account. You can edit it from Creator Dashboard." },
-  "global archive":     { icon: "🌍", label: "Global Archive", desc: "Browse every public album, video, book, and game published on Plajah. A good place to discover new music and creators." },
+  "global archive":     { icon: "🌍", label: "Front Row", desc: "Browse every public album, video, book, and game published on Plajah. A good place to discover new music and creators." },
+  "front row":          { icon: "🌍", label: "Front Row", desc: "Browse every public album, video, book, and game published on Plajah. A good place to discover new music and creators." },
   "chora":              { icon: "🎵", label: "Chora — Music", desc: "The main music section. Browse albums, discover artists, and start playing with a single click. Your nano controller in the sidebar stays synced." },
   "plajah social":      { icon: "👥", label: "Social Feed", desc: "Your timeline — posts, music drops, debates, and updates from people you follow. You can also post here yourself." },
   "worlds":             { icon: "🌐", label: "Worlds", desc: "Creative universes — link your music, characters, videos, and stories into one connected IP. Think of it as the official home for your artistic universe." },
@@ -351,7 +352,7 @@ function resolveTip(x: number, y: number, view: string, fallbackTips: Tip[], tip
 
 const PAGE_FEATURES: Record<string, PageEntry> = {
   DASHBOARD: {
-    title: "Global Archive",
+    title: "Front Row",
     intro: "This is Plajah's central discovery hub — every public album, video, book, and game on the platform lives here. Use the sidebar search to find anything instantly.",
     tips: [
       { icon: "🎵", label: "Click Any Card to Play", desc: "Click an album card and it starts playing immediately. The nano controller in the sidebar updates automatically." },

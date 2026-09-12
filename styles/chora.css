@@ -388,7 +388,7 @@
    spring-driven radial distance lets selection feel pulled inward by gravity. */
 .pv-orr {
   position: relative;
-  width: min(340px, 100%);
+  width: min(520px, 90%);
   aspect-ratio: 1 / 1;
   margin-inline: auto;
 }
@@ -471,9 +471,9 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 112px;
-  height: 112px;
-  margin: -56px;
+  width: 160px;
+  height: 160px;
+  margin: -80px;
   border-radius: 50%;
   background-size: cover;
   background-position: center;

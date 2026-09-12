@@ -6,7 +6,7 @@ import {
 } from './filmProductionService';
 import { decryptText } from './cryptoService';
 
-export type ProductionBrainMode = 'ASK' | 'RISK_SCAN' | 'NEXT_ACTIONS' | 'CONTINUITY' | 'DAY_PLAN' | 'CLEARANCE_SCAN' | 'BUDGET_BENCHMARK';
+export type ProductionBrainMode = 'ASK' | 'RISK_SCAN' | 'NEXT_ACTIONS' | 'CONTINUITY' | 'DAY_PLAN' | 'CLEARANCE_SCAN' | 'BUDGET_BENCHMARK' | 'DELIVERY_SCAN';
 
 export interface ProductionBrainEvidence {
   source: string;
@@ -47,6 +47,7 @@ export interface ProductionCorpusData {
   locations: unknown[];
   festivals: unknown[];
   clearances: unknown[];
+  deliverables: unknown[];
   dprs: unknown[];
   craftMenu: unknown[];
   craftOrders: unknown[];
@@ -126,6 +127,7 @@ export function buildAuthorizedProductionCorpus(data: ProductionCorpusData): Bui
     locations: data.locations,
     festivalsAndDistribution: data.festivals,
     clearances: data.clearances,
+    deliverables: data.deliverables,
     dailyProductionReports: includeReports ? data.dprs : [],
     craft: { menu: data.craftMenu, orders: data.craftOrders },
     workflowHistory: data.workflowEvents,
@@ -140,7 +142,7 @@ export function buildAuthorizedProductionCorpus(data: ProductionCorpusData): Bui
   const arrays: Record<string, unknown[]> = {
     members: data.members, scenes: data.scenes, callSheets: data.callSheets, tasks: data.tasks, breakdownElements: data.breakdownElements,
     schedulePlans: data.schedulePlans, scheduleConstraints: data.scheduleConstraints, recipientDeliveries: data.recipientDeliveries, callSheetTemplates: data.callSheetTemplates,
-    budgetLines: includeBudget ? data.budgetLines : [], locations: data.locations, festivals: data.festivals, clearances: data.clearances,
+    budgetLines: includeBudget ? data.budgetLines : [], locations: data.locations, festivals: data.festivals, clearances: data.clearances, deliverables: data.deliverables,
     purchaseOrders: includeBudget ? data.purchaseOrders : [], pettyCash: includeBudget ? data.pettyCash : [], timecards: includeBudget ? data.timecards : [],
     dprs: includeReports ? data.dprs : [], workflowEvents: data.workflowEvents,
     jobPostings: includeHiring ? data.jobPostings : [], applications: includeHiring ? data.applications : [],
@@ -172,7 +174,7 @@ export async function loadAuthorizedProductionCorpus(prodId: string, askingUid: 
     : production.authority?.[askingUid]?.permissions || [];
   const canBudget = hasProductionPermission(production, askingUid, 'MANAGE_BUDGET');
   const canReports = hasProductionPermission(production, askingUid, 'MANAGE_REPORTS');
-  const names = ['members', 'scenes', 'callsheets', 'tasks', 'breakdownElements', 'schedulePlans', 'scheduleConstraints', 'recipientDeliveries', 'callSheetTemplates', 'locations', 'festivals', 'clearances', 'craftMenu', 'craftOrders', 'workflowEvents', 'decisions', 'alerts', 'artifactAcknowledgements', 'productionActions'];
+  const names = ['members', 'scenes', 'callsheets', 'tasks', 'breakdownElements', 'schedulePlans', 'scheduleConstraints', 'recipientDeliveries', 'callSheetTemplates', 'locations', 'festivals', 'clearances', 'deliverables', 'craftMenu', 'craftOrders', 'workflowEvents', 'decisions', 'alerts', 'artifactAcknowledgements', 'productionActions'];
   const result = await Promise.all(names.map(name => rows(prodId, name)));
   const byName = Object.fromEntries(names.map((name, index) => [name, result[index]]));
   byName.budgetLines = canBudget ? await rows(prodId, 'budgetLines') : [];
@@ -210,7 +212,7 @@ export async function loadAuthorizedProductionCorpus(prodId: string, askingUid: 
     members: byName.members as ProductionMember[], scriptDraft,
     scenes: byName.scenes, callSheets: byName.callsheets, tasks: byName.tasks, breakdownElements: byName.breakdownElements,
     schedulePlans: byName.schedulePlans, scheduleConstraints: byName.scheduleConstraints, recipientDeliveries: byName.recipientDeliveries, callSheetTemplates: byName.callSheetTemplates,
-    budgetLines: byName.budgetLines, locations: byName.locations, festivals: byName.festivals, clearances: byName.clearances,
+    budgetLines: byName.budgetLines, locations: byName.locations, festivals: byName.festivals, clearances: byName.clearances, deliverables: byName.deliverables,
     purchaseOrders: byName.purchaseOrders, pettyCash: byName.pettyCash, timecards: byName.timecards,
     dprs: byName.dprs, craftMenu: byName.craftMenu, craftOrders: byName.craftOrders,
     workflowEvents: byName.workflowEvents, jobPostings, applications,
@@ -257,6 +259,7 @@ export async function askProductionBrain(prodId: string, question: string, mode:
     DAY_PLAN: question || 'Assess the next scheduled shoot day and identify everything each responsible department must resolve before call.',
     CLEARANCE_SCAN: 'Audit legal readiness for distribution. Cross-reference the clearances against cast (talent releases, minor permits), locations (location releases, permits, insurance/COI), scenes (music sync, clip, intimacy), and chain-of-title. For each shoot day, flag scenes that cannot lawfully shoot because a required clearance is NEEDED, REQUESTED, EXPIRED, or missing entirely, and rank by shoot-day proximity. Name the exact clearance, the entity it covers, and the scene/day it blocks.',
     BUDGET_BENCHMARK: 'Analyze the budget and accounting (line items, purchase orders/commitments, petty cash, labor timecards). Benchmark the department allocation against comparable indie/studio norms for this format and scale. Flag departments that are overspending or over-committed (committed + actual approaching or exceeding estimate), missing fringe, or lacking contingency. Recommend a contingency %, and give concrete reallocation and cost-saving actions per department without compromising the production.',
+    DELIVERY_SCAN: 'Audit delivery readiness against the chosen delivery spec. Cross-reference the deliverables checklist (master file, captions, textless, M&E, poster, QC report, chain-of-title, DCP/IMF) with what the production actually has. For each required item, flag whether it is NEEDED / IN_PROGRESS / missing, and rank by what blocks the deadline. Call out the common indie delivery traps: no textless/M&E, unresolved chain-of-title or E&O, captions absent, loudness not to the target spec. Name the exact deliverable, the spec that requires it, and the owner role.',
   };
   const started = Date.now();
   const res = await fetch('/api/ai/pokee', {

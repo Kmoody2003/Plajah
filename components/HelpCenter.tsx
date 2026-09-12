@@ -25,7 +25,7 @@ interface HelpSection {
 const helpSections: HelpSection[] = [
   {
     id: 'discovery',
-    title: 'Global Archive',
+    title: 'Front Row',
     icon: Database,
     description: 'The central hub for all platform content. Browse music, videos, movies, TV, books, games, and more — no account required.',
     features: [
@@ -47,7 +47,7 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'Discovering New Artists',
-        description: 'The Global Archive surfaces content from all creators in chronological order, most recent first. Follow an artist from their profile page to see their new releases prioritized. The "New Arrivals" rows on each section page spotlight the freshest drops.'
+        description: 'Front Row surfaces content from all creators in chronological order, most recent first. Follow an artist from their profile page to see their new releases prioritized. The "New Arrivals" rows on each section page spotlight the freshest drops.'
       }
     ]
   },

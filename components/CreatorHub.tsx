@@ -78,7 +78,7 @@ const KIND_META: Record<ProjectKind, KindMeta> = {
  *  kind (Tela uses its canonical self-contained CustomEvent). */
 function openProject(item: ProjectItem, onNavigate: (v: string) => void): void {
   switch (item.kind) {
-    case 'MUSIC':  onNavigate('ARTIST_MANAGER'); break;
+    case 'MUSIC':  onNavigate('MELOS'); break;
     case 'BOOK':   onNavigate('BOOKS'); break;
     case 'SCRIPT': onNavigate('BOOKS'); break;
     case 'FILM':   onNavigate('FABULA'); break;
@@ -198,7 +198,7 @@ interface StudioDef {
   large?: boolean;         // Melos is the big tile
 }
 const STUDIOS: StudioDef[] = [
-  { key: 'Melos',  tagline: 'Music & releases',      icon: Music2,         navId: 'ARTIST_MANAGER',
+  { key: 'Melos',  tagline: 'Music & releases',      icon: Music2,         navId: 'MELOS',
     kinds: ['MUSIC'],           grad: 'linear-gradient(135deg,#6B0099,#D40055)', glow: '212,0,85',  large: true },
   { key: 'Fabula', tagline: 'Film & the timeline',   icon: Film,           navId: 'FABULA',
     kinds: ['FILM'],            grad: 'linear-gradient(135deg,#0066FF,#00DAF3)', glow: '0,218,243' },
