@@ -24,6 +24,7 @@ import { spawn } from 'node:child_process';
 import os from 'node:os';
 import Stripe from 'stripe';
 import { coraRouter } from './routes/cora';
+import { createMusicLabRouter } from './routes/musicLab';
 import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
 import { postmanRouter } from './routes/postman';
@@ -9497,6 +9498,12 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   });
 
   // ── Cora Music Analysis ───────────────────────────────────────────────────────
+  app.use('/api/admin/music-lab', createMusicLabRouter({
+    authenticate: authMiddleware,
+    isAdmin: async uid => !!await fetchFirebaseDoc('admins', uid),
+    evaluationPermission: id => id === 'yue2' ? process.env.YUE2_EVALUATION_PERMISSION_REF
+      : id === 'sheetsage2' ? process.env.SHEETSAGE2_EVALUATION_PERMISSION_REF : undefined,
+  }));
   app.use('/api/cora', express.json({ limit: '1mb' }), coraRouter);
 
   // ── Learner identity (child username/password → custom token; provision; claim) ──

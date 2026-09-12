@@ -56,6 +56,11 @@ import { addPadInstrument, addInstrumentToNextPad, detachPadInstrument, addInstr
 import BreakdownImporter from './composer/BreakdownImporter';
 import { breakdownToTracks } from '../../../services/melos/composition/breakdownToTracks';
 import { SELECT, WASH_BG } from './theme';
+import { onAuthStateChanged } from 'firebase/auth';
+import { getMusicEngines, type EngineStatus } from '../../../services/melos/generation/client';
+import { insertGeneratedAudio, insertGeneratedNotes } from '../../../services/melos/generation/insert';
+import GenerationPanel, { type GenerationInsertion } from './composer/GenerationPanel';
+import { encodeWav } from '../../../services/audio/wavEncode';
 
 export interface BeatsLaunchPayload {
   grooveId?: string;
@@ -126,6 +131,62 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   // Where a freshly-picked instrument lands: a MEKA pad, or its own independent (clip-driven) MIDI track.
   const [instrumentDest, setInstrumentDest] = useState<'meka' | 'track'>('meka');
   const [showBreakdownImport, setShowBreakdownImport] = useState(false);
+  const [musicEngines, setMusicEngines] = useState<EngineStatus[] | null>(null);
+  const [showGeneration, setShowGeneration] = useState(false);
+  const currentDocRef = React.useRef(doc);
+  currentDocRef.current = doc;
+  useEffect(() => {
+    let request: AbortController | undefined;
+    const unsubscribe = onAuthStateChanged(auth, user => {
+      request?.abort(); request = new AbortController();
+      const signal = request.signal;
+      setMusicEngines(null); setShowGeneration(false);
+      if (user) void getMusicEngines(signal).then(engines => {
+        if (!signal.aborted) setMusicEngines(engines);
+      }).catch(() => { /* Public users have no lab controls. Server checks every request too. */ });
+    });
+    return () => { request?.abort(); unsubscribe(); };
+  }, []);
+  const insertGeneration = async (value: GenerationInsertion) => {
+    const checkProject = () => {
+      if (currentDocRef.current.id !== value.projectId) throw new Error('The project changed during generation. Return to the original project before inserting.');
+      if (currentDocRef.current.bpm !== value.bpm) throw new Error('The project tempo changed during generation. Restore the original tempo before inserting this take.');
+    };
+    checkProject();
+    const engine = BeatsEngine.get(); await engine.init(); checkProject();
+    let sample: Awaited<ReturnType<typeof ingestSample>> = null;
+    if (value.audio) {
+      const ctx = engine.getContext(); if (!ctx) throw new Error('Audio engine is unavailable');
+      let blob = value.audio;
+      if (value.kind === 'sample') {
+        const source = await ctx.decodeAudioData(await blob.arrayBuffer());
+        if (!Number.isFinite(value.sampleStart) || !Number.isFinite(value.sampleLength) || value.sampleStart < 0 || value.sampleStart >= source.duration || value.sampleLength <= 0) throw new Error('Choose a sample region inside the generated audio');
+        const offset = Math.floor(value.sampleStart * source.sampleRate);
+        const frames = Math.min(source.length - offset, Math.ceil(value.sampleLength * source.sampleRate));
+        const trimmed = ctx.createBuffer(source.numberOfChannels, frames, source.sampleRate);
+        const fade = Math.min(Math.floor(source.sampleRate * 0.005), Math.floor(frames / 2));
+        for (let c = 0; c < source.numberOfChannels; c++) {
+          const samples = trimmed.getChannelData(c); samples.set(source.getChannelData(c).subarray(offset, offset + frames));
+          for (let i = 0; i < fade; i++) { samples[i] *= i / fade; samples[frames - 1 - i] *= i / fade; }
+        }
+        blob = encodeWav(trimmed, 24);
+      }
+      sample = await ingestSample(blob, value.target.name, ctx);
+      if (!sample) throw new Error('Could not decode or save the generated audio');
+      engine.setSampleBuffer(sample.ref.key, sample.buffer);
+    }
+    checkProject();
+    // Validate on a draft first so a failed insertion never leaves a half-mutated project.
+    const draft: GrooveDoc = JSON.parse(JSON.stringify(currentDocRef.current));
+    const outcome = sample ? insertGeneratedAudio(draft, sample.ref, value.target, value.kind === 'sample')
+      : insertGeneratedNotes(draft, value.result.notes || [], value.target);
+    mutate(d => { d.kit = draft.kit; d.patterns = draft.patterns; d.arrangement = draft.arrangement; });
+    engine.syncInstruments();
+    if ('padIdx' in outcome && typeof outcome.padIdx === 'number') setSelectedPad(outcome.padIdx);
+    if ('patternId' in outcome && outcome.patternId) setActivePatternId(outcome.patternId);
+    setView(value.kind === 'sample' ? 'machine' : value.target.destination === 'meka' ? 'machine' : value.target.destination);
+    // Generated audio remains in the device's OPFS; it is not published or uploaded here.
+  };
   // Score a Chora breakdown → one instrument track per part (Melody/Harmony/Bass/Accent).
   const scoreFromBreakdown = (bd: Parameters<typeof breakdownToTracks>[0]) => {
     const scored = breakdownToTracks(bd);
@@ -1009,6 +1070,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           className={`h-6 px-2.5 rounded-lg text-[10px] border flex items-center gap-1 ${ulOpen ? 'border-[#8B5CFF]/70 text-white bg-[#8B5CFF]/15' : 'border-[#8B5CFF]/40 text-[#D0BCFF] hover:bg-[#8B5CFF]/12'}`}>▦ Library</button>
         <button onClick={() => setShowBreakdownImport(true)} title="Score from Chora — turn a song's Breakdown into instrument tracks"
           className="h-6 px-2.5 rounded-lg text-[10px] border border-[#00DAF3]/35 text-[#00DAF3] hover:bg-[#00DAF3]/10 flex items-center gap-1">♪ From Chora</button>
+        {musicEngines && <button onClick={() => setShowGeneration(value => !value)} title="Generate audio, MIDI notes or a sample (private music lab)"
+          className="h-6 px-2.5 rounded-lg text-[10px] border border-[#D0BCFF]/40 text-[#D0BCFF] flex items-center gap-1"><Sparkles size={10} /> Generate</button>}
         <div className="flex-1" />
         <button
           onClick={() => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) autoFill(d, p, 4); }); }}
@@ -1102,6 +1165,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         />
       )}
       </div>
+      {showGeneration && musicEngines && <GenerationPanel key={doc.id} doc={doc} engines={musicEngines} startBeats={songStartBeats}
+        initialDestination={view === 'machine' ? 'meka' : view === 'glass' ? 'glass' : 'timeline'} onClose={() => setShowGeneration(false)} onInsert={insertGeneration} />}
       {showLibrary && <MuseLibrary docked doc={doc} onMutate={mutate} onClose={() => setShowLibrary(false)} />}
       {ulOpen && (
         <UniversalLibraryPanel accent="#FF8C00" side="right" defaultDock="docked" storageKey="melos.ullib.geo.v2" accepts={['groove', 'bassline']}
