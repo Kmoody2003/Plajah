@@ -63,13 +63,20 @@ const FixtureDiscovery: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [tab, setTab] = useState<'hue' | 'nanoleaf' | 'govee' | 'razer'>('razer');
   const [connecting, setConnecting] = useState<string | null>(null);
 
-  // ── Nanoleaf pairing state (guided flow) ──
-  const [nanoIp, setNanoIp] = useState('');
-  const [nanoPairing, setNanoPairing] = useState(false);
+  // ── Nanoleaf state ──
+  type NanoDevice = { ip: string; port: number; name: string; model: string };
+  const [nanoScanning, setNanoScanning] = useState(false);
+  const [nanoDevices, setNanoDevices] = useState<NanoDevice[]>([]);
+  const [nanoPairing, setNanoPairing] = useState<NanoDevice | null>(null);
   const [nanoCountdown, setNanoCountdown] = useState(0);
+  const [nanoManualIp, setNanoManualIp] = useState('');
 
-  // ── Govee key state ──
+  // ── Govee state ──
+  type GoveeDevice = { ip: string; device: string; model: string; name: string };
+  const [goveeScanning, setGoveeScanning] = useState(false);
+  const [goveeLanDevices, setGoveeLanDevices] = useState<GoveeDevice[]>([]);
   const [goveeKey, setGoveeKey] = useState('');
+  const [goveeMode, setGoveeMode] = useState<'scan' | 'key'>('scan');
 
   // ── Auto-reconnect all saved credentials on mount ──
   useEffect(() => {
@@ -88,7 +95,7 @@ const FixtureDiscovery: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Hue: OAuth popup (user just signs into their Hue account) ──
+  // ── Hue: OAuth popup ──
   useEffect(() => {
     const onMessage = async (e: MessageEvent) => {
       if (e.data?.type !== 'hue-auth' || !e.data.accessToken) return;
@@ -110,13 +117,22 @@ const FixtureDiscovery: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     setConnecting('hue');
   };
 
-  // ── Nanoleaf: guided pairing (hold button → we auto-grab the token) ──
-  const startNanoPairing = async () => {
-    if (!nanoIp.trim()) return;
-    setNanoPairing(true);
+  // ── Nanoleaf: scan network via server SSDP, then guided pairing ──
+  const scanNanoleaf = async () => {
+    setNanoScanning(true);
+    setNanoDevices([]);
+    try {
+      const resp = await fetch('/api/nanoleaf/discover');
+      const data = await resp.json();
+      setNanoDevices(data.devices || []);
+    } catch {}
+    setNanoScanning(false);
+  };
+
+  const startNanoPairing = async (device: NanoDevice) => {
+    setNanoPairing(device);
     setNanoCountdown(30);
 
-    // Countdown timer while user holds the power button
     const interval = setInterval(() => {
       setNanoCountdown(prev => {
         if (prev <= 1) { clearInterval(interval); return 0; }
@@ -124,33 +140,60 @@ const FixtureDiscovery: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       });
     }, 1000);
 
-    // Poll for the token (user has 30 seconds to hold the button)
-    const ip = nanoIp.trim();
+    // Poll the server-side pairing proxy (avoids browser CORS)
     let token: string | null = null;
     for (let attempt = 0; attempt < 15; attempt++) {
       await new Promise(r => setTimeout(r, 2000));
       try {
-        const resp = await fetch(`http://${ip}:16021/api/v1/new`, { method: 'POST' });
+        const resp = await fetch('/api/nanoleaf/pair', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip: device.ip, port: device.port }),
+        });
         if (resp.ok) {
           const data = await resp.json();
-          token = data.auth_token;
-          break;
+          if (data.token) { token = data.token; break; }
         }
-      } catch { /* user hasn't pressed button yet */ }
+      } catch {}
     }
 
     clearInterval(interval);
-    setNanoPairing(false);
+    setNanoPairing(null);
 
     if (token) {
-      const config = { ip, port: 16021, token };
+      const config = { ip: device.ip, port: device.port, token };
       localStorage.setItem('nanoleaf_config', JSON.stringify(config));
       await smartLightingService.connectNanoleaf(config);
     }
   };
 
-  // ── Govee: just paste the key from the consumer app ──
-  const connectGovee = async () => {
+  // ── Govee: scan LAN first (zero-key), API key as fallback ──
+  const scanGovee = async () => {
+    setGoveeScanning(true);
+    setGoveeLanDevices([]);
+    try {
+      const resp = await fetch('/api/govee/discover');
+      const data = await resp.json();
+      setGoveeLanDevices(data.devices || []);
+    } catch {}
+    setGoveeScanning(false);
+  };
+
+  const connectGoveeLan = async (device: GoveeDevice) => {
+    // For LAN-discovered devices, we still need the cloud API key for the existing adapter
+    // But we can store the device info for future LAN-only control
+    setConnecting('govee');
+    // If we have a saved API key, use it; otherwise prompt
+    const saved = localStorage.getItem('govee_api_key');
+    if (saved) {
+      await smartLightingService.connectGovee({ apiKey: saved });
+    } else {
+      setGoveeMode('key');
+    }
+    setConnecting(null);
+  };
+
+  const connectGoveeKey = async () => {
     if (!goveeKey.trim()) return;
     setConnecting('govee');
     localStorage.setItem('govee_api_key', goveeKey.trim());
@@ -176,8 +219,8 @@ const FixtureDiscovery: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const platforms = [
     { id: 'razer' as const, emoji: '🐍', label: 'Razer Chroma', color: '#00FF00', desc: 'Automatic — just have Synapse 3 running' },
     { id: 'hue' as const, emoji: '💡', label: 'Philips Hue', color: '#FFD700', desc: 'Sign in with your Hue account' },
-    { id: 'govee' as const, emoji: '🎨', label: 'Govee', color: '#FF4466', desc: 'Paste key from Govee Home app' },
-    { id: 'nanoleaf' as const, emoji: '🟢', label: 'Nanoleaf', color: '#00FF88', desc: 'Hold power button to pair' },
+    { id: 'govee' as const, emoji: '🎨', label: 'Govee', color: '#FF4466', desc: 'Auto-discover on your network' },
+    { id: 'nanoleaf' as const, emoji: '🟢', label: 'Nanoleaf', color: '#00FF88', desc: 'Auto-discover + one-tap pair' },
   ];
 
   return (
@@ -283,7 +326,7 @@ const FixtureDiscovery: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         )
                       )}
 
-                      {/* ── Govee: paste from consumer app ── */}
+                      {/* ── Govee: auto-scan LAN + API key fallback ── */}
                       {p.id === 'govee' && (
                         connected ? (
                           <div className="space-y-2">
@@ -295,29 +338,75 @@ const FixtureDiscovery: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            <div className="p-3 bg-white/[0.03] rounded-xl border border-white/[0.06] space-y-2">
-                              <p className="text-xs font-bold text-white/60">How to get your key (takes 30 seconds):</p>
-                              <ol className="text-[10px] text-gray-400 space-y-1 list-decimal list-inside">
-                                <li>Open the <span className="text-white/70 font-bold">Govee Home</span> app on your phone</li>
-                                <li>Go to <span className="text-white/70 font-bold">Profile → ⚙️ Settings</span></li>
-                                <li>Tap <span className="text-white/70 font-bold">"Apply for API Key"</span></li>
-                                <li>Check your email — Govee sends the key in minutes</li>
-                              </ol>
+                            {/* Mode toggle */}
+                            <div className="flex gap-2">
+                              <button onClick={() => setGoveeMode('scan')}
+                                className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all ${
+                                  goveeMode === 'scan' ? 'bg-[#FF4466]/10 border-[#FF4466]/30 text-[#FF4466]' : 'border-white/10 text-gray-500'
+                                }`}>
+                                📡 Scan Network
+                              </button>
+                              <button onClick={() => setGoveeMode('key')}
+                                className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all ${
+                                  goveeMode === 'key' ? 'bg-[#FF4466]/10 border-[#FF4466]/30 text-[#FF4466]' : 'border-white/10 text-gray-500'
+                                }`}>
+                                🔑 API Key
+                              </button>
                             </div>
-                            <input value={goveeKey} onChange={e => setGoveeKey(e.target.value)} placeholder="Paste your API key here…"
-                              className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-gray-600 outline-none focus:border-[#FF4466]/40" />
-                            <button onClick={connectGovee} disabled={connecting === 'govee' || !goveeKey.trim()}
-                              className="w-full py-3 rounded-xl text-sm font-bold bg-[#FF4466]/10 border border-[#FF4466]/30 text-[#FF4466] hover:bg-[#FF4466]/20 transition-all disabled:opacity-40">
-                              {connecting === 'govee' ? 'Connecting…' : '🎨 Connect Govee'}
-                            </button>
+
+                            {goveeMode === 'scan' ? (
+                              <>
+                                <p className="text-xs text-gray-400">Plajah will scan your local network for Govee devices — no API key needed.</p>
+                                <button onClick={scanGovee} disabled={goveeScanning}
+                                  className="w-full py-3 rounded-xl text-sm font-bold bg-[#FF4466]/10 border border-[#FF4466]/30 text-[#FF4466] hover:bg-[#FF4466]/20 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
+                                  {goveeScanning ? <><RefreshCw size={14} className="animate-spin" /> Scanning…</> : '📡 Scan for Govee Devices'}
+                                </button>
+                                {!goveeScanning && goveeLanDevices.length > 0 && (
+                                  <div className="space-y-2">
+                                    <p className="text-[10px] font-bold text-white/50 uppercase tracking-wider">Found {goveeLanDevices.length} device{goveeLanDevices.length > 1 ? 's' : ''}</p>
+                                    {goveeLanDevices.map((d, i) => (
+                                      <button key={i} onClick={() => connectGoveeLan(d)}
+                                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.08] hover:border-[#FF4466]/30 transition-all text-left">
+                                        <span className="text-lg">🎨</span>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs font-bold text-white truncate">{d.name}</p>
+                                          <p className="text-[9px] text-gray-500">{d.model} · {d.ip}</p>
+                                        </div>
+                                        <span className="text-[8px] font-black text-[#FF4466] uppercase tracking-wider">Connect</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                                {!goveeScanning && goveeLanDevices.length === 0 && svc.connected.govee === undefined && (
+                                  <p className="text-[10px] text-gray-600">No devices found? Make sure your Govee lights are on and on the same WiFi, or try the API Key method.</p>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <div className="p-3 bg-white/[0.03] rounded-xl border border-white/[0.06] space-y-2">
+                                  <p className="text-xs font-bold text-white/60">How to get your key (takes 30 seconds):</p>
+                                  <ol className="text-[10px] text-gray-400 space-y-1 list-decimal list-inside">
+                                    <li>Open the <span className="text-white/70 font-bold">Govee Home</span> app on your phone</li>
+                                    <li>Tap <span className="text-white/70 font-bold">Profile → ⚙️ → Apply for API Key</span></li>
+                                    <li>Check your email — Govee sends the key in minutes</li>
+                                  </ol>
+                                </div>
+                                <input value={goveeKey} onChange={e => setGoveeKey(e.target.value)} placeholder="Paste your API key here…"
+                                  className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-gray-600 outline-none focus:border-[#FF4466]/40" />
+                                <button onClick={connectGoveeKey} disabled={connecting === 'govee' || !goveeKey.trim()}
+                                  className="w-full py-3 rounded-xl text-sm font-bold bg-[#FF4466]/10 border border-[#FF4466]/30 text-[#FF4466] hover:bg-[#FF4466]/20 transition-all disabled:opacity-40">
+                                  {connecting === 'govee' ? 'Connecting…' : '🎨 Connect Govee'}
+                                </button>
+                              </>
+                            )}
                             {svc.connected.govee === false && (
-                              <p className="text-[10px] text-red-400/80">Connection failed — double check the API key.</p>
+                              <p className="text-[10px] text-red-400/80">Connection failed — try scanning again or use an API key.</p>
                             )}
                           </div>
                         )
                       )}
 
-                      {/* ── Nanoleaf: guided pairing ── */}
+                      {/* ── Nanoleaf: auto-scan + guided pairing ── */}
                       {p.id === 'nanoleaf' && (
                         connected ? (
                           <div className="space-y-2">
@@ -328,22 +417,59 @@ const FixtureDiscovery: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         ) : nanoPairing ? (
                           <div className="text-center py-6 space-y-4">
                             <div className="text-5xl animate-pulse">✋</div>
-                            <p className="text-sm font-bold text-[#00FF88]">Hold the power button on your Nanoleaf now</p>
+                            <p className="text-sm font-bold text-[#00FF88]">Hold the power button on your {nanoPairing.name} now</p>
                             <p className="text-xs text-gray-400">Keep holding for 5-7 seconds until the LED blinks</p>
                             <div className="text-2xl font-mono font-bold text-white/60">{nanoCountdown}s</div>
-                            <p className="text-[10px] text-gray-600">Plajah is listening for your panels…</p>
+                            <p className="text-[10px] text-gray-600">Plajah is listening for pairing confirmation…</p>
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            <p className="text-xs text-gray-400">Enter your Nanoleaf's IP address (check your router or the Nanoleaf app), then hold the power button to pair.</p>
-                            <input value={nanoIp} onChange={e => setNanoIp(e.target.value)} placeholder="192.168.1.xxx"
-                              className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-gray-600 outline-none focus:border-[#00FF88]/40" />
-                            <button onClick={startNanoPairing} disabled={!nanoIp.trim()}
-                              className="w-full py-3 rounded-xl text-sm font-bold bg-[#00FF88]/10 border border-[#00FF88]/30 text-[#00FF88] hover:bg-[#00FF88]/20 transition-all disabled:opacity-40">
-                              🟢 Start Pairing
+                            <p className="text-xs text-gray-400">Plajah will scan your network to find Nanoleaf panels automatically.</p>
+                            <button onClick={scanNanoleaf} disabled={nanoScanning}
+                              className="w-full py-3 rounded-xl text-sm font-bold bg-[#00FF88]/10 border border-[#00FF88]/30 text-[#00FF88] hover:bg-[#00FF88]/20 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
+                              {nanoScanning ? <><RefreshCw size={14} className="animate-spin" /> Scanning your network…</> : '📡 Scan for Nanoleaf Panels'}
                             </button>
+
+                            {/* Discovered devices */}
+                            {!nanoScanning && nanoDevices.length > 0 && (
+                              <div className="space-y-2">
+                                <p className="text-[10px] font-bold text-white/50 uppercase tracking-wider">Found {nanoDevices.length} panel{nanoDevices.length > 1 ? 's' : ''}</p>
+                                {nanoDevices.map((d, i) => (
+                                  <button key={i} onClick={() => startNanoPairing(d)}
+                                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.08] hover:border-[#00FF88]/30 transition-all text-left">
+                                    <span className="text-lg">🟢</span>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-bold text-white truncate">{d.name}</p>
+                                      <p className="text-[9px] text-gray-500">{d.ip}:{d.port}{d.model ? ` · ${d.model}` : ''}</p>
+                                    </div>
+                                    <span className="text-[8px] font-black text-[#00FF88] uppercase tracking-wider">Pair</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {!nanoScanning && nanoDevices.length === 0 && (
+                              <p className="text-[10px] text-gray-600">No panels found? Make sure they're powered on and on the same WiFi.</p>
+                            )}
+
+                            {/* Manual IP fallback */}
+                            <details className="group">
+                              <summary className="text-[10px] font-bold text-gray-600 cursor-pointer hover:text-gray-400 transition-colors">
+                                ▸ Enter IP manually instead
+                              </summary>
+                              <div className="mt-2 flex gap-2">
+                                <input value={nanoManualIp} onChange={e => setNanoManualIp(e.target.value)} placeholder="192.168.1.xxx"
+                                  className="flex-1 bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-gray-600 outline-none focus:border-[#00FF88]/40" />
+                                <button onClick={() => nanoManualIp.trim() && startNanoPairing({ ip: nanoManualIp.trim(), port: 16021, name: 'Nanoleaf', model: '' })}
+                                  disabled={!nanoManualIp.trim()}
+                                  className="px-4 py-2.5 rounded-xl text-sm font-bold bg-[#00FF88]/10 border border-[#00FF88]/30 text-[#00FF88] disabled:opacity-40">
+                                  Pair
+                                </button>
+                              </div>
+                            </details>
+
                             {svc.connected.nanoleaf === false && (
-                              <p className="text-[10px] text-red-400/80">Pairing failed — make sure you're on the same WiFi network as your Nanoleaf.</p>
+                              <p className="text-[10px] text-red-400/80">Pairing failed — make sure you held the power button and you're on the same WiFi.</p>
                             )}
                           </div>
                         )

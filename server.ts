@@ -21,6 +21,7 @@ import { slotDurationSec } from './services/fastChannelTimeline';
 import { buildLinearMediaPlaylist, currentProgrammeMasterUrl, buildM3uLineup, type M3uChannel } from './services/fastChannelHls';
 import nodeCrypto from 'node:crypto';
 import { spawn } from 'node:child_process';
+import dgram from 'node:dgram';
 import os from 'node:os';
 import Stripe from 'stripe';
 import { coraRouter } from './routes/cora';
@@ -6204,6 +6205,145 @@ Rules:
     } catch (e: any) {
       res.status(500).send(`OAuth error: ${e.message}`);
     }
+  });
+
+  // ── Nanoleaf LAN Discovery (SSDP) ─────────────────────────────────────────
+  // Sends an SSDP M-SEARCH multicast to find Nanoleaf panels on the local network.
+  app.get('/api/nanoleaf/discover', async (_req: any, res: any) => {
+    const devices: { ip: string; port: number; name: string; model: string }[] = [];
+    const SSDP_ADDR = '239.255.255.250';
+    const SSDP_PORT = 1900;
+    const search = [
+      'M-SEARCH * HTTP/1.1',
+      `HOST: ${SSDP_ADDR}:${SSDP_PORT}`,
+      'MAN: "ssdp:discover"',
+      'MX: 3',
+      'ST: nanoleaf_aurora:light',
+      '', '',
+    ].join('\r\n');
+    const search2 = search.replace('nanoleaf_aurora:light', 'nanoleaf:nl-lightpanels');
+
+    const sock = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+    const seen = new Set<string>();
+
+    sock.on('message', (msg: Buffer) => {
+      const text = msg.toString();
+      const locMatch = text.match(/LOCATION:\s*(http:\/\/[^\r\n]+)/i);
+      if (!locMatch) return;
+      try {
+        const u = new URL(locMatch[1]);
+        const ip = u.hostname;
+        const port = parseInt(u.port) || 16021;
+        const key = `${ip}:${port}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const nameMatch = text.match(/nl-devicename:\s*([^\r\n]+)/i);
+        const modelMatch = text.match(/nl-deviceid:\s*([^\r\n]+)/i) || text.match(/SERVER:\s*([^\r\n]+)/i);
+        devices.push({ ip, port, name: nameMatch?.[1]?.trim() || 'Nanoleaf', model: modelMatch?.[1]?.trim() || '' });
+      } catch {}
+    });
+
+    sock.bind(() => {
+      sock.addMembership(SSDP_ADDR);
+      const buf1 = Buffer.from(search);
+      const buf2 = Buffer.from(search2);
+      sock.send(buf1, 0, buf1.length, SSDP_PORT, SSDP_ADDR);
+      sock.send(buf2, 0, buf2.length, SSDP_PORT, SSDP_ADDR);
+      // Send again after a short delay for reliability
+      setTimeout(() => {
+        sock.send(buf1, 0, buf1.length, SSDP_PORT, SSDP_ADDR);
+        sock.send(buf2, 0, buf2.length, SSDP_PORT, SSDP_ADDR);
+      }, 500);
+    });
+
+    // Wait 4 seconds for responses, then close and return results
+    setTimeout(() => {
+      try { sock.close(); } catch {}
+      res.json({ devices });
+    }, 4000);
+  });
+
+  // ── Nanoleaf Pairing Proxy ────────────────────────────────────────────────
+  // Proxies the POST to the Nanoleaf's local API to generate an auth token.
+  // User must hold the power button on the device for this to succeed.
+  app.post('/api/nanoleaf/pair', express.json(), async (req: any, res: any) => {
+    const { ip, port } = req.body || {};
+    if (!ip) return res.status(400).json({ error: 'ip required' });
+    const p = parseInt(port) || 16021;
+    try {
+      const resp = await fetch(`http://${ip}:${p}/api/v1/new`, { method: 'POST', signal: AbortSignal.timeout(5000) });
+      if (!resp.ok) return res.status(resp.status).json({ error: 'Pairing failed — hold power button and try again' });
+      const data = await resp.json() as any;
+      res.json({ token: data.auth_token });
+    } catch (e: any) {
+      res.status(500).json({ error: 'Could not reach Nanoleaf — check IP and network' });
+    }
+  });
+
+  // ── Govee LAN Discovery (UDP multicast) ───────────────────────────────────
+  // Scans for Govee devices on the local network via their LAN protocol.
+  app.get('/api/govee/discover', async (_req: any, res: any) => {
+    const devices: { ip: string; device: string; model: string; name: string }[] = [];
+    const GOVEE_MULTI = '239.255.255.250';
+    const GOVEE_PORT = 4001;
+    const GOVEE_LISTEN = 4002;
+    const scanMsg = JSON.stringify({ msg: { cmd: 'scan', data: { account_topic: 'reserve' } } });
+
+    const sock = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+    const seen = new Set<string>();
+
+    sock.on('message', (msg: Buffer) => {
+      try {
+        const data = JSON.parse(msg.toString());
+        if (data?.msg?.cmd === 'scan' && data?.msg?.data) {
+          const d = data.msg.data;
+          const key = d.device || d.ip;
+          if (seen.has(key)) return;
+          seen.add(key);
+          devices.push({
+            ip: d.ip || '',
+            device: d.device || '',
+            model: d.sku || d.model || '',
+            name: d.deviceName || d.sku || 'Govee Device',
+          });
+        }
+      } catch {}
+    });
+
+    try {
+      sock.bind(GOVEE_LISTEN, () => {
+        try { sock.addMembership(GOVEE_MULTI); } catch {}
+        const buf = Buffer.from(scanMsg);
+        sock.send(buf, 0, buf.length, GOVEE_PORT, GOVEE_MULTI);
+        setTimeout(() => sock.send(buf, 0, buf.length, GOVEE_PORT, GOVEE_MULTI), 500);
+      });
+    } catch {
+      // Port might be in use — try without explicit bind
+      sock.bind(() => {
+        const buf = Buffer.from(scanMsg);
+        sock.send(buf, 0, buf.length, GOVEE_PORT, GOVEE_MULTI);
+      });
+    }
+
+    setTimeout(() => {
+      try { sock.close(); } catch {}
+      res.json({ devices });
+    }, 4000);
+  });
+
+  // ── Govee LAN Control Proxy ───────────────────────────────────────────────
+  // Sends UDP commands to Govee devices on the LAN (no API key needed).
+  app.post('/api/govee/lan-control', express.json(), async (req: any, res: any) => {
+    const { ip, cmd } = req.body || {};
+    if (!ip || !cmd) return res.status(400).json({ error: 'ip and cmd required' });
+    const msg = JSON.stringify({ msg: cmd });
+    const sock = dgram.createSocket('udp4');
+    const buf = Buffer.from(msg);
+    sock.send(buf, 0, buf.length, 4003, ip, (err) => {
+      sock.close();
+      if (err) return res.status(500).json({ error: 'Send failed' });
+      res.json({ ok: true });
+    });
   });
 
   // ── Smart Lighting Proxy ──────────────────────────────────────────────────
