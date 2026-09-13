@@ -10,9 +10,10 @@
 import React from 'react';
 import AudioVisualizer from './AudioVisualizer';
 import StudioStage from './StudioStage';
+import FluxStage from './FluxStage';
 import ButterchurnLayer from './ButterchurnLayer';
 import ShaderLayer from './ShaderLayer';
-import { VisualizationConfig, VisualizerMode, isStudioMode } from '../types';
+import { VisualizationConfig, VisualizerMode, isStudioMode, isFluxMode } from '../types';
 import type { LauncherLayer, LauncherClip } from './ClipLauncher';
 
 // Row blend mode → CSS mix-blend-mode (Add → plus-lighter; rest map 1:1).
@@ -41,9 +42,11 @@ export const LayerSource: React.FC<{ clip: LauncherClip; analyser: AnalyserNode 
   }
   if (clip.type === 'generator' && clip.sceneMode && !clip.sceneMode.startsWith('__fx_')) {
     const cfg: VisualizationConfig = { ...config, mode: clip.sceneMode as VisualizerMode };
-    return isStudioMode(cfg.mode)
-      ? <StudioStage analyser={analyser} config={cfg} isPlaying={isPlaying} />
-      : <AudioVisualizer analyser={analyser} config={cfg} isPlaying={isPlaying} hasBackground={false} />;
+    return isFluxMode(cfg.mode)
+      ? <FluxStage analyser={analyser} config={cfg} isPlaying={isPlaying} />
+      : isStudioMode(cfg.mode)
+        ? <StudioStage analyser={analyser} config={cfg} isPlaying={isPlaying} />
+        : <AudioVisualizer analyser={analyser} config={cfg} isPlaying={isPlaying} hasBackground={false} />;
   }
   return null;
 };

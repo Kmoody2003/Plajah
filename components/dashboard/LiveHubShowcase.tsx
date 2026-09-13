@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ArrowUpRight, ChevronLeft, ChevronRight, Play, Radio, Tv } from 'lucide-react';
 import type { LiveFeed } from '../../types';
 import { Button, Eyebrow, IconButton, Surface } from '../ui';
+import { isFeedLive } from '../../services/liveFeedLiveness';
 
 interface LiveHubShowcaseProps {
   feeds: LiveFeed[];
@@ -22,7 +23,7 @@ function embedUrl(url: string): string | null {
 }
 
 const LiveHubShowcase: React.FC<LiveHubShowcaseProps> = ({ feeds, onOpenHub, onWatch }) => {
-  const liveFeeds = useMemo(() => feeds.filter(feed => feed.status !== 'OFFLINE'), [feeds]);
+  const liveFeeds = useMemo(() => feeds.filter(feed => isFeedLive(feed)), [feeds]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const selectedIndex = Math.max(0, liveFeeds.findIndex(feed => feed.id === selectedId));

@@ -25,7 +25,7 @@ import {
   type DailyProductionReport, type DprSceneRow, type CastWorkCode, type SceneShootStatus, type SidePage,
   type ProductionPermission, type ProductionRoleKey,
   type ProductionBudgetLine, type ProductionLocation, type ProductionFestival, type ProductionClearance,
-  type PurchaseOrder, type PettyCashEntry, type Timecard,
+  type PurchaseOrder, type PettyCashEntry, type Timecard, type ProductionTake, type ContinuityCheck, type ProductionDeliverable,
 } from '../../services/filmProductionService';
 import { listWritingProjects, fetchScriptScenes, type WritingProject } from '../../services/loreaProjectsService';
 import { Button, Surface, Input, Textarea, Chip, Actions, Eyebrow } from '../ui';
@@ -36,6 +36,8 @@ import type { CallSheetTemplate, RecipientDelivery } from '../../services/produc
 import { canManageProductionChat, provisionProductionChat } from '../../services/productionChatService';
 import { putTaskWithAction } from '../../services/productionActionService';
 import { copyFilmShowcaseProduction, ensureFilmShowcaseProduction, buildFilmShowcaseCorpus } from '../../services/productionShowcaseTemplate';
+import { MasterClock } from './MasterClock';
+import { OnSetMobile, useIsPhone } from './OnSetMobile';
 import { isDemoMode, subscribeDemoMode } from '../../services/demoMode';
 
 // Identifiers for the always-available, in-memory demo production.
@@ -60,6 +62,9 @@ interface Ctx {
   purchaseOrders: PurchaseOrder[];
   pettyCash: PettyCashEntry[];
   timecards: Timecard[];
+  takes: ProductionTake[];
+  continuityChecks: ContinuityCheck[];
+  deliverables: ProductionDeliverable[];
   callSheets: CallSheet[];
   deliveries: RecipientDelivery[];
   callSheetTemplates: CallSheetTemplate[];
@@ -98,6 +103,9 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [pettyCash, setPettyCash] = useState<PettyCashEntry[]>([]);
   const [timecards, setTimecards] = useState<Timecard[]>([]);
+  const [takes, setTakes] = useState<ProductionTake[]>([]);
+  const [continuityChecks, setContinuityChecks] = useState<ContinuityCheck[]>([]);
+  const [deliverables, setDeliverables] = useState<ProductionDeliverable[]>([]);
   const [callSheets, setCallSheets] = useState<CallSheet[]>([]);
   const [deliveries, setDeliveries] = useState<RecipientDelivery[]>([]);
   const [callSheetTemplates, setCallSheetTemplates] = useState<CallSheetTemplate[]>([]);
@@ -167,7 +175,7 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
     if (!selectedId) {
       setMembers([]); setScenes([]); setCallSheets([]); setDeliveries([]); setCallSheetTemplates([]); setTasks([]); setMenu([]); setOrders([]); setDprs([]);
       setBudgetLines([]); setLocations([]); setFestivals([]); setClearances([]);
-      setPurchaseOrders([]); setPettyCash([]); setTimecards([]);
+      setPurchaseOrders([]); setPettyCash([]); setTimecards([]); setTakes([]); setContinuityChecks([]); setDeliverables([]);
       return;
     }
     if (selectedId === DEMO_FILM_ID) {
@@ -179,7 +187,7 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
       setDprs(demoCorpus.dprs); setBudgetLines(demoCorpus.budgetLines);
       setLocations(demoCorpus.locations); setFestivals(demoCorpus.festivals);
       setClearances((demoCorpus as { clearances?: ProductionClearance[] }).clearances || []);
-      setPurchaseOrders([]); setPettyCash([]); setTimecards([]);
+      setPurchaseOrders([]); setPettyCash([]); setTimecards([]); setTakes([]); setContinuityChecks([]); setDeliverables([]);
       return;
     }
     const unsubs = [
@@ -192,6 +200,7 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
       FP.subLocations(selectedId, setLocations), FP.subFestivals(selectedId, setFestivals),
       FP.subClearances(selectedId, setClearances),
       FP.subPurchaseOrders(selectedId, setPurchaseOrders), FP.subPettyCash(selectedId, setPettyCash), FP.subTimecards(selectedId, setTimecards),
+      FP.subTakes(selectedId, setTakes), FP.subContinuityChecks(selectedId, setContinuityChecks), FP.subDeliverables(selectedId, setDeliverables),
     ];
     return () => unsubs.forEach(u => u());
   }, [selectedId, demoCorpus]);
@@ -249,12 +258,13 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
 
   const value: Ctx = {
     prod, productions, selectProduction, createProduction, copyShowcase, applySample,
-    members, scenes, budgetLines, locations, festivals, clearances, purchaseOrders, pettyCash, timecards, callSheets: liveCallSheets, deliveries, callSheetTemplates, tasks, menu, orders, dprs,
+    members, scenes, budgetLines, locations, festivals, clearances, purchaseOrders, pettyCash, timecards, takes, continuityChecks, deliverables, callSheets: liveCallSheets, deliveries, callSheetTemplates, tasks, menu, orders, dprs,
     activeSheet, activeSheetId, setActiveSheetId, me, isOwner, readOnly, can, loading, goTab: onGoTab,
   };
   return (
     <ProdCtx.Provider value={value}>
       <ProductionWorkspaceBar />
+      {prod && <MasterClock />}
       {prod ? children : <ProductionEmptyState signedIn={!!uid} />}
     </ProdCtx.Provider>
   );
@@ -334,7 +344,14 @@ const askAria = (prompt: string) => window.dispatchEvent(new CustomEvent('OPEN_A
 
 // ─── Production Hub ──────────────────────────────────────────────────────────
 
+// On phones, the On Set hub becomes the phone-first "Today" companion; larger
+// screens keep the full desktop hub. The Master Clock sits above both.
 export const ProductionHubTab: React.FC = () => {
+  const isPhone = useIsPhone();
+  return isPhone ? <OnSetMobile /> : <ProductionHubDesktop />;
+};
+
+const ProductionHubDesktop: React.FC = () => {
   const { prod, members, scenes, callSheets, tasks, orders, activeSheet, setActiveSheetId, isOwner, goTab } = useProd();
   const [broadcasting, setBroadcasting] = useState(false);
 

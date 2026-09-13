@@ -11,7 +11,7 @@
 // (v1=1, v2=2), audio tracks on negative lanes (a1=-1, a2=-2). Resolve imports this cleanly.
 
 export interface FcpFormat { w: number; h: number; fps: number; }
-export interface FcpClip { id: string; trackId: string; start: number; duration: number; srcIn: number; kind?: string; assetId?: string; label?: string; }
+export interface FcpClip { id: string; trackId: string; start: number; duration: number; srcIn: number; kind?: string; assetId?: string; label?: string; /** Fabula fx bag (VectorTrack motion is exported as transform keyframes). */ fx?: any; }
 export interface FcpTrack { id: string; name?: string; type: 'video' | 'audio' | 'subtitle'; }
 export interface FcpAsset { id: string; name: string; url?: string; cloudUrl?: string; duration?: number; type?: string; }
 export interface MediaRef { refId: string; name: string; src: string; duration: number; hasVideo: boolean; hasAudio: boolean; }
@@ -54,6 +54,8 @@ const fileUrl = (a: FcpAsset): string => {
   return `file:///${encodeURIComponent(a.name || a.id)}`;
 };
 
+import { motionKeys, adjustTransformXml } from './fcpxmlTransform';
+
 // ── export ──────────────────────────────────────────────────────────────────
 export function exportFCPXML(clips: FcpClip[], tracks: FcpTrack[], pool: FcpAsset[], fmt: FcpFormat, projectName = 'Fabula Project'): string {
   const fps = fmt.fps || 24;
@@ -77,8 +79,19 @@ export function exportFCPXML(clips: FcpClip[], tracks: FcpTrack[], pool: FcpAsse
     const isAudio = c.trackId.startsWith('a');
     const tag = isAudio ? 'audio' : 'asset-clip';
     const roleAttr = isAudio ? ' role="dialogue"' : '';
-    return `        <${tag} ref="${ref}" lane="${laneFor(c.trackId)}" offset="${secToFcp(c.start, fps)}" ` +
-      `name="${xmlEsc(c.label || '')}" duration="${secToFcp(c.duration, fps)}" start="${secToFcp(c.srcIn || 0, fps)}"${roleAttr}/>`;
+    // VectorTrack motion (planar / point stabilise, or a pin to another clip's surface) → keyframed
+    // position / scale / rotation. Perspective cannot be expressed in FCPXML and is dropped.
+    let transform = '';
+    if (!isAudio && c.fx) {
+      const pinSrc = c.fx.pinTo?.clipId ? clips.find(o => o.id === c.fx.pinTo.clipId) : null;
+      const keys = motionKeys({ trackMode: c.fx.trackMode, vectorTrack: c.fx.vectorTrack, planarTrack: c.fx.planarTrack, pinTo: pinSrc?.fx?.planarTrack ? { seq: pinSrc.fx.planarTrack, startOffset: c.start - pinSrc.start } : null }, c.duration, fps, fmt.w, fmt.h);
+      transform = adjustTransformXml(keys, (sec) => secToFcp((c.srcIn || 0) + sec, fps));
+    }
+    const open = `        <${tag} ref="${ref}" lane="${laneFor(c.trackId)}" offset="${secToFcp(c.start, fps)}" ` +
+      `name="${xmlEsc(c.label || '')}" duration="${secToFcp(c.duration, fps)}" start="${secToFcp(c.srcIn || 0, fps)}"${roleAttr}`;
+    return transform ? `${open}>
+          ${transform}
+        </${tag}>` : `${open}/>`;
   }).join('\n');
 
   return `<?xml version="1.0" encoding="UTF-8"?>

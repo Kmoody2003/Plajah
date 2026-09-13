@@ -67,8 +67,9 @@ const PlatformBumperPlayer: React.FC<Props> = ({ kind, onDone, allowSkip = false
       // Starts muted (see the element), so this play() is always permitted and the first frame
       // arrives without a policy round trip. Then try to bring sound in — if the browser objects,
       // stay muted rather than losing the ident.
+      v.defaultMuted = false; v.muted = false; v.volume = 1;
       v.play()
-        .then(() => { try { v.muted = false; } catch { /* */ } })
+        .then(() => { try { v.muted = false; v.volume = 1; } catch { /* */ } })
         .catch(() => { try { v.muted = true; v.play().catch(() => {}); } catch { /* */ } });
     }
     return () => { clearTimeout(t); if (skipT) clearTimeout(skipT); };
@@ -102,8 +103,8 @@ const PlatformBumperPlayer: React.FC<Props> = ({ kind, onDone, allowSkip = false
         // autoplay policy and the muted retry costs another round trip, during which the WebView
         // paints its stock grey play triangle. The ident is a brand sting, so starting it silent
         // is the right default anyway — the audible retry below restores sound where allowed.
-        muted
         preload="auto"
+        onCanPlay={() => { const v = videoRef.current; if (v) { v.muted = false; v.volume = 1; void v.play().catch(() => {}); } }}
         onEnded={finish}
         onError={finish}
         poster={asset.thumbnailUrl}

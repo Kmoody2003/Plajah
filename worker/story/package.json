@@ -8,6 +8,7 @@
     "start": "tsx index.ts"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
     "express": "^5.2.1",
     "tsx": "^4.22.4"
   },

@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
 import { Video, VideoPlaylist, UserProfile, MovieMetadata, Album, LiveFeed, Track, Character, Club } from '../types';
+import { cleanDescription } from '../utils/description';
 import { useContextMenu, type MenuNode } from './ui/ContextMenu';
 import {
   fetchAllVideos, uploadVideo, fetchVideoPlaylists, fetchFollowedVideos,
@@ -25,7 +26,7 @@ import { SubscriptionsSection, LikedVideosSection, HistorySection } from './Vide
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { useUpload } from '../contexts/UploadContext';
-import ThreeDImage from './ThreeDImage';
+import MediaThumb from './ui/MediaThumb';
 import YoutubeImportModal from './YoutubeImportModal';
 import { LiveStudio, LiveViewer } from './MobileLiveStreamer';
 import StreamRecoveryList from './StreamRecoveryList';
@@ -103,7 +104,7 @@ const VideoCard: React.FC<{
   const [isHovered, setIsHovered] = React.useState(false);
   const muxId = (video as any).muxPlaybackId as string | undefined;
   const thumb = muxId
-    ? `https://image.mux.com/${muxId}/thumbnail.png?width=640&height=360&time=5`
+    ? `https://image.mux.com/${muxId}/thumbnail.png?width=640&time=5`
     : ((video as any).thumbnailUrl || (video as any).coverImage || `https://picsum.photos/seed/${video.id}/800/450`);
   const isLive = (video as any).genre === 'Live';
   const isMV = (video as any).genre === 'Music Video' || (video as any).category === 'MUSIC_VIDEO';
@@ -152,16 +153,16 @@ const VideoCard: React.FC<{
       <div className={`relative overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/5 mb-3 ${
         size === 'wide' ? 'aspect-[16/7]' : 'aspect-video'
       }`}>
-        <ThreeDImage
+        <MediaThumb
           src={thumb}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          threeD
+          className="transition-transform duration-700 group-hover:scale-105"
           alt={video.title}
         />
         {/* Mux animated preview on hover */}
         {muxId && isHovered && (
-          <img
+          <MediaThumb
             src={`https://image.mux.com/${muxId}/animated.webp?width=480&fps=12`}
-            className="absolute inset-0 w-full h-full object-cover"
             alt=""
             loading="lazy"
           />
@@ -1141,7 +1142,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                         >
                           <div className="relative overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/5 aspect-video mb-2">
                             {entry.thumbnailUrl
-                              ? <img src={thumbUrl(entry.thumbnailUrl, THUMB.card) || undefined} alt={entry.title || ''} loading="lazy" decoding="async" onError={onThumbError(entry.thumbnailUrl)} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                              ? <MediaThumb src={thumbUrl(entry.thumbnailUrl, THUMB.card) || undefined} alt={entry.title || ''} loading="lazy" decoding="async" onError={onThumbError(entry.thumbnailUrl)} className="transition-transform duration-500 group-hover:scale-105" />
                               : <div className="w-full h-full flex items-center justify-center text-white/20"><Play size={22} /></div>}
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
                               <div className="w-10 h-10 rounded-full bg-white/0 group-hover:bg-white/20 border-2 border-white/0 group-hover:border-white/60 flex items-center justify-center transition-all scale-75 group-hover:scale-100">
@@ -1210,13 +1211,13 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                     style={{ height: 480 }}
                     onClick={() => handlePlay(heroItem)}
                   >
-                    <img
+                    <MediaThumb
                       src={thumbUrl(thumb, THUMB.large)}
                       alt={heroItem.title}
                       loading="lazy"
                       decoding="async"
                       onError={onThumbError(thumb)}
-                      className="absolute inset-0 w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-700"
+                      className="scale-105 group-hover:scale-110 transition-transform duration-700"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/10" />
                     <div className="absolute top-6 left-6 flex items-center gap-2">
@@ -1347,7 +1348,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                         <div className="flex-1 min-w-0">
                           <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mb-2">{selectedMovie.subType?.replace('_', ' ')} Â· {selectedMovie.movieMetadata?.releaseYear}</p>
                           <h3 className="text-3xl font-display font-black tracking-tight uppercase mb-2 leading-tight">{selectedMovie.title}</h3>
-                          <p className="text-sm text-white/50 leading-relaxed line-clamp-3">{selectedMovie.description}</p>
+                          <p className="text-sm text-white/50 leading-relaxed line-clamp-3">{cleanDescription(selectedMovie.description)}</p>
                           <button type="button" onClick={() => setSelectedMovie(null)} className="mt-4 text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors">Dismiss</button>
                         </div>
                       </div>
@@ -1433,7 +1434,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                   <div className="relative rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-white/[0.04] to-transparent border border-white/5 p-4 sm:p-8 lg:p-12">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-10 items-center">
                       <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl group cursor-pointer" onClick={() => handlePlay(interestVideos[0])}>
-                        <img src={thumbUrl(interestVideos[0].thumbnailUrl, THUMB.large) || `https://picsum.photos/seed/${interestVideos[0].id}/1280/720`} onError={onThumbError(interestVideos[0].thumbnailUrl)} decoding="async" className="w-full h-full object-cover" alt="" loading="lazy" />
+                        <MediaThumb src={thumbUrl(interestVideos[0].thumbnailUrl, THUMB.large) || `https://picsum.photos/seed/${interestVideos[0].id}/1280/720`} onError={onThumbError(interestVideos[0].thumbnailUrl)} decoding="async" alt="" loading="lazy" />
                         <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-all flex items-center justify-center">
                           <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-2xl">
                             <Play fill="white" size={24} className="ml-1" />
@@ -1443,7 +1444,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                       <div>
                         <span className="inline-block px-3 py-1 bg-small-orange text-white text-[8px] font-black uppercase tracking-widest rounded-full mb-5">Global Latest</span>
                         <h3 className="text-3xl lg:text-5xl font-display font-black tracking-tightest uppercase mb-4 leading-tight">{interestVideos[0].title}</h3>
-                        <p className="text-white/40 text-sm leading-relaxed mb-6 max-w-md line-clamp-3">{interestVideos[0].description || "Experience the latest release tailored to your taste."}</p>
+                        <p className="text-white/40 text-sm leading-relaxed mb-6 max-w-md line-clamp-3">{cleanDescription(interestVideos[0].description) || "Experience the latest release tailored to your taste."}</p>
                         <div className="flex items-center gap-4">
                           <button onClick={() => handlePlay(interestVideos[0])} className="px-8 py-3.5 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl">Watch Now</button>
                           <div className="flex items-center gap-3">
@@ -1598,7 +1599,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                   <div className="absolute left-4 right-16 bottom-6 z-[4]">
                     <p className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1">{short?.artist || short?.ownerName || 'Creator'}</p>
                     <h3 className="text-base font-black uppercase tracking-tight text-white leading-tight line-clamp-2 mb-2">{short?.title}</h3>
-                    {short?.description && <p className="text-[10px] text-white/40 line-clamp-2 leading-relaxed">{short.description}</p>}
+                    {!!cleanDescription(short?.description) && <p className="text-[10px] text-white/40 line-clamp-2 leading-relaxed">{cleanDescription(short?.description)}</p>}
                     {/* Sounds (1B.2) — a tappable sound chip when this short has one,
                         otherwise the affordance to turn its audio into a sound.
                         Both render nothing when they don't apply. */}
@@ -2206,12 +2207,12 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               </div>
 
               <div className="flex items-center gap-3 p-3 bg-white/[0.04] border border-white/[0.07] rounded-2xl">
-                <div className="w-16 h-10 rounded-xl overflow-hidden bg-white/5 shrink-0">
+                <div className="relative w-16 h-10 rounded-xl overflow-hidden bg-white/5 shrink-0">
                   {(() => {
                     const thumb = (shareToClubVideo as any).muxPlaybackId
-                      ? `https://image.mux.com/${(shareToClubVideo as any).muxPlaybackId}/thumbnail.png?width=300&height=169&time=5`
+                      ? `https://image.mux.com/${(shareToClubVideo as any).muxPlaybackId}/thumbnail.png?width=300&time=5`
                       : (shareToClubVideo as any).thumbnailUrl || (shareToClubVideo as any).coverImage || '';
-                    return thumb ? <img src={thumbUrl(thumb, THUMB.micro)} loading="lazy" decoding="async" onError={onThumbError(thumb)} className="w-full h-full object-cover" alt="" /> : null;
+                    return thumb ? <MediaThumb src={thumbUrl(thumb, THUMB.micro)} loading="lazy" decoding="async" onError={onThumbError(thumb)} alt="" /> : null;
                   })()}
                 </div>
                 <div className="min-w-0">

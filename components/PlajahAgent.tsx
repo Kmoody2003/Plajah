@@ -23,8 +23,9 @@ import {
   ChevronDown, ChevronRight, RefreshCw, Layers, Music2,
   Film, GraduationCap, Search, Image as ImageIcon, FileText,
   Zap, Star, Check, AlertTriangle, Trash2, MessageSquare,
-  Settings, ChevronLeft, ExternalLink, Maximize2, Minimize2, Cpu,
+  Settings, ChevronLeft, ExternalLink, Maximize2, Minimize2, Cpu, Pin, PinOff,
 } from 'lucide-react';
+import { usePersistentFloating } from '../hooks/usePersistentFloating';
 import {
   AGENT_TIERS, AgentTier, AgentMessage, AgentSession, AgentBuildOutput,
   AgentUsage, sendAgentMessage, createSession, listSessions,
@@ -38,6 +39,7 @@ import {
 } from '../services/aria/ariaContext';
 import { ariaLocalModel, AriaLocalModel } from '../services/aria/ariaLocalModel';
 import { buildLocalChatMessages } from '../services/aria/ariaLocalPrompt';
+import CouncilRoom from './council/CouncilRoom';
 
 interface Props {
   isOpen: boolean;
@@ -203,6 +205,21 @@ const MessageBubble: React.FC<{ msg: AgentMessage; onApplyBuild?: (b: AgentBuild
           </div>
         )}
 
+        {/* The council met for this reply — open the room to see every director's proposal */}
+        {msg.councilSession && (() => {
+          let cs: any = null; try { cs = JSON.parse(msg.councilSession); } catch { cs = null; }
+          if (!cs?.id) return null;
+          return (
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('plajah:openCouncil', { detail: { sessionId: cs.id } }))}
+              className="text-left rounded-xl border border-violet-400/40 bg-violet-500/10 px-3 py-2 text-[11px] text-violet-100 hover:bg-violet-500/20"
+            >
+              <span className="block text-[8px] font-black uppercase tracking-widest text-violet-300/80">The council met</span>
+              <span className="block">Lead {String(cs.lead).replace('_', ' ').toLowerCase()} · counterpoint {String(cs.counterpoint).replace('_', ' ').toLowerCase()} — open the room</span>
+            </button>
+          );
+        })()}
+
         <span className="text-[7px] text-white/20 px-1">
           {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
@@ -282,6 +299,13 @@ const PlajahAgent: React.FC<Props> = ({
   const [attachments, setAttachments] = useState<Array<{ name: string; dataUrl: string; type: string }>>([]);
   const [showSessions, setShowSessions] = useState(false);
   const [expanded, setExpanded] = useState(false); // Atrium — full-workspace mode
+  // The Council Room opens over the dock when a reply's chip is pressed (see MessageBubble).
+  const [councilSessionId, setCouncilSessionId] = useState<string | null>(null);
+  useEffect(() => {
+    const open = (e: Event) => setCouncilSessionId((e as CustomEvent).detail?.sessionId || null);
+    window.addEventListener('plajah:openCouncil', open);
+    return () => window.removeEventListener('plajah:openCouncil', open);
+  }, []);
   const [showUsage, setShowUsage] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(tier !== 'FREE' && tier !== 'CREATOR');
   const [limitBanner, setLimitBanner] = useState<string | null>(null);
@@ -408,7 +432,9 @@ const PlajahAgent: React.FC<Props> = ({
     // On-device lane: generate the reply locally (free, private), then hand it to
     // the server to persist + parse actions. Any failure falls through to cloud.
     let localReply: string | undefined;
-    if (onDevice && ariaLocalModel.ready) {
+    // Reference photos require a vision-capable cloud model; the local text
+    // model must not answer from the filename while pretending it saw pixels.
+    if (onDevice && ariaLocalModel.ready && attachments.length === 0) {
       try {
         setThinkingLabel('Thinking on-device…');
         const out = await ariaLocalModel.chat(
@@ -481,6 +507,13 @@ const PlajahAgent: React.FC<Props> = ({
 
   return (
     <AnimatePresence>
+      {councilSessionId && (
+        <div key="council-room" style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(5,4,10,.8)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 16 }} onClick={e => { if (e.target === e.currentTarget) setCouncilSessionId(null); }}>
+          <div style={{ width: 'min(1240px,100%)', height: 'min(860px,100%)' }}>
+            <CouncilRoom onClose={() => setCouncilSessionId(null)} sessionId={councilSessionId} tier={tier} />
+          </div>
+        </div>
+      )}
       {isOpen && (
         <motion.div
           initial={isMobile ? { opacity: 0, y: 20 } : { opacity: 0, y: 24, scale: 0.97 }}
@@ -814,24 +847,28 @@ const PlajahAgent: React.FC<Props> = ({
 };
 
 // ── Floating trigger button ────────────────────────────────────────────────────
-export const AriaButton: React.FC<{ onClick: () => void; isOpen: boolean; hasUnread?: boolean }> = ({ onClick, isOpen, hasUnread }) => (
+export const AriaButton: React.FC<{ onClick: () => void; isOpen: boolean; hasUnread?: boolean }> = ({ onClick, isOpen, hasUnread }) => {
+  const floating = usePersistentFloating('plajah:floating:aria', () => ({ x: window.innerWidth - 64, y: window.innerHeight - 144 }));
+  return <div className="fixed z-[250]" style={{ left: floating.pos.x, top: floating.pos.y, touchAction: 'none' }} {...floating.dragProps}>
   <motion.button
     onClick={onClick}
     whileHover={{ scale: 1.08 }}
     whileTap={{ scale: 0.94 }}
-    className="fixed bottom-24 right-4 z-[250] w-12 h-12 rounded-[1rem] flex items-center justify-center shadow-2xl shadow-purple-600/30 transition-all"
+    className="relative w-12 h-12 rounded-[1rem] flex items-center justify-center shadow-2xl shadow-purple-600/30 transition-all"
     style={{
       background: isOpen ? 'rgba(139,92,246,0.9)' : 'rgba(8,4,20,0.9)',
       border: isOpen ? '1px solid rgba(167,139,250,0.6)' : '1px solid rgba(139,92,246,0.4)',
       backdropFilter: 'blur(16px)',
     }}
-    title="Open Aria — your private creative agent"
+    title={floating.pinned ? 'Aria is pinned — use the pin control to move it' : 'Open Aria · drag to move · pin to lock position'}
   >
     {isOpen ? <X size={18} className="text-white" /> : <AriaMark size={30} petals={false} />}
     {hasUnread && !isOpen && (
       <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-small-orange border-2 border-[#08041a]" />
     )}
   </motion.button>
-);
+  <button onPointerDown={(e) => e.stopPropagation()} onClick={floating.togglePinned} aria-label={floating.pinned ? 'Unpin Aria' : 'Pin Aria here'} aria-pressed={floating.pinned} className="absolute -left-2 -top-2 w-5 h-5 rounded-full grid place-items-center bg-[#10081d] border border-white/20 text-white/70">{floating.pinned ? <Pin size={10} /> : <PinOff size={10} />}</button>
+  </div>;
+};
 
 export default PlajahAgent;

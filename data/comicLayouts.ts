@@ -43,6 +43,10 @@ export const COMIC_LAYOUTS: ComicLayout[] = [
       { x: 0, y: 55, width: 33.33, height: 45 }, { x: 33.33, y: 55, width: 33.34, height: 45 }, { x: 66.67, y: 55, width: 33.33, height: 45 },
     ],
   },
+  { id:'cinematic-5',name:'Cinematic · 5',category:'comic',panels:[{x:0,y:0,width:100,height:24},{x:0,y:24,width:38,height:44},{x:38,y:24,width:62,height:44},{x:0,y:68,width:64,height:32},{x:64,y:68,width:36,height:32}] },
+  { id:'inset-reveal',name:'Inset Reveal',category:'comic',panels:[{x:0,y:0,width:100,height:100},{x:5,y:6,width:31,height:25},{x:64,y:69,width:31,height:25}] },
+  { id:'action-diagonal',name:'Action Diagonal',category:'comic',panels:[{x:0,y:0,width:62,height:58,shape:'diag-right'},{x:62,y:0,width:38,height:34},{x:62,y:34,width:38,height:24},{x:0,y:58,width:45,height:42},{x:45,y:58,width:55,height:42,shape:'diag-left'}] },
+  { id:'kids-open-4',name:'Kids · Open 4',category:'comic',panels:[{x:0,y:0,width:100,height:38},{x:0,y:38,width:50,height:30},{x:50,y:38,width:50,height:30},{x:0,y:68,width:100,height:32}] },
   // ── Manga (dynamic / angled) ──
   {
     id: 'manga-action', name: 'Action', category: 'manga', panels: [
@@ -65,9 +69,13 @@ export const COMIC_LAYOUTS: ComicLayout[] = [
       { x: 0, y: 68, width: 100, height: 32 },
     ],
   },
+  { id:'manga-silence',name:'Manga · Silence',category:'manga',panels:[{x:0,y:0,width:100,height:48},{x:0,y:48,width:35,height:24},{x:35,y:48,width:65,height:24},{x:0,y:72,width:100,height:28}] },
+  { id:'manga-reaction',name:'Manga · Reaction',category:'manga',panels:[{x:0,y:0,width:56,height:62},{x:56,y:0,width:44,height:31},{x:56,y:31,width:44,height:31},{x:0,y:62,width:33,height:38},{x:33,y:62,width:67,height:38,shape:'diag-left'}] },
+  { id:'manga-romance',name:'Manga · Romance',category:'manga',panels:[{x:0,y:0,width:100,height:58},{x:0,y:58,width:42,height:42},{x:42,y:58,width:58,height:42}] },
   // ── Webtoon (vertical scroll strips) ──
   { id: 'webtoon-4', name: 'Webtoon · 4', category: 'webtoon', panels: rows(4) },
   { id: 'webtoon-5', name: 'Webtoon · 5', category: 'webtoon', panels: rows(5) },
+  { id:'webtoon-reveal',name:'Webtoon · Reveal',category:'webtoon',panels:[{x:0,y:0,width:100,height:18},{x:0,y:28,width:100,height:18},{x:0,y:60,width:100,height:40}] },
 ];
 
 export const layoutsFor = (isManga: boolean): ComicLayout[] =>

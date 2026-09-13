@@ -9,6 +9,7 @@
 // One definition, used by both.
 
 import type { LiveFeed } from '../../types';
+import { isFeedLive } from '../liveFeedLiveness';
 
 export interface GuideSource {
   kind: 'live' | 'fast';
@@ -48,7 +49,8 @@ export function isChannelFeed(f: LiveFeed | Record<string, unknown>): boolean {
   if (!url) return false;
   if (a.status === 'ENDED' || a.status === 'OFFLINE') return false;
   const onPlatform = a.streamSource === 'webrtc' || /[?&]stream=/.test(url);
-  return !onPlatform || !!a.asChannel;
+  // Permanent external channels have no browser heartbeat. Only hosted sessions expire.
+  return !onPlatform || (!!a.asChannel && isFeedLive(a));
 }
 
 /**

@@ -25,7 +25,12 @@ class PlajahMediaService : MediaSessionService() {
         super.onCreate()
         createNotificationChannel()
 
-        val player = ExoPlayer.Builder(this).build()
+        val player = ExoPlayer.Builder(this).build().apply {
+            setAudioAttributes(androidx.media3.common.AudioAttributes.Builder()
+                .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+                .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC).build(),true)
+            setHandleAudioBecomingNoisy(true)
+        }
 
         val sessionActivity = PendingIntent.getActivity(
             this, 0,

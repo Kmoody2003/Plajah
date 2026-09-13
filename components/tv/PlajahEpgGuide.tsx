@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { cleanDescription } from '../../utils/description';
 import { Radio, Tv, Play, ChevronLeft, ChevronRight, FlaskConical, Clock } from 'lucide-react';
 import type { LiveFeed } from '../../types';
 import { fetchFastChannelSchedule, fetchFastChannelVideos, fetchVideoById, type FastChannelListing } from '../../services/backendService';
@@ -7,6 +8,8 @@ import { exactDurationSec } from '../../services/mediaTimebase';
 import { now as clockNow } from '../../services/platformClock';
 import { ACTIVE_SCIENCE_STREAMS } from '../scienceStreams';
 import { PLAJAH_CHANNELS, UNNUMBERED, guideSortKey, plajahNumber } from '../../services/fast/channelNumbers';
+import { isChannelFeed } from '../../services/fast/guideLineup';
+import { isFeedLive } from '../../services/liveFeedLiveness';
 
 /**
  * PlajahEpgGuide — a full traditional cable-TV programme guide, in the Plajah aesthetic. Channels run
@@ -66,7 +69,7 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
       id: `fast_${fc.ownerId}`, number: fc.number != null ? String(fc.number) : UNNUMBERED, name: fc.name || 'Channel',
       logo: fc.logoUrl, accent: ORANGE, kind: 'fast', ownerId: fc.ownerId,
     }));
-    (feeds || []).filter(f => (f as any).status !== 'ENDED' && (f as any).status !== 'OFFLINE').forEach(f => {
+    (feeds || []).filter(f => isChannelFeed(f) || isFeedLive(f)).forEach(f => {
       out.push({ id: `live_${f.id}`, number: (f as any).channelNumber != null ? String((f as any).channelNumber) : '•', name: (f as any).ownerName || f.title || 'Live', logo: (f as any).ownerPhoto, accent: MAGENTA, kind: 'live', feed: f });
     });
     // Plajah's own channels, in the reserved band. They carry no owner account, so they are
@@ -93,7 +96,7 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
     const slots = activeDaySlots(sched, windowStart);
     if (!slots.length) return [];
     const pos = sched?.midnightAnchored ? linearPositionMidnight(slots, windowStart) : dayAnchoredPosition(slots, windowStart);
-    if ('offAir' in pos && pos.offAir) return [];
+    if ('offAir' in pos) return [];
     let cursor = windowStart - pos.offsetSec * 1000;
     let i = pos.index, guard = 0;
     const out: Program[] = [];
@@ -159,7 +162,7 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
     if (descCache.current.has(vid)) { setDesc(descCache.current.get(vid)!); return; }
     let alive = true;
     fetchVideoById(vid).then(v => {
-      const d = (v as any)?.description || '';
+      const d = cleanDescription((v as any)?.description);
       descCache.current.set(vid, d);
       if (alive) setDesc(d);
     }).catch(() => {});

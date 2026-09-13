@@ -25,6 +25,7 @@ export interface GraphNode {
   fxId?: string;
   fxParams?: number[];
   input?: string;       // upstream node id (effect / output)
+  inputAux?: string;    // optional second source for multi-input effects
   // merge
   inputA?: string;      // bottom
   inputB?: string;      // top
@@ -95,7 +96,7 @@ export class NodeGraphRenderer {
       let tex: WebGLTexture | null = null;
       if (n) {
         if (n.type === 'source') tex = this.source(n, w, h, ctx);
-        else if (n.type === 'effect' && n.fxId) { const i = n.input ? evalNode(n.input) : null; tex = i ? this.fx.render(n.id, n.fxId, n.fxParams || [], i, w, h, ctx) : null; }
+        else if (n.type === 'effect' && n.fxId) { const i = n.input ? evalNode(n.input) : null; const aux = n.inputAux ? evalNode(n.inputAux) : null; tex = i ? this.fx.render(n.id, n.fxId, n.fxParams || [], i, w, h, ctx, aux || undefined) : null; }
         else if (n.type === 'merge') { const a = n.inputA ? evalNode(n.inputA) : null; const b = n.inputB ? evalNode(n.inputB) : null; tex = this.merge(n.id, a, b, n.blendMode || 'normal', w, h); }
         else if (n.type === 'output') tex = n.input ? evalNode(n.input) : null;
       }

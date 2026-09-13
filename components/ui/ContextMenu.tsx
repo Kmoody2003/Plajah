@@ -2,6 +2,7 @@ import React, {
   useCallback, useEffect, useId, useLayoutEffect, useRef, useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { menuViewport, placeMenu } from './menuPosition';
 
 /**
  * Plajah design-system Command Menu — the one right-click / context menu.
@@ -68,25 +69,6 @@ function isItem<C>(n: MenuNode<C>): n is MenuItemNode<C> {
 
 // ── Positioning ──────────────────────────────────────────────────────────────
 
-const MARGIN = 8; // keep the menu this far from the viewport edge
-
-/** Clamp a menu of size w×h opening at (x,y) so it never leaves the viewport. */
-function clampPoint(x: number, y: number, w: number, h: number) {
-  let nx = x, ny = y;
-  if (x + w > window.innerWidth - MARGIN) nx = Math.max(MARGIN, x - w);
-  if (y + h > window.innerHeight - MARGIN) ny = Math.max(MARGIN, window.innerHeight - MARGIN - h);
-  return { x: Math.max(MARGIN, nx), y: Math.max(MARGIN, ny) };
-}
-
-/** Place a submenu beside its parent item's rect, flipping to the left near the edge. */
-function placeBesideRect(r: DOMRect, w: number, h: number) {
-  let x = r.right - 4;
-  let y = r.top - 6;
-  if (x + w > window.innerWidth - MARGIN) x = Math.max(MARGIN, r.left - w + 4);
-  if (y + h > window.innerHeight - MARGIN) y = Math.max(MARGIN, window.innerHeight - MARGIN - h);
-  return { x, y: Math.max(MARGIN, y) };
-}
-
 // ── Keyboard controller stack ────────────────────────────────────────────────
 // Each rendered level registers a controller keyed by depth. The deepest level
 // (the top of the stack) receives keystrokes — this mirrors how nested native
@@ -106,7 +88,7 @@ interface LevelCtl {
 
 type Anchor =
   | { type: 'point'; x: number; y: number }
-  | { type: 'item'; getRect: () => DOMRect | null };
+  | { type: 'item' | 'trigger'; getRect: () => DOMRect | null };
 
 interface LevelProps<C> {
   items: MenuNode<C>[];
@@ -118,10 +100,11 @@ interface LevelProps<C> {
   onCloseBelow: (depth: number) => void;
   register: (ctl: LevelCtl) => void;
   unregister: (depth: number) => void;
+  registerItem: (depth: number, index: number, el: HTMLElement | null) => void;
 }
 
 function MenuLevel<C>({
-  items, ctx, depth, anchor, onSelectItem, onOpenSubmenu, onCloseBelow, register, unregister,
+  items, ctx, depth, anchor, onSelectItem, onOpenSubmenu, onCloseBelow, register, unregister, registerItem,
 }: LevelProps<C>) {
   const ref = useRef<HTMLDivElement>(null);
   const baseId = useId();
@@ -133,12 +116,22 @@ function MenuLevel<C>({
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const w = el.offsetWidth, h = el.offsetHeight;
-    const pos = anchor.type === 'point'
-      ? clampPoint(anchor.x, anchor.y, w, h)
-      : (() => { const r = anchor.getRect(); return r ? placeBesideRect(r, w, h) : { x: MARGIN, y: MARGIN }; })();
-    el.style.left = `${pos.x}px`;
-    el.style.top = `${pos.y}px`;
+    const update = () => {
+      const viewport = menuViewport();
+      el.style.maxWidth = `${Math.max(0, viewport.width - 16)}px`;
+      el.style.maxHeight = `${Math.max(0, viewport.height - 16)}px`;
+      const r = anchor.type === 'point' ? { left: anchor.x, right: anchor.x, top: anchor.y, bottom: anchor.y } : anchor.getRect();
+      // Never invent a top-of-page anchor. Item refs attach before layout effects.
+      if (!r) { el.style.visibility = 'hidden'; return; }
+      const pos = placeMenu(r, el.offsetWidth, el.offsetHeight, viewport, anchor.type === 'item' ? 'beside' : anchor.type === 'point' ? 'point' : 'below');
+      el.style.left = `${pos.x}px`; el.style.top = `${pos.y}px`; el.style.visibility = 'visible';
+    };
+    update();
+    const observer = new ResizeObserver(update); observer.observe(el);
+    document.addEventListener('scroll', update, true);
+    window.visualViewport?.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('scroll', update);
+    return () => { observer.disconnect(); document.removeEventListener('scroll', update, true); window.visualViewport?.removeEventListener('resize', update); window.visualViewport?.removeEventListener('scroll', update); };
   });
 
   // Live refs so the controller closes over fresh values without re-registering.
@@ -173,6 +166,13 @@ function MenuLevel<C>({
   useEffect(() => { setActive(focusables[0] ?? -1); /* eslint-disable-next-line */ }, [depth]);
 
   const activeId = active >= 0 ? `${baseId}-${active}` : undefined;
+  useLayoutEffect(() => {
+    const el = ref.current, item = activeId ? document.getElementById(activeId) : null;
+    if (!el || !item) return;
+    const bounds = el.getBoundingClientRect(), row = item.getBoundingClientRect();
+    if (row.top < bounds.top) el.scrollTop -= bounds.top - row.top;
+    else if (row.bottom > bounds.bottom) el.scrollTop += row.bottom - bounds.bottom;
+  }, [activeId]);
 
   return (
     <div
@@ -182,7 +182,7 @@ function MenuLevel<C>({
       tabIndex={-1}
       aria-activedescendant={activeId}
       data-depth={depth}
-      style={{ position: 'fixed', left: 0, top: 0 }}
+      style={{ position: 'fixed', visibility: 'hidden', overflowY: 'auto', overflowX: 'hidden', minWidth: 'min(210px, calc(100vw - 16px))' }}
       onContextMenu={(e) => e.preventDefault()}
     >
       {items.map((n, i) => {
@@ -199,6 +199,7 @@ function MenuLevel<C>({
         return (
           <div
             key={n.id}
+            ref={(el) => registerItem(depth, i, el)}
             id={`${baseId}-${i}`}
             className={[
               'pj-menu__item',
@@ -237,14 +238,19 @@ interface PortalProps<C> {
   x: number;
   y: number;
   onClose: () => void;
+  rootAnchor?: Anchor;
 }
 
-function ContextMenuPortal<C>({ build, ctx, x, y, onClose }: PortalProps<C>) {
+function ContextMenuPortal<C>({ build, ctx, x, y, onClose, rootAnchor }: PortalProps<C>) {
   // path[k] = the index (within level k) whose submenu is open. Levels rendered
   // = path.length + 1. Truncating path closes the deeper levels.
   const [path, setPath] = useState<number[]>([]);
   const stackRef = useRef<LevelCtl[]>([]);
-  const itemEls = useRef<Map<number, HTMLElement>>(new Map()); // depth -> open parent item element
+  const itemEls = useRef<Map<string, HTMLElement>>(new Map());
+  const registerItem = useCallback((depth: number, index: number, el: HTMLElement | null) => {
+    const key = `${depth}:${index}`;
+    if (el) itemEls.current.set(key, el); else itemEls.current.delete(key);
+  }, []);
   const restoreFocus = useRef<HTMLElement | null>(null);
 
   const openSubmenu = useCallback((depth: number, index: number) => {
@@ -270,15 +276,16 @@ function ContextMenuPortal<C>({ build, ctx, x, y, onClose }: PortalProps<C>) {
     };
     const close = () => onClose();
     document.addEventListener('pointerdown', onDown, true);
-    document.addEventListener('scroll', close, true);
+    const scroll = (e: Event) => { if (!(e.target instanceof Element) || !e.target.closest('.pj-menu-layer')) close(); };
+    document.addEventListener('scroll', scroll, true);
     window.addEventListener('resize', close);
     window.addEventListener('blur', close);
     return () => {
       document.removeEventListener('pointerdown', onDown, true);
-      document.removeEventListener('scroll', close, true);
+      document.removeEventListener('scroll', scroll, true);
       window.removeEventListener('resize', close);
       window.removeEventListener('blur', close);
-      restoreFocus.current?.focus?.();
+      restoreFocus.current?.focus?.({ preventScroll: true });
     };
   }, [onClose]);
 
@@ -321,33 +328,20 @@ function ContextMenuPortal<C>({ build, ctx, x, y, onClose }: PortalProps<C>) {
 
   // Walk `path` to resolve the items shown at each open level.
   const root = build(ctx);
-  const levels: { items: MenuNode<C>[]; anchor: Anchor }[] = [{ items: root, anchor: { type: 'point', x, y } }];
+  const levels: { items: MenuNode<C>[]; anchor: Anchor }[] = [{ items: root, anchor: rootAnchor || { type: 'point', x, y } }];
   let cur = root;
   for (let k = 0; k < path.length; k++) {
     const parent = cur[path[k]];
     if (!parent || !isItem(parent) || !parent.submenu) break;
     const sub = typeof parent.submenu === 'function' ? parent.submenu(ctx) : parent.submenu;
     const parentDepth = k; // parent lives at level k
-    levels.push({ items: sub, anchor: { type: 'item', getRect: () => itemEls.current.get(parentDepth)?.getBoundingClientRect() ?? null } });
+    const index = path[k];
+    levels.push({ items: sub, anchor: { type: 'item', getRect: () => itemEls.current.get(`${parentDepth}:${index}`)?.getBoundingClientRect() ?? null } });
     cur = sub;
   }
 
   return createPortal(
-    <div className="pj-menu-layer" ref={(el) => {
-      // Cache each open level's parent-item element for submenu positioning.
-      if (!el) return;
-      itemEls.current.clear();
-      for (let k = 0; k < path.length; k++) {
-        const parentLevel = el.querySelector(`.pj-menu[data-depth="${k}"]`);
-        const items = parentLevel?.querySelectorAll<HTMLElement>('.pj-menu__item');
-        // path[k] indexes into the level's nodes (incl. separators/headers), but
-        // getBoundingClientRect only needs *some* stable anchor — the highlighted
-        // (is-active) item is the open parent, so prefer it.
-        const activeEl = parentLevel?.querySelector<HTMLElement>('.pj-menu__item.is-active');
-        if (activeEl) itemEls.current.set(k, activeEl);
-        else if (items && items.length) itemEls.current.set(k, items[0]);
-      }
-    }}>
+    <div className="pj-menu-layer">
       {levels.map((lvl, depth) => (
         <MenuLevel
           key={depth}
@@ -360,6 +354,7 @@ function ContextMenuPortal<C>({ build, ctx, x, y, onClose }: PortalProps<C>) {
           onCloseBelow={closeBelow}
           register={register}
           unregister={unregister}
+          registerItem={registerItem}
         />
       ))}
     </div>,
@@ -392,7 +387,7 @@ const LONG_PRESS_MS = 500;
 const MOVE_TOLERANCE = 10;
 
 export function useContextMenu<C = void>(build: MenuBuilder<C>): ContextMenuApi<C> {
-  const [state, setState] = useState<{ x: number; y: number; ctx: C } | null>(null);
+  const [state, setState] = useState<{ x: number; y: number; ctx: C; anchor?: Anchor } | null>(null);
   const press = useRef<{ timer: number; x: number; y: number } | null>(null);
 
   const openAt = useCallback((x: number, y: number, ctx: C) => setState({ x, y, ctx }), []);
@@ -400,7 +395,7 @@ export function useContextMenu<C = void>(build: MenuBuilder<C>): ContextMenuApi<
 
   const openFrom = useCallback((el: Element, ctx: C) => {
     const r = el.getBoundingClientRect();
-    setState({ x: r.left, y: r.bottom + 4, ctx });
+    setState({ x: r.left, y: r.bottom + 4, ctx, anchor: { type: 'trigger', getRect: () => el.isConnected ? el.getBoundingClientRect() : null } });
   }, []);
 
   const clearPress = useCallback(() => {
@@ -428,7 +423,7 @@ export function useContextMenu<C = void>(build: MenuBuilder<C>): ContextMenuApi<
   }), [openAt, clearPress]);
 
   const node = state
-    ? <ContextMenuPortal build={build} ctx={state.ctx} x={state.x} y={state.y} onClose={close} />
+    ? <ContextMenuPortal build={build} ctx={state.ctx} x={state.x} y={state.y} rootAnchor={state.anchor} onClose={close} />
     : null;
 
   return { bind, openAt, openFrom, close, isOpen: !!state, node };

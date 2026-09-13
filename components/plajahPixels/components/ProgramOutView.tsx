@@ -23,7 +23,10 @@ import MidiNotesScene from './MidiNotesScene';
 import ThreeScene, { Three3DConfig } from './ThreeScene';
 import TextOverlay from './TextOverlay';
 import BackgroundLayer from './BackgroundLayer';
-import { VisualizationConfig, BackgroundMedia } from '../types';
+import AudioVisualizer from './AudioVisualizer';
+import StudioStage from './StudioStage';
+import FluxStage from './FluxStage';
+import { VisualizationConfig, BackgroundMedia, VisualizerMode, isStudioMode, isFluxMode } from '../types';
 import type { LauncherLayer } from './ClipLauncher';
 import { AudioDriverSampler } from '../engine/audioDrivers';
 
@@ -33,6 +36,7 @@ interface ProgramState {
   isPlaying: boolean;
   shaderSrc: string | null;
   shaderStart: number;
+  libraryGeneratorMode: VisualizerMode | null;
   milkdrop: boolean;
   milkdropIdx: number;
   milkdropBlendMode: string;
@@ -136,7 +140,7 @@ const ProgramOutView: React.FC = () => {
   // A look animates on iTime, so program-out must render it even before the opener's live
   // analyser can be pulled across. Silent analyser = zeros for the bands, motion from the clock.
   const poAnalyser = analyser ?? getSilentAnalyser();
-  const { config, layers, isPlaying, shaderSrc, shaderStart, milkdrop, milkdropIdx,
+  const { config, layers, isPlaying, shaderSrc, shaderStart, libraryGeneratorMode, milkdrop, milkdropIdx,
           milkdropBlendMode, milkdropLayerOpacity, midiNotes, three3d, bgMedia1, bgMedia2 } = state;
 
   return (
@@ -161,6 +165,13 @@ const ProgramOutView: React.FC = () => {
       ) : poAnalyser && (
         <>
           {shaderSrc && <ShaderLayer analyser={poAnalyser} source={shaderSrc} startTimeMs={shaderStart} onError={() => {}} />}
+          {libraryGeneratorMode && (
+            isFluxMode(libraryGeneratorMode)
+              ? <FluxStage analyser={poAnalyser} config={{ ...config, mode: libraryGeneratorMode }} isPlaying={isPlaying} />
+              : isStudioMode(libraryGeneratorMode)
+                ? <StudioStage analyser={poAnalyser} config={{ ...config, mode: libraryGeneratorMode }} isPlaying={isPlaying} />
+                : <AudioVisualizer analyser={poAnalyser} config={{ ...config, mode: libraryGeneratorMode }} isPlaying={isPlaying} hasBackground={false} />
+          )}
           {midiNotes && <MidiNotesScene palette={config.colorPalette} />}
           {milkdrop && (
             <ButterchurnLayer analyser={poAnalyser} presetIndex={milkdropIdx} blendMode={milkdropBlendMode} layerOpacity={milkdropLayerOpacity} />

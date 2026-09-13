@@ -13,7 +13,9 @@ const MAX = (() => {
   // A conservative fraction of the browser's real ceiling, shared across every surface. Scale down a
   // touch on low-core devices (a rough proxy for weaker media pipelines).
   const cores = (typeof navigator !== 'undefined' && (navigator as any).hardwareConcurrency) || 8;
-  return cores <= 4 ? 24 : 48;
+  // This budget currently covers pool thumbnails, not foreground monitors.
+  // Leave hardware decode capacity for timeline picture + look-ahead sources.
+  return cores <= 4 ? 4 : 8;
 })();
 
 let live = 0;

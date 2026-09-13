@@ -772,10 +772,10 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser, presentation = '
           {/* Embedded platform asset (video / world / article / etc.) — music renders as the
               player above, so only show this card when there's no full album player. */}
           {(post as any).assetEmbed && !post.albumEmbed && (() => {
-            const ae = (post as any).assetEmbed as { type: string; id: string; title?: string; imageUrl?: string; subtitle?: string };
+            const ae = (post as any).assetEmbed as { type: string; id: string; title?: string; imageUrl?: string; subtitle?: string; sourceId?: string; channelNumber?: string };
             const linkFor: Record<string, string> = { VIDEO: 'video', ARTICLE: 'article', TRACK: 'track', ALBUM: 'album', CHANNEL: 'channel' };
             const asset = linkFor[ae.type];
-            const href = asset ? buildShareUrl(asset as any, ae.id) : undefined;
+            const href = asset ? buildShareUrl(asset as any, ae.id, ae.type === 'CHANNEL' ? { source: ae.sourceId, n: ae.channelNumber || ae.subtitle?.match(/^CH ([0-9.]+)/)?.[1] } : undefined) : undefined;
             const Inner = (
               <div className="flex items-center gap-3 p-3 bg-white/[0.04] border border-white/10 rounded-2xl hover:border-white/25 transition-all">
                 {ae.imageUrl

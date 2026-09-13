@@ -28,6 +28,7 @@ import { isShellFocused, setShellFocus } from '../hooks/useTvShellFocus';
 import { useTvLineup } from '../hooks/useTvLineup';
 import { TV_SPINE_W } from './tv/TvSpine';
 import { PLAJAH_CHANNELS, UNNUMBERED, guideSortKey, legacyMajors, plajahNumber, type NumberRegistry } from '../services/fast/channelNumbers';
+import { findSharedChannel, canManageChannel } from '../services/fast/channelSharing';
 import { isChannelFeed } from '../services/fast/guideLineup';
 import ShareButton from './ShareButton';
 import { buildShareUrl } from '../services/deepLinkService';
@@ -332,9 +333,10 @@ const LiveTvPlus: React.FC<{
   focusPlajahId?: string;
   /** Fallback: tune to whatever channel carries this guide number ("8.1"). */
   focusNumber?: string;
+  focusSourceId?: string;
   /** For "Post to Plajah feed" from the share sheet. */
   currentUser?: { uid: string; displayName?: string | null; photoURL?: string | null } | null;
-}> = ({ onBack, feeds, liveArtists, fastChannels = [], onOpenClassic, onWatchWebrtc, focusOwnerId, focusPlajahId, focusNumber, currentUser }) => {
+}> = ({ onBack, feeds, liveArtists, fastChannels = [], onOpenClassic, onWatchWebrtc, focusOwnerId, focusPlajahId, focusNumber, focusSourceId, currentUser }) => {
   const [index, setIndex] = useState(0);
   // Live TV starts with SOUND. Muted-by-default is a browser-autoplay habit, and it made the TV
   // app a silent television — worse because the mute control is pointer-only and hides itself
@@ -525,13 +527,10 @@ const LiveTvPlus: React.FC<{
   // Tuned in from the guide, or from a shared-channel link → jump straight to the matching channel.
   useEffect(() => {
     if (!channels.length) return;
-    if (!focusOwnerId && !focusPlajahId && !focusNumber) return;
-    const i = channels.findIndex(c =>
-      (focusPlajahId && c.plajahId === focusPlajahId) ||
-      (focusOwnerId && (c.scheduleOwner === focusOwnerId || c.ownerId === focusOwnerId)) ||
-      (focusNumber && c.number === focusNumber));
+    if (!focusOwnerId && !focusPlajahId && !focusNumber && !focusSourceId) return;
+    const i = findSharedChannel(channels, { ownerId: focusOwnerId, plajahId: focusPlajahId, number: focusNumber, sourceId: focusSourceId });
     if (i >= 0) { setIndex(i); setLoadedIndex(i); }
-  }, [focusOwnerId, focusPlajahId, focusNumber, channels]);
+  }, [focusOwnerId, focusPlajahId, focusNumber, focusSourceId, channels]);
 
   // Keyboard / D-pad (works on the TV app too).
   //
@@ -625,19 +624,19 @@ const LiveTvPlus: React.FC<{
 
   // ── Sharing the channel that's on the dial right now ──────────────────────────
   // A stable key the /share route and the deep-link both understand: `plajah:<id>` for a
-  // first-party channel, `owner:<uid>` for an account's channel. Curated third-party feeds have
-  // no Plajah identity to resolve, so they simply aren't shareable this way.
+  // first-party channel, `owner:<uid>` for an account, or `source:<id>` for a curated feed.
+  // The source key distinguishes multiple subchannels owned by the same account.
   const shareMeta = useMemo(() => {
     if (!selected) return null;
     const owner = selected.scheduleOwner || selected.ownerId;
-    const id = selected.plajahId ? `plajah:${selected.plajahId}` : owner ? `owner:${owner}` : null;
+    const id = selected.plajahId ? `plajah:${selected.plajahId}` : owner ? `owner:${owner}` : `source:${selected.id}`;
     if (!id) return null;
-    const url = buildShareUrl('channel', id, { n: selected.number });
+    const url = buildShareUrl('channel', id, { n: selected.number, source: selected.id });
     const title = `${selected.name} · Plajah ${selected.number}`;
     const text = selected.isLive
       ? `${selected.name} is live right now on Plajah ${selected.number}. Tune in.`
       : `Tune in to ${selected.name} on Plajah ${selected.number}.`;
-    return { id, url, title, text, name: selected.name, number: selected.number, now: selected.now };
+    return { id, url, title, text, sourceId: selected.id, name: selected.name, number: selected.number, now: selected.now };
   }, [selected]);
 
   const postChannelToFeed = useCallback(async () => {
@@ -650,6 +649,8 @@ const LiveTvPlus: React.FC<{
       assetEmbed: {
         type: 'CHANNEL',
         id: shareMeta.id,
+        sourceId: shareMeta.sourceId,
+        channelNumber: shareMeta.number,
         title: shareMeta.name,
         subtitle: `CH ${shareMeta.number}${shareMeta.now ? ` · ${shareMeta.now}` : ''}`,
       },
@@ -1010,7 +1011,7 @@ const LiveTvPlus: React.FC<{
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="text-[9px] font-black" style={{ color: on ? BRAND : 'rgba(255,255,255,0.4)' }}>CH {ch.number}</span>
                   <span className="text-[8px] font-black px-1.5 py-0.5 rounded" style={{ background: ch.badge === 'LIVE' ? '#e11' : ch.badge === 'FAST' ? '#36c5f0' : ch.accent, color: '#000' }}>{ch.badge === 'LIVE' ? 'LIVE' : ch.badge}</span>
-                  {(ch.scheduleOwner || ch.ownerId) === currentUser?.uid && editingOwnerId !== currentUser.uid && (
+                  {canManageChannel(ch, currentUser) && editingOwnerId !== currentUser?.uid && (
                     <button
                       type="button"
                       aria-label={`Rename ${ch.name}`}
@@ -1022,7 +1023,7 @@ const LiveTvPlus: React.FC<{
                     </button>
                   )}
                 </div>
-                {editingOwnerId === currentUser?.uid && on ? (
+                {!!currentUser && editingOwnerId === currentUser.uid && on ? (
                   <div onClick={e => e.stopPropagation()} className="mt-1">
                     <div className="flex items-center gap-1">
                       <input

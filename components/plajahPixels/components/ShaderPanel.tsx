@@ -7,6 +7,7 @@ import { Button, Input, Chip, Eyebrow, Shelf, WorkCard, ReactivityMap } from '..
 import { ISF_CATALOG, importISF, type CatalogEntry } from '../engine/isfCatalog';
 import { PROCEDURAL_PRESETS } from '../engine/presets/proceduralPresets';
 import { SIGNATURE_WORKS, signatureSource } from '../engine/presets/signatureShaders';
+import { MATERIAL_SHADER_WORKS } from '../engine/presets/materialShaders';
 
 // ─── Shader library ────────────────────────────────────────────────────────────
 // Four sources merge into one searchable/filterable library (see BASE_SHADERS):
@@ -634,8 +635,21 @@ const SIGNATURE_ENTRIES: ShaderEntry[] = SIGNATURE_WORKS.map(w => ({
   params: w.params,
 }));
 
+const MATERIAL_ENTRIES: ShaderEntry[] = MATERIAL_SHADER_WORKS.map(w => ({
+  name: w.name,
+  cat: w.series === 'VII' ? 'cinematic' : 'audio',
+  src: w.src,
+  kind: 'signature' as const,
+  series: w.series,
+  setTitle: w.setTitle,
+  line: w.line,
+  reacts: w.reacts,
+  params: w.params,
+}));
+
 const BASE_SHADERS: ShaderEntry[] = [
   ...SIGNATURE_ENTRIES,
+  ...MATERIAL_ENTRIES,
   ...SHADERS.map(s => ({ ...s, kind: 'raw' as const })),
   ...PROCEDURAL_PRESETS.map(p => ({ name: p.name, cat: p.cat, src: p.src, kind: 'procedural' as const })),
   ...ISF_CATALOG.map(e => ({ name: e.name, cat: e.cat, src: e.src, kind: 'isf' as const, license: e.license, credit: e.credit })),

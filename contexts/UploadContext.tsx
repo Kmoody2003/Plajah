@@ -3,6 +3,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { onAuthStateChanged } from 'firebase/auth';
 import { storage, auth } from '../services/firebase';
 import { reportError } from '../services/errorReporting';
+import { beginUploadAttempt, type UploadSurface } from '../services/uploadReports';
 import { precomputeByUrl } from '../services/djAnalysis';
 
 /**
@@ -49,11 +50,19 @@ export interface UploadTask {
   downloadURL?: string;
   error?: string;
   type: 'MUSIC' | 'VIDEO' | 'PHOTO' | 'BOOK';
+  /** Ledger row id — lets the UI offer "report this failed upload" with real context. */
+  attemptId?: string | null;
 }
+
+/** Which product this upload belongs to, so Taleo and Chora failures read apart in the
+ *  admin panel. Defaulted from `type` when a caller doesn't say. */
+const SURFACE_BY_TYPE: Record<UploadTask['type'], 'CHORA' | 'TALEO' | 'PHOTOS' | 'LOREA'> = {
+  MUSIC: 'CHORA', VIDEO: 'TALEO', PHOTO: 'PHOTOS', BOOK: 'LOREA',
+};
 
 interface UploadContextType {
   tasks: UploadTask[];
-  uploadFile: (file: File, type: UploadTask['type']) => Promise<string>;
+  uploadFile: (file: File, type: UploadTask['type'], meta?: { surface?: UploadSurface; role?: string; targetId?: string; targetTitle?: string }) => Promise<string>;
   removeTask: (id: string) => void;
   clearCompleted: () => void;
 }
@@ -63,7 +72,11 @@ const UploadContext = createContext<UploadContextType | undefined>(undefined);
 export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tasks, setTasks] = useState<UploadTask[]>([]);
 
-  const uploadFile = useCallback(async (file: File, type: UploadTask['type']): Promise<string> => {
+  const uploadFile = useCallback(async (
+    file: File,
+    type: UploadTask['type'],
+    meta?: { surface?: UploadSurface; role?: string; targetId?: string; targetTitle?: string },
+  ): Promise<string> => {
     const id = Math.random().toString(36).substring(7);
     const fileName = file.name;
 
@@ -77,20 +90,36 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // Big-file Mux should use the non-blocking pattern uploadVideo already has — a separate change.)
     const storageRef = ref(storage, `uploads/${type.toLowerCase()}s/${Date.now()}_${fileName}`);
 
+    const metadata = {
+      contentType: (file.type && file.type !== 'application/octet-stream') ? file.type : (extCt(fileName) || FALLBACK_CT[type] || 'application/octet-stream')
+    };
+
+    // Ledger the attempt before the first byte moves. A reload/deploy/tab-close mid-upload
+    // fires no handler here at all — the row left UPLOADING with a dead heartbeat is the
+    // only trace such a failure leaves. See services/uploadReports.ts.
+    const attempt = beginUploadAttempt({
+      surface: meta?.surface || SURFACE_BY_TYPE[type] || 'OTHER',
+      role: meta?.role || type,
+      fileName,
+      sizeBytes: file.size,
+      contentType: metadata.contentType,
+      transport: storageRef.fullPath,
+      targetId: meta?.targetId,
+      targetTitle: meta?.targetTitle,
+    });
+
     const newTask: UploadTask = {
       id,
       fileName,
       progress: 0,
       status: 'UPLOADING',
-      type
+      type,
+      attemptId: attempt.id,
     };
 
     setTasks(prev => [...prev, newTask]);
 
     return new Promise((resolve, reject) => {
-      const metadata = {
-        contentType: (file.type && file.type !== 'application/octet-stream') ? file.type : (extCt(fileName) || FALLBACK_CT[type] || 'application/octet-stream')
-      };
       const uploadTask = uploadBytesResumable(storageRef, file, metadata);
 
       uploadTask.on(
@@ -98,6 +127,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         (snapshot) => {
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
           setTasks(prev => prev.map(t => t.id === id ? { ...t, progress } : t));
+          attempt.beat(progress, snapshot.bytesTransferred);
         },
         (error: any) => {
           // Storage returns `storage/unauthorized` for ANY rules/attestation
@@ -123,12 +153,14 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             friendly = msg || 'Upload failed';
           }
           setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'ERROR', error: friendly } : t));
+          attempt.settle('FAILED', Object.assign(error ?? new Error(friendly), { message: friendly, code }));
           console.error('[upload] failed', { code, msg, owner: ownerUid, active: auth.currentUser?.uid || 'none', switched: !!switched });
           reportError(error, { source: 'upload', context: `${type} upload · ${fileName} · ${metadata.contentType} · code=${code} · owner=${ownerUid} · active=${auth.currentUser?.uid || 'none'} · switched=${!!switched}` });
           reject(new Error(friendly || 'Upload failed'));
         },
         async () => {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          attempt.settle('COMPLETED');
           setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'COMPLETED', progress: 100, downloadURL } : t));
           // Precompute DJ/waveform analysis for audio uploads so peaks + beat grid are ready
           // instantly on first play (warmed by URL; adopted + persisted by track id later).

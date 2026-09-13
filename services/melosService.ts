@@ -204,6 +204,9 @@ export interface MelosSong {
   timeSig?: string;
   durationSec?: number;
   trackRef?: SongTrackRef;
+  /** The song's own DAW project (.dawproject / GrooveDoc) under melosProductions/{prodId}/grooves/{grooveId}.
+   *  Set when the song is created; opening the song in Melos Studio loads THIS project (not a shared one). */
+  grooveId?: string;
   takes: SongTake[];
   feel?: SongFeel;
   credits: SongCredit[];

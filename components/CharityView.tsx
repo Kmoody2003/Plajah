@@ -34,7 +34,7 @@ const CharityView: React.FC<CharityViewProps> = ({ onBack }) => {
               Charity
             </h1>
             <p className="text-xl lg:text-2xl text-white/60 font-medium leading-relaxed mb-12">
-              Every contribution fuels the Global Archive ecosystem. Support creators, communities, and causes that matter.
+              Every contribution fuels the Plajah ecosystem. Support creators, communities, and causes that matter.
             </p>
             <div className="flex items-center gap-12">
               <div>

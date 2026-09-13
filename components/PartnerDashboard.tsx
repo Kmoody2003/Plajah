@@ -189,7 +189,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ profile, onBack }) 
             <Database size={48} className="text-white mb-6" />
             <h3 className="text-2xl font-display font-black tracking-tight uppercase mb-4">Library Aggregator</h3>
             <p className="text-sm font-medium text-white/80 leading-relaxed mb-6">
-              Connect your external storage to automatically index and serve your content through the Plajah Global Archive.
+              Connect your external storage to automatically index and serve your content through Plajah Front Row.
             </p>
             <ul className="space-y-4">
               <li className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest">

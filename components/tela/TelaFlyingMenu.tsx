@@ -10,6 +10,7 @@
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { menuViewport, placeMenu } from '../ui/menuPosition';
 import { Bold, Italic, Link2, Lock, Unlock, X } from 'lucide-react';
 import type { TelaBlock, TelaDoc, TelaField, TelaImageLayer, TelaVectorObject } from '../../types';
 import type { TelaOp } from './telaOps';
@@ -118,15 +119,17 @@ const TelaFlyingMenu: React.FC<TelaFlyingMenuProps> = ({
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const W = el.offsetWidth || 264;
-    const H = el.offsetHeight || 240;
-    const vw = window.innerWidth, vh = window.innerHeight;
-    let left = anchor.x + 12;
-    if (left + W > vw - 8) left = anchor.x - W - 12;   // flip to the left
-    left = Math.max(8, Math.min(left, vw - W - 8));      // clamp
-    let top = anchor.y;
-    top = Math.max(8, Math.min(top, vh - H - 8));
-    setPos({ left, top });
+    const update = () => {
+      const viewport = menuViewport();
+      el.style.maxWidth = `${Math.max(0, viewport.width - 16)}px`;
+      el.style.maxHeight = `${Math.max(0, viewport.height - 16)}px`;
+      const p = placeMenu({left:anchor.x,right:anchor.x,top:anchor.y,bottom:anchor.y},el.offsetWidth,el.offsetHeight,viewport,'point');
+      setPos(old => old?.left === p.x && old?.top === p.y ? old : {left:p.x,top:p.y});
+    };
+    update();
+    const observer = new ResizeObserver(update); observer.observe(el);
+    window.addEventListener('resize', update); window.visualViewport?.addEventListener('resize', update); window.visualViewport?.addEventListener('scroll', update);
+    return () => { observer.disconnect(); window.removeEventListener('resize', update); window.visualViewport?.removeEventListener('resize', update); window.visualViewport?.removeEventListener('scroll', update); };
   }, [anchor.x, anchor.y, target]);
 
   useEffect(() => {
@@ -235,7 +238,7 @@ const TelaFlyingMenu: React.FC<TelaFlyingMenuProps> = ({
           position: 'fixed', zIndex: 2401,
           left: pos?.left ?? anchor.x, top: pos?.top ?? anchor.y,
           visibility: pos ? 'visible' : 'hidden',
-          width: 264, maxHeight: '80vh', overflowY: 'auto',
+          width: 264, maxHeight: '80vh', overflowY: 'auto', boxSizing: 'border-box',
           background: 'linear-gradient(160deg,#1A1424,#120D1C)',
           border: '1px solid rgba(255,255,255,0.14)',
           borderRadius: 'var(--pj-radius-md,16px)',

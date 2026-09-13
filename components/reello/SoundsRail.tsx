@@ -14,10 +14,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Music2, Loader2, Play, X, Disc3 } from 'lucide-react';
 import { Video } from '../../types';
 import { extractSoundFromVideo, getSound, getVideosUsingSound, SoundRecord } from '../../services/soundsService';
+import MediaThumb from '../ui/MediaThumb';
 
 const thumbFor = (v?: Partial<Video> | null): string => {
   if (!v) return '';
-  if ((v as any).muxPlaybackId) return `https://image.mux.com/${(v as any).muxPlaybackId}/thumbnail.png?width=480&height=854&time=3`;
+  if ((v as any).muxPlaybackId) return `https://image.mux.com/${(v as any).muxPlaybackId}/thumbnail.png?width=480&time=3`;
   return v.thumbnailUrl || (v as any).coverImageUrl || (v as any).coverImage || '';
 };
 
@@ -142,7 +143,7 @@ export const SoundRail: React.FC<{
                 style={{ aspectRatio: '9 / 16' }}
               >
                 {t
-                  ? <img src={t} alt={v.title} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
+                  ? <MediaThumb src={t} alt={v.title} loading="lazy" decoding="async" />
                   : <div className="absolute inset-0 bg-white/5" />}
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 55%)' }} />
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">

@@ -39,10 +39,11 @@ const MatchFanRoomsView: React.FC<Props> = ({ currentUser, onBack, initialMatchI
   }, []);
 
   useEffect(() => {
+    if (initialMatch?.sportsLeague) return;
     load();
     pollRef.current = setInterval(load, 30_000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [load]);
+  }, [load, initialMatch?.sportsLeague]);
 
   // A ready-made (synthesized) match opens directly.
   useEffect(() => {
@@ -56,7 +57,7 @@ const MatchFanRoomsView: React.FC<Props> = ({ currentUser, onBack, initialMatchI
     if (ev) { autoPicked.current = initialMatchId; setSelected(ev); }
   }, [initialMatchId, events]);
 
-  if (selected) return <MatchFanRoom match={selected} currentUser={currentUser} onBack={() => setSelected(null)} />;
+  if (selected) return <MatchFanRoom key={`${selected.sportsLeague || 'FIFA'}:${selected.id}`} match={selected} currentUser={currentUser} onBack={() => initialMatch?.sportsLeague ? onBack?.() : setSelected(null)} />;
 
   return (
     <div style={{ minHeight: '100%', background: '#0a0a0f', color: '#fff', padding: '22px 16px 60px', fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" }}>

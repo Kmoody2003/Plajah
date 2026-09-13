@@ -26,6 +26,9 @@ export interface HlsTuning {
   abrBandWidthFactor: number;
   abrBandWidthUpFactor: number;
   maxStarvationDelay: number;
+  capLevelOnFPSDrop: boolean;
+  fpsDroppedMonitoringPeriod: number;
+  fpsDroppedMonitoringThreshold: number;
   nudgeMaxRetry: number;
   fragLoadingMaxRetry: number;
   manifestLoadingMaxRetry: number;
@@ -66,6 +69,14 @@ export function hlsTuning(retries?: Partial<Pick<HlsTuning,
     abrBandWidthFactor: isTv ? 0.8 : 0.95,
     abrBandWidthUpFactor: isTv ? 0.6 : 0.7,
     maxStarvationDelay: isTv ? 4 : 4,
+
+    // Bandwidth ABR cannot see an underpowered decoder. A stream can download comfortably
+    // while the device still drops frames trying to decode its largest rendition (especially
+    // a UHD master on an Android/TV GPU). Let hls.js detect that condition and lower the
+    // automatic quality ceiling until playback is smooth again.
+    capLevelOnFPSDrop: true,
+    fpsDroppedMonitoringPeriod: isTv ? 3_000 : 5_000,
+    fpsDroppedMonitoringThreshold: isTv ? 0.15 : 0.2,
 
     nudgeMaxRetry: 5,
     fragLoadingMaxRetry: 4,

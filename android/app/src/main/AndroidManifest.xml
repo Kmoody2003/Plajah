@@ -82,6 +82,16 @@
             </intent-filter>
         </activity>
 
+        <!-- Native Jetpack Compose shell (opt-in "Native" mode). Not a launcher: the app
+             always starts at MainActivity (the Capacitor web shell), which hands off here when
+             the user has toggled Native on. Uses the standard app theme (no splash). -->
+        <activity
+            android:name=".NativeActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:launchMode="singleTask" />
+
         <!-- Background media service — enables playback controls in notification shade,
              lock screen, Android Auto, Google Assistant, and Alexa Media Player -->
         <service

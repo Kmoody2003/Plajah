@@ -19,6 +19,7 @@ import { Shelf, WorkCard, Chip } from './index';
 import ShaderLayer from '../components/ShaderLayer';
 import { getShaderThumb, peekShaderThumb } from './shaderThumbs';
 import { getSilentAnalyser } from '../engine/silentAnalyser';
+import { GeneratorPreviewTile } from '../components/ShaderPreviewTile';
 import { SHADER_LIBRARY, type ShaderLibraryEntry } from '../components/ShaderPanel';
 import { SCENE_CATALOG } from '../engine/sceneCatalog';
 import type { VisualizerMode } from '../types';
@@ -69,8 +70,8 @@ interface Props {
 }
 
 /** A plain tile for sources that have no GLSL still to render — generators and milkdrop. */
-const Tile: React.FC<{ name: string; sub?: string; selected?: boolean; onClick: () => void; onDoubleClick?: () => void; hue: number }> =
-({ name, sub, selected, onClick, onDoubleClick, hue }) => (
+const Tile: React.FC<{ name: string; sub?: string; selected?: boolean; onClick: () => void; onDoubleClick?: () => void; hue: number; mode?: string }> =
+({ name, sub, selected, onClick, onDoubleClick, hue, mode }) => (
   <button
     onClick={onClick}
     onDoubleClick={onDoubleClick}
@@ -82,9 +83,11 @@ const Tile: React.FC<{ name: string; sub?: string; selected?: boolean; onClick: 
       background: 'rgba(255,255,255,0.02)',
     }}
   >
-    <div className="h-[34px]" style={{
-      background: `radial-gradient(90% 80% at 40% 40%, hsl(${hue} 70% 45% / 0.7), transparent 62%), #100c18`,
-    }} />
+    <div className="relative h-[34px] overflow-hidden">
+      {mode
+        ? <GeneratorPreviewTile mode={mode} hue={hue} />
+        : <div className="h-full" style={{ background: `radial-gradient(90% 80% at 40% 40%, hsl(${hue} 70% 45% / 0.7), transparent 62%), #100c18` }} />}
+    </div>
     <div className="px-1.5 py-1">
       <p className="type-body-sm text-white/70 leading-tight truncate">{name}</p>
       {sub && <p className="type-label-sm text-white/30 truncate">{sub}</p>}
@@ -317,6 +320,7 @@ export const LibraryRail: React.FC<Props> = ({
                       name={w.name} cacheKey={w.name} src={w.src}
                       meta={w.kind === 'signature' ? w.setTitle : (w.license || w.category)}
                       bands={w.reacts?.map(r => r[0])}
+                      livePreview
                       selected={selectedSrc === w.src}
                       picked={pickedSrc === w.src && selectedSrc !== w.src}
                       onClick={() => setPickedSrc(w.src)}
@@ -339,6 +343,7 @@ export const LibraryRail: React.FC<Props> = ({
                 <Tile
                   name={g.name} sub={g.cat}
                   hue={(i * 47) % 360}
+                  mode={g.mode}
                   selected={!selectedSrc && selectedMode === g.mode}
                   onClick={() => { setPickedSrc(null); setHoverLabel(g.name); }}
                   onDoubleClick={() => onSelect({ kind: 'generator', mode: g.mode })}

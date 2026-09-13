@@ -121,6 +121,8 @@ function bakeAudioTexture(): Uint8Array {
     const w = 128 + 108 * Math.sin(x * 0.35) * Math.exp(-((x % 64) / 64));
     px[o] = px[o + 1] = px[o + 2] = Math.max(0, Math.min(255, w)); px[o + 3] = 255;
   }
+  const chord = [.92, .20, .16, .72, .22, .18, .25, .84, .18, .24, .58, .15];
+  for (let i = 0; i < 12; i++) px[i * 4 + 3] = Math.round(chord[i] * 255);
   return px;
 }
 

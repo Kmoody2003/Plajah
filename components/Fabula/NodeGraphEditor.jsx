@@ -10,6 +10,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import SceneView from "../plajahPixels/components/SceneView";
+import PanelDivider from "./PanelDivider";
 import { FX_EFFECTS } from "../plajahPixels/engine/fx/effects";
 
 const uid = () => Math.random().toString(36).slice(2, 8);
@@ -36,6 +37,9 @@ function defaultGraph() {
 }
 
 export default function NodeGraphEditor({ onAddToPool, ping, palette }) {
+  const [libraryWidth, setLibraryWidth] = useState(150);
+  const [rightWidth, setRightWidth] = useState(250);
+  const [viewerHeight, setViewerHeight] = useState(180);
   const [graph, setGraph] = useState(defaultGraph);
   const [sel, setSel] = useState(null);
   const [linkFrom, setLinkFrom] = useState(null);
@@ -57,6 +61,7 @@ export default function NodeGraphEditor({ onAddToPool, ping, palette }) {
       input: n.input === id ? undefined : n.input,
       inputA: n.inputA === id ? undefined : n.inputA,
       inputB: n.inputB === id ? undefined : n.inputB,
+      inputAux: n.inputAux === id ? undefined : n.inputAux,
     }));
     return { ...g, nodes, output: g.output === id ? (nodes.find((n) => n.type === "output")?.id || "") : g.output };
   });
@@ -82,7 +87,8 @@ export default function NodeGraphEditor({ onAddToPool, ping, palette }) {
 
   const wires = [];
   for (const n of graph.nodes) {
-    const links = n.type === "merge" ? [["inputA", n.inputA, 0.35], ["inputB", n.inputB, 0.65]] : [["input", n.input, 0.5]];
+    const effect = n.type === "effect" ? FX_EFFECTS.find((candidate) => candidate.id === n.fxId) : null;
+    const links = n.type === "merge" ? [["inputA", n.inputA, 0.35], ["inputB", n.inputB, 0.65]] : effect?.auxInput ? [["input", n.input, 0.35], ["inputAux", n.inputAux, 0.65]] : [["input", n.input, 0.5]];
     for (const [, from, fy] of links) {
       if (!from || !nodeById[from]) continue;
       const a = nodeById[from], b = n;
@@ -121,7 +127,7 @@ export default function NodeGraphEditor({ onAddToPool, ping, palette }) {
     <div className="ngeditor">
       <div className="ngbody">
         {/* ── node LIBRARY (Mockup B #2) ── */}
-        <aside className="nglib glass-dark">
+        <aside className="nglib glass-dark" style={{ width: libraryWidth }}>
           <div className="paneltitle">NODES</div>
           <div className="nglibscroll">
             {LIB.map((grp) => (
@@ -138,6 +144,7 @@ export default function NodeGraphEditor({ onAddToPool, ping, palette }) {
         </aside>
 
         {/* ── the CANVAS, dominant (Mockup B #1) ── */}
+        <PanelDivider label="Resize node library" value={libraryWidth} onChange={setLibraryWidth} min={120} max={450} />
         <div className="ngcanvas" ref={areaRef} onMouseDown={() => { setSel(null); setLinkFrom(null); }}>
           <svg className="ngwires" aria-hidden="true">
             {wires.map((w, i) => (
@@ -167,8 +174,10 @@ export default function NodeGraphEditor({ onAddToPool, ping, palette }) {
                   <span className="ngport in a" title="Input A (bottom)" onMouseDown={(e) => { e.stopPropagation(); connect(n.id, "inputA"); }} />
                   <span className="ngport in b" title="Input B (top)" onMouseDown={(e) => { e.stopPropagation(); connect(n.id, "inputB"); }} />
                 </>
-              ) : n.type !== "source" ? (
-                <span className="ngport in" title="Input" onMouseDown={(e) => { e.stopPropagation(); connect(n.id, "input"); }} />
+              ) : n.type !== "source" ? (n.type === "effect" && FX_EFFECTS.find((effect) => effect.id === n.fxId)?.auxInput ? (
+                <><span className="ngport in a" title="Source input" onMouseDown={(e) => { e.stopPropagation(); connect(n.id, "input"); }} /><span className="ngport in b" title="Auxiliary input" onMouseDown={(e) => { e.stopPropagation(); connect(n.id, "inputAux"); }} /></>
+              ) : (
+                <span className="ngport in" title="Input" onMouseDown={(e) => { e.stopPropagation(); connect(n.id, "input"); }} />)
               ) : null}
               {n.type !== "output" && (
                 <span className={`ngport out ${linkFrom === n.id ? "armed" : ""}`} title="Output — click, then click an input"
@@ -186,14 +195,16 @@ export default function NodeGraphEditor({ onAddToPool, ping, palette }) {
         </div>
 
         {/* ── right column: live viewer + real inspector (Mockup B #4/#5) ── */}
-        <div className="ngright">
-          <div className="ngviewer glass-dark">
+        <PanelDivider label="Resize node viewer and inspector" value={rightWidth} onChange={setRightWidth} reverse max={650} />
+        <div className="ngright" style={{ width: rightWidth }}>
+          <div className="ngviewer glass-dark" style={{ height: viewerHeight, display: 'flex', flexDirection: 'column' }}>
             <div className="ngpreview"><SceneView snapshot={previewSnap} palette={palette} playing /></div>
             <div className="ngviewbar">
               <span className="cap">VIEWING · OUTPUT</span>
               <span className="chip green" style={{ marginLeft: "auto" }}>LIVE · EXPORT-EXACT</span>
             </div>
           </div>
+          <PanelDivider label="Resize node viewer height" value={viewerHeight} onChange={setViewerHeight} vertical min={100} max={500} />
           <aside className="nginsp glass-dark">
             <div className="isec"><span className="paneltitle" style={{ flex: 1 }}>{selNode ? `NODE · ${NODE_NAME(selNode)}` : "NODE"}</span>
               {selNode && <span className="chip amb">{selNode.type.toUpperCase()}</span>}</div>
@@ -223,19 +234,39 @@ export default function NodeGraphEditor({ onAddToPool, ping, palette }) {
                       <select className="sel xs" value={selNode.fxId || "glow"} onChange={(e) => update(selNode.id, { fxId: e.target.value, fxParams: undefined })}>
                         {FX_EFFECTS.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                       </select>
+                      {fx?.summary && <div className="dim small">{fx.summary}</div>}
+                      {!!fx?.presets?.length && (
+                        <>
+                          <span className="lbl">BEAUTIFUL STARTS</span>
+                          <select className="sel xs" value={selNode.fxPresetId || ""} onChange={(e) => {
+                            const preset = fx.presets.find((candidate) => candidate.id === e.target.value);
+                            if (!preset) return;
+                            update(selNode.id, {
+                              fxPresetId: preset.id,
+                              fxParams: fx.params.map((param) => preset.params[param.key] ?? param.default),
+                            });
+                          }}>
+                            <option value="" disabled>Choose a curated look…</option>
+                            {fx.presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}
+                          </select>
+                          {fx.presets.find((preset) => preset.id === selNode.fxPresetId)?.description && (
+                            <div className="dim small">{fx.presets.find((preset) => preset.id === selNode.fxPresetId).description}</div>
+                          )}
+                        </>
+                      )}
                       {fx && fx.params.map((p, i) => {
                         const v = selNode.fxParams?.[i] ?? p.default;
                         return (
                           <div className="fxrow" key={p.key}>
                             <span className="fxlbl">{p.label}</span>
-                            <input type="range" min={p.min} max={p.max} step={(p.max - p.min) / 200} value={v}
+                            <input type="range" min={p.min} max={p.max} step={p.step || (p.max - p.min) / 200} value={v}
                               onChange={(e) => setFxParam(i, parseFloat(e.target.value))}
                               onDoubleClick={() => setFxParam(i, p.default)} />
                             <span className="fxval">{Number(v).toFixed(2)}</span>
                           </div>
                         );
                       })}
-                      <div className="dim small">Wire its input ◦ from an upstream node.</div>
+                      <div className="dim small">{fx?.auxInput ? `Wire SOURCE and ${fx.auxInput.label.toUpperCase()} into the two ◦ ports.` : "Wire its input ◦ from an upstream node."}</div>
                     </>
                   );
                 })()}

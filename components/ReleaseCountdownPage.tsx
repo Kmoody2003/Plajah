@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { cleanDescription } from '../utils/description';
 import { motion, AnimatePresence } from 'motion/react';
 import { Calendar, Share2, Check, ChevronRight, Lock, Send, MessageSquare, Play, Users, ChevronLeft } from 'lucide-react';
 import type { Album, EarlyAccessRequest } from '../types';
@@ -134,6 +135,9 @@ interface Props {
 
 export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, onUnlock }: Props) {
   const [album, setAlbum] = useState<Album | null>(initialAlbum ?? null);
+  // The blurb under the countdown. cleanDescription drops the legacy generated filler,
+  // so a release stamped with it shows no blurb rather than someone else's copy.
+  const blurb = cleanDescription(album?.description);
   const [timeLeft, setTimeLeft] = useState<TimeLeft>({ months: 0, days: 0, hours: 0, minutes: 0, seconds: 0, total: 0 });
   const [fontStyle, setFontStyle] = useState<FontStyle>('BOLD');
   const [accentColor, setAccentColor] = useState('#ff8c00');
@@ -382,10 +386,10 @@ export default function ReleaseCountdownPage({ albumId, initialAlbum, onClose, o
           )}
 
           {/* Description snippet */}
-          {album.description && (
+          {!!blurb && (
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
               className="text-white/40 text-sm text-center max-w-lg leading-relaxed font-light tracking-wide">
-              {album.description.slice(0, 160)}{album.description.length > 160 ? '…' : ''}
+              {blurb.slice(0, 160)}{blurb.length > 160 ? '…' : ''}
             </motion.p>
           )}
 

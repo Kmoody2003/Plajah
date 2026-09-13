@@ -1081,21 +1081,39 @@ body.has-custom-background::after {
   background-size: 300% 100%;
   animation: track-gradient-sweep 4.5s linear infinite alternate;
 }
-/* AUDIO SESSION card backdrop — same living sweep, weighted toward purple + magenta. */
+/* AUDIO SESSION card backdrop — living sweep, purple → magenta (Plajah chevron gradient). */
 .audio-session-gradient {
   background-image: linear-gradient(105deg,
-    rgba(107,0,153,0.60) 0%,     /* purple */
-    rgba(168,0,140,0.52) 26%,    /* magenta */
-    rgba(212,0,105,0.46) 50%,    /* pink-magenta */
-    rgba(255,110,30,0.28) 68%,   /* a little orange */
-    rgba(140,0,175,0.60) 100%);  /* purple */
+    rgba(107,0,153,0.55) 0%,     /* purple */
+    rgba(168,0,140,0.45) 26%,    /* deep magenta */
+    rgba(212,0,85,0.40) 50%,     /* magenta */
+    rgba(160,0,120,0.35) 72%,    /* magenta-purple */
+    rgba(107,0,153,0.55) 100%);  /* purple */
   background-size: 300% 100%;
   animation: track-gradient-sweep 6s linear infinite alternate;
+}
+/* TRACKLIST / LYRICS body — same purple→magenta palette, slower + subtler.
+   Very low-opacity so background bleeds through the frosted glass. */
+.tracklist-gradient {
+  background-image: linear-gradient(135deg,
+    rgba(107,0,153,0.22) 0%,     /* purple */
+    rgba(140,0,130,0.16) 30%,    /* purple-magenta */
+    rgba(212,0,85,0.14) 55%,     /* magenta */
+    rgba(160,0,100,0.12) 78%,    /* magenta tint */
+    rgba(107,0,153,0.20) 100%);  /* purple */
+  background-size: 300% 300%;
+  animation: tracklist-gradient-sweep 10s ease-in-out infinite alternate;
+}
+@keyframes tracklist-gradient-sweep {
+  0%   { background-position: 0% 0%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   /* Keep the ambient gradient clearly alive (just a touch gentler) rather than frozen. */
   .track-gradient-active { animation-duration: 7s; }
   .audio-session-gradient { animation-duration: 9s; }
+  .tracklist-gradient { animation-duration: 14s; }
 }
 
 /* Final 10s — a red gradient on the RIGHT edge fading into the bar's orange, with a
