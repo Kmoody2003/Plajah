@@ -2956,7 +2956,9 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   // Chora Mixes — the dedicated long-form DJ-set player (waveform + Pixels auto-show)
   | 'MIX_PLAYER'
   // Chora Artist Page — music-centric artist profile (Editorial Gallery layout)
-  | 'CHORA_ARTIST';
+  | 'CHORA_ARTIST'
+  // LD — Lighting Designer (top-level experience, peer to Chora/Pixels/Melos)
+  | 'LD_MODE';
 
 // ── Script Writing Studio ─────────────────────────────────────────────────────
 

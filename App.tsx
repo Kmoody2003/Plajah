@@ -347,6 +347,7 @@ const TV_BLOCKED_VIEWS: Partial<Record<string, { feature: TvDisabledFeature; tit
   CROSSOVER:       { feature: 'fileConversion', title: 'Crossover' },
   MEDIA_CONVERTER: { feature: 'fileConversion', title: 'Media Converter' },
   SPATIAL_MIXER:   { feature: 'creatorStudio', title: 'Spatial Mixer' },
+  LD_MODE:         { feature: 'creatorStudio', title: 'LD' },
   TELEPROMPTER:    { feature: 'documentEditing', title: 'Teleprompter' },
   ARTICLE_EDITOR:  { feature: 'documentEditing', title: 'The editor' },
   CREATOR:         { feature: 'upload',         title: 'Uploading' },
@@ -356,6 +357,7 @@ const TV_BLOCKED_VIEWS: Partial<Record<string, { feature: TvDisabledFeature; tit
 const AppsView = retryLazy(() => import('./components/AppsView'));
 const CrossoverView = retryLazy(() => import('./components/CrossoverView'));
 const PlajahPixelsView = retryLazy(() => import('./components/PlajahPixelsView'));
+const LightingDesigner = retryLazy(() => import('./components/LightingDesigner'));
 const TeleprompterApp = retryLazy(() => import('./components/teleprompter/TeleprompterApp'));
 const SpatialMixer = retryLazy(() => import('./components/spatialMixer/SpatialMixer'));
 const MediaConverter = retryLazy(() => import('./components/MediaConverter'));
@@ -5752,6 +5754,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
             {view === 'PLAJAH_PIXELS' && !tvBlocked && <PlajahPixelsView payload={pixelsPayload} onClose={() => { setPixelsPayload(null); setView(pixelsPayload?.album || pixelsPayload?.track ? 'PLAYER' : 'APPS'); }} />}
+
+            {view === 'LD_MODE' && !tvBlocked && (
+              <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <LightingDesigner onClose={() => setView('DASHBOARD')} />
+              </Suspense>
+            )}
 
             {view === 'TELEPROMPTER' && !tvBlocked && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>

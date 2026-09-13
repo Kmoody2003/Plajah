@@ -49,6 +49,15 @@ export const MUSIC_PERSONAS: Record<MusicPersonaId, MusicPersona> = {
     questions: ['Where\'s the tension and the release?', 'Does the harmony move enough?', 'What\'s the form?'],
     cares: [],
   },
+  LD: {
+    id: 'LD', name: 'The Lighting Director', epithet: 'the Lighting Director',
+    lens: 'Atmosphere, spatial energy and visual arc — how light should move with the music.',
+    protects: 'The emotional contrast between sections; that darkness is earned and light lands with impact.',
+    challenges: 'Flat energy (same lighting across every section), visual noise that fights the music, cool tones in warm moments.',
+    voice: 'Visual, talks in color temperature, throw, and timing — poetic but precise. Thinks in moments, not channels.',
+    questions: ['Where does the energy peak, and where should the audience breathe?', 'Is there enough contrast between verse and chorus?', 'What color story does this song tell?'],
+    cares: [],
+  },
 };
 
 export const MUSIC_COUNCIL_LIST: MusicPersona[] = Object.values(MUSIC_PERSONAS);

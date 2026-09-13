@@ -20,7 +20,7 @@ import {
   Mail, Rss, Sparkles, Clapperboard, MonitorPlay, Cctv, Search, HelpCircle, Monitor, Factory, Building2,
   Briefcase, MapPin, TrendingUp, Ticket, Home, LayoutPanelTop, Megaphone,
   Compass, Palette, Trophy, Bell, Plus, ChevronLeft,
-  ChevronRight, LogOut, Command, RotateCcw, X, Disc3, Grid3x3,
+  ChevronRight, LogOut, Command, RotateCcw, X, Disc3, Grid3x3, Lightbulb,
 } from 'lucide-react';
 import UniversalCommandResults from './UniversalCommandResults';
 
@@ -107,6 +107,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'POSTMAN', label: 'The Postman', icon: Mail },
     { id: 'APPS', label: 'Apps', icon: AppWindow },
     { id: 'CROSSOVER', label: 'Crossover', icon: Repeat },
+    { id: 'LD_MODE', label: 'LD', icon: Lightbulb, requiresUser: true },
   ]},
   { key: 'Plajah Business', icon: Building2, items: [
     { id: 'PLAJAH_BUSINESS', label: 'Plajah Business', icon: Briefcase, requiresUser: true },

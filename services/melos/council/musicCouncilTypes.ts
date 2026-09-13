@@ -3,8 +3,8 @@
 // and a grounded knowledge base, who propose → dispute → synthesise on a question about the user's music.
 // Aria is the single face; these are the team behind her. See docs/MELOS_COUNCIL_AND_COMPOSER.md.
 
-export type MusicPersonaId = 'PRODUCER' | 'MIX' | 'MASTER' | 'MUSICIAN' | 'COMPOSER';
-export const MUSIC_PERSONA_IDS: MusicPersonaId[] = ['PRODUCER', 'MIX', 'MASTER', 'MUSICIAN', 'COMPOSER'];
+export type MusicPersonaId = 'PRODUCER' | 'MIX' | 'MASTER' | 'MUSICIAN' | 'COMPOSER' | 'LD';
+export const MUSIC_PERSONA_IDS: MusicPersonaId[] = ['PRODUCER', 'MIX', 'MASTER', 'MUSICIAN', 'COMPOSER', 'LD'];
 
 export interface MusicPersona {
   id: MusicPersonaId;
