@@ -57,45 +57,127 @@ const ColorDot: React.FC<{ color: LDColor; size?: number; onClick?: () => void }
   />
 );
 
-/** Fixture discovery wizard — connection forms for Hue, Nanoleaf, Govee, Razer. */
+/** Fixture discovery wizard — zero-friction connection for all platforms. */
 const FixtureDiscovery: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const svc = useLightingService();
-  const [tab, setTab] = useState<'hue' | 'nanoleaf' | 'govee' | 'razer'>('hue');
-  const [hueToken, setHueToken] = useState('');
-  const [nanoleafIp, setNanoleafIp] = useState('');
-  const [nanoleafToken, setNanoleafToken] = useState('');
-  const [goveeKey, setGoveeKey] = useState('');
-  const [connecting, setConnecting] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
+  const [tab, setTab] = useState<'hue' | 'nanoleaf' | 'govee' | 'razer'>('razer');
+  const [connecting, setConnecting] = useState<string | null>(null);
 
-  const connect = async () => {
-    setConnecting(true);
-    setStatus(null);
-    try {
-      if (tab === 'hue' && hueToken) {
-        await smartLightingService.connectHue({ accessToken: hueToken });
-        setStatus(`✓ ${svc.lights.filter(l => l.platform === 'hue').length} Hue lights found`);
-      } else if (tab === 'nanoleaf' && nanoleafIp && nanoleafToken) {
-        await smartLightingService.connectNanoleaf({ ip: nanoleafIp, port: 16021, token: nanoleafToken });
-        setStatus('✓ Nanoleaf connected');
-      } else if (tab === 'govee' && goveeKey) {
-        await smartLightingService.connectGovee({ apiKey: goveeKey });
-        setStatus(`✓ ${svc.lights.filter(l => l.platform === 'govee').length} Govee devices found`);
-      } else if (tab === 'razer') {
-        const ok = await smartLightingService.connectRazer();
-        setStatus(ok ? '✓ Razer Chroma connected' : '✗ Synapse 3 not detected');
-      }
-    } catch {
-      setStatus('✗ Connection failed');
+  // ── Nanoleaf pairing state (guided flow) ──
+  const [nanoIp, setNanoIp] = useState('');
+  const [nanoPairing, setNanoPairing] = useState(false);
+  const [nanoCountdown, setNanoCountdown] = useState(0);
+
+  // ── Govee key state ──
+  const [goveeKey, setGoveeKey] = useState('');
+
+  // ── Auto-reconnect all saved credentials on mount ──
+  useEffect(() => {
+    const hueToken = localStorage.getItem('hue_access_token');
+    if (hueToken && !svc.connected.hue) smartLightingService.connectHue({ accessToken: hueToken });
+
+    const nanoSaved = localStorage.getItem('nanoleaf_config');
+    if (nanoSaved && !svc.connected.nanoleaf) {
+      try { const c = JSON.parse(nanoSaved); smartLightingService.connectNanoleaf(c); } catch {}
     }
-    setConnecting(false);
+
+    const goveeSaved = localStorage.getItem('govee_api_key');
+    if (goveeSaved && !svc.connected.govee) smartLightingService.connectGovee({ apiKey: goveeSaved });
+
+    if (!svc.connected.razer) smartLightingService.connectRazer().catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Hue: OAuth popup (user just signs into their Hue account) ──
+  useEffect(() => {
+    const onMessage = async (e: MessageEvent) => {
+      if (e.data?.type !== 'hue-auth' || !e.data.accessToken) return;
+      localStorage.setItem('hue_access_token', e.data.accessToken);
+      if (e.data.refreshToken) localStorage.setItem('hue_refresh_token', e.data.refreshToken);
+      setConnecting('hue');
+      await smartLightingService.connectHue({ accessToken: e.data.accessToken });
+      setConnecting(null);
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+
+  const connectHue = () => {
+    const w = 500, h = 700;
+    const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
+    const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
+    window.open('/api/hue/auth', 'hue-oauth', `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`);
+    setConnecting('hue');
   };
 
+  // ── Nanoleaf: guided pairing (hold button → we auto-grab the token) ──
+  const startNanoPairing = async () => {
+    if (!nanoIp.trim()) return;
+    setNanoPairing(true);
+    setNanoCountdown(30);
+
+    // Countdown timer while user holds the power button
+    const interval = setInterval(() => {
+      setNanoCountdown(prev => {
+        if (prev <= 1) { clearInterval(interval); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Poll for the token (user has 30 seconds to hold the button)
+    const ip = nanoIp.trim();
+    let token: string | null = null;
+    for (let attempt = 0; attempt < 15; attempt++) {
+      await new Promise(r => setTimeout(r, 2000));
+      try {
+        const resp = await fetch(`http://${ip}:16021/api/v1/new`, { method: 'POST' });
+        if (resp.ok) {
+          const data = await resp.json();
+          token = data.auth_token;
+          break;
+        }
+      } catch { /* user hasn't pressed button yet */ }
+    }
+
+    clearInterval(interval);
+    setNanoPairing(false);
+
+    if (token) {
+      const config = { ip, port: 16021, token };
+      localStorage.setItem('nanoleaf_config', JSON.stringify(config));
+      await smartLightingService.connectNanoleaf(config);
+    }
+  };
+
+  // ── Govee: just paste the key from the consumer app ──
+  const connectGovee = async () => {
+    if (!goveeKey.trim()) return;
+    setConnecting('govee');
+    localStorage.setItem('govee_api_key', goveeKey.trim());
+    await smartLightingService.connectGovee({ apiKey: goveeKey.trim() });
+    setConnecting(null);
+  };
+
+  // ── Razer: one-click ──
+  const connectRazer = async () => {
+    setConnecting('razer');
+    await smartLightingService.connectRazer();
+    setConnecting(null);
+  };
+
+  const disconnect = (platform: 'hue' | 'nanoleaf' | 'govee' | 'razer') => {
+    localStorage.removeItem(platform === 'hue' ? 'hue_access_token' : platform === 'nanoleaf' ? 'nanoleaf_config' : platform === 'govee' ? 'govee_api_key' : '');
+    if (platform === 'hue') localStorage.removeItem('hue_refresh_token');
+    smartLightingService.disconnectPlatform(platform);
+  };
+
+  const totalConnected = Object.values(svc.connected).filter(Boolean).length;
+
   const platforms = [
-    { id: 'hue' as const, label: 'Hue', color: '#FFD700', count: svc.lights.filter(l => l.platform === 'hue').length },
-    { id: 'nanoleaf' as const, label: 'Nanoleaf', color: '#00FF88', count: svc.lights.filter(l => l.platform === 'nanoleaf').length },
-    { id: 'govee' as const, label: 'Govee', color: '#FF4466', count: svc.lights.filter(l => l.platform === 'govee').length },
-    { id: 'razer' as const, label: 'Razer', color: '#00FF00', count: svc.lights.filter(l => l.platform === 'razer').length },
+    { id: 'razer' as const, emoji: '🐍', label: 'Razer Chroma', color: '#00FF00', desc: 'Automatic — just have Synapse 3 running' },
+    { id: 'hue' as const, emoji: '💡', label: 'Philips Hue', color: '#FFD700', desc: 'Sign in with your Hue account' },
+    { id: 'govee' as const, emoji: '🎨', label: 'Govee', color: '#FF4466', desc: 'Paste key from Govee Home app' },
+    { id: 'nanoleaf' as const, emoji: '🟢', label: 'Nanoleaf', color: '#00FF88', desc: 'Hold power button to pair' },
   ];
 
   return (
@@ -104,77 +186,194 @@ const FixtureDiscovery: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       className="absolute inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col"
     >
       <div className="flex items-center justify-between p-4 border-b border-gray-800">
-        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <Search size={18} className="text-[#FF8C00]" /> Discover Fixtures
-        </h2>
+        <div>
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Wifi size={18} className="text-[#FF8C00]" /> Connect Your Lights
+          </h2>
+          <p className="text-[10px] text-gray-500 mt-0.5">
+            {totalConnected > 0 ? `${totalConnected} platform${totalConnected > 1 ? 's' : ''} connected` : 'Select a platform to get started'}
+          </p>
+        </div>
         <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-800"><X size={18} className="text-gray-400" /></button>
       </div>
 
-      {/* Platform tabs */}
-      <div className="flex border-b border-gray-800">
-        {platforms.map(p => (
-          <button
-            key={p.id}
-            onClick={() => { setTab(p.id); setStatus(null); }}
-            className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-colors relative ${
-              tab === p.id ? 'text-white' : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            {p.label}
-            {p.count > 0 && <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: p.color + '33', color: p.color }}>{p.count}</span>}
-            {tab === p.id && <motion.div layoutId="disc-tab" className="absolute bottom-0 left-0 right-0 h-0.5" style={{ backgroundColor: p.color }} />}
-          </button>
-        ))}
-      </div>
+      {/* Platform cards */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {platforms.map(p => {
+          const connected = svc.connected[p.id] === true;
+          const lightCount = svc.lights.filter(l => l.platform === p.id).length;
+          const isActive = tab === p.id;
 
-      <div className="flex-1 p-6 space-y-4">
-        {tab === 'hue' && (
-          <>
-            <label className="block text-xs text-gray-400 uppercase tracking-wider">Hue Access Token</label>
-            <input value={hueToken} onChange={e => setHueToken(e.target.value)} placeholder="paste token from meethue.com"
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:border-[#FFD700] focus:outline-none" />
-            <p className="text-[10px] text-gray-600">Register at meethue.com/remote, OAuth → copy access_token</p>
-          </>
-        )}
-        {tab === 'nanoleaf' && (
-          <>
-            <label className="block text-xs text-gray-400 uppercase tracking-wider">Nanoleaf IP</label>
-            <input value={nanoleafIp} onChange={e => setNanoleafIp(e.target.value)} placeholder="192.168.1.xxx"
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:border-[#00FF88] focus:outline-none" />
-            <label className="block text-xs text-gray-400 uppercase tracking-wider mt-3">Auth Token</label>
-            <input value={nanoleafToken} onChange={e => setNanoleafToken(e.target.value)} placeholder="hold power 5s, then Generate Token"
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:border-[#00FF88] focus:outline-none" />
-          </>
-        )}
-        {tab === 'govee' && (
-          <>
-            <label className="block text-xs text-gray-400 uppercase tracking-wider">Govee API Key</label>
-            <input value={goveeKey} onChange={e => setGoveeKey(e.target.value)} placeholder="from Govee Home → gear → Apply for API Key"
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:border-[#FF4466] focus:outline-none" />
-          </>
-        )}
-        {tab === 'razer' && (
-          <div className="text-center py-8">
-            <div className="text-4xl mb-4">🐍</div>
-            <p className="text-sm text-gray-400 mb-1">Razer Chroma auto-connects via Synapse 3.</p>
-            <p className="text-xs text-gray-600">Make sure Synapse 3 is running on this machine.</p>
+          return (
+            <div key={p.id}>
+              <button
+                onClick={() => setTab(isActive ? tab : p.id)}
+                className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all text-left ${
+                  connected
+                    ? 'bg-green-500/5 border-green-500/20'
+                    : isActive ? 'bg-white/[0.04] border-white/10' : 'bg-white/[0.02] border-white/[0.06] hover:border-white/10'
+                }`}
+              >
+                <span className="text-2xl">{p.emoji}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-white">{p.label}</span>
+                    {connected && (
+                      <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
+                        {lightCount > 0 ? `${lightCount} light${lightCount > 1 ? 's' : ''}` : 'Connected'}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-gray-500 mt-0.5">{p.desc}</p>
+                </div>
+                <ChevronRight size={16} className={`text-gray-600 transition-transform ${isActive ? 'rotate-90' : ''}`} />
+              </button>
+
+              {/* Expanded setup panel */}
+              <AnimatePresence>
+                {isActive && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-4 py-4 space-y-3">
+                      {/* ── Razer: fully automatic ── */}
+                      {p.id === 'razer' && (
+                        connected ? (
+                          <div className="space-y-2">
+                            <p className="text-xs text-green-400 font-bold flex items-center gap-1.5">✓ Razer Chroma is syncing with your music</p>
+                            <p className="text-[10px] text-gray-500">Your keyboard, mouse, mousepad, and headset will react to the beat.</p>
+                            <button onClick={() => disconnect('razer')}
+                              className="text-[9px] font-bold text-red-400/60 hover:text-red-400 transition-colors">Disconnect</button>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <p className="text-xs text-gray-400">No API key needed — Plajah talks directly to Synapse 3 on your PC.</p>
+                            <button onClick={connectRazer} disabled={connecting === 'razer'}
+                              className="w-full py-3 rounded-xl text-sm font-bold bg-[#00FF00]/10 border border-[#00FF00]/30 text-[#00FF00] hover:bg-[#00FF00]/20 transition-all disabled:opacity-40">
+                              {connecting === 'razer' ? 'Detecting…' : '🐍 Connect Razer Chroma'}
+                            </button>
+                            {svc.connected.razer === false && (
+                              <p className="text-[10px] text-red-400/80">Synapse 3 not detected — make sure it's running on this machine.</p>
+                            )}
+                          </div>
+                        )
+                      )}
+
+                      {/* ── Hue: OAuth sign-in ── */}
+                      {p.id === 'hue' && (
+                        connected ? (
+                          <div className="space-y-2">
+                            <p className="text-xs text-green-400 font-bold flex items-center gap-1.5">
+                              ✓ {svc.lights.filter(l => l.platform === 'hue').length} lights, {svc.rooms.filter(r => r.platform === 'hue').length} rooms
+                            </p>
+                            <button onClick={() => disconnect('hue')}
+                              className="text-[9px] font-bold text-red-400/60 hover:text-red-400 transition-colors">Disconnect Hue</button>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <p className="text-xs text-gray-400">Sign in with your Philips Hue account — no developer setup needed.</p>
+                            <button onClick={connectHue} disabled={connecting === 'hue'}
+                              className="w-full py-3 rounded-xl text-sm font-bold bg-[#FFD700]/10 border border-[#FFD700]/30 text-[#FFD700] hover:bg-[#FFD700]/20 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
+                              {connecting === 'hue' ? <><RefreshCw size={14} className="animate-spin" /> Waiting for Hue…</> : '🌐 Sign In with Hue'}
+                            </button>
+                          </div>
+                        )
+                      )}
+
+                      {/* ── Govee: paste from consumer app ── */}
+                      {p.id === 'govee' && (
+                        connected ? (
+                          <div className="space-y-2">
+                            <p className="text-xs text-green-400 font-bold flex items-center gap-1.5">
+                              ✓ {svc.lights.filter(l => l.platform === 'govee').length} Govee devices syncing
+                            </p>
+                            <button onClick={() => disconnect('govee')}
+                              className="text-[9px] font-bold text-red-400/60 hover:text-red-400 transition-colors">Disconnect Govee</button>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <div className="p-3 bg-white/[0.03] rounded-xl border border-white/[0.06] space-y-2">
+                              <p className="text-xs font-bold text-white/60">How to get your key (takes 30 seconds):</p>
+                              <ol className="text-[10px] text-gray-400 space-y-1 list-decimal list-inside">
+                                <li>Open the <span className="text-white/70 font-bold">Govee Home</span> app on your phone</li>
+                                <li>Go to <span className="text-white/70 font-bold">Profile → ⚙️ Settings</span></li>
+                                <li>Tap <span className="text-white/70 font-bold">"Apply for API Key"</span></li>
+                                <li>Check your email — Govee sends the key in minutes</li>
+                              </ol>
+                            </div>
+                            <input value={goveeKey} onChange={e => setGoveeKey(e.target.value)} placeholder="Paste your API key here…"
+                              className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-gray-600 outline-none focus:border-[#FF4466]/40" />
+                            <button onClick={connectGovee} disabled={connecting === 'govee' || !goveeKey.trim()}
+                              className="w-full py-3 rounded-xl text-sm font-bold bg-[#FF4466]/10 border border-[#FF4466]/30 text-[#FF4466] hover:bg-[#FF4466]/20 transition-all disabled:opacity-40">
+                              {connecting === 'govee' ? 'Connecting…' : '🎨 Connect Govee'}
+                            </button>
+                            {svc.connected.govee === false && (
+                              <p className="text-[10px] text-red-400/80">Connection failed — double check the API key.</p>
+                            )}
+                          </div>
+                        )
+                      )}
+
+                      {/* ── Nanoleaf: guided pairing ── */}
+                      {p.id === 'nanoleaf' && (
+                        connected ? (
+                          <div className="space-y-2">
+                            <p className="text-xs text-green-400 font-bold flex items-center gap-1.5">✓ Nanoleaf panels syncing</p>
+                            <button onClick={() => disconnect('nanoleaf')}
+                              className="text-[9px] font-bold text-red-400/60 hover:text-red-400 transition-colors">Disconnect Nanoleaf</button>
+                          </div>
+                        ) : nanoPairing ? (
+                          <div className="text-center py-6 space-y-4">
+                            <div className="text-5xl animate-pulse">✋</div>
+                            <p className="text-sm font-bold text-[#00FF88]">Hold the power button on your Nanoleaf now</p>
+                            <p className="text-xs text-gray-400">Keep holding for 5-7 seconds until the LED blinks</p>
+                            <div className="text-2xl font-mono font-bold text-white/60">{nanoCountdown}s</div>
+                            <p className="text-[10px] text-gray-600">Plajah is listening for your panels…</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <p className="text-xs text-gray-400">Enter your Nanoleaf's IP address (check your router or the Nanoleaf app), then hold the power button to pair.</p>
+                            <input value={nanoIp} onChange={e => setNanoIp(e.target.value)} placeholder="192.168.1.xxx"
+                              className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-gray-600 outline-none focus:border-[#00FF88]/40" />
+                            <button onClick={startNanoPairing} disabled={!nanoIp.trim()}
+                              className="w-full py-3 rounded-xl text-sm font-bold bg-[#00FF88]/10 border border-[#00FF88]/30 text-[#00FF88] hover:bg-[#00FF88]/20 transition-all disabled:opacity-40">
+                              🟢 Start Pairing
+                            </button>
+                            {svc.connected.nanoleaf === false && (
+                              <p className="text-[10px] text-red-400/80">Pairing failed — make sure you're on the same WiFi network as your Nanoleaf.</p>
+                            )}
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+
+        {/* Screen-as-fixture option */}
+        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🖥️</span>
+            <div>
+              <p className="text-sm font-bold text-white">Screen-as-Fixture</p>
+              <p className="text-[10px] text-gray-500">Open Plajah in another browser tab — it'll sync automatically via the LD engine.</p>
+            </div>
+            <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#FF8C00]/20 text-[#FF8C00]">Auto</span>
           </div>
-        )}
-
-        {status && (
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className={`text-sm font-medium ${status.startsWith('✓') ? 'text-green-400' : 'text-red-400'}`}
-          >{status}</motion.p>
-        )}
+        </div>
       </div>
 
-      <div className="p-4 border-t border-gray-800 flex gap-3">
-        <button onClick={connect} disabled={connecting}
-          className="flex-1 py-3 rounded-xl bg-[#FF8C00]/20 border border-[#FF8C00]/40 text-[#FF8C00] font-bold text-sm hover:bg-[#FF8C00]/30 transition-colors disabled:opacity-50"
-        >
-          {connecting ? 'Connecting…' : 'Connect'}
+      <div className="p-4 border-t border-gray-800">
+        <button onClick={onClose}
+          className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm hover:bg-white/10 transition-colors">
+          Done
         </button>
-        <button onClick={onClose} className="px-6 py-3 rounded-xl bg-gray-800 text-gray-400 text-sm hover:bg-gray-700">Done</button>
       </div>
     </motion.div>
   );
