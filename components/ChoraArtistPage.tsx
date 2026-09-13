@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Album, Track, Video, UserProfile } from '../types';
-import { fetchArtistAlbums, fetchUserVideos, fetchUserProfile, followUser, unfollowUser, isFollowing } from '../services/backendService';
-import { auth } from '../firebase';
+import { fetchArtistAlbums, fetchUserVideos, fetchUserProfile, followUser, unfollowUser, isFollowing, auth } from '../services/backendService';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Play, Pause, Share2, UserPlus, UserMinus, ExternalLink,
