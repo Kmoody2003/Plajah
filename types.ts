@@ -1382,6 +1382,23 @@ export interface UserProfile {
   photoURL: string;
   email: string;
   bio?: string;
+  /** Public destinations shown in the profile's “Find me online” row. OAuth tokens
+   *  never belong here; these are public profile, artist, channel, and storefront URLs. */
+  socialLinks?: {
+    website?: string;
+    instagram?: string;
+    facebook?: string;
+    tiktok?: string;
+    youtube?: string;
+    linkedin?: string;
+    twitch?: string;
+    discord?: string;
+    spotify?: string;
+    appleMusic?: string;
+    amazonMusic?: string;
+    soundcloud?: string;
+    bandcamp?: string;
+  };
   followerCount: number;
   followingCount: number;
   following?: string[];

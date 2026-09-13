@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { X, Play, Music2, Film, BookOpen, Sparkles, Globe, ExternalLink, Clock, Zap } from 'lucide-react';
 import { UserProfile, Track, Video, Album, Article } from '../types';
+import { getSocialLinks } from '../services/socialLinks';
 
 interface Props {
   profile: UserProfile;
@@ -17,16 +18,7 @@ const LANDING_DURATION = 30;
 
 // ── Social link helpers ───────────────────────────────────────────────────────
 function socialLinks(profile: UserProfile): { label: string; href: string; icon: React.ReactNode }[] {
-  const links: { label: string; href: string; icon: React.ReactNode }[] = [];
-  if (profile.xUrl || profile.xHandle)
-    links.push({ label: 'X', href: profile.xUrl || `https://x.com/${profile.xHandle}`, icon: <XIcon /> });
-  if (profile.blueskyHandle)
-    links.push({ label: 'Bluesky', href: `https://bsky.app/profile/${profile.blueskyHandle}`, icon: <BskyIcon /> });
-  if (profile.threadsHandle)
-    links.push({ label: 'Threads', href: `https://threads.net/@${profile.threadsHandle}`, icon: <ThreadsIcon /> });
-  if (profile.mastodonHandle && profile.mastodonInstance)
-    links.push({ label: 'Mastodon', href: `https://${profile.mastodonInstance}/@${profile.mastodonHandle}`, icon: <Globe size={14} /> });
-  return links;
+  return getSocialLinks(profile).map(link => ({ label: link.label, href: link.url, icon: <Globe size={14} /> }));
 }
 
 // Minimal SVG icons (no external dep)

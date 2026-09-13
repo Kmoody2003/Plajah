@@ -25,6 +25,8 @@ const CAP_LABELS: Record<Capability, string> = {
 };
 import StoreProductManager from './StoreProductManager';
 import RelationshipSettings from './RelationshipSettings';
+import ProfileLinksSettings from './ProfileLinksSettings';
+import { invalidProfileLinks } from '../services/socialLinks';
 import CreatorPaymentDashboard from './CreatorPaymentDashboard';
 import WorldManagerView from './WorldManagerView';
 import { ThemePresetManager } from './ThemePresetManager';
@@ -227,6 +229,11 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
+    const invalidLinks = invalidProfileLinks(profile.socialLinks);
+    if (invalidLinks.length) {
+      alert(`Check these public links before saving: ${invalidLinks.join(', ')}.`);
+      return;
+    }
     setIsSaving(true);
     try {
       const newName = (profile.displayName || '').trim();
@@ -962,6 +969,11 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 </div>
 
                 <RelationshipSettings me={{ ...profile, uid: user.uid } as UserProfile} />
+
+                <ProfileLinksSettings
+                  value={profile.socialLinks}
+                  onChange={(socialLinks) => setProfile({ ...profile, socialLinks })}
+                />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div>
