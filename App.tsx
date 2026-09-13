@@ -5518,7 +5518,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <MusicView
                 onBack={() => setView('DASHBOARD')}
                 onSelectAlbum={handleSelectItem}
-                onVisitUser={handleVisitUser}
+                onVisitUser={(uid) => { setChoraArtistId(uid); setView('CHORA_ARTIST'); }}
                 userProfile={userProfile}
                 initialTab={musicInitialTab}
                 onUploadMusic={() => setShowCreator(true)}
