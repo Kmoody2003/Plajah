@@ -1059,10 +1059,32 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     const reordered = [...localTracks];
     const [moved] = reordered.splice(from, 1);
     reordered.splice(to, 0, moved);
+    // sync trackNo fields to match visual order
+    reordered.forEach((t, i) => { t.trackNo = i + 1; });
     setLocalTracks(reordered);
     if (isOwner) {
       try { await updateAlbum(album.id, { tracks: reordered }); } catch { /* non-critical */ }
     }
+  };
+
+  // ── Inline track‑name editing (owner only) ──
+  const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const commitTrackRename = async (trackId: string) => {
+    const trimmed = editingTitle.trim();
+    setEditingTrackId(null);
+    if (!trimmed || !isOwner) return;
+    const idx = localTracks.findIndex(t => t.id === trackId);
+    if (idx < 0 || localTracks[idx].title === trimmed) return;
+    const updated = [...localTracks];
+    updated[idx] = { ...updated[idx], title: trimmed };
+    setLocalTracks(updated);
+    try { await updateAlbum(album.id, { tracks: updated }); } catch { /* non-critical */ }
+  };
+  const startTrackRename = (track: Track) => {
+    if (!isOwner) return;
+    setEditingTrackId(track.id);
+    setEditingTitle(track.title || '');
   };
 
   const handleHnsSlotUpload = async (track: Track, slot: 1 | 2, file: File) => {
@@ -4015,8 +4037,29 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                       )}
                                       <span className="min-w-0 flex-1">
                                         {/* Track-list titles stay a single line (full title is the big header above).
-                                            Gatefold registry: sentence-case bold, no letterspacing shout. */}
-                                        <span className={`block truncate ${gatefoldOn ? 'text-[13px] font-bold' : 'text-sm font-bold uppercase tracking-widest'} ${isActive ? 'text-white' : 'text-white/60 group-hover:text-white'}`}>{t.title || 'Untitled'}</span>
+                                            Gatefold registry: sentence-case bold, no letterspacing shout.
+                                            Owner inline-edit: double-click to rename. */}
+                                        {isOwner && editingTrackId === t.id ? (
+                                          <input
+                                            autoFocus
+                                            type="text"
+                                            value={editingTitle}
+                                            onChange={e => setEditingTitle(e.target.value)}
+                                            onBlur={() => commitTrackRename(t.id)}
+                                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitTrackRename(t.id); } if (e.key === 'Escape') setEditingTrackId(null); }}
+                                            onClick={e => e.stopPropagation()}
+                                            className={`block w-full bg-white/10 border border-white/20 rounded px-1.5 py-0.5 outline-none focus:border-[#D40055] ${gatefoldOn ? 'text-[13px] font-bold' : 'text-sm font-bold uppercase tracking-widest'} text-white`}
+                                          />
+                                        ) : (
+                                          <span
+                                            className={`block truncate ${gatefoldOn ? 'text-[13px] font-bold' : 'text-sm font-bold uppercase tracking-widest'} ${isActive ? 'text-white' : 'text-white/60 group-hover:text-white'}`}
+                                            onDoubleClick={isOwner ? (e) => { e.stopPropagation(); e.preventDefault(); startTrackRename(t); } : undefined}
+                                            title={isOwner ? 'Double-click to rename' : undefined}
+                                          >
+                                            {t.title || 'Untitled'}
+                                            {isOwner && <Pen size={9} className="inline-block ml-1.5 opacity-0 group-hover:opacity-40 transition-opacity" />}
+                                          </span>
+                                        )}
                                         {/* Live lyrics — only when there's a real caption (getActiveCaption returns '...' when none) */}
                                         {isActive && isCurrentTrackGlobal && getCurrentCaption() !== '...' && <CaptionTicker caption={getCurrentCaption()} />}
                                       </span>
