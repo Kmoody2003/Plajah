@@ -1591,6 +1591,9 @@ export interface UserProfile {
   crossoverConversions?: number; // lifetime Crossover conversions used (free tier is capped)
   isFeatured?: boolean;
   featuredArtistPhoto?: string;
+  /** Separate profile picture for the user's Chora (music) artist identity.
+   *  Falls back to photoURL when unset. */
+  choraPhotoURL?: string;
   masterEmail?: string;
   aliases?: UserAlias[];
   partnerConfig?: PartnerConfig;

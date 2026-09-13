@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Album, Track, Video, UserProfile } from '../types';
-import { fetchArtistAlbums, fetchUserVideos, fetchUserProfile, followUser, unfollowUser, isFollowing, auth } from '../services/backendService';
+import { fetchArtistAlbums, fetchUserVideos, fetchUserProfile, followUser, unfollowUser, isFollowing, auth, uploadImageWithDerivatives, updateUserProfile } from '../services/backendService';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Play, Pause, Share2, UserPlus, UserMinus, ExternalLink,
   Music2, Film, ShoppingBag, CalendarDays, User, Heart, Disc,
-  Clock, ChevronRight, Sparkles, Globe
+  Clock, ChevronRight, Sparkles, Globe, Camera
 } from 'lucide-react';
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -105,6 +105,27 @@ const ChoraArtistPage: React.FC<Props> = ({ artistId, onBack, onSelectAlbum, onV
 
   const isOwn = auth.currentUser?.uid === artistId;
 
+  // ── Chora photo upload ──
+  const choraPhotoInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const handleChoraPhotoUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !auth.currentUser) return;
+    setUploadingPhoto(true);
+    try {
+      const img = await uploadImageWithDerivatives(`users/${auth.currentUser.uid}/chora_photo`, file);
+      const url = img.display;
+      await updateUserProfile(auth.currentUser.uid, { choraPhotoURL: url } as any);
+      setProfile(prev => prev ? { ...prev, choraPhotoURL: url } : null);
+    } catch (err) {
+      console.error('Failed to upload Chora photo:', err);
+    }
+    setUploadingPhoto(false);
+    // Reset so the same file can be re-selected
+    if (choraPhotoInputRef.current) choraPhotoInputRef.current.value = '';
+  }, []);
+
   // ── Loading state ──
   if (loading) {
     return (
@@ -114,7 +135,7 @@ const ChoraArtistPage: React.FC<Props> = ({ artistId, onBack, onSelectAlbum, onV
     );
   }
 
-  const heroImage = profile?.photoURL || albums[0]?.coverImage || '';
+  const heroImage = profile?.choraPhotoURL || profile?.featuredArtistPhoto || profile?.photoURL || albums[0]?.coverImage || '';
   const artistName = profile?.displayName || albums[0]?.artist || 'Unknown Artist';
   const bio = profile?.bio || albums[0]?.artistBio || '';
   const genres = [...new Set(albums.map(a => a.genre).filter(Boolean))].slice(0, 4) as string[];
@@ -140,7 +161,7 @@ const ChoraArtistPage: React.FC<Props> = ({ artistId, onBack, onSelectAlbum, onV
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
-          className="w-48 h-48 lg:w-64 lg:h-64 rounded-2xl overflow-hidden shrink-0 shadow-2xl shadow-purple-900/30 border border-white/10"
+          className="relative w-48 h-48 lg:w-64 lg:h-64 rounded-2xl overflow-hidden shrink-0 shadow-2xl shadow-purple-900/30 border border-white/10 group/photo"
         >
           {heroImage ? (
             <img src={heroImage} alt={artistName} className="w-full h-full object-cover" />
@@ -148,6 +169,34 @@ const ChoraArtistPage: React.FC<Props> = ({ artistId, onBack, onSelectAlbum, onV
             <div className="w-full h-full bg-gradient-to-br from-[#6B0099] to-[#D40055] flex items-center justify-center">
               <User size={64} className="text-white/30" />
             </div>
+          )}
+          {/* Owner upload overlay */}
+          {isOwn && (
+            <>
+              <input
+                ref={choraPhotoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleChoraPhotoUpload}
+                className="hidden"
+              />
+              <button
+                onClick={() => choraPhotoInputRef.current?.click()}
+                disabled={uploadingPhoto}
+                className="absolute inset-0 flex flex-col items-center justify-center bg-black/0 group-hover/photo:bg-black/50 transition-all cursor-pointer"
+              >
+                <div className="opacity-0 group-hover/photo:opacity-100 transition-opacity flex flex-col items-center gap-1.5">
+                  {uploadingPhoto ? (
+                    <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Camera size={24} className="text-white" />
+                  )}
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/80">
+                    {uploadingPhoto ? 'Uploading…' : 'Change Chora Photo'}
+                  </span>
+                </div>
+              </button>
+            </>
           )}
         </motion.div>
 
