@@ -119,6 +119,9 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'HELP_CENTER', label: 'Help Center', icon: HelpCircle },
     { id: 'BROWSER', label: 'Partner Sites', icon: Monitor },
   ]},
+  { key: 'Wellbeing', icon: Sparkles, items: [
+    { id: 'ORA', label: 'Ora', icon: Sparkles, requiresUser: true },
+  ]},
 ];
 
 const PINNED_IDS: ViewId[] = ['DASHBOARD', 'FEED', 'MUSIC', 'VIDEOS', 'PLAJAH_SPORTS', 'CHAT'];

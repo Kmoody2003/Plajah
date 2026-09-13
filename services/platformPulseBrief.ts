@@ -3,6 +3,7 @@ import { auth, db } from './backendService';
 import { assembleRhythm } from './oraRhythm';
 import { assembleWorkbench, loose } from './oraWorkbench';
 import { getCheckin, getProfile, listGoals, listRituals, today } from './oraService';
+import { currentJournalDaypart, getNudgePrompt, hasWrittenToday } from './oraJournalNudge';
 
 export type PulseBriefKind = 'SCHEDULE' | 'ASSIGNMENT' | 'TASK' | 'PROJECT' | 'WELLNESS' | 'INSIGHT';
 
@@ -95,6 +96,15 @@ export async function assemblePlatformPulseBrief(accountType?: string): Promise<
     items.push({ id: 'ora_checkin', kind: 'WELLNESS', eyebrow: 'Wellness nudge', title: 'How is your energy right now?', detail: ritual ? `${ritual.name} is ready when you are.` : 'A five-second check-in can shape the rest of your day.' });
   } else if (oraEnabled && checkin?.energy && checkin.energy <= 2) {
     items.push({ id: 'ora_energy', kind: 'WELLNESS', eyebrow: 'Wellness insight', title: 'Keep the next block light', detail: 'Your energy check-in was low. Protect some recovery time.' });
+  }
+
+  // Journal invitation — daypart-aware, only if the user hasn't written today.
+  if (oraEnabled && !hasWrittenToday(today())) {
+    const daypart = currentJournalDaypart();
+    if (daypart) {
+      const { prompt, insight } = getNudgePrompt(daypart);
+      items.push({ id: 'ora_journal', kind: 'WELLNESS', eyebrow: 'Journal invitation', title: prompt, detail: insight });
+    }
   }
 
   const dueToday = items.filter((item) => item.urgent).length;
