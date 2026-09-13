@@ -2951,7 +2951,9 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   // Tela reference-embed demo (P2b — live/follow-latest/pinned side by side)
   | 'TELA_EMBED_DEMO'
   // Chora Mixes — the dedicated long-form DJ-set player (waveform + Pixels auto-show)
-  | 'MIX_PLAYER';
+  | 'MIX_PLAYER'
+  // Chora Artist Page — music-centric artist profile (Editorial Gallery layout)
+  | 'CHORA_ARTIST';
 
 // ── Script Writing Studio ─────────────────────────────────────────────────────
 

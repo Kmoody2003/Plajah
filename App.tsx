@@ -408,6 +408,7 @@ const TerraFeed = retryLazy(() => import('./components/terra/TerraFeed'));
 const TerraListings = retryLazy(() => import('./components/terra/ListingsManager'));
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
 const ArtistProjectManager = retryLazy(() => import('./components/ArtistProjectManager'));
+const ChoraArtistPage = retryLazy(() => import('./components/ChoraArtistPage'));
 const MelosWorkspace = retryLazy(() => import('./components/melos/MelosWorkspace'));
 const CareerImportStudio = retryLazy(() => import('./components/CareerImportStudio'));
 const StudioView = retryLazy(() => import('./components/ManagerSuite/StudioView'));
@@ -969,6 +970,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [viewedUserId, setViewedUserId] = useState<string | null>(null);
+  const [choraArtistId, setChoraArtistId] = useState<string | null>(null);
   const [initialProfileTab, setInitialProfileTab] = useState<string | undefined>(undefined);
   const [selectedBusinessPage, setSelectedBusinessPage] = useState<any>(null);
   const [terraPassportTarget, setTerraPassportTarget] = useState<{ parcelId?: string; listingKey?: string } | null>(null);
@@ -1780,6 +1782,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       if (!user) { loginWithGoogle(); return; }
       if (params?.productionId) setMelosProductionId(params.productionId);
       setView('MELOS');
+    } else if (target === 'CHORA_ARTIST') {
+      if (params?.artistId) setChoraArtistId(params.artistId);
+      setView('CHORA_ARTIST');
     } else if (target === 'ARTIST_MANAGER' || target === 'AD_PACKAGES' || target === 'ARTIST_BOARDS' || target === 'EVENT_PRODUCTION_STUDIO' || target === 'TICKET_DESIGNER') {
       if (!user) { loginWithGoogle(); return; }
       setView(target as any);
@@ -5569,6 +5574,26 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
 
+            {/* ── Chora Artist Page — music-centric artist profile ── */}
+            {view === 'CHORA_ARTIST' && choraArtistId && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading artist…</div>}>
+                <ChoraArtistPage
+                  artistId={choraArtistId}
+                  onBack={() => setView('MUSIC')}
+                  onSelectAlbum={(album) => {
+                    setSelectedVideo(null); setSelectedBook(null);
+                    setSelectedAlbum(album);
+                    setView('PLAYER');
+                  }}
+                  onVisitProfile={handleVisitUser}
+                  onPlayTrack={(track, album) => {
+                    setSelectedAlbum(album);
+                    setView('PLAYER');
+                  }}
+                />
+              </Suspense>
+            )}
+
             {/* ── Script Writing Studio — film, TV, stage ── */}
             {view === 'SCRIPT_STUDIO' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading Script Studio…</div>}>
@@ -5939,7 +5964,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   setAlbums(prev => prev.map(a => a.id === updatedAlbum.id ? updatedAlbum : a));
                 }}
                 onPurchase={handlePurchase}
-                onVisitUser={handleVisitUser}
+                onVisitUser={(uid) => { setChoraArtistId(uid); setView('CHORA_ARTIST'); }}
                 onOpenItem={handleSelectItem}
                 onNavigateToWorld={(worldId, characterId) => { setViewedUserId(selectedAlbum.ownerId || user?.uid || ''); setWorldFocus({ worldId, characterId }); setView('WORLDS'); }}
                 isPublic={isPublicView}
