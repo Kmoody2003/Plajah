@@ -23,6 +23,27 @@ import {
   type LDColor,
 } from './lightShowEngine';
 
+// ── Visualizer Sync Bus ─────────────────────────────────────────────────────
+// A mutable ref that GlobalLighting reads every animation frame. No
+// subscriptions, no React — just a shared object on the module scope.
+// When `active` is true, GlobalLighting overrides its local palette/intensity
+// with whatever the LD bridge is outputting, keeping beams in perfect sync.
+
+export const ldSyncBus = {
+  /** True when the LD bridge is running and should drive the on-screen visualizer. */
+  active: false,
+  /** Hex color strings for each beam fixture (same order as beamColors). */
+  beamColors: [] as string[],
+  /** Master intensity 0-1. */
+  intensity: 1,
+  /** Overall light color hex (ambient wash). */
+  lightColor: '#ffffff',
+  /** Whether a beat was just detected this frame. */
+  isBeat: false,
+  /** Strobe rate (0 = off). */
+  strobe: 0,
+};
+
 // ── Types ───────────────────────────────────────────────────────────────────
 
 export interface LDBridgeState {
@@ -183,7 +204,13 @@ class LDBridge {
 
     try { this.broadcastChannel = new BroadcastChannel(SCREEN_CHANNEL_NAME); } catch { /* not supported */ }
 
+    // Auto-connect Razer Chroma if Synapse 3 is running (fire-and-forget)
+    if (!smartLightingService.connected.razer) {
+      smartLightingService.connectRazer().catch(() => {});
+    }
+
     this.state.running = true;
+    ldSyncBus.active = true;
     this.state.connectedLightCount = smartLightingService.lights.length;
     this.runLoop();
     this.notify();
@@ -194,6 +221,7 @@ class LDBridge {
     if (this.rafId) cancelAnimationFrame(this.rafId);
     this.rafId = undefined;
     this.state.running = false;
+    ldSyncBus.active = false;
     this._showRef = null;
     this.broadcastChannel?.close();
     this.broadcastChannel = null;
@@ -277,6 +305,26 @@ class LDBridge {
 
       // 5. Update connected counts
       this.state.connectedLightCount = smartLightingService.lights.length;
+
+      // 6. Write to sync bus so GlobalLighting reads it every frame
+      if (globalState) {
+        const hexColor = hslToHex(globalState.color);
+        ldSyncBus.lightColor = hexColor;
+        ldSyncBus.intensity = globalState.intensity;
+        ldSyncBus.isBeat = audio.isBeat;
+        ldSyncBus.strobe = globalState.strobe ?? 0;
+
+        // Build beam color array from the active palette (so all beams match LD)
+        const palette = this.state.activePalette.length > 0
+          ? this.state.activePalette
+          : show.scenes[0]?.palette || [];
+        if (palette.length > 0) {
+          ldSyncBus.beamColors = palette.map(c => hslToHex(c));
+        } else {
+          ldSyncBus.beamColors = [hexColor];
+        }
+      }
+
       this.notify();
     };
 

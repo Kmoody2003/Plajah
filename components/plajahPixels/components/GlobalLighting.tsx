@@ -1,6 +1,7 @@
 
 import React, { useRef, useEffect, useMemo } from 'react';
 import { VisualizationConfig } from '../types';
+import { ldSyncBus } from '../../../services/ldBridge';
 
 interface GlobalLightingProps {
     config: VisualizationConfig;
@@ -106,12 +107,28 @@ const GlobalLighting: React.FC<GlobalLightingProps> = ({ config, analyser, isPla
 
             // Beat strobe decay
             if (beatDecayRef.current > 0) beatDecayRef.current = Math.max(0, beatDecayRef.current - 0.06);
-            const strokeFlash = cfg.beamStrobeOnBeat ? beatDecayRef.current : 0;
+            let strokeFlash = cfg.beamStrobeOnBeat ? beatDecayRef.current : 0;
 
             const t = performance.now() * 0.001 * (cfg.speed || 1);
-            const intensity = cfg.lightingIntensity ?? 1;
+            let intensity = cfg.lightingIntensity ?? 1;
             const W = canvas.width;
             const H = canvas.height;
+
+            // ── LD Sync: when the bridge is active, override palette + intensity ──
+            // This keeps the on-screen visualizer in perfect sync with smart lights
+            // (Razer Chroma, Hue, Nanoleaf, Govee) driven by the same LD engine.
+            let activePalette = palette;
+            let activeLightColor = cfg.lightColor || palette[0] || '#ffffff';
+            if (ldSyncBus.active) {
+                if (ldSyncBus.beamColors.length > 0) activePalette = ldSyncBus.beamColors;
+                activeLightColor = ldSyncBus.lightColor;
+                intensity = ldSyncBus.intensity;
+                // LD beat detection drives strobe flash too
+                if (ldSyncBus.isBeat) {
+                    beatDecayRef.current = 1.0;
+                    strokeFlash = 1.0;
+                }
+            }
 
             ctx.globalCompositeOperation = 'screen';
 
@@ -122,7 +139,7 @@ const GlobalLighting: React.FC<GlobalLightingProps> = ({ config, analyser, isPla
 
             // ── 1. Ambient moving lissajous wash ────────────────────────────
             {
-                const lightColorHex = cfg.lightColor || palette[0] || '#ffffff';
+                const lightColorHex = activeLightColor;
                 const rgb = hexToRgb(lightColorHex);
                 const lx = W * 0.5 + Math.sin(t * 0.7) * W * 0.38;
                 const ly = H * 0.5 + Math.sin(t * 1.3) * H * 0.28;
@@ -140,7 +157,7 @@ const GlobalLighting: React.FC<GlobalLightingProps> = ({ config, analyser, isPla
             // ── 2. Volumetric stage fixtures ─────────────────────────────────
             if (cfg.enableBeams) {
                 fixtures.forEach((fix, fi) => {
-                    const colorHex = palette[fi % palette.length] || '#ffffff';
+                    const colorHex = activePalette[fi % activePalette.length] || '#ffffff';
                     const rgb = hexToRgb(colorHex);
 
                     // Mount point (slightly above canvas top for clean cone origin)
