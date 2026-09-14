@@ -640,16 +640,8 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     return getSortedArtists(); // CHORA
   };
 
-  // Clicking a synthetic personal artist card opens their locker album (or plays their first track).
+  // Clicking an artist card always navigates to their artist page.
   const handleArtistCardClick = (artist: UserProfile) => {
-    if (typeof artist.uid === 'string' && artist.uid.startsWith('personal:')) {
-      const name = artist.displayName;
-      const albs = ownedAlbums.filter(a => a.artist === name);
-      if (albs.length) { onSelectAlbum(albs[0]); return; }
-      const trk = personalTracks.find(t => (t.artist || 'Unknown Artist') === name);
-      if (trk) playTrack(trk, null, 'LIBRARY');
-      return;
-    }
     onVisitUser(artist.uid, 'CONTENT');
   };
 
@@ -1119,7 +1111,9 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
               <div className="flex items-center justify-between gap-1">
                 <button
-                  onClick={() => setSelectedArchiveArtist(track.artist)}
+                  onClick={() => track.source === 'AUDIUS' && track.artistId
+                    ? onVisitUser(`audius:${track.artistId}`)
+                    : setSelectedArchiveArtist(track.artist)}
                   className="text-[9px] font-bold uppercase tracking-widest hover:text-small-orange transition-colors truncate"
                   style={{ color: track.source === 'AUDIUS' ? 'rgba(168,85,247,0.8)' : 'rgba(255,255,255,0.4)' }}
                 >
@@ -1842,7 +1836,8 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                             <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[6px] font-black" style={{ background: 'rgba(126,34,206,0.85)', color: '#e9d5ff' }}>AUDIUS</div>
                           </div>
                           <div className="flex items-center justify-between gap-1 mt-0.5">
-                            <p className="text-[8px] truncate" style={{ color: 'rgba(168,85,247,0.7)' }}>{track.artist}</p>
+                            <p className="text-[8px] truncate cursor-pointer hover:underline" style={{ color: 'rgba(168,85,247,0.7)' }}
+                              onClick={(e) => { e.stopPropagation(); if (track.artistId) onVisitUser(`audius:${track.artistId}`); }}>{track.artist}</p>
                             {personalPlaylists.length > 0 && (
                               <button onClick={e => { e.stopPropagation(); setExternalTrackPicker(track); }}
                                 className="tap shrink-0 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -1899,7 +1894,9 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                           <img src={thumb(track.thumbnailUrl, THUMB.small)} className="w-10 h-10 rounded-lg object-cover shrink-0" loading="lazy" />
                           <div className="flex-1 min-w-0">
                             <p className="text-[10px] font-black uppercase tracking-widest truncate group-hover:text-purple-400 transition-colors">{track.title}</p>
-                            <p className="text-[8px] truncate" style={{ color: 'rgba(168,85,247,0.6)' }}>{track.artist} {track.genre ? `· ${track.genre}` : ''}</p>
+                            <p className="text-[8px] truncate" style={{ color: 'rgba(168,85,247,0.6)' }}>
+                              <span className="cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); if (track.artistId) onVisitUser(`audius:${track.artistId}`); }}>{track.artist}</span> {track.genre ? `· ${track.genre}` : ''}
+                            </p>
                           </div>
                           <Play size={12} style={{ color: 'rgba(168,85,247,0.5)' }} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
@@ -2757,7 +2754,8 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                                       <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[6px] font-black" style={{ background: 'rgba(126,34,206,0.85)', color: '#e9d5ff' }}>AUDIUS</div>
                                     </div>
                                     <h5 className="text-[10px] font-black uppercase tracking-widest truncate">{track.title}</h5>
-                                    <p className="text-[8px] font-bold uppercase tracking-widest" style={{ color: 'rgba(168,85,247,0.6)' }}>{track.artist}</p>
+                                    <p className="text-[8px] font-bold uppercase tracking-widest cursor-pointer hover:underline" style={{ color: 'rgba(168,85,247,0.6)' }}
+                                      onClick={(e) => { e.stopPropagation(); if (track.artistId) onVisitUser(`audius:${track.artistId}`); }}>{track.artist}</p>
                                   </div>
                                 ))}
                               </div>

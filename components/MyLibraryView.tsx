@@ -673,7 +673,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
     const releaseTracks = isSingle ? [track] : currentList;
     return {
       id: isSingle ? `locker-single:${track.id}` : (track.albumId || `locker-album:${track.albumTitle || title || track.id}`),
-      ownerId: profile.uid,
+      ownerId: (track as any).artistId || (track.artist ? `personal:${track.artist}` : profile.uid),
       title: isSingle ? (track.title || 'Untitled Single') : (track.albumTitle || title || 'Album'),
       artist: track.artist || profile.displayName || 'My Vault',
       coverImage: track.albumCover || track.images?.[0] || 'https://images.unsplash.com/photo-1614680376573-df3480f0c6ff?auto=format&fit=crop&w=1200&q=85',

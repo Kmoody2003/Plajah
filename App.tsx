@@ -601,7 +601,7 @@ const App: React.FC = () => {
     // need to sign in on the phone first and then approve, and losing the ?c= code mid-flow
     // means walking back to the television for a new one.
     if (window.location.pathname.startsWith('/link')) return true;
-    return /^\/(profile|release|event|clubs|athlete|book)\//.test(window.location.pathname);
+    return /^\/(profile|release|event|clubs|athlete|book|artist)\//.test(window.location.pathname);
   })();
 
   const [view, setViewInternal] = useState<AppView>(pitchInitialView);
@@ -2342,6 +2342,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         return;
       }
 
+      // Artist deep-links: /artist/:artistId
+      if (pathParts[1] === 'artist' && pathParts[2]) {
+        setChoraArtistId(pathParts[2]);
+        setView('CHORA_ARTIST');
+        setIsLoading(false);
+        return;
+      }
+
       await loadAlbums();
       setIsLoading(false);
     };
@@ -2627,6 +2635,29 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } catch (err) {
       console.error(err);
     }
+  };
+
+  // Smart artist router — handles audius:, personal:, and Plajah UIDs
+  const handleVisitArtist = async (uid: string) => {
+    if (!uid) return;
+    // Audius artists → AudiusArtistPage
+    if (uid.startsWith('audius:')) {
+      const id = uid.replace(/^audius:/, '');
+      if (id) {
+        const art = await fetchAudiusArtistById(id).catch(() => null);
+        if (art) { setAudiusArtist(art); setSelectedAlbum(null); setView('AUDIUS_ARTIST' as AppView); return; }
+      }
+      return;
+    }
+    // Personal/locker artists → stay on Music with Artists tab focused
+    if (uid.startsWith('personal:')) {
+      setMusicInitialTab('ARTISTS');
+      setView('MUSIC');
+      return;
+    }
+    // Plajah users → ChoraArtistPage
+    setChoraArtistId(uid);
+    setView('CHORA_ARTIST');
   };
 
   const handleWelcomePackageDismiss = async () => {
@@ -5536,7 +5567,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <MusicView
                 onBack={() => setView('DASHBOARD')}
                 onSelectAlbum={handleSelectItem}
-                onVisitUser={(uid) => { setChoraArtistId(uid); setView('CHORA_ARTIST'); }}
+                onVisitUser={(uid) => handleVisitArtist(uid)}
                 userProfile={userProfile}
                 initialTab={musicInitialTab}
                 onUploadMusic={() => setShowCreator(true)}
@@ -5988,7 +6019,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   setAlbums(prev => prev.map(a => a.id === updatedAlbum.id ? updatedAlbum : a));
                 }}
                 onPurchase={handlePurchase}
-                onVisitUser={(uid) => { setChoraArtistId(uid); setView('CHORA_ARTIST'); }}
+                onVisitUser={(uid) => handleVisitArtist(uid)}
                 onOpenItem={handleSelectItem}
                 onNavigateToWorld={(worldId, characterId) => { setViewedUserId(selectedAlbum.ownerId || user?.uid || ''); setWorldFocus({ worldId, characterId }); setView('WORLDS'); }}
                 isPublic={isPublicView}
