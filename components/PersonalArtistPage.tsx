@@ -175,9 +175,9 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks: lockerT
             loading="eager"
           />
         ) : (
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #6B0099 0%, #D40055 50%, #FF8C00 100%)' }} />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #005f73 0%, #0a9396 50%, #94d2bd 100%)' }} />
         )}
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(10,6,16,0.3) 0%, rgba(10,6,16,0.7) 60%, #0A0610 100%)' }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(10,14,20,0.3) 0%, rgba(10,14,20,0.7) 60%, #080c10 100%)' }} />
 
         <button
           onClick={onBack}
@@ -192,7 +192,7 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks: lockerT
             <img
               src={profile.thumbnail}
               className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover shadow-2xl shrink-0"
-              style={{ border: '2px solid rgba(255,255,255,0.15)' }}
+              style={{ border: '2px solid rgba(0,218,243,0.3)' }}
             />
           )}
           <div className="min-w-0 flex-1">
@@ -204,7 +204,7 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks: lockerT
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {profile.tags.slice(0, 5).map(tag => (
                   <span key={tag} className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest"
-                    style={{ background: 'rgba(107,0,153,0.3)', border: '1px solid rgba(107,0,153,0.4)', color: '#c084fc' }}>
+                    style={{ background: 'rgba(0,218,243,0.15)', border: '1px solid rgba(0,218,243,0.35)', color: '#67e8f9' }}>
                     {tag}
                   </span>
                 ))}
@@ -215,7 +215,7 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks: lockerT
                 {profile.socials.map(s => (
                   <a key={s.platform} href={s.url} target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all hover:scale-105"
-                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(0,218,243,0.2)' }}>
                     <span>{SOCIAL_ICONS[s.platform] || '🔗'}</span>
                     <span>{s.label}</span>
                     <ExternalLink size={8} className="opacity-40" />
@@ -230,10 +230,10 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks: lockerT
       {/* ── Upcoming releases banner ── */}
       {upcomingReleases.length > 0 && (
         <div className="mx-6 sm:mx-8 -mt-2 mb-2 p-3 rounded-xl flex items-center gap-3"
-          style={{ background: 'linear-gradient(135deg, rgba(107,0,153,0.25), rgba(212,0,85,0.2))', border: '1px solid rgba(107,0,153,0.3)' }}>
-          <Sparkles size={16} className="text-purple-400 shrink-0" />
+          style={{ background: 'linear-gradient(135deg, rgba(0,218,243,0.2), rgba(14,165,233,0.15))', border: '1px solid rgba(0,218,243,0.35)' }}>
+          <Sparkles size={16} className="text-cyan-400 shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-purple-300">Upcoming Release</p>
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-300">Upcoming Release</p>
             <p className="text-xs font-bold truncate">{upcomingReleases[0].title} · {fmtDate(upcomingReleases[0].firstReleaseDate)}</p>
           </div>
         </div>
@@ -241,7 +241,7 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks: lockerT
 
       {/* ── Tab bar ── */}
       <div className="sticky top-0 z-40 backdrop-blur-xl border-b px-4 sm:px-8"
-        style={{ background: 'rgba(10,6,16,0.8)', borderColor: 'rgba(255,255,255,0.08)' }}>
+        style={{ background: 'rgba(8,12,16,0.85)', borderColor: 'rgba(255,255,255,0.08)' }}>
         <div className="flex gap-1 overflow-x-auto py-2 hide-scrollbar">
           {visibleTabs.map(tab => {
             const active = activeTab === tab.id;
@@ -249,14 +249,14 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks: lockerT
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className="relative flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.15em] whitespace-nowrap transition-all"
                 style={{
-                  background: active ? 'rgba(107,0,153,0.3)' : 'transparent',
-                  color: active ? '#e9d5ff' : 'rgba(255,255,255,0.35)',
+                  background: active ? 'rgba(0,218,243,0.2)' : 'transparent',
+                  color: active ? '#a5f3fc' : 'rgba(255,255,255,0.35)',
                 }}>
                 <tab.icon size={13} />
                 {tab.label}
                 {tab.id === 'LIBRARY' && myTracks.length > 0 && (
                   <span className="ml-1 px-1.5 py-0.5 rounded-full text-[8px]"
-                    style={{ background: 'rgba(212,0,85,0.4)', color: '#fda4af' }}>
+                    style={{ background: 'rgba(0,218,243,0.35)', color: '#cffafe' }}>
                     {myTracks.length}
                   </span>
                 )}
@@ -268,7 +268,7 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks: lockerT
                 )}
                 {active && (
                   <motion.div layoutId="personal-artist-tab" className="absolute inset-0 rounded-full -z-10"
-                    style={{ background: 'rgba(107,0,153,0.3)', border: '1px solid rgba(107,0,153,0.4)' }}
+                    style={{ background: 'rgba(0,218,243,0.2)', border: '1px solid rgba(0,218,243,0.4)' }}
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }} />
                 )}
               </button>
@@ -331,9 +331,9 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks: lockerT
                           <button key={t} onClick={() => setDiscoFilter(t)}
                             className="px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all"
                             style={{
-                              background: discoFilter === t ? 'rgba(107,0,153,0.4)' : 'rgba(255,255,255,0.05)',
-                              color: discoFilter === t ? '#e9d5ff' : 'rgba(255,255,255,0.35)',
-                              border: `1px solid ${discoFilter === t ? 'rgba(107,0,153,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                              background: discoFilter === t ? 'rgba(0,218,243,0.25)' : 'rgba(255,255,255,0.05)',
+                              color: discoFilter === t ? '#a5f3fc' : 'rgba(255,255,255,0.35)',
+                              border: `1px solid ${discoFilter === t ? 'rgba(0,218,243,0.5)' : 'rgba(255,255,255,0.08)'}`,
                             }}>
                             {t} {t !== 'All' && <span className="ml-1 opacity-50">({discography.filter(r => r.primaryType === t).length})</span>}
                           </button>
@@ -359,15 +359,15 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks: lockerT
                             )}
                             <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-wider"
                               style={{
-                                background: release.primaryType === 'Album' ? 'rgba(107,0,153,0.8)'
-                                  : release.primaryType === 'Single' ? 'rgba(212,0,85,0.7)'
-                                  : 'rgba(255,140,0,0.7)',
-                                color: 'rgba(255,255,255,0.9)',
+                                background: release.primaryType === 'Album' ? 'rgba(0,180,216,0.85)'
+                                  : release.primaryType === 'Single' ? 'rgba(0,119,182,0.8)'
+                                  : 'rgba(72,202,228,0.8)',
+                                color: 'rgba(255,255,255,0.95)',
                               }}>
                               {release.primaryType}
                             </div>
                           </div>
-                          <h4 className="text-[11px] font-black uppercase tracking-widest truncate group-hover:text-purple-300 transition-colors">
+                          <h4 className="text-[11px] font-black uppercase tracking-widest truncate group-hover:text-cyan-300 transition-colors">
                             {release.title}
                           </h4>
                           <p className="text-[9px] text-white/30 font-bold tracking-widest">
@@ -395,15 +395,15 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks: lockerT
                       {profile.bio.length > 300 && (
                         <button onClick={() => setBioExpanded(!bioExpanded)}
                           className="mt-2 text-[10px] font-black uppercase tracking-widest transition-colors"
-                          style={{ color: '#a855f7' }}>
+                          style={{ color: '#00daf3' }}>
                           {bioExpanded ? 'Show Less' : 'Read More'}
                         </button>
                       )}
                     </div>
                     {profile.wikiUrl && (
                       <a href={profile.wikiUrl} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 mt-3 text-[9px] font-bold uppercase tracking-widest transition-colors hover:text-purple-300"
-                        style={{ color: 'rgba(168,85,247,0.6)' }}>
+                        className="inline-flex items-center gap-1.5 mt-3 text-[9px] font-bold uppercase tracking-widest transition-colors hover:text-cyan-300"
+                        style={{ color: 'rgba(0,218,243,0.7)' }}>
                         Full article on Wikipedia <ExternalLink size={9} />
                       </a>
                     )}
@@ -475,7 +475,7 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks: lockerT
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-bold leading-snug group-hover:text-purple-300 transition-colors truncate">
+                      <h4 className="text-sm font-bold leading-snug group-hover:text-cyan-300 transition-colors truncate">
                         {event.title}
                       </h4>
                       <div className="flex items-center gap-1.5 mt-1">
@@ -502,13 +502,13 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks: lockerT
                           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                         <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all">
                           <div className="w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-sm"
-                            style={{ background: 'rgba(212,0,85,0.8)' }}>
-                            <Play size={20} className="text-white ml-0.5" fill="white" />
+                            style={{ background: 'rgba(0,218,243,0.85)' }}>
+                            <Play size={20} className="text-black ml-0.5" fill="currentColor" />
                           </div>
                         </div>
                       </div>
                       <div className="p-3">
-                        <h4 className="text-xs font-bold line-clamp-2 group-hover:text-purple-300 transition-colors">
+                        <h4 className="text-xs font-bold line-clamp-2 group-hover:text-cyan-300 transition-colors">
                           {video.title}
                         </h4>
                         {video.pubDate && (
@@ -537,7 +537,7 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks: lockerT
                       className="flex items-start gap-4 p-4 rounded-xl group transition-all hover:bg-white/[0.03]"
                       style={{ border: '1px solid rgba(255,255,255,0.04)' }}>
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-bold leading-snug group-hover:text-purple-300 transition-colors line-clamp-2">
+                        <h4 className="text-sm font-bold leading-snug group-hover:text-cyan-300 transition-colors line-clamp-2">
                           {item.title}
                         </h4>
                         <div className="flex items-center gap-2 mt-1.5">
@@ -577,11 +577,11 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks: lockerT
                         <button key={track.id || i} onClick={() => handlePlay(track)}
                           className="w-full flex items-center gap-4 p-3 rounded-xl text-left group transition-all"
                           style={{
-                            background: active ? 'rgba(107,0,153,0.15)' : 'transparent',
-                            border: `1px solid ${active ? 'rgba(107,0,153,0.3)' : 'transparent'}`,
+                            background: active ? 'rgba(0,218,243,0.15)' : 'transparent',
+                            border: `1px solid ${active ? 'rgba(0,218,243,0.35)' : 'transparent'}`,
                           }}>
                           <span className="text-sm font-bold w-6 text-center shrink-0"
-                            style={{ color: active ? '#a855f7' : 'rgba(255,255,255,0.2)' }}>
+                            style={{ color: active ? '#00daf3' : 'rgba(255,255,255,0.2)' }}>
                             {active && isPlaying ? '▶' : i + 1}
                           </span>
                           {(track.albumCover || track.images?.[0]) && (
@@ -590,7 +590,7 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks: lockerT
                               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} loading="lazy" />
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className={`text-xs font-bold uppercase tracking-widest truncate transition-colors ${active ? 'text-purple-300' : 'group-hover:text-white'}`}>
+                            <p className={`text-xs font-bold uppercase tracking-widest truncate transition-colors ${active ? 'text-cyan-300' : 'group-hover:text-white'}`}>
                               {track.title || 'Untitled'}
                             </p>
                             {track.albumTitle && (
