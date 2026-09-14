@@ -2,40 +2,43 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Music2, User, Newspaper, Library, ExternalLink, Play, Disc,
-  Globe, ChevronRight, Sparkles, Clock,
+  ChevronRight, Sparkles, Calendar, Film, MapPin, Ticket,
 } from 'lucide-react';
 import { Track } from '../types';
 import {
   fetchArtistProfile, fetchDiscography, fetchArtistNews,
-  ArtistProfile, ReleaseGroup, NewsItem,
+  fetchArtistEvents, fetchArtistVideos,
+  ArtistProfile, ReleaseGroup, NewsItem, ArtistEvent, ArtistVideo,
 } from '../services/musicEnrichment';
+import { fetchPersonalTracks } from '../services/backendService';
 import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
-import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  *  PersonalArtistPage — rich artist page for music locker artists
  *  (external artists not on Plajah). Fetches bio from Wikipedia,
  *  discography from MusicBrainz + Cover Art Archive, social links
- *  from MusicBrainz URL relations, and recent news via Google News.
+ *  from MusicBrainz URL relations, news via Google News, tour dates
+ *  from Bandsintown, and videos from YouTube RSS.
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-type Tab = 'MUSIC' | 'ABOUT' | 'NEWS' | 'LIBRARY';
+type Tab = 'MUSIC' | 'ABOUT' | 'EVENTS' | 'VIDEOS' | 'NEWS' | 'LIBRARY';
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'MUSIC',   label: 'Music',        icon: Music2 },
   { id: 'ABOUT',   label: 'About',        icon: User },
+  { id: 'EVENTS',  label: 'Events',       icon: Calendar },
+  { id: 'VIDEOS',  label: 'Videos',       icon: Film },
   { id: 'NEWS',    label: 'News',         icon: Newspaper },
   { id: 'LIBRARY', label: 'Your Library', icon: Library },
 ];
 
 interface Props {
   artistName: string;
-  lockerTracks: Track[];        // all locker tracks by this artist
+  lockerTracks?: Track[];       // optional — if not provided, we fetch ourselves
   onBack: () => void;
   onPlayTrack?: (track: Track) => void;
 }
 
-/* Platform icon mapping for social pills */
 const SOCIAL_ICONS: Record<string, string> = {
   instagram: '📷', x: '𝕏', facebook: '📘', tiktok: '🎵',
   spotify: '🎧', appleMusic: '🍎', youtube: '▶️', soundcloud: '☁️',
@@ -50,41 +53,76 @@ const fmtDate = (d?: string) => {
 
 const fmtYear = (d?: string) => d?.slice(0, 4) || '';
 
-const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack, onPlayTrack }) => {
+const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks: lockerTracksProp, onBack, onPlayTrack }) => {
   const { playTrack, currentTrack, isPlaying, pause, resume } = useGlobalPlayer();
 
   const [profile, setProfile] = useState<ArtistProfile | null>(null);
   const [discography, setDiscography] = useState<ReleaseGroup[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
+  const [events, setEvents] = useState<ArtistEvent[]>([]);
+  const [videos, setVideos] = useState<ArtistVideo[]>([]);
+  const [myTracks, setMyTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
+  const [discoLoading, setDiscoLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('MUSIC');
   const [bioExpanded, setBioExpanded] = useState(false);
   const [discoFilter, setDiscoFilter] = useState<string>('All');
   const [coverErrors, setCoverErrors] = useState<Set<string>>(new Set());
 
-  // ── Fetch all data in parallel ──
+  // ── Fetch locker tracks for this artist ──
+  useEffect(() => {
+    if (lockerTracksProp && lockerTracksProp.length > 0) {
+      setMyTracks(lockerTracksProp);
+      return;
+    }
+    // Fetch from Firestore and filter by artist name (case-insensitive, fuzzy)
+    fetchPersonalTracks().then(all => {
+      const lowerName = artistName.toLowerCase();
+      const matched = all.filter(t => {
+        const tArtist = (t.artist || '').toLowerCase();
+        // Exact match, or the track artist contains the name, or the name contains the track artist
+        return tArtist === lowerName
+          || tArtist.includes(lowerName)
+          || lowerName.includes(tArtist)
+          // Handle "feat." variations: "Drake feat. Rihanna" should match "Drake"
+          || tArtist.split(/\s*(?:feat\.?|ft\.?|&|,|×|x)\s*/i).some(part => part.trim().toLowerCase() === lowerName);
+      });
+      setMyTracks(matched);
+    }).catch(() => setMyTracks([]));
+  }, [artistName, lockerTracksProp]);
+
+  // ── Fetch all enrichment data ──
   useEffect(() => {
     let alive = true;
     setLoading(true);
+    setDiscoLoading(true);
     setProfile(null);
     setDiscography([]);
     setNews([]);
+    setEvents([]);
+    setVideos([]);
     setCoverErrors(new Set());
 
     (async () => {
+      // Phase 1: Profile (Wikipedia + MusicBrainz — the "above the fold" data)
       const p = await fetchArtistProfile(artistName);
       if (!alive) return;
       setProfile(p);
       setLoading(false);
 
-      // Fetch discography + news after profile (needs MBID for discography)
-      const [disco, newsItems] = await Promise.all([
+      // Phase 2: Everything else in parallel (discography needs MBID from profile)
+      const [disco, newsItems, evts, vids] = await Promise.all([
         p.mbid ? fetchDiscography(p.mbid) : Promise.resolve([]),
         fetchArtistNews(artistName),
+        fetchArtistEvents(artistName),
+        fetchArtistVideos(artistName, p.youtubeChannelUrl),
       ]);
       if (!alive) return;
       setDiscography(disco);
       setNews(newsItems);
+      setEvents(evts);
+      setVideos(vids);
+      setDiscoLoading(false);
     })();
 
     return () => { alive = false; };
@@ -100,6 +138,12 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
     discoFilter === 'All' ? discography : discography.filter(r => r.primaryType === discoFilter),
   [discography, discoFilter]);
 
+  // Separate upcoming releases (future dates)
+  const upcomingReleases = useMemo(() => {
+    const now = new Date().toISOString().slice(0, 10);
+    return discography.filter(r => r.firstReleaseDate && r.firstReleaseDate > now);
+  }, [discography]);
+
   // ── Play locker track ──
   const handlePlay = (track: Track) => {
     if (onPlayTrack) { onPlayTrack(track); return; }
@@ -111,8 +155,14 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
 
   const isTrackActive = (t: Track) => currentTrack?.id === t.id;
 
-  // Hero image: Wikipedia portrait or first locker track cover
-  const heroImg = profile?.portrait || lockerTracks[0]?.albumCover || lockerTracks[0]?.images?.[0];
+  const heroImg = profile?.portrait || myTracks[0]?.albumCover || myTracks[0]?.images?.[0];
+
+  // Hide tabs that have no data
+  const visibleTabs = TABS.filter(tab => {
+    if (tab.id === 'EVENTS' && events.length === 0 && !loading) return false;
+    if (tab.id === 'VIDEOS' && videos.length === 0 && !loading) return false;
+    return true;
+  });
 
   return (
     <div className="fixed inset-0 z-50 bg-[#0A0610] text-white overflow-y-auto overscroll-contain">
@@ -129,7 +179,6 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
         )}
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(10,6,16,0.3) 0%, rgba(10,6,16,0.7) 60%, #0A0610 100%)' }} />
 
-        {/* Back button */}
         <button
           onClick={onBack}
           className="absolute top-4 left-4 z-10 w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-xl transition-all hover:scale-110"
@@ -138,7 +187,6 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
           <ArrowLeft size={18} />
         </button>
 
-        {/* Artist info */}
         <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 flex items-end gap-5">
           {profile?.thumbnail && (
             <img
@@ -162,8 +210,6 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
                 ))}
               </div>
             )}
-
-            {/* Social links */}
             {profile && profile.socials.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
                 {profile.socials.map(s => (
@@ -181,11 +227,23 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
         </div>
       </div>
 
+      {/* ── Upcoming releases banner ── */}
+      {upcomingReleases.length > 0 && (
+        <div className="mx-6 sm:mx-8 -mt-2 mb-2 p-3 rounded-xl flex items-center gap-3"
+          style={{ background: 'linear-gradient(135deg, rgba(107,0,153,0.25), rgba(212,0,85,0.2))', border: '1px solid rgba(107,0,153,0.3)' }}>
+          <Sparkles size={16} className="text-purple-400 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-purple-300">Upcoming Release</p>
+            <p className="text-xs font-bold truncate">{upcomingReleases[0].title} · {fmtDate(upcomingReleases[0].firstReleaseDate)}</p>
+          </div>
+        </div>
+      )}
+
       {/* ── Tab bar ── */}
       <div className="sticky top-0 z-40 backdrop-blur-xl border-b px-4 sm:px-8"
         style={{ background: 'rgba(10,6,16,0.8)', borderColor: 'rgba(255,255,255,0.08)' }}>
         <div className="flex gap-1 overflow-x-auto py-2 hide-scrollbar">
-          {TABS.map(tab => {
+          {visibleTabs.map(tab => {
             const active = activeTab === tab.id;
             return (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -196,10 +254,16 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
                 }}>
                 <tab.icon size={13} />
                 {tab.label}
-                {tab.id === 'LIBRARY' && lockerTracks.length > 0 && (
+                {tab.id === 'LIBRARY' && myTracks.length > 0 && (
                   <span className="ml-1 px-1.5 py-0.5 rounded-full text-[8px]"
                     style={{ background: 'rgba(212,0,85,0.4)', color: '#fda4af' }}>
-                    {lockerTracks.length}
+                    {myTracks.length}
+                  </span>
+                )}
+                {tab.id === 'EVENTS' && events.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full text-[8px]"
+                    style={{ background: 'rgba(255,140,0,0.4)', color: '#fdba74' }}>
+                    {events.length}
                   </span>
                 )}
                 {active && (
@@ -240,7 +304,19 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
             {/* ── MUSIC tab ── */}
             {activeTab === 'MUSIC' && (
               <div>
-                {discography.length === 0 ? (
+                {discoLoading && discography.length === 0 ? (
+                  <div className="space-y-4 animate-pulse">
+                    <div className="h-3 w-40 rounded bg-white/5" />
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      {Array.from({ length: 10 }).map((_, i) => (
+                        <div key={i} className="space-y-2">
+                          <div className="aspect-square rounded-xl bg-white/5" />
+                          <div className="h-2.5 w-2/3 rounded bg-white/5" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : discography.length === 0 ? (
                   <div className="text-center py-16">
                     <Disc className="mx-auto text-white/10 mb-4" size={48} />
                     <p className="text-xs font-black uppercase tracking-widest text-white/20">
@@ -249,7 +325,6 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
                   </div>
                 ) : (
                   <>
-                    {/* Type filter pills */}
                     {discoTypes.length > 2 && (
                       <div className="flex gap-2 mb-6 overflow-x-auto hide-scrollbar">
                         {discoTypes.map(t => (
@@ -265,8 +340,6 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
                         ))}
                       </div>
                     )}
-
-                    {/* Album grid */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-5">
                       {filteredDisco.map(release => (
                         <div key={release.id} className="group">
@@ -284,7 +357,6 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
                                 <Disc size={32} className="text-white/10" />
                               </div>
                             )}
-                            {/* Type badge */}
                             <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-wider"
                               style={{
                                 background: release.primaryType === 'Album' ? 'rgba(107,0,153,0.8)'
@@ -313,7 +385,6 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
             {/* ── ABOUT tab ── */}
             {activeTab === 'ABOUT' && (
               <div className="max-w-3xl space-y-8">
-                {/* Bio */}
                 {profile?.bio ? (
                   <div>
                     <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-3">Biography</h3>
@@ -343,8 +414,6 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
                     <p className="text-xs text-white/20 font-bold">No biography found</p>
                   </div>
                 )}
-
-                {/* Stats cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {profile?.type && (
                     <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
@@ -366,11 +435,9 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
                   )}
                   <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
                     <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/25 mb-1">In Your Locker</p>
-                    <p className="text-sm font-bold">{lockerTracks.length} {lockerTracks.length === 1 ? 'track' : 'tracks'}</p>
+                    <p className="text-sm font-bold">{myTracks.length} {myTracks.length === 1 ? 'track' : 'tracks'}</p>
                   </div>
                 </div>
-
-                {/* Social links (larger, for About tab) */}
                 {profile && profile.socials.length > 0 && (
                   <div>
                     <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-3">Links</h3>
@@ -387,6 +454,70 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* ── EVENTS tab ── */}
+            {activeTab === 'EVENTS' && (
+              <div className="max-w-3xl space-y-3">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-4">Upcoming Tour Dates</h3>
+                {events.map((event, i) => (
+                  <a key={i} href={event.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-start gap-4 p-4 rounded-xl group transition-all hover:bg-white/[0.03]"
+                    style={{ border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div className="shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center"
+                      style={{ background: 'rgba(255,140,0,0.15)', border: '1px solid rgba(255,140,0,0.2)' }}>
+                      <span className="text-[9px] font-black uppercase tracking-wider text-orange-300">
+                        {event.date ? new Date(event.date).toLocaleDateString('en-US', { month: 'short' }) : ''}
+                      </span>
+                      <span className="text-lg font-black text-orange-200">
+                        {event.date ? new Date(event.date).getDate() : '?'}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-bold leading-snug group-hover:text-purple-300 transition-colors truncate">
+                        {event.title}
+                      </h4>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <MapPin size={10} className="text-white/25 shrink-0" />
+                        <span className="text-[10px] text-white/40 truncate">{event.venue} · {event.city}{event.country ? `, ${event.country}` : ''}</span>
+                      </div>
+                    </div>
+                    <Ticket size={14} className="text-white/15 shrink-0 mt-1 group-hover:text-orange-300 transition-colors" />
+                  </a>
+                ))}
+              </div>
+            )}
+
+            {/* ── VIDEOS tab ── */}
+            {activeTab === 'VIDEOS' && (
+              <div className="max-w-4xl">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {videos.map((video, i) => (
+                    <a key={i} href={video.url} target="_blank" rel="noopener noreferrer"
+                      className="group rounded-xl overflow-hidden transition-all hover:scale-[1.02]"
+                      style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div className="relative aspect-video bg-black/30">
+                        <img src={video.thumbnail} className="w-full h-full object-cover" loading="lazy"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all">
+                          <div className="w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-sm"
+                            style={{ background: 'rgba(212,0,85,0.8)' }}>
+                            <Play size={20} className="text-white ml-0.5" fill="white" />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-3">
+                        <h4 className="text-xs font-bold line-clamp-2 group-hover:text-purple-300 transition-colors">
+                          {video.title}
+                        </h4>
+                        {video.pubDate && (
+                          <p className="text-[9px] text-white/25 mt-1">{fmtDate(video.pubDate)}</p>
+                        )}
+                      </div>
+                    </a>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -428,7 +559,7 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
             {/* ── YOUR LIBRARY tab ── */}
             {activeTab === 'LIBRARY' && (
               <div className="max-w-3xl">
-                {lockerTracks.length === 0 ? (
+                {myTracks.length === 0 ? (
                   <div className="text-center py-16">
                     <Library className="mx-auto text-white/10 mb-4" size={48} />
                     <p className="text-xs font-black uppercase tracking-widest text-white/20">
@@ -438,9 +569,9 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
                 ) : (
                   <div className="space-y-1">
                     <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25 mb-4">
-                      {lockerTracks.length} {lockerTracks.length === 1 ? 'track' : 'tracks'} in your Music Locker
+                      {myTracks.length} {myTracks.length === 1 ? 'track' : 'tracks'} in your Music Locker
                     </p>
-                    {lockerTracks.map((track, i) => {
+                    {myTracks.map((track, i) => {
                       const active = isTrackActive(track);
                       return (
                         <button key={track.id || i} onClick={() => handlePlay(track)}
@@ -454,9 +585,9 @@ const PersonalArtistPage: React.FC<Props> = ({ artistName, lockerTracks, onBack,
                             {active && isPlaying ? '▶' : i + 1}
                           </span>
                           {(track.albumCover || track.images?.[0]) && (
-                            <img src={thumb(track.albumCover || track.images?.[0] || '', THUMB.small)}
+                            <img src={track.albumCover || track.images?.[0] || ''}
                               className="w-10 h-10 rounded-lg object-cover shrink-0"
-                              onError={onThumbError} loading="lazy" />
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} loading="lazy" />
                           )}
                           <div className="flex-1 min-w-0">
                             <p className={`text-xs font-bold uppercase tracking-widest truncate transition-colors ${active ? 'text-purple-300' : 'group-hover:text-white'}`}>
