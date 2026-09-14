@@ -412,6 +412,7 @@ const TerraListings = retryLazy(() => import('./components/terra/ListingsManager
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
 const ArtistProjectManager = retryLazy(() => import('./components/ArtistProjectManager'));
 const ChoraArtistPage = retryLazy(() => import('./components/ChoraArtistPage'));
+const PersonalArtistPage = retryLazy(() => import('./components/PersonalArtistPage'));
 const MelosWorkspace = retryLazy(() => import('./components/melos/MelosWorkspace'));
 const CareerImportStudio = retryLazy(() => import('./components/CareerImportStudio'));
 const StudioView = retryLazy(() => import('./components/ManagerSuite/StudioView'));
@@ -981,6 +982,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [viewedUserId, setViewedUserId] = useState<string | null>(null);
   const [choraArtistId, setChoraArtistId] = useState<string | null>(null);
+  const [personalArtistName, setPersonalArtistName] = useState<string | null>(null);
   const [initialProfileTab, setInitialProfileTab] = useState<string | undefined>(undefined);
   const [selectedBusinessPage, setSelectedBusinessPage] = useState<any>(null);
   const [terraPassportTarget, setTerraPassportTarget] = useState<{ parcelId?: string; listingKey?: string } | null>(null);
@@ -2649,10 +2651,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       }
       return;
     }
-    // Personal/locker artists → stay on Music with Artists tab focused
+    // Personal/locker artists → PersonalArtistPage with enriched data
     if (uid.startsWith('personal:')) {
-      setMusicInitialTab('ARTISTS');
-      setView('MUSIC');
+      const name = uid.replace(/^personal:/, '').trim();
+      if (name) {
+        setPersonalArtistName(name);
+        setView('PERSONAL_ARTIST');
+      }
       return;
     }
     // Plajah users → ChoraArtistPage
@@ -5643,7 +5648,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
 
-            {/* ── Script Writing Studio — film, TV, stage ── */}
+            {/* ── Personal Artist Page — enriched external artist profile ── */}
+            {view === 'PERSONAL_ARTIST' && personalArtistName && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading artist…</div>}>
+                <PersonalArtistPage
+                  artistName={personalArtistName}
+                  lockerTracks={albums.flatMap(a => (a.tracks || []).filter(t => t.artist?.toLowerCase() === personalArtistName?.toLowerCase()))}
+                  onBack={() => setView('MUSIC')}
+                  onPlayTrack={(track) => {
+                    const parentAlbum = albums.find(a => (a.tracks || []).some(t => t.id === track.id));
+                    if (parentAlbum) {
+                      setSelectedAlbum(parentAlbum);
+                      setView('PLAYER');
+                    }
+                  }}
+                />
+              </Suspense>
+            )}
             {view === 'SCRIPT_STUDIO' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading Script Studio…</div>}>
                 <ScriptWritingStudio

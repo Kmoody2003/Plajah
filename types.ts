@@ -2975,6 +2975,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'MIX_PLAYER'
   // Chora Artist Page — music-centric artist profile (Editorial Gallery layout)
   | 'CHORA_ARTIST'
+  // Personal Artist Page — enriched external artist from music locker (Wikipedia + MusicBrainz)
+  | 'PERSONAL_ARTIST'
   // LD — Lighting Designer (top-level experience, peer to Chora/Pixels/Melos)
   | 'LD_MODE';
 
