@@ -189,6 +189,7 @@ const HelpCenter = retryLazy(() => import('./components/HelpCenter'));
 const MyLibraryView = retryLazy(() => import('./components/MyLibraryView'));
 const NewstandView = retryLazy(() => import('./components/newstand/NewstandView').then(m => ({ default: m.NewstandView })));
 const PlajahSportsView = retryLazy(() => import('./components/PlajahSportsView').then(m => ({ default: m.PlajahSportsView })));
+const ProjectFirstlightLandingView = retryLazy(() => import('./components/sports/ProjectFirstlightLandingView').then(m => ({ default: m.ProjectFirstlightLandingView })));
 const AthleteShowcaseView = retryLazy(() => import('./components/AthleteShowcaseView'));
 const MatchFanRoomsView = retryLazy(() => import('./components/MatchFanRoomsView'));
 const RoomView = retryLazy(() => import('./components/RoomView'));
@@ -745,6 +746,13 @@ const App: React.FC = () => {
     };
     window.addEventListener('plajah:openTela', h as EventListener);
     return () => window.removeEventListener('plajah:openTela', h as EventListener);
+  }, [setView]);
+
+  // Open Project Firstlight (admin-only 3D passing lab)
+  useEffect(() => {
+    const h = () => setView('PROJECT_FIRSTLIGHT');
+    window.addEventListener('plajah:openFirstlight', h as EventListener);
+    return () => window.removeEventListener('plajah:openFirstlight', h as EventListener);
   }, [setView]);
 
   // "Learn more on Plajah" from the Tela template gallery → the Art Museum, with the
@@ -4660,6 +4668,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'PLAJAH_SPORTS' && (
               <PlajahSportsView onVisitUser={handleVisitUser} currentUser={userProfile} onOpenAthletes={() => setView('ATHLETE_SHOWCASE')} onOpenFanRooms={() => { setFanRoomMatchId(undefined); setFanRoomMatch(null); setView('MATCH_FAN_ROOMS'); }} />
+            )}
+
+            {view === 'PROJECT_FIRSTLIGHT' && (
+              <ProjectFirstlightLandingView
+                onBack={() => setView('APPS')}
+                currentUser={userProfile}
+                onNavigate={(v) => setView(v as any)}
+              />
             )}
 
             {view === 'ATHLETE_SHOWCASE' && (

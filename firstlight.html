@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Project Firstlight — 3D American Football Passing Lab</title>
+  <!-- Three.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    :root {
+      --pj-purple: #6B0099;
+      --pj-magenta: #D40055;
+      --pj-orange: #FF8C00;
+      --pj-cyan: #00DAF3;
+      --pj-gold: #FFBF42;
+      --pj-bg: #101326;
+      --pj-glass: rgba(23, 21, 37, 0.88);
+      --pj-glass-border: rgba(255, 255, 255, 0.14);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background: var(--pj-bg);
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+    #canvas-container {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 1;
+    }
+    /* Top Brand & Scoreboard HUD */
+    .hud-header {
+      position: absolute;
+      top: 16px; left: 16px; right: 16px;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+    }
+    .brand-pill {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--pj-glass);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--pj-glass-border);
+      padding: 8px 16px;
+      border-radius: 9999px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .brand-title {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      background: linear-gradient(120deg, #fff, #D0BCFF);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .beta-tag {
+      font-size: 10px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--pj-magenta), var(--pj-orange));
+      padding: 2px 8px;
+      border-radius: 999px;
+      color: white;
+    }
+    /* Scoreboard Center Card */
+    .scoreboard {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      background: var(--pj-glass);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--pj-glass-border);
+      padding: 10px 24px;
+      border-radius: 9999px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+    }
+    .team-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 15px;
+    }
+    .team-aurora { color: #D0BCFF; }
+    .team-current { color: var(--pj-cyan); }
+    .score-num {
+      font-size: 20px;
+      font-weight: 900;
+      background: rgba(255,255,255,0.1);
+      padding: 2px 8px;
+      border-radius: 8px;
+    }
+    .down-distance {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--pj-gold);
+      letter-spacing: 0.04em;
+      border-left: 1px solid rgba(255,255,255,0.15);
+      border-right: 1px solid rgba(255,255,255,0.15);
+      padding: 0 16px;
+    }
+    .pocket-timer {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--pj-orange);
+    }
+    /* Bottom Controls Dock */
+    .hud-controls {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      width: 92%;
+      max-width: 680px;
+    }
+    .message-banner {
+      width: 100%;
+      background: var(--pj-glass);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--pj-glass-border);
+      border-left: 4px solid var(--pj-orange);
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      color: #f0ebff;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      transition: all 0.3s ease;
+    }
+    .control-row {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn {
+      background: rgba(255,255,255,0.08);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.18);
+      padding: 12px 18px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      backdrop-filter: blur(12px);
+      transition: all 0.15s ease;
+      min-height: 44px;
+    }
+    .btn:hover:not(:disabled) {
+      background: rgba(255,255,255,0.18);
+      transform: translateY(-2px);
+    }
+    .btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    .btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .btn-action {
+      background: linear-gradient(135deg, var(--pj-orange), var(--pj-magenta));
+      border: none;
+      box-shadow: 0 6px 20px rgba(255, 140, 0, 0.4);
+      padding: 12px 28px;
+      font-size: 14px;
+    }
+    .btn-action:hover:not(:disabled) {
+      box-shadow: 0 10px 28px rgba(255, 140, 0, 0.6);
+      background: linear-gradient(135deg, #ffa020, #e60060);
+    }
+    .btn-pass {
+      border-color: rgba(182, 85, 237, 0.4);
+      background: rgba(107, 0, 153, 0.25);
+    }
+    .btn-pass:hover:not(:disabled) {
+      background: rgba(107, 0, 153, 0.45);
+      border-color: rgba(182, 85, 237, 0.8);
+    }
+    .key-badge {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.25);
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-family: monospace;
+    }
+    .touch-nav {
+      display: flex;
+      gap: 8px;
+    }
+    .audio-toggle {
+      pointer-events: auto;
+      background: var(--pj-glass);
+      border: 1px solid var(--pj-glass-border);
+      color: white;
+      border-radius: 9999px;
+      padding: 8px 14px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    @media (max-width: 640px) {
+      .hud-header { flex-direction: column; gap: 8px; align-items: stretch; }
+      .scoreboard { justify-content: space-around; padding: 8px 12px; }
+      .btn { padding: 10px 12px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- WebGL 3D Canvas Host -->
+  <div id="canvas-container"></div>
+
+  <!-- HUD Header -->
+  <header class="hud-header">
+    <div class="brand-pill">
+      <!-- Canonical Plajah Chevron Logo SVG -->
+      <svg width="24" height="24" viewBox="0 0 100 100" fill="none">
+        <defs>
+          <linearGradient id="pj-logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#6B0099" />
+            <stop offset="50%" stop-color="#D40055" />
+            <stop offset="100%" stop-color="#FF8C00" />
+          </linearGradient>
+        </defs>
+        <path d="M30 20 L70 50 L30 80" stroke="url(#pj-logo-grad)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <span class="brand-title">Plajah Sports · Firstlight</span>
+      <span class="beta-tag">American Football</span>
+    </div>
+
+    <!-- Live Scoreboard -->
+    <div class="scoreboard">
+      <div class="team-badge team-aurora">Aurora <span class="score-num" id="hud-score">0</span></div>
+      <div class="down-distance" id="hud-down-dist">1st &amp; 10 · Ball on 20</div>
+      <div class="team-badge team-current">Current <span class="score-num">0</span></div>
+      <div class="pocket-timer">
+        <span>⏱️</span>
+        <span id="hud-pocket-timer">7.0s</span>
+      </div>
+    </div>
+
+    <button class="audio-toggle" id="audio-toggle">🔊 Audio: ON</button>
+  </header>
+
+  <!-- Bottom Interactive HUD Controls -->
+  <div class="hud-controls">
+    <div class="message-banner" id="hud-message">
+      Snap the ball to start the play. Watch your 3 receivers cut downfield and find an open window!
+    </div>
+
+    <div class="control-row">
+      <button class="btn btn-action" id="btn-snap">
+        <span class="key-badge">SPACE</span>
+        <span id="btn-snap-text">Snap Ball</span>
+      </button>
+
+      <button class="btn btn-pass" id="btn-pass-0" disabled>
+        <span class="key-badge">1</span> Pass Left (Out)
+      </button>
+      <button class="btn btn-pass" id="btn-pass-1" disabled>
+        <span class="key-badge">2</span> Pass Mid (Seam)
+      </button>
+      <button class="btn btn-pass" id="btn-pass-2" disabled>
+        <span class="key-badge">3</span> Pass Right (Dig)
+      </button>
+    </div>
+
+    <div class="control-row">
+      <div class="touch-nav">
+        <button class="btn" id="btn-move-left" disabled>
+          <span class="key-badge">A / ←</span> Scramble Left
+        </button>
+        <button class="btn" id="btn-move-right" disabled>
+          <span class="key-badge">D / →</span> Scramble Right
+        </button>
+      </div>
+      <button class="btn" id="btn-reset">New Drive</button>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       1. SYNTHESIZED WEB AUDIO ENGINE (Zero External Assets Required)
+       ========================================================================== */
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+      }
+      playWhistle() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(2600, now);
+        osc.frequency.exponentialRampToValueAtTime(3200, now + 0.15);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.35);
+      }
+      playThrow() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.exponentialRampToValueAtTime(450, now + 0.2);
+        osc.frequency.exponentialRampToValueAtTime(220, now + 0.5);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.5);
+      }
+      playCatch() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(120, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      }
+      playBreakup() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.linearRampToValueAtTime(90, now + 0.2);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.2);
+      }
+      playTouchdown() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        [440, 554, 659, 880].forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + i * 0.12);
+          gain.gain.setValueAtTime(0.25, now + i * 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.12 + 0.6);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + i * 0.12);
+          osc.stop(now + i * 0.12 + 0.6);
+        });
+      }
+    }
+    const audio = new SoundEngine();
+    document.getElementById('audio-toggle').addEventListener('click', () => {
+      audio.init();
+      audio.enabled = !audio.enabled;
+      document.getElementById('audio-toggle').textContent = audio.enabled ? '🔊 Audio: ON' : '🔇 Audio: OFF';
+    });
+
+    /* ==========================================================================
+       2. DETERMINISTIC AMERICAN FOOTBALL SIMULATION ENGINE
+       ========================================================================== */
+    class FootballSimulation {
+      constructor() {
+        this.resetDrive();
+      }
+      resetDrive() {
+        this.phase = 'ready'; // ready | live | flight | result | over
+        this.spot = 20;
+        this.target = 30;
+        this.down = 1;
+        this.score = 0;
+        this.time = 0;
+        this.message = 'Snap the ball to start the drive. Look for open receivers downfield!';
+        this.setupPlay();
+      }
+      setupPlay() {
+        this.phase = 'ready';
+        this.time = 0;
+        this.qb = { x: 0, z: this.spot - 4 };
+        // 3 Receivers: Left (0), Middle (1), Right (2)
+        this.receivers = [
+          { x: -14, z: this.spot, route: 'out', open: false },
+          { x: 0, z: this.spot, route: 'seam', open: false },
+          { x: 14, z: this.spot, route: 'dig', open: false }
+        ];
+        // 3 Defensive Backs
+        this.defenders = [
+          { x: -12, z: this.spot + 8 },
+          { x: 2, z: this.spot + 10 },
+          { x: 12, z: this.spot + 8 }
+        ];
+        this.ball = { x: 0, y: 1.8, z: this.spot - 4 };
+        this.flight = null;
+        this.resultSpot = this.spot;
+      }
+      snap() {
+        if (this.phase !== 'ready') return;
+        audio.init();
+        audio.playWhistle();
+        this.phase = 'live';
+        this.message = 'The pocket is live! Scramble with A/D, read route cuts, and pass before 7 seconds!';
+      }
+      scramble(dir, dt) {
+        if (this.phase !== 'live') return;
+        this.qb.x = Math.max(-21, Math.min(21, this.qb.x + dir * dt * 10));
+        this.ball.x = this.qb.x;
+        this.ball.z = this.qb.z;
+      }
+      throwPass(receiverIndex) {
+        if (this.phase !== 'live' || receiverIndex < 0 || receiverIndex > 2) return;
+        audio.playThrow();
+        const r = this.receivers[receiverIndex];
+        this.flight = {
+          from: { ...this.qb, y: 1.8 },
+          to: { x: r.x, z: Math.min(100, r.z + 4), y: 1.5 },
+          elapsed: 0,
+          receiver: receiverIndex
+        };
+        this.phase = 'flight';
+        this.message = 'Pass is in flight...';
+      }
+      step(dt, moveDir) {
+        dt = Math.max(0, Math.min(dt, 0.05));
+        if (this.phase !== 'live' && this.phase !== 'flight') return;
+        this.time += dt;
+
+        if (this.phase === 'live') {
+          this.scramble(moveDir, dt);
+
+          // Route running logic
+          // Receiver 0: 6-yd stem, then cut to left sideline
+          this.receivers[0].z = Math.min(100, this.receivers[0].z + dt * 6.5);
+          if (this.time > 1.2) this.receivers[0].x = Math.max(-24, this.receivers[0].x - dt * 5.0);
+
+          // Receiver 1: Deep seam straight down the middle
+          this.receivers[1].z = Math.min(100, this.receivers[1].z + dt * 7.5);
+
+          // Receiver 2: 7-yd stem, then cut across the middle to left
+          this.receivers[2].z = Math.min(100, this.receivers[2].z + dt * 6.0);
+          if (this.time > 1.3) this.receivers[2].x = Math.max(-20, this.receivers[2].x - dt * 4.5);
+
+          // Defender pursuit AI
+          this.defenders.forEach((d, i) => {
+            const r = this.receivers[i];
+            const dx = r.x - d.x;
+            const dz = r.z - d.z;
+            const dist = Math.hypot(dx, dz) || 1;
+            const speed = i === 1 ? 4.8 : 5.1;
+            d.x += (dx / dist) * Math.min(dist, speed * dt);
+            d.z += (dz / dist) * Math.min(dist, speed * dt);
+
+            // Compute live separation
+            r.open = dist >= 3.2;
+          });
+
+          // Pocket collapse (7s)
+          if (this.time >= 7.0) {
+            audio.playBreakup();
+            this.phase = 'result';
+            this.resultSpot = Math.max(1, this.spot - 4);
+            this.message = 'Pocket collapse: Quarterback sack! 4-yard loss. Release earlier on the next down.';
+          }
+        }
+
+        // Ball Flight Trajectory
+        if (this.phase === 'flight' && this.flight) {
+          const f = this.flight;
+          f.elapsed += dt;
+          const t = Math.min(1, f.elapsed / 0.85);
+
+          // Ballistic Parabola: y = start + (end-start)*t + sin(t*pi)*7.5
+          this.ball.x = f.from.x + (f.to.x - f.from.x) * t;
+          this.ball.z = f.from.z + (f.to.z - f.from.z) * t;
+          this.ball.y = f.from.y + (f.to.y - f.from.y) * t + Math.sin(t * Math.PI) * 7.5;
+
+          if (t === 1) {
+            // Proximity check at catch point
+            const covered = this.defenders.some(d => Math.hypot(d.x - f.to.x, d.z - f.to.z) < 3.2);
+            if (covered) {
+              audio.playBreakup();
+              this.resultSpot = this.spot;
+              this.phase = 'result';
+              this.message = 'Pass broken up! Defender made a play at the catch point. Look for separation next time.';
+            } else {
+              audio.playCatch();
+              this.resultSpot = Math.min(100, Math.round(f.to.z));
+              this.phase = 'result';
+              const gained = this.resultSpot - this.spot;
+              if (this.resultSpot >= 100) {
+                audio.playTouchdown();
+                this.message = 'TOUCHDOWN! 6 Points! What a sensational throw into the end zone!';
+              } else if (this.resultSpot >= this.target) {
+                this.message = `Caught for a gain of ${gained} yards! FIRST DOWN! Ball moves forward.`;
+              } else {
+                this.message = `Caught for ${gained} yards! Short of the line to gain. Moving to next down.`;
+              }
+            }
+          }
+        }
+      }
+      nextPlay() {
+        if (this.phase !== 'result') return;
+        if (this.resultSpot >= 100) {
+          this.phase = 'over';
+          this.score += 6;
+          this.message = 'Touchdown drive complete! 6 points on the board. Start a new drive to practice another read.';
+          return;
+        }
+        if (this.resultSpot >= this.target) {
+          this.spot = this.resultSpot;
+          this.target = Math.min(100, this.spot + 10);
+          this.down = 1;
+        } else {
+          if (this.down === 4) {
+            audio.playWhistle();
+            this.phase = 'over';
+            this.message = 'Turnover on downs! Failed to reach the first down marker in 4 attempts. Start a new drive!';
+            return;
+          }
+          this.spot = this.resultSpot;
+          this.down += 1;
+        }
+        this.setupPlay();
+        this.message = `Down ${this.down} of 4. Advance ${this.target - this.spot} yards to the gold first down line.`;
+      }
+    }
+
+    const game = new FootballSimulation();
+
+    /* ==========================================================================
+       3. THREE.JS 3D GRAPHICS ENGINE (American Football Gridiron)
+       ========================================================================== */
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#101326');
+    scene.fog = new THREE.Fog('#101326', 100, 220);
+
+    const camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 350);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    // Dynamic Stadium Lighting
+    scene.add(new THREE.HemisphereLight('#d5e9ff', '#263523', 2.0));
+    const stadiumLights = new THREE.DirectionalLight('#ffe8cc', 2.5);
+    stadiumLights.position.set(-40, 70, 20);
+    stadiumLights.castShadow = true;
+    scene.add(stadiumLights);
+
+    // Mesh Helpers
+    const createBox = (w, h, d, color, x, y, z) => {
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, d),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.85 })
+      );
+      mesh.position.set(x, y, z);
+      scene.add(mesh);
+      return mesh;
+    };
+
+    // 1. Gridiron Field Base & Alternating 5-Yard Turf Stripes
+    createBox(60, 1, 130, '#183d36', 0, -0.7, 50); // Deep perimeter border
+    for (let z = 0; z < 100; z += 5) {
+      createBox(53.3, 0.04, 5, z % 10 ? '#23624d' : '#287056', 0, -0.15, z + 2.5);
+    }
+    // End Zones (Aurora Purple on near end, Magenta on far end)
+    createBox(53.3, 0.05, 10, '#6b0099', 0, -0.1, -5);
+    createBox(53.3, 0.05, 10, '#d40055', 0, -0.1, 105);
+
+    // 2. White 5-Yard Lines & Hash Marks
+    for (let z = 0; z <= 100; z += 5) {
+      createBox(53.3, 0.05, 0.15, '#ffffff', 0, 0, z); // Main yard line
+      for (const x of [-6, 6]) { // Hash marks
+        createBox(0.15, 0.05, 1.2, '#ffffff', x, 0, z + 2);
+      }
+    }
+    createBox(0.2, 0.05, 120, '#ffffff', -26.65, 0, 50); // Left sideline
+    createBox(0.2, 0.05, 120, '#ffffff', 26.65, 0, 50);  // Right sideline
+
+    // 3. Iconic Yellow American Football Goalpost Uprights (Single Post + Crossbar + 2 Uprights)
+    const buildGoalpost = (zPos) => {
+      const group = new THREE.Group();
+      const goldMat = new THREE.MeshStandardMaterial({ color: '#ffcf65', metalness: 0.3, roughness: 0.4 });
+      // Central Support Post
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 9, 12), goldMat);
+      post.position.set(0, 4.5, 0);
+      group.add(post);
+      // Horizontal Crossbar (18.5 ft / ~6m)
+      const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 7.5, 12), goldMat);
+      crossbar.rotation.z = Math.PI / 2;
+      crossbar.position.set(0, 9, 0);
+      group.add(crossbar);
+      // Dual Vertical Uprights
+      for (const x of [-3.75, 3.75]) {
+        const upright = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 8.5, 12), goldMat);
+        upright.position.set(x, 13.25, 0);
+        group.add(upright);
+      }
+      group.position.set(0, 0, zPos);
+      scene.add(group);
+    };
+    buildGoalpost(-10); // Near End Zone Uprights
+    buildGoalpost(110); // Far End Zone Uprights
+
+    // 4. Stadium Grandstands in Plajah Indigo
+    for (const x of [-1, 1]) {
+      for (let level = 0; level < 6; level++) {
+        createBox(6, 2.5, 130, level % 2 ? '#211c38' : '#30294c', x * (36 + level * 5), level * 2.2, 50);
+      }
+    }
+
+    // 5. Holographic Laser Lines
+    const scrimmageLine = createBox(53.3, 0.12, 0.25, '#00daf3', 0, 0.05, 20); // Cyan
+    const targetLine = createBox(53.3, 0.12, 0.3, '#ffbf42', 0, 0.05, 30);   // Gold
+
+    // 6. Character Rig Generator
+    const createPlayerMesh = (jerseyColor, isQb = false) => {
+      const group = new THREE.Group();
+      const jerseyMat = new THREE.MeshStandardMaterial({ color: jerseyColor, roughness: 0.6 });
+      const whitePantsMat = new THREE.MeshStandardMaterial({ color: '#f5f5f5', roughness: 0.5 });
+      const helmetMat = new THREE.MeshStandardMaterial({ color: isQb ? '#ff8c00' : jerseyColor, metalness: 0.2, roughness: 0.3 });
+
+      // Torso / Shoulder Pads
+      const torso = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.4, 0.8), jerseyMat);
+      torso.position.y = 1.9;
+      group.add(torso);
+
+      // Football Helmet with Visor
+      const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12), helmetMat);
+      helmet.position.y = 3.1;
+      group.add(helmet);
+      const visor = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.22, 0.4), new THREE.MeshStandardMaterial({ color: '#151520', metalness: 0.9 }));
+      visor.position.set(0, 3.05, 0.35);
+      group.add(visor);
+
+      // Legs
+      for (const x of [-0.35, 0.35]) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.1, 0.4), whitePantsMat);
+        leg.position.set(x, 0.55, 0);
+        group.add(leg);
+      }
+      scene.add(group);
+      return group;
+    };
+
+    // Quarterback (Practice Safety Orange)
+    const qbMesh = createPlayerMesh('#ff8c00', true);
+
+    // 3 Aurora Receivers (Purple/Magenta)
+    const receiverMeshes = [
+      createPlayerMesh('#6b0099'),
+      createPlayerMesh('#6b0099'),
+      createPlayerMesh('#6b0099')
+    ];
+
+    // 3 Current Defenders (Cyan/Teal)
+    const defenderMeshes = [
+      createPlayerMesh('#00daf3'),
+      createPlayerMesh('#00daf3'),
+      createPlayerMesh('#00daf3')
+    ];
+
+    // Separation Target Rings under Receivers
+    const targetRings = [0, 1, 2].map(() => {
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(1.2, 1.5, 24),
+        new THREE.MeshBasicMaterial({ color: '#ff4081', side: THREE.DoubleSide })
+      );
+      ring.rotation.x = -Math.PI / 2;
+      scene.add(ring);
+      return ring;
+    });
+
+    // 7. American Football Mesh (Brown Pigskin with White Laces)
+    const ballMesh = new THREE.Group();
+    const pigskin = new THREE.Mesh(
+      new THREE.SphereGeometry(0.35, 14, 10),
+      new THREE.MeshStandardMaterial({ color: '#8d4822', roughness: 0.75 })
+    );
+    pigskin.scale.set(0.7, 0.7, 1.45);
+    ballMesh.add(pigskin);
+    // White football stripe rings
+    const stripeMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
+    for (const z of [-0.32, 0.32]) {
+      const stripe = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.03, 8, 16), stripeMat);
+      stripe.position.z = z;
+      ballMesh.add(stripe);
+    }
+    scene.add(ballMesh);
+
+    /* ==========================================================================
+       4. INPUT BINDINGS & EVENT LISTENERS
+       ========================================================================== */
+    let movementDir = 0;
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') movementDir = -1;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') movementDir = 1;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (game.phase === 'ready') game.snap();
+        else if (game.phase === 'result') game.nextPlay();
+        else if (game.phase === 'over') game.resetDrive();
+      }
+      if (e.code === 'Digit1') game.throwPass(0);
+      if (e.code === 'Digit2') game.throwPass(1);
+      if (e.code === 'Digit3') game.throwPass(2);
+    });
+    window.addEventListener('keyup', (e) => {
+      if (['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight'].includes(e.code)) movementDir = 0;
+    });
+
+    // Touch & Button Controls
+    document.getElementById('btn-snap').addEventListener('click', () => {
+      if (game.phase === 'ready') game.snap();
+      else if (game.phase === 'result') game.nextPlay();
+      else if (game.phase === 'over') game.resetDrive();
+    });
+    document.getElementById('btn-pass-0').addEventListener('click', () => game.throwPass(0));
+    document.getElementById('btn-pass-1').addEventListener('click', () => game.throwPass(1));
+    document.getElementById('btn-pass-2').addEventListener('click', () => game.throwPass(2));
+    document.getElementById('btn-reset').addEventListener('click', () => game.resetDrive());
+
+    const btnLeft = document.getElementById('btn-move-left');
+    const btnRight = document.getElementById('btn-move-right');
+    btnLeft.addEventListener('pointerdown', () => movementDir = -1);
+    btnLeft.addEventListener('pointerup', () => movementDir = 0);
+    btnRight.addEventListener('pointerdown', () => movementDir = 1);
+    btnRight.addEventListener('pointerup', () => movementDir = 0);
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    /* ==========================================================================
+       5. MAIN ANIMATION & GAME RENDER LOOP
+       ========================================================================== */
+    let lastTime = performance.now();
+    function animate(now) {
+      requestAnimationFrame(animate);
+      const dt = Math.min((now - lastTime) / 1000, 0.05);
+      lastTime = now;
+
+      // Step deterministic simulation
+      game.step(dt, movementDir);
+
+      // Sync 3D Graphics to Simulation
+      qbMesh.position.set(game.qb.x, 0, game.qb.z);
+      game.receivers.forEach((r, i) => {
+        receiverMeshes[i].position.set(r.x, 0, r.z);
+        targetRings[i].position.set(r.x, 0.08, r.z);
+        // Turn ring green when open, red when covered
+        targetRings[i].material.color.set(r.open ? '#00e676' : '#ff1744');
+      });
+      game.defenders.forEach((d, i) => {
+        defenderMeshes[i].position.set(d.x, 0, d.z);
+      });
+
+      // Ball position and spiral rotation
+      ballMesh.position.set(game.ball.x, game.ball.y, game.ball.z);
+      if (game.phase === 'flight') {
+        ballMesh.rotation.z += 16 * dt; // Spiral spin
+      } else {
+        ballMesh.rotation.set(0, 0, 0);
+      }
+
+      // Sync Holographic Lines
+      scrimmageLine.position.z = game.spot;
+      targetLine.position.z = game.target;
+
+      // Smooth Camera Tracking
+      const targetCamZ = game.spot - 34;
+      camera.position.x += (game.qb.x * 0.4 - camera.position.x) * 0.1;
+      camera.position.y += (34 - camera.position.y) * 0.1;
+      camera.position.z += (targetCamZ - camera.position.z) * 0.1;
+      camera.lookAt(game.qb.x * 0.3, 3, game.spot + 18);
+
+      renderer.render(scene, camera);
+
+      // Update HUD UI
+      document.getElementById('hud-score').textContent = game.score;
+      document.getElementById('hud-down-dist').textContent = `${game.down} & ${Math.max(0, game.target - game.spot)} · Ball on ${game.spot}`;
+      document.getElementById('hud-pocket-timer').textContent = `${Math.max(0, 7.0 - game.time).toFixed(1)}s`;
+      document.getElementById('hud-message').textContent = game.message;
+
+      // Update Button States
+      const isLive = game.phase === 'live';
+      document.getElementById('btn-pass-0').disabled = !isLive;
+      document.getElementById('btn-pass-1').disabled = !isLive;
+      document.getElementById('btn-pass-2').disabled = !isLive;
+      btnLeft.disabled = !isLive;
+      btnRight.disabled = !isLive;
+
+      const snapBtn = document.getElementById('btn-snap');
+      const snapText = document.getElementById('btn-snap-text');
+      if (game.phase === 'ready') {
+        snapBtn.disabled = false;
+        snapText.textContent = 'Snap Ball';
+      } else if (game.phase === 'result') {
+        snapBtn.disabled = false;
+        snapText.textContent = 'Next Down';
+      } else if (game.phase === 'over') {
+        snapBtn.disabled = false;
+        snapText.textContent = 'New Drive';
+      } else {
+        snapBtn.disabled = true;
+      }
+    }
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>

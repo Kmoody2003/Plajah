@@ -667,6 +667,37 @@ const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, 
                 </div>
               )}
 
+              {/* First-party prototype — Project Firstlight (admin-only, 3D American Football Passing Lab) */}
+              {activeTab === 'DISCOVER' && (currentUser?.role === 'admin' || currentUser?.role === 'staff' || currentUser?.email === 'kmoody2003@gmail.com') && ('project firstlight football passing sports 3d gridiron nfl'.includes(searchQuery.toLowerCase()) || searchQuery === '') && (
+                <div
+                  key="native-firstlight"
+                  onClick={() => window.dispatchEvent(new CustomEvent('plajah:openFirstlight', { detail: {} }))}
+                  className="group cursor-pointer space-y-6"
+                >
+                  <div className="relative aspect-square rounded-[2.5rem] overflow-hidden border border-[#FF8C00]/30 shadow-2xl transition-all group-hover:scale-105 group-hover:-translate-y-2 bg-[#0A0A0D]">
+                    <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(107,0,153,0.45), rgba(212,0,85,0.30) 50%, rgba(255,140,0,0.22))' }} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center p-6">
+                      <Logo size={60} />
+                      <p className="text-xl font-black uppercase tracking-tight text-white mt-1">Firstlight</p>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[#00DAF3]">3D Football Lab</span>
+                    </div>
+                    <div className="absolute top-4 left-4 px-2.5 py-1 rounded-md bg-gradient-to-r from-[#FF8C00] to-[#D40055] text-white text-[8px] font-black uppercase tracking-widest shadow-md">Admin Only</div>
+                    <div className="absolute top-4 right-4 px-2 py-0.5 rounded-full bg-black/60 border border-white/20 text-[#00DAF3] text-[8px] font-bold">3D WebGL</div>
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center backdrop-blur-sm">
+                      <Play fill="white" size={48} className="mb-3 text-white scale-75 group-hover:scale-100 transition-transform" />
+                      <p className="text-[10px] font-black uppercase tracking-widest text-white">Enter Passing Lab</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 px-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-black uppercase tracking-tight text-white truncate">Project Firstlight</h3>
+                      <span className="text-[9px] font-bold text-[#FF8C00] bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">Alpha</span>
+                    </div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">3D American Football Passing Lab · Admin Preview</p>
+                  </div>
+                </div>
+              )}
+
               {/* Native platform app — Melos Beats (the Chora DAW room: pads + step sequencer) */}
               {activeTab === 'DISCOVER' && ('melos beats daw drum machine step sequencer maschine groove sampler dawproject'.includes(searchQuery.toLowerCase()) || searchQuery === '') && (
                 <div
