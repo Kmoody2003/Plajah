@@ -26,6 +26,7 @@ import os from 'node:os';
 import Stripe from 'stripe';
 import { coraRouter } from './routes/cora';
 import { createMusicLabRouter } from './routes/musicLab';
+import { createAdminFilmIngestRouter } from './routes/adminFilmIngest';
 import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
 import { postmanRouter } from './routes/postman';
@@ -74,6 +75,23 @@ for (const envFile of ['.env.local', '.env']) {
 }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Guard dev server process against background worker gRPC and transient network stream terminations
+process.on('unhandledRejection', (reason) => {
+  console.warn('[Server] Handled rejection:', reason);
+});
+process.on('uncaughtException', (error) => {
+  console.error('[Server] Uncaught exception:', error);
+});
+process.on('exit', (code) => {
+  console.error('[Server] Process exit event with code:', code);
+});
+process.on('SIGTERM', () => {
+  console.error('[Server] Process received SIGTERM');
+});
+process.on('SIGINT', () => {
+  console.error('[Server] Process received SIGINT');
+});
 
 // ── Google service-account auth for Firestore REST ──────────────────────────
 // Unauthenticated REST calls evaluate as request.auth == null in security
@@ -7845,23 +7863,39 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // --- Vite Middleware ---
 
   if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite'); // dev-only — never loaded in prod
-    // In middleware mode Vite still opens its own HMR websocket, on a FIXED port
-    // (24678) that it does not negotiate. So a second dev server on this repo —
-    // another agent session, or two branches side by side — starts, serves
-    // nothing, and reports only "Port 24678 is already in use". PORT is already
-    // auto-assigned; this makes the HMR port follow suit.
-    const hmrPort = Number(process.env.VITE_HMR_PORT) || 24678;
+    const { createServer: createViteServer } = await import('vite');
+    // In middleware mode Vite opens its own HMR websocket. Auto-find an open port
+    // starting at 24678 (or VITE_HMR_PORT) so multiple concurrent dev instances
+    // or previous runs never fail with EADDRINUSE on 24678.
+    const baseHmrPort = Number(process.env.VITE_HMR_PORT) || 24678;
+    const findOpenPort = async (start: number): Promise<number> => {
+      const net = await import('net');
+      return new Promise((resolve) => {
+        const testServer = net.createServer();
+        testServer.listen(start, () => {
+          const p = (testServer.address() as any)?.port || start;
+          testServer.close(() => resolve(p));
+        });
+        testServer.on('error', () => {
+          resolve(findOpenPort(start + 1));
+        });
+      });
+    };
+    const hmrPort = await findOpenPort(baseHmrPort);
+    const enableHmr = process.env.VITE_HMR === 'true';
     const vite = await createViteServer({
-      server: { middlewareMode: true, hmr: { port: hmrPort } },
+      server: { middlewareMode: true, hmr: enableHmr ? { port: hmrPort } : false },
       appType: 'spa',
     });
     app.use(async (req, res, next) => {
-      // Just intercept root and add meta tags if type is present
-      if (req.path === '/' && req.query.type) {
+      // Intercept root in dev: inject meta tags if type is present,
+      // or transform and serve index.html directly so it loads immediately.
+      if (req.path === '/' || req.path === '') {
         try {
           const rawHtml = await fs.readFile(path.join(__dirname, 'index.html'), 'utf-8');
-          const finalHtml = await injectMetaTags(rawHtml, req.query, req.get('host') || 'localhost');
+          const finalHtml = req.query.type
+            ? await injectMetaTags(rawHtml, req.query, req.get('host') || 'localhost')
+            : rawHtml;
           const viteTransformed = await vite.transformIndexHtml(req.originalUrl, finalHtml);
           return res.status(200).set({ 'Content-Type': 'text/html' }).end(viteTransformed);
         } catch(e) {
@@ -9644,6 +9678,10 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     evaluationPermission: id => id === 'yue2' ? process.env.YUE2_EVALUATION_PERMISSION_REF
       : id === 'sheetsage2' ? process.env.SHEETSAGE2_EVALUATION_PERMISSION_REF : undefined,
   }));
+  app.use('/api/admin/film-ingest', createAdminFilmIngestRouter({
+    authenticate: authMiddleware,
+    isAdmin: async uid => !!await fetchFirebaseDoc('admins', uid),
+  }));
   app.use('/api/cora', express.json({ limit: '1mb' }), coraRouter);
 
   // ── Learner identity (child username/password → custom token; provision; claim) ──
@@ -9687,7 +9725,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use('/api/auth-methods', authLimiter);
   app.use('/api/auth-methods', express.json({ limit: '2kb' }), authMethodsRouter);
 
-  if (process.env.SPORTS_INGESTION_WORKER !== 'false') {
+  if (process.env.SPORTS_INGESTION_WORKER === 'true' || (process.env.NODE_ENV === 'production' && process.env.SPORTS_INGESTION_WORKER !== 'false')) {
     const intervalMs = Number(process.env.SPORTS_INGESTION_INTERVAL_MS) || undefined;
     const { startSportsIngestionScheduler } = await import('./services/sportsIngestionWorker.js');
     startSportsIngestionScheduler({ intervalMs });
@@ -9700,7 +9738,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // /api/chora/cron/transcode is the durable driver; this in-process pass only helps a container
   // that stays warm. On by default: unlike Terra's first pull this is incremental and bounded by
   // the worker's own time budget, so a deploy cannot kick off anything heavy by surprise.
-  if (process.env.CHORA_TRANSCODE_WORKER !== 'false') {
+  if (process.env.CHORA_TRANSCODE_WORKER === 'true' || (process.env.NODE_ENV === 'production' && process.env.CHORA_TRANSCODE_WORKER !== 'false')) {
     const intervalMs = Number(process.env.CHORA_TRANSCODE_INTERVAL_MS) || undefined;
     startChoraTranscodeScheduler(choraWorkerDeps, intervalMs ? { intervalMs } : undefined);
   }
@@ -9734,6 +9772,15 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   server.requestTimeout = 120_000;
   server.headersTimeout = 65_000;
   server.keepAliveTimeout = 60_000;
+  server.on('error', (err: any) => {
+    console.error('[Server] HTTP listener error:', err?.message || err);
+  });
+  server.on('clientError', (err: any, socket: any) => {
+    if (err?.code === 'ECONNRESET' || !socket.writable) return;
+    try {
+      socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+    } catch {}
+  });
 }
 
 startServer();

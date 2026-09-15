@@ -45,9 +45,10 @@ interface AppsViewProps {
   currentUser: UserProfile | null;
   initialAppId?: string;
   onSelectApp?: (app: WebApp) => void;
+  onNavigate?: (view: string) => void;
 }
 
-const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, onSelectApp }) => {
+const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, onSelectApp, onNavigate }) => {
   const [apps, setApps] = useState<WebApp[]>([]);
   const [selectedApp, setSelectedApp] = useState<WebApp | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -668,10 +669,13 @@ const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, 
               )}
 
               {/* First-party prototype — Project Firstlight (admin-only, 3D American Football Passing Lab) */}
-              {activeTab === 'DISCOVER' && (currentUser?.role === 'admin' || currentUser?.role === 'staff' || currentUser?.email === 'kmoody2003@gmail.com') && ('project firstlight football passing sports 3d gridiron nfl'.includes(searchQuery.toLowerCase()) || searchQuery === '') && (
+              {activeTab === 'DISCOVER' && (currentUser?.role === 'admin' || currentUser?.role === 'staff' || currentUser?.email === 'kmoody2003@gmail.com' || import.meta.env.DEV) && ('project firstlight football passing sports 3d gridiron nfl'.includes(searchQuery.toLowerCase()) || searchQuery === '') && (
                 <div
                   key="native-firstlight"
-                  onClick={() => window.dispatchEvent(new CustomEvent('plajah:openFirstlight', { detail: {} }))}
+                  onClick={() => {
+                    if (onNavigate) onNavigate('PROJECT_FIRSTLIGHT');
+                    window.dispatchEvent(new CustomEvent('plajah:openFirstlight', { detail: {} }));
+                  }}
                   className="group cursor-pointer space-y-6"
                 >
                   <div className="relative aspect-square rounded-[2.5rem] overflow-hidden border border-[#FF8C00]/30 shadow-2xl transition-all group-hover:scale-105 group-hover:-translate-y-2 bg-[#0A0A0D]">

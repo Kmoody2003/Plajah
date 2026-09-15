@@ -1,3 +1,5 @@
+import { applyGrassPBR } from './PhotographicMaterials';
+import { StadiumCrowd } from './StadiumCrowd';
 import { buildStadiumArchitecture } from './StadiumArchitecture';
 import * as THREE from 'three';
 import { FIELD, TEAMS } from './constants';
@@ -16,7 +18,7 @@ export class FieldBuilder {
   public jumbotronCanvases: HTMLCanvasElement[] = [];
 
   // Living Stadium Systems
-  private crowdMesh!: THREE.InstancedMesh;
+  private humanCrowd!: StadiumCrowd;
   private crowdCount: number = 2400;
   private crowdBasePositions: THREE.Vector3[] = [];
   private crowdJumpOffsets: number[] = [];
@@ -64,6 +66,14 @@ export class FieldBuilder {
       }
     }
 
+    // Seeded grass blade albedo: never regenerated per frame.
+    let grassSeed=4817;
+    for(let i=0;i<180000;i++) {
+      grassSeed=(Math.imul(grassSeed,1664525)+1013904223)>>>0;
+      const x=grassSeed%2048; const y=(grassSeed>>>11)%4096;
+      ctx.fillStyle=i%3?'rgba(8,28,5,.11)':'rgba(156,177,77,.13)';
+      ctx.fillRect(x,y,1,2+(i%4));
+    }
     // End Zones: Top (y=0, Z=-50) is Aurora (Home End Zone behind offense)
     // Bottom (y=canvas.height, Z=+50) is Current (Opponent End Zone that offense is attacking)
     const homeGrad = ctx.createLinearGradient(0, 0, 0, stripeHeight * 2);
@@ -216,6 +226,7 @@ export class FieldBuilder {
       metalness: 0,
     });
 
+    applyGrassPBR(this.turfMaterial);
     const fieldGeom = new THREE.PlaneGeometry(FIELD.WIDTH, FIELD.LENGTH);
     this.fieldMesh = new THREE.Mesh(fieldGeom, this.turfMaterial);
     this.fieldMesh.rotation.x = -Math.PI / 2;
@@ -663,7 +674,7 @@ export class FieldBuilder {
       this.stadiumGroup.add(flareSprite);
 
       // SpotLight aiming at field center
-      const spot = new THREE.SpotLight(0xfff5ea, 1.6);
+      const spot = new THREE.SpotLight(0xfff5ea, 0.65);
       spot.position.set(coord.x, 28, coord.z);
       spot.target.position.set(0, 0, coord.z > 0 ? 20 : -20);
       spot.angle = Math.PI / 4;
@@ -703,39 +714,8 @@ export class FieldBuilder {
   }
 
   private buildLivingCrowd(): void {
-    // 2,400 3D Fans in the stands
-    const fanGeom = new THREE.CylinderGeometry(0.32, 0.35, 1.2, 6);
-    const fanMat = new THREE.MeshStandardMaterial({
-      roughness: 0.6,
-      metalness: 0.1,
-    });
-
-    this.crowdMesh = new THREE.InstancedMesh(fanGeom, fanMat, this.crowdCount);
-    this.crowdMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-
-    const dummy = new THREE.Object3D();
-    const colors = [
-      new THREE.Color('#9333ea'), // Aurora Purple
-      new THREE.Color('#a855f7'),
-      new THREE.Color('#06b6d4'), // Current Cyan
-      new THREE.Color('#0891b2'),
-      new THREE.Color('#5e6269'), // Gold
-      new THREE.Color('#a6adb5'), // White jersey
-      new THREE.Color('#334155'), // Slate jacket
-      new THREE.Color('#583f49'), // Red
-    ];
-
-    this.crowdBasePositions.forEach((p, i) => {
-      dummy.position.copy(p); dummy.scale.set(.65,.65,.65); dummy.lookAt(0,p.y,0); dummy.updateMatrix();
-      this.crowdMesh.setMatrixAt(i,dummy.matrix);
-      this.crowdMesh.setColorAt(i,colors[i % colors.length]);
-      this.crowdJumpOffsets.push(i * 2.399);
-    });
-    if (this.crowdMesh.instanceColor) {
-      this.crowdMesh.instanceColor.needsUpdate = true;
-    }
-    this.crowdMesh.instanceMatrix.needsUpdate = true;
-    this.stadiumGroup.add(this.crowdMesh);
+    this.humanCrowd = new StadiumCrowd(this.crowdBasePositions);
+    this.stadiumGroup.add(this.humanCrowd.group);
   }
 
   private buildLEDRibbons(): void {
@@ -828,24 +808,8 @@ export class FieldBuilder {
     });
   }
 
-  public updateLivingCrowd(animTime: number, excitement: number = 1.0): void {
-    if (!this.crowdMesh) return;
-    const dummy = new THREE.Object3D();
-
-    for (let i = 0; i < this.crowdBasePositions.length; i++) {
-      const base = this.crowdBasePositions[i];
-      const offset = this.crowdJumpOffsets[i];
-      const bounce = Math.sin(animTime * (4.0 * excitement) + offset);
-      const jumpY = bounce > 0 ? bounce * 0.45 * excitement : 0;
-
-      dummy.position.set(base.x, base.y + jumpY, base.z);
-      dummy.scale.set(.65, .65 + (bounce > 0 ? 0.08 * excitement : 0), .65);
-      dummy.lookAt(0, 1.5, base.z * 0.5);
-      dummy.updateMatrix();
-
-      this.crowdMesh.setMatrixAt(i, dummy.matrix);
-    }
-    this.crowdMesh.instanceMatrix.needsUpdate = true;
+  public updateLivingCrowd(animTime:number, excitement=1): void {
+    this.humanCrowd?.update(animTime,excitement);
   }
 
   public triggerTouchdownFireworks(scene: THREE.Scene): void {

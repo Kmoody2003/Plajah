@@ -1,3 +1,7 @@
+import { pbrMap } from './PhotographicMaterials';
+import { mocapClips } from './MocapClips';
+import { TARGET_COLORS } from './RouteOverlay';
+import { surfaceTexture } from './SurfaceTextures';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import * as THREE from 'three';
 import { Player3D, TeamInfo } from '../types';
@@ -56,6 +60,7 @@ export class PlayerMeshBuilder {
       const texture = new THREE.CanvasTexture(canvas);
       this.footballMaterial = new THREE.MeshStandardMaterial({
         map: texture,
+        bumpMap:surfaceTexture('leather'),bumpScale:.012,
         roughness: 0.55,
         metalness: 0.05,
       });
@@ -72,6 +77,25 @@ export class PlayerMeshBuilder {
     return mesh;
   }
 
+  public static disposePlayer(root: THREE.Group): void {
+    const geometries = new Set<THREE.BufferGeometry>();
+    const materials = new Set<THREE.Material>();
+    const shared = new Set([this.skinMaterial, this.whiteMaterial, this.blackMaterial, this.footballMaterial]);
+    root.traverse(object => {
+      const mesh = object as THREE.Mesh;
+      if (mesh.geometry) geometries.add(mesh.geometry);
+      if (mesh.material) (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach(m => {
+        if (!shared.has(m as THREE.MeshStandardMaterial)) materials.add(m);
+      });
+    });
+    geometries.forEach(g => g.dispose());
+    materials.forEach(m => {
+      const map = (m as THREE.MeshStandardMaterial).map;
+      if (map) map.dispose();
+      m.dispose();
+    });
+  }
+
   public static createPlayerGroup(player: Player3D, team: TeamInfo, mode: 'BLOCK' | 'ATHLETE' = 'BLOCK'): {
     root: THREE.Group;
     torso: THREE.Mesh;
@@ -84,6 +108,10 @@ export class PlayerMeshBuilder {
     targetRing?: THREE.Mesh;
     badgeSprite?: THREE.Sprite;
   } {
+    const skin = this.skinMaterial.clone();
+    const tones=['#d6a581','#ad7756','#704c37','#c08a66','#513829'];
+    skin.color.set(tones[player.number%tones.length]);skin.roughness=.68;skin.metalness=0;
+    skin.bumpMap=surfaceTexture('leather');skin.bumpScale=.0012;
     const root = new THREE.Group();
     root.position.set(player.x, player.y, player.z);
 
@@ -112,20 +140,24 @@ export class PlayerMeshBuilder {
     const jerseyTexture = new THREE.CanvasTexture(jerseyCanvas); jerseyTexture.colorSpace = THREE.SRGBColorSpace;
     const jerseyMat = new THREE.MeshStandardMaterial({
       map: jerseyTexture,
-      roughness: 0.55,
-      metalness: 0.1,
+      normalMap:pbrMap('fabric','NormalGL'),normalScale:new THREE.Vector2(.25,.25),
+      roughnessMap:pbrMap('fabric','Roughness'),
+      roughness: 0.92,
+      metalness: 0,
     });
 
-    const helmetMat = new THREE.MeshStandardMaterial({
+    const helmetMat = new THREE.MeshPhysicalMaterial({
+      clearcoat:1,clearcoatRoughness:.2,
       color: new THREE.Color(team.helmetColor),
       roughness: 0.34,
-      metalness: 0.15,
+      metalness: 0,
     });
 
     // Aurora pants: crisp white with purple stripe; Current pants: dark navy
     const pantsMat = new THREE.MeshStandardMaterial({
       color: player.team === 'OFFENSE' ? new THREE.Color(0xf8fafc) : new THREE.Color(0x0f172a),
-      roughness: 0.65,
+      roughness: 0.9,
+      normalMap:pbrMap('fabric','NormalGL'),normalScale:new THREE.Vector2(.18,.18),
     });
 
     // 1. Torso & Shoulder pads
@@ -181,7 +213,7 @@ export class PlayerMeshBuilder {
     // Left Arm
     const leftArm = new THREE.Group();
     leftArm.position.set(-0.58, 0.3, 0);
-    const leftUpperArm = new THREE.Mesh(armGeom, this.skinMaterial);
+    const leftUpperArm = new THREE.Mesh(armGeom, skin);
     leftUpperArm.position.y = -0.3;
     leftUpperArm.castShadow = true;
     leftArm.add(leftUpperArm);
@@ -193,7 +225,7 @@ export class PlayerMeshBuilder {
     // Right Arm (Throwing / Ball holding arm)
     const rightArm = new THREE.Group();
     rightArm.position.set(0.58, 0.3, 0);
-    const rightUpperArm = new THREE.Mesh(armGeom, this.skinMaterial);
+    const rightUpperArm = new THREE.Mesh(armGeom, skin);
     rightUpperArm.position.y = -0.3;
     rightUpperArm.castShadow = true;
     rightArm.add(rightUpperArm);
@@ -242,7 +274,7 @@ export class PlayerMeshBuilder {
       // Articulated lower limbs retain the existing animation interface.
       for (const arm of [leftArm,rightArm]) {
         const elbow = new THREE.Group(); elbow.name = 'elbow'; elbow.position.y = -.32;
-        const forearm = new THREE.Mesh(new THREE.CapsuleGeometry(.085,.22,4,12),this.skinMaterial);
+        const forearm = new THREE.Mesh(new THREE.CapsuleGeometry(.085,.22,4,12),skin);
         forearm.position.y = -.15; elbow.add(forearm); arm.add(elbow);
         arm.children[0].scale.y = .52; arm.children[0].position.y = -.15;
         const glove = arm.children[1]; arm.remove(glove); glove.position.y = -.34; elbow.add(glove);
@@ -254,7 +286,7 @@ export class PlayerMeshBuilder {
         leg.children[0].scale.y=.55; leg.children[0].position.y=-.17;
         const shoe=leg.children[1]; leg.remove(shoe); shoe.position.y=-.4; knee.add(shoe);
       }
-      const face = new THREE.Mesh(new THREE.SphereGeometry(.21,16,12),this.skinMaterial);
+      const face = new THREE.Mesh(new THREE.SphereGeometry(.21,16,12),skin);
       face.position.set(0,-.09,.08); head.add(face);
       for(const y of [-.08,-.16]) {
         const bar = new THREE.Mesh(new THREE.CylinderGeometry(.014,.014,.44,8),maskMat);
@@ -262,55 +294,26 @@ export class PlayerMeshBuilder {
       }
     }
 
+    if(mode==='ATHLETE') {
+      const trim=new THREE.MeshStandardMaterial({color:team.secondaryColor,roughness:.85});
+      for(const [limb,side] of [[leftLeg,-1],[rightLeg,1]] as const) {
+        const stripe=new THREE.Mesh(new THREE.BoxGeometry(.025,.32,.1),trim);stripe.position.set(side*.14,-.17,0);limb.add(stripe);
+      }
+      const belt=new THREE.Mesh(new THREE.TorusGeometry(.29,.035,6,24),new THREE.MeshStandardMaterial({color:'#202128'}));belt.rotation.x=Math.PI/2;belt.scale.x=1.2;belt.position.y=.95;root.add(belt);
+      const collar=new THREE.Mesh(new THREE.TorusGeometry(.145,.025,6,20),trim);collar.rotation.x=Math.PI/2;collar.position.set(0,.45,0);torso.add(collar);
+      const stripe=new THREE.Mesh(new THREE.SphereGeometry(.282,24,16,Math.PI*.48,.09),trim);head.add(stripe);
+    }
+    root.userData.athlete=mode==='ATHLETE';
     // 5. Overhead floating target badge for eligible pass targets
     let badgeSprite: THREE.Sprite | undefined;
-    if (player.route || player.role === 'QB') {
-      const badgeCanvas = document.createElement('canvas');
-      badgeCanvas.width = 256;
-      badgeCanvas.height = 64;
-      const bCtx = badgeCanvas.getContext('2d')!;
-
-      bCtx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-      bCtx.beginPath();
-      bCtx.roundRect(4, 4, 248, 56, 16);
-      bCtx.fill();
-
-      bCtx.strokeStyle = player.role === 'QB' ? '#f97316' : '#c084fc';
-      bCtx.lineWidth = 4;
-      bCtx.stroke();
-
-      if (player.route) {
-        // Target key circle (1, 2, 3, 4)
-        bCtx.fillStyle = '#ec4899';
-        bCtx.beginPath();
-        bCtx.arc(36, 32, 20, 0, Math.PI * 2);
-        bCtx.fill();
-
-        bCtx.fillStyle = '#ffffff';
-        bCtx.font = 'bold 26px "Rajdhani", sans-serif';
-        bCtx.textAlign = 'center';
-        bCtx.textBaseline = 'middle';
-        bCtx.fillText(player.route.targetKey, 36, 33);
-
-        bCtx.fillStyle = '#ffffff';
-        bCtx.font = 'bold 22px "Rajdhani", sans-serif';
-        bCtx.textAlign = 'left';
-        bCtx.fillText(`${player.name} [${player.role}]`, 68, 33);
-      } else {
-        // QB Tag
-        bCtx.fillStyle = '#f97316';
-        bCtx.font = 'bold 24px "Rajdhani", sans-serif';
-        bCtx.textAlign = 'center';
-        bCtx.textBaseline = 'middle';
-        bCtx.fillText('★ QB VANCE', 128, 33);
-      }
-
-      const badgeTex = new THREE.CanvasTexture(badgeCanvas);
-      const badgeMat = new THREE.SpriteMaterial({ map: badgeTex, depthTest: false });
-      badgeSprite = new THREE.Sprite(badgeMat);
-      badgeSprite.scale.set(1.6, 0.4, 1);
-      badgeSprite.position.set(0, 2.7, 0);
-      root.add(badgeSprite);
+    if (player.route) {
+      const c=document.createElement('canvas');c.width=c.height=128;const ctx=c.getContext('2d')!;
+      ctx.fillStyle='#08111e';ctx.beginPath();ctx.arc(64,64,57,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=TARGET_COLORS[Number(player.route.targetKey)-1];ctx.lineWidth=9;ctx.stroke();
+      ctx.fillStyle='#ffffff';ctx.font='900 76px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(player.route.targetKey,64,67);
+      const map=new THREE.CanvasTexture(c);map.colorSpace=THREE.SRGBColorSpace;
+      badgeSprite=new THREE.Sprite(new THREE.SpriteMaterial({map,depthTest:false,depthWrite:false}));
+      badgeSprite.scale.setScalar(.9);badgeSprite.position.y=2.85;badgeSprite.renderOrder=20;root.add(badgeSprite);
     }
 
     // 6. Receiver glowing target ring on turf
@@ -343,6 +346,8 @@ export class PlayerMeshBuilder {
     };
   }
 
+  private static gait = new WeakMap<THREE.Mesh,{phase:number;time:number;state?:string;stateTime?:number}>();
+
   public static animatePlayer(
     parts: {
       torso: THREE.Mesh;
@@ -359,11 +364,19 @@ export class PlayerMeshBuilder {
     animTime: number,
     isOpen: boolean = false
   ): void {
-    parts.torso.rotation.set(0,0,0); parts.torso.position.y=1.35;
+    const gait=this.gait.get(parts.torso)??{phase:0,time:animTime};
+    if(gait.state!==player.state){gait.state=player.state;gait.stateTime=animTime;}
+    const dt=Math.max(0,Math.min(.05,animTime-gait.time));gait.time=animTime;
+    const currentSpeed = Math.hypot(player.vx || 0, player.vz || 0);
+    gait.phase=(gait.phase+currentSpeed*2.2*dt)%(Math.PI*2);this.gait.set(parts.torso,gait);
+    const t=gait.phase;
+    const joints=[parts.torso,parts.leftArm,parts.rightArm,parts.leftLeg,parts.rightLeg];
+    const previous=joints.map(j=>j.quaternion.clone());const previousY=parts.torso.position.y;
+    joints.forEach(j=>j.rotation.set(0,0,0));parts.torso.position.y=1.35;
     const running = player.state === 'RUNNING';
     [parts.leftLeg,parts.rightLeg].forEach((leg,i)=> {
       const knee=leg.getObjectByName('knee');
-      if(knee) knee.rotation.x=running ? Math.max(0,Math.sin(animTime*12+i*Math.PI)) * 1.1 : .12;
+      if(knee) knee.rotation.x=running ? Math.max(0,Math.sin(t+i*Math.PI)) * 1.1 : .12;
     });
     [parts.leftArm,parts.rightArm].forEach(arm=> {
       const elbow=arm.getObjectByName('elbow'); if(elbow) elbow.rotation.x=running ? -1.1 : -.25;
@@ -373,9 +386,7 @@ export class PlayerMeshBuilder {
       parts.ballMesh.visible = !!player.hasBall;
     }
 
-    const currentSpeed = Math.hypot(player.vx || 0, player.vz || 0);
-    const runCycleRate = Math.max(8.0, Math.min(22.0, (currentSpeed || player.speed) * 2.2));
-    const t = animTime * runCycleRate;
+
 
     if (player.state === 'RUNNING') {
       // Natural running stride scaled with speed
@@ -443,6 +454,21 @@ export class PlayerMeshBuilder {
       parts.torso.position.y = player.role === 'OL' || player.role === 'DL' ? 1.05 : 1.35;
     }
 
+    const root=parts.torso.parent;
+    if(root?.userData.athlete && (running||player.state==='THROWING'||player.state==='CATCHING')) {
+      const clip=running?mocapClips.run:player.state==='THROWING'?mocapClips.throw:mocapClips.catch;
+      const time=running?(t/(Math.PI*2))*clip.duration:Math.min(clip.duration,animTime-(gait.stateTime??animTime));
+      const index=Math.min(clip.frames.length-1,time*clip.fps),a=Math.floor(index),b=Math.min(a+1,clip.frames.length-1);
+      const targets=[parts.leftArm,parts.leftArm.getObjectByName('elbow'),parts.rightArm,parts.rightArm.getObjectByName('elbow'),parts.leftLeg,parts.leftLeg.getObjectByName('knee'),parts.rightLeg,parts.rightLeg.getObjectByName('knee')];
+      targets.forEach((joint,i)=>{
+        if(!joint || (running&&player.hasBall&&i<4) || (!running&&i>=4))return;
+        const qa=new THREE.Quaternion().fromArray(clip.frames[a][i]),qb=new THREE.Quaternion().fromArray(clip.frames[b][i]);
+        joint.quaternion.slerpQuaternions(qa,qb,index-a);
+      });
+    }
+    const blend=1-Math.exp(-22*dt);
+    joints.forEach((joint,i)=>joint.quaternion.slerpQuaternions(previous[i],joint.quaternion.clone(),blend));
+    parts.torso.position.y=THREE.MathUtils.lerp(previousY,parts.torso.position.y,blend);
     // Receiver target ring styling
     if (parts.targetRing) {
       const ringMat = parts.targetRing.material as THREE.MeshBasicMaterial;

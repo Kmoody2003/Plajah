@@ -61,9 +61,9 @@ export const FIELD = {
 };
 
 export const PHYSICS = {
-  GRAVITY: -18.0, // snappy football gravity
-  BULLET_PASS_SPEED: 42.0, // yards/sec
-  LOB_PASS_SPEED: 28.0,
+  GRAVITY: -10.725, // 9.80665 m/s² in yard-based world units
+  BULLET_PASS_SPEED: 30.0, // yards/sec
+  LOB_PASS_SPEED: 21.0,
   PASS_ARC_BULLET: 2.2,
   PASS_ARC_LOB: 7.5,
   POCKET_TIME_LIMIT: 6.5, // seconds before pocket collapses

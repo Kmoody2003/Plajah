@@ -1,7 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Book, Album, BookChapter } from '../types';
 import PageHeader from './PageHeader';
-import { fetchClassicBooks, fetchArchiveBooks, fetchLibraryOfCongressBooks, fetchResearchPapers, ArchiveBook, getArchiveItemFiles } from '../services/archiveContentService';
+import {
+  fetchClassicBooks,
+  fetchArchiveBooks,
+  fetchLibraryOfCongressBooks,
+  fetchResearchPapers,
+  fetchEuropeanaBooks,
+  fetchStandardEbooks,
+  fetchWikisourceBooks,
+  fetchWorldHeritageBooks,
+  ArchiveBook,
+  getArchiveItemFiles,
+} from '../services/archiveContentService';
 import { searchGoogleBooks, GoogleBook } from '../services/googleBooksService';
 import { fetchPublicBooks, syncPublicDomainAsset } from '../services/backendService';
 import { importComic } from '../services/comicImport';
@@ -21,8 +32,16 @@ interface BookTabProps {
   onCreateScript?: () => void;
 }
 
-const GENRES: Array<{ id: string; name: string; topic: string; source?: 'gutendex' | 'ia' | 'loc' | 'arxiv' }> = [
+const GENRES: Array<{ id: string; name: string; topic: string; source?: 'gutendex' | 'ia' | 'loc' | 'arxiv' | 'europeana' | 'standard-ebooks' | 'wikisource' | 'world-heritage' }> = [
   { id: 'all', name: 'All Classics', topic: '' },
+  // Europeana European cultural heritage
+  { id: 'europeana', name: 'Europeana Heritage', topic: '', source: 'europeana' },
+  // Standard Ebooks beautifully typeset modern public domain editions
+  { id: 'standard-ebooks', name: 'Standard Ebooks', topic: '', source: 'standard-ebooks' },
+  // Ancient and global foundational literature
+  { id: 'world-heritage', name: 'World Heritage Texts', topic: '', source: 'world-heritage' },
+  // Wikisource crowdsourced multilingual texts
+  { id: 'wikisource', name: 'Wikisource Global', topic: '', source: 'wikisource' },
   // Native loc.gov open-access collection (not the Internet Archive mirror)
   { id: 'loc', name: 'Library of Congress', topic: '', source: 'loc' },
   { id: 'fiction', name: 'Fiction', topic: 'fiction' },
@@ -151,10 +170,14 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     let books: ArchiveBook[] = [];
     try {
       switch (activeGenre.source) {
-        case 'loc':   books = await fetchLibraryOfCongressBooks(searchTerm); break;
-        case 'arxiv': books = await fetchResearchPapers(activeGenre.topic); break;
-        case 'ia':    books = await fetchArchiveBooks(activeGenre.topic); break;
-        default:      books = await fetchClassicBooks(activeGenre.topic);
+        case 'loc':             books = await fetchLibraryOfCongressBooks(searchTerm); break;
+        case 'arxiv':           books = await fetchResearchPapers(activeGenre.topic); break;
+        case 'ia':              books = await fetchArchiveBooks(activeGenre.topic); break;
+        case 'europeana':       books = await fetchEuropeanaBooks(activeGenre.topic || searchTerm); break;
+        case 'standard-ebooks': books = await fetchStandardEbooks(activeGenre.topic || searchTerm); break;
+        case 'wikisource':      books = await fetchWikisourceBooks(activeGenre.topic || searchTerm || 'philosophy'); break;
+        case 'world-heritage':  books = await fetchWorldHeritageBooks(); break;
+        default:                books = await fetchClassicBooks(activeGenre.topic);
       }
       if (books.length > 0) {
         cache.set(cacheKey, books);
@@ -179,8 +202,13 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
 
   const handleBookSelect = async (archiveBook: ArchiveBook) => {
     // Transform ArchiveBook to the Album format expected by BookReader
-    // LoC and arXiv items carry direct file URLs — no IA metadata lookup.
-    const isDirect = archiveBook.id.startsWith('loc-') || archiveBook.id.startsWith('arxiv-');
+    // Direct providers (LoC, arXiv, Europeana, Standard Ebooks, World Heritage, Wikisource) carry direct file/HTML URLs.
+    const isDirect = archiveBook.id.startsWith('loc-') ||
+                     archiveBook.id.startsWith('arxiv-') ||
+                     archiveBook.id.startsWith('europeana-') ||
+                     archiveBook.id.startsWith('se-') ||
+                     archiveBook.id.startsWith('heritage-') ||
+                     archiveBook.id.startsWith('wiki-');
     const isIA = !isDirect && !archiveBook.id.match(/^\d+$/); // Gutendex IDs are numeric strings
 
     let bookChapters: BookChapter[] = [];

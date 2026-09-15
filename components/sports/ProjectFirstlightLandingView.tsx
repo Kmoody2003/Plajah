@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { 
   ArrowLeft, 
   Play, 
@@ -24,9 +24,10 @@ interface Props {
 }
 
 export const ProjectFirstlightLandingView: React.FC<Props> = ({ onBack, currentUser, onNavigate }) => {
+  console.log('[Firstlight] ProjectFirstlightLandingView rendering...');
   const [isPlaying3D, setIsPlaying3D] = useState(true);
   const [activeTab, setActiveTab] = useState<'LAB' | 'CURRICULUM' | 'ADMIN_SPECS'>('LAB');
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'staff' || currentUser?.email === 'kmoody2003@gmail.com';
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'staff' || currentUser?.email === 'kmoody2003@gmail.com' || import.meta.env.DEV;
 
   return (
     <div className="min-h-screen bg-[#0A0A0F] text-white flex flex-col font-sans selection:bg-[#FF8C00]/30">

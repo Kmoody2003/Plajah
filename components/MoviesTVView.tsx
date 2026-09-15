@@ -17,7 +17,10 @@ import {
   fetchAllPublicWorlds, fetchWorldCharacters,
 } from '../services/backendService';
 import SignInPrompt from './SignInPrompt';
-import { fetchArchiveVideos, fetchArchiveByAllGenres, GenreCollection, ArchiveVideo, getArchiveItemFiles, getBestVideoUrl } from '../services/archiveContentService';
+import {
+  fetchArchiveVideos, fetchArchiveByAllGenres, GenreCollection, ArchiveVideo,
+  getArchiveItemFiles, getBestVideoUrl, CURATED_EUROPEANA_FILMS, CURATED_KOFA_FILMS,
+} from '../services/archiveContentService';
 import { TelevisionView } from './TelevisionView';
 import { ExploreView } from './ExploreView';
 import { MoviesSpecificView } from './MoviesSpecificView';
@@ -32,6 +35,7 @@ import PersonalVideoLocker from './PersonalVideoLocker';
 import type { Club } from '../types';
 import TaleoFilmMuseum from './TaleoFilmMuseum';
 import TaleoUniverseBrowser from './TaleoUniverseBrowser';
+import TaleoFilmCurator from './TaleoFilmCurator';
 import { Landmark } from 'lucide-react';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
@@ -41,7 +45,7 @@ interface MoviesTVViewProps {
   onNavigate?: (view: 'WORLDS' | 'USER_PROFILE' | 'TALEO_HISTORY' | 'FILM_SCHOOL') => void;
 }
 
-type SubView = 'HOME' | 'TV' | 'HIVE' | 'MY_NEBULA' | 'ALLY_VIEW' | 'MOVIES' | 'UNIVERSE' | 'LIBRARY' | 'MUSEUM' | 'CLUBS';
+type SubView = 'HOME' | 'MOVIES' | 'TV' | 'CURATOR' | 'MUSEUM' | 'CLUBS' | 'UNIVERSE' | 'LIBRARY' | 'HIVE' | 'MY_NEBULA' | 'ALLY_VIEW';
 
 const TaleoTabNav: React.FC<{
   currentSubView: SubView;
@@ -57,6 +61,7 @@ const TaleoTabNav: React.FC<{
         { id: 'HOME',     icon: <Home size={13} />,        label: 'Home'     },
         { id: 'MOVIES',   icon: <Film size={13} />,        label: 'Movies'   },
         { id: 'TV',       icon: <Monitor size={13} />,     label: 'TV'       },
+        { id: 'CURATOR',  icon: <Sparkles size={13} />,    label: 'Curator'  },
         { id: 'MUSEUM',   icon: <Landmark size={13} />,    label: 'Museum'   },
         { id: 'CLUBS',    icon: <Users size={13} />,       label: 'Clubs'    },
         { id: 'UNIVERSE', icon: <Globe size={13} />,       label: 'Universe' },
@@ -85,6 +90,9 @@ const GENRE_ICONS: Record<string, React.ComponentType<any>> = {
   'Documentary': BookOpen,
   'Film Noir': Moon,
   'Silent Film': History,
+  'European Cinema': Globe,
+  'Korean Classic Cinema': Film,
+  'European Newsreels & TV': Monitor,
 };
 
 // ── Shared section header ──────────────────────────────────────────────────────
@@ -167,7 +175,7 @@ const PosterCard: React.FC<{
   <motion.div whileHover={{ y: -5 }} onClick={onPlay} className={`group cursor-pointer ${width}`}>
     <div className={`aspect-[2/3] rounded-xl overflow-hidden bg-white/5 relative border transition-all duration-300 ${accentBorder ? 'border-[#D0BCFF]/20 group-hover:border-[#D0BCFF]/50' : 'border-white/8 group-hover:border-white/20'}`}>
       {image ? (
-        <img src={thumb(image, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(image)} className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-all duration-500" alt={title} />
+        <img src={thumb(image, THUMB.card) || undefined} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={onThumbError(image)} className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-all duration-500" alt={title} />
       ) : (
         <div className="w-full h-full flex items-center justify-center">
           <Film size={28} className="text-white/10" />
@@ -422,10 +430,31 @@ const HomeView: React.FC<{
         </div>
 
         {/* Taleo Discovery Hero Cards */}
-        {onNavigate && (
-          <section className="px-4 lg:px-8 mb-6">
-            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-1">
-              {/* Film History hero card */}
+        <section className="px-4 lg:px-8 mb-6">
+          <div className="flex gap-4 overflow-x-auto no-scrollbar pb-1">
+            {/* Virtual Film Historian hero card */}
+            <button
+              onClick={() => setCurrentSubView('CURATOR')}
+              className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+              style={{ border: '1px solid rgba(208,188,255,0.35)' }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-[#2A1B3D] via-[#1F172E] to-[#131314]" />
+              <div className="absolute right-3 top-3 opacity-20 text-[70px] leading-none select-none">✨</div>
+              <div className="relative h-full flex flex-col justify-between p-5">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#D0BCFF] animate-pulse" />
+                  <span className="text-[7px] font-black uppercase tracking-[0.35em] text-[#D0BCFF]">Virtual Curator</span>
+                </div>
+                <div>
+                  <p className="text-[8px] font-black uppercase tracking-widest text-[#D0BCFF]/80 mb-0.5">KOFA · Europeana · Silent Era</p>
+                  <h3 className="text-lg font-black text-white leading-tight">Film Historian</h3>
+                  <p className="text-[9px] text-white/50 mt-1">Curated pairings &amp; context →</p>
+                </div>
+              </div>
+            </button>
+
+            {/* Film History hero card */}
+            {onNavigate && (
               <button
                 onClick={() => onNavigate('TALEO_HISTORY')}
                 className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
@@ -434,6 +463,7 @@ const HomeView: React.FC<{
                 <img
                   src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Charlie_Chaplin.jpg/480px-Charlie_Chaplin.jpg"
                   alt="Film History"
+                  referrerPolicy="no-referrer"
                   className="absolute inset-0 w-full h-full object-cover object-top scale-110 group-hover:scale-125 transition-transform duration-500"
                   style={{ filter: 'brightness(0.45) saturate(0.4)' }}
                 />
@@ -450,15 +480,16 @@ const HomeView: React.FC<{
                   </div>
                 </div>
               </button>
+            )}
 
-              {/* Film School hero card */}
+            {/* Film School hero card */}
+            {onNavigate && (
               <button
                 onClick={() => onNavigate('FILM_SCHOOL')}
                 className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
                 style={{ border: '1px solid rgba(245,158,11,0.35)' }}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-950/90 via-orange-900/60 to-red-950/80" />
-                {/* Clapperboard graphic */}
                 <div className="absolute right-4 top-4 opacity-15 text-[80px] leading-none select-none">🎬</div>
                 <div className="relative h-full flex flex-col justify-between p-5">
                   <div className="flex items-center gap-1.5">
@@ -472,9 +503,9 @@ const HomeView: React.FC<{
                   </div>
                 </div>
               </button>
-            </div>
-          </section>
-        )}
+            )}
+          </div>
+        </section>
 
         {/* Continue Watching (resume) */}
         {continueWatching.length > 0 && (
@@ -545,6 +576,124 @@ const HomeView: React.FC<{
             </div>
           </section>
         )}
+
+        {/* Curated Heritage Showcase Banner */}
+        <section className="relative rounded-3xl overflow-hidden border border-white/10 bg-gradient-to-br from-[#1F172E] via-[#161320] to-[#131314] p-6 sm:p-10 shadow-2xl">
+          <div className="flex flex-col md:flex-row gap-8 items-center justify-between">
+            <div className="space-y-3 max-w-xl">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#D0BCFF]/15 text-[#D0BCFF] text-[8px] font-black uppercase tracking-widest border border-[#D0BCFF]/30">
+                  Global Archive Preservation
+                </span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Korean Film Archive &amp; Europeana</span>
+              </div>
+              <h3 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-white leading-tight">
+                Curated Cinema Heritage
+              </h3>
+              <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
+                Step into the preserved masterworks that shaped global cinema history. Restored classics from the Korean Film Archive, German Expressionist milestones, and early European avant-garde with curator commentary.
+              </p>
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  onClick={() => setCurrentSubView('CURATOR')}
+                  className="h-10 px-6 bg-[#D0BCFF] hover:bg-[#E8DAFF] text-[#1C1B1F] font-black text-[10px] uppercase tracking-widest rounded-full flex items-center gap-2 transition-all hover:scale-105 shadow-lg cursor-pointer"
+                >
+                  <Sparkles size={14} /> Open Film Historian
+                </button>
+                <button
+                  onClick={() => onSelectArchiveItem(CURATED_KOFA_FILMS[0])}
+                  className="h-10 px-5 bg-white/10 hover:bg-white/15 border border-white/15 text-white font-black text-[10px] uppercase tracking-widest rounded-full flex items-center gap-2 transition-all cursor-pointer"
+                >
+                  <Play size={13} fill="currentColor" /> Watch Spotlight Film
+                </button>
+              </div>
+            </div>
+
+            {/* Visual preview duo */}
+            <div className="flex gap-3 shrink-0">
+              <div
+                onClick={() => onSelectArchiveItem(CURATED_KOFA_FILMS[0])}
+                className="w-32 sm:w-40 aspect-[2/3] rounded-2xl overflow-hidden border border-white/15 relative group cursor-pointer shadow-xl hover:scale-105 transition-all"
+              >
+                <img src={CURATED_KOFA_FILMS[0].thumbnailUrl} alt="The Housemaid" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                <div className="absolute bottom-2 left-2 right-2">
+                  <p className="text-[7px] font-black uppercase text-[#D0BCFF]">KOFA Restored</p>
+                  <p className="text-[9px] font-black text-white truncate">{CURATED_KOFA_FILMS[0].title}</p>
+                </div>
+              </div>
+
+              <div
+                onClick={() => onSelectArchiveItem(CURATED_EUROPEANA_FILMS[1])}
+                className="w-32 sm:w-40 aspect-[2/3] rounded-2xl overflow-hidden border border-white/15 relative group cursor-pointer shadow-xl hover:scale-105 transition-all"
+              >
+                <img src={CURATED_EUROPEANA_FILMS[1].thumbnailUrl} alt="Metropolis" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                <div className="absolute bottom-2 left-2 right-2">
+                  <p className="text-[7px] font-black uppercase text-[#FFB68D]">Europeana</p>
+                  <p className="text-[9px] font-black text-white truncate">{CURATED_EUROPEANA_FILMS[1].title}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Golden Age of Korean Cinema (KOFA Restorations) */}
+        <section>
+          <div className="flex items-end justify-between mb-5">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FFB68D] mb-1.5">Korean Film Archive Preservation</p>
+              <h3 className="text-2xl font-black uppercase tracking-tight text-white">Golden Age of Korean Cinema</h3>
+            </div>
+            <button
+              onClick={() => setCurrentSubView('CURATOR')}
+              className="text-[9px] font-black uppercase tracking-widest text-[#D0BCFF] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Sparkles size={11} /> Curator Notes
+            </button>
+          </div>
+          <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
+            {CURATED_KOFA_FILMS.map(film => (
+              <PosterCard
+                key={film.identifier}
+                title={film.title}
+                subtitle={`${film.year} · ${film.director || 'KOFA'}`}
+                image={film.thumbnailUrl}
+                genre={film.genre}
+                onPlay={() => onSelectArchiveItem(film)}
+                accentBorder
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* European Avant-Garde & Expressionism (Europeana) */}
+        <section>
+          <div className="flex items-end justify-between mb-5">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#D0BCFF] mb-1.5">Europeana Film Heritage</p>
+              <h3 className="text-2xl font-black uppercase tracking-tight text-white">European Expressionism &amp; Avant-Garde</h3>
+            </div>
+            <button
+              onClick={() => setCurrentSubView('CURATOR')}
+              className="text-[9px] font-black uppercase tracking-widest text-[#D0BCFF] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Sparkles size={11} /> Curator Notes
+            </button>
+          </div>
+          <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
+            {CURATED_EUROPEANA_FILMS.map(film => (
+              <PosterCard
+                key={film.identifier}
+                title={film.title}
+                subtitle={`${film.year} · ${film.director || 'Europeana'}`}
+                image={film.thumbnailUrl}
+                genre={film.genre}
+                onPlay={() => onSelectArchiveItem(film)}
+              />
+            ))}
+          </div>
+        </section>
 
         {/* Worlds Discovery Banner */}
         {worlds.length > 0 && currentWorld && (
@@ -834,20 +983,33 @@ const HomeView: React.FC<{
           </section>
         )}
 
-        {/* Genre Rails — Archive.org content */}
+        {/* Genre Rails — Archive.org, Europeana & Global Archives */}
         {genreCollections.map(({ genre, items }) => {
           const GenreIcon = GENRE_ICONS[genre] ?? Film;
+          const firstItem = items[0];
+          const sourceBadge = firstItem?.source === 'EUROPEANA'
+            ? 'Europeana'
+            : firstItem?.source === 'KOFA'
+            ? 'Korean Film Archive'
+            : firstItem?.source === 'LIBRARY_OF_CONGRESS'
+            ? 'Library of Congress'
+            : 'Archive.org';
+          const eyebrow = firstItem?.source === 'EUROPEANA'
+            ? 'European Heritage'
+            : firstItem?.source === 'KOFA'
+            ? 'Korean Classic Heritage'
+            : 'Public Domain';
           return (
             <section key={genre}>
               <div className="flex items-end justify-between mb-5">
                 <div className="flex items-center gap-2.5">
                   <GenreIcon size={15} className="text-[#D0BCFF]" />
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25 mb-0.5">Public Domain</p>
+                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25 mb-0.5">{eyebrow}</p>
                     <h3 className="text-2xl font-black uppercase tracking-tight text-white">{genre}</h3>
                   </div>
                 </div>
-                <span className="text-[9px] font-black uppercase tracking-widest text-white/20 border border-white/10 px-2 py-0.5 rounded-lg">Archive.org</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-white/20 border border-white/10 px-2 py-0.5 rounded-lg">{sourceBadge}</span>
               </div>
               <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
                 {items.map(item => (
@@ -1107,9 +1269,19 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
       ]);
       const featureGenre = allGenres.find(g => g.genre === 'Feature Films');
       const tvGenre = allGenres.find(g => g.genre === 'Classic TV');
+      const euroGenre = allGenres.find(g => g.genre === 'European Cinema');
+      const kofaGenre = allGenres.find(g => g.genre === 'Korean Classic Cinema');
+      const euroTvGenre = allGenres.find(g => g.genre === 'European Newsreels & TV');
       setGenreCollections(allGenres);
-      setMovies(featureGenre?.items ?? []);
-      setTvSeries(tvGenre?.items ?? []);
+      setMovies([
+        ...(featureGenre?.items ?? []),
+        ...(euroGenre?.items ?? []),
+        ...(kofaGenre?.items ?? []),
+      ]);
+      setTvSeries([
+        ...(tvGenre?.items ?? []),
+        ...(euroTvGenre?.items ?? []),
+      ]);
       setWorlds(publicWorlds);
       const featureItems = featureGenre?.items ?? [];
       if (featureItems.length > 0) setFeaturedItem(prev => prev ?? featureItems[0]);
@@ -1134,20 +1306,37 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
   };
 
   const handleSelectArchiveItem = async (item: ArchiveVideo) => {
-    const files = await getArchiveItemFiles(item.identifier);
-    const videoUrl = getBestVideoUrl(item.identifier, files);
+    let videoUrl = item.videoUrl;
+    if (!videoUrl && (!item.source || item.source === 'INTERNET_ARCHIVE')) {
+      const files = await getArchiveItemFiles(item.identifier);
+      videoUrl = getBestVideoUrl(item.identifier, files);
+    }
     if (videoUrl) syncPublicDomainAsset(item, videoUrl, 'VIDEO');
+
+    const ownerId = item.source === 'EUROPEANA'
+      ? 'europeana'
+      : item.source === 'KOFA'
+      ? 'korean-film-archive'
+      : item.source === 'LIBRARY_OF_CONGRESS'
+      ? 'library-of-congress'
+      : 'internet-archive';
+
+    const artist = item.dataProvider || item.genre || 'Classic Cinema';
 
     const transformed: Album = {
       id: item.identifier, title: item.title,
-      artist: item.genre || 'Classic Cinema',
+      artist,
       coverImage: item.thumbnailUrl || '', headerImage: item.thumbnailUrl,
       description: item.description, type: 'VIDEO', subType: 'MOVIE',
-      ownerId: 'internet-archive', createdAt: parseInt(item.year || '0'),
+      ownerId, createdAt: parseInt(item.year || '0'),
       themeColor: '#000000',
-      tracks: videoUrl ? [{ id: item.identifier, title: item.title, artist: item.genre || 'Classic Cinema', url: videoUrl, albumCover: item.thumbnailUrl || '' }] : [],
+      tracks: videoUrl ? [{ id: item.identifier, title: item.title, artist, url: videoUrl, albumCover: item.thumbnailUrl || '' }] : [],
       customVideoUrl: videoUrl || undefined,
-    };
+      embedUrl: videoUrl && (videoUrl.includes('/embed/') || videoUrl.includes('youtube') || videoUrl.includes('youtu.be')) ? videoUrl : undefined,
+      source: item.source,
+      sourceUrl: item.sourceUrl,
+      dataProvider: item.dataProvider,
+    } as any;
     onSelectMovie(transformed);
   };
 
@@ -1357,10 +1546,30 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
               />
             </div>
           )}
+          {currentSubView === 'CURATOR' && (
+            <div className="pt-16">
+              {tabNavEl}
+              <TaleoFilmCurator
+                onSelectArchiveItem={handleSelectArchiveItem}
+                onSelectMovie={onSelectMovie}
+                onBack={() => setCurrentSubView('HOME')}
+              />
+            </div>
+          )}
           {currentSubView === 'MOVIES' && (
             <div className="pt-16">
               {tabNavEl}
-              <MoviesSpecificView movies={movies} localContent={localContent} onSelect={onSelectMovie} />
+              <MoviesSpecificView
+                movies={movies}
+                localContent={localContent}
+                onSelect={(item) => {
+                  if (item && ('identifier' in item || item.mediatype === 'movies')) {
+                    handleSelectArchiveItem(item);
+                  } else {
+                    onSelectMovie(item);
+                  }
+                }}
+              />
             </div>
           )}
           {currentSubView === 'UNIVERSE' && (
@@ -1382,7 +1591,18 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
           {currentSubView === 'HIVE' && (
             <div className="pt-16">
               {tabNavEl}
-              <ExploreView movies={movies} tvSeries={tvSeries} localContent={localContent} onSelect={onSelectMovie} />
+              <ExploreView
+                movies={movies}
+                tvSeries={tvSeries}
+                localContent={localContent}
+                onSelect={(item) => {
+                  if (item && ('identifier' in item || item.mediatype === 'movies')) {
+                    handleSelectArchiveItem(item);
+                  } else {
+                    onSelectMovie(item);
+                  }
+                }}
+              />
             </div>
           )}
           {currentSubView === 'LIBRARY' && (

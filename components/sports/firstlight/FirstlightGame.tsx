@@ -18,7 +18,7 @@ import {
 } from './types';
 import { TEAMS } from './game/constants';
 
-export default function App() {
+export default function FirstlightGame() {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<FootballEngine | null>(null);
 
@@ -54,7 +54,7 @@ export default function App() {
   const [showStadiumCreator, setShowStadiumCreator] = useState<boolean>(false);
   const [showControlsHelp, setShowControlsHelp] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [invertControls, setInvertControls] = useState<boolean>(true);
+  const [invertControls, setInvertControls] = useState<boolean>(false);
   const [lastOutcome, setLastOutcome] = useState<PlayOutcome | null>(null);
 
   // Sync invert controls setting with engine
@@ -220,10 +220,12 @@ export default function App() {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       // Ignore if typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
 
       pressedKeysRef.current.add(e.code);
       updateInputFromKeys();
+      if (e.repeat) return;
 
       if (e.code === 'Space' || e.code === 'NumpadEnter' || e.code === 'Numpad0' || e.code === 'Numpad5') {
         e.preventDefault();
@@ -285,9 +287,15 @@ export default function App() {
   );
 
   useEffect(() => {
+    const clearInput = () => { pressedKeysRef.current.clear(); engineRef.current?.setPlayerInput({forward:0,lateral:0,sprint:false,juke:false}); };
+    const visibility = () => { if(document.hidden) clearInput(); };
+    window.addEventListener('blur',clearInput);
+    document.addEventListener('visibilitychange',visibility);
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     return () => {
+      window.removeEventListener('blur',clearInput);
+      document.removeEventListener('visibilitychange',visibility);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
@@ -295,7 +303,7 @@ export default function App() {
 
   return (
     <div className="relative w-full h-[min(900px,100dvh)] min-h-[600px] overflow-hidden bg-black select-none">
-      <label className="absolute bottom-3 right-3 z-50 rounded-xl bg-slate-950/90 border border-white/20 p-2 text-xs text-white">
+      <label className="absolute top-24 right-3 z-50 rounded-xl bg-slate-950/90 border border-white/20 p-2 text-xs text-white">
         Players <select aria-label="Player appearance" className="ml-2 bg-slate-800 rounded p-2" value={playerMode} onChange={e=>{const mode=e.target.value as 'BLOCK'|'ATHLETE';setPlayerMode(mode);engineRef.current?.setPlayerMode(mode);}}>
           <option value="ATHLETE">Athlete · articulated</option><option value="BLOCK">Classic blocks</option>
         </select>
@@ -331,6 +339,17 @@ export default function App() {
         />
       )}
 
+      {gameMode==='PLAYING' && !isBallSnapped && <div className="absolute top-24 left-3 z-30 rounded-xl border border-white/20 bg-slate-950/95 p-3 text-white text-sm max-w-[55%]">
+        <label className="block text-xs uppercase tracking-wider mb-2">Call your play</label>
+        <select aria-label="Pre-snap play" className="bg-slate-800 rounded p-2 max-w-full" value={selectedPlay} onChange={e=>{
+          if(engineRef.current?.isBallSnapped)return;
+          const play=e.target.value as PlayType;setSelectedPlay(play);engineRef.current?.setupPlay(play);setSelectedReceiverIdx(1);
+        }}>
+          <option value="PASS_SLANTS">Quick slants</option><option value="PASS_VERTS">Four verticals</option><option value="PASS_POST_OUT">Post / out</option>
+        </select>
+        <label className="flex gap-2 items-center mt-2"><input type="checkbox" defaultChecked onChange={e=>{if(engineRef.current)engineRef.current.showRoutes=e.target.checked;}}/> Show receiver routes</label>
+        <p className="text-xs text-slate-300 mt-2">1–3 receivers · 4 running back</p>
+      </div>}
       {/* 4. Active Gameplay HUD (Screenshot 2) */}
       {(gameMode === 'PLAYING' || gameMode === 'PLAY_OVER' || gameMode === 'TOUCHDOWN' || gameMode === 'TURNOVER') && (
         <ScoreboardHUD

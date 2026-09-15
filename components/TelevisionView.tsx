@@ -118,7 +118,19 @@ export const TelevisionView: React.FC<TelevisionViewProps> = ({ series, onSelect
     setEpisodes([]);
 
     try {
-      if (item.identifier) {
+      if (item.videoUrl) {
+        setEpisodes([{
+          id: item.identifier || item.id || 'ep-1',
+          title: item.title,
+          description: item.description || `${item.title} — Vintage Broadcast / Newsreel`,
+          url: item.videoUrl,
+          thumbnailUrl: item.thumbnailUrl || item.coverImage,
+          season: 1,
+          episode: 1,
+          rawName: item.title,
+        }]);
+        setSelectedSeason(1);
+      } else if (item.identifier && (!item.source || item.source === 'INTERNET_ARCHIVE')) {
         const files = await getArchiveItemFiles(item.identifier);
         const episodesList: any[] = [];
         const foundSeasons = new Set<number>();
@@ -180,6 +192,14 @@ export const TelevisionView: React.FC<TelevisionViewProps> = ({ series, onSelect
 
   const handlePlayEpisode = (episode: any) => {
     if (onSelect) {
+      const seriesSource = (selectedSeries as any)?.source;
+      const ownerId = seriesSource === 'EUROPEANA' ? 'europeana' :
+        seriesSource === 'KOFA' ? 'korean-film-archive' :
+        seriesSource === 'LIBRARY_OF_CONGRESS' ? 'library-of-congress' :
+        (selectedSeries as any)?.ownerId || 'internet-archive';
+      const epUrl = episode.url || '';
+      const isEmbed = epUrl.includes('/embed/') || epUrl.includes('youtube') || epUrl.includes('youtu.be');
+
       const transformed: Album = {
         id: episode.id,
         title: episode.title,
@@ -188,12 +208,13 @@ export const TelevisionView: React.FC<TelevisionViewProps> = ({ series, onSelect
         headerImage: getCover(selectedSeries),
         description: episode.description,
         type: 'VIDEO', subType: 'TV_SERIES',
-        ownerId: 'internet-archive',
+        ownerId,
         createdAt: Date.now(),
         themeColor: '#000000',
-        tracks: [],
-        customVideoUrl: episode.url,
-      };
+        tracks: epUrl ? [{ id: episode.id, title: episode.title, artist: getTitle(selectedSeries), url: epUrl, albumCover: episode.thumbnailUrl || getCover(selectedSeries) || '' }] : [],
+        customVideoUrl: epUrl || undefined,
+        embedUrl: isEmbed ? epUrl : undefined,
+      } as any;
       onSelect(transformed);
     }
   };

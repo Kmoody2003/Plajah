@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { DriveState, ReceiverRoute } from '../types';
 import { HelpCircle, Pause, Play, Volume2, VolumeX, Eye, ArrowLeftRight, Radio } from 'lucide-react';
 
@@ -47,6 +47,19 @@ export const ScoreboardHUD: React.FC<ScoreboardHUDProps> = ({
   isMuted,
   onPause,
 }) => {
+  const pointers = useRef(new Map<number, {forward:number;lateral:number;sprint:boolean}>());
+  const held = (forward:number,lateral:number,sprint=false) => {
+    const publish = () => {
+      const values=[...pointers.current.values()];
+      onMoveInput?.(Math.max(-1,Math.min(1,values.reduce((n,v)=>n+v.forward,0))),Math.max(-1,Math.min(1,values.reduce((n,v)=>n+v.lateral,0))),values.some(v=>v.sprint));
+    };
+    const release = (e:React.PointerEvent<HTMLButtonElement>) => { pointers.current.delete(e.pointerId);publish(); };
+    return {
+      style:{touchAction:'none'},
+      onPointerDown:(e:React.PointerEvent<HTMLButtonElement>)=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);pointers.current.set(e.pointerId,{forward,lateral,sprint});publish();},
+      onPointerUp:release,onPointerCancel:release,onLostPointerCapture:release,
+    };
+  };
   const downOrdinal = ['1st', '2nd', '3rd', '4th'][driveState.down - 1];
   const toGo = driveState.ballYardLine >= 90 ? 'Goal' : `${driveState.yardsToGo}`;
   const yardDisplay = driveState.ballYardLine <= 50 ? driveState.ballYardLine : 100 - driveState.ballYardLine;
@@ -212,10 +225,7 @@ export const ScoreboardHUD: React.FC<ScoreboardHUDProps> = ({
               <div></div>
               <button
                 title="Move Forward / Step Up (W)"
-                onMouseDown={() => onMoveInput?.(1, 0)}
-                onMouseUp={() => onMoveInput?.(0, 0)}
-                onTouchStart={() => onMoveInput?.(1, 0)}
-                onTouchEnd={() => onMoveInput?.(0, 0)}
+                {...held(1, 0)}
                 className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-white text-xs font-bold flex items-center justify-center border border-white/20 active:scale-90 transition"
               >
                 ▲
@@ -223,30 +233,21 @@ export const ScoreboardHUD: React.FC<ScoreboardHUDProps> = ({
               <div></div>
               <button
                 title={invertControls ? 'Move Left (Inverted: Screen Right)' : 'Move Left (A)'}
-                onMouseDown={() => onMoveInput?.(0, -1)}
-                onMouseUp={() => onMoveInput?.(0, 0)}
-                onTouchStart={() => onMoveInput?.(0, -1)}
-                onTouchEnd={() => onMoveInput?.(0, 0)}
+                {...held(0, -1)}
                 className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-white text-xs font-bold flex items-center justify-center border border-white/20 active:scale-90 transition"
               >
                 ◀
               </button>
               <button
                 title="Move Back / Dropback (S)"
-                onMouseDown={() => onMoveInput?.(-1, 0)}
-                onMouseUp={() => onMoveInput?.(0, 0)}
-                onTouchStart={() => onMoveInput?.(-1, 0)}
-                onTouchEnd={() => onMoveInput?.(0, 0)}
+                {...held(-1, 0)}
                 className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-white text-xs font-bold flex items-center justify-center border border-white/20 active:scale-90 transition"
               >
                 ▼
               </button>
               <button
                 title={invertControls ? 'Move Right (Inverted: Screen Left)' : 'Move Right (D)'}
-                onMouseDown={() => onMoveInput?.(0, 1)}
-                onMouseUp={() => onMoveInput?.(0, 0)}
-                onTouchStart={() => onMoveInput?.(0, 1)}
-                onTouchEnd={() => onMoveInput?.(0, 0)}
+                {...held(0, 1)}
                 className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-white text-xs font-bold flex items-center justify-center border border-white/20 active:scale-90 transition"
               >
                 ▶
@@ -256,10 +257,7 @@ export const ScoreboardHUD: React.FC<ScoreboardHUDProps> = ({
             {/* Quick Action Pills: Sprint & Juke */}
             <div className="flex flex-col gap-1.5">
               <button
-                onMouseDown={() => onMoveInput?.(1, 0, true)}
-                onMouseUp={() => onMoveInput?.(0, 0, false)}
-                onTouchStart={() => onMoveInput?.(1, 0, true)}
-                onTouchEnd={() => onMoveInput?.(0, 0, false)}
+                {...held(1, 0, true)}
                 className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-cyan-600/80 hover:bg-cyan-500 text-white text-xs font-black tracking-wider uppercase backdrop-blur-md border border-cyan-400/40 shadow-lg active:scale-95 transition"
               >
                 ⚡ Sprint [Shift]

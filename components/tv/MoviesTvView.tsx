@@ -104,18 +104,37 @@ const MoviesTvView: React.FC<{
       if (opening.current) return;
       opening.current = true;
       const v = a.archive;
+      const ownerId = v.source === 'EUROPEANA' ? 'europeana' :
+        v.source === 'KOFA' ? 'korean-film-archive' :
+        v.source === 'LIBRARY_OF_CONGRESS' ? 'library-of-congress' : 'internet-archive';
+      const artist = v.dataProvider || v.genre || 'Classic Cinema';
+
+      const dispatchMovie = (url?: string) => {
+        if (url) syncPublicDomainAsset(v, url, 'VIDEO').catch(() => {});
+        onSelectMovie({
+          id: v.identifier, title: v.title, artist,
+          coverImage: v.thumbnailUrl || '', headerImage: v.thumbnailUrl,
+          description: v.description, type: 'VIDEO', subType: 'MOVIE',
+          ownerId, createdAt: parseInt(v.year || '0'), themeColor: '#000000',
+          tracks: url ? [{ id: v.identifier, title: v.title, artist, url, albumCover: v.thumbnailUrl || '' }] : [],
+          customVideoUrl: url || undefined,
+          embedUrl: url && (url.includes('/embed/') || url.includes('youtube') || url.includes('youtu.be')) ? url : undefined,
+          source: v.source,
+          sourceUrl: v.sourceUrl,
+          dataProvider: v.dataProvider,
+        } as any);
+      };
+
+      if (v.videoUrl || (v.source && v.source !== 'INTERNET_ARCHIVE')) {
+        dispatchMovie(v.videoUrl);
+        opening.current = false;
+        return;
+      }
+
       getArchiveItemFiles(v.identifier)
         .then(files => {
           const url = getBestVideoUrl(v.identifier, files);
-          if (url) syncPublicDomainAsset(v, url, 'VIDEO').catch(() => {});
-          onSelectMovie({
-            id: v.identifier, title: v.title, artist: v.genre || 'Classic Cinema',
-            coverImage: v.thumbnailUrl || '', headerImage: v.thumbnailUrl,
-            description: v.description, type: 'VIDEO', subType: 'MOVIE',
-            ownerId: 'internet-archive', createdAt: parseInt(v.year || '0'), themeColor: '#000000',
-            tracks: url ? [{ id: v.identifier, title: v.title, artist: v.genre || 'Classic Cinema', url, albumCover: v.thumbnailUrl || '' }] : [],
-            customVideoUrl: url || undefined,
-          } as any);
+          dispatchMovie(url);
         })
         .catch(() => {})
         .finally(() => { opening.current = false; });

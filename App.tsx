@@ -116,6 +116,8 @@ const PlajahHealthFitnessView = retryLazy(() => import('./components/PlajahHealt
 const PlajahResearchPage = retryLazy(() => import('./components/PlajahResearchPage'));
 // TV Studio — browser production switcher
 const TVStudio = retryLazy(() => import('./components/TVStudio'));
+// Live Real-Time Audio FX Audition Lab
+const LiveAudioFxAuditionLab = retryLazy(() => import('./components/labs/LiveAudioFxAuditionLab'));
 
 import ExperiencePicker from './components/ExperiencePicker';
 import GlobalPlayer from './components/GlobalPlayer';
@@ -189,7 +191,7 @@ const HelpCenter = retryLazy(() => import('./components/HelpCenter'));
 const MyLibraryView = retryLazy(() => import('./components/MyLibraryView'));
 const NewstandView = retryLazy(() => import('./components/newstand/NewstandView').then(m => ({ default: m.NewstandView })));
 const PlajahSportsView = retryLazy(() => import('./components/PlajahSportsView').then(m => ({ default: m.PlajahSportsView })));
-const ProjectFirstlightLandingView = retryLazy(() => import('./components/sports/ProjectFirstlightLandingView').then(m => ({ default: m.ProjectFirstlightLandingView })));
+const ProjectFirstlightLandingView = retryLazy(() => import('./components/sports/ProjectFirstlightLandingView').then(m => ({ default: m.default || m.ProjectFirstlightLandingView })));
 const AthleteShowcaseView = retryLazy(() => import('./components/AthleteShowcaseView'));
 const MatchFanRoomsView = retryLazy(() => import('./components/MatchFanRoomsView'));
 const RoomView = retryLazy(() => import('./components/RoomView'));
@@ -584,12 +586,15 @@ const App: React.FC = () => {
     pitchParam === 'pitch-writer' ? 'PITCH_WRITER'       :
     // research manifesto — admin only (kmoody2003@gmail.com or role=admin)
     pitchParam === 'research'     ? 'RESEARCH_MANIFESTO' :
+    pitchParam === 'firstlight'   ? 'PROJECT_FIRSTLIGHT' :
+    pitchParam === 'apps'         ? 'APPS'               :
     pitchParam === 'crossover'    ? 'CROSSOVER'          :
     pitchParam === 'terra'        ? 'TERRA'              :
     pitchParam === 'business'     ? 'PLAJAH_BUSINESS'    :
     pitchParam === 'ora'          ? 'ORA'                :
     pitchParam === 'assignment'   ? 'STUDENT_ASSIGNMENT' :
     pitchParam === 'lesson'       ? 'STUDENT_LESSON'     :
+    pitchParam === 'live-fx-lab' || pitchParam === 'livefx' ? 'LIVE_FX_LAB' :
     'LANDING';
 
   // Is the app being opened on a shared deep link? If so, a signed-out visitor must
@@ -824,6 +829,17 @@ const App: React.FC = () => {
     const open = () => setView('LIVE_TRANSLATION');
     window.addEventListener('plajah:open-live-translation', open);
     return () => window.removeEventListener('plajah:open-live-translation', open);
+  }, [setView]);
+
+  // Open Live Audio FX Audition Studio
+  useEffect(() => {
+    const open = () => setView('LIVE_FX_LAB');
+    window.addEventListener('OPEN_LIVE_FX_LAB', open);
+    window.addEventListener('plajah:open-live-fx-lab', open);
+    return () => {
+      window.removeEventListener('OPEN_LIVE_FX_LAB', open);
+      window.removeEventListener('plajah:open-live-fx-lab', open);
+    };
   }, [setView]);
 
   // Platform-wide error capture (uncaught errors + unhandled rejections → errorReports).
@@ -1272,6 +1288,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     };
     window.addEventListener('OPEN_PLAJAH_PIXELS', handleOpenPixels);
 
+    const handleOpenLiveFxLab = () => setView('LIVE_FX_LAB');
+    window.addEventListener('OPEN_LIVE_FX_LAB', handleOpenLiveFxLab);
+    window.addEventListener('plajah:open-live-fx-lab', handleOpenLiveFxLab);
+
     // A scripture chip anywhere on the platform opens the reader at its passage.
     const handleOpenBible = (e: Event) => {
       const id = (e as CustomEvent)?.detail?.refId;
@@ -1381,6 +1401,89 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     };
     window.addEventListener('OPEN_LICENSE_FOR_FILM', handleLicenseForFilm);
 
+    const handleOpenAudiobookPavilion = (e: any) => {
+      const bookData = e.detail?.book;
+      if (bookData) {
+        setSelectedBook(null);
+        setMusicInitialTab('AUDIO_BOOKS');
+        setView('MUSIC');
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('OPEN_AUDIOBOOK_TRACK', {
+            detail: { book: bookData, chapterIndex: e.detail?.chapterIndex || 0 }
+          }));
+        }, 100);
+      }
+    };
+    window.addEventListener('OPEN_AUDIOBOOK_PAVILION', handleOpenAudiobookPavilion);
+
+    const handleOpenLoreaReader = (e: any) => {
+      const bookData = e.detail?.book;
+      const targetChapterIndex = typeof e.detail?.chapterIndex === 'number'
+        ? e.detail.chapterIndex
+        : (typeof bookData?.initialChapterIndex === 'number' ? bookData.initialChapterIndex : 0);
+
+      if (bookData) {
+        let albumData: Album;
+        if (bookData.bookChapters && bookData.bookChapters.length > 0) {
+          albumData = {
+            ...bookData,
+            type: 'BOOK',
+            subType: bookData.subType || 'BOOK',
+            initialChapterIndex: targetChapterIndex,
+            skipOpeningScene: true,
+          };
+        } else if (bookData.tracks) {
+          albumData = {
+            ...bookData,
+            type: 'BOOK',
+            subType: 'BOOK',
+            initialChapterIndex: targetChapterIndex,
+            skipOpeningScene: true,
+            bookChapters: bookData.tracks.map((t: any, i: number) => ({
+              id: t.id || `ch-${i}`,
+              chapterNumber: i + 1,
+              title: t.title,
+              content: t.content || t.text || '',
+              audioUrl: t.url,
+            })),
+          };
+        } else {
+          albumData = {
+            id: bookData.id,
+            title: bookData.title,
+            artist: bookData.artist,
+            coverImage: bookData.thumbnailUrl || bookData.coverImage,
+            type: 'BOOK',
+            subType: 'BOOK',
+            genre: bookData.genre || 'Classic Literature',
+            description: bookData.description,
+            createdAt: Date.now(),
+            formats: bookData.formats,
+            initialChapterIndex: targetChapterIndex,
+            skipOpeningScene: true,
+            bookChapters: bookData.chapters?.map((c: any, i: number) => ({
+              id: c.id || `ch-${i}`,
+              chapterNumber: c.chapterNumber || i + 1,
+              title: c.title,
+              content: c.content || c.text || '',
+              audioUrl: c.url,
+            })) || [],
+          };
+        }
+
+        const bookId = albumData.id || bookData.id;
+        if (bookId) {
+          try {
+            localStorage.setItem(`lorea_pos_${bookId}`, JSON.stringify({ chapter: targetChapterIndex, page: 0 }));
+          } catch {}
+        }
+
+        setSelectedBook(albumData);
+        setView('BOOK_READER');
+      }
+    };
+    window.addEventListener('OPEN_LOREA_READER', handleOpenLoreaReader);
+
     return () => {
       window.removeEventListener('START_CHAT', handleStartChat);
       window.removeEventListener('OPEN_PIF_MODAL', handleOpenPIF);
@@ -1392,6 +1495,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_CHARACTER_CHAT', handleCharacterChat);
       window.removeEventListener('OPEN_STORE', handleOpenStore);
       window.removeEventListener('OPEN_PLAJAH_PIXELS', handleOpenPixels);
+      window.removeEventListener('OPEN_LIVE_FX_LAB', handleOpenLiveFxLab);
+      window.removeEventListener('plajah:open-live-fx-lab', handleOpenLiveFxLab);
       window.removeEventListener('OPEN_BIBLE', handleOpenBible);
       window.removeEventListener('OPEN_SACRED_LIBRARY', handleOpenSacredLibrary);
       window.removeEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
@@ -1408,6 +1513,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_ALBUM_CREATOR', handleOpenAlbumCreator);
       window.removeEventListener('OPEN_FABULA', handleOpenFabula);
       window.removeEventListener('OPEN_LICENSE_FOR_FILM', handleLicenseForFilm);
+      window.removeEventListener('OPEN_AUDIOBOOK_PAVILION', handleOpenAudiobookPavilion);
+      window.removeEventListener('OPEN_LOREA_READER', handleOpenLoreaReader);
     };
   }, [user]);
 
@@ -3025,6 +3132,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             <Suspense fallback={null}><DjOutputWindow /></Suspense>
           ) : typeof window !== 'undefined' && window.location.pathname.startsWith('/link') ? (
             <Suspense fallback={null}><TvLinkApproval /></Suspense>
+          ) : (view === 'LIVE_FX_LAB' || (typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('view') === 'live-fx-lab' || new URLSearchParams(window.location.search).get('lab') === 'livefx'))) ? (
+            <Suspense fallback={<div className="min-h-screen bg-[#05060a] flex items-center justify-center text-white/40 text-xs font-mono uppercase tracking-widest">Loading Live FX Studio…</div>}>
+              <LiveAudioFxAuditionLab onBack={() => {
+                if (typeof window !== 'undefined') {
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete('view');
+                  url.searchParams.delete('lab');
+                  window.history.replaceState({}, '', url.toString());
+                }
+                setView('MUSIC');
+              }} />
+            </Suspense>
           ) :/* A television never sees the marketing landing page. It gets the sign-in screen a TV
               actually needs — logo, saved profiles, QR — because the alternative is asking
               someone to type a password with a D-pad. */
@@ -4707,11 +4826,33 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
             {view === 'PROJECT_FIRSTLIGHT' && (
-              <ProjectFirstlightLandingView
-                onBack={() => setView('APPS')}
-                currentUser={userProfile}
-                onNavigate={(v) => setView(v as any)}
-              />
+              <Suspense fallback={
+                <div className="min-h-screen bg-[#0A0A0F] flex flex-col items-center justify-center gap-4 text-white">
+                  <div className="w-10 h-10 border-2 border-[#FF8C00]/20 border-t-[#FF8C00] rounded-full animate-spin" />
+                  <p className="text-xs uppercase tracking-widest text-white/50">Loading Project Firstlight...</p>
+                </div>
+              }>
+                {(!import.meta.env.DEV && userProfile?.role !== 'admin' && userProfile?.role !== 'staff' && user?.email !== 'kmoody2003@gmail.com') ? (
+                  <div className="min-h-screen bg-[#0A0A0F] text-white flex flex-col items-center justify-center p-6 text-center">
+                    <h2 className="text-2xl font-black uppercase mb-2">Admin Access Required</h2>
+                    <p className="text-sm text-white/60 max-w-md mb-6">
+                      Project Firstlight is currently in development and accessible only to administrators.
+                    </p>
+                    <button
+                      onClick={() => setView('APPS')}
+                      className="px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-wider transition-colors"
+                    >
+                      Back to Apps
+                    </button>
+                  </div>
+                ) : (
+                  <ProjectFirstlightLandingView
+                    onBack={() => setView('APPS')}
+                    currentUser={userProfile}
+                    onNavigate={(v) => setView(v as any)}
+                  />
+                )}
+              </Suspense>
             )}
 
             {view === 'ATHLETE_SHOWCASE' && (
@@ -5815,7 +5956,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'MOVIES_TV' && !getPlatformInfo().isTV && <MoviesTVView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} onNavigate={(v) => setView(v as any)} />}
             {view === 'GAMES' && <GamesView onBack={() => setView('DASHBOARD')} onSelectGame={handleSelectGame} />}
-            {view === 'APPS' && <AppsView onBack={() => setView('DASHBOARD')} currentUser={userProfile} />}
+            {view === 'APPS' && <AppsView onBack={() => setView('DASHBOARD')} currentUser={userProfile} onNavigate={(v) => setView(v as any)} />}
             {view === 'CROSSOVER' && !tvBlocked && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <CrossoverView onBack={() => setView('DASHBOARD')} userProfile={userProfile} onNavigate={(v) => setView(v as any)} enabled={crossoverSystemEnabled} />
@@ -5859,6 +6000,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'MELOS_BEATS' && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <MelosBeatsRoom onClose={() => setView('APPS')} payload={melosBeatsPayload} />
+              </Suspense>
+            )}
+            {view === 'LIVE_FX_LAB' && (
+              <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <LiveAudioFxAuditionLab onBack={() => setView('MUSIC')} />
               </Suspense>
             )}
             {view === 'SMART_DIRECTOR' && (
@@ -6222,6 +6368,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onBack={() => { setPitchDeckInitialDeck(null); setView('DASHBOARD'); }}
                   initialDeck={pitchDeckInitialDeck ?? undefined}
                 />
+              </Suspense>
+            )}
+            {/* ── Live Real-Time Audio FX Audition Lab ── */}
+            {view === 'LIVE_FX_LAB' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading Live FX Studio…</div>}>
+                <LiveAudioFxAuditionLab onBack={() => setView('MUSIC')} />
               </Suspense>
             )}
           </SpatialUIRoot>

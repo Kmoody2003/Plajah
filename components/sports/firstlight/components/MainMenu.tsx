@@ -135,9 +135,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 <span>Sunset</span>
               </button>
               <button
-                onClick={() => onSelectWeather('CLEAR_NIGHT')}
+                onClick={() => onSelectWeather('NIGHT')}
                 className={`px-3 py-1 rounded-full transition-all flex items-center gap-1.5 ${
-                  currentWeather === 'CLEAR_NIGHT'
+                  currentWeather === 'NIGHT'
                     ? 'bg-white/20 text-white border border-white/40'
                     : 'text-white/60 hover:text-white'
                 }`}

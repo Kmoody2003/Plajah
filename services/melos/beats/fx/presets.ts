@@ -263,6 +263,30 @@ export const FX_PRESETS: Record<string, FxPreset[]> = {
     preset('ceq-mid-forward', 'Mid Forward', 'A gentle presence push for guitars and keys that need to cut.', { lowFreq: 90, lowBoost: 0, lowCut: 2, lowMidFreq: 700, lowMid: 2.5, highMidFreq: 2600, highMid: 3.5, highFreq: 11000, high: 1.5, drive: 0.35, output: -1 }),
     preset('ceq-warm-glue', 'Warm Glue', 'Soft top, lifted low mids, and heavier drive — a cohesive analog wash.', { lowFreq: 100, lowBoost: 3, lowCut: 0, lowMidFreq: 450, lowMid: 2, highMidFreq: 3500, highMid: -1.5, highFreq: 10000, high: -1, drive: 0.5, output: -1.5 }),
   ],
+  lofi: [
+    preset('lofi-cassette', '70s Cassette', 'Classic vintage tape flutter, rolled off highs, and cozy saturation.', { filter: 3200, wow: 0.45, flutter: 0.35, crackle: 0.20, drive: 0.40, mix: 1.0 }),
+    preset('lofi-vinyl', 'Vinyl Dust', 'Heavy needle crackle and warm head bump for dusty beats.', { filter: 4200, wow: 0.25, flutter: 0.15, crackle: 0.55, drive: 0.25, mix: 1.0 }),
+    preset('lofi-sp404', 'Dusty Sampler', 'Aggressive bandwidth chop, warbly wow, and crunchy warmth.', { filter: 2400, wow: 0.60, flutter: 0.45, crackle: 0.30, drive: 0.65, mix: 1.0 }),
+    preset('lofi-chill', 'Midnight Chill', 'Mellow lowpass, subtle wobble, and gentle room texture.', { filter: 2800, wow: 0.30, flutter: 0.20, crackle: 0.15, drive: 0.20, mix: 0.85 }),
+  ],
+  chipmunk: [
+    preset('chip-alvin', 'Alvin Classic', 'High cartoon vocal shift with bright formant squeak.', { shift: 460, formant: 3200, resonance: 2.5, mix: 1.0 }),
+    preset('chip-helium', 'Helium Overdrive', 'Extreme high-frequency shift for maximum squeak effect.', { shift: 680, formant: 3800, resonance: 3.5, mix: 1.0 }),
+    preset('chip-double', 'Cartoon Double', 'Blends dry original with pitch-shifted cartoon harmony underneath.', { shift: 400, formant: 3000, resonance: 2.0, mix: 0.55 }),
+    preset('chip-robot', 'Tiny Robot Squeak', 'Tight formant resonance with fast vocal harmonics.', { shift: 520, formant: 4200, resonance: 4.2, mix: 0.90 }),
+  ],
+  radio: [
+    preset('radio-am30s', '1930s AM Broadcast', 'Narrowband horn sound, diode distortion, and continuous radio static.', { bandwidth: 2800, grit: 0.45, static: 0.35, whistle: 0.18, mix: 1.0 }),
+    preset('radio-ham', 'Ham Shortwave', 'Drifting heterodyne carrier whistle and crunchy voice communications.', { bandwidth: 2400, grit: 0.35, static: 0.50, whistle: 0.35, mix: 1.0 }),
+    preset('radio-walkie', 'Walkie Talkie', 'Cupped horn response with high grit and low bandwidth.', { bandwidth: 2200, grit: 0.60, static: 0.20, whistle: 0.05, mix: 1.0 }),
+    preset('radio-dispatch', 'Police Dispatch', 'Authentic squawk box voice band with background RF noise.', { bandwidth: 3200, grit: 0.30, static: 0.40, whistle: 0.10, mix: 0.90 }),
+  ],
+  boost: [
+    preset('boost-club', 'Club Maximizer', 'Punches the kick, lifts top air, and drives brickwall loudness.', { punch: 0.75, air: 0.65, drive: 0.60, ceiling: -0.2, mix: 1.0 }),
+    preset('boost-punch', 'Punch & Air', 'Crisp transient punch with silky top-end exciter.', { punch: 0.60, air: 0.70, drive: 0.40, ceiling: -0.3, mix: 1.0 }),
+    preset('boost-subslam', 'Sub Slam', 'Heavy low-end boost with tight glue compression.', { punch: 0.90, air: 0.35, drive: 0.55, ceiling: -0.4, mix: 1.0 }),
+    preset('boost-stadium', 'Stadium Slam', 'Full-spectrum loudness maximizer for anthems and drops.', { punch: 0.80, air: 0.80, drive: 0.75, ceiling: -0.1, mix: 1.0 }),
+  ],
 };
 
 export const presetsForFx = (type: string): FxPreset[] => FX_PRESETS[type] ?? [];

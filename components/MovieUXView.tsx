@@ -169,8 +169,14 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
   }, [liveVideo.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const rawUrl = liveVideo.url || '';
+  const isEmbed = !!liveVideo.embedUrl ||
+    rawUrl.includes('youtube.com') ||
+    rawUrl.includes('youtu.be') ||
+    rawUrl.includes('youtube-nocookie.com') ||
+    rawUrl.includes('europeana.eu') ||
+    (rawUrl.includes('/embed/') && !rawUrl.includes('archive.org'));
   const hasHlsUrl = isHLSUrl(rawUrl);
-  const hasDirectUrl = !!rawUrl && !hasHlsUrl && !directFailed;
+  const hasDirectUrl = !isEmbed && !!rawUrl && !hasHlsUrl && !directFailed;
   // Mux progressive-MP4 fallback: plays through a plain <video> with NO Media Source
   // Extensions. Android TV System WebViews often can't play Mux HLS via hls.js/MSE (no native
   // HLS either), so when the MSE attempt fails we fall back to this. Requires Mux static
@@ -185,7 +191,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
     hasHlsUrl                               ? 'hls' :
     hasDirectUrl                            ? 'direct' :
     (liveVideo.muxPlaybackId && muxFailed && !muxMp4Failed) ? 'mux-mp4' :  // no-MSE fallback (TV)
-    liveVideo.embedUrl                      ? 'embed' :
+    (liveVideo.embedUrl || isEmbed)         ? 'embed' :
                                               'error';
 
   // ── HLS.js for Mux and custom .m3u8 ───────────────────────────────────────
@@ -422,31 +428,90 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
 
   // ── Embed ─────────────────────────────────────────────────────────────────
   if (strategy === 'embed') {
+    let embedSrc = liveVideo.embedUrl || rawUrl;
+    let directWatchUrl = embedSrc;
+    if (embedSrc.includes('youtube.com/watch') || embedSrc.includes('youtu.be/') || embedSrc.includes('youtube-nocookie.com/embed') || embedSrc.includes('youtube.com/embed')) {
+      const match = embedSrc.match(/(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*)/);
+      const ytId = match && match[1].length === 11 ? match[1] : '';
+      if (ytId) {
+        directWatchUrl = `https://www.youtube.com/watch?v=${ytId}`;
+        const originParam = typeof window !== 'undefined' ? `&origin=${encodeURIComponent(window.location.origin)}` : '';
+        embedSrc = `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&enablejsapi=1${originParam}`;
+      }
+    }
     return (
-      <iframe
-        src={liveVideo.embedUrl}
-        className="w-full h-full border-none"
-        allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-        allowFullScreen
-        title={liveVideo.title}
-      />
+      <div className="relative w-full h-full bg-black">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="absolute top-4 left-4 z-50 p-2.5 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-full text-white border border-white/10 transition-all cursor-pointer shadow-lg group"
+            title="Back to Details"
+          >
+            <ArrowLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
+          </button>
+        )}
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+          {directWatchUrl && (
+            <a
+              href={directWatchUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-3 py-1.5 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-full text-white/80 hover:text-white border border-white/10 text-[9px] font-black uppercase tracking-widest transition-all shadow-lg"
+              title="Watch on original archive source or external player"
+            >
+              <Globe size={13} className="text-[#D0BCFF]" /> Watch on Source
+            </a>
+          )}
+        </div>
+        <iframe
+          src={embedSrc}
+          className="w-full h-full border-none"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
+          title={liveVideo.title}
+        />
+      </div>
     );
   }
 
   // ── Error ─────────────────────────────────────────────────────────────────
   if (strategy === 'error') {
+    const fallbackUrl = (liveVideo as any).sourceUrl || liveVideo.embedUrl || rawUrl;
     return (
       <div className="w-full h-full flex items-center justify-center bg-black">
-        <div className="text-center text-white/40 space-y-4 px-8">
+        <div className="text-center text-white/40 space-y-4 px-8 max-w-md">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="mb-2 inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-full text-[10px] font-black uppercase tracking-widest text-white transition-all border border-white/10"
+            >
+              <ArrowLeft size={14} /> Back to Film
+            </button>
+          )}
           <Film size={48} className="mx-auto opacity-30" />
-          <p className="text-sm font-black uppercase tracking-widest">Source unavailable</p>
-          <p className="text-xs text-white/25 leading-relaxed">This content could not be loaded.</p>
-          <button
-            onClick={() => { setMuxFailed(false); setMuxMp4Failed(false); setDirectFailed(false); }}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
-          >
-            <RefreshCw size={12} /> Retry
-          </button>
+          <p className="text-sm font-black uppercase tracking-widest text-white/80">Source unavailable</p>
+          <p className="text-xs text-white/40 leading-relaxed">
+            Direct streaming playback could not be established. This can happen in local development or if cross-origin permissions are restricted.
+          </p>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <button
+              onClick={() => { setMuxFailed(false); setMuxMp4Failed(false); setDirectFailed(false); }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
+            >
+              <RefreshCw size={12} /> Retry
+            </button>
+            {fallbackUrl && (
+              <a
+                href={fallbackUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#D0BCFF] hover:bg-[#E8DAFF] text-[#1C1B1F] rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg"
+              >
+                <Globe size={13} /> Open Source
+              </a>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -950,8 +1015,47 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
     const vid = item as Video;
     let payload: Video | null = null;
 
+    const isArchiveSource =
+      (item as any).source === 'KOFA' ||
+      (item as any).source === 'EUROPEANA' ||
+      (item as any).source === 'LIBRARY_OF_CONGRESS' ||
+      (item as any).ownerId === 'korean-film-archive' ||
+      (item as any).ownerId === 'kofa' ||
+      (item as any).ownerId === 'europeana' ||
+      (item as any).ownerId === 'library-of-congress';
+
     if ((item as any).muxPlaybackId) {
       payload = vid;
+    } else if (isArchiveSource) {
+      const rawStreamUrl = (item as any).videoUrl || (item as any).embedUrl || album.tracks?.[0]?.url || album.customVideoUrl || (vid as any).url || '';
+      let embedUrl = (item as any).embedUrl || rawStreamUrl;
+      if (rawStreamUrl.includes('youtube.com') || rawStreamUrl.includes('youtu.be') || rawStreamUrl.includes('youtube-nocookie.com')) {
+        const match = rawStreamUrl.match(/(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*)/);
+        const ytId = match && match[1].length === 11 ? match[1] : '';
+        const originParam = typeof window !== 'undefined' ? `&origin=${encodeURIComponent(window.location.origin)}` : '';
+        if (ytId) embedUrl = `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&enablejsapi=1${originParam}`;
+      }
+      const isDirect = rawStreamUrl.endsWith('.mp4') || rawStreamUrl.endsWith('.m3u8') || rawStreamUrl.endsWith('.webm');
+      const isKofa = (item as any).source === 'KOFA' || (item as any).ownerId === 'korean-film-archive' || (item as any).ownerId === 'kofa';
+      const isEuro = (item as any).source === 'EUROPEANA' || (item as any).ownerId === 'europeana';
+      const owner = isKofa ? 'korean-film-archive' : isEuro ? 'europeana' : 'library-of-congress';
+      const artist = album.artist || (isKofa ? 'Korean Film Archive (KOFA)' : isEuro ? 'Europeana Film Heritage' : 'Library of Congress');
+      const genre = album.genre || (isKofa ? 'Korean Classic Cinema' : 'European Cinema');
+
+      payload = {
+        id: (item as any).identifier || item.id,
+        ownerId: owner,
+        title: item.title,
+        url: isDirect ? rawStreamUrl : '',
+        embedUrl: isDirect ? undefined : embedUrl,
+        artist,
+        timestamp: album.createdAt || Date.now(),
+        description: cleanDescription(album.description),
+        thumbnailUrl: album.coverImage || (item as any).thumbnailUrl,
+        genre,
+        subType: 'MOVIE',
+        sourceUrl: (item as any).sourceUrl,
+      } as any;
     } else if (vid.url || vid.embedUrl) {
       payload = vid;
     } else if (vid.id && !(item as any).tracks && (item as any).ownerId !== 'internet-archive') {
@@ -993,7 +1097,10 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
       // Firebase/archive url. Carry the mux id into the payload so the player can stream it.
       const t0 = album.tracks[0];
       const trackUrl = t0.url || '';
-      const isArchive = trackUrl.includes('archive.org');
+      const isArchive = trackUrl.includes('archive.org') &&
+        album.ownerId !== 'korean-film-archive' &&
+        album.ownerId !== 'kofa' &&
+        album.ownerId !== 'europeana';
       const archiveId = isArchive && trackUrl.includes('/download/')
         ? trackUrl.slice(trackUrl.indexOf('/download/') + 10).split('/')[0] : '';
       payload = {

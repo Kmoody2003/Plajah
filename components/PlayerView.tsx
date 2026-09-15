@@ -490,6 +490,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     setDjFilter,
     resetAudioFx,
     isFxActive,
+    activeLiveFx,
+    liveFxParams,
+    toggleLiveFx,
+    setLiveFxParam,
+    clearLiveFx,
     isSlideshowActive,
     setIsSlideshowActive,
     visualizerType,
@@ -3264,16 +3269,17 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           onClick={() => resetAudioFx?.()}
           aria-label="Kill DJ audio FX — reset to dry"
           title="Kill all DJ audio FX — reset the track to its natural, dry sound"
-          className={`hidden lg:flex absolute left-6 top-[3.6rem] z-50 items-center gap-1.5 py-1.5 pl-3 pr-4 rounded-full pointer-events-auto transition-all hover:scale-[1.03] active:scale-95 ${isFxActive ? 'animate-pulse' : ''}`}
+          className={`hidden lg:flex absolute left-6 top-[3.6rem] z-50 items-center gap-1.5 py-1.5 pl-3 pr-4 rounded-full pointer-events-auto transition-all hover:scale-[1.03] active:scale-95 ${(isFxActive || activeLiveFx) ? 'animate-pulse' : ''}`}
           style={{
-            background: isFxActive ? 'rgba(220,38,38,0.28)' : 'rgba(8,6,12,0.55)',
-            border: `1px solid ${isFxActive ? 'rgba(248,113,113,0.6)' : 'rgba(255,255,255,0.08)'}`,
+            background: (isFxActive || activeLiveFx) ? 'rgba(220,38,38,0.28)' : 'rgba(8,6,12,0.55)',
+            border: `1px solid ${(isFxActive || activeLiveFx) ? 'rgba(248,113,113,0.6)' : 'rgba(255,255,255,0.08)'}`,
             backdropFilter: 'blur(12px)',
           }}
         >
-          <ZapOff size={13} className={isFxActive ? 'text-red-300' : 'text-white/60'} />
-          <span className={`text-[9px] font-black uppercase tracking-widest ${isFxActive ? 'text-red-200' : 'text-white/60'}`}>Kill</span>
+          <ZapOff size={13} className={(isFxActive || activeLiveFx) ? 'text-red-300' : 'text-white/60'} />
+          <span className={`text-[9px] font-black uppercase tracking-widest ${(isFxActive || activeLiveFx) ? 'text-red-200' : 'text-white/60'}`}>Kill</span>
         </button>
+
         {/* ── Right-side vertical action column (desktop only; hidden in the
                Gatefold skin, which renders the bottom chip dock instead) ── */}
         {!gatefoldOn && (
@@ -3282,6 +3288,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           {[
             ...(isPublic ? [{ key: 'live', icon: Globe, label: 'Live Microsite', onClick: undefined, style: { color: 'rgb(74 222 128)' } }] : []),
             ...(isOwner ? [{ key: 'edit', icon: Zap, label: isLockerRelease ? 'Edit Locker' : 'Edit Album', onClick: handleOpenEdit, style: { color: '#FF8C00' } }] : []),
+            { key: 'fxlab', icon: Radio, label: 'FX Audition Lab', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_LIVE_FX_LAB')), style: { color: '#00DAF3' } },
             { key: 'fx', icon: Activity, label: isVisualizerLayout ? 'Exit FX' : 'FX Stage', onClick: () => { if (isVisualizerLayout) setIsVisualizerLayout(false); else setIsTvFxActive(true); }, style: isVisualizerLayout ? { color: '#FF8C00' } : {} },
             { key: 'tv', icon: VideoIcon, label: isTVMode ? 'TV On' : 'TV Mode', onClick: () => setIsTVMode(!isTVMode), style: isTVMode ? { color: '#FF8C00' } : {} },
             { key: 'dj', icon: Disc, label: 'DJ Mode', onClick: () => { getAudioContext?.(); setIsDJMode(true); }, style: {} },
@@ -3420,6 +3427,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 { key: 'captions', icon: MessageSquare, label: showCaptions ? 'Hide Captions' : 'Captions', onClick: () => setShowCaptions(!showCaptions), active: showCaptions },
                 ...(!isPublic ? [{ key: 'share', icon: Share2, label: 'Share', onClick: () => setShowShareModal(true), active: false }] : []),
                 ...(isOwner ? [{ key: 'edit', icon: Zap, label: isLockerRelease ? 'Edit Locker' : 'Edit Album', onClick: handleOpenEdit, active: false }] : []),
+                { key: 'fxlab', icon: Radio, label: 'FX Lab', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_LIVE_FX_LAB')), active: false },
                 { key: 'fx', icon: Activity, label: isVisualizerLayout ? 'Exit FX' : 'FX Stage', onClick: () => { if (isVisualizerLayout) setIsVisualizerLayout(false); else setIsTvFxActive(true); }, active: isVisualizerLayout },
                 { key: 'tv', icon: VideoIcon, label: isTVMode ? 'TV On' : 'TV Mode', onClick: () => setIsTVMode(!isTVMode), active: isTVMode },
                 { key: 'dj', icon: Disc, label: 'DJ Mode', onClick: () => { getAudioContext?.(); setIsDJMode(true); }, active: false },
@@ -3771,6 +3779,77 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                   <p className="text-lg lg:text-2xl font-display font-black italic tracking-tight bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#6B0099] bg-clip-text text-transparent w-fit drop-shadow-[0_1px_8px_rgba(0,0,0,0.4)] cursor-pointer hover:opacity-80 transition-opacity" onClick={() => { if (onVisitUser && album.ownerId) onVisitUser(album.ownerId); }}>{album.artist}</p>
                 )}
                 {(() => { const ecl = currentTrack?.isEclipsa || album.tracks?.some(t => t.isEclipsa); const atm = currentTrack?.isAtmos || album.tracks?.some(t => t.isAtmos); return (ecl || atm) ? <ImmersiveBadge isEclipsa={ecl} isAtmos={atm} showHint className="mt-3" /> : null; })()}
+
+                {/* ── Chora Live Real-Time FX Bar (Lo-Fi, Chipmunk, AM Radio, Boost Mode) ── */}
+                <div className="flex items-center gap-1.5 p-1 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-xl w-fit max-w-full overflow-x-auto no-scrollbar pt-1 mt-1">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/35 pl-2 pr-1 select-none shrink-0">
+                    Live FX
+                  </span>
+                  <button
+                    onClick={() => toggleLiveFx?.('lofi')}
+                    title="Lo-Fi: Vintage tape warmth, gentle wow/flutter & vinyl air"
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all shrink-0 ${
+                      activeLiveFx === 'lofi'
+                        ? 'bg-amber-500/30 text-amber-200 border border-amber-400/60 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
+                        : 'text-white/70 hover:text-white hover:bg-white/10 border border-transparent'
+                    }`}
+                  >
+                    <span>📻</span>
+                    <span>Lo-Fi</span>
+                  </button>
+                  <button
+                    onClick={() => toggleLiveFx?.('chipmunk')}
+                    title="Chipmunk: Vocal pitch shift + comic cartoon squeak (+10 st)"
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all shrink-0 ${
+                      activeLiveFx === 'chipmunk'
+                        ? 'bg-emerald-500/30 text-emerald-200 border border-emerald-400/60 shadow-[0_0_12px_rgba(16,185,129,0.4)]'
+                        : 'text-white/70 hover:text-white hover:bg-white/10 border border-transparent'
+                    }`}
+                  >
+                    <span>🐿️</span>
+                    <span>Chipmunk</span>
+                  </button>
+                  <button
+                    onClick={() => toggleLiveFx?.('radio')}
+                    title="AM Radio: Old-time shortwave transmitter with heterodyne whistle & static"
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all shrink-0 ${
+                      activeLiveFx === 'radio'
+                        ? 'bg-orange-500/30 text-orange-200 border border-orange-400/60 shadow-[0_0_12px_rgba(249,115,22,0.4)]'
+                        : 'text-white/70 hover:text-white hover:bg-white/10 border border-transparent'
+                    }`}
+                  >
+                    <span>🎙️</span>
+                    <span>AM Radio</span>
+                  </button>
+                  <button
+                    onClick={() => toggleLiveFx?.('boost')}
+                    title="Boost: Mastering maximizer with low punch, air sheen & soft-knee loudness"
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all shrink-0 ${
+                      activeLiveFx === 'boost'
+                        ? 'bg-cyan-500/30 text-cyan-200 border border-cyan-400/60 shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+                        : 'text-white/70 hover:text-white hover:bg-white/10 border border-transparent'
+                    }`}
+                  >
+                    <span>⚡</span>
+                    <span>Boost</span>
+                  </button>
+                  {activeLiveFx && (
+                    <button
+                      onClick={() => clearLiveFx?.()}
+                      title="Turn off Live FX — reset track to dry sound"
+                      className="flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider text-red-300 hover:text-red-200 hover:bg-red-500/20 border border-red-500/30 transition-all shrink-0 ml-0.5"
+                    >
+                      <span>✕ Dry</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('OPEN_LIVE_FX_LAB'))}
+                    title="Open Live FX Audition Studio with custom file testing"
+                    className="flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider text-purple-300 hover:text-purple-200 hover:bg-purple-500/20 border border-purple-500/30 transition-all shrink-0 ml-0.5"
+                  >
+                    <span>Lab ↗</span>
+                  </button>
+                </div>
              </div>
           </div>
 

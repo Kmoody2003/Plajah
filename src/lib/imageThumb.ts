@@ -40,13 +40,35 @@ export const THUMB = {
 } as const;
 
 /**
+ * Extract YouTube thumbnail directly if the URL contains a YouTube ID.
+ */
+export function getYoutubeThumb(url?: string | null): string | null {
+  if (!url) return null;
+  const m = url.match(/(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*)/);
+  if (m && m[1] && m[1].length === 11) {
+    return `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg`;
+  }
+  return null;
+}
+
+function shouldBypassCdn(url: string): boolean {
+  return (
+    url.includes('wsrv.nl') ||
+    url.includes('img.youtube.com') ||
+    url.includes('i.ytimg.com') ||
+    url.includes('upload.wikimedia.org') ||
+    url.includes('wikipedia.org')
+  );
+}
+
+/**
  * Resize a public image URL to `width` px wide (WebP, no upscaling).
  * Pass-through for empty, data:, blob:, relative, or already-transformed URLs.
  */
 export function thumb(url?: string | null, width: number = THUMB.card, quality = 78): string {
   if (!url) return '';
   if (!/^https?:\/\//i.test(url)) return url;     // data: / blob: / relative
-  if (url.includes('wsrv.nl')) return url;        // already transformed
+  if (shouldBypassCdn(url)) return url;
 
   let isTV = false;
   try { isTV = getPlatformInfo().isTV; } catch { /* pre-boot / SSR — assume not a TV */ }
@@ -70,7 +92,7 @@ export function thumb(url?: string | null, width: number = THUMB.card, quality =
 export function heroImage(url?: string | null, width = 1600, quality = 72): string {
   if (!url) return '';
   if (!/^https?:\/\//i.test(url)) return url;
-  if (url.includes('wsrv.nl')) return url;
+  if (shouldBypassCdn(url)) return url;
   let isTV = false;
   try { isTV = getPlatformInfo().isTV; } catch { /* pre-boot / SSR */ }
   const q = new URLSearchParams({ url, w: String(width), q: String(quality), output: 'webp', we: '', dpr: isTV ? '1' : '2', fit: 'cover' });

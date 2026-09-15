@@ -1,3 +1,7 @@
+import { loadStadiumEnvironment } from './PhotographicMaterials';
+import { RouteOverlay, orderedTargets } from './RouteOverlay';
+import { resolveCatch } from './PassRules';
+import { movementVelocity, movementHeading } from './Movement';
 import * as THREE from 'three';
 import { FIELD, PHYSICS, TEAMS } from './constants';
 import { FieldBuilder } from './FieldBuilder';
@@ -20,6 +24,11 @@ import {
 export class FootballEngine {
   public playerMode: 'BLOCK' | 'ATHLETE' = 'ATHLETE';
   private simulationRemainder = 0;
+  private hudElapsed = 0;
+  private environmentMap?: THREE.WebGLRenderTarget;
+  private destroyed=false;
+  public showRoutes = true;
+  public routes = new RouteOverlay();
   public scene: THREE.Scene;
   public camera: THREE.PerspectiveCamera;
   public renderer: THREE.WebGLRenderer;
@@ -38,6 +47,7 @@ export class FootballEngine {
   public pocketTimeRemaining: number = PHYSICS.POCKET_TIME_LIMIT;
   public isBallSnapped: boolean = false;
   public isPassInAir: boolean = false;
+  private thrownReceiver: Player3D | null = null;
   public targetReceiverIndex: number = 0; // 0 to 3
   public selectedTargetReceiver: Player3D | null = null;
   public activeBallCarrier: Player3D | null = null;
@@ -78,13 +88,14 @@ export class FootballEngine {
   public onStateChange?: (state: DriveState, gameMode: GameMode, pocketTime: number, hasBallCarrier: boolean) => void;
   public onPlayEnd?: (outcome: PlayOutcome) => void;
   public onReceiverStatusUpdate?: (receivers: ReceiverRoute[]) => void;
-  public invertControls: boolean = true;
+  public invertControls: boolean = false;
 
   constructor(container: HTMLElement) {
     this.container = container;
 
     // 1. Scene
     this.scene = new THREE.Scene();
+    this.scene.add(this.routes.group);
     this.scene.background = new THREE.Color(0x0a0e1a);
 
     // 2. Camera
@@ -99,7 +110,7 @@ export class FootballEngine {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.1;
+    this.renderer.toneMappingExposure = 1.0;
     container.appendChild(this.renderer.domElement);
 
     // 4. Field & Stadium
@@ -128,6 +139,7 @@ export class FootballEngine {
 
     // 7. Lighting & Sky
     this.setupLighting();
+    loadStadiumEnvironment(this.renderer,this.scene).then(map=>{if(this.destroyed)map.dispose();else this.environmentMap=map;}).catch(e=>console.warn('HDR lighting unavailable; using stadium lights.',e));
 
     // 8. Resize listener
     window.addEventListener('resize', this.handleResize);
@@ -145,7 +157,7 @@ export class FootballEngine {
 
   private setupLighting(): void {
     // Ambient Stadium Fill
-    const ambientLight = new THREE.AmbientLight(0x7c3aed, 0.7); // Twilight purple tint
+    const ambientLight = new THREE.HemisphereLight(0xc6dbef, 0x25301c, 0.65); // Twilight purple tint
     this.scene.add(ambientLight);
 
     // Directional Stadium Floodlight
@@ -175,7 +187,7 @@ export class FootballEngine {
   public setPlayerMode(mode: 'BLOCK' | 'ATHLETE'): void {
     this.playerMode = mode;
     [...this.offensePlayers,...this.defensePlayers].forEach(p=> {
-      const old=this.playerMeshes.get(p.id); if(old) this.scene.remove(old.root);
+      const old=this.playerMeshes.get(p.id); if(old) { this.scene.remove(old.root); PlayerMeshBuilder.disposePlayer(old.root); }
       const parts=PlayerMeshBuilder.createPlayerGroup(p,p.team==='OFFENSE'?this.driveState.offenseTeam:this.driveState.defenseTeam,mode);
       this.playerMeshes.set(p.id,parts); this.scene.add(parts.root);
       if(p.role==='QB') this.qbMeshGroup=parts.root;
@@ -209,6 +221,7 @@ export class FootballEngine {
     // Clear old player meshes
     this.playerMeshes.forEach((parts) => {
       this.scene.remove(parts.root);
+      PlayerMeshBuilder.disposePlayer(parts.root);
     });
     this.playerMeshes.clear();
     this.offensePlayers = [];
@@ -277,6 +290,10 @@ export class FootballEngine {
         ],
       },
     };
+    if(playType==='PASS_VERTS' && rb.route) {
+      rb.route.waypoints=[{x:4,z:losZ+5,speed:rb.speed},{x:5,z:losZ+28,speed:rb.speed}];
+      rb.route.label='Pass 4 · M. Hayes';
+    }
     this.offensePlayers.push(rb);
 
     // 5 Offensive Linemen (LT, LG, C, RG, RT) in authentic pass-protection stance
@@ -445,6 +462,8 @@ export class FootballEngine {
       this.scene.add(parts.root);
     });
 
+    orderedTargets(this.offensePlayers).forEach(p=>{p.route!.label='Pass '+p.route!.targetKey+' · '+p.name;});
+    this.routes.build(this.offensePlayers);
     // Default target receiver = 1 (Mid/Slot) or 0 (Left)
     this.selectTargetReceiver(1);
 
@@ -806,7 +825,7 @@ export class FootballEngine {
   }
 
   public selectTargetReceiver(index: number): void {
-    const targets = this.offensePlayers.filter((p) => p.role === 'WR' || p.role === 'RB');
+    const targets = orderedTargets(this.offensePlayers);
     if (index >= 0 && index < targets.length) {
       this.targetReceiverIndex = index;
       this.selectedTargetReceiver = targets[index];
@@ -814,17 +833,18 @@ export class FootballEngine {
   }
 
   public throwPass(isBullet: boolean = true): void {
-    if (!this.isBallSnapped || this.isPassInAir) return;
+    if (this.gameMode !== 'PLAYING' || !this.isBallSnapped || this.isPassInAir || this.activeBallCarrier) return;
 
     const qb = this.offensePlayers.find((p) => p.role === 'QB');
-    if (!qb) return;
+    if (!qb || !qb.hasBall || qb.z > this.yardLineToZ(this.driveState.ballYardLine)) return;
 
     // Pick target receiver
-    const targets = this.offensePlayers.filter((p) => p.role === 'WR' || p.role === 'RB');
+    const targets = orderedTargets(this.offensePlayers);
     const receiver = this.selectedTargetReceiver || targets[0];
     if (!receiver) return;
 
     this.isPassInAir = true;
+    this.thrownReceiver = receiver;
     qb.state = 'THROWING';
     qb.hasBall = false;
 
@@ -832,16 +852,20 @@ export class FootballEngine {
 
     // Anticipate receiver velocity and throw in stride into open grass
     const from = new THREE.Vector3(qb.x, 1.8, qb.z);
-    const leadDistance = isBullet ? 3.5 : 6.5;
-    const targetX = receiver.x + (receiver.vx ?? 0) * 0.4;
-    const targetZ = receiver.z + leadDistance;
-    const to = new THREE.Vector3(targetX, 1.7, targetZ);
+    const passSpeed=isBullet?PHYSICS.BULLET_PASS_SPEED:PHYSICS.LOB_PASS_SPEED;
+    let travel=Math.max(.45,Math.hypot(receiver.x-qb.x,receiver.z-qb.z)/passSpeed);
+    let targetX=receiver.x,targetZ=receiver.z;
+    for(let i=0;i<4;i++) {
+      targetX=receiver.x+(receiver.vx??0)*travel; targetZ=receiver.z+(receiver.vz??0)*travel;
+      travel=Math.max(.45,Math.hypot(targetX-qb.x,targetZ-qb.z)/passSpeed);
+    }
+    const to = new THREE.Vector3(targetX,1.7,targetZ);
 
     this.footballPhysics.launchPass(from, to, isBullet);
   }
 
   private updateReceiversAndCoverage(delta: number): void {
-    const targets = this.offensePlayers.filter((p) => p.role === 'WR' || p.role === 'RB');
+    const targets = orderedTargets(this.offensePlayers);
     const cbs = this.defensePlayers.filter((p) => p.role === 'CB');
     const lbs = this.defensePlayers.filter((p) => p.role === 'LB');
     const safeties = this.defensePlayers.filter((p) => p.role === 'S');
@@ -864,11 +888,10 @@ export class FootballEngine {
           if (dist < 0.8) {
             wr.route.currentWaypointIdx++;
           } else {
-            wr.vx = (dx / dist) * wr.speed;
-            wr.vz = (dz / dist) * wr.speed;
+            Object.assign(wr,movementVelocity(wr.vx??0,wr.vz??0,dx/dist,dz/dist,wr.speed,delta));
             wr.x += wr.vx * delta;
             wr.z += wr.vz * delta;
-            wr.heading = Math.atan2(wr.vx, wr.vz);
+            wr.heading = movementHeading(wr.heading,wr.vx,wr.vz,delta);
           }
         } else {
           // Continue downfield with momentum
@@ -886,11 +909,10 @@ export class FootballEngine {
           const cbDz = targetCbZ - cb.z;
           const cbDist = Math.hypot(cbDx, cbDz);
           if (cbDist > 0.4) {
-            cb.vx = (cbDx / cbDist) * cb.speed;
-            cb.vz = (cbDz / cbDist) * cb.speed;
+            Object.assign(cb,movementVelocity(cb.vx??0,cb.vz??0,cbDx/cbDist,cbDz/cbDist,cb.speed,delta));
             cb.x += cb.vx * delta;
             cb.z += cb.vz * delta;
-            cb.heading = Math.atan2(cbDx, cbDz);
+            cb.heading = movementHeading(cb.heading,cb.vx,cb.vz,delta);
           }
 
           // Evaluate separation
@@ -925,8 +947,11 @@ export class FootballEngine {
       });
     }
 
-    if (this.onReceiverStatusUpdate) {
-      this.onReceiverStatusUpdate(receiverInfoList);
+    this.hudElapsed += delta;
+    if (this.hudElapsed >= .1) {
+      this.hudElapsed %= .1;
+      this.onReceiverStatusUpdate?.(receiverInfoList);
+      this.notifyState();
     }
   }
 
@@ -992,12 +1017,8 @@ export class FootballEngine {
       const moveSpeed = PHYSICS.QB_SCRAMBLE_SPEED * speedMultiplier;
       const lateralInput = this.invertControls ? -this.playerInput.lateral : this.playerInput.lateral;
 
-      const inputLength = Math.max(1, Math.hypot(lateralInput, this.playerInput.forward));
-      const grip = this.weatherPreset === 'RAIN' ? 5 : this.weatherPreset === 'SNOW' ? 3.5 : 8;
-      const response = 1 - Math.exp(-grip * delta);
-      qb.vx = THREE.MathUtils.lerp(qb.vx ?? 0, lateralInput / inputLength * moveSpeed, response);
-      qb.vz = THREE.MathUtils.lerp(qb.vz ?? 0, this.playerInput.forward / inputLength * moveSpeed, response);
-
+      const traction = this.weatherPreset === 'RAIN' ? .85 : this.weatherPreset === 'SNOW' ? .7 : 1;
+      Object.assign(qb, movementVelocity(qb.vx ?? 0,qb.vz ?? 0,lateralInput,this.playerInput.forward,moveSpeed,delta,traction));
       qb.x += qb.vx * delta;
       qb.z += qb.vz * delta;
 
@@ -1005,18 +1026,20 @@ export class FootballEngine {
       qb.x = Math.max(-FIELD.WIDTH / 2 + 3, Math.min(FIELD.WIDTH / 2 - 3, qb.x));
 
       if (Math.hypot(qb.vx, qb.vz) > 0.5) {
-        qb.heading = Math.atan2(qb.vx, qb.vz);
+        qb.heading = movementHeading(qb.heading,qb.vx,qb.vz,delta);
         qb.speed = Math.hypot(qb.vx, qb.vz);
       } else {
-        qb.heading = 0;
+        // Preserve facing when the player stops.
         qb.speed = 0;
       }
 
+      qb.state = qb.speed > .3 ? 'RUNNING' : 'STANCE';
       // If QB runs past the Line of Scrimmage, play becomes an active QB Scramble run!
       if (qb.z > losZ) {
         this.activeBallCarrier = qb;
         qb.state = 'RUNNING';
         soundManager.playCrowdRoar('CHEER');
+        return; // Carrier movement starts next step, never twice in one step.
       }
     }
 
@@ -1024,35 +1047,22 @@ export class FootballEngine {
     if (this.activeBallCarrier && this.gameMode === 'PLAYING') {
       const carrier = this.activeBallCarrier;
       const isSprinting = this.playerInput.sprint;
-      const baseSpeed = carrier.role === 'RB' ? 10.5 : carrier.role === 'WR' ? 11.2 : 9.5;
-      const currentSpeed = isSprinting ? baseSpeed * 1.35 : baseSpeed;
+      const baseSpeed = carrier.role === 'RB' ? 8.8 : carrier.role === 'WR' ? 9.2 : 7.5;
+      const currentSpeed = isSprinting ? baseSpeed * 1.12 : baseSpeed;
       const lateralInput = this.invertControls ? -this.playerInput.lateral : this.playerInput.lateral;
 
-      let targetVx = lateralInput * currentSpeed;
-      let targetVz = this.playerInput.forward * currentSpeed;
-
-      // If user is not holding back/forward, auto-maintain downfield forward momentum
-      if (Math.abs(this.playerInput.forward) < 0.1 && Math.abs(this.playerInput.lateral) < 0.1) {
-        targetVz = baseSpeed * 0.7;
-      }
-
-      // Juke sidestep bonus
-      if (this.jukeActiveTimer > 0) {
-        targetVx *= 1.35;
-        targetVz *= 1.15;
-      }
-
-      carrier.vx = THREE.MathUtils.lerp(carrier.vx ?? 0, targetVx, 0.22);
-      carrier.vz = THREE.MathUtils.lerp(carrier.vz ?? 0, targetVz, 0.22);
+      const traction = this.weatherPreset === 'RAIN' ? .85 : this.weatherPreset === 'SNOW' ? .7 : 1;
+      const speed = currentSpeed * (this.jukeActiveTimer > 0 ? 1.15 : 1);
+      Object.assign(carrier,movementVelocity(carrier.vx ?? 0,carrier.vz ?? 0,lateralInput,this.playerInput.forward,speed,delta,traction));
 
       carrier.x += carrier.vx * delta;
       carrier.z += carrier.vz * delta;
       carrier.speed = Math.hypot(carrier.vx, carrier.vz);
 
       if (carrier.speed > 0.3) {
-        carrier.heading = Math.atan2(carrier.vx, carrier.vz);
+        carrier.heading = movementHeading(carrier.heading,carrier.vx,carrier.vz,delta);
         carrier.state = 'RUNNING';
-      }
+      } else { carrier.state = 'STANCE'; }
 
       // Sync active football mesh to carrier
       const parts = this.playerMeshes.get(carrier.id);
@@ -1095,11 +1105,10 @@ export class FootballEngine {
 
         if (dist > 0.3) {
           const pursuitSpeed = def.role === 'CB' || def.role === 'S' ? 9.8 : 8.6;
-          def.vx = (dx / dist) * pursuitSpeed;
-          def.vz = (dz / dist) * pursuitSpeed;
+          Object.assign(def,movementVelocity(def.vx??0,def.vz??0,dx/dist,dz/dist,pursuitSpeed,delta));
           def.x += def.vx * delta;
           def.z += def.vz * delta;
-          def.heading = Math.atan2(dx, dz);
+          def.heading = movementHeading(def.heading,def.vx??0,def.vz??0,delta);
           def.state = 'RUNNING';
           def.speed = pursuitSpeed;
         }
@@ -1109,7 +1118,7 @@ export class FootballEngine {
           if (this.jukeActiveTimer > 0) {
             // Juke broken tackle!
             soundManager.playCrowdRoar('CHEER');
-            def.x -= (dx / dist) * 1.5;
+            def.x -= (dx / Math.max(dist,.001)) * 1.5;
             def.state = 'TACKLED';
           } else {
             // Tackle!
@@ -1148,60 +1157,24 @@ export class FootballEngine {
   }
 
   private handlePassResolution(hitGround: boolean): void {
-    const targets = this.offensePlayers.filter((p) => p.role === 'WR' || p.role === 'RB');
-    const receiver = this.selectedTargetReceiver || targets[0];
-
-    if (hitGround || !receiver) {
+    const receiver=this.thrownReceiver;
+    this.thrownReceiver=null;
+    const result=hitGround||!receiver?'INCOMPLETE':resolveCatch(this.activeFootballMesh.position,receiver,this.defensePlayers,FIELD.WIDTH);
+    if(result!=='COMPLETE'||!receiver) {
       soundManager.playWhistle();
-      this.completePlay({
-        result: 'INCOMPLETE',
-        yardsGained: 0,
-        description: 'Incomplete pass. Ball hit turf.',
-      }, this.driveState.ballYardLine);
+      this.completePlay({result,yardsGained:0,description:result==='INTERCEPTION'?'Intercepted at the catch point. Possession changes.':'Incomplete: ball outside the catch window or field boundary.'},this.driveState.ballYardLine);
       return;
     }
-
-    // Evaluate catch probability
-    const isOpen = receiver.route?.isOpen ?? true;
-    const catchChance = isOpen ? 0.94 : 0.55;
-    const roll = Math.random();
-
-    if (roll < catchChance) {
-      // Completed Catch!
-      soundManager.playCatch();
-      soundManager.playCrowdRoar('CHEER');
-      soundManager.announce(`Completed pass to ${receiver.name}!`);
-      receiver.state = 'RUNNING';
-      receiver.hasBall = true;
-      this.activeBallCarrier = receiver;
-
-      // Hide free ball, show in receiver's hands
-      this.activeFootballMesh.visible = false;
-      const parts = this.playerMeshes.get(receiver.id);
-      if (parts && parts.ballMesh) {
-        parts.ballMesh.visible = true;
-      }
-      this.notifyState();
-      // Note: play continues! User now controls activeBallCarrier!
-    } else {
-      // Incomplete or Intercepted
-      if (!isOpen && Math.random() < 0.22) {
-        soundManager.playCrowdRoar('GROAN');
-        soundManager.playWhistle();
-        this.completePlay({
-          result: 'INTERCEPTION',
-          yardsGained: 0,
-          description: 'INTERCEPTED by Current secondary!',
-        }, this.driveState.ballYardLine);
-      } else {
-        soundManager.playWhistle();
-        this.completePlay({
-          result: 'INCOMPLETE',
-          yardsGained: 0,
-          description: 'Pass broken up. Incomplete.',
-        }, this.driveState.ballYardLine);
-      }
+    receiver.hasBall=true;receiver.state='CATCHING';this.activeBallCarrier=receiver;
+    this.activeFootballMesh.visible=false;
+    const parts=this.playerMeshes.get(receiver.id);if(parts?.ballMesh)parts.ballMesh.visible=true;
+    soundManager.playCatch();soundManager.playCrowdRoar('CHEER');
+    if(receiver.z>=50) {
+      const yards=100-this.driveState.ballYardLine;
+      this.completePlay({result:'TOUCHDOWN',yardsGained:yards,description:'Touchdown! Possession secured in the end zone.'},100);
+      return;
     }
+    this.notifyState();
   }
 
   public completePlay(outcome: PlayOutcome, newYardLine: number): void {
@@ -1222,6 +1195,8 @@ export class FootballEngine {
       soundManager.playCrowdRoar('TOUCHDOWN');
       soundManager.playOrganFanfare();
       soundManager.announce('TOUCHDOWN AURORA! Incredible play into the end zone!');
+    } else if (outcome.result === 'INTERCEPTION') {
+      this.gameMode = 'TURNOVER';
     } else if (newYardLine >= previousBallLine + this.driveState.yardsToGo) {
       // 1st Down!
       this.driveState.down = 1;
@@ -1340,14 +1315,20 @@ export class FootballEngine {
 
         const isOpen = player.route ? player.route.isOpen : false;
         PlayerMeshBuilder.animatePlayer(parts, player, animTime, isOpen);
+        if(parts.badgeSprite && player.route) {
+          const size=this.camera.position.distanceTo(parts.root.position)*2*Math.tan(THREE.MathUtils.degToRad(this.camera.fov/2))*42/Math.max(1,this.container.clientHeight);
+          parts.badgeSprite.scale.setScalar(size);parts.badgeSprite.visible=!this.activeBallCarrier;
+          parts.badgeSprite.material.opacity=player.id===this.selectedTargetReceiver?.id?1:.82;
+        }
       }
     });
 
+    this.routes.update(this.selectedTargetReceiver?.id,this.showRoutes && this.gameMode === 'PLAYING' && !this.activeBallCarrier && !this.isPassInAir);
     // 4. Update Camera
-    this.updateCamera();
+    this.updateCamera(delta);
 
     // 5. Update Catch point indicator chevron (Screenshot 2: "Catch point: Open")
-    if (this.isGuidedMode && this.selectedTargetReceiver && this.gameMode === 'PLAYING' && !this.activeBallCarrier) {
+    if (this.isBallSnapped && this.isGuidedMode && this.selectedTargetReceiver && this.gameMode === 'PLAYING' && !this.activeBallCarrier) {
       this.fieldBuilder.catchPointChevron.visible = true;
       this.fieldBuilder.catchPointChevron.position.set(
         this.selectedTargetReceiver.x,
@@ -1362,7 +1343,7 @@ export class FootballEngine {
     this.renderer.render(this.scene, this.camera);
   };
 
-  private updateCamera(): void {
+  private updateCamera(delta: number): void {
     if (this.gameMode === 'MENU') {
       const animTime = this.animClock.getElapsedTime();
       const t = animTime * 0.08;
@@ -1382,12 +1363,16 @@ export class FootballEngine {
       // Dynamic 3rd person follow Cam
       if (carrier) {
         let targetCamX = carrier.x * 0.6;
-        let targetCamY = 3.6;
-        let targetCamZ = carrier.z - 7.5;
+        let targetCamY = 7.0;
+        let targetCamZ = carrier.z - 12;
         let lookTargetX = carrier.x * 0.3;
         let lookTargetY = 1.8;
         let lookTargetZ = carrier.z + 14;
 
+        if(!this.isBallSnapped) {
+          targetCamX=0;targetCamY=20;targetCamZ=losZ-28;
+          lookTargetX=0;lookTargetY=0;lookTargetZ=losZ+8;
+        }
         // If ball is in flight, zoom back and track downfield towards target
         if (this.isPassInAir && this.activeFootballMesh.visible) {
           targetCamZ = this.activeFootballMesh.position.z - 9.5;
@@ -1397,9 +1382,9 @@ export class FootballEngine {
           lookTargetZ = this.activeFootballMesh.position.z + 6.0;
         }
 
-        this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, targetCamX, 0.1);
-        this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, targetCamY, 0.1);
-        this.camera.position.z = THREE.MathUtils.lerp(this.camera.position.z, targetCamZ, 0.1);
+        this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, targetCamX, 1 - Math.exp(-12 * delta));
+        this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, targetCamY, 1 - Math.exp(-12 * delta));
+        this.camera.position.z = THREE.MathUtils.lerp(this.camera.position.z, targetCamZ, 1 - Math.exp(-12 * delta));
         this.camera.lookAt(lookTargetX, lookTargetY, lookTargetZ);
       }
     } else if (this.cameraMode === 'BROADCAST') {
@@ -1431,6 +1416,7 @@ export class FootballEngine {
   };
 
   public destroy(): void {
+    this.destroyed=true;this.environmentMap?.dispose();
     cancelAnimationFrame(this.animId);
     window.removeEventListener('resize', this.handleResize);
     this.renderer.dispose();

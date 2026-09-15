@@ -169,6 +169,7 @@ import AdminPushBroadcast from './AdminPushBroadcast';
 import AdminChoraStreams from './AdminChoraStreams';
 import AdminMusicLab from './admin/AdminMusicLab';
 import AdminMediaHealth from './admin/AdminMediaHealth';
+import AdminFilmIngestVault from './admin/AdminFilmIngestVault';
 
 interface AdminDashboardProps {
   onBack: () => void;
@@ -201,7 +202,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'UPLOAD_REPORTS' | 'NOTIFY' | 'CHORA_STREAMS' | 'MEDIA_HEALTH' | 'PLATFORM_MEDIA' | 'CHANNEL_NUMBERS' | 'ENDLESS_HOUR' | 'MUSIC_LAB'>('STATS');
+  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'UPLOAD_REPORTS' | 'NOTIFY' | 'CHORA_STREAMS' | 'MEDIA_HEALTH' | 'PLATFORM_MEDIA' | 'CHANNEL_NUMBERS' | 'ENDLESS_HOUR' | 'FILM_INGEST' | 'MUSIC_LAB'>('STATS');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
   const [contentLicensingOn, setContentLicensingOn] = useState(false);
@@ -654,6 +655,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
             { id: 'STATS', label: 'Stats (Legacy)', icon: Database },
             { id: 'SPORTS_AGENTS', label: 'Sports Agents', icon: Trophy },
             { id: 'LIBRARY', label: 'Public Library', icon: LibraryBig },
+            { id: 'FILM_INGEST', label: 'Archive Film Vault', icon: HardDrive },
             { id: 'CHORA_STREAMS', label: 'Chora Streaming', icon: Music },
             { id: 'MUSIC_LAB', label: 'Music Lab', icon: Music },
             { id: 'MEDIA_HEALTH', label: 'Media Health', icon: HeartPulse },
@@ -1435,6 +1437,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
               </motion.div>
             )}
 
+            {activeTab === 'FILM_INGEST' && <AdminFilmIngestVault key="filmIngest" />}
             {activeTab === 'MUSIC_LAB' && <AdminMusicLab key="musicLab" />}
             {activeTab === 'CHORA_STREAMS' && (
               <AdminChoraStreams key="choraStreams" />

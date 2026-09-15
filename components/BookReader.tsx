@@ -10,7 +10,7 @@ import { MAI_VOICES, synthesizeParagraphs, estimateNarrationDurationMs } from '.
 import { motion, AnimatePresence } from 'motion/react';
 import { subscribeToComments, postComment, createPost, loginWithGoogle } from '../services/backendService';
 import { cacheExternalBookAssets } from '../services/bookStorageService';
-import { fetchBookBinary, fetchBookText } from '../services/bookContentService';
+import { fetchBookBinary, fetchBookText, formatReadableText, parseChaptersFromText, ParsedChapter, stripHtmlToText } from '../services/bookContentService';
 import CommentSection from './CommentSection';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import PlajahPlusButton from './PlajahPlusButton';
@@ -51,72 +51,7 @@ class ReaderErrorBoundary extends React.Component<
   }
 }
 
-const stripHtmlToText = (value: string) =>
-  value
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|h[1-6]|li|section|article)>/gi, '\n\n')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
 
-const formatReadableText = (value: string) => {
-  let text = value.trimStart().startsWith('<') ? stripHtmlToText(value) : value;
-  text = text
-    .replace(/\r\n?/g, '\n')
-    .replace(/\*\*\* START OF (?:THE|THIS) PROJECT GUTENBERG EBOOK[\s\S]*?\*\*\*/i, '')
-    .replace(/\*\*\* END OF (?:THE|THIS) PROJECT GUTENBERG EBOOK[\s\S]*/i, '')
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/[ \t]{2,}/g, ' ')
-    .trim();
-
-  return text
-    .split(/\n{2,}/)
-    .map(block => block.replace(/\n/g, ' ').trim())
-    .filter(Boolean)
-    .join('\n\n');
-};
-
-interface ParsedChapter { title: string; pages: string[][] }
-
-// Split a formatted TXT book into chapters and paginate each one.
-// Falls back to a single chapter when no headings are found.
-const parseChaptersFromText = (fullText: string): ParsedChapter[] => {
-  const PAGE_PARAS = 45;
-  const CHAPTER_RE = /^((?:CHAPTER|Chapter|PART|Part|BOOK|Book|VOLUME|Volume|ACT|Act|SECTION|Section)\s+(?:\d+|[IVXLCDM]+)(?:[.:—\s][^\n]*)?)\s*$/mg;
-
-  const parts = fullText.split(CHAPTER_RE);
-  // parts = [preamble, heading, body, heading, body, ...]
-
-  const raw: Array<{ title: string; body: string }> = [];
-
-  if (parts[0].trim().length > 300) {
-    raw.push({ title: 'Preface', body: parts[0].trim() });
-  }
-
-  for (let i = 1; i + 1 < parts.length; i += 2) {
-    raw.push({ title: parts[i].replace(/\s+/g, ' ').trim(), body: (parts[i + 1] || '').trim() });
-  }
-
-  if (raw.length === 0) {
-    raw.push({ title: 'Complete Work', body: fullText });
-  }
-
-  return raw.map(ch => {
-    const paras = ch.body.split('\n\n').filter(p => p.trim().length > 5);
-    const pages: string[][] = [];
-    for (let i = 0; i < Math.max(1, paras.length); i += PAGE_PARAS) {
-      pages.push(paras.slice(i, i + PAGE_PARAS));
-    }
-    return { title: ch.title, pages };
-  });
-};
 
 interface BookmarkEntry {
   id: string;
@@ -153,16 +88,26 @@ function loadSavedPosition(bookId: string): { chapter: number; page: number } {
 const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVisitUser, onOpenAudioStudio, partyId }) => {
   const { theme } = useGlobalPlayerState();
 
-  // Restore last-read position from localStorage
+  // Restore last-read position from localStorage (respecting initialChapterIndex / skipOpeningScene)
   const savedPos = loadSavedPosition(book.id);
-  const [currentChapterIndex, setCurrentChapterIndex] = useState(savedPos.chapter);
-  const [showOpeningScene, setShowOpeningScene] = useState(true);
+  const initialChapter = typeof (book as any).initialChapterIndex === 'number'
+    ? (book as any).initialChapterIndex
+    : savedPos.chapter;
+  const [currentChapterIndex, setCurrentChapterIndex] = useState(initialChapter);
+  const [showOpeningScene, setShowOpeningScene] = useState(() => {
+    if ((book as any).skipOpeningScene) return false;
+    return true;
+  });
 
-  // Unmount guard — prevents setState after the component is torn down.
-  // IMPORTANT: the effect body must re-set the flag to true. React 18
-  // StrictMode mounts → runs cleanup (flag=false) → re-runs effects; without
-  // the re-set the flag stays false forever, which froze the opening scene
-  // and silently skipped all content loading in dev.
+  useEffect(() => {
+    if (typeof (book as any).initialChapterIndex === 'number') {
+      setCurrentChapterIndex((book as any).initialChapterIndex);
+      if ((book as any).skipOpeningScene) {
+        setShowOpeningScene(false);
+      }
+    }
+  }, [book.id, (book as any).initialChapterIndex]);
+
   const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
@@ -1107,7 +1052,28 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                 title="AI Narration — MAI Voice 2"
               >
                 <Headphones size={16} />
-                <span className="hidden sm:inline">Listen</span>
+                <span className="hidden sm:inline">AI Voice</span>
+              </button>
+
+              {/* Audiobook Exhibition Pavilion button */}
+              <button
+                onClick={() => {
+                  const enrichedBook: Album = {
+                    ...book,
+                    bookChapters: (book.bookChapters || []).map((ch, idx) => ({
+                      ...ch,
+                      content: idx === currentChapterIndex ? (ch.content || chapterContent) : ch.content
+                    }))
+                  };
+                  window.dispatchEvent(new CustomEvent('OPEN_AUDIOBOOK_PAVILION', {
+                    detail: { book: enrichedBook, chapterIndex: currentChapterIndex }
+                  }));
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-full transition-all text-[9px] font-black uppercase tracking-widest bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white hover:scale-105 shadow-[0_0_15px_rgba(212,0,85,0.4)]"
+                title="Listen in the Audiobook Exhibition Pavilion"
+              >
+                <Sparkles size={13} className="text-amber-300 animate-pulse" />
+                <span className="hidden sm:inline">Audiobook Pavilion</span>
               </button>
 
               {/* Author: Record Audiobook */}

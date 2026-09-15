@@ -10,6 +10,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
+      // Isolate the main app from standalone previews with different dependency graphs.
+      cacheDir: 'node_modules/.vite-plajah',
       server: {
         // Honor a PORT assigned by the harness (autoPort) so a second dev server
         // can run alongside one already holding 3000; defaults to 3000 otherwise.
@@ -173,6 +175,8 @@ export default defineConfig(({ mode }) => {
         ],
       },
       optimizeDeps: {
+        // Standalone HTML previews have their own Vite configurations.
+        entries: ['index.html'],
         // Pre-bundle App Check alongside the other firebase modules so they
         // share one optimized firebase/app dependency. Pre-bundle tfjs +
         // basic-pitch together so they share ONE tfjs instance.

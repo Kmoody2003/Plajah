@@ -2022,6 +2022,598 @@ class EnsembleDevice extends FxBase {
   dispose(): void { this.lfoA.dispose(); this.lfoB.dispose(); super.dispose(); }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// DEVICE: Lo-Fi Tape Machine (Chora Live Fun FX)
+//
+// Warm tape bandwidth rolloff, sweet wow & flutter warble, gentle analog saturation
+// (strictly soft-saturating without harsh clipping), and cozy vinyl crackle/hiss.
+// ═══════════════════════════════════════════════════════════════════════════
+class LofiDevice extends FxBase {
+  private bump: BiquadFilterNode;
+  private wowDelay: DelayNode;
+  private wow: Lfo;
+  private flutter: Lfo;
+  private sat: WaveShaperNode;
+  private roll: BiquadFilterNode;
+  private hp: BiquadFilterNode;
+  private crackleSource: AudioBufferSourceNode | null = null;
+  private crackleLP: BiquadFilterNode;
+  private crackleGain: GainNode;
+  private makeup: GainNode;
+  private dry: GainNode;
+  private wet: GainNode;
+
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    // Subtle low-end warmth head bump (+1.5 dB at 90 Hz)
+    this.bump = this.own(ctx.createBiquadFilter());
+    this.bump.type = 'lowshelf';
+    this.bump.frequency.value = 90;
+    this.bump.gain.value = 1.5;
+
+    // Wow & Flutter: smooth analog tape speed variation
+    this.wowDelay = this.own(ctx.createDelay(0.05));
+    this.wowDelay.delayTime.value = 0.008;
+    this.wow = new Lfo(ctx, 'sine');
+    this.flutter = new Lfo(ctx, 'triangle');
+    this.wow.depth.connect(this.wowDelay.delayTime);
+    this.flutter.depth.connect(this.wowDelay.delayTime);
+
+    // Warm tape saturation: smooth hyperbolic tangent curve that never clips!
+    this.sat = this.own(ctx.createWaveShaper());
+    this.sat.oversample = '4x';
+    const n = 2048;
+    const curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = (i / (n - 1)) * 2 - 1;
+      curve[i] = Math.tanh(1.25 * x) * 0.95;
+    }
+    this.sat.curve = curve;
+
+    // High frequency rolloff (classic cassette tape ceiling)
+    this.roll = this.own(ctx.createBiquadFilter());
+    this.roll.type = 'lowpass';
+    this.roll.frequency.value = 3500;
+    this.roll.Q.value = 0.707;
+
+    // Subsonic cleanup
+    this.hp = this.own(ctx.createBiquadFilter());
+    this.hp.type = 'highpass';
+    this.hp.frequency.value = 85;
+    this.hp.Q.value = 0.707;
+
+    // Cozy vinyl dust & tape hiss (continuous gentle noise, NO jarring digital clicks)
+    this.crackleLP = this.own(ctx.createBiquadFilter());
+    this.crackleLP.type = 'bandpass';
+    this.crackleLP.frequency.value = 1800;
+    this.crackleLP.Q.value = 1.2;
+
+    this.crackleGain = this.own(ctx.createGain());
+    this.crackleGain.gain.value = 0.018;
+
+    try {
+      const sr = ctx.sampleRate || 44100;
+      const crackleBuf = ctx.createBuffer(1, sr * 3, sr);
+      const data = crackleBuf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        let v = (Math.random() * 2 - 1) * 0.04;
+        if (Math.random() < 0.0008) {
+          v += (Math.random() > 0.5 ? 1 : -1) * 0.08;
+        }
+        data[i] = v;
+      }
+      this.crackleSource = ctx.createBufferSource();
+      this.crackleSource.buffer = crackleBuf;
+      this.crackleSource.loop = true;
+      this.crackleSource.connect(this.crackleLP);
+      this.crackleLP.connect(this.crackleGain);
+      this.crackleSource.start();
+    } catch {
+      this.crackleSource = null;
+    }
+
+    // Safety headroom gain
+    this.makeup = this.own(ctx.createGain());
+    this.makeup.gain.value = 0.92;
+
+    this.dry = this.own(ctx.createGain());
+    this.wet = this.own(ctx.createGain());
+
+    this.input.connect(this.dry);
+    this.dry.connect(this.output);
+
+    this.input.connect(this.bump);
+    this.bump.connect(this.wowDelay);
+    this.wowDelay.connect(this.sat);
+    this.sat.connect(this.roll);
+    this.roll.connect(this.hp);
+    this.hp.connect(this.makeup);
+    this.makeup.connect(this.wet);
+
+    this.crackleGain.connect(this.wet);
+    this.wet.connect(this.output);
+
+    this.setParams({});
+  }
+
+  setParams(p: Record<string, number>): void {
+    const wowAmt = Math.max(0, Math.min(1, p.wow ?? 0.35));
+    const flutterAmt = Math.max(0, Math.min(1, p.flutter ?? 0.25));
+    this.wow.set(0.75, wowAmt * 0.0018);
+    this.flutter.set(4.5, flutterAmt * 0.0006);
+
+    const cutoff = Math.max(800, Math.min(16000, p.filter ?? 3500));
+    this.roll.frequency.value = cutoff;
+
+    const driveAmt = Math.max(0, Math.min(1, p.drive ?? 0.35));
+    const n = 2048;
+    const curve = new Float32Array(n);
+    const drive = 1.0 + driveAmt * 0.7;
+    for (let i = 0; i < n; i++) {
+      const x = (i / (n - 1)) * 2 - 1;
+      curve[i] = Math.tanh(drive * x) * 0.95;
+    }
+    this.sat.curve = curve;
+
+    const crackleAmt = Math.max(0, Math.min(1, p.crackle ?? 0.25));
+    this.crackleGain.gain.value = crackleAmt * 0.025;
+
+    const mix = Math.max(0, Math.min(1, p.mix ?? 1.0));
+    equalPowerMix(this.dry, this.wet, mix);
+  }
+
+  dispose(): void {
+    this.wow.dispose();
+    this.flutter.dispose();
+    try {
+      this.crackleSource?.stop();
+      this.crackleSource?.disconnect();
+    } catch { /* */ }
+    super.dispose();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DEVICE: Chipmunk Vocal Spectrum Shifter (Chora Live Fun FX)
+//
+// Uses a true dual-delay windowed pitch-shifter with equal-power crossfaded
+// Hann envelopes (sin² + cos² ≡ 1). Preserves all harmonic ratios (1:2:3:4)
+// so music stays in tune while shifting vocals up into bright cartoon chipmunk territory!
+// ═══════════════════════════════════════════════════════════════════════════
+class ChipmunkDevice extends FxBase {
+  private delayA: DelayNode;
+  private delayB: DelayNode;
+  private gainA: GainNode;
+  private gainB: GainNode;
+  private sum: GainNode;
+  private modSource: AudioBufferSourceNode | null = null;
+  private hp: BiquadFilterNode;
+  private formant: BiquadFilterNode;
+  private air: BiquadFilterNode;
+  private wetMakeup: GainNode;
+  private dry: GainNode;
+  private wet: GainNode;
+  private currentShift = 460;
+
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.delayA = this.own(ctx.createDelay(0.2));
+    this.delayB = this.own(ctx.createDelay(0.2));
+    this.delayA.delayTime.value = 0;
+    this.delayB.delayTime.value = 0;
+
+    this.gainA = this.own(ctx.createGain());
+    this.gainB = this.own(ctx.createGain());
+    this.gainA.gain.value = 0;
+    this.gainB.gain.value = 0;
+
+    this.sum = this.own(ctx.createGain());
+    this.sum.gain.value = 1.0;
+
+    this.hp = this.own(ctx.createBiquadFilter());
+    this.hp.type = 'highpass';
+    this.hp.frequency.value = 220;
+    this.hp.Q.value = 0.707;
+
+    this.formant = this.own(ctx.createBiquadFilter());
+    this.formant.type = 'peaking';
+    this.formant.frequency.value = 3200;
+    this.formant.Q.value = 2.0;
+    this.formant.gain.value = 4.5;
+
+    this.air = this.own(ctx.createBiquadFilter());
+    this.air.type = 'highshelf';
+    this.air.frequency.value = 6500;
+    this.air.gain.value = 2.5;
+
+    this.wetMakeup = this.own(ctx.createGain());
+    this.wetMakeup.gain.value = 0.95;
+
+    this.dry = this.own(ctx.createGain());
+    this.wet = this.own(ctx.createGain());
+
+    this.input.connect(this.dry);
+    this.dry.connect(this.output);
+
+    this.input.connect(this.delayA);
+    this.delayA.connect(this.gainA);
+    this.gainA.connect(this.sum);
+
+    this.input.connect(this.delayB);
+    this.delayB.connect(this.gainB);
+    this.gainB.connect(this.sum);
+
+    this.sum.connect(this.hp);
+    this.hp.connect(this.formant);
+    this.formant.connect(this.air);
+    this.air.connect(this.wetMakeup);
+    this.wetMakeup.connect(this.wet);
+    this.wet.connect(this.output);
+
+    this.rebuildPitchModulation(this.currentShift);
+    this.setParams({});
+  }
+
+  private rebuildPitchModulation(shiftVal: number): void {
+    try {
+      if (this.modSource) {
+        this.modSource.stop();
+        this.modSource.disconnect();
+        this.modSource = null;
+      }
+
+      // Map shiftVal (150..850, default 460) to semitones (+6 to +14 st)
+      const semitones = 6 + Math.max(0, Math.min(1, (shiftVal - 150) / 700)) * 8;
+      const ratio = Math.pow(2, semitones / 12);
+      const windowSec = 0.050;
+      const periodSec = windowSec / (ratio - 1);
+      const sr = this.ctx.sampleRate || 44100;
+      const periodSamples = Math.max(128, Math.round(periodSec * sr));
+
+      const buf = this.ctx.createBuffer(4, periodSamples, sr);
+      const dA = buf.getChannelData(0);
+      const gA = buf.getChannelData(1);
+      const dB = buf.getChannelData(2);
+      const gB = buf.getChannelData(3);
+
+      for (let i = 0; i < periodSamples; i++) {
+        const phaseA = i / periodSamples;
+        dA[i] = (1 - phaseA) * windowSec;
+        gA[i] = Math.sin(phaseA * Math.PI);
+
+        const phaseB = (phaseA + 0.5) % 1.0;
+        dB[i] = (1 - phaseB) * windowSec;
+        gB[i] = Math.sin(phaseB * Math.PI);
+      }
+
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+
+      const splitter = this.ctx.createChannelSplitter(4);
+      src.connect(splitter);
+
+      splitter.connect(this.delayA.delayTime, 0);
+      splitter.connect(this.gainA.gain, 1);
+      splitter.connect(this.delayB.delayTime, 2);
+      splitter.connect(this.gainB.gain, 3);
+
+      src.start();
+      this.modSource = src;
+    } catch (err) {
+      console.warn('ChipmunkDevice pitch modulation error:', err);
+    }
+  }
+
+  setParams(p: Record<string, number>): void {
+    const shift = Math.max(150, Math.min(850, p.shift ?? 460));
+    if (Math.abs(shift - this.currentShift) > 5) {
+      this.currentShift = shift;
+      this.rebuildPitchModulation(shift);
+    }
+
+    const formantFreq = Math.max(1200, Math.min(6000, p.formant ?? 3200));
+    this.formant.frequency.value = formantFreq;
+
+    const res = Math.max(0.5, Math.min(6.0, p.resonance ?? 2.4));
+    this.formant.Q.value = res;
+
+    const mix = Math.max(0, Math.min(1, p.mix ?? 1.0));
+    equalPowerMix(this.dry, this.wet, mix);
+  }
+
+  dispose(): void {
+    try {
+      if (this.modSource) {
+        this.modSource.stop();
+        this.modSource.disconnect();
+      }
+    } catch { /* */ }
+    super.dispose();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DEVICE: Ham / AM Radio & Shortwave Transmitter (Chora Live Fun FX)
+// ═══════════════════════════════════════════════════════════════════════════
+class RadioDevice extends FxBase {
+  private hp1: BiquadFilterNode;
+  private hp2: BiquadFilterNode;
+  private lp1: BiquadFilterNode;
+  private lp2: BiquadFilterNode;
+  private horn: BiquadFilterNode;
+  private grit: WaveShaperNode;
+  private staticSource: AudioBufferSourceNode | null = null;
+  private staticBP: BiquadFilterNode;
+  private staticGain: GainNode;
+  private whistleOsc: OscillatorNode | null = null;
+  private whistleLfo: Lfo;
+  private whistleGain: GainNode;
+  private wetMakeup: GainNode;
+  private dry: GainNode;
+  private wet: GainNode;
+
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    this.hp1 = this.own(ctx.createBiquadFilter());
+    this.hp1.type = 'highpass';
+    this.hp1.frequency.value = 440;
+    this.hp1.Q.value = 1.0;
+
+    this.hp2 = this.own(ctx.createBiquadFilter());
+    this.hp2.type = 'highpass';
+    this.hp2.frequency.value = 440;
+    this.hp2.Q.value = 1.0;
+
+    this.lp1 = this.own(ctx.createBiquadFilter());
+    this.lp1.type = 'lowpass';
+    this.lp1.frequency.value = 3100;
+    this.lp1.Q.value = 1.1;
+
+    this.lp2 = this.own(ctx.createBiquadFilter());
+    this.lp2.type = 'lowpass';
+    this.lp2.frequency.value = 3100;
+    this.lp2.Q.value = 1.1;
+
+    this.horn = this.own(ctx.createBiquadFilter());
+    this.horn.type = 'peaking';
+    this.horn.frequency.value = 1850;
+    this.horn.Q.value = 2.8;
+    this.horn.gain.value = 6.5;
+
+    this.grit = this.own(ctx.createWaveShaper());
+    this.grit.oversample = '2x';
+    const n = 2048;
+    const curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = (i / (n - 1)) * 2 - 1;
+      curve[i] = Math.tanh(2.5 * (x + 0.15)) - 0.14;
+    }
+    this.grit.curve = curve;
+
+    this.staticBP = this.own(ctx.createBiquadFilter());
+    this.staticBP.type = 'bandpass';
+    this.staticBP.frequency.value = 1900;
+    this.staticBP.Q.value = 1.4;
+
+    this.staticGain = this.own(ctx.createGain());
+    this.staticGain.gain.value = 0.05;
+
+    try {
+      const sr = ctx.sampleRate || 44100;
+      const staticBuf = ctx.createBuffer(1, sr * 3, sr);
+      const d = staticBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) {
+        let v = (Math.random() * 2 - 1) * 0.18;
+        if (Math.random() < 0.002) {
+          v += (Math.random() * 2 - 1) * 0.7;
+        }
+        d[i] = v;
+      }
+      this.staticSource = ctx.createBufferSource();
+      this.staticSource.buffer = staticBuf;
+      this.staticSource.loop = true;
+      this.staticSource.connect(this.staticBP);
+      this.staticBP.connect(this.staticGain);
+      this.staticSource.start();
+    } catch {
+      this.staticSource = null;
+    }
+
+    this.whistleLfo = new Lfo(ctx, 'sine');
+    this.whistleGain = this.own(ctx.createGain());
+    this.whistleGain.gain.value = 0.015;
+
+    try {
+      this.whistleOsc = ctx.createOscillator();
+      this.whistleOsc.type = 'sine';
+      this.whistleOsc.frequency.value = 1680;
+      this.whistleLfo.depth.connect(this.whistleOsc.frequency);
+      this.whistleLfo.set(0.8, 45);
+      this.whistleOsc.connect(this.whistleGain);
+      this.whistleOsc.start();
+    } catch {
+      this.whistleOsc = null;
+    }
+
+    this.wetMakeup = this.own(ctx.createGain());
+    this.wetMakeup.gain.value = 1.25;
+
+    this.dry = this.own(ctx.createGain());
+    this.wet = this.own(ctx.createGain());
+
+    this.input.connect(this.dry);
+    this.dry.connect(this.output);
+
+    this.input.connect(this.hp1);
+    this.hp1.connect(this.hp2);
+    this.hp2.connect(this.horn);
+    this.horn.connect(this.grit);
+    this.grit.connect(this.lp1);
+    this.lp1.connect(this.lp2);
+    this.lp2.connect(this.wetMakeup);
+    this.wetMakeup.connect(this.wet);
+
+    this.staticGain.connect(this.wet);
+    this.whistleGain.connect(this.wet);
+    this.wet.connect(this.output);
+
+    this.setParams({});
+  }
+
+  setParams(p: Record<string, number>): void {
+    const bw = Math.max(1600, Math.min(5000, p.bandwidth ?? 3100));
+    this.lp1.frequency.value = bw;
+    this.lp2.frequency.value = bw;
+
+    const gritAmt = Math.max(0, Math.min(1, p.grit ?? 0.35));
+    const n = 2048;
+    const curve = new Float32Array(n);
+    const drive = 1.0 + gritAmt * 4.5;
+    for (let i = 0; i < n; i++) {
+      const x = (i / (n - 1)) * 2 - 1;
+      curve[i] = Math.tanh(drive * (x + 0.12)) - 0.11;
+    }
+    this.grit.curve = curve;
+
+    const staticAmt = Math.max(0, Math.min(1, p.static ?? 0.30));
+    this.staticGain.gain.value = staticAmt * 0.15;
+
+    const whistleAmt = Math.max(0, Math.min(1, p.whistle ?? 0.15));
+    this.whistleGain.gain.value = whistleAmt * 0.04;
+
+    const mix = Math.max(0, Math.min(1, p.mix ?? 1.0));
+    equalPowerMix(this.dry, this.wet, mix);
+  }
+
+  dispose(): void {
+    this.whistleLfo.dispose();
+    try {
+      this.staticSource?.stop();
+      this.staticSource?.disconnect();
+      this.whistleOsc?.stop();
+      this.whistleOsc?.disconnect();
+    } catch { /* */ }
+    super.dispose();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DEVICE: Boost Mode / Sound Maximizer (Chora Live Fun FX)
+//
+// Punchy low-end presence, silky air sheen, transparent soft-knee glue compression,
+// and an algebraic soft-knee loudness maximizer. ZERO harsh clipping or distortion!
+// ═══════════════════════════════════════════════════════════════════════════
+class BoostDevice extends FxBase {
+  private subPunch: BiquadFilterNode;
+  private midDip: BiquadFilterNode;
+  private presence: BiquadFilterNode;
+  private air: BiquadFilterNode;
+  private comp: DynamicsCompressorNode;
+  private maximizer: WaveShaperNode;
+  private makeup: GainNode;
+  private ceilingGain: GainNode;
+  private dry: GainNode;
+  private wet: GainNode;
+
+  constructor(ctx: BaseAudioContext) {
+    super(ctx);
+    // Punchy low-end (tight kick/bass presence without muddy overhang)
+    this.subPunch = this.own(ctx.createBiquadFilter());
+    this.subPunch.type = 'lowshelf';
+    this.subPunch.frequency.value = 75;
+    this.subPunch.gain.value = 2.0;
+
+    // Gentle boxiness dip
+    this.midDip = this.own(ctx.createBiquadFilter());
+    this.midDip.type = 'peaking';
+    this.midDip.frequency.value = 400;
+    this.midDip.Q.value = 1.0;
+    this.midDip.gain.value = -1.0;
+
+    // Presence clarity
+    this.presence = this.own(ctx.createBiquadFilter());
+    this.presence.type = 'peaking';
+    this.presence.frequency.value = 2800;
+    this.presence.Q.value = 1.2;
+    this.presence.gain.value = 1.5;
+
+    // Silky high-end sheen
+    this.air = this.own(ctx.createBiquadFilter());
+    this.air.type = 'highshelf';
+    this.air.frequency.value = 9500;
+    this.air.gain.value = 2.0;
+
+    // Fast transparent glue compression (controlled dynamics, zero pumping)
+    this.comp = this.own(ctx.createDynamicsCompressor());
+    this.comp.threshold.value = -15;
+    this.comp.ratio.value = 2.2;
+    this.comp.attack.value = 0.008;
+    this.comp.release.value = 0.08;
+    this.comp.knee.value = 16;
+
+    // Transparent Algebraic Soft-Knee Maximizer (f(x) = x / (1 + |x|^3)^(1/3))
+    // Smooth infinite continuity — zero digital distortion or flat-top clipping!
+    this.maximizer = this.own(ctx.createWaveShaper());
+    this.maximizer.oversample = '4x';
+    const n = 2048;
+    const curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = (i / (n - 1)) * 4 - 2; // input range -2 to +2 (+6 dB headroom)
+      curve[i] = (x / Math.cbrt(1 + Math.pow(Math.abs(x), 3))) * 0.98;
+    }
+    this.maximizer.curve = curve;
+
+    this.makeup = this.own(ctx.createGain());
+    this.makeup.gain.value = 1.18;
+
+    this.ceilingGain = this.own(ctx.createGain());
+    this.ceilingGain.gain.value = 0.96;
+
+    this.dry = this.own(ctx.createGain());
+    this.wet = this.own(ctx.createGain());
+
+    this.input.connect(this.dry);
+    this.dry.connect(this.output);
+
+    this.input.connect(this.subPunch);
+    this.subPunch.connect(this.midDip);
+    this.midDip.connect(this.presence);
+    this.presence.connect(this.air);
+    this.air.connect(this.comp);
+    this.comp.connect(this.makeup);
+    this.makeup.connect(this.maximizer);
+    this.maximizer.connect(this.ceilingGain);
+    this.ceilingGain.connect(this.wet);
+    this.wet.connect(this.output);
+
+    this.setParams({});
+  }
+
+  setParams(p: Record<string, number>): void {
+    const punchAmt = Math.max(0, Math.min(1, p.punch ?? 0.6));
+    this.subPunch.gain.value = punchAmt * 2.8;
+
+    const airAmt = Math.max(0, Math.min(1, p.air ?? 0.5));
+    this.air.gain.value = airAmt * 2.8;
+    this.presence.gain.value = airAmt * 1.8;
+
+    const driveAmt = Math.max(0, Math.min(1, p.drive ?? 0.5));
+    this.makeup.gain.value = 1.05 + driveAmt * 0.28;
+    this.comp.threshold.value = -12 - driveAmt * 8;
+
+    const ceilDb = Math.max(-4, Math.min(0, p.ceiling ?? -0.3));
+    this.ceilingGain.gain.value = dbToGain(ceilDb);
+
+    const mix = Math.max(0, Math.min(1, p.mix ?? 1.0));
+    equalPowerMix(this.dry, this.wet, mix);
+  }
+
+  gr(): number {
+    return this.comp.reduction;
+  }
+}
+
 // ── the registry ─────────────────────────────────────────────────────────────
 const C = { eq: '#00DAF3', dynamics: '#FF8C00', saturation: '#D40055', stereo: '#D0BCFF', space: '#06D6A0', mod: '#B84DFF', dj: '#FF4B1C', repair: '#F59E0B', utility: '#8899aa', amp: '#E8A33D' };
 
@@ -2534,6 +3126,54 @@ export const DEVICES: FxDescriptor[] = [
       { key: 'pedal2Drive', label: 'P2 Drive', min: 0, max: 1, default: 0.4, format: (v) => `${Math.round(v * 100)}%` },
     ],
     create: (ctx) => new AmpRigDevice(ctx),
+  },
+  {
+    type: 'lofi', label: 'Lo-Fi Tape', category: 'dj', color: C.dj,
+    blurb: 'Vintage tape wow & flutter, bandwidth rolloff, warmth, vinyl crackle',
+    params: [
+      { key: 'filter', label: 'Cutoff', min: 800, max: 16000, default: 3500, unit: 'Hz', curve: 'log' },
+      { key: 'wow', label: 'Wow', min: 0, max: 1, default: 0.35, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'flutter', label: 'Flutter', min: 0, max: 1, default: 0.25, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'crackle', label: 'Crackle', min: 0, max: 1, default: 0.25, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'drive', label: 'Drive', min: 0, max: 1, default: 0.35, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'mix', label: 'Mix', min: 0, max: 1, default: 1.0, format: (v) => `${Math.round(v * 100)}%` },
+    ],
+    create: (ctx) => new LofiDevice(ctx),
+  },
+  {
+    type: 'chipmunk', label: 'Chipmunk Vocal', category: 'dj', color: C.dj,
+    blurb: 'Vocal spectrum shifter + formant squeak character',
+    params: [
+      { key: 'shift', label: 'Pitch Shift', min: 150, max: 850, default: 460, unit: 'Hz' },
+      { key: 'formant', label: 'Formant', min: 1500, max: 5000, default: 3200, unit: 'Hz', curve: 'log' },
+      { key: 'resonance', label: 'Resonance', min: 1, max: 5, default: 2.4 },
+      { key: 'mix', label: 'Mix', min: 0, max: 1, default: 1.0, format: (v) => `${Math.round(v * 100)}%` },
+    ],
+    create: (ctx) => new ChipmunkDevice(ctx),
+  },
+  {
+    type: 'radio', label: 'AM / Ham Radio', category: 'dj', color: C.dj,
+    blurb: 'Old-time shortwave transmitter, telephony bandpass, static, heterodyne whistle',
+    params: [
+      { key: 'bandwidth', label: 'Bandwidth', min: 1800, max: 4800, default: 3100, unit: 'Hz', curve: 'log' },
+      { key: 'grit', label: 'Grit', min: 0, max: 1, default: 0.35, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'static', label: 'Static', min: 0, max: 1, default: 0.30, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'whistle', label: 'Whistle', min: 0, max: 1, default: 0.15, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'mix', label: 'Mix', min: 0, max: 1, default: 1.0, format: (v) => `${Math.round(v * 100)}%` },
+    ],
+    create: (ctx) => new RadioDevice(ctx),
+  },
+  {
+    type: 'boost', label: 'Boost Maximizer', category: 'dj', color: C.dj,
+    blurb: 'Punch & air tone shaper, glue compression, soft-knee maximizer',
+    params: [
+      { key: 'punch', label: 'Punch', min: 0, max: 1, default: 0.6, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'air', label: 'Air / Sheen', min: 0, max: 1, default: 0.5, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'drive', label: 'Drive', min: 0, max: 1, default: 0.5, format: (v) => `${Math.round(v * 100)}%` },
+      { key: 'ceiling', label: 'Ceiling', min: -4, max: 0, default: -0.3, unit: 'dB' },
+      { key: 'mix', label: 'Mix', min: 0, max: 1, default: 1.0, format: (v) => `${Math.round(v * 100)}%` },
+    ],
+    create: (ctx) => new BoostDevice(ctx),
   },
 ];
 
