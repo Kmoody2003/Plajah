@@ -1,3 +1,5 @@
+import { startVoiceSoundscape } from '../services/voiceSoundscapeEngine';
+import { matchReferenceChapters } from '../services/vaultAccuracy';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ArchiveTrack, enrichAudiobookTrack } from '../services/archiveContentService';
 import {
@@ -39,6 +41,7 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
 
   const chapters = track.chapters || [];
   const [activeChapterIdx, setActiveChapterIdx] = useState(0);
+  useEffect(() => { setActiveChapterIdx(0); }, [track.id]);
   const activeChapter = chapters[activeChapterIdx] || {
     id: `${track.id}-ch1`,
     title: track.title,
@@ -199,114 +202,14 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
     setTimeout(() => setShowBookmarkToast(false), 3000);
   };
 
-  // Spoken-word acoustic resonance visualizer (Calm, gentle literary ribbon — never high-energy club bars)
+  // Spoken-word acoustic resonance visualizer (Vocal Formants & Dynamic Auto-Gain Terrain)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let animId: number;
-    const bufferLength = analyser?.frequencyBinCount || 128;
-    const dataArray = new Uint8Array(bufferLength);
-
-    const render = () => {
-      animId = requestAnimationFrame(render);
-      const width = canvas.width;
-      const height = canvas.height;
-
-      ctx.clearRect(0, 0, width, height);
-
-      if (analyser && isCurrentPlaying) {
-        analyser.getByteFrequencyData(dataArray);
-      } else {
-        const time = Date.now() * 0.0012;
-        for (let i = 0; i < bufferLength; i++) {
-          // Serene, gentle breathing idle undulation
-          dataArray[i] = Math.floor(18 + Math.sin(time + i * 0.08) * 12);
-        }
-      }
-
-      // Smooth spoken vocal envelope (dampening sudden electronic spikes for human vocal warmth)
-      const smoothed = new Float32Array(bufferLength);
-      for (let i = 0; i < bufferLength; i++) {
-        const prev = i > 0 ? dataArray[i - 1] : dataArray[i];
-        const next = i < bufferLength - 1 ? dataArray[i + 1] : dataArray[i];
-        smoothed[i] = (prev * 0.25 + dataArray[i] * 0.5 + next * 0.25) / 255.0;
-      }
-
-      // Background ambient vocal aura
-      const baseGradient = ctx.createLinearGradient(0, height, 0, 0);
-      baseGradient.addColorStop(0, 'rgba(107, 0, 153, 0.25)');
-      baseGradient.addColorStop(0.6, 'rgba(212, 0, 85, 0.18)');
-      baseGradient.addColorStop(1, 'rgba(255, 140, 0, 0.0)');
-
-      ctx.beginPath();
-      ctx.moveTo(0, height);
-      for (let i = 0; i < bufferLength; i++) {
-        const x = (i / (bufferLength - 1)) * width;
-        const val = smoothed[i];
-        const y = height - (val * height * 0.65);
-        if (i === 0) ctx.lineTo(x, y);
-        else {
-          const prevX = ((i - 1) / (bufferLength - 1)) * width;
-          const prevY = height - (smoothed[i - 1] * height * 0.65);
-          ctx.quadraticCurveTo(prevX, prevY, (prevX + x) / 2, (prevY + y) / 2);
-        }
-      }
-      ctx.lineTo(width, height);
-      ctx.closePath();
-      ctx.fillStyle = baseGradient;
-      ctx.fill();
-
-      // Top Vocal Contour Filament (Warm Gold / Rose Amber)
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = '#FF8C00';
-      ctx.shadowColor = 'rgba(255, 140, 0, 0.4)';
-      ctx.shadowBlur = 8;
-      ctx.beginPath();
-      for (let i = 0; i < bufferLength; i++) {
-        const x = (i / (bufferLength - 1)) * width;
-        const y = height - (smoothed[i] * height * 0.65);
-        if (i === 0) ctx.moveTo(x, y);
-        else {
-          const prevX = ((i - 1) / (bufferLength - 1)) * width;
-          const prevY = height - (smoothed[i - 1] * height * 0.65);
-          ctx.quadraticCurveTo(prevX, prevY, (prevX + x) / 2, (prevY + y) / 2);
-        }
-      }
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-
-      // Secondary subtle cyan harmonic thread
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = 'rgba(0, 218, 243, 0.4)';
-      ctx.beginPath();
-      for (let i = 0; i < bufferLength; i++) {
-        const x = (i / (bufferLength - 1)) * width;
-        const y = height - (smoothed[i] * height * 0.45);
-        if (i === 0) ctx.moveTo(x, y);
-        else {
-          const prevX = ((i - 1) / (bufferLength - 1)) * width;
-          const prevY = height - (smoothed[i - 1] * height * 0.45);
-          ctx.quadraticCurveTo(prevX, prevY, (prevX + x) / 2, (prevY + y) / 2);
-        }
-      }
-      ctx.stroke();
-    };
-
-    const handleResize = () => {
-      canvas.width = canvas.parentElement?.clientWidth || 800;
-      canvas.height = canvas.parentElement?.clientHeight || 90;
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    render();
-
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('resize', handleResize);
-    };
+    return startVoiceSoundscape(canvas, analyser, isCurrentPlaying, {
+      theme: 'audiobook',
+      heightScale: 0.85,
+    });
   }, [analyser, isCurrentPlaying]);
 
   // ── Lorea Literary Engine: Fetch & Parse Authentic Book Prose (Project Gutenberg / Lorea CDN) ──
@@ -316,6 +219,9 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
 
   useEffect(() => {
     let isCancelled = false;
+    setParsedChapters([]);
+    setBookTextLoaded(false);
+    setIsLoadingBookText(false);
 
     const loadLoreaBookText = async () => {
       // 1. If album already provides bookChapters with full text, use them
@@ -366,100 +272,14 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
     };
   }, [track.id, track.title, album]);
 
-  // ── Chapter Alignment & Roman/Arabic Number Parsers ──
-  const parseRomanNumeral = (str: string): number | null => {
-    const s = str.toLowerCase().trim();
-    if (!/^[ivxlcdm]+$/.test(s)) return null;
-    const ROMAN_MAP: Record<string, number> = { i: 1, v: 5, x: 10, l: 50, c: 100, d: 500, m: 1000 };
-    let res = 0;
-    for (let i = 0; i < s.length; i++) {
-      const cur = ROMAN_MAP[s[i]];
-      const nxt = ROMAN_MAP[s[i + 1]] || 0;
-      if (nxt > cur) { res += (nxt - cur); i++; }
-      else { res += cur; }
-    }
-    return res > 0 ? res : null;
-  };
-
-  const parseChapterSpec = (title: string): { isLetter: boolean; numbers: number[] } | null => {
-    if (!title) return null;
-    const s = title.toLowerCase();
-    const isLetter = s.includes('letter');
-
-    // 1. Range match: "1-4" or "1 to 4"
-    const rangeMatch = s.match(/(?:chapter|chapters|letter|letters|part|parts|section|sections)?\s*(\d+)\s*(?:-|to)\s*(\d+)/i);
-    if (rangeMatch) {
-      const start = parseInt(rangeMatch[1], 10);
-      const end = parseInt(rangeMatch[2], 10);
-      const numbers: number[] = [];
-      for (let n = Math.min(start, end); n <= Math.max(start, end); n++) numbers.push(n);
-      return { isLetter, numbers };
-    }
-
-    // 2. Roman numeral match: "I. LAYING PLANS" or "Chapter IV" or bare Roman numeral
-    const romanMatch = s.match(/^(?:chapter|letter|part|section)?\s*\b([ivxlcdm]+)\b[.:\s]/i) ||
-                       s.match(/\b([ivxlcdm]+)\b[.:\s]/i) ||
-                       s.match(/^(?:chapter|letter|part|section)?\s*\b([ivxlcdm]+)$/i);
-    if (romanMatch && romanMatch[1]) {
-      const val = parseRomanNumeral(romanMatch[1]);
-      if (val !== null) return { isLetter, numbers: [val] };
-    }
-
-    // 3. Extract all Arabic numbers e.g. "1 Laying Plans & 2 Waging War" -> [1, 2]
-    const allNums = [...s.matchAll(/\b(\d+)\b/g)].map(m => parseInt(m[1], 10)).filter(n => !isNaN(n) && n > 0 && n < 500);
-    if (allNums.length > 0) {
-      return { isLetter, numbers: allNums };
-    }
-
-    return null;
-  };
-
-  // Resolve current active chapter's authentic literary prose from Lorea's parsed chapters
   const { currentChapterText, matchedBookChapterIdx } = useMemo(() => {
-    if (!parsedChapters.length) return { currentChapterText: null, matchedBookChapterIdx: -1 };
-
-    const trackTitle = (activeChapter.title || '').toLowerCase();
-    const trackSpec = parseChapterSpec(trackTitle);
-
-    // 1. If active track groups chapters or letters (e.g. Letters 1-4, Chapters 1-2, Chapter 1)
-    if (trackSpec && trackSpec.numbers.length > 0) {
-      const matching = parsedChapters
-        .map((p, idx) => ({ p, idx, spec: parseChapterSpec(p.title) }))
-        .filter(({ spec }) => {
-          if (!spec) return false;
-          if (trackSpec.isLetter !== spec.isLetter) return false;
-          return spec.numbers.some(n => trackSpec.numbers.includes(n));
-        });
-
-      if (matching.length > 0) {
-        const combined = matching
-          .map(m => m.p.body || m.p.pages?.flat().join('\n\n') || '')
-          .filter(Boolean)
-          .join('\n\n');
-        return { currentChapterText: combined, matchedBookChapterIdx: matching[0].idx };
-      }
-    }
-
-    // 2. Title substring match
-    const titleMatchIdx = parsedChapters.findIndex(p => {
-      const pt = (p.title || '').toLowerCase();
-      return pt && (trackTitle.includes(pt) || pt.includes(trackTitle));
-    });
-
-    if (titleMatchIdx >= 0) {
-      const p = parsedChapters[titleMatchIdx];
-      const text = p.body || p.pages?.flat().join('\n\n') || null;
-      return { currentChapterText: text, matchedBookChapterIdx: titleMatchIdx };
-    }
-
-    // 3. Fallback index match (accounting for optional Preface)
-    const hasPreface = parsedChapters[0]?.title?.toLowerCase().includes('preface');
-    const targetIdx = hasPreface ? activeChapterIdx + 1 : activeChapterIdx;
-    const fallbackIdx = targetIdx < parsedChapters.length ? targetIdx : Math.min(activeChapterIdx, parsedChapters.length - 1);
-    const candidate = parsedChapters[fallbackIdx];
-    const text = candidate ? (candidate.body || candidate.pages?.flat().join('\n\n') || null) : null;
-    return { currentChapterText: text, matchedBookChapterIdx: fallbackIdx };
-  }, [parsedChapters, activeChapterIdx, activeChapter.title]);
+    const indices = matchReferenceChapters(activeChapter.title, parsedChapters.map(p => p.title));
+    if (!indices.length) return { currentChapterText: null, matchedBookChapterIdx: -1 };
+    return {
+      currentChapterText: indices.map(i => parsedChapters[i].body || parsedChapters[i].pages?.flat().join('\n\n') || '').join('\n\n'),
+      matchedBookChapterIdx: indices[0],
+    };
+  }, [parsedChapters, activeChapter.title]);
 
   // ── Precision Verbatim Synchronized Read-Along Alignment ──
   const [manualPageIdx, setManualPageIdx] = useState<number | null>(null);
@@ -468,6 +288,7 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
   const passages = useMemo(() => {
     return getPassagesForAudiobook(track, album, activeChapterIdx, duration, currentChapterText, activeChapter.title);
   }, [track, album, activeChapterIdx, duration, currentChapterText, activeChapter.title]);
+  const hasVerifiedTiming = passages.length > 0 && passages.every(p => p.timed);
 
   // Preamble timing: detect when audio is in introductory spoken announcement
   const preamblePassage = useMemo(() => {
@@ -483,9 +304,9 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
 
   // High-precision active word index matching current audio playback timestamp
   const activeWordIdx = useMemo(() => {
-    if (!isCurrentPlaying || currentTime <= 0 || !synchronizedWords.length) return 0;
+    if (!hasVerifiedTiming || !isCurrentPlaying || !synchronizedWords.length) return -1;
     return getActiveWordIndex(synchronizedWords, currentTime);
-  }, [isCurrentPlaying, currentTime, synchronizedWords]);
+  }, [hasVerifiedTiming, isCurrentPlaying, currentTime, synchronizedWords]);
 
   const activeWord = synchronizedWords[activeWordIdx];
   const activePassage = useMemo(() => {
@@ -497,13 +318,13 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
   // Paginate words into readable book folio spreads (120 words per spread)
   const WORDS_PER_PAGE = 120;
   const totalBookPages = Math.max(1, Math.ceil(synchronizedWords.length / WORDS_PER_PAGE));
-  const autoPageIdx = Math.floor(activeWordIdx / WORDS_PER_PAGE);
+  const autoPageIdx = Math.max(0, Math.floor(activeWordIdx / WORDS_PER_PAGE));
   const effectivePageIdx = manualPageIdx !== null ? manualPageIdx : autoPageIdx;
 
   // Reset manual page override on chapter change
   useEffect(() => {
     setManualPageIdx(null);
-  }, [activeChapterIdx]);
+  }, [track.id, activeChapterIdx]);
 
   // Dual-folio open book spread (Left Folio & Right Folio)
   const leftPageWords = useMemo(() => {
@@ -520,6 +341,7 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
 
   // Click any word to jump audio playback to that exact word's timestamp
   const handleSeekToWord = (targetWord: SynchronizedWord) => {
+    if (!hasVerifiedTiming) return;
     if (targetWord && typeof targetWord.start === 'number') {
       seek(targetWord.start);
       setManualPageIdx(null);
@@ -733,7 +555,7 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
 
                 {/* Inner Book Cover Art */}
                 <img
-                  src={thumb(track.thumbnailUrl, THUMB.modal) || undefined}
+                  src={thumb(track.thumbnailUrl, THUMB.large) || undefined}
                   onError={onThumbError(track.thumbnailUrl)}
                   className="absolute inset-0 w-full h-full object-cover opacity-50 mix-blend-luminosity group-hover:scale-105 transition-transform duration-700"
                 />
@@ -839,7 +661,7 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
                   <div className="flex items-center gap-2">
                     <BookOpen size={15} className="text-[#00DAF3]" />
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">
-                      Synchronized Read-Along Salon
+                      {hasVerifiedTiming ? 'Synchronized reading' : 'Reading companion'}
                     </span>
                   </div>
 
@@ -847,7 +669,7 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
                   <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#00DAF3]/10 border border-[#00DAF3]/30">
                     <span className={`w-1.5 h-1.5 rounded-full bg-[#00DAF3] ${isCurrentPlaying ? 'animate-pulse' : 'opacity-40'}`} />
                     <span className="text-[8px] font-mono font-bold text-[#00DAF3] uppercase tracking-wider">
-                      {isCurrentPlaying ? 'Live Word Tracking' : 'Paused'}
+                      {hasVerifiedTiming ? 'Recording-aligned phrases' : 'Text reference · not synchronized'}
                     </span>
                   </div>
 
@@ -856,7 +678,7 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
                     <div className="hidden md:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                       <span className="text-[8px] font-mono font-bold text-emerald-300 uppercase tracking-wider">
-                        Lorea Engine · Verbatim Text
+                        Reference edition
                       </span>
                     </div>
                   ) : isLoadingBookText ? (
@@ -934,18 +756,18 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF8C00]"></span>
                   </span>
                   <span className="text-[8px] font-mono uppercase tracking-widest text-amber-300 font-bold flex-shrink-0">
-                    {currentTime < (passages[1]?.start || 20) ? 'Audio Preamble' : (activePassage?.heading || 'Spoken Focus')}
+                    {hasVerifiedTiming ? 'Current phrase' : 'Reference text'}
                   </span>
                   <span className="text-xs text-white/90 italic truncate">
                     "{activePassage?.text || track.title}"
                   </span>
                 </div>
                 <span className="text-[8px] font-mono text-white/40 hidden sm:inline flex-shrink-0">
-                  Click any word to seek audio
+                  {hasVerifiedTiming ? 'Select a phrase to seek' : 'Timing is not verified for this recording'}
                 </span>
               </div>
 
-              {/* Two-Column Open Book Spread (Left Page & Right Page) */}
+              {!passages.length && <p role="status" className="text-sm text-white/60">No matching chapter text is available for this recording. Audio playback is available; open the book in Lorea to read independently.</p>}
               <div
                 ref={textScrollRef}
                 className={`flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 leading-relaxed max-h-[380px] overflow-y-auto pr-2 custom-scrollbar ${
@@ -962,8 +784,8 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
                   </div>
                   <div className="leading-relaxed select-text">
                     {leftPageWords.map((item) => {
-                      const isActive = item.globalIdx === activeWordIdx;
-                      const isPast = item.globalIdx < activeWordIdx;
+                      const isActive = hasVerifiedTiming && item.start <= currentTime && currentTime < item.end;
+                      const isPast = hasVerifiedTiming && item.end <= currentTime;
                       return (
                         <span
                           key={item.globalIdx}
@@ -995,8 +817,8 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
                   <div className="leading-relaxed select-text">
                     {rightPageWords.length > 0 ? (
                       rightPageWords.map((item) => {
-                        const isActive = item.globalIdx === activeWordIdx;
-                        const isPast = item.globalIdx < activeWordIdx;
+                        const isActive = hasVerifiedTiming && item.start <= currentTime && currentTime < item.end;
+                        const isPast = hasVerifiedTiming && item.end <= currentTime;
                         return (
                           <span
                             key={item.globalIdx}
@@ -1056,7 +878,7 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
                     Folio Spread <span className="text-white font-black">{effectivePageIdx + 1}</span> of {totalBookPages}
                   </span>
 
-                  {manualPageIdx !== null && manualPageIdx !== autoPageIdx && (
+                  {hasVerifiedTiming && manualPageIdx !== null && manualPageIdx !== autoPageIdx && (
                     <button
                       onClick={() => setManualPageIdx(null)}
                       className="px-2.5 py-1 rounded-lg bg-[#00DAF3]/20 hover:bg-[#00DAF3]/30 border border-[#00DAF3]/50 text-[8.5px] font-mono font-bold text-[#00DAF3] transition-all flex items-center gap-1 animate-pulse"
@@ -1069,7 +891,7 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
 
                 {/* Chapter Read Percentage */}
                 <div className="text-[9px] font-mono text-amber-300/80 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
-                  {Math.round(((activeWordIdx + 1) / (synchronizedWords.length || 1)) * 100)}% Spoken
+                  {hasVerifiedTiming ? 'Audio-aligned' : 'Manual reading'}
                 </div>
               </div>
 

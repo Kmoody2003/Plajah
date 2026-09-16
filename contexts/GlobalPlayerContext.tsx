@@ -51,7 +51,6 @@ export const isAudiobookMedia = (album?: Album | null, track?: Track | null): bo
     kind === 'INTERVIEW' ||
     !!(album as any)?.isAudiobook ||
     !!(track as any)?.isAudiobook ||
-    (!!(album as any)?.hasAudio && type === 'BOOK') ||
     (track as any)?.collection === 'LibriVox' ||
     (track as any)?.id?.startsWith('ia_librivox') ||
     (track as any)?.artist === 'LibriVox' ||

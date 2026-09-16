@@ -43,6 +43,7 @@ interface FilmVaultItemWithJob {
   dataProvider: string;
   sourcePageUrl: string;
   estimatedSizeBytes: number;
+  sourceIssue?: string;
   jobStatus: {
     identifier: string;
     status: 'IDLE' | 'DOWNLOADING' | 'PAUSED' | 'COMPLETED' | 'ERROR';
@@ -534,9 +535,9 @@ export const AdminFilmIngestVault: React.FC<AdminFilmIngestVaultProps> = ({ onPr
                 </div>
 
                 {/* Error banner if any */}
-                {job?.error && (
+                {(film.sourceIssue || job?.error) && (
                   <p className="text-[10px] text-red-400 bg-red-500/10 px-3 py-1.5 rounded-xl border border-red-500/20">
-                    {job.error}
+                    {film.sourceIssue || job?.error}
                   </p>
                 )}
 
@@ -562,14 +563,15 @@ export const AdminFilmIngestVault: React.FC<AdminFilmIngestVaultProps> = ({ onPr
                     ) : (
                       <button
                         onClick={() => handleStartDownload(film.identifier)}
+                        disabled={!!film.sourceIssue}
                         className="px-4 py-2 bg-white text-black hover:bg-white/90 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow"
                       >
                         <Download size={12} />
-                        {isPaused ? 'Resume Download' : 'Pull & Ingest'}
+                        {film.sourceIssue ? 'Source unavailable' : isPaused ? 'Resume Download' : 'Pull & Ingest'}
                       </button>
                     )}
 
-                    {isError && (
+                    {isError && !film.sourceIssue && (
                       <button
                         onClick={() => handleStartDownload(film.identifier)}
                         className="px-3 py-2 bg-red-500/20 text-red-300 hover:bg-red-500/30 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1 transition-all"

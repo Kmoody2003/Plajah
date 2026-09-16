@@ -1,3 +1,5 @@
+import { startVoiceSoundscape } from '../services/voiceSoundscapeEngine';
+import { validAlignment, activeCueIndex } from '../services/vaultAccuracy';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ArchiveTrack, enrichInterviewTrack, fetchAndParseLocTranscript } from '../services/archiveContentService';
 import { Album, Track } from '../types';
@@ -33,18 +35,21 @@ export const VaultInterviewView: React.FC<VaultInterviewViewProps> = ({
 
   // Dynamically load authentic Library of Congress XML transcript if available
   useEffect(() => {
+    let cancelled = false;
     setLiveTranscript(track.transcript || []);
+    setIsLoadingTranscript(false);
     if (track.fulltextUrl && (!track.transcript || track.transcript.length <= 4)) {
       setIsLoadingTranscript(true);
       fetchAndParseLocTranscript(track.fulltextUrl)
         .then(lines => {
-          if (lines && lines.length > 0) {
+          if (!cancelled && lines && lines.length > 0) {
             setLiveTranscript(lines);
           }
         })
-        .finally(() => setIsLoadingTranscript(false));
+        .finally(() => { if (!cancelled) setIsLoadingTranscript(false); });
     }
-  }, [track.id, track.fulltextUrl]);
+    return () => { cancelled = true; };
+  }, [track.id, track.fulltextUrl, track.transcript]);
 
   const {
     currentTrack,
@@ -61,7 +66,7 @@ export const VaultInterviewView: React.FC<VaultInterviewViewProps> = ({
 
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
 
-  const isCurrentPlaying = currentTrack?.id === track.id || currentTrack?.url === track.url;
+  const isCurrentPlaying = currentTrack?.id === track.id || (!!track.url && currentTrack?.url === track.url);
   const isPlaying = isCurrentPlaying && globalIsPlaying;
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -71,6 +76,8 @@ export const VaultInterviewView: React.FC<VaultInterviewViewProps> = ({
     const act = (track.timeline || []).findIndex(t => t.active);
     return act >= 0 ? act : 3;
   });
+
+  useEffect(() => { setSelectedArtifact(null); }, [track.id]);
 
   const transcriptScrollRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -110,20 +117,18 @@ export const VaultInterviewView: React.FC<VaultInterviewViewProps> = ({
         type: 'BOOK',
         subType: 'AUDIOBOOK',
         genre: 'Interview',
+        description: track.description || '',
       };
       playTrack(vTrack, vAlbum, 'LIBRARY');
     }
   };
 
   // Find active transcript line based on currentTime (prioritizing authentic live transcript)
-  const transcriptLines = liveTranscript.length > 0 ? liveTranscript : (track.transcript || []);
-  const activeLineIdx = useMemo(() => {
-    if (!isCurrentPlaying || !transcriptLines.length) return 0;
-    for (let i = transcriptLines.length - 1; i >= 0; i--) {
-      if (currentTime >= transcriptLines[i].time) return i;
-    }
-    return 0;
-  }, [currentTime, isCurrentPlaying, transcriptLines]);
+  const hasVerifiedTiming = validAlignment(track.audioAlignment, track.url);
+  const transcriptLines = hasVerifiedTiming
+    ? track.audioAlignment!.cues.map(c => ({ time: c.start, text: c.text, speaker: c.speaker || track.artist, translatedText: undefined as Record<string, string> | undefined }))
+    : liveTranscript;
+  const activeLineIdx = hasVerifiedTiming && isCurrentPlaying ? activeCueIndex(track.audioAlignment!.cues, currentTime) : -1;
 
   // Auto-scroll teleprompter transcript
   useEffect(() => {
@@ -134,64 +139,14 @@ export const VaultInterviewView: React.FC<VaultInterviewViewProps> = ({
     }
   }, [activeLineIdx]);
 
-  // Audio-reactive voice visualizer canvas (amber to magenta to purple wave)
+  // Audio-reactive voice visualizer canvas (Living Oral History & Tape Cadence)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let animId: number;
-    const bufferLength = analyser?.frequencyBinCount || 256;
-    const dataArray = new Uint8Array(bufferLength);
-    let phase = 0;
-
-    const render = () => {
-      animId = requestAnimationFrame(render);
-      if (analyser && isPlaying) {
-        analyser.getByteFrequencyData(dataArray);
-      }
-
-      const width = (canvas.width = canvas.clientWidth * (window.devicePixelRatio || 1));
-      const height = (canvas.height = canvas.clientHeight * (window.devicePixelRatio || 1));
-      ctx.clearRect(0, 0, width, height);
-
-      // Average voice energy
-      let sum = 0;
-      for (let i = 0; i < 40; i++) sum += dataArray[i] || 0;
-      const avg = sum / 40;
-      const energy = isPlaying ? Math.max(0.15, avg / 180) : 0.08;
-
-      phase += isPlaying ? 0.04 : 0.015;
-
-      // Draw 3 layered gradient waves
-      const waves = [
-        { color: 'rgba(255, 140, 0, 0.7)', speed: 1, amp: 28 * energy, freq: 0.008, offset: 0 },
-        { color: 'rgba(212, 0, 85, 0.55)', speed: 0.7, amp: 38 * energy, freq: 0.006, offset: 2 },
-        { color: 'rgba(107, 0, 153, 0.45)', speed: 0.5, amp: 48 * energy, freq: 0.004, offset: 4 },
-      ];
-
-      waves.forEach(w => {
-        ctx.beginPath();
-        ctx.moveTo(0, height / 2);
-        for (let x = 0; x < width; x += 3) {
-          const y =
-            height / 2 +
-            Math.sin(x * w.freq + phase * w.speed + w.offset) *
-              w.amp *
-              Math.sin((x / width) * Math.PI); // Pin to ends
-          ctx.lineTo(x, y);
-        }
-        ctx.strokeStyle = w.color;
-        ctx.lineWidth = 3.5;
-        ctx.shadowColor = w.color;
-        ctx.shadowBlur = 14;
-        ctx.stroke();
-      });
-    };
-
-    render();
-    return () => cancelAnimationFrame(animId);
+    return startVoiceSoundscape(canvas, analyser, isPlaying, {
+      theme: 'interview',
+      heightScale: 0.85,
+    });
   }, [analyser, isPlaying]);
 
   // Speed rate cycle options
@@ -466,7 +421,7 @@ export const VaultInterviewView: React.FC<VaultInterviewViewProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-[#00DAF3] animate-pulse" />
-                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/80">Synchronized Transcript</h3>
+                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/80">{hasVerifiedTiming ? 'Synchronized transcript' : 'Transcript reference'}</h3>
                 </div>
                 <span className="px-2 py-0.5 rounded-md bg-[#00DAF3]/10 border border-[#00DAF3]/30 text-[7.5px] font-mono font-bold text-[#00DAF3] flex items-center gap-1 w-fit">
                   <ShieldCheck size={10} /> Archival Record Verified
@@ -532,7 +487,7 @@ export const VaultInterviewView: React.FC<VaultInterviewViewProps> = ({
                   <motion.div
                     key={idx}
                     data-line-idx={idx}
-                    onClick={() => seek(line.time)}
+                    onClick={() => { if (hasVerifiedTiming) seek(line.time); }}
                     whileHover={{ scale: 1.005 }}
                     className={`p-4 rounded-2xl transition-all cursor-pointer border ${
                       isActive
@@ -554,7 +509,7 @@ export const VaultInterviewView: React.FC<VaultInterviewViewProps> = ({
                         </span>
                       </div>
                       <span className="text-[8.5px] font-mono text-white/30 tabular-nums">
-                        {Math.floor(line.time / 60)}:{(line.time % 60).toString().padStart(2, '0')}
+                        {hasVerifiedTiming ? Math.floor(line.time / 60) + ':' + (line.time % 60).toString().padStart(2, '0') : 'Reference'}
                       </span>
                     </div>
 

@@ -120,6 +120,7 @@ export interface TVSeason {
 }
 
 export interface Track {
+  kind?: 'MUSIC' | 'HISTORIC' | 'SPEECH' | 'AUDIOBOOK' | 'PODCAST' | 'FIELD_RECORDING' | 'INTERVIEW';
   id: string;
   title: string;
   artist: string;
@@ -537,6 +538,7 @@ export interface PromoKit {
 }
 
 export interface Album {
+  formats?: Record<string, string>;
   id: string;
   ownerId?: string; // UID of the user who created it
   isDraft?: boolean;
@@ -584,7 +586,7 @@ export interface Album {
    *  Defaults to All Rights Reserved when unset. Gated behind CONTENT_LICENSING. */
   license?: string;
   type?: 'MUSIC' | 'VIDEO' | 'BOOK' | 'PHOTO' | 'GAME';
-  subType?: 'MOVIE' | 'TV_SERIES' | 'GRAPHIC_NOVEL' | 'PODCAST' | 'NOVEL' | 'PLAYLIST' | 'MIX';
+  subType?: 'MOVIE' | 'TV_SERIES' | 'GRAPHIC_NOVEL' | 'PODCAST' | 'NOVEL' | 'PLAYLIST' | 'MIX' | 'AUDIOBOOK';
   /** Chora Mixes — a long-form DJ set built on the album framework (type:'MUSIC', subType:'MIX').
    *  The mix master is tracks[0]; the tracklist/cue points are optional segment markers. */
   mixMeta?: MixMeta;

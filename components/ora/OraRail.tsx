@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X, Pin, PinOff, PenLine, Wind } from 'lucide-react';
 import { usePersistentFloating } from '../../hooks/usePersistentFloating';
 import { IconButton } from '../ui';
@@ -62,11 +62,38 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
   const [lastMood, setLastMood] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
   const holdTimer = useRef<number | null>(null);
   const nudgeTimer = useRef<number | null>(null);
+  const autoRecedeTimer = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const floating = usePersistentFloating('plajah:floating:ora', () => ({ x: window.innerWidth - 60, y: window.innerHeight - 205 }));
 
+  const openRef = useRef(open);
+  openRef.current = open;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const journalBodyRef = useRef(journalBody);
+  journalBodyRef.current = journalBody;
+
+  const clearAutoRecede = useCallback(() => {
+    if (autoRecedeTimer.current !== null) {
+      window.clearTimeout(autoRecedeTimer.current);
+      autoRecedeTimer.current = null;
+    }
+  }, []);
+
   // Record when the app opened, so nudges wait 2 minutes.
   useEffect(() => { markAppOpened(); }, []);
+
+  // Cleanup all timers on unmount
+  useEffect(() => {
+    return () => {
+      clearAutoRecede();
+      if (holdTimer.current !== null) window.clearTimeout(holdTimer.current);
+      if (nudgeTimer.current !== null) {
+        window.clearTimeout(nudgeTimer.current);
+        window.clearInterval(nudgeTimer.current);
+      }
+    };
+  }, [clearAutoRecede]);
 
   // Ora is opt-in. Until the profile says so, this component renders nothing.
   useEffect(() => {
@@ -81,37 +108,48 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
     return () => { alive = false; };
   }, []);
 
-  // Daypart nudge timer — check every 60s if a nudge should appear.
+  // Daypart nudge timer — check periodically if a nudge should appear.
   useEffect(() => {
     if (!enabled) return;
     const check = () => {
       if (MUTED_VIEWS.includes(currentView)) return;
+      // Never interrupt if already open, if user is in JOURNAL mode, or if there is any active draft
+      if (openRef.current || modeRef.current === 'JOURNAL' || journalBodyRef.current.trim().length > 0) {
+        return;
+      }
       const { show, daypart } = shouldShowNudge(today());
-      if (show && daypart && !open) {
+      if (show && daypart) {
+        // Mark that this daypart nudge has been shown so it does not repeatedly pop up
+        dismissDaypart(daypart, today());
         setMode('NUDGE');
         setOpen(true);
-        // Auto-recede after 12 seconds if the user doesn't interact.
-        window.setTimeout(() => {
-          setOpen((o) => {
-            // Only auto-close if still showing the nudge (user hasn't interacted).
-            return o ? false : o;
-          });
+        clearAutoRecede();
+        // Auto-recede after 12 seconds ONLY if the user completely ignores it (still in NUDGE mode with no draft)
+        autoRecedeTimer.current = window.setTimeout(() => {
+          autoRecedeTimer.current = null;
+          // Guard: if user entered JOURNAL mode, or has started typing, stay open until they finish!
+          if (modeRef.current === 'JOURNAL' || journalBodyRef.current.trim().length > 0) {
+            return;
+          }
+          if (modeRef.current === 'NUDGE') {
+            setOpen(false);
+            setMode('ACTIONS');
+          }
         }, 12000);
       }
     };
-    // Initial check after 2 minutes (the app-open grace period is handled by shouldShowNudge).
-    nudgeTimer.current = window.setTimeout(() => {
+    // Initial check after a brief delay
+    const initialDelay = window.setTimeout(() => {
       check();
-      // Then check every 60s.
-      nudgeTimer.current = window.setInterval(check, 60000) as unknown as number;
-    }, 3000); // Small initial delay — shouldShowNudge internally enforces the 2-min rule.
+    }, 3000);
+    // Then check every 60s
+    const interval = window.setInterval(check, 60000);
+
     return () => {
-      if (nudgeTimer.current !== null) {
-        window.clearTimeout(nudgeTimer.current);
-        window.clearInterval(nudgeTimer.current);
-      }
+      window.clearTimeout(initialDelay);
+      window.clearInterval(interval);
     };
-  }, [enabled, currentView, open]);
+  }, [enabled, currentView, clearAutoRecede]);
 
   const dismissedToday = typeof window !== 'undefined' && sessionStorage.getItem(dismissKey()) === '1';
 
@@ -127,6 +165,7 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
   // ── Handlers ──────────────────────────────────────────────────────────
 
   const record = async (mood: 1 | 2 | 3 | 4 | 5) => {
+    clearAutoRecede();
     setSaving(mood);
     await saveCheckin({ mood, surface: 'RAIL' });
     setSaving(null);
@@ -138,6 +177,7 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
 
   const handleSaveJournal = async () => {
     if (!journalBody.trim()) return;
+    clearAutoRecede();
     setSavingJournal(true);
     const daypart = currentJournalDaypart();
     const title = daypart ? DAYPART_LABELS[daypart] : 'Quick entry';
@@ -155,18 +195,22 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
   };
 
   const dismiss = () => {
+    clearAutoRecede();
     setOpen(false);
     setMode('ACTIONS');
     try { sessionStorage.setItem(dismissKey(), '1'); } catch { /* private mode */ }
   };
 
   const dismissNudge = () => {
+    clearAutoRecede();
     if (nudgeDaypart) dismissDaypart(nudgeDaypart, today());
     setOpen(false);
     setMode('ACTIONS');
   };
 
   const openJournal = () => {
+    clearAutoRecede();
+    if (nudgeDaypart) dismissDaypart(nudgeDaypart, today());
     setMode('JOURNAL');
     // Focus the textarea on next tick.
     window.setTimeout(() => textareaRef.current?.focus(), 50);
@@ -239,7 +283,16 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
       {...floating.dragProps}
     >
       {open && (
-        <div role="group" aria-label="Ora companion" style={cardStyle}>
+        <div
+          role="group"
+          aria-label="Ora companion"
+          style={cardStyle}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            clearAutoRecede();
+          }}
+          onMouseEnter={clearAutoRecede}
+        >
 
           {/* ── NUDGE MODE: daypart journal invitation ── */}
           {mode === 'NUDGE' && nudgePrompt && (
@@ -313,7 +366,11 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setOpen(false); setMode('ACTIONS'); }}
+                  onClick={() => {
+                    clearAutoRecede();
+                    setOpen(false);
+                    setMode('ACTIONS');
+                  }}
                   className="tap"
                   style={{
                     flex: 1, padding: 'var(--pj-space-2) var(--pj-space-3)',
@@ -339,7 +396,11 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
               <textarea
                 ref={textareaRef}
                 value={journalBody}
-                onChange={(e) => setJournalBody(e.target.value)}
+                onChange={(e) => {
+                  clearAutoRecede();
+                  setJournalBody(e.target.value);
+                }}
+                onFocus={clearAutoRecede}
                 placeholder={nudgePrompt?.prompt ?? 'Write as much or as little as you want.'}
                 rows={4}
                 style={{
@@ -358,7 +419,12 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
               <div style={{ display: 'flex', gap: 'var(--pj-space-2)' }}>
                 <button
                   type="button"
-                  onClick={() => { setMode('ACTIONS'); setJournalBody(''); }}
+                  onClick={() => {
+                    clearAutoRecede();
+                    setMode('ACTIONS');
+                    setJournalBody('');
+                    setOpen(false);
+                  }}
                   className="tap"
                   style={{
                     flex: 1, padding: 'var(--pj-space-2)',

@@ -36,19 +36,31 @@ export function isStaleProcessing(s: ChoraStream | null | undefined): boolean {
 
 const cache = new Map<string, ChoraStream | null>();   // trackId → stream (null = looked up, none)
 const inflight = new Map<string, Promise<ChoraStream | null>>();
+const expires = new Map<string, number>();
+let cacheOwner: string | undefined;
+function checkCacheOwner() {
+  const uid = auth.currentUser?.uid || '';
+  if (uid !== cacheOwner) { cache.clear(); inflight.clear(); expires.clear(); cacheOwner = uid; }
+}
 
 /** Read a track's stream doc (cached). Returns null if there's no ready transcode. */
 export async function getTrackStream(trackId: string): Promise<ChoraStream | null> {
+  checkCacheOwner();
+  const owner = cacheOwner;
+  if ((expires.get(trackId) || 0) <= Date.now()) cache.delete(trackId);
   if (!trackId) return null;
   if (cache.has(trackId)) return cache.get(trackId)!;
   if (inflight.has(trackId)) return inflight.get(trackId)!;
   const p = (async () => {
     try {
-      const snap = await getDoc(doc(db, 'choraStreams', trackId));
+      let snap = await getDoc(doc(db, 'choraStreams', trackId));
+      if (!snap.exists() && auth.currentUser) snap = await getDoc(doc(db, 'choraPrivateStreams', `private_${trackId}`));
       const data = snap.exists() ? (snap.data() as ChoraStream) : null;
+      if (owner !== (auth.currentUser?.uid || '')) return null;
       cache.set(trackId, data && data.status ? data : null);
+      expires.set(trackId, Date.now() + (data?.status === 'ready' ? 300000 : 10000));
       return cache.get(trackId)!;
-    } catch { cache.set(trackId, null); return null; }
+    } catch { if (owner === (auth.currentUser?.uid || '')) { cache.set(trackId, null); expires.set(trackId, Date.now() + 10000); } return null; }
     finally { inflight.delete(trackId); }
   })();
   inflight.set(trackId, p);
@@ -57,6 +69,8 @@ export async function getTrackStream(trackId: string): Promise<ChoraStream | nul
 
 /** Synchronous cache peek — the player uses this to stay inside the autoplay gesture. */
 export function peekTrackStream(trackId: string): ChoraStream | null | undefined {
+  checkCacheOwner();
+  if ((expires.get(trackId) || 0) <= Date.now()) { cache.delete(trackId); return undefined; }
   return cache.get(trackId);
 }
 
@@ -68,7 +82,8 @@ export async function refreshTrackStream(trackId: string): Promise<ChoraStream |
 
 /** Warm the cache for a set of track ids (e.g. when an album loads), so play is instant-HLS. */
 export function prefetchTrackStreams(trackIds: string[]): void {
-  for (const id of trackIds) if (id && !cache.has(id) && !inflight.has(id)) getTrackStream(id).catch(() => {});
+  checkCacheOwner();
+  for (const id of trackIds) if (id && peekTrackStream(id) === undefined && !inflight.has(id)) getTrackStream(id).catch(() => {});
 }
 
 /** Re-home a stored media URL onto the current secure origin.

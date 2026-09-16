@@ -118,6 +118,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+    match /choraPrivateStreams/{trackId} {
+      allow read: if request.auth != null && resource.data.ownerId == request.auth.uid;
+      allow write: if false;
+    }
 
     match /sports_game_event_research/{docId} {
       allow read: if true;

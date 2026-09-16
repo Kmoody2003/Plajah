@@ -12,6 +12,7 @@ import {
   CURATED_VAULT_SPEECHES,
 } from './speechArchiveData';
 import { getSelfHostedFilm } from './selfHostedFilms';
+import { type VerifiedAudioAlignment } from './vaultAccuracy';
 
 export interface ArchiveBook {
   id: string;
@@ -69,6 +70,8 @@ export type AudioKind =
 export type VaultSort = 'TRENDING' | 'RECENT' | 'OLDEST' | 'AZ';
 
 export interface ArchiveTrack {
+  location?: string;
+  audioAlignment?: VerifiedAudioAlignment;
   id: string;
   title: string;
   artist: string;
@@ -352,11 +355,11 @@ export const CURATED_KOFA_FILMS: ArchiveVideo[] = [
     mediatype: 'movies',
     collection: ['Korean Film Archive (KOFA)', 'Classic Korean Cinema'],
     genre: 'Romance',
-    thumbnailUrl: 'https://img.youtube.com/vi/bHD8fmB04Hk/hqdefault.jpg',
+    thumbnailUrl: 'https://img.youtube.com/vi/V7MBFaVxyBc/hqdefault.jpg',
     year: '1956',
     runtime: '125 min',
     source: 'KOFA',
-    videoUrl: 'https://www.youtube-nocookie.com/embed/bHD8fmB04Hk?autoplay=1&rel=0',
+    videoUrl: 'https://www.youtube-nocookie.com/embed/V7MBFaVxyBc?autoplay=1&rel=0',
     sourceUrl: 'https://www.kmdb.or.kr',
     dataProvider: 'Korean Film Archive (KOFA)',
     rights: 'Free Public Access / KOFA Preservation',
@@ -1968,7 +1971,7 @@ const mapLocResult = (
     humanizeName(r?.contributor) ||
     'Library of Congress';
 
-  return compact({
+  const base = compact({
     id: `loc-${slug}`,
     title: (Array.isArray(r.title) ? r.title[0] : r.title) || 'Untitled Recording',
     artist,
@@ -2014,7 +2017,7 @@ const mapLocResult = (
 export const fetchAndParseLocTranscript = async (
   fulltextUrl: string
 ): Promise<Array<{ time: number; speaker: string; text: string; translatedText?: Record<string, string> }>> => {
-  return cached(`loc-transcript:${fulltextUrl}`, 1000 * 60 * 60 * 24 * 7, async () => {
+  return cached(`loc-transcript-v2:${fulltextUrl}`, 1000 * 60 * 60 * 24 * 7, async () => {
     try {
       const res = await fetch(fulltextUrl, { signal: AbortSignal.timeout(8000) });
       if (!res.ok) return [];
@@ -2044,7 +2047,7 @@ export const fetchAndParseLocTranscript = async (
         if (!text) continue;
 
         const words = text.split(/\s+/).length;
-        const durationSec = Math.max(3, Math.min(25, Math.round(words / 2.5)));
+        const durationSec = 0; // Reference text has no verified audio timestamps.
         lines.push({
           time: currentTime,
           speaker,
@@ -2196,7 +2199,7 @@ export const enrichInterviewTrack = (track: ArchiveTrack, r?: any): ArchiveTrack
     }
   }
 
-  const companionArtifacts: Array<{ title: string; url: string; type: 'PHOTO' | 'DOCUMENT' | 'LEDGER' }> = [];
+  const companionArtifacts: NonNullable<ArchiveTrack['companionArtifacts']> = [];
 
   if (mediaLookup && mediaLookup.companionArtifacts && mediaLookup.companionArtifacts.length > 0) {
     companionArtifacts.push(...mediaLookup.companionArtifacts);
@@ -2229,31 +2232,7 @@ export const enrichInterviewTrack = (track: ArchiveTrack, r?: any): ArchiveTrack
   }
 
   // 10. Authentic Transcript: Choose verbatim match or existing transcript
-  let transcript = authenticTranscript || track.transcript;
-  if (!transcript || transcript.length <= 1) {
-    transcript = [
-      {
-        time: 0,
-        speaker: interviewer.split(',')[0],
-        text: `We are recording today in ${location} with ${interviewee} for the Library of Congress permanent collection.`,
-      },
-      {
-        time: 12,
-        speaker: interviewee,
-        text: `Well, I was born right here back before the war broke out. I remember when times was hard and people lived off the land and worked from kin to can't.`,
-      },
-      {
-        time: 26,
-        speaker: interviewer.split(',')[0],
-        text: `Could you tell us about what you remember from those days and the songs people used to sing?`,
-      },
-      {
-        time: 38,
-        speaker: interviewee,
-        text: `We sang old spirituals and field chants to keep our strength up through the heat of the day. A person couldn't make it without raising a tune.`,
-      }
-    ];
-  }
+  const transcript = track.transcript || authenticTranscript || [];
 
   return {
     ...track,
@@ -2274,8 +2253,8 @@ export { CURATED_VAULT_SPEECHES };
 export const enrichSpeechTrack = (track: ArchiveTrack, r?: any): ArchiveTrack => {
   const item = r?.item || {};
   const title = track.title || '';
-  const mediaLookup = getSpeechMedia(title || track.id);
-  const authenticTranscript = getAuthenticSpeechTranscript(title || track.id);
+  const mediaLookup = getSpeechMedia(track.id) || getSpeechMedia(title);
+  const authenticTranscript = getAuthenticSpeechTranscript(track.id) || getAuthenticSpeechTranscript(title);
 
   // 1. Authentically resolve orator name
   let orator = track.artist && track.artist !== 'Library of Congress' && track.artist !== 'Internet Archive' ? track.artist : 'Historic Orator';
@@ -2336,15 +2315,9 @@ export const enrichSpeechTrack = (track: ArchiveTrack, r?: any): ArchiveTrack =>
     },
   ];
 
-  // 8. Companion Artifacts & Authentic Photographs
-  let thumbnailUrl = track.thumbnailUrl;
-  if (!thumbnailUrl || thumbnailUrl.includes('unsplash') || thumbnailUrl.includes('placeholder')) {
-    if (mediaLookup?.primaryPhoto) {
-      thumbnailUrl = mediaLookup.primaryPhoto;
-    }
-  }
+  let thumbnailUrl = mediaLookup?.primaryPhoto || track.thumbnailUrl;
 
-  const companionArtifacts: Array<{ title: string; url: string; type: 'PHOTO' | 'DOCUMENT' | 'LEDGER' }> = [];
+  const companionArtifacts: NonNullable<ArchiveTrack['companionArtifacts']> = [];
   if (mediaLookup && mediaLookup.companionArtifacts && mediaLookup.companionArtifacts.length > 0) {
     companionArtifacts.push(...mediaLookup.companionArtifacts);
   } else {
@@ -2365,21 +2338,7 @@ export const enrichSpeechTrack = (track: ArchiveTrack, r?: any): ArchiveTrack =>
   }
 
   // 9. Authentic Transcript
-  let transcript = authenticTranscript || track.transcript;
-  if (!transcript || transcript.length <= 1) {
-    transcript = [
-      {
-        time: 0,
-        speaker: orator,
-        text: `Delivered by ${orator} on ${deliveryDate} at ${venue}.`,
-      },
-      {
-        time: 8,
-        speaker: orator,
-        text: track.description || `Historic address preserved in the Library of Congress recorded sound collections.`,
-      }
-    ];
-  }
+  const transcript = track.transcript || authenticTranscript || [];
 
   return {
     ...track,

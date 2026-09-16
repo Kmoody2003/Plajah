@@ -253,7 +253,7 @@ export const SPEECH_MEDIA_REGISTRY: Record<string, SpeechMediaEntry> = {
     deliveryDate: 'January 20, 1961',
     deliveryYear: 1961,
     accessionNo: 'NARA-JFK-19610120 / LoC MAVIS-00892',
-    primaryPhoto: 'https://tile.loc.gov/storage-services/service/pnp/ppmsca/19300/19305r.jpg',
+    primaryPhoto: 'https://cdn.loc.gov/service/pnp/ppmsc/02800/02882v.jpg',
     whyItExists: 'Delivered in freezing 22°F air on January 20, 1961, John F. Kennedy\'s Inaugural Address set a new tone for American leadership at the dawn of the nuclear era. At 43 years old, Kennedy became the youngest person elected President, declaring that "the torch has been passed to a new generation of Americans." Preserved in the National Archives and John F. Kennedy Presidential Library.',
     historicalBackdrop: 'The Cold War was at a razor\'s edge following the 1960 U-2 spy plane shootdown, the rise of Fidel Castro in Cuba, and intensifying nuclear arms race tensions. An overnight blizzard dropped eight inches of snow across Washington, prompting the U.S. Army Corps of Engineers to use flamethrowers to clear Pennsylvania Avenue before the ceremony.',
     rhetoricalAnalysis: 'Celebrated for its masterly use of chiasmus and antithesis: \'Ask not what your country can do for you — ask what you can do for your country\' and \'Let us never negotiate out of fear, but let us never fear to negotiate.\' Drafted with counselor Ted Sorensen, the prose reads with poetic meter, classical balance, and crisp modern vigor.',
@@ -269,41 +269,14 @@ export const SPEECH_MEDIA_REGISTRY: Record<string, SpeechMediaEntry> = {
         context: 'One of the most famous civic challenges in world history, prioritizing collective duty over individual comfort.'
       }
     ],
-    pdfUrl: 'https://tile.loc.gov/storage-services/service/pnp/ppmsca/19300/19306r.jpg',
-    companionArtifacts: [
-      {
-        title: 'President Kennedy Delivering Inaugural Address (January 20, 1961)',
-        url: 'https://tile.loc.gov/storage-services/service/pnp/ppmsca/19300/19305r.jpg',
-        type: 'PHOTO',
-        caption: 'Kennedy speaking without an overcoat in 22-degree freezing air at the Capitol East Front.',
-        sourceCredit: 'Library of Congress Prints & Photographs Division',
-        year: 1961,
-      },
-      {
-        title: 'Chief Justice Earl Warren Administering Presidential Oath of Office',
-        url: 'https://tile.loc.gov/storage-services/service/pnp/ppmsca/19300/19306r.jpg',
-        type: 'PHOTO',
-        caption: 'Kennedy with his hand raised upon the Fitzgerald family Bible swearing the constitutional oath.',
-        sourceCredit: 'Library of Congress Prints & Photographs Division',
-        year: 1961,
-      },
-      {
-        title: 'Capitol Plaza Crowds Gathering Amidst Eight Inches of Fresh Snow',
-        url: 'https://tile.loc.gov/storage-services/service/pnp/ppmsca/19300/19308r.jpg',
-        type: 'PHOTO',
-        caption: 'Tens of thousands of Americans bundled against winter chill filling the Capitol East Front grounds.',
-        sourceCredit: 'Library of Congress Prints & Photographs Division',
-        year: 1961,
-      },
-      {
-        title: 'First Lady Jacqueline Kennedy and Distinguished Guests on Inaugural Dais',
-        url: 'https://tile.loc.gov/storage-services/service/pnp/ppmsca/19300/19310r.jpg',
-        type: 'PHOTO',
-        caption: 'The inaugural reviewing stand with former President Eisenhower, Vice President Johnson, and cabinet members.',
-        sourceCredit: 'Library of Congress Prints & Photographs Division',
-        year: 1961,
-      },
-    ],
+    companionArtifacts: [{
+      title: 'John F. Kennedy inaugural ceremony, January 20, 1961',
+      url: 'https://cdn.loc.gov/service/pnp/ppmsc/02800/02882v.jpg',
+      type: 'PHOTO',
+      caption: 'Inaugural ceremony of John F. Kennedy, surrounded by a crowd. Catalog: https://www.loc.gov/pictures/item/00652309/',
+      sourceCredit: 'Library of Congress, item 00652309',
+      year: 1961,
+    }],
     timeline: [
       { year: 'Nov 1960', label: 'Kennedy Elected 35th President', description: 'Defeats Vice President Richard Nixon in tight election.' },
       { year: 'Jan 20, 1961', label: 'Inaugural Address: \'Ask Not\'', description: 'Takes oath of office on Capitol East Front.', active: true },
@@ -752,7 +725,7 @@ export const CURATED_VAULT_SPEECHES: ArchiveTrack[] = [
     title: 'Inaugural Address (Ask Not What Your Country Can Do For You)',
     artist: 'President John F. Kennedy',
     url: 'https://archive.org/download/Greatest_Speeches_of_the_20th_Century/InauguralAddress-1961.mp3',
-    thumbnailUrl: 'https://tile.loc.gov/storage-services/service/pnp/ppmsca/19300/19305r.jpg',
+    thumbnailUrl: 'https://cdn.loc.gov/service/pnp/ppmsc/02800/02882v.jpg',
     source: 'LIBRARY_OF_CONGRESS',
     kind: 'SPEECH',
     subgenre: 'Historic Addresses',
@@ -898,3 +871,32 @@ export const CURATED_VAULT_SPEECHES: ArchiveTrack[] = [
     }
   },
 ];
+
+// Only retain companion photographs backed by a checked catalog record.
+// Existing numerical image URLs were found to reference unrelated subjects.
+for (const [key, media] of Object.entries(SPEECH_MEDIA_REGISTRY)) {
+  if (key === 'jfk_inaugural') {
+    delete media.pdfUrl;
+  } else if (key === 'mlk_dream') {
+    media.companionArtifacts = [{
+      title: 'Civil rights March on Washington, 1963',
+      url: media.primaryPhoto,
+      type: 'PHOTO',
+      caption: 'March on Washington. Context photograph, not a verified portrait of the speaker. Catalog: https://www.loc.gov/resource/ppmsca.03128/',
+      sourceCredit: 'Library of Congress, ppmsca.03128',
+      year: 1963,
+    }];
+    delete media.pdfUrl;
+  } else {
+    media.primaryPhoto = '/vault-recording.svg';
+    media.companionArtifacts = [];
+    delete media.pdfUrl;
+  }
+}
+for (const track of CURATED_VAULT_SPEECHES) {
+  const media = getSpeechMedia(track.id);
+  if (!media) continue;
+  track.thumbnailUrl = media.primaryPhoto;
+  track.companionArtifacts = media.companionArtifacts;
+  delete track.pdfUrl;
+}

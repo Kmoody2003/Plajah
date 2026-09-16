@@ -1,3 +1,5 @@
+import { startVoiceSoundscape } from '../services/voiceSoundscapeEngine';
+import { validAlignment, activeCueIndex } from '../services/vaultAccuracy';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ArchiveTrack, enrichSpeechTrack } from '../services/archiveContentService';
 import { Album, Track } from '../types';
@@ -28,7 +30,7 @@ export const VaultSpeechView: React.FC<VaultSpeechViewProps> = ({
 }) => {
   // Ensure track is fully enriched with speech metadata, authentic LoC photos & transcripts
   const track = useMemo(() => {
-    return initialTrack.whyItExists ? initialTrack : enrichSpeechTrack(initialTrack);
+    return enrichSpeechTrack(initialTrack);
   }, [initialTrack]);
 
   const [liveTranscript, setLiveTranscript] = useState(track.transcript || []);
@@ -52,7 +54,7 @@ export const VaultSpeechView: React.FC<VaultSpeechViewProps> = ({
 
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
 
-  const isCurrentPlaying = currentTrack?.id === track.id || currentTrack?.url === track.url;
+  const isCurrentPlaying = currentTrack?.id === track.id || (!!track.url && currentTrack?.url === track.url);
   const isPlaying = isCurrentPlaying && globalIsPlaying;
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -69,6 +71,8 @@ export const VaultSpeechView: React.FC<VaultSpeechViewProps> = ({
     const act = (track.timeline || []).findIndex(t => t.active);
     return act >= 0 ? act : 1;
   });
+
+  useEffect(() => { setSelectedArtifact(null); }, [track.id]);
 
   const transcriptScrollRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -107,14 +111,11 @@ export const VaultSpeechView: React.FC<VaultSpeechViewProps> = ({
   };
 
   // Find active transcript line based on currentTime
-  const transcriptLines = liveTranscript.length > 0 ? liveTranscript : (track.transcript || []);
-  const activeLineIdx = useMemo(() => {
-    if (!isCurrentPlaying || !transcriptLines.length) return 0;
-    for (let i = transcriptLines.length - 1; i >= 0; i--) {
-      if (currentTime >= transcriptLines[i].time) return i;
-    }
-    return 0;
-  }, [currentTime, isCurrentPlaying, transcriptLines]);
+  const hasVerifiedTiming = validAlignment(track.audioAlignment, track.url);
+  const transcriptLines = hasVerifiedTiming
+    ? track.audioAlignment!.cues.map(c => ({ time: c.start, text: c.text, speaker: c.speaker || track.artist, translatedText: undefined as Record<string, string> | undefined }))
+    : liveTranscript;
+  const activeLineIdx = hasVerifiedTiming && isCurrentPlaying ? activeCueIndex(track.audioAlignment!.cues, currentTime) : -1;
 
   // Auto-scroll teleprompter transcript
   useEffect(() => {
@@ -125,64 +126,14 @@ export const VaultSpeechView: React.FC<VaultSpeechViewProps> = ({
     }
   }, [activeLineIdx]);
 
-  // Audio-reactive voice visualizer canvas (amber to gold to cyan wave)
+  // Audio-reactive voice visualizer canvas (Historic Oratory Resonance)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let animId: number;
-    const bufferLength = analyser?.frequencyBinCount || 256;
-    const dataArray = new Uint8Array(bufferLength);
-    let phase = 0;
-
-    const render = () => {
-      animId = requestAnimationFrame(render);
-      if (analyser && isPlaying) {
-        analyser.getByteFrequencyData(dataArray);
-      }
-
-      const width = (canvas.width = canvas.clientWidth * (window.devicePixelRatio || 1));
-      const height = (canvas.height = canvas.clientHeight * (window.devicePixelRatio || 1));
-      ctx.clearRect(0, 0, width, height);
-
-      // Average voice energy
-      let sum = 0;
-      for (let i = 0; i < 40; i++) sum += dataArray[i] || 0;
-      const avg = sum / 40;
-      const energy = isPlaying ? Math.max(0.15, avg / 170) : 0.08;
-
-      phase += isPlaying ? 0.035 : 0.012;
-
-      // Draw 3 layered gradient oratory resonance waves
-      const waves = [
-        { color: 'rgba(217, 119, 6, 0.75)', speed: 1, amp: 30 * energy, freq: 0.007, offset: 0 },
-        { color: 'rgba(245, 158, 11, 0.55)', speed: 0.75, amp: 40 * energy, freq: 0.005, offset: 2 },
-        { color: 'rgba(0, 218, 243, 0.40)', speed: 0.5, amp: 50 * energy, freq: 0.0035, offset: 4 },
-      ];
-
-      waves.forEach(w => {
-        ctx.beginPath();
-        ctx.moveTo(0, height / 2);
-        for (let x = 0; x < width; x += 3) {
-          const y =
-            height / 2 +
-            Math.sin(x * w.freq + phase * w.speed + w.offset) *
-              w.amp *
-              Math.sin((x / width) * Math.PI);
-          ctx.lineTo(x, y);
-        }
-        ctx.strokeStyle = w.color;
-        ctx.lineWidth = 3.5;
-        ctx.shadowColor = w.color;
-        ctx.shadowBlur = 16;
-        ctx.stroke();
-      });
-    };
-
-    render();
-    return () => cancelAnimationFrame(animId);
+    return startVoiceSoundscape(canvas, analyser, isPlaying, {
+      theme: 'speech',
+      heightScale: 0.85,
+    });
   }, [analyser, isPlaying]);
 
   // Speed rate cycle options
@@ -582,10 +533,10 @@ export const VaultSpeechView: React.FC<VaultSpeechViewProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/80">Synchronized Oratory Teleprompter</h3>
+                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/80">{hasVerifiedTiming ? 'Synchronized transcript' : 'Transcript reference'}</h3>
                 </div>
                 <span className="px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-[7.5px] font-mono font-bold text-amber-400 flex items-center gap-1 w-fit">
-                  <ShieldCheck size={10} /> Verbatim Oratory Verified
+                  <ShieldCheck size={10} /> {hasVerifiedTiming ? 'Recording timing reviewed' : 'Audio timing not verified'}
                 </span>
               </div>
 
@@ -643,7 +594,7 @@ export const VaultSpeechView: React.FC<VaultSpeechViewProps> = ({
                   <motion.div
                     key={idx}
                     data-line-idx={idx}
-                    onClick={() => seek(line.time)}
+                    onClick={() => { if (hasVerifiedTiming) seek(line.time); }}
                     whileHover={{ scale: 1.005 }}
                     className={`p-4 rounded-2xl transition-all cursor-pointer border ${
                       isActive
@@ -663,7 +614,7 @@ export const VaultSpeechView: React.FC<VaultSpeechViewProps> = ({
                         </span>
                       </div>
                       <span className="text-[8.5px] font-mono text-white/30 tabular-nums">
-                        {Math.floor(line.time / 60)}:{(line.time % 60).toString().padStart(2, '0')}
+                        {hasVerifiedTiming ? Math.floor(line.time / 60) + ':' + (line.time % 60).toString().padStart(2, '0') : 'Reference'}
                       </span>
                     </div>
 

@@ -7,6 +7,7 @@ import http from 'node:http';
 import https from 'node:https';
 import { pipeline } from 'node:stream/promises';
 import { registerSelfHostedFilm } from '../services/selfHostedFilms';
+import { ARCHIVE_FILM_ITEMS, resolveArchiveFilm, explainYoutubeError } from '../services/filmIngestSources';
 
 export interface FilmVaultItem {
   identifier: string;
@@ -25,6 +26,7 @@ export interface FilmVaultItem {
   dataProvider: string;
   sourcePageUrl: string;
   estimatedSizeBytes: number;
+  sourceIssue?: string;
 }
 
 export interface IngestJobStatus {
@@ -345,6 +347,29 @@ export const SURFACED_PUBLIC_DOMAIN_FILMS: FilmVaultItem[] = [
   },
 ];
 
+// Preserve stable app identifiers, but display the actual hosting source.
+for (const film of SURFACED_PUBLIC_DOMAIN_FILMS) {
+  const item = ARCHIVE_FILM_ITEMS[film.identifier];
+  if (item) {
+    film.archive = 'INTERNET_ARCHIVE';
+    film.dataProvider = 'Internet Archive';
+    film.sourcePageUrl = `https://archive.org/details/${item}`;
+    film.thumbnailUrl = `https://archive.org/services/img/${item}`;
+    delete film.directDownloadUrl; // File names are resolved from metadata at download time.
+    delete film.youtubeUrl; // Never silently substitute a different uploader/version.
+  } else if (film.identifier === 'kofa-madame-freedom-1956') {
+    film.youtubeUrl = 'https://www.youtube.com/watch?v=V7MBFaVxyBc';
+    film.thumbnailUrl = 'https://img.youtube.com/vi/V7MBFaVxyBc/hqdefault.jpg';
+    film.sourcePageUrl = film.youtubeUrl;
+  } else if (['kofa-aimless-bullet-1961', 'europeana-polygoon-newsreel-1931', 'ia-charade-1963'].includes(film.identifier)) {
+    film.sourceIssue = 'The configured video is missing or does not match this catalog entry. A verified replacement is needed.';
+    delete film.youtubeUrl;
+    delete film.directDownloadUrl;
+  } else if (film.youtubeUrl) {
+    film.sourcePageUrl = film.youtubeUrl;
+  }
+}
+
 interface FilmIngestConfig {
   vaultDirectory: string;
 }
@@ -428,6 +453,15 @@ export async function syncVaultStatus(vaultDir: string): Promise<IngestJobStatus
     const ytdlPart = path.join(filmDir, 'video.mp4.ytdl');
     const thumbFile = path.join(filmDir, 'thumbnail.jpg');
 
+    // The previous Madame Freedom URL was an essay, not this film.
+    if (film.identifier === 'kofa-madame-freedom-1956' && !fs.existsSync(path.join(filmDir, 'download-source.json')) && fs.existsSync(filmDir)) {
+      for (const name of await fsp.readdir(filmDir)) {
+        if (/^video\./.test(name) && !name.includes('.previous-')) {
+          await fsp.rename(path.join(filmDir, name), path.join(filmDir, `${name}.previous-${Date.now()}`));
+        }
+      }
+    }
+
     let current = inMemoryStatuses[film.identifier];
     if (!current) {
       current = {
@@ -477,7 +511,7 @@ export async function syncVaultStatus(vaultDir: string): Promise<IngestJobStatus
       }
 
       if (partSize > 0) {
-        current.status = 'PAUSED';
+        if (current.status !== 'ERROR') current.status = 'PAUSED';
         current.bytesDownloaded = partSize;
         const total = current.totalBytes || film.estimatedSizeBytes;
         current.progressPercent = Math.min(99.9, Math.round((partSize / total) * 1000) / 10);
@@ -499,7 +533,8 @@ async function downloadDirectHttp(
   film: FilmVaultItem,
   url: string,
   filmDir: string,
-  status: IngestJobStatus
+  status: IngestJobStatus,
+  redirects = 0
 ): Promise<void> {
   const partFile = path.join(filmDir, 'video.mp4.part');
   const targetFile = path.join(filmDir, 'video.mp4');
@@ -527,8 +562,10 @@ async function downloadDirectHttp(
     const req = client.get(url, { headers }, (res) => {
       // Handle redirect
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume();
+        if (redirects >= 5) { reject(new Error('Source redirected too many times.')); return; }
         const redirectUrl = new URL(res.headers.location, url).toString();
-        downloadDirectHttp(film, redirectUrl, filmDir, status).then(resolve).catch(reject);
+        downloadDirectHttp(film, redirectUrl, filmDir, status, redirects + 1).then(resolve).catch(reject);
         return;
       }
 
@@ -536,7 +573,8 @@ async function downloadDirectHttp(
       const isOk = res.statusCode === 200;
 
       if (!isPartial && !isOk) {
-        if (res.statusCode === 416) {
+        res.resume();
+        if (res.statusCode === 416 && Number(res.headers['content-range']?.split('/')[1]) === startByte && startByte > 0) {
           // Range Not Satisfiable: could mean complete
           if (fs.existsSync(partFile)) {
             fsp.rename(partFile, targetFile).then(() => {
@@ -546,8 +584,12 @@ async function downloadDirectHttp(
             return;
           }
         }
-        reject(new Error(`Server returned HTTP ${res.statusCode}: ${res.statusMessage}`));
+        reject(new Error(`${new URL(url).hostname} returned HTTP ${res.statusCode}: ${res.statusMessage}. ${res.statusCode === 404 ? 'The source file is unavailable.' : 'The source rejected the request or is temporarily unavailable.'}`));
         return;
+      }
+
+      if (/text\/|application\/(json|xml)/i.test(String(res.headers['content-type']))) {
+        res.resume(); reject(new Error('Source returned a web page instead of a video.')); return;
       }
 
       let totalContentLength = 0;
@@ -598,6 +640,8 @@ async function downloadDirectHttp(
         }
       });
 
+      res.on('aborted', () => writeStream.destroy(new Error('Source disconnected. Retry to resume the partial download.')));
+      res.on('error', err => writeStream.destroy(err));
       res.pipe(writeStream);
 
       writeStream.on('finish', async () => {
@@ -631,6 +675,7 @@ async function downloadDirectHttp(
     });
 
     activeHttpRequests[film.identifier] = req;
+    req.setTimeout(30000, () => req.destroy(new Error('Source connection timed out. Retry to resume.')));
 
     req.on('error', (err) => {
       delete activeHttpRequests[film.identifier];
@@ -656,6 +701,7 @@ async function downloadWithYtDlp(
     // python -m yt_dlp with -c (auto-resume), standard retries, best progressive mp4
     const args = [
       '-m', 'yt_dlp',
+      '--js-runtimes', `node:${process.execPath}`,
       '-c', // Continue partially downloaded files
       '--no-playlist',
       '--retries', '10',
@@ -696,7 +742,9 @@ async function downloadWithYtDlp(
       status.lastUpdated = Date.now();
     });
 
+    let errorDetail = '';
     child.stderr.on('data', (chunk) => {
+      errorDetail = (errorDetail + chunk.toString()).slice(-4000);
       console.warn(`[yt-dlp ${film.identifier}]`, chunk.toString().trim());
     });
 
@@ -722,11 +770,12 @@ async function downloadWithYtDlp(
             sizeBytes: s.size,
           });
         }
+        if (!fs.existsSync(finalVideo)) { reject(new Error('Downloader finished without producing an MP4 file.')); return; }
         resolve();
       } else if (status.status === 'PAUSED') {
         resolve();
       } else {
-        reject(new Error(`yt-dlp exited with error code ${code}`));
+        reject(new Error(explainYoutubeError(errorDetail)));
       }
     });
 
@@ -769,10 +818,13 @@ export async function startOrResumeDownload(identifier: string): Promise<IngestJ
   if (!film) {
     throw new Error(`Film with identifier ${identifier} not found`);
   }
+  if (film.sourceIssue) throw new Error(film.sourceIssue);
 
   const vaultDir = await getVaultDirectory();
   const filmDir = path.join(vaultDir, film.identifier);
   await fsp.mkdir(filmDir, { recursive: true });
+
+  if (inMemoryStatuses[identifier]?.status === 'DOWNLOADING') return inMemoryStatuses[identifier];
 
   const status = inMemoryStatuses[identifier] || {
     identifier,
@@ -788,15 +840,49 @@ export async function startOrResumeDownload(identifier: string): Promise<IngestJ
 
   status.status = 'DOWNLOADING';
   status.error = undefined;
+  const isPaused = () => status.status === 'PAUSED';
 
   // Run asynchronously so caller gets immediate response
   (async () => {
     try {
+      let downloadUrl: string | undefined;
+      if (ARCHIVE_FILM_ITEMS[identifier]) {
+        const resolved = await resolveArchiveFilm(identifier);
+        downloadUrl = resolved.url;
+        status.totalBytes = resolved.size;
+      } else if (film.youtubeUrl) {
+        const response = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(film.youtubeUrl)}`, { signal: AbortSignal.timeout(15000) });
+        if (!response.ok) throw new Error(`YouTube source is unavailable (HTTP ${response.status}).`);
+        const metadata = await response.json();
+        if (metadata.author_url !== 'https://www.youtube.com/@KoreanFilm') throw new Error('Source is not from the verified Korean Classic Film channel. Download stopped.');
+      }
+      if (isPaused()) return;
+      const source = downloadUrl || film.youtubeUrl;
+      const sourceFile = path.join(filmDir, 'download-source.json');
+      let previousSource: string | undefined;
+      try { previousSource = JSON.parse(await fsp.readFile(sourceFile, 'utf8')).url; } catch {}
+      if (previousSource !== source) {
+        // Keep old bytes for recovery, but never append a new source to an old video.
+        for (const name of await fsp.readdir(filmDir)) {
+          if (/^video\.(mp4|webm|mkv|f\d+)/.test(name) && !name.includes('.previous-')) {
+            await fsp.rename(path.join(filmDir, name), path.join(filmDir, `${name}.previous-${Date.now()}`));
+          }
+        }
+      }
+      await fsp.writeFile(sourceFile, JSON.stringify({ url: source, sourcePageUrl: film.sourcePageUrl }));
       await saveMetadataSidecars(film, filmDir);
 
       // Prefer direct download URL if available (Internet Archive, etc.)
-      if (film.directDownloadUrl) {
-        await downloadDirectHttp(film, film.directDownloadUrl, filmDir, status);
+      if (downloadUrl) {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try { await downloadDirectHttp(film, downloadUrl, filmDir, status); break; }
+          catch (error: any) {
+            if (isPaused()) return;
+            if (attempt === 2 || !/HTTP (429|500|502|503|504)|timed out|disconnected/i.test(error.message)) throw error;
+            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+            if (isPaused()) return;
+          }
+        }
       } else if (film.youtubeUrl) {
         await downloadWithYtDlp(film, filmDir, status);
       } else {
@@ -1036,9 +1122,10 @@ export function createAdminFilmIngestRouter(deps?: {
       const started: string[] = [];
 
       for (const film of SURFACED_PUBLIC_DOMAIN_FILMS) {
+        if (film.sourceIssue) continue;
         const stat = statuses.find((s) => s.identifier === film.identifier);
         if (!stat || (stat.status !== 'COMPLETED' && stat.status !== 'DOWNLOADING')) {
-          startOrResumeDownload(film.identifier);
+          await startOrResumeDownload(film.identifier);
           started.push(film.identifier);
         }
       }

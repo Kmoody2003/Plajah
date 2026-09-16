@@ -51,6 +51,7 @@ import { buildFfmpegArgs } from './services/crossover/engine';
 import { extFor } from './services/crossover/formats';
 import type { Recipe as CxRecipe, MediaKind as CxKind, MediaProbe as CxProbe } from './services/crossover/types';
 import { ARIA_ART_COUNCIL_METHOD } from './services/aria/ariaCreativeRoles';
+import { protectPlaylist } from './services/choraUploadQueue';
 import { createCouncil } from './services/council/councilRoutes';
 import { FABULA_BROADCAST_PACKS } from './services/fabula/broadcastPacks';
 import {
@@ -583,7 +584,7 @@ async function choraRepairTruncatedMaster(inPath: string, trackId: string, workD
 }
 
 interface ChoraTranscodeResult { status: 'ready'; hls: string; low: string; flac: string; loudnessLufs: number; durationSec: number; }
-async function choraTranscodeToGcs(inPath: string, trackId: string, publicBase: string): Promise<ChoraTranscodeResult> {
+async function choraTranscodeToGcs(inPath: string, trackId: string, publicBase: string, privateToken?: string): Promise<ChoraTranscodeResult> {
   const workDir = path.join(os.tmpdir(), `chora_${trackId}_${Date.now()}`);
   const hlsDir = path.join(workDir, 'aac256');
   await fs.mkdir(hlsDir, { recursive: true });
@@ -633,16 +634,18 @@ async function choraTranscodeToGcs(inPath: string, trackId: string, publicBase: 
     : (f.endsWith('.m4s') || f.endsWith('.m4a') || f.endsWith('.mp4')) ? 'audio/mp4'
     : f.endsWith('.flac') ? 'audio/flac' : 'application/octet-stream';
   const uploadFile = async (local: string, rel: string) => {
-    const buf = await fs.readFile(local);
-    if (!(await gcsUpload(`chora-hls/${trackId}/${rel}`, buf, ctFor(rel)))) throw new Error('gcs upload failed: ' + rel);
+    let buf = await fs.readFile(local);
+    if (privateToken && rel.endsWith('.m3u8')) buf = Buffer.from(protectPlaylist(buf.toString('utf8'), privateToken));
+    if (!(await gcsUpload(`${privateToken ? 'chora-private' : 'chora-hls'}/${trackId}/${rel}`, buf, ctFor(rel)))) throw new Error('gcs upload failed: ' + rel);
   };
   for (const f of await fs.readdir(hlsDir)) await uploadFile(path.join(hlsDir, f), `aac256/${f}`);
   await uploadFile(lowPath, 'low.m4a');
   await uploadFile(flacPath, 'lossless.flac');
   fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
 
-  const base = `${publicBase}/api/chora/media/${trackId}`;
-  return { status: 'ready', hls: `${base}/aac256/playlist.m3u8`, low: `${base}/low.m4a`, flac: `${base}/lossless.flac`, loudnessLufs, durationSec };
+  const base = `${publicBase}/api/chora/${privateToken ? 'private-media' : 'media'}/${trackId}`;
+  const access = privateToken ? `?access=${encodeURIComponent(privateToken)}` : '';
+  return { status: 'ready', hls: `${base}/aac256/playlist.m3u8${access}`, low: `${base}/low.m4a${access}`, flac: `${base}/lossless.flac${access}`, loudnessLufs, durationSec };
 }
 
 /** Resolve an album's cover + a playable (non-paywalled) track for the social video. */
@@ -709,7 +712,7 @@ const queryFirebase = async (collectionId: string, filters: Array<{ field: strin
   const toVal = (v: any) => typeof v === 'number' ? { integerValue: String(v) } : typeof v === 'boolean' ? { booleanValue: v } : { stringValue: String(v) };
   const fieldFilters = filters.map(f => ({ fieldFilter: { field: { fieldPath: f.field }, op: 'EQUAL', value: toVal(f.value) } }));
   const where = fieldFilters.length === 1 ? fieldFilters[0] : { compositeFilter: { op: 'AND', filters: fieldFilters } };
-  const body = { structuredQuery: { from: [{ collectionId }], where, limit: limitN } };
+  const body = { structuredQuery: { from: [{ collectionId }], ...(filters.length ? { where } : {}), limit: limitN } };
   try {
     const res = await fetch(url, { method: 'POST', headers: { ...(await firestoreAuthHeaders()), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!res.ok) return [];
@@ -1102,7 +1105,7 @@ function secretsEqual(provided: unknown, expected: unknown): boolean {
 }
 
 // Firestore REST helper (reuses existing fetchFirebaseDoc pattern)
-async function firestoreWrite(collection: string, id: string, data: object) {
+async function firestoreWrite(collection: string, id: string, data: object, requireSuccess = false) {
   const projectId = 'gen-lang-client-0665118474';
   const dbId = 'plajah-prod';
   // updateMask makes this a MERGE (upsert): only the provided fields are written,
@@ -1127,6 +1130,7 @@ async function firestoreWrite(collection: string, id: string, data: object) {
     body: JSON.stringify({ fields }),
   });
   if (!res.ok) console.error(`[Firestore] write ${collection}/${id} failed: HTTP ${res.status}${process.env.GOOGLE_SERVICE_ACCOUNT_JSON ? '' : ' (GOOGLE_SERVICE_ACCOUNT_JSON not set — server writes are unauthenticated)'}`);
+  if (!res.ok && requireSuccess) throw new Error(`Conversion state write failed (HTTP ${res.status})`);
 }
 
 /**
@@ -7172,15 +7176,26 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   /** Every music track that has a fetchable source, newest albums first. */
   async function choraListCandidates(limit: number): Promise<ChoraTrackCandidate[]> {
     const albums = await fsQueryDocs('albums', [{ field: 'type', op: 'EQUAL', value: 'MUSIC' }], 300);
+    const personalAlbums = await fsQueryDocs('personal_albums', [], 300);
+    albums.push(...personalAlbums.map(a => ({ ...a, data: { ...a.data, isPrivate: true } })));
     const out: ChoraTrackCandidate[] = [];
+    // Explicit queue entries come first, including private uploads outside the public catalog.
+    for (const collection of ['choraStreams', 'choraPrivateStreams']) {
+      const queued = await fsQueryDocs(collection, [{ field: 'status', op: 'EQUAL', value: 'pending' }], limit);
+      for (const row of queued) if (row.data?.srcUrl) out.push({ trackId: row.id, srcUrl: String(row.data.srcUrl), ownerId: row.data.ownerId });
+    }
+    const personal = await fsQueryDocs('personal_tracks', [], 300);
+    for (const row of personal) {
+      if (row.data?.ownerId && /^https?:/i.test(String(row.data?.url || ''))) out.push({ trackId: `private_${row.id}`, srcUrl: row.data.url, ownerId: row.data.ownerId });
+    }
     for (const a of albums) {
       const tracks = Array.isArray(a.data?.tracks) ? a.data.tracks : [];
       for (const t of tracks) {
         const trackId = String(t?.id || '').trim();
         const srcUrl = String(t?.url || '').trim();
         if (!trackId || !/^https?:/i.test(srcUrl)) continue;
-        out.push({ trackId, srcUrl, albumId: a.id });
-        if (out.length >= limit) return out;
+        const privateId = a.data?.isPrivate ? `private_${trackId}` : trackId;
+        if (!out.some(job => job.trackId === privateId)) out.push({ trackId: privateId, srcUrl, albumId: a.id, ownerId: a.data?.ownerId });
       }
     }
     return out;
@@ -7188,20 +7203,23 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
 
   const choraWorkerDeps: ChoraTranscodeDeps = {
     listCandidates: choraListCandidates,
-    readStream: async (trackId) => (await firestoreRead('choraStreams', trackId)) as any,
-    writeStream: async (trackId, patch) => { await firestoreWrite('choraStreams', trackId, patch as any); },
-    transcodeOne: async ({ trackId, srcUrl }) => {
+    readStream: async (trackId) => (await firestoreRead(trackId.startsWith('private_') ? 'choraPrivateStreams' : 'choraStreams', trackId)) as any,
+    writeStream: async (trackId, patch) => { await firestoreWrite(trackId.startsWith('private_') ? 'choraPrivateStreams' : 'choraStreams', trackId, patch as any, true); },
+    transcodeOne: async ({ trackId, srcUrl, ownerId }) => {
       const publicBase = (process.env.PUBLIC_API_BASE || 'https://plajah.com').replace(/\/+$/, '');
       let inPath: string | null = null;
       try {
         inPath = await fetchToTmp(srcUrl, 'audio');
         if (!inPath) throw new Error('source fetch failed');
-        const r = await choraTranscodeToGcs(inPath, trackId, publicBase);
-        await firestoreWrite('choraStreams', trackId, {
+        const privateToken = trackId.startsWith('private_') ? nodeCrypto.randomBytes(32).toString('hex') : undefined;
+        if (privateToken && !ownerId) throw new Error('Private conversion requires its owner');
+        const r = await choraTranscodeToGcs(inPath, trackId, publicBase, privateToken);
+        await firestoreWrite(privateToken ? 'choraPrivateStreams' : 'choraStreams', trackId, {
+          ...(privateToken ? { ownerId, mediaToken: privateToken } : {}),
           status: r.status, hls: r.hls, low: r.low, flac: r.flac,
           loudnessLufs: Math.round(r.loudnessLufs), durationSec: Math.round(r.durationSec),
           rungs: ['low', 'high', 'lossless'], updatedAt: Date.now(),
-        });
+        }, true);
       } finally { if (inPath) fs.unlink(inPath).catch(() => {}); }
     },
   };
@@ -7232,7 +7250,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const counts = { total: candidates.length, ready: 0, processing: 0, pending: 0, failed: 0, missing: 0, stale: 0 };
       const now = Date.now();
       for (const c of candidates) {
-        const s: any = await firestoreRead('choraStreams', c.trackId);
+        const s: any = await choraWorkerDeps.readStream(c.trackId);
         if (!s || !s.status) { counts.missing++; continue; }
         if (s.status === 'ready') counts.ready++;
         else if (s.status === 'pending') counts.pending++;
@@ -7252,6 +7270,22 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // Publish-time enqueue. ONE call for a whole album, returns immediately. This is what the
   // browser calls instead of looping enqueueTranscode() per track — it only marks work as
   // pending, and the worker above does it. Nothing long-running happens in this request.
+  app.post('/api/chora/enqueue-track', apiLimiter, authMiddleware, express.json({ limit: '16kb' }), async (req: any, res) => {
+    try {
+      const trackId = String(req.body?.trackId || '').trim();
+      if (!/^[\w-]+$/.test(trackId)) return res.status(400).json({ error: 'valid trackId required' });
+      const track = await firestoreRead('personal_tracks', trackId);
+      if (!track) return res.status(404).json({ error: 'track not found' });
+      if (track.ownerId !== req.uid) return res.status(403).json({ error: 'not your track' });
+      if (!/^https?:/i.test(String(track.url || ''))) return res.status(400).json({ error: 'track upload is not complete' });
+      const id = `private_${trackId}`;
+      const existing: any = await firestoreRead('choraPrivateStreams', id);
+      if (existing?.srcUrl === track.url && (existing.status === 'ready' || (existing.status === 'processing' && Date.now() - existing.updatedAt < PROCESSING_STALE_MS))) return res.json({ ok: true, queued: 0 });
+      await firestoreWrite('choraPrivateStreams', id, { ownerId: req.uid, srcUrl: track.url, status: 'pending', updatedAt: Date.now() }, true);
+      res.json({ ok: true, queued: 1 });
+    } catch (error: any) { res.status(500).json({ error: error.message }); }
+  });
+
   app.post('/api/chora/enqueue-album', apiLimiter, authMiddleware, express.json({ limit: '16kb' }), async (req: any, res) => {
     const albumId = String(req.body?.albumId || '').trim();
     if (!albumId || !/^[\w-]{1,128}$/.test(albumId)) return res.status(400).json({ error: 'albumId required' });
@@ -7260,8 +7294,10 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     // Owner-gated and album-scoped, so it re-transcodes only this album, not the catalogue.
     const force = req.body?.force === true;
     let album = await firestoreRead('albums', albumId);
+    let personalAlbum = false;
     if (!album) {
       album = await firestoreRead('personal_albums', albumId);
+      personalAlbum = true;
     }
     if (!album) return res.status(404).json({ error: 'album not found' });
     if (String(album.ownerId || '') !== req.uid) return res.status(403).json({ error: 'not your album' });
@@ -7272,9 +7308,12 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const trackId = String((t as any)?.id || '').trim();
       const srcUrl = String((t as any)?.url || '').trim();
       if (!trackId || !/^https?:/i.test(srcUrl)) continue;
-      const existing: any = await firestoreRead('choraStreams', trackId);
-      if (!force && existing?.status === 'ready') continue;
-      await firestoreWrite('choraStreams', trackId, { status: 'pending', updatedAt: Date.now() });
+      const isPrivate = personalAlbum || album.isPrivate === true;
+      const streamId = isPrivate ? `private_${trackId}` : trackId;
+      const collection = isPrivate ? 'choraPrivateStreams' : 'choraStreams';
+      const existing: any = await firestoreRead(collection, streamId);
+      if (!force && (!existing?.srcUrl || existing.srcUrl === srcUrl) && (existing?.status === 'ready' || (existing?.status === 'processing' && Date.now() - existing.updatedAt < PROCESSING_STALE_MS))) continue;
+      await firestoreWrite(collection, streamId, { status: 'pending', srcUrl, ownerId: req.uid, albumId, updatedAt: Date.now() }, true);
       queued++;
     }
     res.json({ ok: true, queued, total: tracks.length, forced: force });
@@ -7535,22 +7574,27 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
 
   // Serve a transcoded asset from GCS with Range + permissive CORS (HLS playlists resolve their
   // relative segment URLs against this path). Playlists cache briefly; immutable media caches forever.
-  app.options('/api/chora/media/:trackId/*splat', (_req: any, res: any) => {
+  app.options(['/api/chora/media/:trackId/*splat', '/api/chora/private-media/:trackId/*splat'], (_req: any, res: any) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Range');
     res.status(204).end();
   });
-  app.get('/api/chora/media/:trackId/*splat', async (req: any, res: any) => {
+  app.get(['/api/chora/media/:trackId/*splat', '/api/chora/private-media/:trackId/*splat'], async (req: any, res: any) => {
     const trackId = String(req.params.trackId).replace(/[^\w\-]/g, '');
     // Express 5 named wildcard → req.params.splat is an array of the remaining path segments.
     const splat = (req.params as any).splat;
     const sub = (Array.isArray(splat) ? splat.join('/') : String(splat || '')).replace(/\.\.+/g, '').replace(/^\/+/, '');
     if (!trackId || !sub) return res.status(400).end();
+    const privateMedia = req.path.startsWith('/api/chora/private-media/');
+    if (privateMedia) {
+      const stream: any = await firestoreRead('choraPrivateStreams', trackId);
+      if (!stream?.mediaToken || !secretsEqual(String(req.query.access || ''), stream.mediaToken)) return res.status(403).end();
+    }
     const token = await getGoogleAccessToken();
     if (!token) return res.status(503).end();
     try {
-      const gcsUrl = `https://storage.googleapis.com/storage/v1/b/${STORAGE_BUCKET}/o/${encodeURIComponent(`chora-hls/${trackId}/${sub}`)}?alt=media`;
+      const gcsUrl = `https://storage.googleapis.com/storage/v1/b/${STORAGE_BUCKET}/o/${encodeURIComponent(`${privateMedia ? 'chora-private' : 'chora-hls'}/${trackId}/${sub}`)}?alt=media`;
       const headers: any = { Authorization: `Bearer ${token}` };
       if (req.headers.range) headers.Range = req.headers.range;
       const g = await fetch(gcsUrl, { headers });
@@ -7563,7 +7607,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
       res.setHeader('Accept-Ranges', 'bytes');
       res.setHeader('Content-Type', ct);
-      res.setHeader('Cache-Control', sub.endsWith('.m3u8') ? 'public, max-age=60' : 'public, max-age=31536000, immutable');
+      res.setHeader('Cache-Control', privateMedia ? 'private, no-store' : sub.endsWith('.m3u8') ? 'public, max-age=60' : 'public, max-age=31536000, immutable');
       const cr = g.headers.get('content-range'); if (cr) res.setHeader('Content-Range', cr);
       const cl = g.headers.get('content-length'); if (cl) res.setHeader('Content-Length', cl);
       res.status(g.status === 206 ? 206 : 200);

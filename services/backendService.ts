@@ -3332,6 +3332,12 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
   const path = `albums/${album.id}`;
   try {
     await setDoc(doc(db, "albums", album.id), cloudAlbum);
+    if (cloudAlbum.type === 'MUSIC') {
+      try {
+        const { requestChoraConversion } = await import('./choraUploadQueue');
+        await requestChoraConversion('album', album.id, await auth.currentUser!.getIdToken());
+      } catch (error) { console.warn('[Chora] Album saved; conversion enqueue failed:', error); }
+    }
 
     // Canonical cross-service index record (media-library API Phase 1). Best-effort.
     import('./mediaAssets').then(m => m.upsertMediaAssetFromAlbum(cloudAlbum as any)).catch(() => {});
@@ -6387,6 +6393,12 @@ export const updatePersonalAlbum = async (id: string, updates: Partial<Album>) =
   if (!auth.currentUser || !id) return;
   try {
     await setDoc(doc(db, 'personal_albums', id), removeUndefined(updates as any), { merge: true });
+    if (updates.tracks) {
+      try {
+        const { requestChoraConversion } = await import('./choraUploadQueue');
+        await requestChoraConversion('album', id, await auth.currentUser.getIdToken());
+      } catch (error) { console.warn('[Chora] Personal album saved; conversion enqueue failed:', error); }
+    }
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, `personal_albums/${id}`);
   }
@@ -6575,6 +6587,7 @@ export const uploadPersonalTrack = async (track: Partial<Track>, file: File, alb
   
   const id = `ptrack_${Math.random().toString(36).substr(2, 9)}`;
   const newTrack: Track = {
+    ...track,
     id,
     title: track.title || file.name.replace(/\.[^/.]+$/, ""),
     artist: track.artist || 'Personal Collection',
@@ -6586,7 +6599,6 @@ export const uploadPersonalTrack = async (track: Partial<Track>, file: File, alb
     isGlobalArchive: false,
     rightsOwnerId: auth.currentUser.uid,
     timestamp: Date.now(),
-    ...track
   } as Track;
 
   const trackPath = `personal_tracks/${id}`;
@@ -6596,6 +6608,10 @@ export const uploadPersonalTrack = async (track: Partial<Track>, file: File, alb
       ownerId: auth.currentUser.uid
     }));
     // NOTE: the `personal_tracks` collection is the source of truth (fetchPersonalTracks).
+    try {
+      const { requestChoraConversion } = await import('./choraUploadQueue');
+      await requestChoraConversion('track', id, await auth.currentUser!.getIdToken());
+    } catch (error) { console.warn('[Chora] Locker upload saved; conversion enqueue failed:', error); }
     // We deliberately do NOT append to a `personalTracks` array on the user doc — a music
     // locker can hold thousands of tracks and that array would blow the 1MB doc limit
     // (and would leak private locker tracks into artist-mode displays).

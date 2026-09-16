@@ -34,6 +34,7 @@ export interface ChoraStreamDoc {
 
 /** One unit of work: a music track with a fetchable source URL. */
 export interface TrackCandidate {
+  ownerId?: string;
   trackId: string;
   srcUrl: string;
   albumId?: string;
