@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { recordHabit } from '../services/habitsService';
 import { Article, UserProfile, Comment } from '../types';
 import { 
   ChevronLeft, 
@@ -30,6 +31,9 @@ interface ArticleViewProps {
 }
 
 const ArticleView: React.FC<ArticleViewProps> = ({ article, onBack, onVisitUser, currentUser }) => {
+  useEffect(() => {
+    if (currentUser) void recordHabit({ id: article.id, kind: 'ARTICLE', title: article.title, ownerName: article.authorName });
+  }, [article.id, currentUser?.uid]);
   const [isLiked, setIsLiked] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);

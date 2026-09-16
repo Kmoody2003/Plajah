@@ -1378,11 +1378,25 @@ export interface BroadcastDestination {
   createdAt: number;
 }
 
+export interface RadioPreset {
+  id: string;              // station id (e.g. 'plajah-fm', 'artist-<uid>', or Radio Browser uuid)
+  name: string;            // station name
+  detail?: string;         // description / tags / country
+  image?: string;          // artwork / favicon
+  origin: 'On Plajah' | 'Worldwide';
+  streamUrl?: string;      // live stream URL if external
+  country?: string;
+  tags?: string[];
+  artistId?: string;       // if an on-plajah artist station
+  addedAt: number;
+}
+
 export interface UserProfile {
   uid: string;
   displayName: string;
   photoURL: string;
   email: string;
+  radioPresets?: RadioPreset[];
   bio?: string;
   /** Public destinations shown in the profile's “Find me online” row. OAuth tokens
    *  never belong here; these are public profile, artist, channel, and storefront URLs. */

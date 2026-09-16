@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Radio, Play, Pause, SkipForward, Heart, Plus, HeartHandshake, Volume2, Info, Share2, ChevronLeft, Sparkles, Clock, Globe } from 'lucide-react';
+import { Radio, Play, Pause, SkipForward, Heart, Plus, HeartHandshake, Volume2, Info, Share2, ChevronLeft, Sparkles, Clock, Globe, Bookmark } from 'lucide-react';
 import PageHeader from './PageHeader';
 import { motion, AnimatePresence } from 'motion/react';
 import { Track, UserProfile, Album } from '../types';
@@ -9,6 +9,7 @@ import { getSatellitePosition, getRecentlyPlayed, type RecentlyPlayed } from '..
 import DonationModal from './DonationModal';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import LiveRadioBrowser from './radio/LiveRadioBrowser';
+import { getRadioPresets, toggleRadioPreset, subscribeRadioPresets, isRadioPreset, type RadioPreset } from '../services/radioPresetsService';
 
 // ── Satellite radio engine ─────────────────────────────────────────────────────
 // The continuous 24/7 positioning lives in services/radioEngine.ts now — the SAME reusable engine
@@ -55,6 +56,11 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
   // Default to the new Live Radio browser unless tuning into a specific artist station.
   const [showLiveRadio, setShowLiveRadio] = useState(!artistId);
   const seekScheduledRef = useRef(false);
+  const [presets, setPresets] = useState<RadioPreset[]>(() => getRadioPresets());
+
+  useEffect(() => {
+    return subscribeRadioPresets(updated => setPresets(updated));
+  }, []);
 
   useEffect(() => {
     if (artistId) {
@@ -224,6 +230,25 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
     }
   };
 
+  const currentStationId = activeStationId ? `artist-${activeStationId}` : 'plajah-fm';
+  const isCurrentStationPreset = presets.some(p => p.id === currentStationId);
+
+  const handleToggleCurrentStationPreset = async () => {
+    const stationId = currentStationId;
+    const stationName = artistProfile?.radioSettings?.stationName || (activeStationId ? `${artistProfile?.displayName} Radio` : 'Plajah FM');
+    const stationDetail = activeStationId ? 'Personalized artist broadcast' : 'Global Stream';
+    const stationImg = artistProfile?.photoURL || currentTrack?.albumCover || undefined;
+
+    await toggleRadioPreset({
+      id: stationId,
+      name: stationName,
+      detail: stationDetail,
+      image: stationImg,
+      origin: 'On Plajah',
+      artistId: activeStationId || undefined,
+    });
+  };
+
   // Live broadcast radio takes the whole surface when selected — it has its own
   // shelf rail, and it plays through the same global transport as Plajah FM.
   if (showLiveRadio) {
@@ -276,6 +301,54 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
               <p className="text-[8px] font-bold uppercase tracking-widest text-white/40">Broadcast Worldwide</p>
             </div>
           </button>
+
+          {/* User Radio Presets */}
+          {presets.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-white/5">
+              <div className="flex items-center justify-between mb-2 px-1">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#FF8C00] flex items-center gap-1">
+                  <Bookmark size={10} className="fill-current" /> Presets
+                </span>
+                <span className="text-[9px] font-mono text-white/30">{presets.length}</span>
+              </div>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                {presets.map(p => {
+                  const isCur = (p.id === 'plajah-fm' && !activeStationId) || (p.artistId && activeStationId === p.artistId);
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => {
+                        if (p.id === 'plajah-fm') {
+                          setActiveStationId(null);
+                          setShowLiveRadio(false);
+                        } else if (p.artistId) {
+                          setActiveStationId(p.artistId);
+                          setShowLiveRadio(false);
+                        } else {
+                          setShowLiveRadio(true);
+                        }
+                      }}
+                      className={`w-full p-2 rounded-xl flex items-center gap-2.5 transition-all text-left ${
+                        isCur ? 'bg-[#FF8C00]/20 border border-[#FF8C00]/40 text-[#FF8C00]' : 'hover:bg-white/5 text-white/80'
+                      }`}
+                    >
+                      {p.image ? (
+                        <img src={p.image} alt="" className="w-6 h-6 rounded-lg object-cover shrink-0" />
+                      ) : (
+                        <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                          <Radio size={12} className="text-[#FF8C00]" />
+                        </div>
+                      )}
+                      <div className="truncate flex-1 min-w-0">
+                        <p className="text-[11px] font-bold truncate leading-tight">{p.name}</p>
+                        <p className="text-[8px] opacity-40 uppercase truncate tracking-wider">{p.origin}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
@@ -391,8 +464,21 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
                   <button 
                     onClick={handleAddToLibrary}
                     className="p-5 sm:p-6 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 hover:scale-110 active:scale-95 transition-all text-white/40 hover:text-small-orange"
+                    title="Add to library"
                   >
                     <Plus size={24} />
+                  </button>
+
+                  <button 
+                    onClick={handleToggleCurrentStationPreset}
+                    className={`p-5 sm:p-6 border rounded-full hover:scale-110 active:scale-95 transition-all ${
+                      isCurrentStationPreset 
+                        ? 'bg-small-orange/20 border-small-orange text-small-orange' 
+                        : 'bg-white/5 border-white/10 text-white/40 hover:text-white'
+                    }`}
+                    title={isCurrentStationPreset ? 'Remove from radio presets' : 'Add station to radio presets'}
+                  >
+                    <Bookmark size={24} fill={isCurrentStationPreset ? 'currentColor' : 'none'} />
                   </button>
                 </div>
               </motion.div>

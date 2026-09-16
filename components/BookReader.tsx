@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { recordHabit } from '../services/habitsService';
 import { createPortal } from 'react-dom';
 import { Album, BookChapter, BookPage, Comment, BookNote } from '../types';
 import ComicReader from './ComicReader';
@@ -285,7 +286,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     : viewportW >= 1024 ? 'DESKTOP'
     : 'MOBILE';
   const modeScale   = resolvedMode === 'TV' ? 1.5 : resolvedMode === 'DESKTOP' ? 1.1 : 1.0;
-  const modeMaxW    = resolvedMode === 'TV' ? 'max-w-6xl' : resolvedMode === 'DESKTOP' ? 'max-w-3xl' : 'max-w-xl';
+  const modeMaxW    = isFullscreen ? 'max-w-6xl w-full px-2 sm:px-6' : resolvedMode === 'TV' ? 'max-w-7xl' : resolvedMode === 'DESKTOP' ? (viewMode === 'DOUBLE' ? 'max-w-7xl' : 'max-w-5xl') : 'max-w-xl';
   const modeLeading = resolvedMode === 'TV' ? 'leading-[2.1]' : 'leading-[1.9]';
 
   // Read Along (Book Club) — a synchronized reading party. The host's page is broadcast; every
@@ -511,6 +512,15 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       localStorage.setItem(POSITION_KEY(book.id), JSON.stringify({ chapter: currentChapterIndex, page: currentPageIndex }));
     } catch {}
   }, [currentChapterIndex, currentPageIndex, book.id, showOpeningScene]);
+
+  useEffect(() => {
+    if (showOpeningScene || !currentUser) return;
+    const timer = setTimeout(() => {
+      void recordHabit({ id: book.id, kind: 'BOOK', title: book.title, ownerName: book.artist, thumbnailUrl: book.coverImage,
+        location: isEpub ? undefined : isPdf ? `PDF page ${pdfPageNumber}` : `Chapter ${currentChapterIndex + 1}, page ${currentPageIndex + 1}` });
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [book.id, currentUser?.uid, showOpeningScene, isEpub, isPdf, pdfPageNumber, currentChapterIndex, currentPageIndex]);
 
   const handlePostComment = async (text: string, parentId?: string) => {
     if (!currentUser) return;
@@ -950,7 +960,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     <>
     {/* Reader always mounted so content loads in background during opening scene */}
     <div
-      className={`${isFullscreen ? 'fixed inset-0 z-[160]' : 'absolute inset-0'} ${s.bg} flex flex-col overflow-hidden select-none pb-20 lg:pb-24 transition-colors duration-500`}
+      className={`${isFullscreen ? 'fixed inset-0 z-[160] bg-black' : 'absolute inset-0'} ${s.bg} flex flex-col overflow-hidden select-none transition-colors duration-500`}
       style={{ opacity: showOpeningScene ? 0 : 1, pointerEvents: showOpeningScene ? 'none' : undefined, transition: 'opacity 0.7s ease', ...(isFullscreen ? {} : { transform: 'translateZ(0)' }) }}
     >
       {/* Opaque base — the immersive reader must fully cover the app chrome (nav + ad
@@ -965,10 +975,11 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       <AnimatePresence>
         {showControls && (
           <motion.header 
-            initial={{ y: -100 }}
-            animate={{ y: 0 }}
-            exit={{ y: -100 }}
-            className={`h-20 ${s.header} flex items-center justify-between px-8 z-50 transition-colors duration-500`}
+            initial={{ y: -100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -100, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className={`absolute top-2.5 inset-x-2.5 sm:top-4 sm:inset-x-6 z-50 ${s.header} rounded-2xl border shadow-2xl px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between backdrop-blur-2xl transition-colors duration-500`}
           >
             <div className="flex items-center gap-4 lg:gap-6">
               <button
@@ -981,9 +992,9 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               <button onClick={onBack} className={`p-3 rounded-full transition-all ${s.btnHover}`}>
                 <ChevronLeft size={24} />
               </button>
-              <div>
-                <h2 className="text-sm font-black uppercase tracking-widest truncate max-w-[200px]">{book.title}</h2>
-                <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${theme === 'LIGHT' ? 'text-[#FF8C00]' : 'text-small-orange'}`}>
+              <div className="min-w-0">
+                <h2 className="text-xs sm:text-sm font-black uppercase tracking-widest truncate max-w-[120px] sm:max-w-[220px]">{book.title}</h2>
+                <p className={`text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] truncate max-w-[140px] sm:max-w-none ${theme === 'LIGHT' ? 'text-[#FF8C00]' : 'text-small-orange'}`}>
                   {isEpub
                     ? `Reading: ${epubProgress}%`
                     : parsedChapters.length > 0
@@ -1008,7 +1019,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
             <div className="flex items-center gap-2 lg:gap-4">
               <button
                 onClick={handleSaveBook}
-                className={`p-3 rounded-full transition-all ${isSaved ? 'text-green-500' : s.btnHover} ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}
+                className={`hidden md:flex p-2.5 sm:p-3 rounded-full transition-all ${isSaved ? 'text-green-500' : s.btnHover} ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}
                 title={isSaved ? "Saved to Library" : "Save to Library"}
               >
                 {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Bookmark size={20} className={isSaved ? "fill-green-500" : ""} />}
@@ -1167,10 +1178,10 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
         )}
       </AnimatePresence>
 
-      {/* Reader Area */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* Reader Area — Full Bleed Content First */}
+      <div className="flex-1 flex overflow-hidden w-full h-full relative">
         <div 
-          className={`flex-1 relative flex items-center justify-center overflow-auto p-4 lg:p-12 no-scrollbar transition-all duration-500 ${(showComments || showNotes || showTOC || showSettings) ? 'lg:mr-[400px]' : ''}`}
+          className={`flex-1 relative flex items-center justify-center overflow-auto p-2 sm:p-4 lg:p-6 pt-16 pb-16 no-scrollbar transition-all duration-500 ${(showComments || showNotes || showTOC || showSettings) ? 'lg:mr-[400px]' : ''}`}
           onClick={() => setShowControls(!showControls)}
         >
           <div 
@@ -1246,7 +1257,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               </div>
             ) : isEpub && epubData ? (
               <div 
-                className={`w-full h-full max-w-5xl rounded-lg shadow-2xl relative ${readingTheme === 'SEPIA' ? 'bg-[#f4ecd8]' : readingTheme === 'PAPER' ? 'bg-[#fdfdfd]' : readingTheme === 'DARK' ? 'bg-[#111]' : (theme === 'LIGHT' ? 'bg-white' : 'bg-[#1a1a1a]')}`}
+                className={`w-full h-full max-w-6xl xl:max-w-7xl rounded-2xl shadow-2xl relative ${readingTheme === 'SEPIA' ? 'bg-[#f4ecd8]' : readingTheme === 'PAPER' ? 'bg-[#fdfdfd]' : readingTheme === 'DARK' ? 'bg-[#111]' : (theme === 'LIGHT' ? 'bg-white' : 'bg-[#1a1a1a]')}`}
               >
                 <ReaderErrorBoundary
                   resetKey={currentChapter?.url || currentChapter?.id || book.id}
@@ -1311,7 +1322,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               </div>
             ) : isPdf ? (
               <div 
-                className={`w-full h-full max-w-5xl rounded-lg shadow-2xl relative overflow-y-auto no-scrollbar flex flex-col items-center p-4 lg:p-8 ${theme === 'LIGHT' ? 'bg-white' : 'bg-[#1a1a1a]'}`}
+                className={`w-full h-full max-w-6xl xl:max-w-7xl rounded-2xl shadow-2xl relative overflow-y-auto no-scrollbar flex flex-col items-center p-3 lg:p-6 ${theme === 'LIGHT' ? 'bg-white' : 'bg-[#1a1a1a]'}`}
               >
                 {proxiedPdfUrl ? (
                   <Document 
@@ -1388,7 +1399,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               const activePg = activeCh.pages[activeParsedPage] || activeCh.pages[0] || [];
               const chTitle = parsedChapters.length > 1 ? activeCh.title : (currentChapter?.title || activeCh.title);
               return (
-                <div className={`${modeMaxW} w-full ${txtCardBg} shadow-2xl rounded-3xl overflow-y-auto max-h-[85vh] ${s.scrollbar}`}>
+                <div className={`${modeMaxW} w-full ${txtCardBg} shadow-2xl rounded-3xl overflow-y-auto h-full max-h-[92vh] ${s.scrollbar}`}>
                   {book.coverImage && activeParsedChapter === 0 && activeParsedPage === 0 && (
                     <div className="relative h-40 overflow-hidden rounded-t-3xl">
                       <img src={book.coverImage} alt="" className="w-full h-full object-cover scale-110" style={{ filter: 'blur(24px) brightness(0.5) saturate(1.3)' }} />
@@ -1398,11 +1409,11 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                       </div>
                     </div>
                   )}
-                  <div className="p-10 lg:p-16">
+                  <div className="p-6 sm:p-10 lg:p-12 xl:p-16">
                     {!(book.coverImage && activeParsedChapter === 0 && activeParsedPage === 0) && (
-                      <h3 className={`text-2xl font-black uppercase tracking-tight mb-10 text-center ${txtHdColor}`}>{chTitle}</h3>
+                      <h3 className={`text-2xl font-black uppercase tracking-tight mb-8 text-center ${txtHdColor}`}>{chTitle}</h3>
                     )}
-                    <div className={`${txtFontFamily} text-lg ${modeLeading} ${txtColor} space-y-0`} style={{ fontSize: `${Math.round(fontSize * modeScale)}%` }}>
+                    <div className={`${txtFontFamily} text-lg ${modeLeading} ${txtColor} space-y-0 ${viewMode === 'DOUBLE' ? 'columns-1 md:columns-2 gap-10 lg:gap-14 [column-rule:1px_solid_rgba(255,255,255,0.06)]' : ''}`} style={{ fontSize: `${Math.round(fontSize * modeScale)}%` }}>
                       {activePg.map((para, i) => (
                         <p key={i} className="mb-5">
                           {readAlongPos?.para === i
@@ -1476,11 +1487,16 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              className={`fixed right-0 top-20 bottom-24 w-full lg:w-[400px] ${s.sidebar} z-40 flex flex-col`}
+              className={`fixed inset-x-0 bottom-0 top-16 sm:top-0 sm:left-auto sm:right-0 sm:w-[400px] rounded-t-3xl sm:rounded-none ${s.sidebar} z-50 flex flex-col shadow-2xl border-t sm:border-t-0 sm:border-l border-white/10`}
             >
-              <div className="p-8 border-b border-white/10">
-                <h3 className="text-xl font-display font-black uppercase tracking-tight mb-2">Table of Contents</h3>
-                <p className="text-[9px] font-black uppercase tracking-widest opacity-40">Navigate your literary trajectory</p>
+              <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-display font-black uppercase tracking-tight mb-1">Table of Contents</h3>
+                  <p className="text-[9px] font-black uppercase tracking-widest opacity-40">Navigate your literary trajectory</p>
+                </div>
+                <button onClick={() => setShowTOC(false)} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors">
+                  <X size={18} />
+                </button>
               </div>
 
               <div className={`flex-1 overflow-y-auto ${s.scrollbar} p-4`}>
@@ -1551,13 +1567,18 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              className={`fixed right-0 top-20 bottom-24 w-full lg:w-[400px] ${s.sidebar} z-40 flex flex-col`}
+              className={`fixed inset-x-0 bottom-0 top-16 sm:top-0 sm:left-auto sm:right-0 sm:w-[400px] rounded-t-3xl sm:rounded-none ${s.sidebar} z-50 flex flex-col shadow-2xl border-t sm:border-t-0 sm:border-l border-white/10`}
             >
-              <div className="p-8 border-b border-white/10">
-                <h3 className="text-xl font-display font-black uppercase tracking-tight mb-2">Bookmarks</h3>
-                <p className="text-[9px] font-black uppercase tracking-widest opacity-40">
-                  {bookmarks.length} saved {bookmarks.length === 1 ? 'place' : 'places'}
-                </p>
+              <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-display font-black uppercase tracking-tight mb-1">Bookmarks</h3>
+                  <p className="text-[9px] font-black uppercase tracking-widest opacity-40">
+                    {bookmarks.length} saved {bookmarks.length === 1 ? 'place' : 'places'}
+                  </p>
+                </div>
+                <button onClick={() => setShowBookmarks(false)} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors">
+                  <X size={18} />
+                </button>
               </div>
 
               <div className={`flex-1 overflow-y-auto ${s.scrollbar} p-4`}>
@@ -1608,9 +1629,14 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              className={`fixed right-0 top-20 bottom-24 w-full lg:w-[400px] ${s.sidebar} z-40 flex flex-col p-4 lg:p-8 overflow-y-auto ${s.scrollbar}`}
+              className={`fixed inset-x-0 bottom-0 top-16 sm:top-0 sm:left-auto sm:right-0 sm:w-[400px] rounded-t-3xl sm:rounded-none ${s.sidebar} z-50 flex flex-col p-4 lg:p-8 overflow-y-auto ${s.scrollbar} shadow-2xl border-t sm:border-t-0 sm:border-l border-white/10`}
             >
-              <h3 className="text-xl font-display font-black uppercase tracking-tight mb-8">Reading Settings</h3>
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl font-display font-black uppercase tracking-tight">Reading Settings</h3>
+                <button onClick={() => setShowSettings(false)} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
               
               <div className="space-y-12">
                 {/* Font Size */}
@@ -1733,8 +1759,13 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              className={`fixed right-0 top-20 bottom-24 w-full lg:w-[400px] ${s.sidebar} z-40`}
+              className={`fixed inset-x-0 bottom-0 top-16 sm:top-0 sm:left-auto sm:right-0 sm:w-[400px] rounded-t-3xl sm:rounded-none ${s.sidebar} z-50 flex flex-col shadow-2xl border-t sm:border-t-0 sm:border-l border-white/10`}
             >
+              <div className="p-3 border-b border-white/10 flex justify-end">
+                <button onClick={() => setShowComments(false)} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
               <CommentSection 
                 comments={comments}
                 onPostComment={handlePostComment}
@@ -1753,9 +1784,9 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              className={`fixed right-0 top-20 bottom-24 w-full lg:w-[400px] ${s.sidebar} z-40 flex flex-col`}
+              className={`fixed inset-x-0 bottom-0 top-16 sm:top-0 sm:left-auto sm:right-0 sm:w-[400px] rounded-t-3xl sm:rounded-none ${s.sidebar} z-50 flex flex-col shadow-2xl border-t sm:border-t-0 sm:border-l border-white/10`}
             >
-              <div className={`p-6 border-b ${theme === 'LIGHT' ? 'border-black/5' : 'border-white/5'} flex gap-2`}>
+              <div className={`p-5 border-b ${theme === 'LIGHT' ? 'border-black/5' : 'border-white/5'} flex items-center gap-2`}>
                 <button 
                   onClick={() => setActiveNoteTab('PAGE')}
                   className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeNoteTab === 'PAGE' ? s.activeBtn : s.card}`}
@@ -1767,6 +1798,9 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                   className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeNoteTab === 'GENERAL' ? s.activeBtn : s.card}`}
                 >
                   General Notes
+                </button>
+                <button onClick={() => setShowNotes(false)} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors">
+                  <X size={18} />
                 </button>
               </div>
 
@@ -2065,12 +2099,13 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       <AnimatePresence>
         {showControls && (
           <motion.footer 
-            initial={{ y: 100 }}
-            animate={{ y: 0 }}
-            exit={{ y: 100 }}
-            className={`h-24 ${s.footer} flex items-center px-12 z-50 transition-colors duration-500`}
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className={`absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-50 w-[95%] sm:w-[90%] max-w-2xl ${s.footer} rounded-full border shadow-2xl px-3 sm:px-6 py-2 sm:py-2.5 flex items-center backdrop-blur-2xl transition-colors duration-500`}
           >
-            <div className="flex-1 flex items-center gap-8">
+            <div className="flex-1 flex items-center gap-3 sm:gap-6">
               <div className={`flex-1 h-1.5 ${s.progressBg} rounded-full overflow-hidden relative group/progress cursor-pointer`}>
                 <div
                   className="h-full bg-gradient-to-r from-blue-500 to-small-orange"
@@ -2082,10 +2117,10 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                   }}
                 />
               </div>
-              <div className="flex items-center gap-4 shrink-0">
-                <button onClick={prevPage} className={`p-3 transition-all ${s.btnHover}`}><ChevronLeft size={24} /></button>
-                <div className={`px-6 py-2 ${theme === 'LIGHT' ? 'bg-black/5' : 'bg-white/5'} border border-black/10 rounded-full`}>
-                  <span className={`text-[10px] font-black uppercase tracking-widest ${s.text} whitespace-nowrap`}>
+              <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+                <button onClick={prevPage} className={`p-1.5 sm:p-2.5 transition-all ${s.btnHover}`} aria-label="Previous page"><ChevronLeft size={18} className="sm:w-5 sm:h-5" /></button>
+                <div className={`px-2.5 sm:px-4 py-1 sm:py-1.5 ${theme === 'LIGHT' ? 'bg-black/5' : 'bg-white/5'} border border-black/10 rounded-full`}>
+                  <span className={`text-[8px] sm:text-[10px] font-black uppercase tracking-wider ${s.text} whitespace-nowrap`}>
                     {isEpub
                       ? `${epubProgress}%`
                       : parsedChapters.length > 0
@@ -2095,12 +2130,28 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                           : `CH.${currentChapterIndex + 1} • P.${currentPageIndex + 1}`}
                   </span>
                 </div>
-                <button onClick={nextPage} className={`p-3 transition-all ${s.btnHover}`}><ChevronRight size={24} /></button>
+                <button onClick={nextPage} className={`p-1.5 sm:p-2.5 transition-all ${s.btnHover}`} aria-label="Next page"><ChevronRight size={18} className="sm:w-5 sm:h-5" /></button>
               </div>
             </div>
           </motion.footer>
         )}
       </AnimatePresence>
+
+      {/* Zen Monolith 1px Micro Scrubber for Fullscreen mode */}
+      {isFullscreen && (
+        <div className="absolute bottom-0 inset-x-0 h-1 bg-white/5 z-30 pointer-events-none">
+          <div
+            className="h-full bg-gradient-to-r from-[#00DAF3] to-small-orange transition-all duration-300"
+            style={{
+              width: isEpub
+                ? `${epubProgress}%`
+                : parsedChapters.length > 0
+                  ? `${((activeParsedChapter * parsedChapters[0].pages.length + activeParsedPage + 1) / parsedChapters.reduce((s, c) => s + c.pages.length, 0) * 100).toFixed(1)}%`
+                  : `${(((currentChapterIndex * 100) + ((currentPageIndex + 1) / (pages.length || 1) * 100)) / (book.bookChapters?.length || 1))}%`
+            }}
+          />
+        </div>
+      )}
     </div>
 
     {/* Opening scene — overlays reader; unmounts after animation completes */}

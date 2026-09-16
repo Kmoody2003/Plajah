@@ -5,7 +5,7 @@ import Hls from 'hls.js';
 import { UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { fetchFastChannelVideos, fetchFastChannelSchedule, auth } from '../services/backendService';
 import { checkMembership } from '../services/sanctuaryService';
-import { resolveSlotMedia, slotIsPlayable, slotsFromVideos, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, isEmbedUrl } from '../services/fastChannelTimeline';
+import { resolveSlotMedia, slotIsPlayable, slotsFromVideos, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, isEmbedUrl, hasPlayableProgramme, sanitizeScheduleForPlayout, nextPlayableSlotIndex, isPlayableProgrammeSlot } from '../services/fastChannelTimeline';
 import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
 import { now as clockNow } from '../services/platformClock';
 import AdBreakBumper from './tv/AdBreakBumper';
@@ -119,13 +119,11 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
         return s;
       });
       if (!isMember) built = built.filter(s => !(s.videoId && exclusiveIds.has(s.videoId)));
-      built = built.filter(slotIsPlayable);
-      // Robustness: a scheduled channel whose slots don't resolve to a playable URL (e.g. slots that
-      // stored only a videoId, or a Mux id that never got written to videoUrl) would otherwise show
-      // "No content". Fall back to the raw library so the channel still airs its videos.
-      if (built.length === 0 && vids.length > 0) {
-        built = slotsFromVideos(vids as any).filter(s => (isMember || !(s.videoId && exclusiveIds.has(s.videoId)))).filter(slotIsPlayable);
-      }
+
+      // Sanitize the schedule for playout: collapses consecutive ad breaks, enforces duration floors,
+      // and guarantees fallback to the library if the schedule has zero playable programmes.
+      built = sanitizeScheduleForPlayout(built, vids as any);
+
 
       if (built.length > 0) {
         // Terrestrial join: anchor to the TIME OF DAY (local-midnight) so tuning in at 3pm lands on
@@ -206,19 +204,45 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   // Advance is CLOCK-DERIVED (same model as LiveTvPlus): re-ask the wall clock what should be on air.
   // An ad break can therefore never loop — once its window elapses the clock resolves to the next
   // programme. Only when the clock still points at the slot we just finished (content ended early) do
-  // we step forward by one.
+  // we step forward to the next playable programme.
   const advance = useCallback(() => {
     if (!slots.length) return;
     setCurrentIndex(prev => {
-      const pos = dayAnchoredPosition(slots, clockNow(), channelSchedule?.timezone);
-      const next = pos.index !== prev ? pos.index : (prev + 1) % slots.length;
-      joinOffsetRef.current = pos.index !== prev ? pos.offsetSec : 0;
-      return next;
+      const prevSlot = slots[prev];
+      const isMidnight = !!channelSchedule?.midnightAnchored;
+      const tz = channelSchedule?.timezone;
+      const pos = isMidnight
+        ? linearPositionMidnight(slots, clockNow(), tz)
+        : dayAnchoredPosition(slots, clockNow(), tz);
+
+      if ('offAir' in pos && pos.offAir) {
+        setOffAirResumeMs(Date.now() + pos.resumesInSec * 1000);
+        return prev;
+      }
+
+      let nextIndex = pos.index;
+      let nextOffset = pos.offsetSec;
+
+      // When finishing an AD_BREAK, BUMPER, or FM filler:
+      // GUARANTEE that we return to real programming! Never loop into another ad break.
+      if (prevSlot && (prevSlot.type === 'AD_BREAK' || prevSlot.type === 'FM_BLOCK')) {
+        if (!isPlayableProgrammeSlot(slots[nextIndex])) {
+          nextIndex = nextPlayableSlotIndex(slots, prev);
+          nextOffset = 0;
+        }
+      } else if (nextIndex === prev) {
+        // If content ended before its scheduled window, advance to next playable programme
+        nextIndex = nextPlayableSlotIndex(slots, prev);
+        nextOffset = 0;
+      }
+
+      joinOffsetRef.current = nextOffset;
+      return nextIndex;
     });
     setCurrentTime(0);
     setDuration(0);
     setIsPaused(false); // AD/LIVE slots have no media play event to clear a stale paused state
-  }, [slots]);
+  }, [slots, channelSchedule]);
 
   const goBack = useCallback(() => {
     setCurrentIndex(prev => (slots.length ? (prev - 1 + slots.length) % slots.length : 0));
@@ -299,12 +323,13 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
     const remaining = Math.max(1, media.durationSec - off);
     // For AD/LIVE the offset is consumed here (no metadata handler will); MEDIA consumes it on seek.
     if (media.kind !== 'MEDIA') joinOffsetRef.current = 0;
-    // AD advances primarily via the bumper's onComplete; this timer is a BACKUP (+6s) so the break
-    // always ends even if the bumper never fires. MEDIA gets +5s grace; LIVE ends at its window.
-    const grace = media.kind === 'MEDIA' ? 5 : media.kind === 'AD' ? 6 : 0;
+    // AD advances primarily via the bumper's onComplete; this backup timer is tight (+1.5s) so the break
+    // always ends promptly without schedule drift even if the bumper never fires. MEDIA gets +2s grace.
+    const grace = media.kind === 'MEDIA' ? 2 : media.kind === 'AD' ? 1.5 : 0;
     const t = setTimeout(advance, (remaining + grace) * 1000);
     return () => clearTimeout(t);
   }, [currentIndex, media?.kind, media?.durationSec, isPaused, advance]);
+
 
   const resetControlsTimer = useCallback(() => {
     if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
@@ -479,10 +504,14 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
     >
       {/* Media layer — the current slot decides what renders. */}
       {(media?.kind === 'AD' || media?.kind === 'FM') ? (
-        // Ad break with no user ad → the default Plajah "back shortly" bumper: Plajah FM fades in over
-        // full-screen cover art (gift/like/add), a coming-up-next card opens the break, then the ad rail
-        // cycles in 16:9 for the rest of the slot's duration (set by the channel's ad settings).
-        <AdBreakBumper key={`ad-${currentIndex}`} channelName={channelName} durationSec={media.durationSec} upcoming={upNext} logoUrl={profile.photoURL || undefined} onComplete={advance} />
+        <AdBreakBumper
+          key={`ad-${currentIndex}`}
+          channelName={channelName}
+          durationSec={Math.max(3, (media.durationSec || 60) - (joinOffsetRef.current || 0))}
+          upcoming={upNext}
+          logoUrl={profile.photoURL || undefined}
+          onComplete={advance}
+        />
       ) : media?.kind === 'LIVE' ? (
         // A scheduled live programme in the loop — show the creator's live feed for its window.
         liveEmbedUrl ? (

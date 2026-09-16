@@ -2182,8 +2182,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         await recordProgress({
           id: currentTrack.id,
           kind: 'CHORA',
+          albumId: currentAlbum?.id,
           title: currentTrack.title,
-          thumbnailUrl: (currentAlbum as any)?.coverArt || (currentTrack as any)?.coverArt || undefined,
+          thumbnailUrl: currentAlbum?.coverImage || currentTrack.albumCover || undefined,
           ownerName: (currentAlbum as any)?.artistName || (currentTrack as any)?.artist || undefined,
           positionSec, durationSec,
         });

@@ -20,6 +20,7 @@ import type { FastChannelSlot } from '../types';
 import {
   DEFAULT_AD_SEC, DEFAULT_BUMPER_SEC, DEFAULT_FM_SEC, DEFAULT_VIDEO_SEC,
   hasPlayableProgramme, loopTotalSec, slotDurationSec,
+  sanitizeScheduleForPlayout, nextPlayableSlotIndex, isPlayableProgrammeSlot,
 } from '../services/fastChannelTimeline';
 
 const slot = (over: Partial<FastChannelSlot> & { type: FastChannelSlot['type'] }): FastChannelSlot =>
@@ -116,3 +117,48 @@ test('an embed-only programme does not count as playable', () => {
   // schedule of YouTube links is a channel with nothing on it.
   assert.equal(hasPlayableProgramme([video('https://www.youtube.com/watch?v=abc')]), false);
 });
+
+// ── Hardening against commercial break loops ────────────────────────────────
+
+test('sanitizeScheduleForPlayout collapses consecutive ad breaks', () => {
+  const input = [
+    video('https://stream.mux.com/vid1.m3u8', 300),
+    slot({ type: 'AD_BREAK', adDurationSeconds: 30 }),
+    slot({ type: 'AD_BREAK', adDurationSeconds: 30 }),
+    video('https://stream.mux.com/vid2.m3u8', 600),
+    slot({ type: 'AD_BREAK', adDurationSeconds: 60 }),
+  ];
+  const clean = sanitizeScheduleForPlayout(input);
+  assert.equal(clean.length, 4);
+  assert.equal(clean[0].type, 'VIDEO');
+  assert.equal(clean[1].type, 'AD_BREAK');
+  assert.equal(clean[1].adDurationSeconds, 60); // merged duration
+  assert.equal(clean[2].type, 'VIDEO');
+  assert.equal(clean[3].type, 'AD_BREAK');
+});
+
+test('sanitizeScheduleForPlayout falls back to library videos when schedule has no playable programming', () => {
+  const deadSchedule = [
+    slot({ type: 'AD_BREAK', adDurationSeconds: 60 }),
+    slot({ type: 'FM_BLOCK', videoDurationSeconds: 1800 }),
+    slot({ type: 'AD_BREAK', adDurationSeconds: 60 }),
+  ];
+  const library = [{ id: 'lib1', title: 'Lib Track', url: 'https://stream.mux.com/lib.m3u8', duration: 180 }];
+  const clean = sanitizeScheduleForPlayout(deadSchedule, library);
+  assert.equal(hasPlayableProgramme(clean), true);
+  assert.equal(clean[0].type, 'VIDEO');
+  assert.equal(clean[0].videoUrl, 'https://stream.mux.com/lib.m3u8');
+});
+
+test('nextPlayableSlotIndex skips breaks and lands on real programming', () => {
+  const slots = [
+    video('https://stream.mux.com/vid1.m3u8', 300),
+    slot({ type: 'AD_BREAK', adDurationSeconds: 60 }),
+    slot({ type: 'BUMPER', bumperDurationSeconds: 10 }),
+    video('https://stream.mux.com/vid2.m3u8', 600),
+  ];
+  // Exiting slot 1 (AD_BREAK) or slot 2 (BUMPER) must land on slot 3 (VIDEO)
+  assert.equal(nextPlayableSlotIndex(slots, 1), 3);
+  assert.equal(nextPlayableSlotIndex(slots, 2), 3);
+});
+

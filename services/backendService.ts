@@ -92,6 +92,7 @@ import { accountFlagUpdate } from './accountCapabilities';
 // Creator Passport provenance (blueprint 1C.5) — attribution record, not crypto proof.
 import { buildProvenance, stampVideo } from './creatorPassport';
 import { exactDurationSec, extractTimeInfoFromFile, extractTimeInfoFromUrl } from './mediaTimebase';
+import { sanitizeScheduleForPlayout } from './fastChannelTimeline';
 import { viewerTimeZone } from './platformClock';
 // Education-chat safety (Phase C): student DM policy backstop on the write path.
 import { canDM, isStudentAccount, classroomRoomId, classroomParticipants } from './educationChat';
@@ -8991,7 +8992,8 @@ export const autoGenerateFastChannelSchedule = async (uid: string): Promise<Fast
   const DAY_SEC = 86400;
   const MAX_SLOTS = 500;                       // keep the schedule doc well under Firestore's 1MB
   const pushVideo = (video: any) => {
-    const durationSec = Math.round(Number((video as any).duration) || 0) > 0 ? Math.round(Number((video as any).duration)) : 1800;
+    const measured = Math.round(exactDurationSec(video as any));
+    const durationSec = measured > 0 ? measured : (Math.round(Number((video as any).duration) || 0) > 0 ? Math.round(Number((video as any).duration)) : 1800);
     if (introBumper) {
       const bd = introBumper.durationSeconds || 5;
       slots.push({ id: `slot_${order}`, type: 'BUMPER', order, bumperId: introBumper.id, bumperUrl: introBumper.url, bumperTitle: introBumper.title, bumperDurationSeconds: bd });
@@ -9019,8 +9021,12 @@ export const autoGenerateFastChannelSchedule = async (uid: string): Promise<Fast
     }
     minutesSinceLastAd += durationSec / 60;
     if (!commercialFree && minutesSinceLastAd >= adFreq) {
-      slots.push({ id: `slot_${order}`, type: 'AD_BREAK', order, adDurationSeconds: adDur });
-      order++; totalSec += adDur; minutesSinceLastAd = 0;
+      const last = slots[slots.length - 1];
+      if (!last || last.type !== 'AD_BREAK') {
+        slots.push({ id: `slot_${order}`, type: 'AD_BREAK', order, adDurationSeconds: adDur });
+        order++; totalSec += adDur;
+      }
+      minutesSinceLastAd = 0;
     }
   };
 
@@ -9031,7 +9037,10 @@ export const autoGenerateFastChannelSchedule = async (uid: string): Promise<Fast
   // PLAJAH FM as programming — chunked by the channel's ad frequency so commercials still run inside
   // it. That way the 24h grid is always filled with something real, never dead air.
   const BLOCK_SEC = 3 * 3600;
-  const catalogueSec = videos.reduce((a, v) => a + (Math.round(Number((v as any).duration) || 0) > 0 ? Math.round(Number((v as any).duration)) : 1800), 0);
+  const catalogueSec = videos.reduce((a, v) => {
+    const d = Math.round(exactDurationSec(v as any)) || Math.round(Number((v as any).duration) || 0);
+    return a + (d > 0 ? d : 1800);
+  }, 0);
   const fmChunkSec = Math.max(300, Math.min(3600, Math.round(adFreq * 60))); // an FM stretch between ads
 
   const pushFmBlock = (sec: number) => {
@@ -9040,6 +9049,8 @@ export const autoGenerateFastChannelSchedule = async (uid: string): Promise<Fast
   };
   const pushAd = () => {
     if (commercialFree) return;
+    const last = slots[slots.length - 1];
+    if (last && last.type === 'AD_BREAK') return; // NEVER place two ad breaks in a row
     slots.push({ id: `slot_${order}`, type: 'AD_BREAK', order, adDurationSeconds: adDur });
     order++; totalSec += adDur; minutesSinceLastAd = 0;
   };
@@ -9059,10 +9070,9 @@ export const autoGenerateFastChannelSchedule = async (uid: string): Promise<Fast
           pushVideo(v);
         }
         guard++;
-        // After a full pass, drop in an FM stretch (with an ad) before repeating — the director's call,
-        // so viewers aren't hammered with the same titles back to back.
+        // After a full pass, drop in an FM stretch before repeating — only add an ad if enough program time elapsed
         if (totalSec - blockStart < BLOCK_SEC && slots.length < MAX_SLOTS) {
-          pushAd();
+          if (!commercialFree && minutesSinceLastAd >= adFreq) pushAd();
           pushFmBlock(Math.min(fmChunkSec, BLOCK_SEC - (totalSec - blockStart)));
         }
       }
@@ -9072,7 +9082,7 @@ export const autoGenerateFastChannelSchedule = async (uid: string): Promise<Fast
     while (totalSec - blockStart < BLOCK_SEC && slots.length < MAX_SLOTS && fmGuard < 40) {
       const room = BLOCK_SEC - (totalSec - blockStart);
       pushFmBlock(Math.min(fmChunkSec, room));
-      if (BLOCK_SEC - (totalSec - blockStart) > adDur) pushAd();
+      if (BLOCK_SEC - (totalSec - blockStart) > adDur && minutesSinceLastAd >= adFreq) pushAd();
       fmGuard++;
     }
   };
@@ -9086,9 +9096,11 @@ export const autoGenerateFastChannelSchedule = async (uid: string): Promise<Fast
     buildBlock(seed);
   }
 
+  const cleanSlots = sanitizeScheduleForPlayout(slots, videos as any);
+
   const schedule: FastChannelSchedule = {
     userId: uid,
-    slots,
+    slots: cleanSlots,
     adFrequencyMinutes: adFreq,
     adDurationSeconds: adDur,
     commercialFree,

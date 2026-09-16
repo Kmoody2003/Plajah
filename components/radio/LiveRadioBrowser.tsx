@@ -25,7 +25,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Radio, Search, Play, Pause, Globe, ShieldAlert, AlertTriangle,
-  Loader2, RefreshCw, Signal, ChevronLeft, X, Plus,
+  Loader2, RefreshCw, Signal, ChevronLeft, X, Plus, Bookmark,
 } from 'lucide-react';
 import { Track, Album } from '../../types';
 import { useGlobalPlayerState } from '../../contexts/GlobalPlayerContext';
@@ -37,6 +37,12 @@ import { RADIO_SHELVES, SHELF_GROUPS, RadioShelf, getShelf } from '../../data/ra
 import { auth } from '../../services/backendService';
 import { fetchRecentLinkedStations, linkedToRadioStation } from '../../services/linkedStations';
 import AddStationModal from './AddStationModal';
+import {
+  getRadioPresets,
+  toggleRadioPreset,
+  isRadioPreset,
+  subscribeRadioPresets,
+} from '../../services/radioPresetsService';
 
 /** The "On Plajah" shelf — creator stations brought on by link (not a Radio Browser query). Handled
  *  specially in the loader since its rows come from Firestore, not the external directory API. */
@@ -47,6 +53,35 @@ const CREATOR_SHELF: RadioShelf = {
   blurb: 'Internet radio stations Plajah creators broadcast — brought on-platform by link.',
   kind: 'query',
 };
+
+const PRESETS_SHELF: RadioShelf = {
+  id: 'my-presets',
+  title: 'My Presets',
+  eyebrow: 'Your Dial',
+  blurb: 'Radio stations saved to your dial presets for quick one-click tuning.',
+  kind: 'query',
+};
+
+const presetToStation = (p: { stationId: string; stationName: string; streamUrl: string; coverUrl?: string; genre?: string; location?: string }): RadioStation => ({
+  uuid: p.stationId,
+  name: p.stationName,
+  url: p.streamUrl,
+  urlResolved: p.streamUrl,
+  homepage: '',
+  favicon: p.coverUrl || '',
+  tags: p.genre ? [p.genre] : ['Preset'],
+  country: p.location || '',
+  countryCode: '',
+  state: '',
+  language: '',
+  votes: 0,
+  clickCount: 0,
+  codec: '',
+  bitrate: 0,
+  hls: false,
+  isHls: false,
+  blockedMixedContent: false,
+});
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
 type PlayState = 'connecting' | 'playing' | 'error';
@@ -164,7 +199,7 @@ const LiveRadioBrowser: React.FC<LiveRadioBrowserProps> = ({ onBack, onExit }) =
 
   const me = auth.currentUser;
   const activeShelf: RadioShelf | undefined =
-    getShelf(activeShelfId) ?? (activeShelfId === CREATOR_SHELF.id ? CREATOR_SHELF : undefined);
+    getShelf(activeShelfId) ?? (activeShelfId === CREATOR_SHELF.id ? CREATOR_SHELF : activeShelfId === PRESETS_SHELF.id ? PRESETS_SHELF : undefined);
 
   // ── Loading ────────────────────────────────────────────────────────────────
 
@@ -203,12 +238,26 @@ const LiveRadioBrowser: React.FC<LiveRadioBrowserProps> = ({ onBack, onExit }) =
     [runLoad],
   );
 
+  const loadPresets = useCallback(
+    () => runLoad(async () => getRadioPresets().map(presetToStation)),
+    [runLoad],
+  );
+
   useEffect(() => {
     if (searchMode) return;
+    if (activeShelfId === PRESETS_SHELF.id) { setActiveCountry(null); loadPresets(); return; }
     if (activeShelfId === CREATOR_SHELF.id) { setActiveCountry(null); loadCreator(); return; }
     const shelf = getShelf(activeShelfId);
     if (shelf) loadShelf(shelf);
-  }, [activeShelfId, searchMode, loadShelf, loadCreator]);
+  }, [activeShelfId, searchMode, loadShelf, loadCreator, loadPresets]);
+
+  useEffect(() => {
+    return subscribeRadioPresets(() => {
+      if (activeShelfId === PRESETS_SHELF.id && !searchMode) {
+        loadPresets();
+      }
+    });
+  }, [activeShelfId, searchMode, loadPresets]);
 
   // Debounced name search.
   useEffect(() => {
@@ -320,6 +369,30 @@ const LiveRadioBrowser: React.FC<LiveRadioBrowserProps> = ({ onBack, onExit }) =
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+          {/* Presets Quick Access */}
+          <div>
+            <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-3 px-2 flex items-center gap-2">
+              <Bookmark size={11} className="text-small-orange" /> Saved
+            </h4>
+            <div className="space-y-1">
+              <button
+                onClick={() => { setSearchMode(false); setQuery(''); setActiveShelfId(PRESETS_SHELF.id); }}
+                className={`w-full px-3 py-2.5 rounded-2xl text-left transition-all flex items-center justify-between ${
+                  !searchMode && activeShelfId === PRESETS_SHELF.id
+                    ? 'bg-small-orange text-black font-black'
+                    : 'hover:bg-white/5 text-white/70'
+                }`}
+              >
+                <span className="text-[11px] font-black uppercase tracking-tight">My Presets</span>
+                <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md ${
+                  !searchMode && activeShelfId === PRESETS_SHELF.id ? 'bg-black/20 text-black' : 'bg-white/10 text-white/50'
+                }`}>
+                  {getRadioPresets().length}
+                </span>
+              </button>
+            </div>
+          </div>
+
           {/* On Plajah — creator stations brought on by link. Leads the rail. */}
           <div>
             <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-3 px-2">On Plajah</h4>
@@ -579,10 +652,18 @@ const StationCard: React.FC<{
   onPlay: () => void;
 }> = ({ station: s, live, isPlaying, state, onPlay }) => {
   const [imgOk, setImgOk] = useState(!!s.favicon);
+  const [saved, setSaved] = useState(() => isRadioPreset(s.uuid));
   const blocker = blockerFor(s);
   const blocked = !!blocker;
   const errored = live && state === 'error';
   const connecting = live && state === 'connecting' && !isPlaying;
+
+  useEffect(() => {
+    setSaved(isRadioPreset(s.uuid));
+    return subscribeRadioPresets(() => {
+      setSaved(isRadioPreset(s.uuid));
+    });
+  }, [s.uuid]);
 
   return (
     <motion.div
@@ -656,6 +737,30 @@ const StationCard: React.FC<{
           <p className="text-[9px] text-amber-300/60 mt-2 leading-relaxed">{BLOCKER_COPY[blocker].tip}</p>
         )}
       </div>
+
+      {/* Bookmark Preset */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          toggleRadioPreset({
+            stationId: s.uuid,
+            stationName: s.name,
+            streamUrl: s.url,
+            coverUrl: s.favicon || undefined,
+            genre: s.tags[0] || undefined,
+            location: [s.country, s.language].filter(Boolean).join(' · ') || undefined,
+          });
+        }}
+        className={`p-3 rounded-2xl shrink-0 transition-all ${
+          saved
+            ? 'bg-small-orange text-black shadow-md'
+            : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'
+        }`}
+        title={saved ? 'Remove from Dial Presets' : 'Save to Dial Presets'}
+        aria-label={saved ? 'Remove from presets' : 'Add to presets'}
+      >
+        <Bookmark size={15} fill={saved ? 'currentColor' : 'none'} />
+      </button>
 
       {/* Transport */}
       <button

@@ -312,10 +312,10 @@ function renderSpeechOratory(
   overallEnergy /= count;
 
   const bgGrad = ctx.createRadialGradient(width * 0.5, centerY, 10, width * 0.5, centerY, width * 0.6);
-  bgGrad.addColorStop(0, 
-gba(217, 119, 6, ));
-  bgGrad.addColorStop(0.7, 
-gba(245, 158, 11, ));
+  const hallAura0 = Math.max(0.04, Math.min(0.25, overallEnergy * 0.45));
+  const hallAura1 = Math.max(0.02, Math.min(0.12, overallEnergy * 0.22));
+  bgGrad.addColorStop(0, `rgba(217, 119, 6, ${hallAura0})`);
+  bgGrad.addColorStop(0.7, `rgba(245, 158, 11, ${hallAura1})`);
   bgGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, width, height);
@@ -393,10 +393,10 @@ function renderInterviewCadence(
 
   // Archival tape glow
   const bgGrad = ctx.createRadialGradient(width * 0.5, centerY, 8, width * 0.5, centerY, width * 0.55);
-  bgGrad.addColorStop(0, 
-gba(212, 0, 85, ));
-  bgGrad.addColorStop(0.6, 
-gba(107, 0, 153, ));
+  const tapeAura0 = Math.max(0.04, Math.min(0.24, overallEnergy * 0.42));
+  const tapeAura1 = Math.max(0.02, Math.min(0.12, overallEnergy * 0.22));
+  bgGrad.addColorStop(0, `rgba(212, 0, 85, ${tapeAura0})`);
+  bgGrad.addColorStop(0.6, `rgba(107, 0, 153, ${tapeAura1})`);
   bgGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, width, height);
