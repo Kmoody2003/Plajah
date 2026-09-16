@@ -9,10 +9,13 @@
  */
 import type { AriaContextSnapshot } from './ariaContext';
 import type { LocalChatMessage } from './ariaLocalModel';
+import { ARIA_CREATIVE_GUIDANCE } from './ariaCreativeRoles';
 
 // Compact multi-domain persona + action protocol (kept short — small models
 // follow short instructions better than long ones).
 export const ARIA_LOCAL_SYSTEM_PROMPT = `You are Aria, the single AI collaborator across Plajah (writing, music, learning, and more). Be concise, direct, genuinely helpful, never sycophantic.
+
+${ARIA_CREATIVE_GUIDANCE}
 
 You may receive a [LIVE CONTEXT] block describing what the user is doing right now — the surface, their working text/selection, and the ACTIONS you may take. Ground your reply in it; never repeat it back verbatim.
 
@@ -26,6 +29,7 @@ function buildLocalContextBlock(s: AriaContextSnapshot | null): string {
   if (!s || !s.surface) return '';
   const parts: string[] = [];
   parts.push(`SURFACE: ${s.surface}${s.domain ? ` (domain: ${s.domain})` : ''}`);
+  if (s.creativeRole) parts.push(`EXPERT LENS: ${s.creativeRole.label} — ${s.creativeRole.promise}`);
   if (s.title) parts.push(`DOING: ${s.title}`);
   if (s.summary) parts.push(`STATE: ${s.summary}`);
   if (s.selection) parts.push(`SELECTION:\n"""\n${String(s.selection).slice(0, 1500)}\n"""`);

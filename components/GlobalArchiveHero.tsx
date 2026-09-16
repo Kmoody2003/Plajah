@@ -15,7 +15,8 @@
  *  key art → first audio track → key art with a slow drift.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Upload, Play, Radio } from 'lucide-react';
+import { cleanDescription } from '../utils/description';
+import { Upload, Play, Radio, Compass, Rocket, ArrowRight } from 'lucide-react';
 import type { Album, LiveFeed } from '../types';
 import { fetchClassicBooks, type ArchiveBook } from '../services/archiveContentService';
 import { searchArtifacts, type Artifact } from '../services/artifactsService';
@@ -174,7 +175,7 @@ const PanoramaColumn: React.FC<{
         const kicker = a.type === 'VIDEO'
           ? (a.subType === 'UGC' ? 'New on Reello' : 'New on Taleo')
           : TYPE_KICKER[a.type || 'MUSIC'] || 'New release';
-        return { kicker, title: a.title, by: a.artist, desc: a.description || '', cta: 'Open' };
+        return { kicker, title: a.title, by: a.artist, desc: cleanDescription(a.description), cta: 'Open' };
       }
       case 'CREATOR': return {
         kicker: 'Creator spotlight', title: pane.artist,
@@ -560,6 +561,10 @@ const GlobalArchiveHero: React.FC<GlobalArchiveHeroProps> = ({ albums, liveCount
   // Narrow screens keep all panes and scroll-snap horizontally instead of shrinking them.
   const colCount = 6;
 
+  // The "Explore" door scrolls straight down to the panorama wall — the content is on
+  // this same page, so guidance points to it rather than navigating away.
+  const wallRef = useRef<HTMLDivElement>(null);
+
   // Live clock for the issue line — ticks every 30s (minute precision is enough).
   const [clock, setClock] = useState(() => new Date());
   useEffect(() => {
@@ -652,11 +657,47 @@ const GlobalArchiveHero: React.FC<GlobalArchiveHeroProps> = ({ albums, liveCount
         @media (prefers-reduced-motion: reduce) { .pj-eq-bar { animation: none; height: 60%; } }
       `}</style>
 
+      {/* Direction & guidance — the first thing on the page. A visitor lands and knows the
+          two things Plajah is for: Explore drops them into the wall below; Create opens the
+          Creator Hub (not the raw upload dialog — that stays on the "Creators Upload Here"
+          button — so a creator discovers the whole toolset). Above the masthead so
+          orientation comes before content. */}
+      <div className="mb-7 flex flex-col items-center text-center gap-4">
+        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40">What do you want to do?</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
+          <button
+            onClick={() => wallRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="group relative flex flex-col items-start gap-1 text-left px-5 py-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/25 hover:scale-[1.02] active:scale-95 transition-all duration-300"
+          >
+            <span className="flex items-center gap-2 w-full text-white font-black text-sm uppercase tracking-[0.12em]">
+              <Compass size={17} className="text-small-orange" /> Explore
+              <ArrowRight size={15} className="ml-auto opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+            </span>
+            <span className="text-[12px] font-medium normal-case tracking-normal text-white/55 leading-snug">
+              Everything creators are making — all in one place.
+            </span>
+          </button>
+          <button
+            onClick={() => onNavigate('CREATOR_HUB')}
+            style={{ background: 'var(--pj-grad-ember)' }}
+            className="group relative flex flex-col items-start gap-1 text-left px-5 py-4 rounded-2xl border border-white/15 hover:border-white/35 hover:scale-[1.02] active:scale-95 transition-all duration-300"
+          >
+            <span className="flex items-center gap-2 w-full text-white font-black text-sm uppercase tracking-[0.12em]">
+              <Rocket size={17} /> Create
+              <ArrowRight size={15} className="ml-auto opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+            </span>
+            <span className="text-[12px] font-medium normal-case tracking-normal text-white/80 leading-snug">
+              Publish everything from one profile — and keep up to 100%.
+            </span>
+          </button>
+        </div>
+      </div>
+
       {/* masthead row */}
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5 mb-5">
         <div className="min-w-0">
           <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-white leading-[0.85] italic select-none">
-            Plajah <span className="pj-text-ember">Global Archive</span>
+            Plajah <span className="pj-text-ember inline-block pr-[0.2em]">Front Row</span>
           </h1>
           {/* Atrium issue line — real numbers, refreshed daily */}
           <p className="mt-3 text-[10px] font-black uppercase tracking-[0.28em] text-white/40 flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -691,6 +732,7 @@ const GlobalArchiveHero: React.FC<GlobalArchiveHeroProps> = ({ albums, liveCount
 
       {/* the panorama wall */}
       <div
+        ref={wallRef}
         className="flex gap-[3px] rounded-[1.75rem] overflow-hidden border border-white/10 bg-black/40 overflow-x-auto sm:overflow-x-hidden snap-x snap-mandatory sm:snap-none no-scrollbar"
         style={{ height: 'clamp(360px, 52vh, 560px)' }}
       >

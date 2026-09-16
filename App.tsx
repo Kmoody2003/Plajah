@@ -116,6 +116,8 @@ const PlajahHealthFitnessView = retryLazy(() => import('./components/PlajahHealt
 const PlajahResearchPage = retryLazy(() => import('./components/PlajahResearchPage'));
 // TV Studio — browser production switcher
 const TVStudio = retryLazy(() => import('./components/TVStudio'));
+// Live Real-Time Audio FX Audition Lab
+const LiveAudioFxAuditionLab = retryLazy(() => import('./components/labs/LiveAudioFxAuditionLab'));
 
 import ExperiencePicker from './components/ExperiencePicker';
 import GlobalPlayer from './components/GlobalPlayer';
@@ -189,6 +191,7 @@ const HelpCenter = retryLazy(() => import('./components/HelpCenter'));
 const MyLibraryView = retryLazy(() => import('./components/MyLibraryView'));
 const NewstandView = retryLazy(() => import('./components/newstand/NewstandView').then(m => ({ default: m.NewstandView })));
 const PlajahSportsView = retryLazy(() => import('./components/PlajahSportsView').then(m => ({ default: m.PlajahSportsView })));
+const ProjectFirstlightLandingView = retryLazy(() => import('./components/sports/ProjectFirstlightLandingView').then(m => ({ default: m.default || m.ProjectFirstlightLandingView })));
 const AthleteShowcaseView = retryLazy(() => import('./components/AthleteShowcaseView'));
 const MatchFanRoomsView = retryLazy(() => import('./components/MatchFanRoomsView'));
 const RoomView = retryLazy(() => import('./components/RoomView'));
@@ -293,6 +296,11 @@ const BrandDashboard = retryLazy(() => import('./components/BrandDashboard'));
 const OrgHub = retryLazy(() => import('./components/OrgHub'));
 const PlajahElevate = retryLazy(() => import('./components/PlajahElevate'));
 const PlatformChangelog = retryLazy(() => import('./components/PlatformChangelog'));
+const WelcomePackage = retryLazy(() => import('./components/WelcomePackage'));
+const Onboarding = retryLazy(() => import('./components/Onboarding'));
+// Existing-user "Welcome Package is ready" nudge runs only until this date (~2 months from
+// the 2026-09-07 launch). After it, returning users are no longer notified.
+const WELCOME_PACKAGE_CAMPAIGN_END = Date.UTC(2026, 10, 7); // 2026-11-07 (month index 10 = Nov)
 const UpdateNotification = retryLazy(() => import('./components/UpdateNotification'));
 const BugReportButton = retryLazy(() => import('./components/BugReportButton'));
 const VideoRouterConsole = retryLazy(() => import('./components/mediaEngine/VideoRouterConsole'));
@@ -342,6 +350,7 @@ const TV_BLOCKED_VIEWS: Partial<Record<string, { feature: TvDisabledFeature; tit
   CROSSOVER:       { feature: 'fileConversion', title: 'Crossover' },
   MEDIA_CONVERTER: { feature: 'fileConversion', title: 'Media Converter' },
   SPATIAL_MIXER:   { feature: 'creatorStudio', title: 'Spatial Mixer' },
+  LD_MODE:         { feature: 'creatorStudio', title: 'LD' },
   TELEPROMPTER:    { feature: 'documentEditing', title: 'Teleprompter' },
   ARTICLE_EDITOR:  { feature: 'documentEditing', title: 'The editor' },
   CREATOR:         { feature: 'upload',         title: 'Uploading' },
@@ -351,6 +360,7 @@ const TV_BLOCKED_VIEWS: Partial<Record<string, { feature: TvDisabledFeature; tit
 const AppsView = retryLazy(() => import('./components/AppsView'));
 const CrossoverView = retryLazy(() => import('./components/CrossoverView'));
 const PlajahPixelsView = retryLazy(() => import('./components/PlajahPixelsView'));
+const LightingDesigner = retryLazy(() => import('./components/LightingDesigner'));
 const TeleprompterApp = retryLazy(() => import('./components/teleprompter/TeleprompterApp'));
 const SpatialMixer = retryLazy(() => import('./components/spatialMixer/SpatialMixer'));
 const MediaConverter = retryLazy(() => import('./components/MediaConverter'));
@@ -403,6 +413,8 @@ const TerraFeed = retryLazy(() => import('./components/terra/TerraFeed'));
 const TerraListings = retryLazy(() => import('./components/terra/ListingsManager'));
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
 const ArtistProjectManager = retryLazy(() => import('./components/ArtistProjectManager'));
+const ChoraArtistPage = retryLazy(() => import('./components/ChoraArtistPage'));
+const PersonalArtistPage = retryLazy(() => import('./components/PersonalArtistPage'));
 const MelosWorkspace = retryLazy(() => import('./components/melos/MelosWorkspace'));
 const CareerImportStudio = retryLazy(() => import('./components/CareerImportStudio'));
 const StudioView = retryLazy(() => import('./components/ManagerSuite/StudioView'));
@@ -480,7 +492,7 @@ const THEME_BG: Record<string, string> = {
     '#080200',
   ].join(','),
 };
-import { fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd, fetchSystemSettingsConfig, allocateChannelNumber, fetchAllLiveFeeds } from './services/backendService';
+import { auth, fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd, fetchSystemSettingsConfig, allocateChannelNumber, fetchAllLiveFeeds } from './services/backendService';
 import { initFeatureFlagListener } from './services/featureFlagService';
 import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ClipboardList, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Library, Cctv, Bug, AlertTriangle, MapPin, Cross, MonitorPlay } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -515,9 +527,13 @@ import { AchievementProvider } from './contexts/AchievementContext';
 import { PointsProvider } from './contexts/PointsContext';
 import { BadgeProvider } from './contexts/BadgeContext';
 import { NotificationProvider, useNotifications } from './contexts/NotificationContext';
+import { NetworkMonitorProvider } from './contexts/NetworkMonitorContext';
+import { levelLabel as networkLevelLabel, type DegradationEvent as NetworkDegradationEvent } from './services/networkDiagnostics';
 import { SpatialProvider } from './contexts/SpatialContext';
 import { FediverseProvider } from './contexts/FediverseContext';
 import NotificationCenter from './components/NotificationCenter';
+import { isFeedLive } from './services/liveFeedLiveness';
+import MediaRepairApprovals from './components/MediaRepairApprovals';
 import AchievementListView from './components/AchievementListView';
 import UploadManager from './components/UploadManager';
 import { PublishQueueProvider } from './contexts/PublishQueueContext';
@@ -570,12 +586,15 @@ const App: React.FC = () => {
     pitchParam === 'pitch-writer' ? 'PITCH_WRITER'       :
     // research manifesto — admin only (kmoody2003@gmail.com or role=admin)
     pitchParam === 'research'     ? 'RESEARCH_MANIFESTO' :
+    pitchParam === 'firstlight'   ? 'PROJECT_FIRSTLIGHT' :
+    pitchParam === 'apps'         ? 'APPS'               :
     pitchParam === 'crossover'    ? 'CROSSOVER'          :
     pitchParam === 'terra'        ? 'TERRA'              :
     pitchParam === 'business'     ? 'PLAJAH_BUSINESS'    :
     pitchParam === 'ora'          ? 'ORA'                :
     pitchParam === 'assignment'   ? 'STUDENT_ASSIGNMENT' :
     pitchParam === 'lesson'       ? 'STUDENT_LESSON'     :
+    pitchParam === 'live-fx-lab' || pitchParam === 'livefx' ? 'LIVE_FX_LAB' :
     'LANDING';
 
   // Is the app being opened on a shared deep link? If so, a signed-out visitor must
@@ -588,7 +607,7 @@ const App: React.FC = () => {
     // need to sign in on the phone first and then approve, and losing the ?c= code mid-flow
     // means walking back to the television for a new one.
     if (window.location.pathname.startsWith('/link')) return true;
-    return /^\/(profile|release|event|clubs|athlete|book)\//.test(window.location.pathname);
+    return /^\/(profile|release|event|clubs|athlete|book|artist)\//.test(window.location.pathname);
   })();
 
   const [view, setViewInternal] = useState<AppView>(pitchInitialView);
@@ -643,6 +662,13 @@ const App: React.FC = () => {
   // not a push). Lets goBack() return to the ACTUAL previous screen via the browser
   // history, and fall back to the Dashboard only when there's no in-app screen behind us.
   const navDepthRef = useRef(0);
+
+  // Back must never strand a signed-in person on the sign-in page. The first history entry
+  // this app writes is LANDING (the replaceState at boot), so walking Back far enough always
+  // pops back to it — even for someone who signed in ten screens ago. When that pop happens
+  // we send them to their real home instead. Filled in below, once handleEnterApp's home
+  // resolver exists; read by the popstate listener, which is registered before it.
+  const landingEscapeRef = useRef<(() => void) | null>(null);
 
   const setView = useCallback((newView: AppView | ((prev: AppView) => AppView), path?: string) => {
     setViewInternal((prev) => {
@@ -728,6 +754,25 @@ const App: React.FC = () => {
     return () => window.removeEventListener('plajah:openTela', h as EventListener);
   }, [setView]);
 
+  // Open Project Firstlight (admin-only 3D passing lab)
+  useEffect(() => {
+    const h = () => setView('PROJECT_FIRSTLIGHT');
+    window.addEventListener('plajah:openFirstlight', h as EventListener);
+    return () => window.removeEventListener('plajah:openFirstlight', h as EventListener);
+  }, [setView]);
+
+  // "Learn more on Plajah" from the Tela template gallery → the Art Museum, with the
+  // style remembered so the museum can focus its search on it.
+  useEffect(() => {
+    const h = (e: Event) => {
+      const d = (e as CustomEvent).detail || {};
+      try { sessionStorage.setItem('plajah_design_history_focus', JSON.stringify({ tag: d.tag, styleId: d.styleId, at: Date.now() })); } catch { /* private mode */ }
+      setView('ART_GALLERY');
+    };
+    window.addEventListener('plajah:openDesignHistory', h as EventListener);
+    return () => window.removeEventListener('plajah:openDesignHistory', h as EventListener);
+  }, [setView]);
+
   // Open the Tela reference-embed demo (P2b) from anywhere.
   useEffect(() => {
     const h = () => setView('TELA_EMBED_DEMO');
@@ -765,6 +810,13 @@ const App: React.FC = () => {
     return () => window.removeEventListener('plajah:open-chora-podcasts', openPods);
   }, [setView]);
 
+  // Open the Plajah+ billboard (from any upsell — e.g. Broadcast Out's gate).
+  useEffect(() => {
+    const openPlus = () => setShowPlajahPlusBillboard(true);
+    window.addEventListener('plajah:open-plajah-plus', openPlus);
+    return () => window.removeEventListener('plajah:open-plajah-plus', openPlus);
+  }, []);
+
   // Open the Podcast Studio (from content-upload "Produce").
   useEffect(() => {
     const open = () => setView('PODCAST_STUDIO');
@@ -777,6 +829,17 @@ const App: React.FC = () => {
     const open = () => setView('LIVE_TRANSLATION');
     window.addEventListener('plajah:open-live-translation', open);
     return () => window.removeEventListener('plajah:open-live-translation', open);
+  }, [setView]);
+
+  // Open Live Audio FX Audition Studio
+  useEffect(() => {
+    const open = () => setView('LIVE_FX_LAB');
+    window.addEventListener('OPEN_LIVE_FX_LAB', open);
+    window.addEventListener('plajah:open-live-fx-lab', open);
+    return () => {
+      window.removeEventListener('OPEN_LIVE_FX_LAB', open);
+      window.removeEventListener('plajah:open-live-fx-lab', open);
+    };
   }, [setView]);
 
   // Platform-wide error capture (uncaught errors + unhandled rejections → errorReports).
@@ -793,6 +856,13 @@ const App: React.FC = () => {
     const handlePopState = (event: PopStateEvent) => {
       navDepthRef.current = Math.max(0, navDepthRef.current - 1);
       if (event.state && event.state.view) {
+        // LANDING is the bottom of the stack, not a screen a signed-in person can be "at".
+        // Anonymous sessions (a podcast guest listener) are excluded on purpose: for them the
+        // sign-in page is still a destination they may well want Back to reach.
+        if (event.state.view === 'LANDING' && auth.currentUser && !auth.currentUser.isAnonymous && landingEscapeRef.current) {
+          landingEscapeRef.current();
+          return;
+        }
         setViewInternal(event.state.view);
       }
     };
@@ -810,7 +880,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   useEffect(() => {
     if (view !== 'DASHBOARD') return;
     const unsub = fetchAllLiveFeeds(feeds =>
-      setDashLiveFeeds(feeds.filter(f => (f as any).status !== 'ENDED' && (f as any).status !== 'OFFLINE')));
+      setDashLiveFeeds(feeds.filter(f => isFeedLive(f))));
     return () => unsub();
   }, [view]);
   // Floating tab dock — appears once the real archive tab row scrolls above the
@@ -927,6 +997,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [viewedUserId, setViewedUserId] = useState<string | null>(null);
+  const [choraArtistId, setChoraArtistId] = useState<string | null>(null);
+  const [personalArtistName, setPersonalArtistName] = useState<string | null>(null);
   const [initialProfileTab, setInitialProfileTab] = useState<string | undefined>(undefined);
   const [selectedBusinessPage, setSelectedBusinessPage] = useState<any>(null);
   const [terraPassportTarget, setTerraPassportTarget] = useState<{ parcelId?: string; listingKey?: string } | null>(null);
@@ -950,7 +1022,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [notifDrawerTrigger, setNotifDrawerTrigger] = useState<{ tab: string; ts: number } | null>(null);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | undefined>(undefined);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const [pixelsPayload, setPixelsPayload] = useState<{ album?: any; track?: any } | null>(null);
+  const [pixelsPayload, setPixelsPayload] = useState<{ album?: any; track?: any; fluxScene?: string } | null>(null);
   const [melosBeatsPayload, setMelosBeatsPayload] = useState<{ grooveId?: string; productionId?: string; sampleUrl?: string; sampleName?: string } | null>(null);
   const [smartDirectorPayload, setSmartDirectorPayload] = useState<{ productionId?: string; event?: any } | null>(null);
   const [labsDiscipline, setLabsDiscipline] = useState<string | null>(null);
@@ -962,6 +1034,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [melosProductionId, setMelosProductionId] = useState<string | null>(null);
   const [scannerEventId, setScannerEventId] = useState<string | null>(null);
   const [isPIFModalOpen, setIsPIFModalOpen] = useState(false);
+  const [mediaRepairOpen, setMediaRepairOpen] = useState(false);
   const [pifWins, setPifWins] = useState<PayItForwardWinner[]>([]);
   const [activeLiveFeed, setActiveLiveFeed] = useState<LiveFeed | null>(null);
   const [showMyOrders, setShowMyOrders] = useState(false);
@@ -994,6 +1067,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     setNavWarning(msg);
     if (navWarnTimer.current) clearTimeout(navWarnTimer.current);
     navWarnTimer.current = setTimeout(() => setNavWarning(null), 3200);
+  }, []);
+  // Network degradation toast — surfaced by the NetworkMonitor when the user's
+  // connection drops to a warning/critical level.
+  const [netAlert, setNetAlert] = useState<{ msg: string; severity: 'info' | 'warning' | 'critical' } | null>(null);
+  const netAlertTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleNetworkDegradation = useCallback((e: NetworkDegradationEvent) => {
+    if (e.severity === 'none') return;
+    const label = e.level === 'offline' ? "You're offline" : `Network ${networkLevelLabel(e.level).toLowerCase()}`;
+    setNetAlert({ msg: `${label} — ${e.reason}`, severity: e.severity as any });
+    if (netAlertTimer.current) clearTimeout(netAlertTimer.current);
+    netAlertTimer.current = setTimeout(() => setNetAlert(null), e.severity === 'critical' ? 6000 : 4500);
   }, []);
   // Curated primary destinations for the compact top bar (Concept C). The full sidebar
   // config still lives in the vertical rail; the bar shows the headline pages + "More".
@@ -1034,7 +1118,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [videoPlaylistInitialId, setVideoPlaylistInitialId] = useState<string | undefined>(undefined);
   const [clubInitialId, setClubInitialId] = useState<string | undefined>(undefined);
   // A shared live channel deep-link opens the Live guide focused on that channel.
-  const [liveChannelFocus, setLiveChannelFocus] = useState<{ ownerId?: string; plajahId?: string; number?: string } | null>(null);
+  const [liveChannelFocus, setLiveChannelFocus] = useState<{ ownerId?: string; plajahId?: string; number?: string; sourceId?: string } | null>(null);
   // Account Switcher
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
@@ -1043,6 +1127,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const insertPressedRef = useRef(false);
   const [showWelcomeAchievement, setShowWelcomeAchievement] = useState(false);
   const [showWelcomePackage, setShowWelcomePackage] = useState(false);
+  // First-login sequence: the Welcome Package letter → the 2-page Onboarding → the app.
+  // (Named distinctly from the legacy `showOnboarding` OnboardingTour state, now retired.)
+  const [showFirstRunOnboarding, setShowFirstRunOnboarding] = useState(false);
+  const [welcomeFirstRun, setWelcomeFirstRun] = useState(false);
   const [selectedDebateId, setSelectedDebateId] = useState<string | null>(null);
   const [showAchievements, setShowAchievements] = useState(false);
   const [is3DDepthEnabled, setIs3DDepthEnabled] = useState(false);
@@ -1200,6 +1288,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     };
     window.addEventListener('OPEN_PLAJAH_PIXELS', handleOpenPixels);
 
+    const handleOpenLiveFxLab = () => setView('LIVE_FX_LAB');
+    window.addEventListener('OPEN_LIVE_FX_LAB', handleOpenLiveFxLab);
+    window.addEventListener('plajah:open-live-fx-lab', handleOpenLiveFxLab);
+
     // A scripture chip anywhere on the platform opens the reader at its passage.
     const handleOpenBible = (e: Event) => {
       const id = (e as CustomEvent)?.detail?.refId;
@@ -1309,6 +1401,89 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     };
     window.addEventListener('OPEN_LICENSE_FOR_FILM', handleLicenseForFilm);
 
+    const handleOpenAudiobookPavilion = (e: any) => {
+      const bookData = e.detail?.book;
+      if (bookData) {
+        setSelectedBook(null);
+        setMusicInitialTab('AUDIO_BOOKS');
+        setView('MUSIC');
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('OPEN_AUDIOBOOK_TRACK', {
+            detail: { book: bookData, chapterIndex: e.detail?.chapterIndex || 0 }
+          }));
+        }, 100);
+      }
+    };
+    window.addEventListener('OPEN_AUDIOBOOK_PAVILION', handleOpenAudiobookPavilion);
+
+    const handleOpenLoreaReader = (e: any) => {
+      const bookData = e.detail?.book;
+      const targetChapterIndex = typeof e.detail?.chapterIndex === 'number'
+        ? e.detail.chapterIndex
+        : (typeof bookData?.initialChapterIndex === 'number' ? bookData.initialChapterIndex : 0);
+
+      if (bookData) {
+        let albumData: Album;
+        if (bookData.bookChapters && bookData.bookChapters.length > 0) {
+          albumData = {
+            ...bookData,
+            type: 'BOOK',
+            subType: bookData.subType || 'BOOK',
+            initialChapterIndex: targetChapterIndex,
+            skipOpeningScene: true,
+          };
+        } else if (bookData.tracks) {
+          albumData = {
+            ...bookData,
+            type: 'BOOK',
+            subType: 'BOOK',
+            initialChapterIndex: targetChapterIndex,
+            skipOpeningScene: true,
+            bookChapters: bookData.tracks.map((t: any, i: number) => ({
+              id: t.id || `ch-${i}`,
+              chapterNumber: i + 1,
+              title: t.title,
+              content: t.content || t.text || '',
+              audioUrl: t.url,
+            })),
+          };
+        } else {
+          albumData = {
+            id: bookData.id,
+            title: bookData.title,
+            artist: bookData.artist,
+            coverImage: bookData.thumbnailUrl || bookData.coverImage,
+            type: 'BOOK',
+            subType: 'BOOK',
+            genre: bookData.genre || 'Classic Literature',
+            description: bookData.description,
+            createdAt: Date.now(),
+            formats: bookData.formats,
+            initialChapterIndex: targetChapterIndex,
+            skipOpeningScene: true,
+            bookChapters: bookData.chapters?.map((c: any, i: number) => ({
+              id: c.id || `ch-${i}`,
+              chapterNumber: c.chapterNumber || i + 1,
+              title: c.title,
+              content: c.content || c.text || '',
+              audioUrl: c.url,
+            })) || [],
+          };
+        }
+
+        const bookId = albumData.id || bookData.id;
+        if (bookId) {
+          try {
+            localStorage.setItem(`lorea_pos_${bookId}`, JSON.stringify({ chapter: targetChapterIndex, page: 0 }));
+          } catch {}
+        }
+
+        setSelectedBook(albumData);
+        setView('BOOK_READER');
+      }
+    };
+    window.addEventListener('OPEN_LOREA_READER', handleOpenLoreaReader);
+
     return () => {
       window.removeEventListener('START_CHAT', handleStartChat);
       window.removeEventListener('OPEN_PIF_MODAL', handleOpenPIF);
@@ -1320,6 +1495,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_CHARACTER_CHAT', handleCharacterChat);
       window.removeEventListener('OPEN_STORE', handleOpenStore);
       window.removeEventListener('OPEN_PLAJAH_PIXELS', handleOpenPixels);
+      window.removeEventListener('OPEN_LIVE_FX_LAB', handleOpenLiveFxLab);
+      window.removeEventListener('plajah:open-live-fx-lab', handleOpenLiveFxLab);
       window.removeEventListener('OPEN_BIBLE', handleOpenBible);
       window.removeEventListener('OPEN_SACRED_LIBRARY', handleOpenSacredLibrary);
       window.removeEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
@@ -1336,6 +1513,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_ALBUM_CREATOR', handleOpenAlbumCreator);
       window.removeEventListener('OPEN_FABULA', handleOpenFabula);
       window.removeEventListener('OPEN_LICENSE_FOR_FILM', handleLicenseForFilm);
+      window.removeEventListener('OPEN_AUDIOBOOK_PAVILION', handleOpenAudiobookPavilion);
+      window.removeEventListener('OPEN_LOREA_READER', handleOpenLoreaReader);
     };
   }, [user]);
 
@@ -1448,36 +1627,53 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     if (!getPlatformInfo().isTV) setTimeout(() => setShowOnboarding(true), 400);
   };
 
-  const handleEnterApp = () => {
+  // Where "in" is on this device — the single answer shared by the Enter button and by the
+  // Back-out-of-LANDING escape, so the two can never disagree about where home is.
+  const resolveHomeDestination = (): { view: AppView; theme: ThemeType } => {
     const isTV = getPlatformInfo().isTV;
-    const isMobileDevice = !isTV && (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 640);
+    // A television opens on its home destination — Taleo by default, so the app behaves like
+    // a streaming service rather than dropping the viewer into a creation hub.
+    if (isTV) return { view: getTvHome() as AppView, theme: 'BIG_SCREEN' };
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 640;
+    if (isMobileDevice) return { view: 'MUSIC', theme: 'PHONE' };
+    const expRouteMap: Record<ExperienceMode, AppView> = {
+      RAW_DOG:          'DASHBOARD',
+      MUSIC_CREATOR:    'MUSIC',
+      WRITER:           'BOOKS',
+      SPORTS_FAN:       'PLAJAH_SPORTS',
+      STORY_TELLER:     'MOVIES_TV',
+      CONTENT_CREATOR:  'VIDEOS',
+      SCIENCE_ENGINEER: 'PLAJAH_LABS',
+    };
+    const expMode = userProfile?.experienceMode;
+    return { view: expMode ? (expRouteMap[expMode] ?? 'DASHBOARD') : 'DASHBOARD', theme };
+  };
 
-    if (isTV) {
-      // A television opens on its home destination — Taleo by default, so the app behaves like
-      // a streaming service rather than dropping the viewer into a creation hub.
-      setView(getTvHome());
-      setTheme('BIG_SCREEN');
+  const handleEnterApp = () => {
+    const { view: home, theme: homeTheme } = resolveHomeDestination();
+    setView(home);
+    if (homeTheme !== theme) setTheme(homeTheme);
+    if (getPlatformInfo().isTV) {
       // Refresh the Android TV home-screen "continue watching" row from cross-device history.
       // No-op on non-Android-TV; deferred so it never competes with first paint.
       import('./services/watchHistoryService')
         .then(m => setTimeout(() => m.reconcileWatchNext().catch(() => {}), 3000))
         .catch(() => {});
-    } else if (isMobileDevice) {
-      setView('MUSIC');
-      setTheme('PHONE');
-    } else {
-      const expRouteMap: Record<ExperienceMode, AppView> = {
-        RAW_DOG:          'DASHBOARD',
-        MUSIC_CREATOR:    'MUSIC',
-        WRITER:           'BOOKS',
-        SPORTS_FAN:       'PLAJAH_SPORTS',
-        STORY_TELLER:     'MOVIES_TV',
-        CONTENT_CREATOR:  'VIDEOS',
-        SCIENCE_ENGINEER: 'PLAJAH_LABS',
-      };
-      const expMode = userProfile?.experienceMode;
-      setView(expMode ? (expRouteMap[expMode] ?? 'DASHBOARD') : 'DASHBOARD');
     }
+  };
+
+  // The Back-out-of-LANDING escape (declared above the popstate listener, which is registered
+  // on mount and so can't close over anything defined down here).
+  //
+  // setViewInternal + replaceState, deliberately NOT setView: pushing a fresh entry would leave
+  // LANDING sitting underneath us, so the next Back press would pop straight back into this
+  // handler and bounce forever instead of leaving the app. Rewriting the bottom entry means one
+  // more Back exits, which is what a person pressing Back actually wants.
+  landingEscapeRef.current = () => {
+    const { view: home, theme: homeTheme } = resolveHomeDestination();
+    setViewInternal(home);
+    if (homeTheme !== theme) setTheme(homeTheme);
+    window.history.replaceState({ view: home }, '', window.location.pathname + window.location.search + window.location.hash);
   };
 
   const handleSelectItem = (item: any) => {
@@ -1545,6 +1741,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       handleBackToDashboard();
     } else if (target === 'LANDING') {
       setView('LANDING');
+    } else if (target === 'WELCOME_PACKAGE') {
+      setView('WELCOME_PACKAGE');
     } else if (target === 'USER_PROFILE') {
       if (user) {
         handleVisitUser(user.uid);
@@ -1703,6 +1901,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       if (!user) { loginWithGoogle(); return; }
       if (params?.productionId) setMelosProductionId(params.productionId);
       setView('MELOS');
+    } else if (target === 'CHORA_ARTIST') {
+      if (params?.artistId) setChoraArtistId(params.artistId);
+      setView('CHORA_ARTIST');
     } else if (target === 'ARTIST_MANAGER' || target === 'AD_PACKAGES' || target === 'ARTIST_BOARDS' || target === 'EVENT_PRODUCTION_STUDIO' || target === 'TICKET_DESIGNER') {
       if (!user) { loginWithGoogle(); return; }
       setView(target as any);
@@ -1862,7 +2063,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         };
 
         if (p && !p.hasCompletedOnboarding && firstTime('onboard')) {
-          setShowExperiencePicker(true);
+          // Onboarding is now the Welcome Package view (opened just below). The old
+          // 7-persona Experience Picker + 8-slide tour are retired — Boarding Plajah's
+          // gates are the direction pick and its itinerary is the tour. Just mark it done.
+          updateUserProfile(u.uid, { hasCompletedOnboarding: true } as any).catch(() => {});
         }
 
         if (p && !p.welcomeAchievementShown && firstTime('welcome_achievement')) {
@@ -1870,9 +2074,30 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           updateUserProfile(u.uid, { welcomeAchievementShown: true, totalPoints: (p.totalPoints || 0) + 100 } as any).catch(() => {});
         }
 
-        if (p && !p.hasSeenWelcomePackage && firstTime('welcome_package')) {
-          // Show on next login — slight delay so the UI is settled
-          setTimeout(() => setShowWelcomePackage(true), 1200);
+        if (p && !p.hasCompletedOnboarding && firstTime('welcome_package')) {
+          // Brand-new account → open the Boarding Plajah welcome package live (letter →
+          // Continue → onboarding), drop the "Love, Plajah" letter into the system inbox once,
+          // and mark it notified so the existing-user campaign below never also nudges them.
+          setTimeout(() => setView('WELCOME_PACKAGE'), 1200);
+          setWelcomeFirstRun(true); // the letter's "Continue" then leads into the 2-page onboarding
+          updateUserProfile(u.uid, { hasSeenWelcomePackage: true, welcomePackageNotified: true, isPioneer: true } as any).catch(() => {});
+          import('./services/backendService').then(({ sendSystemWelcomeDM }) => {
+            sendSystemWelcomeDM(u.uid, u.displayName || 'Creator').catch(() => {});
+          });
+        } else if (p && p.hasCompletedOnboarding && !p.welcomePackageNotified && Date.now() < WELCOME_PACKAGE_CAMPAIGN_END && firstTime('welcome_pkg_notify')) {
+          // Existing user, launch window: send ONE "Welcome Package is ready" SYSTEM
+          // notification pointing at the view. Clicking it (opens the view) or dismissing it
+          // ends it — we never re-send (welcomePackageNotified guard). No auto-open for them.
+          import('./services/backendService').then(({ createNotification }) => {
+            createNotification({
+              userId: u.uid, senderId: 'plajah_system', senderName: 'Plajah',
+              senderPhoto: '/icons/icon-192.png', type: 'SYSTEM',
+              title: 'Your Welcome Package is ready',
+              message: 'A letter from us — and the fastest tour of everything Plajah can do. Tap to open it.',
+              link: 'WELCOME_PACKAGE',
+            } as any).catch(() => {});
+          });
+          updateUserProfile(u.uid, { welcomePackageNotified: true } as any).catch(() => {});
         }
 
         // Smart Guide — auto-enable for new users
@@ -2119,10 +2344,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           // number, kept as a fallback way to find the row.
           const raw = String(projectId || '');
           const number = params.get('n') || undefined;
+          const sourceId = params.get('source') || (raw.startsWith('source:') ? raw.slice(7) : undefined);
           setLiveChannelFocus(
-            raw.startsWith('owner:') ? { ownerId: raw.slice('owner:'.length), number }
-            : raw.startsWith('plajah:') ? { plajahId: raw.slice('plajah:'.length), number }
-            : { plajahId: raw || undefined, number },
+            raw.startsWith('owner:') ? { ownerId: raw.slice('owner:'.length), number, sourceId }
+            : raw.startsWith('plajah:') ? { plajahId: raw.slice('plajah:'.length), number, sourceId }
+            : { plajahId: sourceId ? undefined : raw || undefined, number, sourceId },
           );
           setView('LIVE_HUB');
           document.title = 'Plajah Live';
@@ -2221,6 +2447,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       if (pathParts[1] === 'event' && pathParts[2]) {
         setSelectedEventId(pathParts[2]);
         setView('EVENT_DETAIL');
+        setIsLoading(false);
+        return;
+      }
+
+      // Artist deep-links: /artist/:artistId
+      if (pathParts[1] === 'artist' && pathParts[2]) {
+        setChoraArtistId(pathParts[2]);
+        setView('CHORA_ARTIST');
         setIsLoading(false);
         return;
       }
@@ -2512,6 +2746,32 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     }
   };
 
+  // Smart artist router — handles audius:, personal:, and Plajah UIDs
+  const handleVisitArtist = async (uid: string) => {
+    if (!uid) return;
+    // Audius artists → AudiusArtistPage
+    if (uid.startsWith('audius:')) {
+      const id = uid.replace(/^audius:/, '');
+      if (id) {
+        const art = await fetchAudiusArtistById(id).catch(() => null);
+        if (art) { setAudiusArtist(art); setSelectedAlbum(null); setView('AUDIUS_ARTIST' as AppView); return; }
+      }
+      return;
+    }
+    // Personal/locker artists → PersonalArtistPage with enriched data
+    if (uid.startsWith('personal:')) {
+      const name = uid.replace(/^personal:/, '').trim();
+      if (name) {
+        setPersonalArtistName(name);
+        setView('PERSONAL_ARTIST');
+      }
+      return;
+    }
+    // Plajah users → ChoraArtistPage
+    setChoraArtistId(uid);
+    setView('CHORA_ARTIST');
+  };
+
   const handleWelcomePackageDismiss = async () => {
     setShowWelcomePackage(false);
     if (!user) return;
@@ -2581,7 +2841,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         }
         break;
       case 'FEED': setView('FEED'); break;
+      case 'MEDIA_REPAIR': setMediaRepairOpen(true); break;
       case 'LIVE_HUB': setView('LIVE_HUB'); break;
+      case 'WELCOME_PACKAGE': setView('WELCOME_PACKAGE'); break;
       case 'LIVETALK': setView('LIVE_HUB'); break;
 
       case 'READ':
@@ -2796,7 +3058,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             <Logo size={48} />
           </div>
         </div>
-        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-small-orange">Synchronizing Global Archive</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-small-orange">Synchronizing Front Row</p>
       </div>
     );
   }
@@ -2824,6 +3086,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             <UploadProvider>
               <PublishQueueProvider>
               <NotificationProvider>
+                <NetworkMonitorProvider onDegradation={handleNetworkDegradation}>
                 <ActiveIdentityProvider>
                 <CallProvider>
                 <SpatialProvider initialValue={userProfile?.uiSettings?.isSpatialModeEnabled}>
@@ -2869,6 +3132,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             <Suspense fallback={null}><DjOutputWindow /></Suspense>
           ) : typeof window !== 'undefined' && window.location.pathname.startsWith('/link') ? (
             <Suspense fallback={null}><TvLinkApproval /></Suspense>
+          ) : (view === 'LIVE_FX_LAB' || (typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('view') === 'live-fx-lab' || new URLSearchParams(window.location.search).get('lab') === 'livefx'))) ? (
+            <Suspense fallback={<div className="min-h-screen bg-[#05060a] flex items-center justify-center text-white/40 text-xs font-mono uppercase tracking-widest">Loading Live FX Studio…</div>}>
+              <LiveAudioFxAuditionLab onBack={() => {
+                if (typeof window !== 'undefined') {
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete('view');
+                  url.searchParams.delete('lab');
+                  window.history.replaceState({}, '', url.toString());
+                }
+                setView('MUSIC');
+              }} />
+            </Suspense>
           ) :/* A television never sees the marketing landing page. It gets the sign-in screen a TV
               actually needs — logo, saved profiles, QR — because the alternative is asking
               someone to type a password with a D-pad. */
@@ -3347,6 +3622,34 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             </div>
           )}
 
+          {/* Network degradation toast — severity-colored */}
+          {netAlert && (
+            <div
+              className={`fixed left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2 px-4 py-2.5 rounded-full backdrop-blur-xl border shadow-2xl animate-in fade-in slide-in-from-top-2 ${
+                netAlert.severity === 'critical' ? 'bg-red-600/90 border-red-400/40'
+                : netAlert.severity === 'warning' ? 'bg-amber-500/90 border-amber-300/40'
+                : 'bg-sky-600/90 border-sky-400/40'
+              }`}
+              role="alert"
+              style={{ top: 'calc(3.5rem + env(safe-area-inset-top) + 0.5rem)' }}
+            >
+              <AlertTriangle size={13} className="text-white shrink-0" />
+              <span className="text-[11px] font-black uppercase tracking-widest text-white">{netAlert.msg}</span>
+            </div>
+          )}
+
+          {/* Early Access badge — pinned to the upper-left corner across EVERY shell (classic sidebar,
+              Command Split rail, top bar). Lives here as a fixed sibling so it can't go missing when the
+              nav chrome changes. pointer-events-none so it never blocks the logo/nav beneath it. */}
+          {!isPublicView && !getPlatformInfo().isTV && (
+            <div className="fixed z-[400] pointer-events-none select-none"
+                 style={{ top: 'calc(env(safe-area-inset-top) + 6px)', left: 'calc(env(safe-area-inset-left) + 6px)' }}>
+              <span className="inline-block bg-small-orange text-white text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shadow-lg">
+                Early Access · Beta
+              </span>
+            </div>
+          )}
+
           {(!isPublicView && !getPlatformInfo().isTV && !isMobile && theme !== 'PHONE' && !navLayout.isBar) && (
             shellNext.enabled ? (
               <CommandSplitNav
@@ -3390,7 +3693,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 </button>
                 <div className={`${isSidebarCollapsed ? 'hidden' : (theme === 'BIG_SCREEN' ? 'hidden group-hover/sidebar:block' : 'block')} transition-all duration-300`}>
                   <span className="font-display font-black text-2xl tracking-tighter block leading-none text-white">Plajah</span>
-                  <span className="bg-small-orange text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full ml-2">Early Access: Pardon Our Dust</span>
                   <span className="text-small-orange font-black uppercase tracking-[0.3em] text-[8px]">Playgrounds</span>
                 </div>
               </div>
@@ -3511,7 +3813,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     .map(config => {
                       const items = {
                         USER_PROFILE: { label: 'My Profile', icon: User },
-                        DASHBOARD: { label: 'Global Archive', icon: Settings },
+                        DASHBOARD: { label: 'Front Row', icon: Settings },
                         MUSIC: { label: 'Chora', icon: Music2 },
                         WORLDS: { label: 'Worlds', icon: Globe },
                         VIDEOS: { label: 'Reello', icon: VideoIcon },
@@ -3676,7 +3978,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <nav className="flex-1 flex flex-col overflow-y-auto pr-1 custom-scrollbar overflow-x-hidden w-full">
                   {(() => {
                     const allNavItems: { [k: string]: { label: string; icon: any } } = {
-                      USER_PROFILE: { label: 'My Profile', icon: User }, DASHBOARD: { label: 'Global Archive', icon: Settings },
+                      USER_PROFILE: { label: 'My Profile', icon: User }, DASHBOARD: { label: 'Front Row', icon: Settings },
                       MUSIC: { label: 'Chora', icon: Music2 }, WORLDS: { label: 'Worlds', icon: Globe },
                       VIDEOS: { label: 'Reello', icon: VideoIcon }, MOVIES_TV: { label: 'Taleo', icon: Film },
                       PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, HEALTH_FITNESS: { label: 'Health & Fitness', icon: Activity },
@@ -3771,7 +4073,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <nav className="flex-1 flex flex-col overflow-y-auto pr-1 custom-scrollbar overflow-x-hidden w-full">
                   {(() => {
                     const navItems: { [k: string]: { label: string; icon: any } } = {
-                      USER_PROFILE: { label: 'My Profile', icon: User }, DASHBOARD: { label: 'Global Archive', icon: Settings },
+                      USER_PROFILE: { label: 'My Profile', icon: User }, DASHBOARD: { label: 'Front Row', icon: Settings },
                       MUSIC: { label: 'Chora', icon: Music2 }, WORLDS: { label: 'Worlds', icon: Globe },
                       VIDEOS: { label: 'Reello', icon: VideoIcon }, MOVIES_TV: { label: 'Taleo', icon: Film },
                       PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, HEALTH_FITNESS: { label: 'Health & Fitness', icon: Activity },
@@ -4523,6 +4825,36 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <PlajahSportsView onVisitUser={handleVisitUser} currentUser={userProfile} onOpenAthletes={() => setView('ATHLETE_SHOWCASE')} onOpenFanRooms={() => { setFanRoomMatchId(undefined); setFanRoomMatch(null); setView('MATCH_FAN_ROOMS'); }} />
             )}
 
+            {view === 'PROJECT_FIRSTLIGHT' && (
+              <Suspense fallback={
+                <div className="min-h-screen bg-[#0A0A0F] flex flex-col items-center justify-center gap-4 text-white">
+                  <div className="w-10 h-10 border-2 border-[#FF8C00]/20 border-t-[#FF8C00] rounded-full animate-spin" />
+                  <p className="text-xs uppercase tracking-widest text-white/50">Loading Project Firstlight...</p>
+                </div>
+              }>
+                {(!import.meta.env.DEV && userProfile?.role !== 'admin' && userProfile?.role !== 'staff' && user?.email !== 'kmoody2003@gmail.com') ? (
+                  <div className="min-h-screen bg-[#0A0A0F] text-white flex flex-col items-center justify-center p-6 text-center">
+                    <h2 className="text-2xl font-black uppercase mb-2">Admin Access Required</h2>
+                    <p className="text-sm text-white/60 max-w-md mb-6">
+                      Project Firstlight is currently in development and accessible only to administrators.
+                    </p>
+                    <button
+                      onClick={() => setView('APPS')}
+                      className="px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-wider transition-colors"
+                    >
+                      Back to Apps
+                    </button>
+                  </div>
+                ) : (
+                  <ProjectFirstlightLandingView
+                    onBack={() => setView('APPS')}
+                    currentUser={userProfile}
+                    onNavigate={(v) => setView(v as any)}
+                  />
+                )}
+              </Suspense>
+            )}
+
             {view === 'ATHLETE_SHOWCASE' && (
               <AthleteShowcaseView onBack={() => setView('PLAJAH_SPORTS')} />
             )}
@@ -4721,6 +5053,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <PlatformChangelog
                   onBack={() => setView('HELP_CENTER')}
                   showTechnical={userProfile?.role === 'admin' || user?.email === 'kmoody2003@gmail.com'}
+                />
+              </Suspense>
+            )}
+
+            {view === 'WELCOME_PACKAGE' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <WelcomePackage
+                  displayName={user?.displayName || userProfile?.displayName || undefined}
+                  onBack={() => handleBackToDashboard()}
+                  onNavigate={(v) => handleGlobalNavigate(v)}
+                  onContinue={welcomeFirstRun ? () => { setWelcomeFirstRun(false); setShowFirstRunOnboarding(true); } : undefined}
                 />
               </Suspense>
             )}
@@ -5059,7 +5402,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     {archiveTab === 'MY_ARCHIVE' ? (
                       <div className="col-span-full">
                         {userProfile ? (
-                          <MyLibraryView profile={userProfile} onUpdate={setUserProfile} />
+                          <MyLibraryView profile={userProfile} onUpdate={setUserProfile} onSelectAlbum={handleSelectItem} />
                         ) : (
                           <div className="py-40 text-center flex flex-col items-center gap-6 opacity-40">
                             <Layers size={48} className="mb-4" />
@@ -5242,11 +5585,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <Suspense fallback={null}><TvSlideshowSurface /></Suspense>
             )}
 
-            {/* FX Stage on TV — the audio-reactive visualizer, opened from the Chora album screen.
-                A fullscreen takeover like the slideshow; renders only when isTvFxActive. */}
-            {getPlatformInfo().isTV && (
-              <Suspense fallback={null}><TvFxSurface /></Suspense>
-            )}
+            {/* Fullscreen FX Stage — the audio-reactive visualizer surface opened from the Chora album screen.
+                A fullscreen takeover with synced lyrics + transport; mounts and renders whenever isTvFxActive. */}
+            <Suspense fallback={null}><TvFxSurface /></Suspense>
 
             {/* The persistent TV transport — always at the bottom once something is playing, so the
                 viewer never loses pause/play wherever they browse. Suppressed on the Chora album
@@ -5372,7 +5713,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <MusicView
                 onBack={() => setView('DASHBOARD')}
                 onSelectAlbum={handleSelectItem}
-                onVisitUser={handleVisitUser}
+                onVisitUser={(uid) => handleVisitArtist(uid)}
                 userProfile={userProfile}
                 initialTab={musicInitialTab}
                 onUploadMusic={() => setShowCreator(true)}
@@ -5428,7 +5769,43 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
 
-            {/* ── Script Writing Studio — film, TV, stage ── */}
+            {/* ── Chora Artist Page — music-centric artist profile ── */}
+            {view === 'CHORA_ARTIST' && choraArtistId && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading artist…</div>}>
+                <ChoraArtistPage
+                  artistId={choraArtistId}
+                  onBack={() => setView('MUSIC')}
+                  onSelectAlbum={(album) => {
+                    setSelectedVideo(null); setSelectedBook(null);
+                    setSelectedAlbum(album);
+                    setView('PLAYER');
+                  }}
+                  onVisitProfile={handleVisitUser}
+                  onPlayTrack={(track, album) => {
+                    setSelectedAlbum(album);
+                    setView('PLAYER');
+                  }}
+                />
+              </Suspense>
+            )}
+
+            {/* ── Personal Artist Page — enriched external artist profile ── */}
+            {view === 'PERSONAL_ARTIST' && personalArtistName && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading artist…</div>}>
+                <PersonalArtistPage
+                  artistName={personalArtistName}
+                  lockerTracks={albums.flatMap(a => (a.tracks || []).filter(t => t.artist?.toLowerCase() === personalArtistName?.toLowerCase()))}
+                  onBack={() => setView('MUSIC')}
+                  onPlayTrack={(track) => {
+                    const parentAlbum = albums.find(a => (a.tracks || []).some(t => t.id === track.id));
+                    if (parentAlbum) {
+                      setSelectedAlbum(parentAlbum);
+                      setView('PLAYER');
+                    }
+                  }}
+                />
+              </Suspense>
+            )}
             {view === 'SCRIPT_STUDIO' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading Script Studio…</div>}>
                 <ScriptWritingStudio
@@ -5579,13 +5956,19 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'MOVIES_TV' && !getPlatformInfo().isTV && <MoviesTVView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} onNavigate={(v) => setView(v as any)} />}
             {view === 'GAMES' && <GamesView onBack={() => setView('DASHBOARD')} onSelectGame={handleSelectGame} />}
-            {view === 'APPS' && <AppsView onBack={() => setView('DASHBOARD')} currentUser={userProfile} />}
+            {view === 'APPS' && <AppsView onBack={() => setView('DASHBOARD')} currentUser={userProfile} onNavigate={(v) => setView(v as any)} />}
             {view === 'CROSSOVER' && !tvBlocked && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <CrossoverView onBack={() => setView('DASHBOARD')} userProfile={userProfile} onNavigate={(v) => setView(v as any)} enabled={crossoverSystemEnabled} />
               </Suspense>
             )}
             {view === 'PLAJAH_PIXELS' && !tvBlocked && <PlajahPixelsView payload={pixelsPayload} onClose={() => { setPixelsPayload(null); setView(pixelsPayload?.album || pixelsPayload?.track ? 'PLAYER' : 'APPS'); }} />}
+
+            {view === 'LD_MODE' && !tvBlocked && (
+              <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <LightingDesigner onClose={() => setView('DASHBOARD')} />
+              </Suspense>
+            )}
 
             {view === 'TELEPROMPTER' && !tvBlocked && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
@@ -5617,6 +6000,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'MELOS_BEATS' && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <MelosBeatsRoom onClose={() => setView('APPS')} payload={melosBeatsPayload} />
+              </Suspense>
+            )}
+            {view === 'LIVE_FX_LAB' && (
+              <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <LiveAudioFxAuditionLab onBack={() => setView('MUSIC')} />
               </Suspense>
             )}
             {view === 'SMART_DIRECTOR' && (
@@ -5798,7 +6186,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   setAlbums(prev => prev.map(a => a.id === updatedAlbum.id ? updatedAlbum : a));
                 }}
                 onPurchase={handlePurchase}
-                onVisitUser={handleVisitUser}
+                onVisitUser={(uid) => handleVisitArtist(uid)}
                 onOpenItem={handleSelectItem}
                 onNavigateToWorld={(worldId, characterId) => { setViewedUserId(selectedAlbum.ownerId || user?.uid || ''); setWorldFocus({ worldId, characterId }); setView('WORLDS'); }}
                 isPublic={isPublicView}
@@ -5982,6 +6370,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 />
               </Suspense>
             )}
+            {/* ── Live Real-Time Audio FX Audition Lab ── */}
+            {view === 'LIVE_FX_LAB' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading Live FX Studio…</div>}>
+                <LiveAudioFxAuditionLab onBack={() => setView('MUSIC')} />
+              </Suspense>
+            )}
           </SpatialUIRoot>
           {showCreator && (
             <AlbumCreator
@@ -6030,6 +6424,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               displayName={user?.displayName || userProfile?.displayName}
               onDismiss={handleWelcomePackageDismiss}
             />
+          )}
+
+          {/* First-login onboarding — runs AFTER the Welcome Package letter (its "Continue"
+              opens this). Two pages: "what brings you here?" + the Homes & Studios map,
+              then lands the user on their chosen home. */}
+          {showFirstRunOnboarding && (
+            <Suspense fallback={null}>
+              <Onboarding onDone={(home) => { setShowFirstRunOnboarding(false); handleGlobalNavigate(home); }} />
+            </Suspense>
           )}
 
           <KidsSessionGuard profile={effectiveProfile} />
@@ -6356,6 +6759,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           sofa. Gated here rather than inside the component, which would mean returning before its
           hooks. */}
       {user && !getPlatformInfo().isTV && <PersistentChatDrawer currentView={view} onNotificationNavigate={handleNotificationNavigate} externalTrigger={notifDrawerTrigger} />}
+      {user && <MediaRepairApprovals open={mediaRepairOpen} onClose={() => setMediaRepairOpen(false)} />}
 
       {/* Nudge users stuck in an in-app WebView (Google app, etc.) into Chrome. Self-gates:
           renders nothing unless it detects a genuine embedded browser on Android. */}
@@ -6428,6 +6832,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             </SpatialProvider>
                 </CallProvider>
                 </ActiveIdentityProvider>
+                </NetworkMonitorProvider>
           </NotificationProvider>
               </PublishQueueProvider>
         </UploadProvider>

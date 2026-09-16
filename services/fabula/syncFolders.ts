@@ -58,6 +58,44 @@ export async function getHandle(id: string, interactive = false): Promise<any | 
   } catch { return h; }
 }
 
+/** Read a watch folder's stored-handle permission WITHOUT prompting. 'missing' = the handle is gone
+ *  (folder must be re-added); 'prompt' = present but needs a user gesture to re-grant (the state that
+ *  makes playback fall through to the cloud after a reload). */
+export async function folderPermission(id: string): Promise<'granted' | 'prompt' | 'denied' | 'missing'> {
+  const h: any = await idbGet(handleKey(id));
+  if (!h) return 'missing';
+  try { return (await h.queryPermission?.({ mode: 'read' })) || 'granted'; } catch { return 'granted'; }
+}
+
+/** Watch folders whose on-disk handle needs a user gesture to re-grant read permission — the ones
+ *  currently forcing assets to stream from the cloud. Excludes 'missing' (needs re-add, not re-grant). */
+export async function foldersNeedingAuth(projectId: string): Promise<SyncFolder[]> {
+  const folders = await listSyncFolders(projectId);
+  const out: SyncFolder[] = [];
+  for (const f of folders) { if ((await folderPermission(f.id)) === 'prompt') out.push(f); }
+  return out;
+}
+
+/** Re-grant read permission for every watch folder in one shot. MUST be called from a user gesture
+ *  (a click): that is the browser's rule for requestPermission. Once this returns handles 'granted',
+ *  every playback read resolves straight from the ORIGINAL file on disk — native-NLE speed, no cloud,
+ *  no cached copy — which is exactly how Resolve/Premiere read local storage. */
+export async function reconnectFolders(projectId: string): Promise<{ granted: number; failed: number; missing: number }> {
+  const folders = await listSyncFolders(projectId);
+  let granted = 0, failed = 0, missing = 0;
+  for (const f of folders) {
+    const h: any = await idbGet(handleKey(f.id));
+    if (!h) { missing++; continue; }
+    try {
+      const q = await h.queryPermission?.({ mode: 'read' });
+      if (q === 'granted') { granted++; continue; }
+      const r = await h.requestPermission?.({ mode: 'read' });
+      if (r === 'granted') granted++; else failed++;
+    } catch { failed++; }
+  }
+  return { granted, failed, missing };
+}
+
 const MEDIA_RE = /\.(mp4|mov|m4v|webm|mkv|avi|mpg|mpeg|mp3|wav|m4a|aac|flac|ogg|jpg|jpeg|png|gif|webp|avif|heic|tif|tiff|svg|ai|pdf|aep|json|lottie)$/i;
 
 /** Recursively scan a directory handle → media files with their relative folder path (for bin mirroring). */

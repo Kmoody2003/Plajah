@@ -22,6 +22,9 @@ import { useChoraNext } from '../hooks/useChoraNext';
 import PlaylistPickerModal from './PlaylistPickerModal';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import MyLibraryView from './MyLibraryView';
+import VaultInterviewView from './VaultInterviewView';
+import VaultAudiobookView from './VaultAudiobookView';
+import VaultSpeechView from './VaultSpeechView';
 import FeaturedCarousel from './FeaturedCarousel';
 import ThreeDImage from './ThreeDImage';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
@@ -31,6 +34,7 @@ import {
   fetchArchiveMusic, fetchWikimediaAudio, fetchJamendoMusic, fetchArchiveAudiobooks, fetchArchivePodcasts,
   ArchiveTrack, AudioKind, VaultSort, VaultShelf,
   VAULT_TAXONOMY, VAULT_SHELVES, vaultKind, fetchVaultTracks, sortVaultTracks,
+  CURATED_VAULT_AUDIOBOOKS, enrichAudiobookTrack, enrichSpeechTrack, CURATED_VAULT_SPEECHES,
 } from '../services/archiveContentService';
 import {
   fetchAudiusTrending, searchAudius,
@@ -58,6 +62,8 @@ const shareTrack = (albumId: string, track: { id: string; title?: string; artist
 const SOURCE_LABEL: Record<string, string> = {
   INTERNET_ARCHIVE: 'Internet Archive',
   LIBRARY_OF_CONGRESS: 'Library of Congress',
+  EUROPEANA: 'Europeana',
+  BRITISH_LIBRARY: 'British Library',
   WIKIMEDIA: 'Wikimedia',
   JAMENDO: 'Jamendo',
   AUDIUS: 'Audius',
@@ -66,6 +72,8 @@ const SOURCE_LABEL: Record<string, string> = {
 const SOURCE_SHORT: Record<string, string> = {
   INTERNET_ARCHIVE: 'ARCHIVE',
   LIBRARY_OF_CONGRESS: 'LOC',
+  EUROPEANA: 'EUROPEANA',
+  BRITISH_LIBRARY: 'BL',
   WIKIMEDIA: 'WIKI',
   JAMENDO: 'JAMENDO',
   AUDIUS: 'AUDIUS',
@@ -261,7 +269,7 @@ import DailyMixCard from './DailyMixCard';
 const CHORA_TABS = (): readonly TabType[] =>
   getPlatformInfo().isTV
     ? (['NEW', 'FOR_YOU', 'RADIO', 'MY_LIBRARY', 'ARTISTS', 'ALBUMS', 'MIXES', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'PLAYLISTS'] as const)
-    : (['NEW', 'FOR_YOU', 'ARTISTS', 'ALBUMS', 'MIXES', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'MY_LIBRARY', 'PLAYLISTS'] as const);
+    : (['NEW', 'FOR_YOU', 'RADIO', 'ARTISTS', 'ALBUMS', 'MIXES', 'GENRES', 'VAULT', 'PODCASTS', 'AUDIO_BOOKS', 'MY_LIBRARY', 'PLAYLISTS'] as const);
 
 type TabType = 'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'MIXES' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS' | 'RADIO';
 
@@ -298,7 +306,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   });
   const [personalTracks, setPersonalTracks] = useState<Track[]>([]);
   const [pendingSyncReqs, setPendingSyncReqs] = useState(0);
-  const [vaultSource, setVaultSource] = useState<'ALL' | 'INTERNET_ARCHIVE' | 'LIBRARY_OF_CONGRESS' | 'WIKIMEDIA' | 'JAMENDO' | 'AUDIUS'>('ALL');
+  const [vaultSource, setVaultSource] = useState<'ALL' | 'EUROPEANA' | 'BRITISH_LIBRARY' | 'LIBRARY_OF_CONGRESS' | 'INTERNET_ARCHIVE' | 'AUDIUS' | 'WIKIMEDIA' | 'JAMENDO'>('ALL');
   // ── Vault: two orthogonal axes + an independent sort ────────────────────
   //   PRIMARY   what kind of audio this is        (null = the featured view)
   //   SECONDARY genre/subcategory, scoped to kind (null = all of that kind)
@@ -324,6 +332,9 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [selectedArchiveArtist, setSelectedArchiveArtist] = useState<string | null>(null);
   const [selectedAudiusArtist, setSelectedAudiusArtist] = useState<AudiusArtist | null>(null);
   const [selectedAudiusAlbum, setSelectedAudiusAlbum]   = useState<AudiusAlbum | null>(null);
+  const [selectedInterviewTrack, setSelectedInterviewTrack] = useState<ArchiveTrack | null>(null);
+  const [selectedAudiobookTrack, setSelectedAudiobookTrack] = useState<ArchiveTrack | null>(null);
+  const [selectedSpeechTrack, setSelectedSpeechTrack] = useState<ArchiveTrack | null>(null);
   const [showConservatory, setShowConservatory] = useState(false);
   const { playTrack, isPlaying, currentTrack, theme } = useGlobalPlayerState();
 
@@ -334,6 +345,14 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [signInAction, setSignInAction] = useState<string | null>(null);
+
+  // Audiobooks dual-source state (On Plajah + Vault Archive)
+  const [platformAudiobooks, setPlatformAudiobooks] = useState<Album[]>([]);
+  const [vaultAudiobooks, setVaultAudiobooks] = useState<ArchiveTrack[]>(CURATED_VAULT_AUDIOBOOKS);
+  const [audiobooksLoading, setAudiobooksLoading] = useState(false);
+  const [audiobookQuery, setAudiobookQuery] = useState('');
+  const [audiobookSource, setAudiobookSource] = useState<'ALL' | 'PLATFORM' | 'VAULT'>('ALL');
+  const [audiobookSubgenre, setAudiobookSubgenre] = useState<string | null>(null);
 
   const [pulseIdx, setPulseIdx] = useState(0);
   const [sponsoredIdx, setSponsoredIdx] = useState(0);
@@ -366,6 +385,52 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     return () => clearInterval(id);
   }, [bgAlbums.length]);
 
+  // Listen for global open audiobook requests (from Lorea BookReader or other views)
+  useEffect(() => {
+    const handler = (e: any) => {
+      const b = e.detail?.book;
+      if (!b) return;
+      const initialChapter = e.detail?.chapterIndex || 0;
+      const bookChapters = (b.bookChapters && b.bookChapters.length > 0)
+        ? b.bookChapters.map((c: any, i: number) => ({
+            id: c.id || `${b.id}-ch${i+1}`,
+            chapterNumber: i + 1,
+            title: c.title || `Chapter ${i + 1}`,
+            duration: 1200,
+            url: c.audioUrl || b.tracks?.[i]?.url || '',
+            content: c.content || '',
+          }))
+        : (b.tracks && b.tracks.length > 0)
+          ? b.tracks.map((t: any, i: number) => ({
+              id: t.id,
+              chapterNumber: i + 1,
+              title: t.title || `Chapter ${i + 1}`,
+              duration: t.duration || 1200,
+              url: t.url,
+              content: t.content || '',
+            }))
+          : [
+              { id: `${b.id}-ch1`, chapterNumber: 1, title: `${b.title} — Part 1`, duration: 1200, url: '' }
+            ];
+
+      const bookTrack: ArchiveTrack = {
+        id: b.id,
+        title: b.title,
+        artist: b.artist || 'Creator',
+        url: bookChapters[initialChapter]?.url || bookChapters[0]?.url || b.tracks?.[0]?.url || '',
+        thumbnailUrl: b.coverImage || b.thumbnailUrl,
+        genre: 'Audiobook',
+        kind: 'AUDIOBOOK',
+        source: 'LIBRARY_OF_CONGRESS',
+        description: b.description,
+        chapters: bookChapters,
+      };
+      setSelectedAudiobookTrack(enrichAudiobookTrack(bookTrack));
+    };
+    window.addEventListener('OPEN_AUDIOBOOK_TRACK', handler);
+    return () => window.removeEventListener('OPEN_AUDIOBOOK_TRACK', handler);
+  }, []);
+
   // Badge the "Sync Requests" button with the count of filmmakers awaiting a reply.
   useEffect(() => {
     const uid = userProfile?.uid;
@@ -386,6 +451,44 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     const id = setInterval(() => setSponsoredIdx(i => (i + 1) % upcomingAlbums.length), 7000);
     return () => clearInterval(id);
   }, [upcomingAlbums.length]);
+
+  // Audiobooks tab auto-population (Plajah books + Vault LibriVox audiobooks)
+  useEffect(() => {
+    if (activeTab !== 'AUDIO_BOOKS') return;
+    let cancelled = false;
+    setAudiobooksLoading(true);
+
+    const loadAudiobooks = async () => {
+      try {
+        const [publicAlbums, vaultItems] = await Promise.all([
+          fetchAllPublicAlbums().catch(() => [] as Album[]),
+          audiobookSubgenre
+            ? fetchVaultTracks('AUDIOBOOK', audiobookSubgenre, 50).catch(() => [] as ArchiveTrack[])
+            : fetchArchiveAudiobooks(50).catch(() => [] as ArchiveTrack[]),
+        ]);
+
+        if (cancelled) return;
+
+        // Platform audiobooks: books or albums with audio chapters or audiobook genre
+        const books = publicAlbums.filter(a => {
+          const isBook = a.type === 'BOOK' || a.subType === 'AUDIOBOOK' || a.genre?.toLowerCase() === 'audiobook';
+          const hasAudioChapters = Array.isArray(a.bookChapters) && a.bookChapters.some(c => !!c.audioUrl);
+          const hasTracks = Array.isArray(a.tracks) && a.tracks.length > 0;
+          return isBook || hasAudioChapters || (hasTracks && a.genre?.toLowerCase() === 'audiobook');
+        });
+
+        setPlatformAudiobooks(books);
+        setVaultAudiobooks(vaultItems);
+      } catch (err) {
+        console.error('[Audiobooks] failed to load audiobooks:', err);
+      } finally {
+        if (!cancelled) setAudiobooksLoading(false);
+      }
+    };
+
+    loadAudiobooks();
+    return () => { cancelled = true; };
+  }, [activeTab, audiobookSubgenre]);
 
   // Featured shelves — the editorial rail. Loaded once, independent of the
   // kind/subgenre selection so switching filters never costs a refetch.
@@ -640,16 +743,8 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     return getSortedArtists(); // CHORA
   };
 
-  // Clicking a synthetic personal artist card opens their locker album (or plays their first track).
+  // Clicking an artist card always navigates to their artist page.
   const handleArtistCardClick = (artist: UserProfile) => {
-    if (typeof artist.uid === 'string' && artist.uid.startsWith('personal:')) {
-      const name = artist.displayName;
-      const albs = ownedAlbums.filter(a => a.artist === name);
-      if (albs.length) { onSelectAlbum(albs[0]); return; }
-      const trk = personalTracks.find(t => (t.artist || 'Unknown Artist') === name);
-      if (trk) playTrack(trk, null, 'LIBRARY');
-      return;
-    }
     onVisitUser(artist.uid, 'CONTENT');
   };
 
@@ -714,6 +809,121 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       const nativeAlbum = audiusTrackToNativeAlbum(track);
       onSelectAlbum(nativeAlbum);
       playTrack(nativeAlbum.tracks![0], nativeAlbum, 'LIBRARY');
+      return;
+    }
+
+    // Speeches / Historic Addresses: open the dedicated Exhibition Pavilion
+    const isSpeech = track.kind === 'SPEECH' || track.subgenre?.toLowerCase().includes('speech') || track.subgenre?.toLowerCase().includes('address') || track.collection?.toLowerCase().includes('speech');
+    if (isSpeech) {
+      const enriched = enrichSpeechTrack(track);
+      setSelectedSpeechTrack(enriched);
+      syncPublicDomainAsset(enriched, enriched.url, 'AUDIO');
+      const vaultTrack: Track = {
+        id: enriched.id,
+        title: enriched.title,
+        artist: enriched.artist,
+        url: enriched.url,
+        albumCover: enriched.thumbnailUrl,
+        images: [enriched.thumbnailUrl],
+        genre: 'Speech',
+        kind: 'SPEECH',
+        isGlobalArchive: true,
+      };
+      const vaultAlbum: Album = {
+        id: `vault_speech_${enriched.id}`,
+        title: enriched.title,
+        artist: enriched.artist,
+        coverImage: enriched.thumbnailUrl,
+        tracks: [vaultTrack],
+        createdAt: Date.now(),
+        themeColor: '#d97706',
+        type: 'BOOK',
+        subType: 'AUDIOBOOK',
+        genre: 'Speech',
+        description: enriched.whyItExists || enriched.description,
+      };
+      playTrack(vaultTrack, vaultAlbum, 'LIBRARY');
+      return;
+    }
+
+    // Interviews / Oral History: open the dedicated Gatefold Museum Pavilion
+    const isInterview = track.kind === 'INTERVIEW' || track.subgenre?.toLowerCase().includes('oral') || track.subgenre?.toLowerCase().includes('slavery') || track.collection?.toLowerCase().includes('slavery');
+    if (isInterview) {
+      setSelectedInterviewTrack(track);
+      syncPublicDomainAsset(track, track.url, 'AUDIO');
+      const vaultTrack: Track = {
+        id: track.id,
+        title: track.title,
+        artist: track.artist,
+        url: track.url,
+        albumCover: track.thumbnailUrl,
+        images: [track.thumbnailUrl],
+        genre: 'Interview',
+        kind: 'INTERVIEW',
+        isGlobalArchive: true,
+      };
+      const vaultAlbum: Album = {
+        id: `vault_interview_${track.id}`,
+        title: track.title,
+        artist: track.artist,
+        coverImage: track.thumbnailUrl,
+        tracks: [vaultTrack],
+        createdAt: Date.now(),
+        themeColor: '#ff8c00',
+        type: 'BOOK',
+        subType: 'AUDIOBOOK',
+        genre: 'Interview',
+        description: track.whyItExists || track.description,
+      };
+      playTrack(vaultTrack, vaultAlbum, 'LIBRARY');
+      return;
+    }
+
+    // Audiobooks: open the dedicated Audiobook Exhibition Pavilion
+    const isBook = track.kind === 'AUDIOBOOK' || track.genre?.toLowerCase() === 'audiobook' || (track.collection && track.collection.toLowerCase().includes('librivox'));
+    if (isBook) {
+      const enriched = enrichAudiobookTrack(track);
+      setSelectedAudiobookTrack(enriched);
+      syncPublicDomainAsset(enriched, enriched.url, 'AUDIO');
+      const bookChapters = enriched.chapters || [];
+      const firstChapter = bookChapters[0] || { id: enriched.id, title: enriched.title, duration: 1200, url: enriched.url };
+
+      const vaultTrack: Track = {
+        id: firstChapter.id,
+        title: firstChapter.title,
+        artist: enriched.artist,
+        url: firstChapter.url || enriched.url,
+        albumCover: enriched.thumbnailUrl,
+        images: [enriched.thumbnailUrl],
+        genre: 'Audiobook',
+        kind: 'AUDIOBOOK',
+        isGlobalArchive: true,
+        duration: firstChapter.duration,
+      };
+      const vaultAlbum: Album = {
+        id: `vault_audiobook_${enriched.id}`,
+        title: enriched.title,
+        artist: enriched.artist,
+        coverImage: enriched.thumbnailUrl,
+        tracks: bookChapters.map((c, i) => ({
+          id: c.id,
+          title: c.title,
+          artist: enriched.artist,
+          url: c.url || enriched.url,
+          albumCover: enriched.thumbnailUrl,
+          genre: 'Audiobook',
+          kind: 'AUDIOBOOK',
+          duration: c.duration,
+          trackNumber: i + 1,
+        })),
+        createdAt: Date.now(),
+        themeColor: '#D40055',
+        type: 'BOOK',
+        subType: 'AUDIOBOOK',
+        genre: 'Audiobook',
+        description: enriched.whyItExists || enriched.description,
+      };
+      playTrack(vaultTrack, vaultAlbum, 'LIBRARY');
       return;
     }
 
@@ -835,7 +1045,11 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
             ? { background: 'rgba(126,34,206,0.85)', color: '#e9d5ff' }
             : isLoc
               ? { background: 'rgba(30,58,138,0.85)', color: '#bfdbfe' }
-              : { background: 'rgba(0,0,0,0.6)', color: 'rgba(255,255,255,0.8)' }}
+              : track.source === 'EUROPEANA'
+                ? { background: 'rgba(2,132,199,0.85)', color: '#e0f2fe' }
+                : track.source === 'BRITISH_LIBRARY'
+                  ? { background: 'rgba(190,24,93,0.85)', color: '#fce7f3' }
+                  : { background: 'rgba(0,0,0,0.6)', color: 'rgba(255,255,255,0.8)' }}
         >
           {SOURCE_SHORT[track.source] ?? track.source.split('_')[0]}
         </div>
@@ -959,7 +1173,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
           {/* Source chips — an independent filter over whatever is loaded */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-            {(['ALL', 'LIBRARY_OF_CONGRESS', 'INTERNET_ARCHIVE', 'AUDIUS', 'WIKIMEDIA', 'JAMENDO'] as const).map(source => (
+            {(['ALL', 'EUROPEANA', 'BRITISH_LIBRARY', 'LIBRARY_OF_CONGRESS', 'INTERNET_ARCHIVE', 'AUDIUS', 'WIKIMEDIA', 'JAMENDO'] as const).map(source => (
               <button
                 key={source}
                 onClick={() => setVaultSource(source)}
@@ -1119,7 +1333,9 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
               <div className="flex items-center justify-between gap-1">
                 <button
-                  onClick={() => setSelectedArchiveArtist(track.artist)}
+                  onClick={() => track.source === 'AUDIUS' && track.artistId
+                    ? onVisitUser(`audius:${track.artistId}`)
+                    : setSelectedArchiveArtist(track.artist)}
                   className="text-[9px] font-bold uppercase tracking-widest hover:text-small-orange transition-colors truncate"
                   style={{ color: track.source === 'AUDIUS' ? 'rgba(168,85,247,0.8)' : 'rgba(255,255,255,0.4)' }}
                 >
@@ -1394,6 +1610,45 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     );
   }
 
+  // ── Dedicated Audiobook Exhibition Pavilion (Full-Page View) ───────────────
+  if (selectedAudiobookTrack) {
+    return (
+      <div className="flex-1 bg-[#06040A] text-white overflow-y-auto custom-scrollbar min-h-screen">
+        <VaultAudiobookView
+          track={selectedAudiobookTrack}
+          onBack={() => setSelectedAudiobookTrack(null)}
+          onNavigate={onNavigate}
+        />
+      </div>
+    );
+  }
+
+  // ── Dedicated Oral History Interview Pavilion (Full-Page View) ──────────────
+  if (selectedInterviewTrack) {
+    return (
+      <div className="flex-1 bg-[#06040A] text-white overflow-y-auto custom-scrollbar min-h-screen">
+        <VaultInterviewView
+          track={selectedInterviewTrack}
+          onBack={() => setSelectedInterviewTrack(null)}
+          onNavigate={onNavigate}
+        />
+      </div>
+    );
+  }
+
+  // ── Dedicated Historic Speech Pavilion (Full-Page View) ─────────────────────
+  if (selectedSpeechTrack) {
+    return (
+      <div className="flex-1 bg-[#06040A] text-white overflow-y-auto custom-scrollbar min-h-screen">
+        <VaultSpeechView
+          track={selectedSpeechTrack}
+          onBack={() => setSelectedSpeechTrack(null)}
+          onNavigate={onNavigate}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={`flex-1 bg-transparent text-white overflow-y-auto custom-scrollbar pb-40 relative${choraNextOn ? (choraNext.isNight ? ' chora-next chora-night' : ' chora-next') : ''}`}>
       <div className="flex flex-col h-full relative z-[1]">
@@ -1527,7 +1782,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               <ChipRail
                 items={(CHORA_TABS()).map(tab => ({ id: tab, label: tab === 'VAULT' ? 'The Vault' : tab.replace('_', ' ') }))}
                 activeId={activeTab}
-                onSelect={(id) => { setActiveTab(id as TabType); setSelectedArchiveArtist(null); setSelectedAudiusArtist(null); setSelectedAudiusAlbum(null); setShowConservatory(false); }}
+                onSelect={(id) => { setActiveTab(id as TabType); setSelectedArchiveArtist(null); setSelectedAudiusArtist(null); setSelectedAudiusAlbum(null); setSelectedInterviewTrack(null); setSelectedAudiobookTrack(null); setSelectedSpeechTrack(null); setShowConservatory(false); }}
               />
             </div>
             {/* Row 2: action buttons — beside the rail on md+, below it on mobile */}
@@ -1806,7 +2061,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40">Discover Artists</h2>
                   </div>
-                  <FeaturedCarousel items={artists.slice(0, 5).map(artist => ({ id: artist.uid, title: artist.displayName, subtitle: "Featured Artist", imageUrl: artist.coverArt || artist.featuredArtistPhoto || artist.photoURL || `https://picsum.photos/seed/${artist.uid}/1280/720`, onClick: () => onVisitUser(artist.uid, 'CONTENT') }))} />
+                  <FeaturedCarousel items={artists.slice(0, 5).map(artist => ({ id: artist.uid, title: artist.displayName, subtitle: "Featured Artist", imageUrl: (artist as any).choraPhotoURL || artist.coverArt || artist.featuredArtistPhoto || artist.photoURL || `https://picsum.photos/seed/${artist.uid}/1280/720`, onClick: () => onVisitUser(artist.uid, 'CONTENT') }))} />
                 </section>
                 
                 {/* ── Your Audius (connected account: favorites, reposts, playlists, follows) ── */}
@@ -1842,7 +2097,8 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                             <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[6px] font-black" style={{ background: 'rgba(126,34,206,0.85)', color: '#e9d5ff' }}>AUDIUS</div>
                           </div>
                           <div className="flex items-center justify-between gap-1 mt-0.5">
-                            <p className="text-[8px] truncate" style={{ color: 'rgba(168,85,247,0.7)' }}>{track.artist}</p>
+                            <p className="text-[8px] truncate cursor-pointer hover:underline" style={{ color: 'rgba(168,85,247,0.7)' }}
+                              onClick={(e) => { e.stopPropagation(); if (track.artistId) onVisitUser(`audius:${track.artistId}`); }}>{track.artist}</p>
                             {personalPlaylists.length > 0 && (
                               <button onClick={e => { e.stopPropagation(); setExternalTrackPicker(track); }}
                                 className="tap shrink-0 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -1899,7 +2155,9 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                           <img src={thumb(track.thumbnailUrl, THUMB.small)} className="w-10 h-10 rounded-lg object-cover shrink-0" loading="lazy" />
                           <div className="flex-1 min-w-0">
                             <p className="text-[10px] font-black uppercase tracking-widest truncate group-hover:text-purple-400 transition-colors">{track.title}</p>
-                            <p className="text-[8px] truncate" style={{ color: 'rgba(168,85,247,0.6)' }}>{track.artist} {track.genre ? `· ${track.genre}` : ''}</p>
+                            <p className="text-[8px] truncate" style={{ color: 'rgba(168,85,247,0.6)' }}>
+                              <span className="cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); if (track.artistId) onVisitUser(`audius:${track.artistId}`); }}>{track.artist}</span> {track.genre ? `· ${track.genre}` : ''}
+                            </p>
                           </div>
                           <Play size={12} style={{ color: 'rgba(168,85,247,0.5)' }} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
@@ -2090,7 +2348,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   <div className="space-y-4">
                     {artists.slice(5, 10).map((artist) => (
                       <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="flex items-center gap-4 group cursor-pointer">
-                        <img src={thumb(artist.photoURL, THUMB.micro) || `https://picsum.photos/seed/${artist.uid}/200/200`} onError={onThumbError(artist.photoURL)} className="w-12 h-12 rounded-full object-cover group-hover:ring-2 ring-small-orange/50 transition-all" loading="lazy" decoding="async" />
+                        <img src={thumb((artist as any).choraPhotoURL || artist.photoURL, THUMB.micro) || `https://picsum.photos/seed/${artist.uid}/200/200`} onError={onThumbError(artist.photoURL)} className="w-12 h-12 rounded-full object-cover group-hover:ring-2 ring-small-orange/50 transition-all" loading="lazy" decoding="async" />
                         <div>
                           <h4 className="text-xs font-black uppercase tracking-widest group-hover:text-small-orange transition-colors">{artist.displayName}</h4>
                           <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">New Artist</span>
@@ -2108,7 +2366,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     {getSortedArtists().slice(0, 3).map((artist, idx) => (
                       <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="flex items-center gap-4 group cursor-pointer">
                         <span className="text-lg font-black text-white/20">{idx + 1}</span>
-                        <img src={thumb(artist.photoURL, THUMB.micro) || undefined} onError={onThumbError(artist.photoURL)} className="w-10 h-10 rounded-full object-cover" loading="lazy" decoding="async" />
+                        <img src={thumb((artist as any).choraPhotoURL || artist.photoURL, THUMB.micro) || undefined} onError={onThumbError(artist.photoURL)} className="w-10 h-10 rounded-full object-cover" loading="lazy" decoding="async" />
                         <div className="flex-1 truncate">
                           <h5 className="text-[10px] font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{artist.displayName}</h5>
                           <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">{artist.followerCount} Fans</span>
@@ -2222,7 +2480,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     {artists.filter(a => !userProfile.following?.includes(a.uid)).slice(0, 10).map(artist => (
                       <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="min-w-[140px] text-center group cursor-pointer flex-shrink-0">
                          <div className="aspect-square rounded-full overflow-hidden mb-4 border-2 border-white/5 p-1 relative">
-                            <img src={thumb(artist.photoURL, THUMB.card) || undefined} onError={onThumbError(artist.photoURL)} className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
+                            <img src={thumb((artist as any).choraPhotoURL || artist.photoURL, THUMB.card) || undefined} onError={onThumbError(artist.photoURL)} className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
                          </div>
                          <h4 className="text-[10px] font-black uppercase tracking-widest truncate">{artist.displayName}</h4>
                          <span className="text-[8px] font-bold text-small-orange uppercase tracking-widest bg-small-orange/10 px-2 py-1 rounded-full mt-2 inline-block">Recommended</span>
@@ -2465,7 +2723,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                         {[...artists].sort((a, b) => (b.followerCount || 0) - (a.followerCount || 0)).slice(0, 10).map((artist, idx) => (
                           <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="flex items-center gap-5 p-4 rounded-2xl hover:bg-white/[0.04] transition-colors group cursor-pointer">
                             <span className="text-2xl font-black text-white/10 w-8 text-center shrink-0">#{idx + 1}</span>
-                            <img src={thumb(artist.photoURL, THUMB.micro) || undefined} onError={onThumbError(artist.photoURL)} className="w-12 h-12 rounded-full object-cover border border-white/10 shrink-0" loading="lazy" decoding="async" />
+                            <img src={thumb((artist as any).choraPhotoURL || artist.photoURL, THUMB.micro) || undefined} onError={onThumbError(artist.photoURL)} className="w-12 h-12 rounded-full object-cover border border-white/10 shrink-0" loading="lazy" decoding="async" />
                             <div className="flex-1 min-w-0">
                               <h4 className="text-xs font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{artist.displayName}</h4>
                               <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">{(artist.followerCount || 0).toLocaleString()} Fans</p>
@@ -2488,7 +2746,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                         {visibleArtists().map(artist => (
                           <div key={artist.uid} onClick={() => handleArtistCardClick(artist)} className="group cursor-pointer text-center">
                             <div className="aspect-square rounded-[2rem] overflow-hidden mb-4 border border-white/5 relative">
-                              <img src={thumb(artist.photoURL, THUMB.card) || undefined} onError={onThumbError(artist.photoURL)} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" decoding="async" />
+                              <img src={thumb((artist as any).choraPhotoURL || artist.photoURL, THUMB.card) || undefined} onError={onThumbError(artist.photoURL)} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" decoding="async" />
                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                 <User size={32} className="text-white" />
                               </div>
@@ -2757,7 +3015,8 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                                       <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[6px] font-black" style={{ background: 'rgba(126,34,206,0.85)', color: '#e9d5ff' }}>AUDIUS</div>
                                     </div>
                                     <h5 className="text-[10px] font-black uppercase tracking-widest truncate">{track.title}</h5>
-                                    <p className="text-[8px] font-bold uppercase tracking-widest" style={{ color: 'rgba(168,85,247,0.6)' }}>{track.artist}</p>
+                                    <p className="text-[8px] font-bold uppercase tracking-widest cursor-pointer hover:underline" style={{ color: 'rgba(168,85,247,0.6)' }}
+                                      onClick={(e) => { e.stopPropagation(); if (track.artistId) onVisitUser(`audius:${track.artistId}`); }}>{track.artist}</p>
                                   </div>
                                 ))}
                               </div>
@@ -2774,32 +3033,310 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   </section>
                 )}
 
-                {activeTab === 'AUDIO_BOOKS' && (
-                  <section className="animate-in fade-in duration-500">
-                    <div className="flex items-center justify-between mb-12">
-                      {tabWordmark('Audiobooks')}
-                      <div className="p-2 px-4 bg-white/5 rounded-xl border border-white/10 text-[8px] font-black uppercase tracking-widest text-white/40">
-                        Historical Archive
-                      </div>
-                    </div>
-                    <AdaptiveGrid phone={2} tablet={3} desktop={5} gap="1.5rem">
-                      {vaultTracks.filter(t => t.genre === 'Audiobook').map(track => (
-                        <div key={track.id} className="group cursor-pointer" onClick={() => handlePlayVaultTrack(track)}>
-                          <div className="aspect-[2/3] rounded-2xl overflow-hidden mb-4 shadow-2xl border border-white/5 relative">
-                            <img src={thumb(track.thumbnailUrl, THUMB.small) || undefined} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" decoding="async" />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                              <PlayCircle size={48} className="text-small-orange" />
-                            </div>
-                          </div>
-                          <h4 className="text-xs font-black uppercase tracking-widest truncate">{track.title}</h4>
-                          <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">{track.artist}</p>
-                        </div>
-                      ))}
-                    </AdaptiveGrid>
-                  </section>
-                )}
+                {activeTab === 'AUDIO_BOOKS' && (() => {
+                  const q = audiobookQuery.trim().toLowerCase();
+                  const filteredPlatform = platformAudiobooks.filter(b =>
+                    !q || (b.title && b.title.toLowerCase().includes(q)) || (b.artist && b.artist.toLowerCase().includes(q))
+                  );
+                  const filteredVault = vaultAudiobooks.filter(t =>
+                    !q || (t.title && t.title.toLowerCase().includes(q)) || (t.artist && t.artist.toLowerCase().includes(q))
+                  );
 
-                {activeTab === 'MY_LIBRARY' && userProfile && <MyLibraryView profile={userProfile} />}
+                  const subgenres = [
+                    { id: null, label: 'All' },
+                    { id: 'fiction', label: 'Fiction' },
+                    { id: 'short-stories', label: 'Short Stories' },
+                    { id: 'philosophy', label: 'Philosophy' },
+                    { id: 'history', label: 'History' },
+                    { id: 'science', label: 'Science' },
+                    { id: 'poetry', label: 'Poetry' },
+                    { id: 'biography', label: 'Biography' },
+                    { id: 'drama', label: 'Drama' },
+                  ];
+
+                  return (
+                    <section className="animate-in fade-in duration-500 space-y-8">
+                      {/* Top Header & Search Bar */}
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-white/10">
+                        <div>
+                          {tabWordmark('Audiobooks')}
+                          <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em] mt-2">
+                            Narrated Classics & Creator Audio Stories · Public Domain Archive & On-Platform Releases
+                          </p>
+                        </div>
+
+                        {/* Search Input */}
+                        <div className="relative w-full md:w-80">
+                          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
+                          <input
+                            type="text"
+                            value={audiobookQuery}
+                            onChange={(e) => setAudiobookQuery(e.target.value)}
+                            placeholder="Search audiobooks or narrators..."
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl pl-10 pr-9 py-2.5 text-xs text-white placeholder-white/30 focus:outline-none focus:border-small-orange transition-colors"
+                          />
+                          {audiobookQuery && (
+                            <button
+                              onClick={() => setAudiobookQuery('')}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white"
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Filter Controls: Source & Subgenre */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        {/* Source Toggle Pills */}
+                        <div className="flex items-center gap-1.5 p-1 bg-white/5 rounded-2xl border border-white/10 w-fit">
+                          <button
+                            onClick={() => setAudiobookSource('ALL')}
+                            className={`px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                              audiobookSource === 'ALL'
+                                ? 'bg-small-orange text-black shadow-lg'
+                                : 'text-white/40 hover:text-white'
+                            }`}
+                          >
+                            All Sources ({filteredPlatform.length + filteredVault.length})
+                          </button>
+                          <button
+                            onClick={() => setAudiobookSource('PLATFORM')}
+                            className={`px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
+                              audiobookSource === 'PLATFORM'
+                                ? 'bg-cyan-400 text-black shadow-lg'
+                                : 'text-white/40 hover:text-white'
+                            }`}
+                          >
+                            <Sparkles size={11} /> On Plajah ({filteredPlatform.length})
+                          </button>
+                          <button
+                            onClick={() => setAudiobookSource('VAULT')}
+                            className={`px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
+                              audiobookSource === 'VAULT'
+                                ? 'bg-small-orange text-black shadow-lg'
+                                : 'text-white/40 hover:text-white'
+                            }`}
+                          >
+                            <Archive size={11} /> Vault Archive ({filteredVault.length})
+                          </button>
+                        </div>
+
+                        {/* Subgenre Pills */}
+                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                          {subgenres.map(s => {
+                            const isSel = audiobookSubgenre === s.id;
+                            return (
+                              <button
+                                key={s.label}
+                                onClick={() => setAudiobookSubgenre(s.id)}
+                                className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest shrink-0 transition-all border ${
+                                  isSel
+                                    ? 'bg-white/15 text-white border-white/30 shadow-md'
+                                    : 'bg-white/5 text-white/40 border-white/5 hover:text-white hover:bg-white/10'
+                                }`}
+                              >
+                                {s.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Loading State */}
+                      {audiobooksLoading && (
+                        <div className="py-12">
+                          <AdaptiveGrid phone={2} tablet={3} desktop={5} gap="1.5rem">
+                            {Array.from({ length: 10 }).map((_, i) => (
+                              <div key={i} className="animate-pulse space-y-3">
+                                <div className="aspect-[2/3] bg-white/5 rounded-2xl" />
+                                <div className="h-3 bg-white/10 rounded w-3/4" />
+                                <div className="h-2 bg-white/5 rounded w-1/2" />
+                              </div>
+                            ))}
+                          </AdaptiveGrid>
+                        </div>
+                      )}
+
+                      {!audiobooksLoading && (
+                        <div className="space-y-12">
+                          {/* SECTION 1: Creator Audiobooks on Plajah */}
+                          {(audiobookSource === 'ALL' || audiobookSource === 'PLATFORM') && filteredPlatform.length > 0 && (
+                            <div className="space-y-5">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                                  <h3 className="text-sm font-black uppercase tracking-widest text-white flex items-center gap-2">
+                                    <Sparkles size={14} className="text-cyan-400" /> Featured on Plajah
+                                  </h3>
+                                </div>
+                                <span className="text-[10px] font-mono text-cyan-400/70 uppercase tracking-widest">
+                                  {filteredPlatform.length} {filteredPlatform.length === 1 ? 'Audiobook' : 'Audiobooks'}
+                                </span>
+                              </div>
+
+                              <AdaptiveGrid phone={2} tablet={3} desktop={5} gap="1.5rem">
+                                {filteredPlatform.map(book => {
+                                  const chapterCount = book.bookChapters?.length || book.tracks?.length || 0;
+                                  return (
+                                    <div
+                                      key={book.id}
+                                      className="group cursor-pointer flex flex-col"
+                                      onClick={() => {
+                                        const bookChapters = (book.bookChapters && book.bookChapters.length > 0)
+                                          ? book.bookChapters.map((c, i) => ({
+                                              id: c.id || `${book.id}-ch${i+1}`,
+                                              chapterNumber: i + 1,
+                                              title: c.title || `Chapter ${i + 1}`,
+                                              duration: 1200,
+                                              url: c.audioUrl || book.tracks?.[i]?.url || '',
+                                            }))
+                                          : (book.tracks && book.tracks.length > 0)
+                                            ? book.tracks.map((t, i) => ({
+                                                id: t.id,
+                                                chapterNumber: i + 1,
+                                                title: t.title || `Chapter ${i + 1}`,
+                                                duration: t.duration || 1200,
+                                                url: t.url,
+                                              }))
+                                            : [
+                                                { id: `${book.id}-ch1`, chapterNumber: 1, title: `${book.title} — Part 1`, duration: 1200, url: '' }
+                                              ];
+
+                                        const bookTrack: ArchiveTrack = {
+                                          id: book.id,
+                                          title: book.title,
+                                          artist: book.artist || 'Creator',
+                                          url: bookChapters[0]?.url || book.tracks?.[0]?.url || '',
+                                          thumbnailUrl: book.coverImage,
+                                          genre: 'Audiobook',
+                                          kind: 'AUDIOBOOK',
+                                          source: 'LIBRARY_OF_CONGRESS',
+                                          description: book.description,
+                                          chapters: bookChapters,
+                                        };
+                                        setSelectedAudiobookTrack(enrichAudiobookTrack(bookTrack));
+                                      }}
+                                    >
+                                      <div className="aspect-[2/3] rounded-2xl overflow-hidden mb-3 shadow-2xl border border-white/10 relative bg-black/40 group-hover:border-cyan-400/50 transition-all">
+                                        <img
+                                          src={thumb(book.coverImage, THUMB.card) || undefined}
+                                          onError={onThumbError(book.coverImage)}
+                                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                          loading="lazy"
+                                          decoding="async"
+                                        />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 backdrop-blur-sm">
+                                          <PlayCircle size={44} className="text-cyan-400 drop-shadow-[0_0_12px_rgba(34,211,238,0.6)]" />
+                                          <span className="text-[8px] font-black uppercase tracking-widest text-white/80">Listen Now</span>
+                                        </div>
+                                        <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10 text-[7px] font-black uppercase tracking-widest text-cyan-300">
+                                          Creator
+                                        </div>
+                                      </div>
+                                      <h4 className="text-xs font-black uppercase tracking-widest truncate group-hover:text-cyan-300 transition-colors">
+                                        {book.title}
+                                      </h4>
+                                      <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest truncate mt-0.5">
+                                        {book.artist || 'Unknown Author'}
+                                      </p>
+                                      {chapterCount > 0 && (
+                                        <p className="text-[8px] font-mono text-cyan-400/80 uppercase tracking-widest mt-1">
+                                          {chapterCount} {chapterCount === 1 ? 'Chapter' : 'Chapters'}
+                                        </p>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </AdaptiveGrid>
+                            </div>
+                          )}
+
+                          {/* SECTION 2: Vault Archive Audiobooks */}
+                          {(audiobookSource === 'ALL' || audiobookSource === 'VAULT') && filteredVault.length > 0 && (
+                            <div className="space-y-5">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-2 h-2 rounded-full bg-small-orange" />
+                                  <h3 className="text-sm font-black uppercase tracking-widest text-white flex items-center gap-2">
+                                    <Archive size={14} className="text-small-orange" /> From the Vault Archive
+                                  </h3>
+                                </div>
+                                <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">
+                                  LibriVox Public Domain ({filteredVault.length})
+                                </span>
+                              </div>
+
+                              <AdaptiveGrid phone={2} tablet={3} desktop={5} gap="1.5rem">
+                                {filteredVault.map(track => (
+                                  <div
+                                    key={track.id}
+                                    className="group cursor-pointer flex flex-col"
+                                    onClick={() => setSelectedAudiobookTrack(enrichAudiobookTrack(track))}
+                                  >
+                                    <div className="aspect-[2/3] rounded-2xl overflow-hidden mb-3 shadow-2xl border border-white/10 relative bg-black/40 group-hover:border-small-orange/50 transition-all">
+                                      <img
+                                        src={thumb(track.thumbnailUrl, THUMB.small) || undefined}
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                        loading="lazy"
+                                        decoding="async"
+                                      />
+                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 backdrop-blur-sm">
+                                        <PlayCircle size={44} className="text-small-orange drop-shadow-[0_0_12px_rgba(255,140,0,0.6)]" />
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-white/80">Stream Audio</span>
+                                      </div>
+                                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10 text-[7px] font-black uppercase tracking-widest text-amber-300">
+                                        LibriVox
+                                      </div>
+                                    </div>
+                                    <h4 className="text-xs font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">
+                                      {track.title}
+                                    </h4>
+                                    <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest truncate mt-0.5">
+                                      {track.artist || 'Classic Narration'}
+                                    </p>
+                                    {track.year && (
+                                      <p className="text-[8px] font-mono text-white/30 uppercase tracking-widest mt-1">
+                                        Release: {track.year}
+                                      </p>
+                                    )}
+                                  </div>
+                                ))}
+                              </AdaptiveGrid>
+                            </div>
+                          )}
+
+                          {/* Empty Results State */}
+                          {filteredPlatform.length === 0 && filteredVault.length === 0 && (
+                            <div className="py-20 flex flex-col items-center justify-center text-center space-y-4 bg-white/[0.02] border border-dashed border-white/10 rounded-3xl p-8">
+                              <BookOpen size={40} className="text-white/20 mb-2" />
+                              <h4 className="text-sm font-black uppercase tracking-widest text-white/70">
+                                No audiobooks found {q ? `matching "${audiobookQuery}"` : 'in this category'}
+                              </h4>
+                              <p className="text-xs text-white/40 max-w-md leading-relaxed">
+                                Try clearing your search filters or switching to "All Sources" to explore the full library of narrated books.
+                              </p>
+                              {(q || audiobookSubgenre || audiobookSource !== 'ALL') && (
+                                <button
+                                  onClick={() => {
+                                    setAudiobookQuery('');
+                                    setAudiobookSubgenre(null);
+                                    setAudiobookSource('ALL');
+                                  }}
+                                  className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+                                >
+                                  Reset All Filters
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </section>
+                  );
+                })()}
+
+                {activeTab === 'MY_LIBRARY' && userProfile && <MyLibraryView profile={userProfile} onSelectAlbum={onSelectAlbum} />}
               </>
             )}
           </div>

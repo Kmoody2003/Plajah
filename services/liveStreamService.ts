@@ -110,6 +110,21 @@ export async function saveSessionRecording(input: SaveRecordingInput): Promise<{
   }
 }
 
+/**
+ * Heartbeat: bump `lastActiveAt` while the stream is live so the discovery mirror can be trusted as
+ * genuinely on air. When the broadcaster stops (or its tab/app dies) the heartbeats stop and the feed
+ * goes stale on its own — see services/liveFeedLiveness.isFeedLive. Best-effort; never throws.
+ * Call every liveFeedLiveness.HEARTBEAT_INTERVAL_MS while broadcasting.
+ */
+export async function heartbeatLiveDiscovery(feedId: string | null | undefined): Promise<void> {
+  if (!feedId) return;
+  try {
+    await updateDoc(doc(db, 'live_feeds', feedId), { lastActiveAt: serverTimestamp() });
+  } catch {
+    /* a missed heartbeat just means the feed goes stale sooner — never surface it */
+  }
+}
+
 /** Mark a discovery mirror ended so it drops out of "what's live now" lists. */
 export async function endLiveDiscovery(feedId: string | null | undefined): Promise<void> {
   if (!feedId) return;

@@ -1,0 +1,12 @@
+@import "tailwindcss" source(none);
+@source "./";
+body { 
+  font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #020617;
+}
+button, select { 
+  font: inherit; 
+}

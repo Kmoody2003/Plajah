@@ -1,0 +1,3 @@
+import fs from 'node:fs/promises';const root='public/firstlight/assets/mocap';await fs.mkdir(root,{recursive:true});
+await Promise.all(['02_03.fbx','33_01.fbx','34_01.fbx'].map(async name=>{const url='https://huggingface.co/datasets/gbionics/cmu-fbx/resolve/main/animations/'+name;const r=await fetch(url,{signal:AbortSignal.timeout(45000)});if(!r.ok)throw Error(r.status+' '+name);const b=new Uint8Array(await r.arrayBuffer());await fs.writeFile(root+'/'+name,b);console.log(name,b.length)}));
+const r=await fetch('https://huggingface.co/datasets/gbionics/cmu-fbx/resolve/main/README.md');await fs.writeFile(root+'/SOURCE-LICENSE.md',await r.text());

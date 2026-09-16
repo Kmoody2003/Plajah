@@ -1,0 +1,12 @@
+import {chromium} from 'playwright';
+const b=await chromium.launch({headless:true});const p=await b.newPage({viewport:{width:1280,height:800}});const errors=[];
+p.on('pageerror',e=>{errors.push(e.message);console.log('ERROR',e.message)});p.on('console',m=>{if(m.type()==='error')console.log('GL',m.text().slice(0,400))});
+await p.route('https://fonts.googleapis.com/**',r=>r.abort());
+await p.goto('http://127.0.0.1:3101/firstlight.html',{waitUntil:'domcontentloaded'});
+await p.locator('#menu-play-drive-btn').waitFor();await p.keyboard.press('Space');
+await p.locator('#enter-field-btn').waitFor();await p.keyboard.press('Space');
+await p.waitForTimeout(1500);await p.screenshot({path:'firstlight-human-crowd.png',timeout:60000});
+console.log('FIELD READY',await p.getByLabel('Player appearance').inputValue());
+await p.keyboard.press('Space');await p.keyboard.down('KeyD');await p.waitForTimeout(400);await p.keyboard.up('KeyD');await p.keyboard.press('Digit1');
+await p.waitForTimeout(1600);console.log('GAME', (await p.locator('body').innerText()).slice(-700));
+await b.close();if(errors.length)process.exitCode=1;

@@ -13,7 +13,7 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, Plus, Bell, Command, RotateCcw, X } from 'lucide-react';
-import { NAV_SECTIONS, NavDest, NavSection } from './CommandSplitNav';
+import { NAV_SECTIONS, NavDest, NavSection, PlajahIconGradientDefs, plajahIconStroke } from './CommandSplitNav';
 import UniversalCommandResults from './UniversalCommandResults';
 
 type ViewId = string;
@@ -79,6 +79,7 @@ const CommandSplitBar: React.FC<CommandSplitBarProps> = ({
 
   return (
     <>
+      <PlajahIconGradientDefs />
       <header className="sticky top-0 z-50 w-full flex flex-col border-b border-white/[0.07] backdrop-blur-xl"
         style={{ background: 'linear-gradient(180deg,rgba(20,13,32,.97),rgba(14,10,22,.98))' }}>
 
@@ -95,7 +96,7 @@ const CommandSplitBar: React.FC<CommandSplitBarProps> = ({
                 <button key={s.key} onClick={() => setOpenCat(i)} title={s.key}
                   className={`shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-[.78rem] font-semibold transition-colors ${i === openCat ? 'text-white' : 'text-white/60 hover:text-white bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.1]'}`}
                   style={i === openCat ? { background: 'linear-gradient(135deg,#6B0099,#00DAF3)', boxShadow: '0 0 16px rgba(0,218,243,.3)' } : undefined}>
-                  {React.createElement(s.icon, { size: 15 })}
+                  {React.createElement(s.icon, { size: 15, style: i === openCat ? undefined : plajahIconStroke })}
                   <span>{s.key}</span>
                 </button>
               ))}
@@ -110,11 +111,11 @@ const CommandSplitBar: React.FC<CommandSplitBarProps> = ({
             </button>
             <button onClick={onCreate} title="Create"
               className="grid place-items-center w-9 h-9 rounded-xl text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors">
-              <Plus size={18} />
+              <Plus size={18} style={plajahIconStroke} />
             </button>
             <button onClick={onOpenNotifications} title="Notifications"
               className="relative grid place-items-center w-9 h-9 rounded-xl text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors">
-              <Bell size={18} />
+              <Bell size={18} style={plajahIconStroke} />
               {notificationCount > 0 && (
                 <span className="absolute top-1 right-1 min-w-[15px] h-[15px] px-[3px] grid place-items-center rounded-full bg-[#D40055] text-white text-[9px] font-black">{notificationCount > 99 ? '99+' : notificationCount}</span>
               )}
@@ -142,14 +143,14 @@ const CommandSplitBar: React.FC<CommandSplitBarProps> = ({
           style={{ background: 'linear-gradient(180deg,rgba(255,255,255,.015),transparent)' }}>
           <div className="flex items-center gap-1 w-max px-2.5">
             <span className="shrink-0 text-[.58rem] font-black uppercase tracking-[0.18em] text-white/35 pr-2 inline-flex items-center gap-1.5">
-              {React.createElement(activeSection.icon, { size: 12 })}
+              {React.createElement(activeSection.icon, { size: 12, style: plajahIconStroke })}
               {activeSection.key}
             </span>
             {visibleSection(activeSection).map(d => { const A = d.icon; const active = view === d.id; return (
               <button key={d.id} onClick={() => go(d.id)} title={d.label}
                 className={`shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[.76rem] font-semibold transition-colors ${active ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/[0.07]'}`}
                 style={active ? { background: 'linear-gradient(135deg,#6B0099,#D40055)', boxShadow: '0 4px 16px rgba(212,0,85,.3)' } : undefined}>
-                <A size={14} className="shrink-0 opacity-90" />
+                <A size={14} className="shrink-0 opacity-90" style={active ? undefined : plajahIconStroke} />
                 <span>{d.label}</span>
               </button>
             ); })}
@@ -176,7 +177,7 @@ const CommandSplitBar: React.FC<CommandSplitBarProps> = ({
                   <div className="text-[.6rem] font-black uppercase tracking-[0.2em] text-white/40 mt-6 mb-2.5">Recent</div>
                   <div className="flex flex-wrap gap-2">
                     {['FEED', 'MUSIC', 'PLAJAH_SPORTS', 'FABULA'].map(id => { const d = destById(id); if (!d) return null; const A = d.icon; return (
-                      <button key={id} onClick={() => go(id)} className="inline-flex items-center gap-1.5 text-[.74rem] font-semibold text-white/85 px-3 py-1.5 rounded-full border border-white/[0.14] bg-white/[0.045] hover:bg-white/[0.09]"><A size={13} /> {d.label}</button>
+                      <button key={id} onClick={() => go(id)} className="inline-flex items-center gap-1.5 text-[.74rem] font-semibold text-white/85 px-3 py-1.5 rounded-full border border-white/[0.14] bg-white/[0.045] hover:bg-white/[0.09]"><A size={13} style={plajahIconStroke} /> {d.label}</button>
                     ); })}
                   </div>
                 </>
@@ -184,12 +185,12 @@ const CommandSplitBar: React.FC<CommandSplitBarProps> = ({
               {query && <UniversalCommandResults query={query} onNavigate={onNavigate} onClose={() => setLauncher(false)} onVisitUser={onVisitUser} onSelectItem={onSelectItem} onSelectArticle={onSelectArticle} onSelectGame={onSelectGame} onSelectLiveFeed={onSelectLiveFeed} />}
               {(query ? [{ key: results.length + ' result' + (results.length === 1 ? '' : 's'), icon: Search, items: results }] as NavSection[] : NAV_SECTIONS).map((s, si) => (
                 <div key={si}>
-                  <div className="text-[.6rem] font-black uppercase tracking-[0.2em] text-white/40 mt-5 mb-2.5 flex items-center gap-1.5">{React.createElement(s.icon, { size: 12 })} {query ? `Pages & tools · ${s.key}` : s.key}</div>
+                  <div className="text-[.6rem] font-black uppercase tracking-[0.2em] text-white/40 mt-5 mb-2.5 flex items-center gap-1.5">{React.createElement(s.icon, { size: 12, style: plajahIconStroke })} {query ? `Pages & tools · ${s.key}` : s.key}</div>
                   <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(92px,1fr))' }}>
                     {(query ? results : visibleSection(s)).map(d => { const A = d.icon; return (
                       <button key={d.id} onClick={() => go(d.id)}
                         className="flex flex-col items-center gap-1.5 text-center p-3.5 rounded-2xl border border-white/[0.08] bg-white/[0.045] hover:bg-white/[0.1] hover:-translate-y-0.5 transition-all">
-                        <span className="w-11 h-11 rounded-xl grid place-items-center bg-[#1B1329]"><A size={20} className="text-white/85" /></span>
+                        <span className="w-11 h-11 rounded-xl grid place-items-center bg-[#1B1329]"><A size={20} className="text-white/85" style={plajahIconStroke} /></span>
                         <span className="text-[.66rem] font-bold text-white/90 leading-tight">{d.label}</span>
                       </button>
                     ); })}

@@ -52,8 +52,16 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
   const [activeStationId, setActiveStationId] = useState<string | null>(artistId || null);
   // Live broadcast radio (real-world stations via the Radio Browser directory)
   // lives alongside Plajah's own artist stations rather than replacing them.
-  const [showLiveRadio, setShowLiveRadio] = useState(false);
+  // Default to the new Live Radio browser unless tuning into a specific artist station.
+  const [showLiveRadio, setShowLiveRadio] = useState(!artistId);
   const seekScheduledRef = useRef(false);
+
+  useEffect(() => {
+    if (artistId) {
+      setActiveStationId(artistId);
+      setShowLiveRadio(false);
+    }
+  }, [artistId]);
 
   useEffect(() => {
     const loadRadioContent = async () => {

@@ -4,11 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { SportsCenterView } from './SportsCenterView';
 import ErrorBoundary from './ErrorBoundary';
 // WorldCupHub is now lazy-loaded inside SportsCenterView (FIFA → Relive World Cup 2026).
-import WorldCupTopBoard from './WorldCupTopBoard';
-import WorldCupVictory from './WorldCupVictory';
-import WorldCupCarousel from './WorldCupCarousel';
 import WorldCupMatchDetail from './WorldCupMatchDetail';
-import WorldCupBuzz from './WorldCupBuzz';
 import { SportsIntelligenceSection } from './SportsIntelligenceSection';
 import ResearchDrawer from './ResearchDrawer';
 import LabsNotebook from './LabsNotebook';
@@ -23,12 +19,25 @@ import { collection, query, where, orderBy, limit, getDocs } from 'firebase/fire
 import { db } from '../services/firebase';
 import { fetchNewsFromRSS } from '../services/rssService';
 import { Article, UserProfile, Post } from '../types';
-import { fetchLeagueNews, fetchLeagueScores, fetchWorldCupWindow } from '../services/sportsService';
+import { fetchLeagueNews, fetchLeagueScores } from '../services/sportsService';
 import { SPORTS_INTELLIGENCE_DOMAINS, seedSportsSourceRegistry } from '../services/sportsKnowledgeService';
 import { getLeagueStaticTeams } from '../data/leagueTeams';
-import { WC26_TEAMS } from '../data/worldCup2026';
+import { NflSpotlight } from './sports/NflSpotlight';
+import { PersonalizedSportsLanding } from './sports/PersonalizedSportsLanding';
+import { FollowSportsTeamsDialog } from './sports/FollowSportsTeamsDialog';
+import { favoriteStorageKey, loadFollowedTeams, normalizeFollowedTeams, type FollowedTeam } from '../services/sportsPersonalization';
 import { StatCardBuilder } from './sports/StatCardBuilder';
 import { RaceHistoryView } from './sports/RaceHistoryView';
+import { NflGameDayView } from './sports/NflGameDayView';
+const ProjectFirstlight = React.lazy(() => import('./sports/ProjectFirstlight'));
+
+function FirstlightEntry() {
+  const [open, setOpen] = useState(false);
+  return <div>
+    <button className="pj-btn pj-btn--primary pj-btn--lg" onClick={() => setOpen(!open)} aria-expanded={open}>{open ? 'Close training field' : 'Play Project Firstlight · Plajah Sports'}</button>
+    {open && <div className="mt-4"><ErrorBoundary><React.Suspense fallback={<p role="status">Preparing the training field…</p>}><ProjectFirstlight /></React.Suspense></ErrorBoundary></div>}
+  </div>;
+}
 
 // ─── League config ─────────────────────────────────────────────────────────────
 const LEAGUES = [
@@ -36,8 +45,8 @@ const LEAGUES = [
   // as "Relive World Cup 2026" (see SportsCenterView), with History & Museum as permanent
   // FIFA fixtures. Every legacy WORLD_CUP entry point funnels through openHub() → FIFA + Relive.
   { id: 'ALL',     label: 'All Sports', icon: Globe,    color: '#FF8C00' },
-  { id: 'NBA',     label: 'NBA',        icon: Trophy,   color: '#C9082A' },
   { id: 'NFL',     label: 'NFL',        icon: Shield,   color: '#013369' },
+  { id: 'NBA',     label: 'NBA',        icon: Trophy,   color: '#C9082A' },
   { id: 'MLB',     label: 'MLB',        icon: Flag,     color: '#002D72' },
   { id: 'NHL',     label: 'NHL',        icon: Zap,      color: '#00539B' },
   { id: 'FIFA',    label: 'FIFA',       icon: Globe,    color: '#39B54A' },
@@ -95,7 +104,6 @@ const LEAGUE_LOGOS: Record<string, string> = {
 // the carousel shows a dark gradient instead. News loading replaces
 // these with real action photos pulled from the league's own feed.
 const HERO_FALLBACKS = [
-  { id: 'h-wc',     title: 'World Cup 2026',    subtitle: '48 nations · Every match · Only on Plajah', imageUrl: 'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=1400&q=80', leagueId: 'WORLD_CUP' },
   { id: 'h-nba',    title: 'NBA Basketball',     subtitle: 'Live scores · Highlights · Analysis',       imageUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=1400&q=80',  leagueId: 'NBA' },
   { id: 'h-nfl',    title: 'NFL Football',       subtitle: 'This week · Live scores · Standings',       imageUrl: '', leagueId: 'NFL' },
   { id: 'h-f1',     title: 'Formula 1',          subtitle: 'Race results · Standings · Race replay',    imageUrl: 'https://images.unsplash.com/photo-1504137957-34a07c86abfc?w=1400&q=80',  leagueId: 'F1' },
@@ -249,20 +257,6 @@ const SportsHero: React.FC<{
     return () => { if (timer.current) clearInterval(timer.current); };
   }, [items.length]);
 
-  // Live World Cup score bug overlaid on the cover banner (desktop + mobile).
-  const [wcEvents, setWcEvents] = useState<any[]>([]);
-  useEffect(() => {
-    let alive = true;
-    const load = () => fetchWorldCupWindow().then(ev => { if (alive) setWcEvents(ev || []); }).catch(() => {});
-    load();
-    const id = setInterval(load, 30_000);
-    return () => { alive = false; clearInterval(id); };
-  }, []);
-  const wcLive = wcEvents.filter(e => e?.status?.type?.state === 'in');
-  const wcRecent = wcEvents.filter(e => e?.status?.type?.state === 'post')
-    .sort((a, b) => +new Date(b.date) - +new Date(a.date)).slice(0, 6);
-  const wcRibbon = [...wcLive, ...wcRecent];
-
   const handleItemClick = (item: any) => {
     if (!onNavigate) return;
     if (item.url && item.url !== '#') onNavigate(undefined, item.url);
@@ -313,39 +307,6 @@ const SportsHero: React.FC<{
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-transparent to-transparent" />
         </motion.div>
       </AnimatePresence>
-
-      {/* ── Live World Cup score bug — right in the cover banner (all screens) ── */}
-      {wcRibbon.length > 0 && (
-        <div
-          onClick={e => { e.stopPropagation(); onNavigate?.('WORLD_CUP'); }}
-          className="absolute top-0 left-0 right-0 z-20 flex items-center gap-2 px-3 sm:px-4 py-2 bg-black/45 backdrop-blur-md border-b border-white/10 cursor-pointer"
-        >
-          <div className="flex items-center gap-1.5 shrink-0 pr-2 border-r border-white/15">
-            <Trophy size={12} className="text-[#FF8C00]" />
-            <span className="hidden sm:inline text-[8px] font-black uppercase tracking-[0.25em] text-white/70">World Cup</span>
-          </div>
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1">
-            {wcRibbon.map((ev: any) => {
-              const c = ev?.competitions?.[0];
-              const a = c?.competitors?.find((x: any) => x.homeAway === 'away');
-              const h = c?.competitors?.find((x: any) => x.homeAway === 'home');
-              const isLive = ev?.status?.type?.state === 'in';
-              return (
-                <div key={ev.id} className={`shrink-0 flex items-center gap-2 px-2.5 py-1 rounded-lg ${isLive ? 'bg-red-500/20 border border-red-500/30' : 'bg-white/[0.06]'}`}>
-                  {isLive
-                    ? <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-                    : <span className="text-[6px] font-black uppercase tracking-widest text-white/35 shrink-0">FT</span>}
-                  {a?.team?.logo && <img src={a.team.logo} alt="" className="w-4 h-4 object-contain shrink-0" loading="lazy" />}
-                  <span className="text-[10px] font-black tabular-nums text-white whitespace-nowrap">
-                    {scoreText(a?.score) || '0'}<span className="text-white/30 mx-1">–</span>{scoreText(h?.score) || '0'}
-                  </span>
-                  {h?.team?.logo && <img src={h.team.logo} alt="" className="w-4 h-4 object-contain shrink-0" loading="lazy" />}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Content */}
       <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8 md:p-12 max-w-3xl z-10">
@@ -495,7 +456,8 @@ interface Props {
 
 export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, onOpenAthletes, onOpenFanRooms }) => {
   const [hero, setHero]               = useState<any[]>(HERO_FALLBACKS);
-  const [activeTab, setActiveTab]     = useState<string>('FIFA');
+  const [activeTab, setActiveTab]     = useState<string>('ALL');
+  const [selectedNflGame, setSelectedNflGame] = useState<string | null>(null);
   // Open the "Relive World Cup 2026" experience: switch to the FIFA section and open the
   // Relive overlay (optionally at a specific hub tab). A window-level pending flag covers the
   // race where FIFA/SportsCenterView hasn't mounted its listener yet; the live event covers
@@ -513,7 +475,11 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
     window.addEventListener('plajah:open-wc-match', h);
     return () => window.removeEventListener('plajah:open-wc-match', h);
   }, []);
-  const [favoriteTeams, setFavTeams]  = useState<any[]>([]);
+  const favoriteOwner = currentUser?.uid || 'guest';
+  const [favoriteState, setFavoriteState] = useState<{ owner: string; teams: FollowedTeam[] }>({ owner: '', teams: [] });
+  const favoriteTeams = favoriteState.owner === favoriteOwner ? favoriteState.teams : [];
+  const [manageTeamsOpen, setManageTeamsOpen] = useState(false);
+  const [favoriteSaveError, setFavoriteSaveError] = useState(false);
   const [headlines, setHeadlines]     = useState<Article[]>([]);
   const [liveScores, setLiveScores]   = useState<any[]>([]);
   const [teamSearch, setTeamSearch]   = useState('');
@@ -566,17 +532,24 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
     ).then(snap => setPlatformAccounts(snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile)))).catch(() => {});
   }, [activeTab]);
 
-  // ── Persist favorite teams ──────────────────────────────────────────────────
+  // Account-scoped follows; profile names seed a user's first visit.
+  const profileFavoritesKey = JSON.stringify(currentUser?.favoriteSportsTeams || []);
   useEffect(() => {
-    const saved = localStorage.getItem('vibestream_favorite_teams_v2');
-    if (saved) {
-      try { setFavTeams(JSON.parse(saved)); } catch {}
-    }
-  }, []);
+    let teams: FollowedTeam[];
+    try { teams = loadFollowedTeams(localStorage, currentUser?.uid, JSON.parse(profileFavoritesKey)); }
+    catch { teams = normalizeFollowedTeams(JSON.parse(profileFavoritesKey)); }
+    setFavoriteState({ owner: favoriteOwner, teams });
+    setManageTeamsOpen(false);
+    setFavoriteSaveError(false);
+  }, [favoriteOwner, profileFavoritesKey]);
 
   const saveFavs = (teams: any[]) => {
-    setFavTeams(teams);
-    localStorage.setItem('vibestream_favorite_teams_v2', JSON.stringify(teams));
+    const normalized = normalizeFollowedTeams(teams);
+    setFavoriteState({ owner: favoriteOwner, teams: normalized });
+    try {
+      localStorage.setItem(favoriteStorageKey(currentUser?.uid), JSON.stringify(normalized));
+      setFavoriteSaveError(false);
+    } catch { setFavoriteSaveError(true); }
   };
 
   const addFav = (t: any) => {
@@ -588,11 +561,13 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
   const removeFav = (name: string) => saveFavs(favoriteTeams.filter(t => t.name !== name));
 
   // ── Load news & scores ──────────────────────────────────────────────────────
+  const dataRequest = useRef(0);
   const loadData = async (tab: string) => {
+    const request = ++dataRequest.current;
     if (tab === 'WORLD_CUP' || tab === 'FITNESS' || tab === 'HEALTH') return;
     setLoadingNews(true);
     try {
-      const scoreTabs = ['NBA', 'NFL', 'MLB', 'NHL', 'WNBA', 'FIFA', 'MLS', 'UFC', 'BOXING', 'TENNIS', 'GOLF'];
+      const scoreTabs = ['NBA', 'MLB', 'NHL', 'WNBA', 'FIFA', 'MLS', 'UFC', 'BOXING', 'TENNIS', 'GOLF'];
       const [news, scores] = await Promise.allSettled([
         tab === 'ALL'
           ? fetchNewsFromRSS('SPORTS_ALL')
@@ -601,11 +576,12 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
           ? Promise.allSettled(scoreTabs.map(lg => fetchLeagueScores(lg as any))).then(results =>
               results.flatMap(result => result.status === 'fulfilled' ? result.value : [])
             )
-          : tab !== 'ESPORTS'
+          : tab !== 'ESPORTS' && tab !== 'NFL'
           ? fetchLeagueScores(tab as any)
           : Promise.resolve([]),
       ]);
 
+      if (request !== dataRequest.current) return;
       const rawNews = news.status === 'fulfilled' ? news.value ?? [] : [];
       const newsArr = rawNews.map((item: any) => normalizeSportsArticle(item, tab === 'ALL' ? 'Sports' : tab));
       const scoreArr = scores.status === 'fulfilled' ? scores.value ?? [] : [];
@@ -636,7 +612,7 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
       // Need at least 2 validated images; otherwise keep the sport's fallback gradient.
       if (heroItems.length >= 2) setHero(heroItems);
     } finally {
-      setLoadingNews(false);
+      if (request === dataRequest.current) setLoadingNews(false);
     }
   };
 
@@ -648,7 +624,10 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
       ? [sportFallback]
       : [{ id: `loading-${activeTab}`, title: activeTab, subtitle: 'Live coverage on Plajah', imageUrl: '', leagueId: activeTab }]
     );
+    setHeadlines([]);
+    setLiveScores([]);
     loadData(activeTab);
+    return () => { ++dataRequest.current; };
   }, [activeTab]);
 
   useEffect(() => {
@@ -707,15 +686,15 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
   };
 
   return (
-    <div className="h-full overflow-y-auto custom-scrollbar bg-transparent text-white">
+    <div className="h-full overflow-y-auto custom-scrollbar bg-transparent" style={{ color: 'var(--text-primary)' }}>
       {/* ── PAGE HEADER ─────────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-30 bg-[#0a0a0a]/90 backdrop-blur-2xl border-b border-white/5 px-4 sm:px-5 lg:px-10 py-3">
-        <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-4">
+      <div className="sticky top-0 z-30 backdrop-blur-2xl border-b px-4 sm:px-5 lg:px-10 py-3" style={{ background: 'var(--card-bg)', borderColor: 'var(--border-color)' }}>
+        <div className="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-[#FF8C00]/15 flex items-center justify-center border border-[#FF8C00]/30">
               <Zap size={15} className="text-[#FF8C00]" />
             </div>
-            <h1 className="text-lg font-black uppercase tracking-widest text-white">Plajah Sports</h1>
+            <h1 className="type-title-lg">Plajah Sports</h1>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -747,6 +726,7 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
               </button>
             )}
             <button
+              aria-label="Refresh sports news and scores"
               onClick={() => loadData(activeTab)}
               className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white transition-all"
             >
@@ -758,146 +738,12 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
 
       <div className="max-w-[1600px] mx-auto px-4 sm:px-5 lg:px-10 py-6 space-y-6 sm:space-y-8">
 
-        {/* ── FIFA SECTION HERO: the World Cup experience now lives under FIFA ─────
-            Victory engine + carousel + showcase + live board + buzz render only when the
-            FIFA section is active. Elsewhere in Sports they no longer dominate the page. */}
-        {activeTab === 'FIFA' && (<>
-        {/* ── VICTORY ENGINE — celebrate wins the moment they happen / on return ── */}
-        <WorldCupVictory
-          onOpenFanRoom={(matchId, match) => window.dispatchEvent(new CustomEvent('plajah:open-fanroom', { detail: { matchId, match } }))}
-        />
-
-        {/* ── DYNAMIC CUP CAROUSEL — live matches + real headline photos, auto-rotating ── */}
-        <WorldCupCarousel
-          onOpenFanRoom={(matchId, match) => window.dispatchEvent(new CustomEvent('plajah:open-fanroom', { detail: { matchId, match } }))}
-        />
-
-        {/* ── WORLD CUP SHOWCASE — FIFA section hero ────────────────────────── */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl leading-none select-none">⚽</span>
-              <div>
-                <p className="text-[7px] font-black uppercase tracking-[0.45em] text-[#39B54A]">FIFA World Cup 2026™ · North, Central America &amp; Caribbean</p>
-                <h2 className="text-lg font-black uppercase tracking-tight text-white leading-none">Relive World Cup 2026</h2>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FF8C00]/15 border border-[#FF8C00]/25 shrink-0">
-              <Trophy size={11} className="text-[#FF8C00]" />
-              <span className="text-[7px] font-black uppercase tracking-widest text-[#FF8C00]">Relive · 2026</span>
-            </div>
-          </div>
-
-          <motion.button
-            className="relative w-full overflow-hidden rounded-3xl text-left group"
-            style={{ background: 'linear-gradient(135deg, #010E04 0%, #001122 50%, #010A03 100%)', border: '1px solid rgba(57,181,74,0.18)' }}
-            onClick={() => openHub('clubs')}
-            whileHover={{ scale: 1.003 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className="absolute inset-0 flex items-center overflow-hidden opacity-[0.07] pointer-events-none select-none text-3xl gap-1.5 px-3">
-              {WC26_TEAMS.slice(0, 28).map((t: any) => <span key={t.id}>{t.flag}</span>)}
-            </div>
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#39B54A]/65 to-transparent" />
-            <div className="absolute -top-16 left-1/3 w-96 h-48 bg-[#39B54A]/6 blur-3xl rounded-full pointer-events-none" />
-            <div className="relative px-6 py-7 sm:px-8 sm:py-9 flex flex-col sm:flex-row items-start sm:items-center gap-6">
-              <div className="flex items-center gap-5 shrink-0">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl shrink-0"
-                  style={{ background: 'rgba(57,181,74,0.12)', border: '1px solid rgba(57,181,74,0.25)' }}>
-                  📹
-                </div>
-                <div>
-                  <p className="text-[7px] font-black uppercase tracking-[0.45em] text-[#39B54A] mb-1.5">Live · Real Video · 24 Fans Per Room</p>
-                  <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black uppercase tracking-tight text-white leading-none">Live Fan Rooms</h3>
-                </div>
-              </div>
-              <div className="flex-1 min-w-0 sm:pl-2">
-                <p className="text-sm sm:text-base text-white/50 leading-relaxed max-w-xs sm:max-w-sm">
-                  Watch every match with your nation's fans. Real faces. Real reactions. Only on Plajah.
-                </p>
-              </div>
-              <div className="shrink-0">
-                <span className="flex items-center gap-2.5 px-6 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-widest whitespace-nowrap"
-                  style={{ background: '#39B54A', color: '#000' }}>
-                  Find Your Room <ChevronRight size={14} />
-                </span>
-              </div>
-            </div>
-          </motion.button>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {([
-              { emoji: '🏆', color: '#FFB514', badge: 'Interactive 3D', title: 'Hall of Legends', desc: 'Walk through every World Cup champion in a cinematic 3D trophy room. No other platform has this.', tab: 'history' },
-              { emoji: '🎯', color: '#FF8C00', badge: 'All 104 Matches', title: 'Pick Every Match', desc: 'Lock your bracket from the group stage all the way to the Final. Compete globally.', tab: 'picks' },
-              { emoji: '🌍', color: '#39B54A', badge: '48 Live Communities', title: 'Nation Fan Clubs', desc: 'Every competing nation has its own hub — rosters, timelines, media, and live video rooms.', tab: 'clubs' },
-              { emoji: '⚡', color: '#3B82F6', badge: 'Auto-Updating', title: 'Live Bracket', desc: 'Track every result from groups to the knockout Final. Crystal clear. Always live.', tab: 'bracket' },
-            ] as const).map(card => (
-              <motion.button
-                key={card.tab}
-                className="group relative text-left overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5 hover:border-white/[0.12] transition-all"
-                onClick={() => openHub(card.tab)}
-                whileHover={{ scale: 1.02, y: -2 }}
-                transition={{ duration: 0.15 }}
-              >
-                <div className="absolute top-0 left-0 right-0 h-px" style={{ background: `linear-gradient(90deg, transparent, ${card.color}55, transparent)` }} />
-                <div className="text-3xl mb-4 select-none">{card.emoji}</div>
-                <p className="text-[7px] font-black uppercase tracking-[0.35em] mb-2" style={{ color: card.color }}>{card.badge}</p>
-                <h4 className="text-[11px] sm:text-xs font-black uppercase tracking-tight text-white mb-2 leading-snug">{card.title}</h4>
-                <p className="text-[10px] text-white/35 leading-relaxed">{card.desc}</p>
-                <div className="absolute bottom-3.5 right-3.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ChevronRight size={12} style={{ color: card.color }} />
-                </div>
-              </motion.button>
-            ))}
-          </div>
-
-          <button
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-white/[0.06] text-white/25 text-[9px] font-black uppercase tracking-widest hover:text-white/50 hover:border-white/12 transition-all"
-            onClick={() => openHub()}
-          >
-            Open Full World Cup Hub <ChevronRight size={11} />
-          </button>
-        </div>
-
-        {/* ── WORLD CUP LIVE SCORES / FIXTURES ─────────────────────────────── */}
-        <WorldCupTopBoard onOpenFull={() => openHub()} />
-
-        {/* ── HIGHLIGHTS & SOCIAL BUZZ (YouTube + X) ────────────────────────── */}
-        <WorldCupBuzz />
-        </>)}
-
-        {/* ── SPORTS INTELLIGENCE ───────────────────────────────────────────── */}
-        <SportsIntelligenceSection
-          onBookmark={handleBookmark}
-          bookmarkedIds={bookmarkedIds}
-          onOpenNotebook={() => setShowNotebook(true)}
-        />
-
-        {/* ── HERO ──────────────────────────────────────────────────────────── */}
-        <SportsHero
-          items={hero}
-          onNavigate={(leagueId, url) => {
-            if (leagueId === 'WORLD_CUP') openHub();            // legacy target → FIFA + Relive
-            else if (leagueId) setActiveTab(leagueId);
-            else if (url) window.open(url, '_blank', 'noopener,noreferrer');
-          }}
-        />
-
-        {/* ── LIVE SCORES STRIP ─────────────────────────────────────────────── */}
-        {liveScores.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-              <p className="text-[8px] font-black uppercase tracking-[0.4em] text-white/40">Live & Today</p>
-            </div>
-            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1">
-              {liveScores.map((ev: any) => <ScoreChip key={ev.id} event={ev} />)}
-            </div>
-          </div>
-        )}
-
+        {activeTab === 'ALL' && <PersonalizedSportsLanding key={favoriteOwner} favorites={favoriteTeams} onExplore={setActiveTab} onFollow={() => setManageTeamsOpen(true)} />}
+        {(activeTab === 'ALL' || activeTab === 'NFL') && <FirstlightEntry />}
+        {favoriteSaveError && <p role="status">Your teams are selected for this visit, but this browser could not save them.</p>}
+        {manageTeamsOpen && <FollowSportsTeamsDialog favorites={favoriteTeams} onChange={saveFavs} onClose={() => setManageTeamsOpen(false)} />}
         {/* ── LEAGUE NAV TABS ───────────────────────────────────────────────── */}
-        <div className="space-y-2">
+        <div id="sports-leagues" className="space-y-2 scroll-mt-24">
           {/* Health & Fitness quick-row */}
           <div className="flex items-center gap-2">
             <span className="text-[7px] font-black uppercase tracking-[0.3em] text-white/25 shrink-0">Health</span>
@@ -954,7 +800,8 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
                       ? 'text-black border-transparent shadow-lg'
                       : 'bg-white/5 border-white/8 text-white/50 hover:text-white hover:bg-white/10 hover:border-white/15'
                   }`}
-                  style={active ? { background: league.color } : {}}
+                  aria-pressed={active}
+                  style={active ? { background: 'var(--pj-grad-brand)', color: 'white' } : { color: 'var(--text-secondary)', background: 'var(--glass-1)' }}
                 >
                   <Icon size={11} />
                   {league.label}
@@ -983,6 +830,34 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
             })}
           </div>
         </div>
+
+        {(activeTab === 'ALL' || activeTab === 'NFL') && !selectedNflGame && <NflSpotlight previewCount={activeTab === 'ALL' ? 4 : undefined} onExplore={() => setActiveTab('NFL')} onSelectGame={(id) => { setSelectedNflGame(id); setActiveTab('NFL'); }} />}
+        {selectedNflGame && <NflGameDayView gameId={selectedNflGame} onBack={() => setSelectedNflGame(null)} />}
+
+        {/* ── HERO ──────────────────────────────────────────────────────────── */}
+        {activeTab !== 'ALL' && <SportsHero
+          items={hero}
+          onNavigate={(leagueId, url) => {
+            if (leagueId === 'WORLD_CUP') openHub();            // legacy target → FIFA + Relive
+            else if (leagueId) setActiveTab(leagueId);
+            else if (url) window.open(url, '_blank', 'noopener,noreferrer');
+          }}
+        />}
+
+        {/* ── LIVE SCORES STRIP ─────────────────────────────────────────────── */}
+        {activeTab !== 'NFL' && liveScores.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              <p className="text-[8px] font-black uppercase tracking-[0.4em] text-white/40">Live & Today</p>
+            </div>
+            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1">
+              {liveScores.map((ev: any) => <ScoreChip key={ev.id} event={ev} />)}
+            </div>
+          </div>
+        )}
+
+        <SportsIntelligenceSection onBookmark={handleBookmark} bookmarkedIds={bookmarkedIds} onOpenNotebook={() => setShowNotebook(true)} />
 
         {/* ── MAIN CONTENT GRID ─────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6 lg:gap-8">

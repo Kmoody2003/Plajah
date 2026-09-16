@@ -6,34 +6,41 @@
 
 import React, { useMemo, useState } from 'react';
 import { X, Search } from 'lucide-react';
-import type { OndaPatch } from '../../../../services/melos/instruments/onda/patch';
 import { coverCss, accentFor, PRESET_NOTES } from '../../../../services/melos/instruments/presetArt';
 import { SELECT, SURFACE } from '../theme';
 
-interface Props {
-  presets: OndaPatch[];
-  engineLabel: string;      // 'ONDA' etc.
-  currentName?: string;
-  onPick: (preset: OndaPatch) => void;
-  onClose: () => void;
+export interface GalleryItem {
+  id?: string;
+  name: string;
+  category?: string;
+  tags?: string[];
+  description?: string;
+  cover?: string;           // art seed; falls back to the name
+  author?: string;
+  user?: boolean;
 }
 
-export const PresetGallery: React.FC<Props> = ({ presets, engineLabel, currentName, onPick, onClose }) => {
+// Shared across every instrument: ONDA passes its rich OndaPatch bank; the shared
+// InstrumentWindow passes presetHub entries (name + category), and coverCss makes a
+// deterministic cover from either. Generic so the picked value keeps its real type.
+export function PresetGallery<T extends GalleryItem>({ presets, engineLabel, currentName, onPick, onClose }: {
+  presets: T[]; engineLabel: string; currentName?: string; onPick: (preset: T) => void; onClose: () => void;
+}) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(null);
 
-  const categories = useMemo(() => [...new Set(presets.map((p) => p.category))], [presets]);
+  const categories = useMemo(() => [...new Set(presets.map((p) => p.category).filter(Boolean) as string[])], [presets]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return presets.filter((p) => {
       if (category && p.category !== category) return false;
       if (!q) return true;
-      return p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)
-        || p.tags.some((t) => t.includes(q)) || (PRESET_NOTES[p.name] || '').toLowerCase().includes(q);
+      return p.name.toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q)
+        || (p.tags || []).some((t) => t.includes(q)) || (PRESET_NOTES[p.name] || '').toLowerCase().includes(q);
     });
   }, [presets, query, category]);
 
-  const noteFor = (p: OndaPatch) => p.description || PRESET_NOTES[p.name] || p.tags.slice(0, 4).join(' · ');
+  const noteFor = (p: T) => p.description || PRESET_NOTES[p.name] || (p.tags || []).slice(0, 4).join(' · ');
 
   return (
     <div className="absolute inset-0 z-[55] grid place-items-center bg-black/72 backdrop-blur-sm p-5" onClick={onClose}>
@@ -63,12 +70,12 @@ export const PresetGallery: React.FC<Props> = ({ presets, engineLabel, currentNa
               const accent = accentFor(p.category);
               const active = p.name === currentName;
               return (
-                <button key={p.name} onClick={() => { onPick(p); onClose(); }}
+                <button key={p.id || p.name} onClick={() => { onPick(p); onClose(); }}
                   className="text-left rounded-2xl overflow-hidden border transition-transform hover:-translate-y-0.5"
                   style={{ borderColor: active ? SELECT : 'rgba(255,255,255,0.1)', background: '#131318' }}>
                   <div className="relative" style={{ height: 92, background: coverCss(p.cover || p.name, p.category) }}>
                     <span className="absolute top-2 right-2 font-mono text-[8.5px] font-bold tracking-widest px-1.5 py-0.5 rounded" style={{ background: 'rgba(0,0,0,0.5)', color: accent, backdropFilter: 'blur(3px)' }}>{engineLabel}</span>
-                    <span className="absolute bottom-2 left-2.5 font-mono text-[8.5px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: 'rgba(0,0,0,0.45)', color: '#fff' }}>{p.category}</span>
+                    {p.category && <span className="absolute bottom-2 left-2.5 font-mono text-[8.5px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: 'rgba(0,0,0,0.45)', color: '#fff' }}>{p.category}</span>}
                   </div>
                   <div className="p-3 flex flex-col gap-1.5">
                     <div className="flex items-baseline gap-2">
@@ -78,7 +85,7 @@ export const PresetGallery: React.FC<Props> = ({ presets, engineLabel, currentNa
                     <span className="font-mono text-[9px] text-white/30 -mt-1">{p.author || 'Melos'}</span>
                     <p className="text-[11px] leading-snug text-white/50">{noteFor(p)}</p>
                     <div className="flex gap-1 flex-wrap mt-0.5">
-                      {p.tags.slice(0, 3).map((t) => <span key={t} className="font-mono text-[8.5px] text-white/35 border border-white/10 rounded px-1.5 py-0.5">{t}</span>)}
+                      {(p.tags || []).slice(0, 3).map((t) => <span key={t} className="font-mono text-[8.5px] text-white/35 border border-white/10 rounded px-1.5 py-0.5">{t}</span>)}
                     </div>
                   </div>
                 </button>
@@ -90,4 +97,4 @@ export const PresetGallery: React.FC<Props> = ({ presets, engineLabel, currentNa
       </div>
     </div>
   );
-};
+}

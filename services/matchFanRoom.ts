@@ -32,6 +32,7 @@ export interface MatchPoll {
 
 /** Minimal team context the poll generator needs (resolved from WC26 data). */
 export interface TeamCtx {
+  league?: string;
   side: Side;
   id?: string;            // WC26 team id (mex, ger) if mapped
   name: string;
@@ -120,9 +121,13 @@ export async function addNextPoll(matchId: string, home: TeamCtx, away: TeamCtx,
 // ── Team resolution + intelligent poll generation ────────────────────────────
 
 /** Resolve an ESPN competitor (or a plain name/abbr) to WC26 roster context. */
-export function resolveTeamCtx(side: Side, espnTeam: { displayName?: string; shortDisplayName?: string; abbreviation?: string; color?: string; }): TeamCtx {
+export function resolveTeamCtx(side: Side, espnTeam: { displayName?: string; shortDisplayName?: string; abbreviation?: string; color?: string; }, league?: string): TeamCtx {
   const abbr = (espnTeam.abbreviation || '').toUpperCase();
   const name = espnTeam.displayName || espnTeam.shortDisplayName || abbr || 'Team';
+  if (league) return {
+    side, league, name, short: abbr || name.slice(0, 3).toUpperCase(), flag: league === 'NFL' ? '🏈' : '🏟️',
+    color: espnTeam.color ? `#${espnTeam.color.replace('#', '')}` : '#6B0099', players: [], key: [],
+  };
   let wc: WC26Team | undefined = WC26_TEAMS.find(t => t.shortName.toUpperCase() === abbr)
     || WC26_TEAMS.find(t => t.name.toLowerCase() === name.toLowerCase())
     || WC26_TEAMS.find(t => name.toLowerCase().includes(t.name.toLowerCase()));
@@ -146,6 +151,14 @@ const topMids = (t: TeamCtx) => t.players.filter(p => p.position === 'MID').sort
 
 /** Generate roster-aware polls tuned to spark fanbase banter. Ordered by "chatter value". */
 export function generateMatchPolls(home: TeamCtx, away: TeamCtx, phase: MatchPhase): Omit<MatchPoll, 'id' | 'votes' | 'voterSides' | 'createdAt'>[] {
+  if (home.league || away.league) {
+    const options: MatchPollOption[] = [{ label: home.name, sideTag: 'home' }, { label: away.name, sideTag: 'away' }];
+    return [
+      { key: 'fan_support', phase, question: 'Who are you backing?', options },
+      { key: 'performance', phase, question: phase === 'pre' ? 'Who has the edge today?' : 'Who impressed you most?', options: [...options, { label: 'Both teams', sideTag: null }] },
+      { key: 'atmosphere', phase, question: 'How are you following the game?', options: [{ label: 'Watching' }, { label: 'Listening' }, { label: 'Checking scores' }] },
+    ];
+  }
   const out: Omit<MatchPoll, 'id' | 'votes' | 'voterSides' | 'createdAt'>[] = [];
   const ha = topAttacker(home), aa = topAttacker(away);
   const hc = home.captain, ac = away.captain;

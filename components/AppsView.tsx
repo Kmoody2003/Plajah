@@ -38,15 +38,17 @@ import { fetchGlobalApps, fetchUserApps, saveWebApp, fetchAppReviews, submitAppR
 import Logo from './Logo';
 import { Browser } from '@capacitor/browser';
 import { Capacitor } from '@capacitor/core';
+import { FLUX_SCENES } from '../services/fabula/fluxNode';
 
 interface AppsViewProps {
   onBack: () => void;
   currentUser: UserProfile | null;
   initialAppId?: string;
   onSelectApp?: (app: WebApp) => void;
+  onNavigate?: (view: string) => void;
 }
 
-const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, onSelectApp }) => {
+const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, onSelectApp, onNavigate }) => {
   const [apps, setApps] = useState<WebApp[]>([]);
   const [selectedApp, setSelectedApp] = useState<WebApp | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -454,6 +456,16 @@ const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, 
               exit={{ opacity: 0 }}
               className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8 lg:gap-12"
             >
+              {activeTab === 'DISCOVER' && FLUX_SCENES.filter(s => ['tapestry-ii','porcelain-tide','velvet-bloom','prism-archive'].includes(s.id) && `${s.name} flux pixels visualizer`.toLowerCase().includes(searchQuery.toLowerCase())).map(scene => (
+                <button key={scene.id} className="text-left rounded-3xl border border-amber-300/20 bg-gradient-to-br from-teal-950 to-zinc-950 p-7 space-y-4 hover:border-amber-300/60"
+                  onClick={() => window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS',{detail:{fluxScene:scene.id}}))}>
+                  <Sparkles className="text-amber-200" size={36}/>
+                  <span className="block text-xs uppercase tracking-widest text-amber-200/70">Flux · Visualizer preset</span>
+                  <strong className="block text-xl text-white">{scene.name}</strong>
+                  <span className="block text-sm text-white/60">{scene.line}</span>
+                  <span className="block text-sm text-amber-100">Apply in Pixels →</span>
+                </button>
+              ))}
               {/* Native platform app — Plajah Pixels (audio-reactive visualizer) */}
               {activeTab === 'DISCOVER' && ('plajah pixels visualizer'.includes(searchQuery.toLowerCase()) || searchQuery === '') && (
                 <div
@@ -652,6 +664,40 @@ const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, 
                   <div className="space-y-2 px-2">
                     <h3 className="text-lg font-black uppercase tracking-tight text-white truncate">Pew Pew</h3>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Live-action shooter · admin test · /pewpew</p>
+                  </div>
+                </div>
+              )}
+
+              {/* First-party prototype — Project Firstlight (admin-only, 3D American Football Passing Lab) */}
+              {activeTab === 'DISCOVER' && (currentUser?.role === 'admin' || currentUser?.role === 'staff' || currentUser?.email === 'kmoody2003@gmail.com' || import.meta.env.DEV) && ('project firstlight football passing sports 3d gridiron nfl'.includes(searchQuery.toLowerCase()) || searchQuery === '') && (
+                <div
+                  key="native-firstlight"
+                  onClick={() => {
+                    if (onNavigate) onNavigate('PROJECT_FIRSTLIGHT');
+                    window.dispatchEvent(new CustomEvent('plajah:openFirstlight', { detail: {} }));
+                  }}
+                  className="group cursor-pointer space-y-6"
+                >
+                  <div className="relative aspect-square rounded-[2.5rem] overflow-hidden border border-[#FF8C00]/30 shadow-2xl transition-all group-hover:scale-105 group-hover:-translate-y-2 bg-[#0A0A0D]">
+                    <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(107,0,153,0.45), rgba(212,0,85,0.30) 50%, rgba(255,140,0,0.22))' }} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center p-6">
+                      <Logo size={60} />
+                      <p className="text-xl font-black uppercase tracking-tight text-white mt-1">Firstlight</p>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[#00DAF3]">3D Football Lab</span>
+                    </div>
+                    <div className="absolute top-4 left-4 px-2.5 py-1 rounded-md bg-gradient-to-r from-[#FF8C00] to-[#D40055] text-white text-[8px] font-black uppercase tracking-widest shadow-md">Admin Only</div>
+                    <div className="absolute top-4 right-4 px-2 py-0.5 rounded-full bg-black/60 border border-white/20 text-[#00DAF3] text-[8px] font-bold">3D WebGL</div>
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center backdrop-blur-sm">
+                      <Play fill="white" size={48} className="mb-3 text-white scale-75 group-hover:scale-100 transition-transform" />
+                      <p className="text-[10px] font-black uppercase tracking-widest text-white">Enter Passing Lab</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 px-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-black uppercase tracking-tight text-white truncate">Project Firstlight</h3>
+                      <span className="text-[9px] font-bold text-[#FF8C00] bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">Alpha</span>
+                    </div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">3D American Football Passing Lab · Admin Preview</p>
                   </div>
                 </div>
               )}

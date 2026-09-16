@@ -5,10 +5,11 @@ import {
   fetchFollowedArtists, fetchFollowedVideos, getLikedVideos, fetchVideoById, auth,
 } from '../services/backendService';
 import { loadHistory, removeEntry, clearHistory, WatchEntry } from '../services/watchHistoryService';
+import MediaThumb from './ui/MediaThumb';
 
 const thumbFor = (v?: Partial<Video> | null): string => {
   if (!v) return '';
-  if ((v as any).muxPlaybackId) return `https://image.mux.com/${(v as any).muxPlaybackId}/thumbnail.png?width=640&height=360&time=5`;
+  if ((v as any).muxPlaybackId) return `https://image.mux.com/${(v as any).muxPlaybackId}/thumbnail.png?width=640&time=5`;
   return v.thumbnailUrl || (v as any).coverImageUrl || (v as any).coverImage || '';
 };
 
@@ -23,7 +24,7 @@ const LibVideoCard: React.FC<{ video: Video; onPlay: () => void }> = ({ video, o
   <button onClick={onPlay} className="group text-left">
     <div className="relative aspect-video rounded-xl overflow-hidden bg-white/[0.04] border border-white/10">
       {thumbFor(video)
-        ? <img src={thumbFor(video)} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        ? <MediaThumb src={thumbFor(video)} alt="" loading="lazy" className="group-hover:scale-105 transition-transform duration-500" />
         : <div className="w-full h-full flex items-center justify-center"><Play size={22} className="text-white/20" /></div>}
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/30 transition-opacity"><Play size={26} className="text-white" fill="currentColor" /></div>
     </div>
@@ -168,7 +169,7 @@ export const HistorySection: React.FC<{ onPlay: (v: Video) => void }> = ({ onPla
             return (
               <div key={e.id} className="group flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.04] transition-colors">
                 <button onClick={() => play(e)} className="relative w-32 aspect-video rounded-lg overflow-hidden bg-white/5 shrink-0">
-                  {e.thumbnailUrl ? <img src={e.thumbnailUrl} alt="" className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center"><Play size={16} className="text-white/30" /></div>}
+                  {e.thumbnailUrl ? <MediaThumb src={e.thumbnailUrl} alt="" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center"><Play size={16} className="text-white/30" /></div>}
                   <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/30 transition-opacity"><Play size={18} className="text-white" fill="currentColor" /></span>
                   {pct > 0 && <span className="absolute bottom-0 left-0 h-0.5 bg-small-orange" style={{ width: `${pct}%` }} />}
                 </button>

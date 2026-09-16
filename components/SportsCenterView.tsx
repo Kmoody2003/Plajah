@@ -136,7 +136,9 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab, currentUs
     return () => window.removeEventListener('plajah:open-relive', h);
   }, [isFifa]);
 
+  const leagueRequest = useRef(0);
   const loadLeague = useCallback(() => {
+    const request = ++leagueRequest.current;
     if (!isLeague || isEsports) return;
     setLeagueError(false);
 
@@ -168,6 +170,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab, currentUs
       fetchLeagueScores(selectedSportsTab),
       fetchLeagueLeaders(selectedSportsTab),
     ]).then(([teamsR, newsR, standingsR, scoresR, leadersR]) => {
+      if (request !== leagueRequest.current) return;
       const apiTeams     = teamsR.status    === 'fulfilled' ? teamsR.value    : [];
       const newsData     = newsR.status     === 'fulfilled' ? newsR.value     : [];
       const standingsData= standingsR.status=== 'fulfilled' ? standingsR.value: [];
@@ -209,6 +212,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab, currentUs
     } else {
       loadLeague();
     }
+    return () => { ++leagueRequest.current; };
   }, [selectedSportsTab]);
 
   useEffect(() => {
@@ -1027,13 +1031,13 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab, currentUs
           )}
 
           {/* Today's Scoreboard â€" always rendered; shows skeleton while loading */}
-          <div className="space-y-3">
+          {selectedSportsTab !== 'NFL' && <div className="space-y-3">
             <div className="flex items-center gap-2">
               {leagueScores.some((e: any) => e.status?.type?.state === 'in') && (
                 <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_red]" />
               )}
               <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40">
-                {leagueScores.some((e: any) => e.status?.type?.state === 'in') ? 'Live & Today\'s Games' : 'Today\'s Games'}
+                {leagueScores.some((e: any) => e.status?.type?.state === 'in') ? 'Live & recent schedule' : 'Current schedule'}
               </h4>
             </div>
             {leagueLoading ? (
@@ -1042,7 +1046,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab, currentUs
               </div>
             ) : leagueScores.length === 0 ? (
               <div className="flex items-center justify-center h-20 bg-white/[0.02] border border-white/5 rounded-[1.5rem]">
-                <p className="text-[8px] font-black uppercase tracking-widest text-white/20">No games scheduled today</p>
+                <p className="text-[8px] font-black uppercase tracking-widest text-white/20">No scoreboard data available</p>
               </div>
             ) : (
               <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 -mx-4 px-4">
@@ -1108,7 +1112,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab, currentUs
                 })}
               </div>
             )}
-          </div>
+          </div>}
 
           {/* Standings â€" always rendered for team/league sports */}
           {!specialtyCfg && <div className="space-y-3">

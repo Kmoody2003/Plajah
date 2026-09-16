@@ -20,9 +20,9 @@ interface OrreryStageProps {
 }
 
 const MAX_VISIBLE = 12;
-const ACTIVE_RADIUS = 76;
-const RADIUS_STEP = 6;
-const MAX_RADIUS = 146;
+const ACTIVE_RADIUS = 115;
+const RADIUS_STEP = 9;
+const MAX_RADIUS = 220;
 
 const OrreryStage: React.FC<OrreryStageProps> = ({ album, tracks, activeIndex, isPlaying = false, onPlayTrack }) => {
   const reduceMotion = useReducedMotion();

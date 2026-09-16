@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { cleanDescription } from '../utils/description';
 import { motion } from 'motion/react';
 import {
   Download, Copy, Check, ChevronDown, ExternalLink,
@@ -62,7 +63,7 @@ function buildMetadata(album: Album): Record<string, string> {
     Director:  album.artist || '',
     Year:      String(meta?.releaseYear || new Date().getFullYear()),
     Genre:     album.genre || '',
-    Synopsis:  album.description || '',
+    Synopsis:  cleanDescription(album.description),
     Tagline:   meta?.tagline || '',
     Cast:      (meta?.castMembers ?? []).map(c => c.actorName).join(', '),
     Keywords:  (album.tags ?? []).join(', '),

@@ -248,3 +248,98 @@ export const fetchBookText = async (url: string, opts: FetchBookOptions = {}): P
   if (!text.trim()) throw new Error('Empty text content');
   return text;
 };
+
+export interface ParsedChapter {
+  title: string;
+  body?: string;
+  pages: string[][];
+}
+
+export const stripHtmlToText = (value: string): string =>
+  value
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|h[1-6]|li|section|article)>/gi, '\n\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+
+export const formatReadableText = (value: string): string => {
+  let text = value.trimStart().startsWith('<') ? stripHtmlToText(value) : value;
+  text = text.replace(/\r\n?/g, '\n');
+
+  // Strip everything up to and including the Project Gutenberg start marker
+  const startMatch = text.match(/\*\*\* START OF (?:THE|THIS) PROJECT GUTENBERG EBOOK[^\n]*\*\*\*/i);
+  if (startMatch && startMatch.index !== undefined) {
+    text = text.slice(startMatch.index + startMatch[0].length);
+  }
+
+  // Strip everything from the Project Gutenberg end marker onwards
+  const endMatch = text.match(/\*\*\* END OF (?:THE|THIS) PROJECT GUTENBERG EBOOK/i);
+  if (endMatch && endMatch.index !== undefined) {
+    text = text.slice(0, endMatch.index);
+  }
+
+  text = text
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+
+  return text
+    .split(/\n{2,}/)
+    .map(block => block.replace(/\n/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n\n');
+};
+
+/**
+ * Split a formatted TXT book into chapters and paginate each one.
+ * Falls back to a single chapter when no headings are found.
+ */
+export const parseChaptersFromText = (fullText: string): ParsedChapter[] => {
+  const PAGE_PARAS = 45;
+  const CHAPTER_RE = /^((?:(?:CHAPTER|Chapter|PART|Part|BOOK|Book|VOLUME|Volume|ACT|Act|SECTION|Section|LETTER|Letter)\s+(?:\d+|[IVXLCDM]+)|[IVXLCDM]+\.)(?:[.:—\s][^\n]*)?)\s*$/mg;
+
+  const parts = fullText.split(CHAPTER_RE);
+  // parts = [preamble, heading, body, heading, body, ...]
+
+  const raw: Array<{ title: string; body: string }> = [];
+
+  if (parts[0].trim().length > 300) {
+    raw.push({ title: 'Preface', body: parts[0].trim() });
+  }
+
+  for (let i = 1; i + 1 < parts.length; i += 2) {
+    raw.push({ title: parts[i].replace(/\s+/g, ' ').trim(), body: (parts[i + 1] || '').trim() });
+  }
+
+  if (raw.length === 0) {
+    raw.push({ title: 'Complete Work', body: fullText });
+  }
+
+  // Filter out any Gutenberg legal/license sections that matched chapter headings
+  const filtered = raw.filter(ch => {
+    const t = ch.title.toLowerCase();
+    const isToc = t.includes('contents') || (t.match(/chapter/g) || []).length > 1;
+    const isLegal = t.includes('terms of use') || t.includes('general terms') || t.includes('gutenberg-tm') || t.includes('license');
+    return !isToc && !isLegal;
+  });
+
+  const finalChapters = filtered.length > 0 ? filtered : raw;
+
+  return finalChapters.map(ch => {
+    const paras = ch.body.split('\n\n').filter(p => p.trim().length > 5);
+    const pages: string[][] = [];
+    for (let i = 0; i < Math.max(1, paras.length); i += PAGE_PARAS) {
+      pages.push(paras.slice(i, i + PAGE_PARAS));
+    }
+    return { title: ch.title, body: ch.body, pages };
+  });
+};
+

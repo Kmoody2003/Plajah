@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { gridSrc } from '../services/imageDerivatives';
 import { Photo, UserProfile, PhotoGallery } from '../types';
 import { useContextMenu, type MenuNode } from './ui/ContextMenu';
+import AnchoredPopover from './ui/AnchoredPopover';
 import PageHeader from './PageHeader';
 import { 
   Heart, 
@@ -49,13 +50,14 @@ import PhotoCritiquePanel from './PhotoCritiquePanel';
 import SchoolView from './school/SchoolView';
 import PortfolioRoom from './photo/PortfolioRoom';
 import WeeklySalon from './photo/WeeklySalon';
+import PhotoCatalogWorkspace from './photo/PhotoCatalogWorkspace';
 import { PHOTO_ART_SCHOOL } from '../data/photoArtCurriculum';
 import { PHOTO_IMPORT_SOURCES, PHOTOGRAPHER_PRO_FEATURES } from '../services/photoEditingService';
 import ChipRail from './ui/ChipRail';
 
 interface GlobalPhotosViewProps {
   onVisitUser: (uid: string) => void;
-  initialMode?: 'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL' | 'SCHOOL' | 'SALON' | 'SYNTHETIC' | 'HYBRID';
+  initialMode?: 'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL' | 'SCHOOL' | 'SALON' | 'SYNTHETIC' | 'HYBRID' | 'CATALOG' | 'SPATIAL';
   /** Opens the classical Art Museum (ArtGalleryView) — masters + open-access collections. */
   onOpenArtMuseum?: () => void;
 }
@@ -64,7 +66,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
   const { isSpatialMode } = useSpatial();
   const { enabled: shellNext } = useShellNext();
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [mode, setMode] = useState<'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL' | 'SCHOOL' | 'SALON' | 'SYNTHETIC' | 'HYBRID'>(initialMode);
+  const [mode, setMode] = useState<'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL' | 'SCHOOL' | 'SALON' | 'SYNTHETIC' | 'HYBRID' | 'CATALOG' | 'SPATIAL'>(initialMode);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
@@ -79,6 +81,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
   const [photographers, setPhotographers] = useState<{ uid: string; name: string; photo: string; count: number }[]>([]);
   const [followed, setFollowed] = useState<Set<string>>(new Set());
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreTrigger = React.useRef<HTMLButtonElement>(null);
   const [query, setQuery] = useState('');
 
   // ── Plajah Galleries (shareable gallery experiences) ─────────────────────────
@@ -177,7 +180,10 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
       if (mode === 'SCHOOL') { setIsLoading(false); return; } // SchoolView loads its own progress
       if (mode === 'SALON') { setIsLoading(false); return; }  // WeeklySalon loads its own entries
       setIsLoading(true);
-      if (mode === 'THEMES') {
+      if (mode === 'CATALOG' || mode === 'SPATIAL') {
+        const uid = auth.currentUser?.uid;
+        setPhotos(uid ? await fetchUserPhotos(uid) : []);
+      } else if (mode === 'THEMES') {
         const data = await fetchThemePresets();
         setThemes(data.filter(t => t.isPublic));
       } else {
@@ -355,7 +361,9 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
   // (for the non-Explore lenses) inside the Wall shell.
   const renderModeBody = () => (
     <>
-        {mode === 'SALON' ? (
+        {mode === 'CATALOG' || mode === 'SPATIAL' ? (
+          <PhotoCatalogWorkspace photos={photos} initialView={mode === 'SPATIAL' ? 'spatial' : 'catalog'} onEdit={setEditingPhoto} />
+        ) : mode === 'SALON' ? (
           <WeeklySalon />
         ) : mode === 'SCHOOL' ? (
           <SchoolView curriculum={PHOTO_ART_SCHOOL} embedded />
@@ -739,7 +747,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                   </div>
                   <div className="flex flex-col items-center gap-1">
                     <button
-                      onClick={() => setEditingPhoto(selectedPhoto)}
+                      onClick={() => { setSelectedPhoto(null); setEditingPhoto(selectedPhoto); }}
                       className="w-14 h-14 rounded-full bg-white/5 text-white/40 flex items-center justify-center hover:text-white hover:bg-white/10 transition-all"
                     >
                       <Wand2 size={24} />
@@ -774,14 +782,6 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
         />
       )}
 
-      {editingPhoto && (
-        <PhotoEditPanel
-          photo={editingPhoto}
-          variant={mode === 'PRO' ? 'workflow' : 'drawer'}
-          onClose={() => setEditingPhoto(null)}
-          onApply={() => {}}
-        />
-      )}
     </>
   );
 
@@ -793,6 +793,8 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
       : mode === 'SOCIAL' ? 'Feed'
       : mode === 'SYNTHETIC' ? 'Synthetic'
       : mode === 'HYBRID' ? 'Hybrid'
+      : mode === 'CATALOG' ? 'Catalog'
+      : mode === 'SPATIAL' ? 'Spatial'
       : '';
 
     const lenses: { id: string; label: string; icon: React.ReactNode }[] = [
@@ -801,6 +803,8 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
       { id: 'Feed', label: 'Feed', icon: <Share2 size={14} /> },
       { id: 'Synthetic', label: 'Synthetic', icon: <Bot size={14} /> },
       { id: 'Hybrid', label: 'Hybrid', icon: <Layers size={14} /> },
+      { id: 'Catalog', label: 'Catalog', icon: <Images size={14} /> },
+      { id: 'Spatial', label: 'Spatial Lab', icon: <Layers size={14} /> },
     ];
 
     const selectLens = (id: string) => {
@@ -810,6 +814,8 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
       else if (id === 'Feed') setMode('SOCIAL');
       else if (id === 'Synthetic') setMode('SYNTHETIC');
       else if (id === 'Hybrid') setMode('HYBRID');
+      else if (id === 'Catalog') setMode('CATALOG');
+      else if (id === 'Spatial') setMode('SPATIAL');
     };
 
     const moreItems: { label: string; mode?: typeof mode; door?: boolean; icon: React.ReactNode }[] = [
@@ -931,7 +937,10 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
     }
 
     return (
-      <div className="flex-1 bg-transparent text-theme-content overflow-y-auto custom-scrollbar pb-40">
+      <div className={`flex-1 min-w-0 text-theme-content ${editingPhoto ? 'overflow-hidden bg-[#08090b]' : 'overflow-y-auto custom-scrollbar pb-40 bg-transparent'}`}>
+        {editingPhoto ? (
+          <PhotoEditPanel photo={editingPhoto} variant="workflow" onClose={() => setEditingPhoto(null)} onApply={() => {}} />
+        ) : <>
         {photoMenu.node}
         {/* Slim top bar */}
         <header
@@ -966,6 +975,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
           <div className="relative shrink-0">
               <button
                 onClick={() => setMoreOpen(o => !o)}
+                ref={moreTrigger}
                 aria-haspopup="menu"
                 aria-expanded={moreOpen}
                 className={`inline-flex items-center gap-1 px-3.5 h-9 rounded-full text-[13px] font-bold whitespace-nowrap transition ${moreActive || moreOpen ? 'text-white' : 'text-white/55 hover:text-white'}`}
@@ -973,12 +983,11 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
               >
                 <MoreHorizontal size={14} /> More <ChevronDown size={12} className={`transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
               </button>
-              {moreOpen && (
+              {moreOpen && moreTrigger.current && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
-                  <div
+                  <AnchoredPopover anchor={moreTrigger.current} onClose={() => setMoreOpen(false)} align="end"
                     role="menu"
-                    className="absolute right-0 mt-2 z-50 w-52 p-1.5 rounded-2xl border shadow-2xl pj-surface--3"
+                    className="w-52 p-1.5 rounded-2xl border shadow-2xl pj-surface--3"
                     style={{ background: 'var(--pj-glass-3, rgba(20,16,25,0.95))', borderColor: 'var(--pj-border-strong, rgba(255,255,255,0.15))' }}
                   >
                     {moreItems.map(item => {
@@ -1000,7 +1009,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                         </button>
                       );
                     })}
-                  </div>
+                  </AnchoredPopover>
                 </>
               )}
             </div>
@@ -1049,12 +1058,16 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
 
         {renderOverlays()}
         {renderGalleriesModal()}
+        </>}
       </div>
     );
   }
 
   return (
-    <div className="flex-1 bg-transparent text-theme-content overflow-y-auto custom-scrollbar pb-40">
+    <div className={`flex-1 min-w-0 text-theme-content ${editingPhoto ? 'overflow-hidden bg-[#08090b]' : 'overflow-y-auto custom-scrollbar pb-40 bg-transparent'}`}>
+      {editingPhoto ? (
+        <PhotoEditPanel photo={editingPhoto} variant="workflow" onClose={() => setEditingPhoto(null)} onApply={() => {}} />
+      ) : <>
       {photoMenu.node}
       {/* Header */}
       <header className="px-6 lg:px-12 pt-12 mb-12">
@@ -1123,6 +1136,8 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
               { id: 'EVENTS', label: 'Events', icon: <QrCode size={13} /> },
               { id: 'IMPORTS', label: 'Import', icon: <Cloud size={13} /> },
               { id: 'PRO', label: 'Pro', icon: <Wand2 size={13} /> },
+              { id: 'CATALOG', label: 'Catalog', icon: <Images size={13} /> },
+              { id: 'SPATIAL', label: 'Spatial Lab', icon: <Layers size={13} /> },
               { id: 'THEMES', label: 'Themes', icon: <ImageIcon size={13} /> },
               { id: 'SOCIAL', label: 'From Social', icon: <Share2 size={13} /> },
               { id: 'SCHOOL', label: 'School', icon: <GraduationCap size={13} /> },
@@ -1137,7 +1152,9 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
 
       {/* Main Mode Rendering */}
       <main className="px-6 lg:px-12">
-        {mode === 'SALON' ? (
+        {mode === 'CATALOG' || mode === 'SPATIAL' ? (
+          <PhotoCatalogWorkspace photos={photos} initialView={mode === 'SPATIAL' ? 'spatial' : 'catalog'} onEdit={setEditingPhoto} />
+        ) : mode === 'SALON' ? (
           <WeeklySalon />
         ) : mode === 'SCHOOL' ? (
           <SchoolView curriculum={PHOTO_ART_SCHOOL} embedded />
@@ -1491,7 +1508,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                   </div>
                   <div className="flex flex-col items-center gap-1">
                     <button
-                      onClick={() => setEditingPhoto(selectedPhoto)}
+                      onClick={() => { setSelectedPhoto(null); setEditingPhoto(selectedPhoto); }}
                       className="w-14 h-14 rounded-full bg-white/5 text-white/40 flex items-center justify-center hover:text-white hover:bg-white/10 transition-all"
                     >
                       <Wand2 size={24} />
@@ -1525,15 +1542,8 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
         />
       )}
 
-      {editingPhoto && (
-        <PhotoEditPanel
-          photo={editingPhoto}
-          variant={mode === 'PRO' ? 'workflow' : 'drawer'}
-          onClose={() => setEditingPhoto(null)}
-          onApply={() => {}}
-        />
-      )}
       {renderGalleriesModal()}
+      </>}
     </div>
   );
 };

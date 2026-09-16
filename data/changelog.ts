@@ -40,6 +40,24 @@ export const APP_BUILD = '2026.08.26-01';
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 'fabula-local-first', date: '2026-09-07', time: '06:00', level: 'major', area: 'Fabula',
+    title: 'Fabula plays your media straight off your drive',
+    technical: 'Reworked Fabula media playback to be disk-first like a native NLE. resolveMediaSource reads original files through persisted File System Access handles (watch folders + a new showOpenFilePicker single-file import that stores per-asset handles), ahead of any cache/cloud; a first-play/scrub gesture re-grants folder permission automatically (ensureDiskAccess). Background conforming (byte-prefetch + proxy encodes) now suspends during playback/scrub so it never competes; the whole timeline conforms to local when idle. Added lightweight AAC audio + WebP picture proxies alongside the 540p video proxy (preview uses them, export always uses originals). "Switch to Local" master toggle blocks cloud entirely; "Sync to Local" is an explicit opt-in download. Proxies-off now falls back to a local proxy instead of streaming. Real JKL shuttle. Blue local-glow on clips reading from disk.',
+    plain: 'Fabula now edits your videos, music and photos straight from the files on your computer — like Premiere or DaVinci Resolve — instead of streaming them from the cloud. That means far smoother playback and scrubbing, no more clips going black or buffering on a bad connection, and nothing gets downloaded by default. Clips playing from your drive glow blue, J/K/L shuttle works, and there\'s a one-tap "Local only" mode.',
+  },
+  {
+    id: 'chora-music-locker', date: '2026-09-07', time: '05:30', level: 'minor', area: 'Chora',
+    title: 'Your Music Locker, all in one place',
+    technical: 'Restructured Chora My Library into a single-scroll "Music Locker": dropped the tab bar and the public "Saved Music" section; private uploaded music, playlists and Local Sync now stack in one page. Renamed the view; Local Sync loads on mount.',
+    plain: 'Your private Music Locker in Chora is now one clean scrolling page — your uploaded music, your playlists and your offline downloads together, without hunting through tabs.',
+  },
+  {
+    id: 'melos-midi-track', date: '2026-09-07', time: '05:45', level: 'minor', area: 'Melos',
+    title: 'Add instruments as MEKA pads or their own MIDI tracks',
+    technical: 'Melos timeline "Add instrument" now opens a destination menu: a MEKA pad (existing) or an independent clip-driven MIDI track with its own mixer strip. Independent tracks get a right-click "Send to MEKA + Glass" that links them to a pad without making them pad-owned, so they\'re both clip-drawable and step-sequenceable.',
+    plain: 'When you add an instrument in Melos you can now choose to put it on a MEKA pad or give it its own MIDI track that works just like an audio track. You can also send a MIDI track to MEKA and the Glass step sequencer whenever you want.',
+  },
+  {
     id: 'tv-quiet-updates', date: '2026-08-26', time: '18:10', level: 'minor', area: 'Platform',
     title: 'Updates never interrupt you anymore',
     technical: 'Removed both auto-reload paths from the service-worker update flow (index.tsx onNeedRefresh): the unconditional TV/native reload and the "silently reload within 10s of load" desktop path. Desktop now always shows a non-intrusive prompt with Reload / Later (snooze); TV & native apply the waiting update on the next visibilitychange→hidden (off-screen), so it lands without interrupting playback. The update prompt now sources its notes from this single changelog ledger instead of a separate, stale list.',

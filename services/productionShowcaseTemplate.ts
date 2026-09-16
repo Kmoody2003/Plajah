@@ -7,6 +7,8 @@ import {
   type ProductionLocation, type ProductionMember, type ProductionScene,
 } from './filmProductionService';
 import type { BreakdownElement } from './productionBreakdownService';
+import type { ScriptDraft } from './productionGraph';
+import type { ScriptElement } from '../types';
 import type { ProductionAction } from './productionActionService';
 import type { ProductionAlert, ProductionDecision } from './productionChatArtifacts';
 import { provisionProductionChat } from './productionChatService';
@@ -16,7 +18,7 @@ import { encryptText } from './cryptoService';
 import type { RecipientDelivery, SchedulePlan } from './productionScheduleService';
 
 export const FILM_SHOWCASE_TEMPLATE_KEY = 'plajah-halflight-production';
-export const FILM_SHOWCASE_TEMPLATE_VERSION = 2;
+export const FILM_SHOWCASE_TEMPLATE_VERSION = 3;
 export const FILM_SHOWCASE_TITLE = 'Halflight · Plajah Production Showcase';
 export const showcaseProductionId = (uid: string) => `showcase_film_v${FILM_SHOWCASE_TEMPLATE_VERSION}_${uid}`;
 
@@ -33,6 +35,7 @@ export interface FilmShowcaseCorpus {
   callSheets: CallSheet[];
   dprs: DailyProductionReport[];
   schedulePlans: SchedulePlan[];
+  scriptDrafts: ScriptDraft[];
   breakdownElements: BreakdownElement[];
   decisions: ProductionDecision[];
   alerts: ProductionAlert[];
@@ -195,6 +198,70 @@ export function buildFilmShowcaseCorpus(productionId: string, ownerUid: string, 
     { id: 's_94', sceneNum: '94', intExt: 'EXT', dayNight: 'DAY', set: 'GOLDSTONE ARRAY - PARKING', synopsis: 'Wrap image: the array powers down.', characters: ['ELENA', 'MARCUS'], pages: 1.0, shootDay: 26, status: 'NOT_SHOT', locationId: 'loc_dish' },
   ];
 
+  // ─── Greenlit screenplay draft — powers the Script Supervisor's tagging view ─
+  // The immutable WHITE draft the breakdown "Script" view reads. Each scripted
+  // scene's sourceElementId links to its SCENE_HEADING element (mapDraftElementsToScenes),
+  // so selecting text on the page tags the correct scene.
+  const scriptId = 'script_halflight';
+  const draftId = 'draft_halflight_white';
+  const headingId = (sceneId: string) => `h_${sceneId}`;
+  const se = (id: string, type: ScriptElement['type'], text: string): ScriptElement => ({ id, type, text });
+  const scriptedScenes: Array<{ sceneId: string; heading: string; body: Array<[ScriptElement['type'], string]> }> = [
+    { sceneId: 's_01', heading: 'EXT. GOLDSTONE DEEP-SPACE ARRAY — DUSK', body: [
+      ['ACTION', 'The great white DISH tilts against a bruised desert sky. DR. ELENA REYES (30s, exhausted, brilliant) climbs the service ladder, a battered RADIO TRANSMITTER slung across her back.'],
+      ['ACTION', 'At the console, SAM OKADA watches the waveform bloom to life.'],
+      ['CHARACTER', 'SAM'], ['DIALOGUE', "That's not noise. That's structure."],
+      ['CHARACTER', 'ELENA'], ['DIALOGUE', 'Align the dish. All the way.'],
+    ] },
+    { sceneId: 's_02', heading: 'EXT. GOLDSTONE ARRAY - DISH BASE — NIGHT', body: [
+      ['ACTION', 'The transmitter crackles. From the speaker, in Elena’s own voice, a single word loops back across forty years of static.'],
+      ['CHARACTER', 'ELENA (V.O.)'], ['DIALOGUE', '...listen...'],
+      ['ACTION', 'Elena’s hand freezes over the dial.'],
+    ] },
+    { sceneId: 's_03', heading: 'INT. ARRAY CONTROL SHED — NIGHT', body: [
+      ['ACTION', 'Fluorescent hum. Sam reaches for the paper LOGBOOK. Elena wipes the timestamp from the terminal before he can write it down.'],
+      ['CHARACTER', 'SAM'], ['DIALOGUE', 'We have to report this.'],
+      ['CHARACTER', 'ELENA'], ['DIALOGUE', 'Not yet. Not until I understand it.'],
+    ] },
+    { sceneId: 's_10', heading: 'INT. AERONOMY LAB - BAY 7 — DAY', body: [
+      ['ACTION', 'A wall of monitors. Elena decodes the WAVEFORM, coffee going cold in a paper cup. DR. HALSEY leans in the doorway.'],
+      ['CHARACTER', 'HALSEY'], ['DIALOGUE', 'You’ve been here since Tuesday.'],
+      ['CHARACTER', 'ELENA'], ['DIALOGUE', 'The signal predates the array. By forty years.'],
+    ] },
+    { sceneId: 's_11', heading: 'INT. LAB - SERVER ROOM — DAY', body: [
+      ['ACTION', 'Server racks breathe cold air. RAVI threads an archival TAPE REEL onto a deck and hits play.'],
+      ['CHARACTER', 'RAVI'], ['DIALOGUE', 'Same phrase. Recorded in 1994. That should be impossible.'],
+    ] },
+    { sceneId: 's_20', heading: 'INT. STARLITE MOTEL - ROOM 114 — NIGHT', body: [
+      ['ACTION', 'Neon bleeds through the blinds. Elena plays the recording on a cheap CASSETTE PLAYER. Beneath the hiss, a WARNING in a voice that is hers and is not.'],
+      ['CHARACTER', 'ECHO (V.O.)'], ['DIALOGUE', 'Three days. Then the lines cross.'],
+    ] },
+    { sceneId: 's_21', heading: 'EXT. STARLITE MOTEL - PARKING LOT — NIGHT', body: [
+      ['ACTION', 'A black GOVERNMENT SEDAN idles across the road, headlights dark. Behind the wheel, COL. DRAKE watches Room 114 and says nothing.'],
+    ] },
+    { sceneId: 's_28', heading: 'INT. ROUTE 375 DINER — DAY', body: [
+      ['ACTION', 'Chrome and vinyl. JUNE refills two mugs. Elena and Sam argue in low voices over cold coffee and a FIELD RECORDER set between them.'],
+      ['CHARACTER', 'SAM'], ['DIALOGUE', 'We take it public. Tonight.'],
+      ['CHARACTER', 'ELENA'], ['DIALOGUE', 'And they bury us both. Is that the plan?'],
+    ] },
+  ];
+  const scriptElements: ScriptElement[] = scriptedScenes.flatMap(entry => [
+    se(headingId(entry.sceneId), 'SCENE_HEADING', entry.heading),
+    ...entry.body.map(([type, text], index) => se(`b_${entry.sceneId}_${index}`, type, text)),
+  ]);
+  const scriptDraft: ScriptDraft = {
+    id: draftId, productionId, scriptId, title: 'Halflight', revisionLabel: 'WHITE',
+    elements: scriptElements, createdBy: ownerUid, createdAt: now - 6 * 86400000, immutable: true,
+  };
+  // Link the greenlit draft to the production and anchor the scripted scenes to it.
+  production.linkedScriptId = scriptId;
+  production.currentDraftId = draftId;
+  const scriptedById = new Map(scriptedScenes.map(entry => [entry.sceneId, entry]));
+  scenes.forEach(scene => {
+    const entry = scriptedById.get(scene.id);
+    if (entry) { scene.sourceScriptId = scriptId; scene.sourceDraftId = draftId; scene.sourceElementId = headingId(scene.id); scene.heading = entry.heading; }
+  });
+
   // ─── Budget — feature-scale, above-the-line + below-the-line + post ─────────
   const budgetLines: ProductionBudgetLine[] = [
     { id: 'budget_story', department: 'Above the Line', lineItem: 'Story & script rights', estimated: 120000, actual: 120000, notes: 'Optioned original screenplay', createdAt: now },
@@ -340,7 +407,21 @@ export function buildFilmShowcaseCorpus(productionId: string, ownerUid: string, 
   });
 
   // ─── Breakdown elements ──────────────────────────────────────────────────────
+  // Cast elements are derived from the roster so the Cast DOOD grid fills itself:
+  // each principal's occurrences are the scenes their character appears in.
+  const castElements: BreakdownElement[] = members.filter(member => member.isCast && member.character).map(member => {
+    const character = member.character!;
+    const occ = scenes.filter(scene => scene.characters.includes(character)).map(scene => ({ id: `occ_cast_${character}_${scene.id}`, sceneId: scene.id, sceneNum: scene.sceneNum, quantity: 1 }));
+    return {
+      id: `bd_cast_${member.id}`, productionId, name: member.role.replace(/\s*\(.*?\)\s*/g, '').trim() || character,
+      category: 'CAST' as const, department: 'CAST' as const, status: 'APPROVED' as const, occurrences: occ, quantity: 1,
+      ownerMemberId: member.id, ownerRole: 'Casting', dependencies: [], notes: `${character} — ${occ.length} scene${occ.length === 1 ? '' : 's'}.`,
+      source: 'MANUAL' as const, createdBy: ownerUid, approvedBy: ownerUid, approvedAt: now, createdAt: now, updatedAt: now,
+    };
+  }).filter(element => element.occurrences.length > 0);
+
   const breakdownElements: BreakdownElement[] = [
+    ...castElements,
     { id: 'bd_transmitter', productionId, name: 'Hero radio transmitter', category: 'PROPS', department: 'ART', status: 'READY', occurrences: [{ id: 'occ_tx_1', sceneId: 's_01', sceneNum: '1', quantity: 1 }, { id: 'occ_tx_2', sceneId: 's_02', sceneNum: '2', quantity: 1 }, { id: 'occ_tx_84', sceneId: 's_84', sceneNum: '84', quantity: 1 }], quantity: 1, continuityState: 'Weathered in Scene 84; pristine at the array in Scene 1', ownerMemberId: 'crew_props', ownerRole: 'Prop Master', dependencies: ['Practical console lighting'], notes: 'Interactive hero prop with functional dials.', source: 'MANUAL', createdBy: ownerUid, createdAt: now, updatedAt: now },
     { id: 'bd_ladderrig', productionId, name: 'Bunker ladder stunt rig', category: 'STUNTS', department: 'STUNTS_SFX', status: 'BLOCKED', occurrences: [{ id: 'occ_ladder_53', sceneId: 's_53', sceneNum: '53', quantity: 1 }, { id: 'occ_ladder_54', sceneId: 's_54', sceneNum: '54', quantity: 1 }], quantity: 1, ownerMemberId: 'crew_stuntco', ownerRole: 'Stunt Coordinator', dependencies: ['Structural survey', 'On-set medic', 'Rigging sign-off'], notes: 'No rehearsal until the bunker survey clears.', source: 'MANUAL', createdBy: ownerUid, createdAt: now, updatedAt: now },
     { id: 'bd_sparkhits', productionId, name: 'Control-level spark hits', category: 'SFX', department: 'STUNTS_SFX', status: 'ASSIGNED', occurrences: [{ id: 'occ_spark_53', sceneId: 's_53', sceneNum: '53', quantity: 4 }], quantity: 4, ownerMemberId: 'crew_sfxsup', ownerRole: 'SFX Supervisor', dependencies: ['Fire safety plan'], notes: 'Practical sparks synced to the console failure.', source: 'MANUAL', createdBy: ownerUid, createdAt: now, updatedAt: now },
@@ -349,6 +430,10 @@ export function buildFilmShowcaseCorpus(productionId: string, ownerUid: string, 
     { id: 'bd_picturecar', productionId, name: 'Elena picture car + process trailer', category: 'VEHICLES', department: 'TRANSPORT', status: 'READY', occurrences: [{ id: 'occ_car_44', sceneId: 's_44', sceneNum: '44', quantity: 1 }, { id: 'occ_car_45', sceneId: 's_45', sceneNum: '45', quantity: 1 }], quantity: 1, ownerMemberId: 'crew_transpo', ownerRole: 'Transportation Coordinator', dependencies: ['Highway permit'], notes: 'Insert car for driving coverage.', source: 'MANUAL', createdBy: ownerUid, createdAt: now, updatedAt: now },
     { id: 'bd_catwalk_safety', productionId, name: 'Array catwalk height safety plan', category: 'SAFETY', department: 'PRODUCTION', status: 'BLOCKED', occurrences: [{ id: 'occ_catwalk_85', sceneId: 's_85', sceneNum: '85', quantity: 2 }], quantity: 2, ownerMemberId: 'crew_marcuslin', ownerRole: '1st Assistant Director', dependencies: ['Anchor-point approval', 'Wind reading'], notes: 'Final fall-protection approval outstanding for the transmitter catwalk.', source: 'MANUAL', createdBy: ownerUid, createdAt: now, updatedAt: now },
     { id: 'bd_period_tapes', productionId, name: 'Reyes house period cassette dressing', category: 'SET_DRESSING', department: 'ART', status: 'READY', occurrences: [{ id: 'occ_tape_35', sceneId: 's_35', sceneNum: '35', quantity: 1 }, { id: 'occ_tape_36', sceneId: 's_36', sceneNum: '36', quantity: 1 }], quantity: 1, continuityState: 'Dressed to 1994; hero tape labeled in the mother’s handwriting', ownerMemberId: 'crew_setdec', ownerRole: 'Set Decorator', dependencies: ['Clearance on labels'], notes: 'Hero cassette plays the childhood recording.', source: 'MANUAL', createdBy: ownerUid, createdAt: now, updatedAt: now },
+    // Pokee suggestions awaiting the Script Supervisor's review — anchored to the greenlit page.
+    { id: 'bd_sedan', productionId, name: 'Government sedan', category: 'VEHICLES', department: 'TRANSPORT', status: 'SUGGESTED', occurrences: [{ id: 'occ_sedan_21', sceneId: 's_21', sceneNum: '21', sourceElementId: 'b_s_21_0', quote: 'GOVERNMENT SEDAN', quantity: 1 }], quantity: 1, source: 'AI', confidence: 0.91, sourceDraftId: draftId, dependencies: [], notes: 'Black sedan, government plates — Drake’s surveillance car. Confirm and assign to Transportation.', createdBy: ownerUid, createdAt: now, updatedAt: now },
+    { id: 'bd_fieldrec', productionId, name: 'Field recorder', category: 'PROPS', department: 'ART', status: 'SUGGESTED', occurrences: [{ id: 'occ_rec_28', sceneId: 's_28', sceneNum: '28', sourceElementId: 'b_s_28_0', quote: 'FIELD RECORDER', quantity: 1 }], quantity: 1, source: 'AI', confidence: 0.86, sourceDraftId: draftId, dependencies: [], notes: 'Practical recorder on the diner table — confirm hero vs. background dressing.', createdBy: ownerUid, createdAt: now, updatedAt: now },
+    { id: 'bd_cassette', productionId, name: 'Cassette player (practical)', category: 'PROPS', department: 'ART', status: 'SUGGESTED', occurrences: [{ id: 'occ_cass_20', sceneId: 's_20', sceneNum: '20', sourceElementId: 'b_s_20_0', quote: 'CASSETTE PLAYER', quantity: 1 }], quantity: 1, source: 'AI', confidence: 0.79, sourceDraftId: draftId, dependencies: [], notes: 'Plays the warning recording — must be a working practical the actor can operate.', createdBy: ownerUid, createdAt: now, updatedAt: now },
   ];
 
   // ─── Decisions + alerts ──────────────────────────────────────────────────────
@@ -391,7 +476,7 @@ export function buildFilmShowcaseCorpus(productionId: string, ownerUid: string, 
     }];
   }));
 
-  return { production, members, scenes, locations, budgetLines, festivals, tasks, craftMenu, craftOrders, callSheets, dprs, schedulePlans: [schedule], breakdownElements, decisions, alerts, productionActions, recipientDeliveries };
+  return { production, members, scenes, locations, budgetLines, festivals, tasks, craftMenu, craftOrders, callSheets, dprs, schedulePlans: [schedule], scriptDrafts: [scriptDraft], breakdownElements, decisions, alerts, productionActions, recipientDeliveries };
 }
 
 async function writeCorpus(corpus: FilmShowcaseCorpus): Promise<void> {
@@ -403,7 +488,7 @@ async function writeCorpus(corpus: FilmShowcaseCorpus): Promise<void> {
   const collections: Array<[string, Array<{ id: string }>]> = [
     ['members', corpus.members], ['scenes', corpus.scenes], ['locations', corpus.locations], ['budgetLines', corpus.budgetLines],
     ['festivals', corpus.festivals], ['tasks', corpus.tasks], ['craftMenu', corpus.craftMenu], ['craftOrders', corpus.craftOrders],
-    ['callsheets', corpus.callSheets], ['dprs', corpus.dprs], ['schedulePlans', corpus.schedulePlans], ['breakdownElements', corpus.breakdownElements],
+    ['callsheets', corpus.callSheets], ['dprs', corpus.dprs], ['schedulePlans', corpus.schedulePlans], ['scriptDrafts', corpus.scriptDrafts], ['breakdownElements', corpus.breakdownElements],
     ['decisions', corpus.decisions], ['alerts', corpus.alerts], ['productionActions', corpus.productionActions], ['recipientDeliveries', corpus.recipientDeliveries],
   ];
   collections.forEach(([name, rows]) => rows.forEach(row => batch.set(doc(db, 'productions', id, name, row.id), clean(row))));

@@ -75,7 +75,11 @@ function slimStatus(status: any): any {
   if (!status || typeof status !== 'object') return status ?? null;
   const t = status.type;
   return {
+    clock: status.clock,
+    displayClock: status.displayClock,
+    period: status.period,
     type: t ? {
+      name: t.name,
       state: t.state,
       completed: t.completed,
       shortDetail: t.shortDetail,
@@ -103,6 +107,8 @@ export function slimScheduleEvent(event: any): any {
     competitions: comp ? [{
       id: comp.id,
       date: comp.date,
+      timeValid: comp.timeValid,
+      neutralSite: comp.neutralSite,
       status: slimStatus(comp.status),
       competitors: Array.isArray(comp.competitors)
         ? comp.competitors.map(slimCompetitor)

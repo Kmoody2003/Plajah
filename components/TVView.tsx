@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { TVChannel, UserProfile, LiveFeed } from '../types';
 import { fetchTVChannels, fetchUserProfile, fetchRankedLiveFeeds, auth } from '../services/backendService';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
+import { isChannelFeed } from '../services/fast/guideLineup';
+import { isFeedLive } from '../services/liveFeedLiveness';
 
 interface TVViewProps {
   onBack?: () => void;
@@ -72,8 +74,8 @@ const TVView: React.FC<TVViewProps> = ({ onBack }) => {
   }, []);
 
   const filteredFeeds = liveFeeds.filter(f => {
-    // Only currently-live streams belong here — an ended one is a replay, not live.
-    if ((f as any).status === 'ENDED' || (f as any).status === 'OFFLINE') return false;
+    // Only currently-live streams belong here — an ended or stale one is a replay, not live.
+    if (!isChannelFeed(f) && !isFeedLive(f)) return false;
     const matchesSearch = f.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          f.ownerName.toLowerCase().includes(searchTerm.toLowerCase());
     if (activeCategory === 'For You') return matchesSearch;

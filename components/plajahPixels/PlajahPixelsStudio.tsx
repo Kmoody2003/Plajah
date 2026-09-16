@@ -10,6 +10,7 @@ import {
 import { uploadVideo, createVideoPlaylist, postToFeed, auth } from '../../services/backendService';
 import AudioVisualizer from './components/AudioVisualizer';
 import StudioStage from './components/StudioStage';
+import FluxStage from './components/FluxStage';
 import SceneRail from './components/SceneRail';
 import ClipGrid from './components/ClipGrid';
 import ClipLauncher from './components/ClipLauncher';
@@ -19,6 +20,7 @@ import ShaderLayer from './components/ShaderLayer';
 import PostProcessLayer from './components/PostProcessLayer';
 import ShaderPanel, { SHADER_LIBRARY, DEFAULT_SHADER_SRC } from './components/ShaderPanel';
 import LibraryRail, { type LibrarySource } from './ui/LibraryRail';
+import { UniversalLibraryPanel } from '../shared/UniversalLibrary/UniversalLibraryPanel';
 import { getSilentAnalyser } from './engine/silentAnalyser';
 import ShaderInspector from './ui/ShaderInspector';
 import MidiNotesScene from './components/MidiNotesScene';
@@ -49,7 +51,7 @@ import GLCompositorView from './components/GLCompositorView';
 import WorkerCompositorView from './components/WorkerCompositorView';
 import CaptionsOverlay from './components/CaptionsOverlay';
 import ColorPaletteEditor from './components/ColorPaletteEditor';
-import { VisualizationConfig, VisualizerMode, AudioState, BackgroundMedia, BlendMode, isStudioMode } from './types';
+import { VisualizationConfig, VisualizerMode, AudioState, BackgroundMedia, BlendMode, isStudioMode, isFluxMode } from './types';
 import { generateThemeFromMood, generateVideoLoop, LiveLyricsSession } from './services/geminiService';
 import { saveProject, loadProject, saveProjectToCloud, listCloudProjects, loadCloudProject, deleteCloudProject } from './services/projectService';
 
@@ -184,7 +186,7 @@ const TAB_TITLES: Record<string, string> = {
     text: 'Chat', ai: 'Clips', midi: 'MIDI', tracks: 'Tracks',
 };
 
-const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void }> = ({ platform, onExit }) => {
+const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void; initialMode?: VisualizerMode }> = ({ platform, onExit, initialMode }) => {
     // Program-out popup mode: render only visualizer, no UI
     const isProgramOut = typeof window !== 'undefined'
         && new URLSearchParams(window.location.search).get('programOut') === '1';
@@ -210,7 +212,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
     const platformTimeRef = useRef<{ currentTime: number }>({ currentTime: 0 });
     const [showTracklist, setShowTracklist] = useState(false);
 
-    const [config, setConfig] = useState<VisualizationConfig>(DEFAULT_CONFIG);
+    const [config, setConfig] = useState<VisualizationConfig>(() => initialMode ? { ...DEFAULT_CONFIG, mode: initialMode } : DEFAULT_CONFIG);
     const [audioState, setAudioState] = useState<AudioState>({ isPlaying: false, currentTime: 0, duration: 0, volume: 0.8 });
     const [bgMedia1, setBgMedia1] = useState<BackgroundMedia[]>([
         { url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200", type: "image", id: "default-gradient-base" },
@@ -266,8 +268,13 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
     /* Pixels opens on a signature work rather than a bare Stage. iTime is
        (now - shaderStart)/1000, so the clock has to start when the studio does
        or the opening work begins mid-animation. */
-    const [shaderSrc, setShaderSrc] = useState<string | null>(DEFAULT_SHADER_SRC);
+    const [shaderSrc, setShaderSrc] = useState<string | null>(initialMode ? null : DEFAULT_SHADER_SRC);
     const [shaderStart, setShaderStart] = useState(() => performance.now());
+    // A generator picked from either library is a program-level source, just like
+    // a picked shader or Milkdrop preset. Keep that intent separate from config.mode:
+    // the deck also updates config.mode when it launches a clip, but already renders
+    // that clip through liveLayers.
+    const [libraryGeneratorMode, setLibraryGeneratorMode] = useState<VisualizerMode | null>(initialMode ?? null);
     // iParam0..3 for the look on the canvas. Owned here so the Library rail, the inspector and
     // ShaderLayer all read one source; seeded from the selected work's declared defaults.
     const [shaderParams, setShaderParams] = useState<number[]>([0.5, 0.5, 0.5, 0.5]);
@@ -738,7 +745,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
         const payload = {
             type: 'STATE',
             config, layers: shareLayers, isPlaying: audioState.isPlaying,
-            shaderSrc, shaderStart, milkdrop, milkdropIdx, milkdropBlendMode, milkdropLayerOpacity,
+            shaderSrc, shaderStart, libraryGeneratorMode, milkdrop, milkdropIdx, milkdropBlendMode, milkdropLayerOpacity,
             midiNotes, three3d,
             // For the stage "Mirror slicing" effect on the external display.
             bgMedia1, bgMedia2,
@@ -747,7 +754,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
         ch.onmessage = (e) => { if (e.data?.type === 'REQUEST_STATE') send(); };
         send();
         return () => ch.close();
-    }, [config, liveLayers, audioState.isPlaying, shaderSrc, shaderStart, milkdrop, milkdropIdx, milkdropBlendMode, milkdropLayerOpacity, midiNotes, three3d, bgMedia1, bgMedia2]);
+    }, [config, liveLayers, audioState.isPlaying, shaderSrc, shaderStart, libraryGeneratorMode, milkdrop, milkdropIdx, milkdropBlendMode, milkdropLayerOpacity, midiNotes, three3d, bgMedia1, bgMedia2]);
 
     // ── Preview / Program (A/B) ──────────────────────────────────────────────────
     // Program = the live full-screen output (driven by `config` + the mode flags),
@@ -766,7 +773,10 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
             if (patch.mode !== undefined) setPreviewKind('scene');
             setPreviewConfig(prev => ({ ...prev, ...patch }));
         } else {
-            if (patch.mode !== undefined) { setMilkdrop(false); setShaderSrc(null); setThree3d(null); }
+            if (patch.mode !== undefined) {
+                setLibraryGeneratorMode(null);
+                setMilkdrop(false); setShaderSrc(null); setThree3d(null);
+            }
             setConfig(prev => ({ ...prev, ...patch }));
         }
     }, [editTarget]);
@@ -814,6 +824,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
     // clock so the piece begins at its beginning rather than mid-animation.
     const selectLook = useCallback((src: string) => {
         const work = SHADER_LIBRARY.find(w => w.src === src);
+        setLibraryGeneratorMode(null);
         setShaderSrc(src);
         setShaderStart(performance.now());
         setMidiNotes(false); setMilkdrop(false); setThree3d(null);
@@ -826,14 +837,18 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
     // Every library pick lands here. A look is one of three things, and choosing one clears the
     // others — only one thing is ON the canvas at a time. This is the single door the deck's own
     // browser used to be a second, duplicate copy of.
+    const [pixLib, setPixLib] = useState<'universal' | 'classic'>(() => { try { return (localStorage.getItem('pixels.lib.v1') as any) || 'universal'; } catch { return 'universal'; } });
+    const setPixLibP = (v: 'universal' | 'classic') => { setPixLib(v); try { localStorage.setItem('pixels.lib.v1', v); } catch { /* */ } };
     const applySource = useCallback((source: LibrarySource) => {
         if (source.kind === 'shader') { selectLook(source.src); return; }
         if (source.kind === 'generator') {
             setShaderSrc(null); setMilkdrop(false); setThree3d(null); setMidiNotes(false);
+            setLibraryGeneratorMode(source.mode);
             setConfig(prev => ({ ...prev, mode: source.mode }));
             return;
         }
         // milkdrop
+        setLibraryGeneratorMode(null);
         setShaderSrc(null); setThree3d(null); setMidiNotes(false);
         setMilkdropIdx(source.index);
         setMilkdrop(true);
@@ -843,6 +858,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
         if (editTarget === 'preview') {
             setPreviewKind('shader'); previewShaderStartRef.current = performance.now(); setPreviewShader(src);
         } else {
+            setLibraryGeneratorMode(null);
             setMilkdrop(false); setMidiNotes(false); setThree3d(null);
             setShaderError(null); setShaderStart(performance.now()); setShaderSrc(src);
         }
@@ -1386,14 +1402,12 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
     // full output: Fast recording includes overlays, and it's the prereq for the
     // OffscreenCanvas worker). HtmlLayer (an iframe) can't become a texture, so it
     // always stays DOM on top; Lottie likewise stays DOM for its screen blend.
-    // Unify composites the overlay layers INTO the single GPU surface. With it off, a picked
-    // shader is a DOM plane sitting on top of the compositor — you see it locally, but the
-    // compositor canvas that recording and program-out capture never contains it, which is exactly
-    // "the shader isn't going to the compositor program out". A global override IS the case where
-    // the overlay must be captured, so force unify on whenever one is active. `{!unify && vizOverlay}`
-    // then stops rendering the DOM copy, so there is no double render.
-    const hasOverride = !!shaderSrc || milkdrop || midiNotes || !!three3d;
-    const unify = !!config.unifyOverlays || hasOverride;
+    // Unify composites ordinary overlay layers into the single GPU surface. A selected program
+    // source stays as a visible DOM plane: uploading one WebGL canvas through another WebGL context
+    // is unreliable on some GPUs and was leaving the old Flux layer visible instead of the pick.
+    // ProgramOutView mirrors these sources directly, so external display output still follows them.
+    const hasOverride = !!shaderSrc || !!libraryGeneratorMode || milkdrop || midiNotes || !!three3d;
+    const unify = !!config.unifyOverlays && !hasOverride;
     // A chosen look must render to program the moment it is picked — a shader animates on iTime, not
     // on audio. The layers dereference their analyser, so before audio starts they get the silent
     // one (zeros for the bands, motion from iTime). This is why picking a shader with nothing playing
@@ -1406,6 +1420,13 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
             ) : vizAnalyser && (
                 <>
                     {shaderSrc && <ShaderLayer analyser={vizAnalyser} source={shaderSrc} startTimeMs={shaderStart} params={shaderParams} onError={setShaderError} />}
+                    {libraryGeneratorMode && (
+                        isFluxMode(libraryGeneratorMode)
+                            ? <FluxStage analyser={vizAnalyser} config={{ ...config, mode: libraryGeneratorMode }} isPlaying={audioState.isPlaying} />
+                            : isStudioMode(libraryGeneratorMode)
+                                ? <StudioStage analyser={vizAnalyser} config={{ ...config, mode: libraryGeneratorMode }} isPlaying={audioState.isPlaying} />
+                                : <AudioVisualizer analyser={vizAnalyser} config={{ ...config, mode: libraryGeneratorMode }} isPlaying={audioState.isPlaying} hasBackground={false} />
+                    )}
                     {midiNotes && <MidiNotesScene palette={config.colorPalette} />}
                     {milkdrop && <ButterchurnLayer analyser={vizAnalyser} presetIndex={milkdropIdx} blendMode={milkdropBlendMode} layerOpacity={milkdropLayerOpacity} onMeta={setMilkdropMeta} onThumbnail={(name, url) => setMilkdropThumbnails(prev => ({ ...prev, [name]: url }))} />}
                 </>
@@ -1446,15 +1467,34 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
             Simple rung up: "Library + canvas + four sliders" is the whole of Rung 1. */}
         {!uiHidden && (
             <AtDepth min="simple">
-                <LibraryRail
-                    selectedSrc={shaderSrc}
-                    selectedMode={!shaderSrc && !milkdrop ? config.mode : null}
-                    milkdropOn={milkdrop}
-                    milkdropIndex={milkdropIdx}
-                    onSelect={applySource}
-                    onImport={() => setShowShaderPanel(true)}
-                    analyser={analyserRef.current}
-                />
+                {pixLib === 'classic' ? (
+                    <div style={{ position: 'relative', display: 'flex', height: '100%' }}>
+                        <LibraryRail
+                            selectedSrc={shaderSrc}
+                            selectedMode={!shaderSrc && !milkdrop ? config.mode : null}
+                            milkdropOn={milkdrop}
+                            milkdropIndex={milkdropIdx}
+                            onSelect={applySource}
+                            onImport={() => setShowShaderPanel(true)}
+                            analyser={analyserRef.current}
+                        />
+                        <button onClick={() => setPixLibP('universal')} title="Universal Library" style={{ position: 'absolute', top: 8, right: 8, zIndex: 6, width: 26, height: 26, borderRadius: 8, border: '1px solid rgba(0,218,243,.6)', background: 'rgba(0,218,243,.12)', color: '#fff', cursor: 'pointer' }}>▦</button>
+                    </div>
+                ) : (
+                    <UniversalLibraryPanel
+                        accent="#00DAF3"
+                        side="left"
+                        storageKey="pixels.ullib.geo.v1"
+                        accepts={['shader', 'gen']}
+                        onImport={() => setShowShaderPanel(true)}
+                        onUse={(it) => {
+                            const p = it.preview;
+                            if (p.mode === 'shader' && p.shaderSrc) applySource({ kind: 'shader', src: p.shaderSrc });
+                            else if (p.mode === 'gen' && p.genMode) applySource({ kind: 'generator', mode: p.genMode as any });
+                        }}
+                        headerExtra={<button onClick={() => setPixLibP('classic')} title="Classic library — milkdrop, ISF, live preview" style={{ width: 24, height: 24, borderRadius: 7, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.06)', color: '#B7AEC7', cursor: 'pointer', fontSize: 11 }}>◐</button>}
+                    />
+                )}
             </AtDepth>
         )}
 
@@ -1695,6 +1735,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                             <button
                                 onClick={() => setThree3d(c => {
                                     if (c) return null;
+                                    setLibraryGeneratorMode(null);
                                     setShaderSrc(null); setMilkdrop(false); setMidiNotes(false);
                                     return { scene: 'water', variant: 'night', camera: 'orbit-slow' };
                                 })}
@@ -1710,7 +1751,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                     {([['water', 'Water 🌊', 'Reflective ocean with album art float'], ['forest', 'Forest 🌲', 'Trees react to audio beats']] as const).map(([s, label, desc]) => (
                                         <button key={s}
                                             onClick={() => {
-                                                if (!three3d) { setShaderSrc(null); setMilkdrop(false); setMidiNotes(false); }
+                                                if (!three3d) { setLibraryGeneratorMode(null); setShaderSrc(null); setMilkdrop(false); setMidiNotes(false); }
                                                 setThree3d(c => c ? { ...c, scene: s } : { scene: s, variant: 'night', camera: 'orbit-slow' });
                                             }}
                                             className="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all text-left"
@@ -1800,7 +1841,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                   active launcher layer + the stage slicing surface into ONE
                   vsync-locked canvas — replacing the old DOM mix-blend-mode stack.
                   Falls back to the DOM LayerStack if WebGL2 is unavailable. */}
-              {config.workerCompositor ? (
+              {config.workerCompositor && !unify ? (
                 <WorkerCompositorView key="worker" layers={liveLayers} analyser={analyserRef.current} config={config} />
               ) : (
                 <GLCompositorView
@@ -1873,9 +1914,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                         {analyserRef.current ? (
                             previewKind === 'shader' && previewShader
                                 ? <ShaderLayer analyser={analyserRef.current} source={previewShader} startTimeMs={previewShaderStartRef.current} onError={() => { }} />
-                                : isStudioMode(previewConfig.mode)
-                                    ? <StudioStage analyser={analyserRef.current} config={previewConfig} isPlaying={audioState.isPlaying} />
-                                    : <AudioVisualizer analyser={analyserRef.current} config={previewConfig} isPlaying={audioState.isPlaying} hasBackground={false} />
+                                : isFluxMode(previewConfig.mode)
+                                    ? <FluxStage analyser={analyserRef.current} config={previewConfig} isPlaying={audioState.isPlaying} />
+                                    : isStudioMode(previewConfig.mode)
+                                        ? <StudioStage analyser={analyserRef.current} config={previewConfig} isPlaying={audioState.isPlaying} />
+                                        : <AudioVisualizer analyser={analyserRef.current} config={previewConfig} isPlaying={audioState.isPlaying} hasBackground={false} />
                         ) : (
                             <div className="absolute inset-0 flex items-center justify-center text-[9px] text-white/30">Play audio to preview</div>
                         )}
@@ -1976,7 +2019,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                 </button>
                 {/* Studio: Synthesia-style MIDI falling-notes scene */}
                 <AtDepth min="full">{/* MIDI — DEPTHS names this rung's surfaces */}
-                    <button onClick={() => setMidiNotes(v => { const n = !v; if (n) { setShaderSrc(null); setMilkdrop(false); setThree3d(null); } return n; })} title="MIDI notes (Synthesia-style falling notes)"
+                    <button onClick={() => setMidiNotes(v => { const n = !v; if (n) { setLibraryGeneratorMode(null); setShaderSrc(null); setMilkdrop(false); setThree3d(null); } return n; })} title="MIDI notes (Synthesia-style falling notes)"
                         className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${midiNotes ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : 'bg-black/40 border-white/10 hover:bg-[#FF8C00]/20'}`}>
                         <Piano className="w-4 h-4 text-white/80" />
                     </button>
@@ -2427,7 +2470,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                         <label className="text-xs text-white/50 block mb-1">Visualizer Mode *</label>
                                         <select 
                                             value={config.mode}
-                                            onChange={e => setConfig(prev => ({ ...prev, mode: e.target.value as VisualizerMode }))}
+                                            onChange={e => applySource({ kind: 'generator', mode: e.target.value as VisualizerMode })}
                                             className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-white text-xs outline-none focus:border-purple-500"
                                         >
                                             {Object.values(VisualizerMode).map(mode => (

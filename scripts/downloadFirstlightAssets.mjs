@@ -1,0 +1,5 @@
+import fs from 'node:fs/promises';
+import {unzipSync} from 'fflate';
+const root='public/firstlight/assets';await fs.mkdir(root,{recursive:true});
+const sources=[['grass','https://ambientcg.com/get?file=Grass004_1K-JPG.zip'],['fabric','https://ambientcg.com/get?file=Fabric030_1K-JPG.zip'],['stadium-sky.hdr','https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/kloppenheim_01_1k.hdr'],['33_01.amc','https://mocap.cs.cmu.edu/subjects/33/33_01.amc'],['33.asf','https://mocap.cs.cmu.edu/subjects/33/33.asf']];
+await Promise.all(sources.map(async([name,url])=>{try{const r=await fetch(url,{signal:AbortSignal.timeout(45000)});if(!r.ok)throw Error('HTTP '+r.status);const b=new Uint8Array(await r.arrayBuffer());if(url.includes('.zip')){await fs.mkdir(root+'/'+name,{recursive:true});const entries=unzipSync(b);for(const [file,bytes]of Object.entries(entries)){if(/(Color|NormalGL|Roughness|AmbientOcclusion)\.jpg$/.test(file))await fs.writeFile(root+'/'+name+'/'+file.split('/').pop(),bytes);}}else await fs.writeFile(root+'/'+name,b);console.log('SAVED',name,b.length,url)}catch(e){console.log('FAILED',name,e.message)}}));

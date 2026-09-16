@@ -7,7 +7,6 @@ import { cleanDescription } from '../utils/description';
 import { generateAlbumMetadata, generateTrackLyrics, type ReleaseKind } from '../services/geminiService';
 import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, fetchUserCharacters, uploadFile as storageUpload, uploadVideo, fetchUserVideos } from '../services/backendService';
 import { listCloudProjects } from './plajahPixels/services/projectService';
-import { enqueueAlbumForTranscode } from '../services/choraStreamService';
 import { requestAnalysis } from '../services/storyIntelService';
 // Lyric sync lives in ONE place (services/lyricSync.ts) so the Melos Project view and this
 // Caption Sync card can never drift apart.
@@ -1063,7 +1062,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             // 39-track album fired 39 concurrent 150-second jobs and then navigated away and
             // abandoned them, which both stampeded Cloud Run and pinned every one of those docs
             // at status:'processing' forever. 68 tracks sat that way for over a month.
-            void enqueueAlbumForTranscode(finalAlbum.id);
+            // publishToCloud now enqueues after the album is persisted.
             // REAL caption sync, now that the audio has a URL the server can fetch. This hits the
             // same windowed-transcription endpoint the player's "Sync Lyrics" uses (short audio
             // windows anchored to real timestamps), instead of guessing evenly-spaced times.
@@ -2782,7 +2781,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Photos & slideshow assets</p>
           </div>
           <div className="relative">
-            <input type="file" multiple accept="image/*" onChange={(e) => { const files = Array.from(e.target.files || []); const urls = files.map(f => URL.createObjectURL(f)); setSlideshow(prev => [...prev, ...urls]); setSlideshowFiles(prev => [...prev, ...files]); }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+            <input type="file" multiple accept="image/*" onChange={(e) => { const files = Array.from(e.target.files || []); if (!files.length) return; const urls = files.map(f => URL.createObjectURL(f)); setSlideshow(prev => [...prev, ...urls]); setSlideshowFiles(prev => [...prev, ...files]); e.target.value = ''; }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
             <button type="button" className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl"><Plus size={14} /> Add Photos</button>
           </div>
         </div>

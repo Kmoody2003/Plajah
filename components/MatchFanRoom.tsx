@@ -6,6 +6,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Send, Radio, Users, BarChart3, MessageSquare } from 'lucide-react';
 import { fetchWorldCupWindow, fetchSoccerSummary } from '../services/sportsService';
+import { fetchFollowedSchedule } from '../services/followedTeamSchedule';
+import { scoreText } from '../src/lib/scoreText';
 import {
   joinMatchRoom, setSupportedSide, subscribeMembers, sendMatchMessage, subscribeMatchChat,
   subscribeMatchPolls, voteMatchPoll, ensureMatchPolls, addNextPoll, resolveTeamCtx,
@@ -28,7 +30,7 @@ function parseMatch(ev: any) {
   const state = ev?.status?.type?.state as string | undefined;
   return {
     home, away,
-    homeScore: Number(home?.score ?? 0), awayScore: Number(away?.score ?? 0),
+    homeScore: Number(scoreText(home?.score) || 0), awayScore: Number(scoreText(away?.score) || 0),
     state, phase: phaseOf(state),
     detail: ev?.status?.type?.shortDetail || ev?.status?.type?.description || '',
     venue: comp?.venue?.fullName || '',
@@ -43,14 +45,16 @@ function eventMatchesTeams(ev: any, home: TeamCtx, away: TeamCtx): boolean {
 
 const MatchFanRoom: React.FC<Props> = ({ match, currentUser, onBack }) => {
   const matchId = String(match?.id || '');
+  const league = match?.sportsLeague as string | undefined;
+  const [updatesUnavailable, setUpdatesUnavailable] = useState(false);
   const m0 = useMemo(() => parseMatch(match), [match]);
   const [live, setLive] = useState(m0);
-  const home = useMemo<TeamCtx>(() => resolveTeamCtx('home', live.home?.team || {}), [live.home]);
-  const away = useMemo<TeamCtx>(() => resolveTeamCtx('away', live.away?.team || {}), [live.away]);
+  const home = useMemo<TeamCtx>(() => resolveTeamCtx('home', live.home?.team || {}, league), [live.home, league]);
+  const away = useMemo<TeamCtx>(() => resolveTeamCtx('away', live.away?.team || {}, league), [live.away, league]);
   // Stable room key per fixture (team-pair) so the same match shares ONE room whether it's
   // opened from a live ESPN card or the (static-id) schedule. Falls back to the raw id if
   // a team can't be resolved to the WC26 roster.
-  const roomKey = useMemo(() => (home.id && away.id ? `wc_${home.id}_${away.id}` : matchId), [home.id, away.id, matchId]);
+  const roomKey = useMemo(() => (league ? `${league}_${matchId}` : home.id && away.id ? `wc_${home.id}_${away.id}` : matchId), [home.id, away.id, matchId, league]);
   // The real ESPN event id (for live score + play-by-play). Resolved from the live window
   // by id or by team match — works even when the room was opened from a synthetic match.
   const [espnId, setEspnId] = useState<string | null>(matchId.startsWith('wc26_') ? null : matchId);
@@ -86,9 +90,13 @@ const MatchFanRoom: React.FC<Props> = ({ match, currentUser, onBack }) => {
     let alive = true;
     const tick = async () => {
       try {
-        const events = await fetchWorldCupWindow();
-        const ev = events.find((e: any) => (espnId && String(e.id) === espnId) || eventMatchesTeams(e, home, away));
+        const schedule = league ? await fetchFollowedSchedule([{ name: home.name, league }], AbortSignal.timeout(12000)) : null;
+        if (schedule?.unavailable.includes(league!)) throw new Error('Schedule unavailable');
+        const events = schedule ? schedule.games.map(game => game.event) : await fetchWorldCupWindow();
+        const ev = events.find((e: any) => (espnId && String(e.id) === espnId) || (!league && eventMatchesTeams(e, home, away)));
+        if (!ev && league) throw new Error('Game unavailable');
         if (ev && alive) {
+          setUpdatesUnavailable(false);
           if (String(ev.id) !== espnId) setEspnId(String(ev.id));
           const next = parseMatch(ev);
           setLive(next);
@@ -96,15 +104,15 @@ const MatchFanRoom: React.FC<Props> = ({ match, currentUser, onBack }) => {
           if (score !== prevScore.current) {
             const scored = next.homeScore + next.awayScore > m0.homeScore + m0.awayScore;
             prevScore.current = score;
-            if (scored) {
+            if (scored && !league) {
               sendMatchMessage(roomKey, { uid: 'system', displayName: 'Match', text: `⚽ GOAL! ${next.home?.team?.displayName || home.name} ${next.homeScore} – ${next.awayScore} ${next.away?.team?.displayName || away.name}`, side: null }).catch(() => {});
               addNextPoll(roomKey, home, away, next.phase).catch(() => {});
             }
           }
-          const c = await fetchSoccerSummary(String(ev.id));
+          const c = league ? [] : await fetchSoccerSummary(String(ev.id));
           if (alive && c?.length) setCommentary(c);
         }
-      } catch { /* keep prior */ }
+      } catch { if (alive) setUpdatesUnavailable(true); }
     };
     tick();
     const id = setInterval(tick, 20_000);
@@ -112,7 +120,7 @@ const MatchFanRoom: React.FC<Props> = ({ match, currentUser, onBack }) => {
     const pid = setInterval(() => addNextPoll(roomKey, home, away, live.phase).catch(() => {}), 120_000);
     return () => { alive = false; clearInterval(id); clearInterval(pid); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomKey, home.id, away.id, espnId]);
+  }, [roomKey, home.id, away.id, espnId, league]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chat.length]);
 
@@ -126,7 +134,7 @@ const MatchFanRoom: React.FC<Props> = ({ match, currentUser, onBack }) => {
 
   const homeFans = members.filter(x => x.side === 'home').length;
   const awayFans = members.filter(x => x.side === 'away').length;
-  const isLive = live.phase === 'live';
+  const isLive = live.phase === 'live' && !updatesUnavailable;
 
   return (
     <div style={{ minHeight: '100%', background: '#0a0a0f', color: '#fff', fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" }}>
@@ -136,9 +144,9 @@ const MatchFanRoom: React.FC<Props> = ({ match, currentUser, onBack }) => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 18, marginTop: 8 }}>
           <TeamHead t={home} fans={homeFans} align="right" />
           <div style={{ textAlign: 'center', minWidth: 92 }}>
-            <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1 }}>{live.homeScore} <span style={{ color: '#888' }}>–</span> {live.awayScore}</div>
+            <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1 }}>{live.phase === 'pre' ? '—' : live.homeScore} <span style={{ color: '#888' }}>–</span> {live.phase === 'pre' ? '—' : live.awayScore}</div>
             <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 800, color: isLive ? '#ff5a5a' : '#cfcfd8', background: 'rgba(0,0,0,0.35)', borderRadius: 20, padding: '3px 10px' }}>
-              {isLive && <Radio size={11} className="animate-pulse" />} {live.detail || (live.phase === 'pre' ? 'Kickoff soon' : '')}
+              {isLive && <Radio size={11} className="animate-pulse" />} {updatesUnavailable ? 'Updates unavailable · Last received score' : live.detail || (live.phase === 'pre' ? 'Kickoff soon' : '')}
             </div>
           </div>
           <TeamHead t={away} fans={awayFans} align="left" />
@@ -157,12 +165,13 @@ const MatchFanRoom: React.FC<Props> = ({ match, currentUser, onBack }) => {
         </div>
       )}
 
-      <div style={{ maxWidth: 1040, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: 16 }}>
+      <div style={{ maxWidth: 1040, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 14, padding: 16 }}>
         {/* left: play-by-play */}
         <div style={{ background: '#101018', border: '1px solid #20202c', borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: 520 }}>
-          <SectionHead icon={<Radio size={14} />} title="Play-by-play" />
+          <SectionHead icon={<Radio size={14} />} title={league ? "Game details" : "Play-by-play"} />
           <div style={{ overflowY: 'auto', padding: '4px 12px 12px' }}>
-            {commentary.length === 0 && <div style={{ color: '#777', fontSize: 12.5, padding: 12 }}>{isLive ? 'Waiting for the next moment…' : 'Commentary appears once the match is live.'}</div>}
+            {league && <div style={{ padding: 12 }}><p>Follow the matchup and join the conversation.</p><a href={match.detailUrl || match.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#FF8C00' }}>Open ESPN game coverage ↗</a></div>}
+            {!league && commentary.length === 0 && <div style={{ color: '#777', fontSize: 12.5, padding: 12 }}>{isLive ? 'Waiting for the next moment…' : 'Commentary appears once the match is live.'}</div>}
             {commentary.map((c, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                 <span style={{ flex: '0 0 38px', fontSize: 11, fontWeight: 800, color: '#FF8C00' }}>{c.time}</span>

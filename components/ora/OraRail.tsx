@@ -1,26 +1,27 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { X, Pin, PinOff, PenLine, Wind } from 'lucide-react';
+import { usePersistentFloating } from '../../hooks/usePersistentFloating';
 import { IconButton } from '../ui';
-import { getProfile, getCheckin, saveCheckin, today } from '../../services/oraService';
+import { getProfile, getCheckin, saveCheckin, saveEntry, today } from '../../services/oraService';
+import {
+  currentJournalDaypart, shouldShowNudge, dismissDaypart,
+  markWrittenToday, markAppOpened, getNudgePrompt, DAYPART_LABELS,
+  type JournalDaypart,
+} from '../../services/oraJournalNudge';
 import type { AppView } from '../../types';
 
 /**
- * Ora — the Companion Rail (Direction C).
+ * Ora — the Companion Rail (Direction C), elevated.
  *
- * Ora is not a destination you have to remember to visit. A small orb rides
- * along with the rest of the platform; tapping it opens a glass rail with the
- * whole check-in in it, and the check-in never opens a screen.
- *
- * This is the piece that attacks the category's actual problem. Standalone
- * wellbeing apps lose ~70% of users inside 100 days because opening them is a
- * chore you are already avoiding. A rail borrows the host app's reason to
- * exist: the user came for the music, and the check-in costs them one tap.
+ * The orb now offers three actions — mood check-in, journal entry, and a breath
+ * — plus daypart-aware journal nudges at morning, midday, and evening.
  *
  * Rules this component holds itself to:
- *   · It never appears uninvited more than once a day.
+ *   · It never appears uninvited more than once per daypart.
  *   · It never appears at all until the user has switched Ora on.
  *   · It is silent about what it holds — the orb reveals nothing to a passer-by.
- *   · Dismissing is always one tap, and dismissal is remembered for the day.
+ *   · Dismissing is always one tap, and dismissal is remembered per daypart.
+ *   · Writing a journal entry suppresses all remaining nudges for the day.
  *
  * Blueprint: docs/PLAJAH_WELLBEING_SUITE_BLUEPRINT.md
  */
@@ -41,6 +42,9 @@ const MUTED_VIEWS: AppView[] = [
 
 const dismissKey = () => `ora:rail:dismissed:${today()}`;
 
+/** Which sub-panel of the expanded card is active. */
+type RailMode = 'ACTIONS' | 'JOURNAL' | 'NUDGE' | 'POST_MOOD';
+
 interface OraRailProps {
   currentView: AppView;
   /** Opens the full room behind the orb. */
@@ -52,10 +56,46 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(false);
   const [saving, setSaving] = useState<number | null>(null);
+  const [mode, setMode] = useState<RailMode>('ACTIONS');
+  const [journalBody, setJournalBody] = useState('');
+  const [savingJournal, setSavingJournal] = useState(false);
+  const [lastMood, setLastMood] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
   const holdTimer = useRef<number | null>(null);
+  const nudgeTimer = useRef<number | null>(null);
+  const autoRecedeTimer = useRef<number | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const floating = usePersistentFloating('plajah:floating:ora', () => ({ x: window.innerWidth - 60, y: window.innerHeight - 205 }));
 
-  // Ora is opt-in. Until the profile says so, this component renders nothing
-  // and — just as importantly — reads and writes nothing.
+  const openRef = useRef(open);
+  openRef.current = open;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const journalBodyRef = useRef(journalBody);
+  journalBodyRef.current = journalBody;
+
+  const clearAutoRecede = useCallback(() => {
+    if (autoRecedeTimer.current !== null) {
+      window.clearTimeout(autoRecedeTimer.current);
+      autoRecedeTimer.current = null;
+    }
+  }, []);
+
+  // Record when the app opened, so nudges wait 2 minutes.
+  useEffect(() => { markAppOpened(); }, []);
+
+  // Cleanup all timers on unmount
+  useEffect(() => {
+    return () => {
+      clearAutoRecede();
+      if (holdTimer.current !== null) window.clearTimeout(holdTimer.current);
+      if (nudgeTimer.current !== null) {
+        window.clearTimeout(nudgeTimer.current);
+        window.clearInterval(nudgeTimer.current);
+      }
+    };
+  }, [clearAutoRecede]);
+
+  // Ora is opt-in. Until the profile says so, this component renders nothing.
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -68,107 +108,431 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
     return () => { alive = false; };
   }, []);
 
+  // Daypart nudge timer — check periodically if a nudge should appear.
+  useEffect(() => {
+    if (!enabled) return;
+    const check = () => {
+      if (MUTED_VIEWS.includes(currentView)) return;
+      // Never interrupt if already open, if user is in JOURNAL mode, or if there is any active draft
+      if (openRef.current || modeRef.current === 'JOURNAL' || journalBodyRef.current.trim().length > 0) {
+        return;
+      }
+      const { show, daypart } = shouldShowNudge(today());
+      if (show && daypart) {
+        // Mark that this daypart nudge has been shown so it does not repeatedly pop up
+        dismissDaypart(daypart, today());
+        setMode('NUDGE');
+        setOpen(true);
+        clearAutoRecede();
+        // Auto-recede after 12 seconds ONLY if the user completely ignores it (still in NUDGE mode with no draft)
+        autoRecedeTimer.current = window.setTimeout(() => {
+          autoRecedeTimer.current = null;
+          // Guard: if user entered JOURNAL mode, or has started typing, stay open until they finish!
+          if (modeRef.current === 'JOURNAL' || journalBodyRef.current.trim().length > 0) {
+            return;
+          }
+          if (modeRef.current === 'NUDGE') {
+            setOpen(false);
+            setMode('ACTIONS');
+          }
+        }, 12000);
+      }
+    };
+    // Initial check after a brief delay
+    const initialDelay = window.setTimeout(() => {
+      check();
+    }, 3000);
+    // Then check every 60s
+    const interval = window.setInterval(check, 60000);
+
+    return () => {
+      window.clearTimeout(initialDelay);
+      window.clearInterval(interval);
+    };
+  }, [enabled, currentView, clearAutoRecede]);
+
   const dismissedToday = typeof window !== 'undefined' && sessionStorage.getItem(dismissKey()) === '1';
+
+  // Current nudge prompt (memoized per daypart rotation).
+  const nudgePrompt = useMemo(() => {
+    const dp = currentJournalDaypart();
+    return dp ? getNudgePrompt(dp) : null;
+  }, []);
+  const nudgeDaypart = currentJournalDaypart();
 
   if (!enabled || MUTED_VIEWS.includes(currentView)) return null;
 
+  // ── Handlers ──────────────────────────────────────────────────────────
+
   const record = async (mood: 1 | 2 | 3 | 4 | 5) => {
+    clearAutoRecede();
     setSaving(mood);
     await saveCheckin({ mood, surface: 'RAIL' });
     setSaving(null);
     setDone(true);
-    // Let the confirmation land, then get out of the way. The rail's job is to
-    // disappear — a wellbeing surface that lingers becomes another thing to close.
-    window.setTimeout(() => setOpen(false), 900);
+    setLastMood(mood);
+    // Instead of auto-closing, transition to POST_MOOD to invite journaling.
+    setMode('POST_MOOD');
+  };
+
+  const handleSaveJournal = async () => {
+    if (!journalBody.trim()) return;
+    clearAutoRecede();
+    setSavingJournal(true);
+    const daypart = currentJournalDaypart();
+    const title = daypart ? DAYPART_LABELS[daypart] : 'Quick entry';
+    await saveEntry({
+      body: journalBody.trim(),
+      title,
+      moodAtWriting: lastMood ?? undefined,
+    });
+    markWrittenToday(today());
+    setSavingJournal(false);
+    setJournalBody('');
+    setMode('ACTIONS');
+    // Gently close after save.
+    window.setTimeout(() => setOpen(false), 600);
   };
 
   const dismiss = () => {
+    clearAutoRecede();
     setOpen(false);
+    setMode('ACTIONS');
     try { sessionStorage.setItem(dismissKey(), '1'); } catch { /* private mode */ }
   };
 
-  // Press-and-hold on the orb opens the room; a tap opens the rail. One control,
-  // two depths — which is the whole "ambient, with a room" integration model.
+  const dismissNudge = () => {
+    clearAutoRecede();
+    if (nudgeDaypart) dismissDaypart(nudgeDaypart, today());
+    setOpen(false);
+    setMode('ACTIONS');
+  };
+
+  const openJournal = () => {
+    clearAutoRecede();
+    if (nudgeDaypart) dismissDaypart(nudgeDaypart, today());
+    setMode('JOURNAL');
+    // Focus the textarea on next tick.
+    window.setTimeout(() => textareaRef.current?.focus(), 50);
+  };
+
+  // Press-and-hold on the orb opens the room; a tap opens the rail.
   const startHold = () => {
     holdTimer.current = window.setTimeout(() => { holdTimer.current = null; onOpenRoom(); }, 450);
   };
   const endHold = () => {
-    if (holdTimer.current === null) return; // hold already fired
+    if (floating.didDragRef.current) { if (holdTimer.current !== null) window.clearTimeout(holdTimer.current); holdTimer.current = null; return; }
+    if (holdTimer.current === null) return;
     window.clearTimeout(holdTimer.current);
     holdTimer.current = null;
-    setOpen((o) => !o);
+    if (open) {
+      setOpen(false);
+      setMode('ACTIONS');
+    } else {
+      setMode('ACTIONS');
+      setOpen(true);
+    }
   };
+
+  // ── Glass card styles ─────────────────────────────────────────────────
+
+  const cardStyle: React.CSSProperties = {
+    pointerEvents: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 0,
+    borderRadius: 20,
+    background: 'color-mix(in srgb, var(--bg-color) 82%, transparent)',
+    backdropFilter: 'blur(20px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+    border: '1px solid var(--pj-border-strong)',
+    boxShadow: 'var(--pj-elev-4)',
+    maxWidth: 'min(92vw, 340px)',
+    minWidth: 260,
+    overflow: 'hidden',
+  };
+
+  const rowStyle: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: 'var(--pj-space-3)',
+    padding: 'var(--pj-space-3) var(--pj-space-4)',
+    cursor: 'pointer',
+    transition: 'background var(--pj-dur-base) var(--pj-ease-standard)',
+  };
+
+  const dividerStyle: React.CSSProperties = {
+    height: 1,
+    background: 'var(--pj-border)',
+    margin: 0,
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────
 
   return (
     <div
       style={{
         position: 'fixed',
-        right: 'max(1rem, env(safe-area-inset-right))',
-        bottom: 'calc(max(1.5rem, env(safe-area-inset-bottom)) + 84px)',
+        left: floating.pos.x,
+        top: floating.pos.y,
         zIndex: 60,
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'flex-end',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
         gap: 'var(--pj-space-2)',
         pointerEvents: 'none',
       }}
+      {...floating.dragProps}
     >
       {open && (
         <div
           role="group"
-          aria-label="Ora check-in"
-          style={{
-            pointerEvents: 'auto',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--pj-space-3)',
-            padding: 'var(--pj-space-2) var(--pj-space-3)',
-            borderRadius: 'var(--pj-radius-full)',
-            background: 'color-mix(in srgb, var(--bg-color) 82%, transparent)',
-            backdropFilter: 'blur(20px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-            border: '1px solid var(--pj-border-strong)',
-            boxShadow: 'var(--pj-elev-4)',
-            maxWidth: 'min(92vw, 420px)',
+          aria-label="Ora companion"
+          style={cardStyle}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            clearAutoRecede();
           }}
+          onMouseEnter={clearAutoRecede}
         >
-          <div style={{ minWidth: 0 }}>
-            <p className="type-label-lg" style={{ margin: 0, whiteSpace: 'nowrap' }}>
-              {done ? 'Logged. Rest easy.' : 'How is it going?'}
-            </p>
-            <p className="type-body-sm" style={{ margin: 0, color: 'var(--on-surface-variant)', whiteSpace: 'nowrap' }}>
-              {done ? 'That is all Ora needs today.' : 'One tap. Nothing opens.'}
-            </p>
-          </div>
 
-          {!done && (
-            <div style={{ display: 'flex', gap: 4 }}>
-              {MOODS.map((m) => (
+          {/* ── NUDGE MODE: daypart journal invitation ── */}
+          {mode === 'NUDGE' && nudgePrompt && (
+            <div style={{ padding: 'var(--pj-space-4)' }}>
+              <p className="type-label-sm" style={{ margin: '0 0 var(--pj-space-1)', color: 'var(--pj-lilac)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                {nudgeDaypart ? DAYPART_LABELS[nudgeDaypart] : 'Reflection'}
+              </p>
+              <p className="type-title-md" style={{ margin: '0 0 var(--pj-space-2)' }}>
+                {nudgePrompt.prompt}
+              </p>
+              <p className="type-body-sm" style={{ margin: '0 0 var(--pj-space-4)', color: 'var(--on-surface-variant)', fontStyle: 'italic' }}>
+                {nudgePrompt.insight}
+              </p>
+              <div style={{ display: 'flex', gap: 'var(--pj-space-2)' }}>
                 <button
-                  key={m.v}
                   type="button"
-                  aria-label={m.label}
-                  disabled={saving !== null}
-                  onClick={() => record(m.v)}
+                  onClick={openJournal}
                   className="tap"
                   style={{
-                    width: 34, height: 34, borderRadius: '50%',
-                    border: '1px solid var(--pj-border)',
-                    background: saving === m.v ? 'var(--pj-orange)' : 'var(--pj-glass-2)',
-                    color: saving === m.v ? '#12080a' : 'var(--text-primary)',
-                    fontSize: 15, lineHeight: 1, cursor: 'pointer',
-                    transition: 'background-color var(--pj-dur-base) var(--pj-ease-standard)',
+                    flex: 1, padding: 'var(--pj-space-2) var(--pj-space-3)',
+                    borderRadius: 'var(--pj-radius-full)',
+                    background: 'var(--pj-grad-ethereal)',
+                    border: 'none', color: '#160826', fontWeight: 700,
+                    fontSize: 13, cursor: 'pointer',
                   }}
                 >
-                  {m.glyph}
+                  ✏️ Write
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={dismissNudge}
+                  className="tap"
+                  style={{
+                    flex: 1, padding: 'var(--pj-space-2) var(--pj-space-3)',
+                    borderRadius: 'var(--pj-radius-full)',
+                    background: 'transparent',
+                    border: '1px solid var(--pj-border-strong)',
+                    color: 'var(--text-primary)', fontWeight: 600,
+                    fontSize: 13, cursor: 'pointer',
+                  }}
+                >
+                  Later
+                </button>
+              </div>
             </div>
           )}
 
-          <IconButton variant="ghost" size="sm" aria-label="Not now" onClick={dismiss}>
-            <X />
-          </IconButton>
+          {/* ── POST-MOOD: bridge from check-in to journal ── */}
+          {mode === 'POST_MOOD' && (
+            <div style={{ padding: 'var(--pj-space-4)', textAlign: 'center' }}>
+              <p className="type-title-md" style={{ margin: '0 0 var(--pj-space-1)' }}>
+                Logged. Rest easy.
+              </p>
+              <p className="type-body-sm" style={{ margin: '0 0 var(--pj-space-4)', color: 'var(--on-surface-variant)' }}>
+                Want to write about it?
+              </p>
+              <div style={{ display: 'flex', gap: 'var(--pj-space-2)' }}>
+                <button
+                  type="button"
+                  onClick={openJournal}
+                  className="tap"
+                  style={{
+                    flex: 1, padding: 'var(--pj-space-2) var(--pj-space-3)',
+                    borderRadius: 'var(--pj-radius-full)',
+                    background: 'var(--pj-grad-ethereal)',
+                    border: 'none', color: '#160826', fontWeight: 700,
+                    fontSize: 13, cursor: 'pointer',
+                  }}
+                >
+                  Write
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearAutoRecede();
+                    setOpen(false);
+                    setMode('ACTIONS');
+                  }}
+                  className="tap"
+                  style={{
+                    flex: 1, padding: 'var(--pj-space-2) var(--pj-space-3)',
+                    borderRadius: 'var(--pj-radius-full)',
+                    background: 'transparent',
+                    border: '1px solid var(--pj-border-strong)',
+                    color: 'var(--text-primary)', fontWeight: 600,
+                    fontSize: 13, cursor: 'pointer',
+                  }}
+                >
+                  Not now
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── JOURNAL MODE: inline textarea ── */}
+          {mode === 'JOURNAL' && (
+            <div style={{ padding: 'var(--pj-space-4)' }}>
+              <p className="type-label-sm" style={{ margin: '0 0 var(--pj-space-2)', color: 'var(--pj-lilac)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                {nudgeDaypart ? DAYPART_LABELS[nudgeDaypart] : 'Quick entry'}
+              </p>
+              <textarea
+                ref={textareaRef}
+                value={journalBody}
+                onChange={(e) => {
+                  clearAutoRecede();
+                  setJournalBody(e.target.value);
+                }}
+                onFocus={clearAutoRecede}
+                placeholder={nudgePrompt?.prompt ?? 'Write as much or as little as you want.'}
+                rows={4}
+                style={{
+                  width: '100%', resize: 'vertical',
+                  background: 'var(--pj-glass-2)',
+                  border: '1px solid var(--pj-border)',
+                  borderRadius: 12, padding: 'var(--pj-space-3)',
+                  color: 'var(--text-primary)', fontFamily: 'inherit',
+                  fontSize: 14, lineHeight: 1.5,
+                  outline: 'none',
+                }}
+              />
+              <p className="type-body-xs" style={{ margin: 'var(--pj-space-2) 0 var(--pj-space-3)', color: 'var(--on-surface-variant)' }}>
+                Encrypted before it leaves this device.
+              </p>
+              <div style={{ display: 'flex', gap: 'var(--pj-space-2)' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearAutoRecede();
+                    setMode('ACTIONS');
+                    setJournalBody('');
+                    setOpen(false);
+                  }}
+                  className="tap"
+                  style={{
+                    flex: 1, padding: 'var(--pj-space-2)',
+                    borderRadius: 'var(--pj-radius-full)',
+                    background: 'transparent',
+                    border: '1px solid var(--pj-border)',
+                    color: 'var(--on-surface-variant)', fontWeight: 600,
+                    fontSize: 13, cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveJournal}
+                  disabled={!journalBody.trim() || savingJournal}
+                  className="tap"
+                  style={{
+                    flex: 1, padding: 'var(--pj-space-2)',
+                    borderRadius: 'var(--pj-radius-full)',
+                    background: journalBody.trim() ? 'var(--pj-grad-ethereal)' : 'var(--pj-glass-3)',
+                    border: 'none',
+                    color: journalBody.trim() ? '#160826' : 'var(--on-surface-variant)',
+                    fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                    opacity: savingJournal ? 0.6 : 1,
+                  }}
+                >
+                  {savingJournal ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── ACTIONS MODE: the three-action menu ── */}
+          {mode === 'ACTIONS' && (
+            <>
+              {/* Row 1: Mood check-in */}
+              <div style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', gap: 'var(--pj-space-2)' }}>
+                <p className="type-label-lg" style={{ margin: 0 }}>
+                  {done ? 'Checked in ✓' : 'How are you?'}
+                </p>
+                {!done && (
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {MOODS.map((m) => (
+                      <button
+                        key={m.v}
+                        type="button"
+                        aria-label={m.label}
+                        disabled={saving !== null}
+                        onClick={() => record(m.v)}
+                        className="tap"
+                        style={{
+                          width: 34, height: 34, borderRadius: '50%',
+                          border: '1px solid var(--pj-border)',
+                          background: saving === m.v ? 'var(--pj-orange)' : 'var(--pj-glass-2)',
+                          color: saving === m.v ? '#12080a' : 'var(--text-primary)',
+                          fontSize: 15, lineHeight: 1, cursor: 'pointer',
+                          transition: 'background-color var(--pj-dur-base) var(--pj-ease-standard)',
+                        }}
+                      >
+                        {m.glyph}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={dividerStyle} />
+
+              {/* Row 2: Write in journal */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={openJournal}
+                onKeyDown={(e) => { if (e.key === 'Enter') openJournal(); }}
+                style={rowStyle}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--pj-glass-2)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+              >
+                <PenLine size={16} style={{ color: 'var(--pj-lilac)', flex: 'none' }} />
+                <span className="type-label-lg" style={{ flex: 1 }}>Write in journal</span>
+              </div>
+
+              <div style={dividerStyle} />
+
+              {/* Row 3: Breathe → opens the full room on the Stillness tab */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => { setOpen(false); onOpenRoom(); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { setOpen(false); onOpenRoom(); } }}
+                style={rowStyle}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--pj-glass-2)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+              >
+                <Wind size={16} style={{ color: 'var(--pj-cyan)', flex: 'none' }} />
+                <span className="type-label-lg" style={{ flex: 1 }}>Breathe</span>
+              </div>
+
+              {/* Dismiss row */}
+              <div style={{ ...dividerStyle }} />
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--pj-space-1)' }}>
+                <IconButton variant="ghost" size="sm" aria-label="Not now" onClick={dismiss}>
+                  <X size={14} />
+                </IconButton>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -176,7 +540,7 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
           phone should not advertise that you keep a journal on it. */}
       <button
         type="button"
-        aria-label={open ? 'Close Ora check-in' : 'Ora — tap to check in, hold to open'}
+        aria-label={open ? 'Close Ora' : 'Ora — tap to check in, hold to open'}
         aria-expanded={open}
         onPointerDown={startHold}
         onPointerUp={endHold}
@@ -202,6 +566,7 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
           }}
         />
       </button>
+      <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={floating.togglePinned} aria-label={floating.pinned ? 'Unpin Ora' : 'Pin Ora here'} aria-pressed={floating.pinned} style={{ pointerEvents: 'auto', position: 'absolute', right: -5, top: -7, width: 20, height: 20, borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'var(--bg-color)', border: '1px solid var(--pj-border-strong)', color: 'var(--on-surface-variant)' }}>{floating.pinned ? <Pin size={10} /> : <PinOff size={10} />}</button>
     </div>
   );
 };

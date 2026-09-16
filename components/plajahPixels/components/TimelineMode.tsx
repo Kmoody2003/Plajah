@@ -10,6 +10,7 @@ import { renderTimeline } from '../engine/core/offlineRenderer';
 import { getAnalysis, analysisAt, MusicAnalysis } from '../engine/core/musicAnalysis';
 import { snapshotFromColumn, makeBlock, SceneTimeline } from '../engine/timeline/sceneTimeline';
 import SceneView from './SceneView';
+import { useUniversalMarquee, useUniversalMultiSelect } from '../../../hooks/useUniversalMultiSelect';
 
 interface Props {
   layers: any[];
@@ -53,7 +54,8 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState('');
   const [playhead, setPlayhead] = useState(0);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const blockSelection = useUniversalMultiSelect(blocks.map(block => block.id));
+  const selectedId = blockSelection.primaryId;
   const [snap, setSnap] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
@@ -70,6 +72,7 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
 
   const waveRef = useRef<HTMLCanvasElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  const marqueeSelection = useUniversalMarquee(trackRef, blockSelection);
   const abortRef = useRef<AbortController | null>(null);
   const dragRef = useRef<{ kind: 'palette' | 'move' | 'trim'; col?: number; id?: string; grab?: number; start?: number; duration?: number } | null>(null);
   const ghostRef = useRef<HTMLDivElement>(null);
@@ -167,7 +170,7 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
         const r = trackRef.current.getBoundingClientRect();
         if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top - 70 && e.clientY <= r.bottom + 70) {
           const nid = uid(); const t = Math.max(0, Math.min(dur - 2, xToT(e.clientX)));
-          setBlocks(bs => [...bs, { id: nid, col: d.col!, start: t, duration: 2 }]); setSelectedId(nid);
+          setBlocks(bs => [...bs, { id: nid, col: d.col!, start: t, duration: 2 }]); blockSelection.selectOnly(nid);
         }
       }
     };
@@ -181,12 +184,12 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
       if (mod && (e.key === 'c' || e.key === 'C') && selectedId) { const b = blocks.find(x => x.id === selectedId); if (b) clipRef.current = { col: b.col, duration: b.duration }; }
-      else if (mod && (e.key === 'v' || e.key === 'V') && clipRef.current) { e.preventDefault(); const nid = uid(); const c = clipRef.current; setBlocks(bs => [...bs, { id: nid, col: c.col, start: playhead, duration: c.duration }]); setSelectedId(nid); }
-      else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) { setBlocks(bs => bs.filter(x => x.id !== selectedId)); setSelectedId(null); }
+      else if (mod && (e.key === 'v' || e.key === 'V') && clipRef.current) { e.preventDefault(); const nid = uid(); const c = clipRef.current; setBlocks(bs => [...bs, { id: nid, col: c.col, start: playhead, duration: c.duration }]); blockSelection.selectOnly(nid); }
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && blockSelection.selectedIds.length) { setBlocks(bs => bs.filter(x => !blockSelection.selectedSet.has(x.id))); blockSelection.clear(); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedId, blocks, playhead]);
+  }, [selectedId, blocks, playhead, blockSelection]);
 
   // Auto-save the timeline per track, and restore it once when the track loads.
   useEffect(() => {
@@ -251,7 +254,7 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
         i = Math.max(i + 1, endIdx);
       }
       if (!nb.length) { setErr('Auto-cut produced no blocks (track too short?).'); return; }
-      setBlocks(nb); setSelectedId(null); setErr(null);
+      setBlocks(nb); blockSelection.clear(); setErr(null);
       setFlash(`Placed ${nb.length} scene${nb.length === 1 ? '' : 's'}${beats.length >= 4 ? ' on the beats' : ' on a grid'}`);
       setTimeout(() => setFlash(null), 2200);
     } catch (e) { setErr('Auto-cut error: ' + ((e as Error)?.message || e)); }
@@ -284,6 +287,7 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
 
   return (
     <div ref={overlayRef} style={{ position: 'fixed', inset: 0, background: '#0c0c12', zIndex: 9999, display: 'flex', flexDirection: 'column', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
+      {marqueeSelection.marquee && <div style={{ position: 'fixed', ...marqueeSelection.marquee, border: '1px solid #00DAF3', background: 'rgba(0,218,243,.12)', pointerEvents: 'none', zIndex: 10002 }} />}
       <div ref={ghostRef} style={{ position: 'absolute', display: 'none', pointerEvents: 'none', zIndex: 10001, padding: '5px 10px', borderRadius: 6, background: '#FF8C00', color: '#000', fontWeight: 700, fontSize: 11, opacity: 0.92 }}>Scene</div>
       {/* header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 18px', borderBottom: '1px solid #22222e' }}>
@@ -311,7 +315,8 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
             Scene {c + 1}
           </div>
         )) : <span style={{ fontSize: 11, color: '#ff8080' }}>No scenes in the launcher yet.</span>}
-        <span style={{ fontSize: 10, color: '#666' }}>· click a block, Ctrl+C / Ctrl+V to copy, Del to remove · auto-saved</span>
+        <span style={{ fontSize: 10, color: '#666' }}>· click selects · Ctrl/Cmd-click toggles · Shift-click selects a range · Ctrl/Cmd+A selects all · auto-saved</span>
+        {blockSelection.selectedIds.length > 1 && <span style={{ fontSize: 10, color: '#FF8C00', fontWeight: 700 }}>{blockSelection.selectedIds.length} selected</span>}
         <div style={{ flex: 1 }} />
         <button onClick={() => setSnap(s => !s)} title="Snap blocks to the nearest beat or another block's edge" style={{ ...btn, background: snap ? 'rgba(255,140,0,0.14)' : '#1f1f2b', color: snap ? '#FF8C00' : '#bbb', border: `1px solid ${snap ? '#FF8C00' : 'transparent'}` }}><Crosshair size={13} /> Snap {snap ? 'On' : 'Off'}</button>
         <button onClick={autoCut} style={{ ...btn, background: '#1f1f2b', color: '#FF8C00' }}><Scissors size={13} /> Auto-cut to beats</button>
@@ -343,16 +348,16 @@ const TimelineMode: React.FC<Props> = ({ layers, config, analyser, sessionAudioU
           </div>
         )}
         {song && (
-          <div ref={trackRef} onClick={(e) => !dragRef.current && setPlayhead(xToT(e.clientX))}
+          <div ref={trackRef} {...marqueeSelection.bind} onClick={(e) => !marqueeSelection.consumeMarqueeClick() && !dragRef.current && setPlayhead(xToT(e.clientX))}
             style={{ position: 'relative', height: 160, background: '#101018', borderRadius: 8, border: '1px solid #22222e', overflow: 'hidden', cursor: 'crosshair' }}>
             <canvas ref={waveRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
             {/* scene blocks */}
             {blocks.map(b => (
-              <div key={b.id} data-blk={b.id}
-                onMouseDown={(e) => { e.stopPropagation(); setSelectedId(b.id); dragRef.current = { kind: 'move', id: b.id, grab: xToT(e.clientX) - b.start, start: b.start, duration: b.duration }; }}
-                style={{ position: 'absolute', top: 10, bottom: 10, left: `${(b.start / dur) * 100}%`, width: `${(b.duration / dur) * 100}%`, minWidth: 8, background: sceneColor(b.col), opacity: selectedId === b.id ? 1 : 0.82, borderRadius: 5, border: selectedId === b.id ? '2px solid #fff' : '1px solid rgba(0,0,0,0.4)', cursor: 'grab', overflow: 'hidden', color: '#000', fontSize: 11, fontWeight: 700, padding: '4px 6px', willChange: 'left,width' }}>
+              <div key={b.id} data-blk={b.id} data-select-id={b.id}
+                onMouseDown={(e) => { e.stopPropagation(); blockSelection.handleSelect(b.id, e); if (!e.ctrlKey && !e.metaKey && !e.shiftKey) dragRef.current = { kind: 'move', id: b.id, grab: xToT(e.clientX) - b.start, start: b.start, duration: b.duration }; }}
+                style={{ position: 'absolute', top: 10, bottom: 10, left: `${(b.start / dur) * 100}%`, width: `${(b.duration / dur) * 100}%`, minWidth: 8, background: sceneColor(b.col), opacity: blockSelection.isSelected(b.id) ? 1 : 0.82, borderRadius: 5, border: blockSelection.isSelected(b.id) ? `2px solid ${selectedId === b.id ? '#fff' : '#00DAF3'}` : '1px solid rgba(0,0,0,0.4)', cursor: 'grab', overflow: 'hidden', color: '#000', fontSize: 11, fontWeight: 700, padding: '4px 6px', willChange: 'left,width' }}>
                 Scene {b.col + 1}
-                <div onMouseDown={(e) => { e.stopPropagation(); setSelectedId(b.id); dragRef.current = { kind: 'trim', id: b.id, start: b.start, duration: b.duration }; }}
+                <div onMouseDown={(e) => { e.stopPropagation(); blockSelection.selectOnly(b.id); dragRef.current = { kind: 'trim', id: b.id, start: b.start, duration: b.duration }; }}
                   style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 8, cursor: 'ew-resize', background: 'rgba(0,0,0,0.35)' }} />
               </div>
             ))}

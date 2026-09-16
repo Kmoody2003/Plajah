@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { platformAudio } from '../services/mediaEngine/audioRuntime';
 import { Track, Album, Video } from '../types';
 import { doc, increment, setDoc, updateDoc } from 'firebase/firestore';
 import { db, fetchAllPublicAlbums } from '../services/backendService';
@@ -28,11 +29,40 @@ import { peekTrackStream, prefetchTrackStreams, pickStreamUrl, getQuality as get
 import { attachPlaybackHealth, configurePlaybackHealth, getSummary as getHealthSummary, getEvents as getHealthEvents, reset as resetHealth } from '../services/playbackHealth';
 import { auth as fbAuth } from '../services/firebase';
 import { buildRadioQueue, type UpNextItem } from '../services/musicRecommender';
+import { FxChainHost, newInstance, type FxInstance } from '../services/melos/beats/fx/devices';
+
+export const isAudiobookMedia = (album?: Album | null, track?: Track | null): boolean => {
+  if (!album && !track) return false;
+  const albumGenre = album?.genre?.toLowerCase() || '';
+  const trackGenre = track?.genre?.toLowerCase() || '';
+  const kind = (track as any)?.kind;
+  const subType = album?.subType;
+  const type = album?.type;
+  return (
+    type === 'BOOK' ||
+    subType === 'AUDIOBOOK' ||
+    albumGenre === 'audiobook' ||
+    albumGenre === 'spoken word' ||
+    albumGenre === 'interview' ||
+    trackGenre === 'audiobook' ||
+    trackGenre === 'spoken word' ||
+    trackGenre === 'interview' ||
+    kind === 'AUDIOBOOK' ||
+    kind === 'INTERVIEW' ||
+    !!(album as any)?.isAudiobook ||
+    !!(track as any)?.isAudiobook ||
+    (track as any)?.collection === 'LibriVox' ||
+    (track as any)?.id?.startsWith('ia_librivox') ||
+    (track as any)?.artist === 'LibriVox' ||
+    (album as any)?.artist === 'LibriVox'
+  );
+};
 
 interface GlobalPlayerProgressContextType {
   currentTime: number;
   duration: number;
   seek: (time: number) => void;
+  skipSeconds: (deltaSeconds: number) => void;
 }
 
 interface GlobalPlayerContextType {
@@ -84,6 +114,12 @@ interface GlobalPlayerContextType {
   resetAudioFx: () => void;
   /** Whether DJ FX are currently coloring the stream (for the Kill button's active state). */
   isFxActive: boolean;
+  /** Chora Live Fun FX: 'lofi' | 'chipmunk' | 'radio' | 'boost' | null */
+  activeLiveFx: 'lofi' | 'chipmunk' | 'radio' | 'boost' | null;
+  liveFxParams: Record<string, number>;
+  toggleLiveFx: (type: 'lofi' | 'chipmunk' | 'radio' | 'boost') => void;
+  setLiveFxParam: (key: string, val: number) => void;
+  clearLiveFx: () => void;
   isFrequencyVisualizerEnabled: boolean;
   setIsFrequencyVisualizerEnabled: (val: boolean) => void;
   visualizerType: 'FLOW' | 'PAINT';
@@ -137,6 +173,12 @@ interface GlobalPlayerContextType {
   activateVideoSource: (video: Video) => void;
   isPlayerExpanded: boolean;
   setIsPlayerExpanded: (val: boolean) => void;
+  playbackRate: number;
+  setPlaybackRate: (rate: number) => void;
+  skipSeconds: (deltaSeconds: number) => void;
+  sleepTimerMinutes: number | null;
+  setSleepTimer: (minutes: number | null) => void;
+  isAudiobook: boolean;
 }
 
 const GlobalPlayerContext = createContext<GlobalPlayerContextType | undefined>(undefined);
@@ -199,6 +241,8 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [repeatMode, setRepeatMode] = useState<'OFF' | 'ONE' | 'ALL'>('OFF');
   const [isShuffle, setIsShuffle] = useState(false);
   const [isFxActive, setIsFxActive] = useState(false);   // DJ FX (filter) currently coloring the stream
+  const [activeLiveFx, setActiveLiveFx] = useState<'lofi' | 'chipmunk' | 'radio' | 'boost' | null>(null);
+  const [liveFxParams, setLiveFxParams] = useState<Record<string, number>>({});
   const [nextTrackId, setNextTrackId] = useState<string | null>(null);
   const shuffleOrderRef = useRef<string[]>([]); // stable shuffled id order so the "next" pick doesn't jitter
   // ── Cross-catalog "up next" radio (native Chora artists first, Audius fill) ──
@@ -221,6 +265,10 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setIsSlideshowAuto(false);
     setSlideshowActiveRaw(val);
   }, []);
+  const [playbackRate, setPlaybackRateState] = useState<number>(1.0);
+  const playbackRateRef = useRef<number>(1.0);
+  const [sleepTimerMinutes, setSleepTimerMinutes] = useState<number | null>(null);
+  const sleepTimerRef = useRef<any>(null);
   const [isNanoView, setIsNanoView] = useState(true);
   const [isNanoDocked, setIsNanoDocked] = useState(true);
   const [isUserActive, setIsUserActive] = useState(true);
@@ -278,6 +326,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // DJ filter carried over into the streaming path (transparent by default). Lets DJ FX keep
   // running after you exit DJ mode, and the Kill button resets it to a dry/natural sound.
   const djFilterRef = useRef<BiquadFilterNode | null>(null);
+  // Chora Live Fun FX engine (Melos Web Audio FX host)
+  const liveFxChainRef = useRef<FxChainHost | null>(null);
+  const activeLiveFxInstanceRef = useRef<FxInstance | null>(null);
   // Fallback decode player for formats the <audio> element can't handle (24-bit WAV, AIFF, etc.)
   const decodedPlayerRef = useRef<DecodedAudioPlayer | null>(null);
   const usingDecodeFallbackRef = useRef(false);
@@ -387,7 +438,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!audioContextRef.current) {
       const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
       if (AudioContextClass) {
-        const ctx = new AudioContextClass();
+        const ctx = platformAudio.getContext();
         audioContextRef.current = ctx;
         // Auto-resume: the OS can suspend the context on a device change / audio-route
         // switch (headphones, Bluetooth) mid-song. Without this the audio goes silent
@@ -405,6 +456,10 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         djFilter.type = 'lowpass';
         djFilter.frequency.value = 20000;
         djFilterRef.current = djFilter;
+        // Chora Live Fun FX host
+        if (!liveFxChainRef.current) {
+          liveFxChainRef.current = new FxChainHost(ctx);
+        }
         // Panner for Eclipsa spatial audio — only active when an Eclipsa track is playing
         const panner = ctx.createPanner();
         panner.panningModel = 'HRTF';
@@ -455,12 +510,50 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setIsFxActive(active);
   }, []);
 
-  // Kill switch — return the track to its natural, dry state (no DJ FX). Safe on all platforms.
+  // Chora Live Fun FX actions
+  const toggleLiveFx = useCallback((type: 'lofi' | 'chipmunk' | 'radio' | 'boost') => {
+    initAudioContext();
+    setActiveLiveFx(prev => {
+      if (prev === type) {
+        activeLiveFxInstanceRef.current = null;
+        setLiveFxParams({});
+        liveFxChainRef.current?.setChain([]);
+        return null;
+      } else {
+        const inst = newInstance(type);
+        activeLiveFxInstanceRef.current = inst;
+        setLiveFxParams(inst.params);
+        liveFxChainRef.current?.setChain([inst]);
+        return type;
+      }
+    });
+  }, [initAudioContext]);
+
+  const setLiveFxParam = useCallback((key: string, val: number) => {
+    setLiveFxParams(prev => {
+      const next = { ...prev, [key]: val };
+      if (activeLiveFxInstanceRef.current) {
+        activeLiveFxInstanceRef.current.params[key] = val;
+        liveFxChainRef.current?.setChain([{ ...activeLiveFxInstanceRef.current }]);
+      }
+      return next;
+    });
+  }, []);
+
+  const clearLiveFx = useCallback(() => {
+    setActiveLiveFx(null);
+    setLiveFxParams({});
+    activeLiveFxInstanceRef.current = null;
+    liveFxChainRef.current?.setChain([]);
+  }, []);
+
+  // Kill switch — return the track to its natural, dry state (no DJ FX, no Live Fun FX). Safe on all platforms.
   const resetAudioFx = useCallback(() => {
     const f = djFilterRef.current;
     if (f) { f.type = 'lowpass'; f.frequency.value = 20000; }
     setIsFxActive(false);
-  }, []);
+    clearLiveFx();
+  }, [clearLiveFx]);
 
   // Recover from a spurious pause (interruption / device handoff) while we still intend
   // to play. Backs off and gives up after a handful of tries so a real, persistent
@@ -506,19 +599,25 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         // default so it changes nothing until driven. The spatial path is left untouched.
         const head: AudioNode = djFilterRef.current ?? source;
         if (djFilterRef.current) source.connect(djFilterRef.current);
+        const liveFx = liveFxChainRef.current;
+        let postFxNode: AudioNode = head;
+        if (liveFx) {
+          head.connect(liveFx.input);
+          postFxNode = liveFx.output;
+        }
         if (pannerRef.current && bypassGainRef.current && pannerInputGainRef.current) {
           // Dual-path graph — only the active path carries audio:
-          // Bypass path (default): source → [djFilter] → bypassGain → analyser → destination
+          // Bypass path (default): source → [djFilter] → [liveFx] → bypassGain → analyser → destination
           // Spatial path (Eclipsa): source → pannerInputGain → panner → analyser → destination
-          head.connect(bypassGainRef.current);
+          postFxNode.connect(bypassGainRef.current);
           source.connect(pannerInputGainRef.current);
           bypassGainRef.current.connect(analyserRef.current);
           pannerInputGainRef.current.connect(pannerRef.current);
           pannerRef.current.connect(analyserRef.current);
         } else {
-          head.connect(analyserRef.current);
+          postFxNode.connect(analyserRef.current);
         }
-        analyserRef.current.connect(audioContextRef.current.destination);
+        analyserRef.current.connect(platformAudio.output('chora'));
         sourceRef.current = source;
       } catch (e) {
         console.warn('Audio Context source connection failed (likely already connected):', e);
@@ -582,6 +681,21 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
   }, []);
 
+  // Continuous reactivity watchdog: when isPlaying is true, ensure AudioContext stays active
+  // and ensureAnalyserTap / connectAudioSource stays connected through full songs and track changes.
+  useEffect(() => {
+    if (!isPlaying) return;
+    const checkInterval = setInterval(() => {
+      if (audioContextRef.current?.state === 'suspended') {
+        audioContextRef.current.resume().catch(() => {});
+      }
+      try {
+        ensureAnalyserTap();
+      } catch { /* ignore */ }
+    }, 2500);
+    return () => clearInterval(checkInterval);
+  }, [isPlaying, ensureAnalyserTap]);
+
   useEffect(() => {
     stateRef.current = { repeatMode, isShuffle, currentAlbum, currentTrack, currentVideo, isPlaying, audioSource, currentTime, ytPlayer: ytPlayerRef.current };
   }, [repeatMode, isShuffle, currentAlbum, currentTrack, currentVideo, isPlaying, audioSource, currentTime]);
@@ -643,7 +757,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Record plays + prefetch radio when the current track is the album's last.
   useEffect(() => {
     if (currentTrack?.id) sessionPlayedRef.current.add(currentTrack.id);
-    if (autoRadio && currentTrack && audioSource !== 'VIDEO' && pickNextId() === null) {
+    if (autoRadio && currentTrack && audioSource !== 'VIDEO' && !isAudiobookMedia(currentAlbum, currentTrack) && pickNextId() === null) {
       // Current track is the end of the album (no repeat) → warm the cross-catalog queue.
       radioQueueRef.current = [];
       fillRadio();
@@ -949,9 +1063,22 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
           console.error("Audio src assignment failed:", e);
         }
 
+        // Audiobook resume position: if not explicitly supplied, check localStorage bookmark
+        let targetStart = startAt;
+        if ((!targetStart || targetStart <= 1) && isAudiobookMedia(album, track)) {
+          try {
+            const saved = localStorage.getItem(`plajah_book_pos_${album?.id}_${track.id}`) ||
+                          localStorage.getItem(`plajah_book_pos_${track.id}`);
+            if (saved) {
+              const num = parseFloat(saved);
+              if (num > 5) targetStart = num;
+            }
+          } catch { /* best-effort */ }
+        }
+
         // Resume: seek to the requested start position once metadata is available.
-        if (startAt && startAt > 1) {
-          const applySeek = () => { try { audio.currentTime = startAt; } catch { /* */ } };
+        if (targetStart && targetStart > 1) {
+          const applySeek = () => { try { audio.currentTime = targetStart!; } catch { /* */ } };
           if (audio.readyState >= 1) applySeek();
           else audio.addEventListener('loadedmetadata', applySeek, { once: true });
         }
@@ -1007,6 +1134,11 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         // Resume AudioContext first so it doesn't silently swallow playback
         const ctx = audioContextRef.current;
         const doPlay = () => {
+          try {
+            if (playbackRateRef.current && playbackRateRef.current !== 1.0) {
+              audio.playbackRate = playbackRateRef.current;
+            }
+          } catch { /* */ }
           const playPromise = audio.play();
           if (playPromise !== undefined) {
             playPromise.catch(async (e) => {
@@ -1034,6 +1166,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
               const newAud = new Audio();
               newAud.volume = audio.volume;
               newAud.src = track.url || '';
+              try { newAud.playbackRate = playbackRateRef.current; } catch { /* */ }
               if (playbackRequest !== playbackRequestRef.current) return;
               try { audio.pause(); audio.removeAttribute('src'); } catch { /* */ }
               audioRef.current = newAud;
@@ -1237,6 +1370,66 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, []);
 
+  const skipSeconds = useCallback((deltaSeconds: number) => {
+    if (stateRef.current.audioSource === 'VIDEO') {
+      if (ytPlayerRef.current && typeof ytPlayerRef.current.getCurrentTime === 'function' && typeof ytPlayerRef.current.seekTo === 'function') {
+        const cur = ytPlayerRef.current.getCurrentTime() || 0;
+        const dur = ytPlayerRef.current.getDuration() || 0;
+        const nextTime = Math.max(0, Math.min(dur || Infinity, cur + deltaSeconds));
+        ytPlayerRef.current.seekTo(nextTime, true);
+        setCurrentTime(nextTime);
+      } else if (videoRef.current) {
+        const cur = videoRef.current.currentTime;
+        const dur = videoRef.current.duration || Infinity;
+        const nextTime = Math.max(0, Math.min(dur, cur + deltaSeconds));
+        videoRef.current.currentTime = nextTime;
+      }
+    } else {
+      const audio = audioRef.current;
+      if (audio) {
+        const cur = audio.currentTime;
+        const dur = audio.duration || Infinity;
+        const nextTime = Math.max(0, Math.min(dur, cur + deltaSeconds));
+        audio.currentTime = nextTime;
+        setCurrentTime(nextTime);
+        setSessionPosition(audio);
+      }
+    }
+  }, []);
+
+  const setPlaybackRate = useCallback((rate: number) => {
+    playbackRateRef.current = rate;
+    setPlaybackRateState(rate);
+    const audio = audioRef.current;
+    if (audio) {
+      audio.playbackRate = rate;
+    }
+    if (ytPlayerRef.current && typeof ytPlayerRef.current.setPlaybackRate === 'function') {
+      ytPlayerRef.current.setPlaybackRate(rate);
+    }
+    if (videoRef.current) {
+      videoRef.current.playbackRate = rate;
+    }
+    setSessionPosition(audio);
+  }, []);
+
+  const setSleepTimer = useCallback((minutes: number | null) => {
+    setSleepTimerMinutes(minutes);
+    if (sleepTimerRef.current) {
+      clearTimeout(sleepTimerRef.current);
+      sleepTimerRef.current = null;
+    }
+    if (minutes && minutes > 0) {
+      sleepTimerRef.current = setTimeout(() => {
+        pause();
+        setSleepTimerMinutes(null);
+      }, minutes * 60 * 1000);
+    }
+  }, [pause]);
+
+  const isAudiobook = useMemo(() => isAudiobookMedia(currentAlbum, currentTrack), [currentAlbum, currentTrack]);
+
+
   const next = React.useCallback(() => {
     if (stateRef.current.audioSource === 'VIDEO') return;
     const album = stateRef.current.currentAlbum;
@@ -1244,8 +1437,8 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const nid = pickNextId();                       // shuffle / repeat aware
       const t = nid ? album.tracks.find(x => x.id === nid) : null;
       if (t) { playTrack(t, album, 'LIBRARY'); return; }
-      // Album exhausted → keep the music going with the native-first cross-catalog radio.
-      if (autoRadioRef.current) {
+      // Album exhausted → keep the music going with cross-catalog radio (never for spoken-word / audiobooks).
+      if (autoRadioRef.current && !isAudiobookMedia(album, stateRef.current.currentTrack)) {
         const item = radioQueueRef.current.shift();
         if (item) {
           setUpNext(null);
@@ -2000,35 +2193,65 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return () => { clearInterval(iv); void save(); };   // also save on pause / track change
   }, [isPlaying, currentTrack?.id, audioSource]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Persist audiobook bookmark in localStorage periodically and on pause/unmount
+  useEffect(() => {
+    if (!isPlaying || !currentTrack || !isAudiobook) return;
+    const saveBookmark = () => {
+      const audio = audioRef.current;
+      const pos = audio?.currentTime || stateRef.current.currentTime || 0;
+      const dur = audio?.duration || 0;
+      if (pos > 5 && dur > 0) {
+        try {
+          localStorage.setItem(`plajah_book_pos_${currentTrack.id}`, String(pos));
+          if (currentAlbum?.id) {
+            localStorage.setItem(`plajah_book_pos_${currentAlbum.id}_${currentTrack.id}`, String(pos));
+          }
+        } catch { /* best-effort */ }
+      }
+    };
+    const interval = setInterval(saveBookmark, 5000);
+    return () => {
+      clearInterval(interval);
+      saveBookmark();
+    };
+  }, [isPlaying, currentTrack?.id, currentAlbum?.id, isAudiobook]);
+
   const contextValue: GlobalPlayerContextType = useMemo(() => ({
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
     isShuffle, setIsShuffle, nextTrackId, autoRadio, setAutoRadio, upNext,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
-    analyser: analyserRef.current, ensureAnalyserTap, getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
+    analyser: analyserRef.current, ensureAnalyserTap, getAudioContext, setDjFilter, resetAudioFx, isFxActive,
+    activeLiveFx, liveFxParams, toggleLiveFx, setLiveFxParam, clearLiveFx,
+    isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme, isBigScreen: theme === 'BIG_SCREEN',
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
     spatialMode, setSpatialMode, dolbySupport, isAtmosActive,
     toggleFullScreen, toggleAppFullScreen, view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia, activateVideoSource,
     isPlayerExpanded, setIsPlayerExpanded,
+    playbackRate, setPlaybackRate, skipSeconds, sleepTimerMinutes, setSleepTimer, isAudiobook,
   }), [
     currentTrack, currentAlbum, currentVideo, isPlaying, volume, audioSource, repeatMode, setRepeatMode,
     isShuffle, setIsShuffle, nextTrackId, autoRadio, setAutoRadio, upNext,
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
-    ensureAnalyserTap, getAudioContext, setDjFilter, resetAudioFx, isFxActive, isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
+    ensureAnalyserTap, getAudioContext, setDjFilter, resetAudioFx, isFxActive,
+    activeLiveFx, liveFxParams, toggleLiveFx, setLiveFxParam, clearLiveFx,
+    isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme,
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
     spatialMode, setSpatialMode, dolbySupport, isAtmosActive,
     view, setView, isMiniPlayerActive, setIsMiniPlayerActive, incrementPlayCount, clearMedia, activateVideoSource,
     isPlayerExpanded, setIsPlayerExpanded, analyserEpoch,
+    playbackRate, setPlaybackRate, skipSeconds, sleepTimerMinutes, setSleepTimer, isAudiobook,
   ]);
 
   const progressValue: GlobalPlayerProgressContextType = useMemo(() => ({
     currentTime,
     duration,
-    seek
-  }), [currentTime, duration, seek]);
+    seek,
+    skipSeconds,
+  }), [currentTime, duration, seek, skipSeconds]);
 
   return (
     <GlobalPlayerContext.Provider value={contextValue}>

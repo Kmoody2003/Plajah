@@ -76,4 +76,72 @@ export const CLASSIC_BOOKS: ArchiveBook[] = [
   book(1727, 'The Odyssey', 'Homer', ['Epic poetry', 'Ancient Greece', 'Mythology'], 33000),
   book(6130, 'The Iliad', 'Homer', ['Epic poetry', 'Trojan War', 'Ancient Greece'], 32000),
   book(145, 'Middlemarch', 'Eliot, George', ['Victorian', 'Domestic fiction', 'England'], 31000),
+  book(1661, 'The Adventures of Sherlock Holmes', 'Doyle, Arthur Conan', ['Detective fiction', 'Mystery', 'Victorian'], 85000),
+  book(17405, 'The Art of War', 'Sun Tzu', ['Military strategy', 'Philosophy', 'China'], 95000, 'Philosophy'),
 ];
+
+export const resolveBookGutenbergId = (titleOrId: string): number | null => {
+  if (!titleOrId) return null;
+  const num = parseInt(titleOrId, 10);
+  if (!isNaN(num) && num > 0) return num;
+
+  const s = titleOrId.toLowerCase();
+  if (s.includes('frankenstein')) return 84;
+  if (s.includes('alice') || s.includes('wonderland')) return 11;
+  if (s.includes('art of war') || s.includes('art_of_war')) return 17405;
+  if (s.includes('sherlock') || s.includes('holmes')) return 1661;
+  if (s.includes('dracula')) return 345;
+  if (s.includes('pride') && s.includes('prejudice')) return 1342;
+  if (s.includes('odyssey')) return 1727;
+  if (s.includes('tom sawyer') || s.includes('tom_sawyer')) return 74;
+  if (s.includes('moby') || s.includes('whale')) return 2701;
+  if (s.includes('great expectations')) return 1400;
+  if (s.includes('two cities') || s.includes('tale of two')) return 98;
+  if (s.includes('time machine')) return 35;
+  if (s.includes('dorian gray')) return 174;
+  if (s.includes('war of the worlds')) return 36;
+  if (s.includes('huckleberry')) return 76;
+  if (s.includes('jekyll') || s.includes('hyde')) return 43;
+  if (s.includes('crime and punishment')) return 2554;
+  if (s.includes('war and peace')) return 2600;
+  if (s.includes('metamorphosis')) return 5200;
+  if (s.includes('monte cristo')) return 1184;
+
+  const match = CLASSIC_BOOKS.find(b => {
+    const bt = b.title.toLowerCase();
+    return bt.includes(s) || s.includes(bt);
+  });
+  return match ? parseInt(match.id, 10) : null;
+};
+
+export const findClassicBook = (titleOrId: string): ArchiveBook | undefined => {
+  if (!titleOrId) return undefined;
+  const direct = CLASSIC_BOOKS.find(b => b.id === titleOrId);
+  if (direct) return direct;
+
+  const gid = resolveBookGutenbergId(titleOrId);
+  if (gid) {
+    const byGid = CLASSIC_BOOKS.find(b => b.id === String(gid));
+    if (byGid) return byGid;
+  }
+
+  const s = titleOrId.toLowerCase();
+  return CLASSIC_BOOKS.find(b => {
+    const bt = b.title.toLowerCase();
+    return bt.includes(s) || s.includes(bt);
+  });
+};
+
+export const getClassicBookTextUrl = (titleOrId: string): string | null => {
+  if (!titleOrId) return null;
+  const book = findClassicBook(titleOrId);
+  if (book?.formats?.['text/plain']) {
+    return book.formats['text/plain'] as string;
+  }
+  const gid = resolveBookGutenbergId(titleOrId);
+  if (gid) {
+    return `https://www.gutenberg.org/cache/epub/${gid}/pg${gid}.txt`;
+  }
+  return null;
+};
+

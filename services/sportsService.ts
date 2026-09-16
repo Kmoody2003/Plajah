@@ -1,5 +1,6 @@
 // ESPN public API – no key required.  All responses are cached in-memory.
 import { scoreText } from '../src/lib/scoreText';
+import { fetchNflScoreboard } from './nflScoreboard';
 import { findStaticTeam } from '../data/leagueTeams';
 
 /** Coerce an ESPN stat value (number | string | {value,displayValue}) to a number. */
@@ -1154,6 +1155,8 @@ export async function fetchLeagueNews(tab: string): Promise<any[]> {
 
 // ---------- league scoreboard (scores) ------------------------------------
 export async function fetchLeagueScores(tab: string): Promise<any[]> {
+  // Never promote a stored NFL snapshot to a newly fetched live scoreboard.
+  if (tab === 'NFL') return (await fetchNflScoreboard(AbortSignal.timeout(12000))).events;
   if (getSpecialtySportCfg(tab)) return fetchSpecialtySportsScores(tab);
   const stored = await readSportsKnowledge<any[]>('sports_league_scores', makeSportsDocId(tab, 'current'), TTL.scores);
   if (tab === 'FIFA') return fetchFifaWorldCupScores();

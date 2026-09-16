@@ -15,11 +15,36 @@
  * player: if something is already playing, the radio tile stays visual.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Radio, Tv, Play, Settings2 } from 'lucide-react';
-import type { UserProfile } from '../../types';
+import { Radio, Tv, Play, Settings2, Link2, ShieldAlert } from 'lucide-react';
+import type { UserProfile, Track, Album, LinkedRadioStation } from '../../types';
 import type { RadioNowPlaying, ChannelNowPlaying } from '../../hooks/useProfileMarquee';
 import { useHoverPreviewAllowed } from '../../hooks/useProfileMarquee';
 import { useGlobalPlayerState } from '../../contexts/GlobalPlayerContext';
+import { fetchMyLinkedStations } from '../../services/linkedStations';
+
+/** Map a linked station to a Track whose id matches LiveRadioBrowser's, so now-playing state agrees
+ *  whether the station is opened from the directory or from a profile. */
+const linkedToTrack = (s: LinkedRadioStation): Track => ({
+  id: `radio:linked:${s.id}`,
+  title: s.name,
+  artist: [s.country, s.language].filter(Boolean).join(' · ') || 'Live Radio',
+  url: s.streamUrl,
+  albumCover: s.favicon || undefined,
+  images: s.favicon ? [s.favicon] : undefined,
+  genre: s.genre || s.tags?.[0],
+  tags: s.tags,
+} as Track);
+
+const linkedToAlbum = (s: LinkedRadioStation, track: Track): Album => ({
+  id: `radio_linked_${s.id}`,
+  title: s.name,
+  artist: s.ownerName || s.country || 'Linked Station',
+  coverImage: s.favicon || '',
+  tracks: [track],
+  description: (s.tags || []).slice(0, 4).join(', ') || 'Linked internet radio',
+  themeColor: '#00DAF3',
+  createdAt: s.createdAt || Date.now(),
+} as Album);
 
 interface ProfileLiveTilesProps {
   profile: UserProfile;
@@ -76,8 +101,29 @@ const ProfileLiveTiles: React.FC<ProfileLiveTilesProps> = ({
   canManageChannel,
 }) => {
   const hoverAllowed = useHoverPreviewAllowed() && !isMobile;
-  const { isPlaying } = useGlobalPlayerState();
+  const { isPlaying, currentTrack, audioSource, playTrack } = useGlobalPlayerState();
   const isOnAir = !!profile.liveStreamConfig?.isActive;
+
+  // ── Linked internet-radio stations (brought on by link) — this account's broadcasting too ──
+  const [linked, setLinked] = useState<LinkedRadioStation[]>([]);
+  useEffect(() => {
+    let alive = true;
+    if (!profile.uid) { setLinked([]); return; }
+    fetchMyLinkedStations(profile.uid).then(rows => { if (alive) setLinked(rows); });
+    return () => { alive = false; };
+  }, [profile.uid]);
+
+  const isSecurePage = typeof window !== 'undefined' && window.location.protocol === 'https:';
+  const tuneLinked = useCallback((s: LinkedRadioStation) => {
+    // http-only stream on an https page can't play — send the listener to its homepage instead.
+    if (!s.isSecure && isSecurePage) {
+      if (s.homepage) window.open(s.homepage, '_blank', 'noopener');
+      return;
+    }
+    const track = linkedToTrack(s);
+    playTrack(track, linkedToAlbum(s, track), 'RADIO', undefined, true);
+  }, [isSecurePage, playTrack]);
+  const linkedPlayingId = audioSource === 'RADIO' ? currentTrack?.id : undefined;
 
   // ── Channel hover preview (muted video, joined at the live offset) ──────────
   const [channelPreviewing, setChannelPreviewing] = useState(false);
@@ -171,7 +217,7 @@ const ProfileLiveTiles: React.FC<ProfileLiveTilesProps> = ({
     }, HOVER_DELAY_MS);
   };
 
-  if (!isOnAir && !showRadio && !showChannel) return null;
+  if (!isOnAir && !showRadio && !showChannel && linked.length === 0) return null;
 
   // Tracks imported without artist metadata store the literal "Unknown Artist" — on a
   // profile we always know whose station this is, so use the account name instead.
@@ -347,6 +393,53 @@ const ProfileLiveTiles: React.FC<ProfileLiveTilesProps> = ({
           )}
         </div>
       )}
+
+      {/* ── Linked internet-radio stations ── */}
+      {linked.map(s => {
+        const blocked = !s.isSecure && isSecurePage;
+        const playing = linkedPlayingId === `radio:linked:${s.id}` && isPlaying;
+        return (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => tuneLinked(s)}
+            title={blocked ? `${s.name} — http-only, opens the station site` : `${s.name}${s.genre ? ' · ' + s.genre : ''}`}
+            className="group/link relative flex min-w-[236px] flex-1 basis-[262px] items-stretch overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] text-left transition-all hover:-translate-y-0.5 hover:border-[#00DAF3]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00DAF3]"
+          >
+            <span className="relative w-[118px] shrink-0 overflow-hidden bg-black" style={{ aspectRatio: '16 / 11' }}>
+              {s.favicon ? (
+                <img src={s.favicon} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover/link:scale-105" />
+              ) : (
+                <span className="absolute inset-0" style={{ background: 'radial-gradient(80% 80% at 30% 25%, #00DAF3 0%, transparent 60%), radial-gradient(70% 70% at 75% 70%, #6B0099 0%, transparent 62%), linear-gradient(140deg,#04222A,#2A0033)' }} />
+              )}
+              <span className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-md bg-black/60 px-2 py-[3px] text-[8px] font-black uppercase tracking-[0.14em] text-white backdrop-blur-sm">
+                <span className={`block h-1.5 w-1.5 rounded-full ${playing ? 'bg-[#00DAF3] animate-pulse' : 'bg-[#00DAF3]'}`} /> Linked
+              </span>
+              {!blocked && (
+                <span className="pointer-events-none absolute inset-0 grid place-items-center opacity-0 transition-opacity group-hover/link:opacity-100">
+                  <span className="grid h-8 w-8 place-items-center rounded-full bg-white/90 text-black"><Play size={13} fill="currentColor" /></span>
+                </span>
+              )}
+            </span>
+
+            <span className="flex min-w-0 flex-1 flex-col justify-center gap-1 px-3 py-2.5">
+              <span className="flex items-center gap-1.5 truncate text-[8.5px] font-black uppercase tracking-[0.18em] text-[#00DAF3]/85">
+                <Link2 size={10} />{playing ? 'On air now' : 'Internet radio'}
+              </span>
+              <span className="truncate text-[13.5px] font-black text-white">{s.name}</span>
+              <span className="truncate text-[11px] font-medium text-white/55">
+                {[s.genre, s.country].filter(Boolean).join(' · ') || 'Live broadcast'}
+                {s.codec ? ` · ${s.codec}${s.bitrate ? ` ${s.bitrate}k` : ''}` : ''}
+              </span>
+              {blocked && (
+                <span className="mt-0.5 inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-amber-300/80">
+                  <ShieldAlert size={10} /> http · opens site
+                </span>
+              )}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 };

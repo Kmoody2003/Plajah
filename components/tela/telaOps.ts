@@ -51,6 +51,7 @@ export type TelaOp =
   // ── Form ops ────────────────────────────────────────────────────────────────
   | { type: 'SET_FORM_BASE'; deviceId: string; baseDeviceId: string }
   | { type: 'UPDATE_FORM_DEVICE'; deviceId: string; patch: Partial<Extract<TelaDevice, { type: 'FORM' }>> }
+  | { type: 'UPDATE_CHART_DEVICE'; deviceId: string; patch: Partial<Extract<TelaDevice, { type: 'CHART' }>> }
   // ── Vector (SVG design) ops ─────────────────────────────────────────────────
   | { type: 'ADD_VECTOR_OBJECT'; deviceId: string; object: TelaVectorObject }
   | { type: 'UPDATE_VECTOR_OBJECT'; deviceId: string; objectId: string; patch: Partial<TelaVectorObject> }
@@ -108,7 +109,7 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
       const w = frame.orientation === 'LANDSCAPE' ? Math.max(p.w, p.h) : frame.orientation === 'PORTRAIT' ? Math.min(p.w, p.h) : p.w;
       const h = frame.orientation === 'LANDSCAPE' ? Math.min(p.w, p.h) : frame.orientation === 'PORTRAIT' ? Math.max(p.w, p.h) : p.h;
       const devices = { ...doc.devices };
-      for (const id of frame.deviceIds) { const device = devices[id]; if (device?.type === 'VECTOR' || device?.type === 'IMAGE') devices[id] = { ...device, width: w, height: h }; }
+      for (const id of frame.deviceIds) { const device = devices[id]; if (device?.type === 'VECTOR' || device?.type === 'IMAGE' || device?.type === 'CHART') devices[id] = { ...device, width: w, height: h }; }
       return { ...doc, frames: doc.frames.map(item => item.id === op.frameId ? { ...item, preset: op.preset, w, h } : item), devices, updatedAt: now };
     }
     case 'SET_FRAME_ORIENTATION': {
@@ -117,7 +118,7 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
       const w = op.orientation === 'LANDSCAPE' ? Math.max(p.w, p.h) : Math.min(p.w, p.h);
       const h = op.orientation === 'LANDSCAPE' ? Math.min(p.w, p.h) : Math.max(p.w, p.h);
       const devices = { ...doc.devices };
-      for (const id of frame.deviceIds) { const device = devices[id]; if (device?.type === 'VECTOR' || device?.type === 'IMAGE') devices[id] = { ...device, width: w, height: h }; }
+      for (const id of frame.deviceIds) { const device = devices[id]; if (device?.type === 'VECTOR' || device?.type === 'IMAGE' || device?.type === 'CHART') devices[id] = { ...device, width: w, height: h }; }
       return { ...doc, frames: doc.frames.map(item => item.id === op.frameId ? { ...item, orientation: op.orientation, w, h } : item), devices, updatedAt: now };
     }
     case 'DELETE_FRAME': {
@@ -204,6 +205,11 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
       const d = doc.devices[op.deviceId];
       if (!d || d.type !== 'FORM') return doc;
       return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, ...op.patch, id: d.id, type: 'FORM' } }, updatedAt: now };
+    }
+    case 'UPDATE_CHART_DEVICE': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'CHART') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, ...op.patch, id:d.id, type:'CHART' } }, updatedAt: now };
     }
 
     // ── Vector ────────────────────────────────────────────────────────────────
