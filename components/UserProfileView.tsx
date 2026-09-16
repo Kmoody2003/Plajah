@@ -120,6 +120,7 @@ import WorldManagerView from './WorldManagerView';
 import WorldBadge from './WorldBadge';
 import PodcastEpisodeList from './PodcastEpisodeList';
 import FollowedPodcastsCarousel from './FollowedPodcastsCarousel';
+import RadioPresetsRow from './radio/RadioPresetsRow';
 import RssFeedViewer from './RssFeedViewer';
 import { getFollowedPodcasts, subscribePodcastLibrary, type FollowedPodcast } from '../services/podcastLibraryService';
 import WorldsView from './WorldsView';
@@ -1385,6 +1386,13 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
 
         {/* Podcasts the user follows — most recent episodes, above Latest Releases */}
         <FollowedPodcastsCarousel podcasts={subscribedPodcasts} onOpen={onSelectAlbum} />
+
+        {/* Radio Presets Row */}
+        <RadioPresetsRow
+          presets={profile.radioPresets}
+          isOwnProfile={isOwnProfile}
+          onOpenRadio={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'RADIO', artistId: profile.uid, params: { artistId: profile.uid } } }))}
+        />
 
         {/* Latest Releases Highlight Section */}
         <div className="mt-12">

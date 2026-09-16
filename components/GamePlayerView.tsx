@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { recordHabit } from '../services/habitsService';
 import { X, Maximize2, Share2, Users, Trophy, Sparkles, ChevronLeft } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Game } from '../types';
@@ -55,6 +56,7 @@ const GamePlayerView: React.FC<GamePlayerViewProps> = ({ game, onBack }) => {
       <div className="flex-1 p-4 lg:p-8 flex items-center justify-center overflow-hidden bg-black/20">
         <div className="w-full h-full max-w-7xl bg-black rounded-[2rem] lg:rounded-[3rem] overflow-hidden border border-white/10 shadow-2xl relative group">
           <iframe 
+            onLoad={() => { void recordHabit({ id: game.id, kind: 'GAME', title: game.title, thumbnailUrl: game.thumbnailUrl }); }}
             src={game.url}
             className="w-full h-full border-none"
             title={game.title}

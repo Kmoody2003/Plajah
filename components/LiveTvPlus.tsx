@@ -12,7 +12,7 @@ import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, 
 import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { ACTIVE_SCIENCE_STREAMS } from './scienceStreams';
 import { fetchChannelNumberRegistry, fetchFastChannelSchedule, fetchFastChannelVideos, setChannelName, type FastChannelListing } from '../services/backendService';
-import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations, backfillScheduleDurationsByUrl, unresolvedDurationUrls, FM_FILL_THRESHOLD_SEC } from '../services/fastChannelTimeline';
+import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations, backfillScheduleDurationsByUrl, unresolvedDurationUrls, FM_FILL_THRESHOLD_SEC, hasPlayableProgramme, sanitizeScheduleForPlayout, nextPlayableSlotIndex, isPlayableProgrammeSlot } from '../services/fastChannelTimeline';
 import { exactDurationSec } from '../services/mediaTimebase';
 import { probeDurations } from '../services/mediaProbe';
 import { now as clockNow } from '../services/platformClock';
@@ -740,8 +740,8 @@ const LiveTvPlus: React.FC<{
     const idx = pos.index;
     const s = slots[idx];
     const remaining = Math.max(1, slotDurationSec(s) - Math.max(0, pos.offsetSec));
-    // THE boundary: this is what ends an ad break and returns the channel to programming, on time.
-    fastTimerRef.current = setTimeout(() => syncRef.current(), remaining * 1000 + 400);
+    // THE boundary: this is what ends an ad break and returns the channel to programming, exactly on time.
+    fastTimerRef.current = setTimeout(() => syncRef.current(), Math.max(100, remaining * 1000));
     const key = `${fastOwnerRef.current}_${idx}`;
     const m = resolveSlotMedia(s);
     // Ad break, a scheduled Plajah FM programming block, or any non-video hold — all play the FM
@@ -774,7 +774,7 @@ const LiveTvPlus: React.FC<{
     const slots = fastSlotsRef.current;
     if (!slots.length) return;
     const pos = clockPos(slots, clockNow());
-    if (pos.offAir) { syncRef.current(); return; }
+    if (pos.offAir || !hasPlayableProgramme(slots)) { syncRef.current(); return; }
     const remaining = slotDurationSec(slots[pos.index]) - Math.max(0, pos.offsetSec);
     const up = upNextFrom(slots, pos.index);
     if (remaining > FM_FILL_THRESHOLD_SEC) {
@@ -796,10 +796,11 @@ const LiveTvPlus: React.FC<{
     const owner = playing?.kind === 'fast' ? playing.scheduleOwner : undefined;
     fastOwnerRef.current = owner;
     if (!owner) { setFastMedia(null); setFastAd(null); setFastFiller(null); fastSlotsRef.current = []; return; }
-    const start = (sched: FastChannelSchedule | null) => {
+    const start = (sched: FastChannelSchedule | null, vids: any[] = []) => {
       if (cancelled) return;
       fastSchedRef.current = sched;
-      fastSlotsRef.current = activeDaySlots(sched, clockNow());
+      const rawSlots = activeDaySlots(sched, clockNow());
+      fastSlotsRef.current = sanitizeScheduleForPlayout(rawSlots, vids);
       syncFast();   // join at the current wall-clock position
     };
     if (schedCache.current.has(owner)) start(schedCache.current.get(owner)!);
@@ -811,13 +812,13 @@ const LiveTvPlus: React.FC<{
         const durMap = new Map((vids as any[]).map(v => [v.id, Math.round(exactDurationSec(v))]));
         const fixed = s ? backfillScheduleDurations(s, durMap) : null;
         schedCache.current.set(owner, fixed);
-        start(fixed);
+        start(fixed, vids);
         if (fixed) {
           const unknown = unresolvedDurationUrls(fixed);
           if (unknown.length) healUnknownDurations(fixed).then(healed => {
             if (cancelled || fastOwnerRef.current !== owner) return;
             schedCache.current.set(owner, healed);
-            start(healed);
+            start(healed, vids);
           }).catch(() => {});
         }
       }).catch(() => start(null));

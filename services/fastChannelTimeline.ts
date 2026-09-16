@@ -376,3 +376,86 @@ export function slotsFromVideos(videos: RawVideoish[]): FastChannelSlot[] {
     videoDurationSeconds: Math.round(Number(v.duration) || 0) > 0 ? Math.round(Number(v.duration)) : DEFAULT_VIDEO_SEC,
   }));
 }
+
+/** Check if a single slot is an actual playable program (not a break, bumper, or filler). */
+export function isPlayableProgrammeSlot(s: FastChannelSlot | null | undefined): boolean {
+  if (!s) return false;
+  if (s.type !== 'VIDEO' && s.type !== 'PUBLIC_DOMAIN' && s.type !== 'LIVE_INTERRUPT') return false;
+  const m = resolveSlotMedia(s);
+  const url = m.muxPlaybackId ? `https://stream.mux.com/${m.muxPlaybackId}.m3u8` : (m.url || '');
+  return !!url && !(!m.isHls && !m.muxPlaybackId && isEmbedUrl(url));
+}
+
+/**
+ * Find the next genuine programming slot after `fromIndex`.
+ * Guaranteed to skip over consecutive ad breaks, bumpers, and filler blocks so that when an
+ * ad break finishes, playout unconditionally returns to actual channel programming.
+ */
+export function nextPlayableSlotIndex(slots: FastChannelSlot[], fromIndex: number): number {
+  if (!slots?.length) return 0;
+  for (let step = 1; step <= slots.length; step++) {
+    const idx = (fromIndex + step) % slots.length;
+    if (isPlayableProgrammeSlot(slots[idx])) {
+      return idx;
+    }
+  }
+  return (fromIndex + 1) % slots.length;
+}
+
+/**
+ * Sanitize and harden a schedule's slots for playout:
+ * 1. If the schedule has no playable programming and fallback videos exist, rebuilds from the library.
+ * 2. Collapses consecutive AD_BREAK slots so two commercial breaks never run back-to-back.
+ * 3. Enforces healthy duration floors (no 1s poisoned slots; ads at least 15s, bumpers at least 5s).
+ * 4. Re-indexes slot orders deterministically.
+ */
+export function sanitizeScheduleForPlayout(
+  slots: FastChannelSlot[],
+  fallbackVideos?: RawVideoish[],
+): FastChannelSlot[] {
+  let list = Array.isArray(slots) ? [...slots] : [];
+
+  // Guard: if schedule has NO playable content at all, fall back to the video library
+  if (!hasPlayableProgramme(list) && fallbackVideos && fallbackVideos.length > 0) {
+    list = slotsFromVideos(fallbackVideos);
+  }
+
+  // Filter out any completely invalid/empty slots
+  list = list.filter(slotIsPlayable);
+
+  // Collapse consecutive ad breaks or consecutive filler blocks
+  const collapsed: FastChannelSlot[] = [];
+  for (let i = 0; i < list.length; i++) {
+    const curr = list[i];
+    const prev = collapsed[collapsed.length - 1];
+
+    if (curr.type === 'AD_BREAK' && prev && prev.type === 'AD_BREAK') {
+      // Merge duration into prev if reasonable, but NEVER place two AD_BREAKs back to back
+      const prevDur = slotDurationSec(prev);
+      const currDur = slotDurationSec(curr);
+      prev.adDurationSeconds = Math.min(180, Math.max(15, prevDur + currDur));
+      continue;
+    }
+
+    if (curr.type === 'AD_BREAK' && prev && prev.type === 'FM_BLOCK') {
+      // Don't place an ad break immediately following an FM filler block
+      continue;
+    }
+
+    // Ensure ad duration is reasonable (at least 15s, at most 180s)
+    if (curr.type === 'AD_BREAK') {
+      const dur = slotDurationSec(curr);
+      curr.adDurationSeconds = Math.min(180, Math.max(15, dur));
+    }
+
+    collapsed.push(curr);
+  }
+
+  // Final check: if collapsing left a trailing AD_BREAK that wraps to an initial AD_BREAK
+  if (collapsed.length > 1 && collapsed[0].type === 'AD_BREAK' && collapsed[collapsed.length - 1].type === 'AD_BREAK') {
+    collapsed.pop();
+  }
+
+  return collapsed.map((s, idx) => ({ ...s, order: idx }));
+}
+

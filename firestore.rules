@@ -967,6 +967,9 @@ service cloud.firestore {
       match /watchHistory/{itemId} {
         allow read, write: if isOwner(userId);
       }
+      match /activityHistory/{itemId} {
+        allow read, write: if isOwner(userId);
+      }
 
       // Mirror of the videos the owner has liked (for the "Liked videos" surface).
       // Written alongside the videos/{id}/likes doc; owner-private.

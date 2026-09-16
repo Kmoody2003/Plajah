@@ -40,6 +40,7 @@ export interface WatchEntry {
    * device's anonymous history.
    */
   uid?: string;
+  albumId?: string;
 }
 
 const LS_KEY = 'plajah_watch_history_v1';

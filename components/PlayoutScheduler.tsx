@@ -135,7 +135,7 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
     commit([...editing.slice(0, idx), slot, ...editing.slice(idx)]);
   const append = (slot: FastChannelSlot) => commit([...editing, slot]);
 
-  const newAd = (): FastChannelSlot => ({ id: `ad_${Date.now()}`, type: 'AD_BREAK', order: 0, adDurationSeconds });
+  const newAd = (): FastChannelSlot => ({ id: `ad_${Date.now()}`, type: 'AD_BREAK', order: 0, adDurationSeconds: Math.max(15, adDurationSeconds || 60) });
   const newBumper = (b: ChannelBumper, promo = false): FastChannelSlot => ({
     id: `bmp_${b.id}_${Date.now()}`, type: 'BUMPER', order: 0,
     bumperId: b.id, bumperUrl: b.url, bumperTitle: b.title, bumperDurationSeconds: b.durationSeconds || 15,
@@ -357,8 +357,8 @@ const PlayoutScheduler: React.FC<Props> = ({ schedule, onChange, videos, bumpers
                       {(s.type === 'AD_BREAK' || s.type === 'BUMPER' || !s.videoDurationSeconds) && (
                         <label className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-white/50">
                           Duration (s)
-                          <input type="number" min={1} value={s.type === 'AD_BREAK' ? (s.adDurationSeconds || adDurationSeconds) : s.type === 'BUMPER' ? (s.bumperDurationSeconds || 15) : (s.videoDurationSeconds || 0)}
-                            onChange={e => { const v = Math.max(1, parseInt(e.target.value) || 1); patchSlot(s.id, s.type === 'AD_BREAK' ? { adDurationSeconds: v } : s.type === 'BUMPER' ? { bumperDurationSeconds: v } : { videoDurationSeconds: v }); }}
+                          <input type="number" min={5} value={s.type === 'AD_BREAK' ? (s.adDurationSeconds || adDurationSeconds || 60) : s.type === 'BUMPER' ? (s.bumperDurationSeconds || 15) : (s.videoDurationSeconds || 0)}
+                            onChange={e => { const v = Math.max(5, parseInt(e.target.value) || 5); patchSlot(s.id, s.type === 'AD_BREAK' ? { adDurationSeconds: v } : s.type === 'BUMPER' ? { bumperDurationSeconds: v } : { videoDurationSeconds: v }); }}
                             className="w-24 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-[10px] outline-none focus:border-white/30" />
                         </label>
                       )}

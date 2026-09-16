@@ -20,9 +20,6 @@ import DonationModal from '../DonationModal';
 const ORANGE = '#FF8C00';
 const PURPLE = '#6B0099';
 const MAGENTA = '#D40055';
-const COVER_ART_SEC = 30;
-const FADE_SEC = 4;
-const UPNEXT_SEC = 6;
 
 interface Props {
   channelName: string;
@@ -51,10 +48,29 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
   const audioRef = useRef<HTMLAudioElement>(null);
   const seekRef = useRef(0);
   const startRef = useRef(Date.now());
-  const switchedRef = useRef(false);
   // Duck Plajah FM out the moment platform bumper/promo videos (which carry their own audio) take over.
   const duckRef = useRef(false);
   const duckStartRef = useRef(0);
+  const completedRef = useRef(false);
+
+  // Dynamic timing calculated from the exact duration of the break
+  const totalSec = Math.max(3, Math.round(durationSec));
+  const upNextSec = upcoming.length > 0
+    ? (totalSec <= 15 ? Math.min(5, Math.max(3, Math.floor(totalSec * 0.35))) : Math.min(8, Math.max(5, Math.floor(totalSec * 0.18))))
+    : 0;
+  const fadeSec = Math.min(3, Math.max(1, Math.floor(totalSec * 0.1)));
+  const canShowAds = totalSec >= 25;
+  const adsStartSec = canShowAds ? Math.max(upNextSec + 2, Math.floor(totalSec * 0.35)) : totalSec + 999;
+
+  const finish = useCallback(() => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    const a = audioRef.current;
+    if (a) {
+      try { a.pause(); a.src = ''; } catch { /* */ }
+    }
+    onComplete?.();
+  }, [onComplete]);
 
   // Arm the FM audio duck when the interstitial phase shows platform bumper VIDEOS.
   useEffect(() => {
@@ -91,26 +107,25 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
     return () => { alive = false; };
   }, []);
 
-  // Coming-up-next overlay for the first few seconds.
+  // Coming-up-next overlay for the initial portion of the break.
   useEffect(() => {
-    if (!upcoming.length) return;
-    const t = setTimeout(() => setShowUpNext(false), UPNEXT_SEC * 1000);
+    if (!upcoming.length || upNextSec <= 0) { setShowUpNext(false); return; }
+    setShowUpNext(true);
+    const t = setTimeout(() => setShowUpNext(false), upNextSec * 1000);
     return () => clearTimeout(t);
-  }, [upcoming.length]);
+  }, [upcoming.length, upNextSec]);
 
-  // THE break end: fire onComplete once when the break's time is up, so the channel reliably returns
-  // to scheduled programming even if nothing else advances it. Independent of the audio/ad state.
-  const completedRef = useRef(false);
+  // THE break end: fire finish once when the break's time is up, so the channel reliably returns
+  // to scheduled programming to the exact second.
   useEffect(() => {
-    completedRef.current = false; // reset for THIS break (the instance may be reused across ads)
+    completedRef.current = false;
     startRef.current = Date.now();
-    const ms = Math.max(3, durationSec) * 1000;
-    const t = setTimeout(() => { if (!completedRef.current) { completedRef.current = true; onComplete?.(); } }, ms);
+    const ms = totalSec * 1000;
+    const t = setTimeout(finish, ms);
     return () => clearTimeout(t);
-  }, [durationSec, onComplete]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [totalSec, finish]);
 
-  // Audio: play Plajah FM, seek to the live satellite offset, fade in over 4s + out over the last 4s,
-  // and flip to the ad-cycle phase at 30s.
+  // Audio: play Plajah FM, seek to live satellite offset, fade in over fadeSec + out over the last fadeSec.
   useEffect(() => {
     const a = audioRef.current;
     if (!a || !track?.url) return;
@@ -123,10 +138,10 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
     let raf = 0;
     const tick = () => {
       const el = (Date.now() - startRef.current) / 1000;
-      const remaining = durationSec - el;
+      const remaining = totalSec - el;
       let v = 1;
-      if (el < FADE_SEC) v = el / FADE_SEC;
-      else if (remaining < FADE_SEC) v = Math.max(0, remaining / FADE_SEC);
+      if (el < fadeSec) v = el / Math.max(0.1, fadeSec);
+      else if (remaining < fadeSec) v = Math.max(0, remaining / Math.max(0.1, fadeSec));
       // Platform bumper videos on screen → fade FM to silence over ~1s, then pause it.
       if (duckRef.current) v = Math.min(v, Math.max(0, 1 - (Date.now() - duckStartRef.current) / 1000));
       a.volume = muted ? 0 : Math.max(0, Math.min(1, v));
@@ -135,15 +150,14 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
     };
     raf = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(raf); a.removeEventListener('loadedmetadata', onMeta); try { a.pause(); } catch { /* */ } };
-  }, [track?.url, durationSec, muted]);
+  }, [track?.url, totalSec, fadeSec, muted]);
 
-  // After the FM card, switch to the interstitial phase (Plajah platform bumpers, else the ad rail).
-  // Independent of the audio so it runs even when there's no FM track.
+  // Switch to interstitial phase (platform bumpers/ads) if the break is long enough and assets exist.
   useEffect(() => {
-    if (platformVids.length === 0 && ads.length === 0) return;
-    const t = setTimeout(() => setPhase('ads'), COVER_ART_SEC * 1000);
+    if (!canShowAds || (platformVids.length === 0 && ads.length === 0)) return;
+    const t = setTimeout(() => setPhase('ads'), adsStartSec * 1000);
     return () => clearTimeout(t);
-  }, [platformVids.length, ads.length]);
+  }, [canShowAds, adsStartSec, platformVids.length, ads.length]);
 
   // Cycle the ad-rail IMAGES only when there are no platform bumper videos (those cycle on `ended`).
   useEffect(() => {
@@ -163,6 +177,7 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
 
   return (
     <div className="absolute inset-0 overflow-hidden select-none bg-black">
+
       <audio ref={audioRef} playsInline />
 
       {phase === 'ads' && platformVids.length > 0 ? (
