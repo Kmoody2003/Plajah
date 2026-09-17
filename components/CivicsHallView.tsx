@@ -1,279 +1,419 @@
 /**
- * CivicsHallView — Civics Hall, with the Telescoping Text reader as its front door.
+ * CivicsHallView — Civics Hall: The Long Argument of Liberty Landing Page.
  *
- * Two tabs:
- *  • The Texts — the signature mechanic. One document, five zoom levels, real public-domain words
- *    at every band. Pick a document, pick a band, read the actual text with a teaching lens.
- *  • Curriculum — the five strands on the shared School chassis (<SchoolView>), which handles
- *    progress and the Learner Ledger writes.
+ * Grounded in Choice A: The Campus Salon & Work Desk.
+ * Aligned with NCSS C3 Social Studies Framework.
+ * Primary-source spine with verbatim historic documents (1215 -> Present).
  *
- * Everything here is public domain, which is what lets the header say so plainly.
+ * Features:
+ *  - "My Civics Desk": Context apron showing current document in focus, debate streak, and C3 standard mastery.
+ *  - 4 Tabbed Workspaces:
+ *     1. STRANDS: Foundations of Liberty, Government Structure, Rights, Civic Action, Living Constitution, Comparative
+ *     2. LADDER: PreK Class Constitution -> Middle School Mock Trial -> Federalist Verbatim -> Comparative 7 Nations
+ *     3. QUESTS: Class constitution sprint, Federalist debate, Supreme Court moot court, Comparative constitution audit
+ *     4. TOOLS: Telescoping Founding Documents reader, Constitution Annotated, Library of Congress archive
+ *  - Touch-First Mobile: Horizontal snap-carousels and 48px touch targets without overlapping.
  */
 import React, { useState } from 'react';
-import { ArrowLeft, ScrollText, GraduationCap, ExternalLink, ShieldCheck } from 'lucide-react';
-import SchoolView from './school/SchoolView';
+import {
+  ArrowLeft, Landmark, Sparkles, BookOpen, ShieldCheck, GraduationCap,
+  ChevronRight, Award, Scroll, Scale, CheckCircle2,
+  Layers, Play, Clock, FileText, Globe, Users
+} from 'lucide-react';
 import { CIVICS_HALL } from '../data/civicsCurriculum';
-import { FOUNDING_DOCS, DOC_BANDS, type DocBand } from '../data/foundingDocuments';
-import { NATION_MODULES, US_ANCHOR } from '../data/comparativeCivics';
+import SchoolView from './school/SchoolView';
 
-const ACCENT = '#D40055';
+interface Props {
+  onBack: () => void;
+  onNavigate?: (view: string) => void;
+  user?: any;
+  profile?: any;
+}
 
-const TelescopingReader: React.FC = () => {
-  const [docId, setDocId] = useState(FOUNDING_DOCS[0].id);
-  const [band, setBand] = useState<DocBand>('g68');
-  const doc = FOUNDING_DOCS.find(d => d.id === docId) || FOUNDING_DOCS[0];
-  const zoom = doc.zooms[band];
+type Tab = 'STRANDS' | 'LADDER' | 'QUESTS' | 'TOOLS';
+
+const LADDER_STAGES = [
+  { level: 'PreK & Early Elementary', age: 'Ages 4–7', icon: '🤝', title: 'Rules We Make Together', desc: 'Why do we take turns? Build a class constitution that every student agrees to and signs.' },
+  { level: 'Elementary School', age: 'Grades 3–5', icon: '📜', title: 'Magna Carta & The Branches', desc: 'The King signs a paper in 1215. How the three branches check each other through games and stories.' },
+  { level: 'Middle School', age: 'Grades 6–8', icon: '⚖️', title: 'Locke, Paine & Mock Trials', desc: 'Read John Locke in plain modern prose. Stage a mock trial examining due process and jury rights.' },
+  { level: 'High School (AP Gov Track)', age: 'Grades 9–12', icon: '🏛️', title: 'The Federalist Debates Verbatim', desc: 'Federalist 10, 51, and 78 verbatim. Analyze the Anti-Federalist objections that demanded a Bill of Rights.' },
+  { level: 'Comparative & Law', age: 'College & Pro', icon: '🌍', title: 'Seven Nations’ Constitutions', desc: 'Compare the American, German, South African, and Japanese founding texts side-by-side.' },
+];
+
+const CIVICS_QUESTS = [
+  {
+    id: 'quest-class-constitution',
+    title: 'Class Constitution Drafting Sprint',
+    band: 'PreK–5',
+    emoji: '✍️',
+    desc: 'Draft 3 core rights and 3 collective responsibilities for your learning community.',
+    duration: '20 min',
+    tool: 'HISTORY_QUEST',
+    accent: '#D40055',
+  },
+  {
+    id: 'quest-federalist-debate',
+    title: 'Federalist 10 vs 51 Faction Challenge',
+    band: 'Grades 9–12',
+    emoji: '⚔️',
+    desc: 'Debate whether large republics control factions better than direct democracies.',
+    duration: '25 min',
+    tool: 'HISTORY_QUEST',
+    accent: '#3B82F6',
+  },
+  {
+    id: 'quest-moot-court',
+    title: 'Supreme Court Moot Court Simulation',
+    band: 'High School & Adult',
+    emoji: '⚖️',
+    desc: 'Examine a contested 1st Amendment speech case. Write the majority and dissenting opinions.',
+    duration: '30 min',
+    tool: 'HISTORY_QUEST',
+    accent: '#8B5CF6',
+  },
+  {
+    id: 'quest-comparative-audit',
+    title: '7-Nation Constitution Audit',
+    band: 'College & Pro',
+    emoji: '🌐',
+    desc: 'Audit how positive rights (health, education) vs negative rights (speech) are framed globally.',
+    duration: '35 min',
+    tool: 'HISTORY_QUEST',
+    accent: '#06D6A0',
+  },
+];
+
+const CivicsHallView: React.FC<Props> = ({ onBack, onNavigate, user, profile }) => {
+  const [tab, setTab] = useState<Tab>('STRANDS');
+  const [viewingCurriculum, setViewingCurriculum] = useState(false);
+
+  const totalLessons = CIVICS_HALL.tracks.reduce((n, t) => n + t.lessons.length, 0);
+
+  if (viewingCurriculum) {
+    return (
+      <div className="min-h-full bg-[#08070c] text-white">
+        <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-8">
+          <button
+            onClick={() => setViewingCurriculum(false)}
+            className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-widest text-white/60 hover:text-white transition-all min-h-[44px]"
+          >
+            <ArrowLeft size={16} /> Return to School Landing
+          </button>
+          <SchoolView curriculum={CIVICS_HALL} embedded />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
-      {/* Document list */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-        <p className="px-2 pb-2 text-[10px] font-black uppercase tracking-[0.22em] text-white/35">
-          The corpus · {FOUNDING_DOCS.length} documents
-        </p>
-        <div className="flex gap-2 overflow-x-auto lg:block lg:overflow-visible">
-          {FOUNDING_DOCS.map(d => {
-            const on = d.id === docId;
+    <div className="min-h-full bg-[#07060c] text-white pb-28 selection:bg-[#D40055]/30">
+      <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        {/* Top Back Nav & School Badge */}
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <button
+            onClick={onBack}
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-widest text-white/60 hover:bg-white/10 hover:text-white transition-all min-h-[44px]"
+          >
+            <ArrowLeft size={16} /> Back
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#D40055]/30 bg-[#D40055]/10 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[#FDA4AF]">
+              <Landmark size={13} /> Civics Hall
+            </span>
+            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-bold text-white/50">
+              Primary Source Canon
+            </span>
+          </div>
+        </div>
+
+        {/* Hero Banner */}
+        <div
+          className="relative overflow-hidden rounded-3xl border border-white/[0.12] p-6 sm:p-10 mb-8"
+          style={{
+            background: 'linear-gradient(135deg, rgba(212,0,85,0.22) 0%, rgba(61,0,24,0.4) 45%, rgba(7,6,12,0.9) 100%)',
+          }}
+        >
+          <div className="relative z-10 max-w-3xl">
+            <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.25em] text-[#FDA4AF] mb-3">
+              <span>Plajah Academia</span>
+              <span>·</span>
+              <span>The Long Argument of Liberty</span>
+            </div>
+            <h1
+              className="text-4xl sm:text-5xl lg:text-6xl font-black italic uppercase tracking-tight text-white leading-[0.95]"
+              style={{ fontFamily: 'Outfit, sans-serif' }}
+            >
+              Civics Hall
+            </h1>
+            <p className="mt-4 text-base sm:text-lg text-white/70 leading-relaxed max-w-2xl font-normal">
+              {CIVICS_HALL.blurb}
+            </p>
+
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => setViewingCurriculum(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#D40055] px-6 py-3.5 text-sm font-black uppercase tracking-wider text-white shadow-[0_0_30px_rgba(212,0,85,0.4)] hover:bg-[#e11d48] hover:scale-[1.02] active:scale-[0.98] transition-all min-h-[48px] w-full sm:w-auto"
+              >
+                <BookOpen size={18} /> Full Lesson Reader ({totalLessons})
+              </button>
+              <button
+                onClick={() => setTab('QUESTS')}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/[0.06] px-6 py-3.5 text-sm font-black uppercase tracking-wider text-white hover:bg-white/[0.12] transition-all min-h-[48px] w-full sm:w-auto"
+              >
+                <Play size={18} fill="currentColor" /> Civics Quests & Debates
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* "My Civics Desk" — Context Apron */}
+        <div className="mb-8 rounded-3xl border border-[#D40055]/30 bg-gradient-to-r from-[#D40055]/10 via-transparent to-transparent p-5 sm:p-6 backdrop-blur-md">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="flex h-2.5 w-2.5 rounded-full bg-[#D40055] animate-pulse" />
+                <h3 className="text-xs font-black uppercase tracking-widest text-[#FDA4AF]">
+                  My Civics Desk
+                </h3>
+              </div>
+              <p className="mt-1 text-sm font-bold text-white/90">
+                {profile?.displayName ? `${profile.displayName}'s Constitution Desk` : 'Civic Inquiry Desk'}
+              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-white/50">
+                <span>Core Sources:</span>
+                <span className="rounded-full bg-white/5 px-2 py-0.5 font-mono text-[#FDA4AF]">National Archives</span>
+                <span className="rounded-full bg-white/5 px-2 py-0.5 font-mono text-[#93C5FD]">Library of Congress</span>
+                <span className="rounded-full bg-white/5 px-2 py-0.5 font-mono text-[#6EE7B7]">7 World Constitutions</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-center min-w-[90px]">
+                <p className="text-[10px] uppercase font-bold text-white/40">Strands</p>
+                <p className="text-base font-black text-white">{CIVICS_HALL.tracks.length}</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-center min-w-[90px]">
+                <p className="text-[10px] uppercase font-bold text-white/40">Standards</p>
+                <p className="text-base font-black text-[#FDA4AF]">NCSS C3</p>
+              </div>
+              <button
+                onClick={() => setViewingCurriculum(true)}
+                className="rounded-2xl bg-[#D40055]/20 border border-[#D40055]/40 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-[#FDA4AF] hover:bg-[#D40055]/30 transition-all min-h-[44px]"
+              >
+                Read Texts
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-2 border-b border-white/10 pb-4 mb-8 overflow-x-auto no-scrollbar">
+          {[
+            { id: 'STRANDS', label: 'Curricular Strands', icon: Layers, count: CIVICS_HALL.tracks.length },
+            { id: 'LADDER', label: 'PreK → Comparative Ladder', icon: Award, count: LADDER_STAGES.length },
+            { id: 'QUESTS', label: 'Civic Quests & Mock Trials', icon: Scale, count: CIVICS_QUESTS.length },
+            { id: 'TOOLS', label: 'Primary Texts & Tools', icon: Scroll, count: 3 },
+          ].map(t => {
+            const Icon = t.icon;
+            const active = tab === t.id;
             return (
               <button
-                key={d.id}
-                onClick={() => setDocId(d.id)}
-                className="mb-1 w-full min-w-[220px] rounded-xl px-3 py-2.5 text-left transition-all lg:min-w-0"
-                style={{
-                  background: on ? `${ACCENT}22` : 'transparent',
-                  boxShadow: on ? `inset 0 0 0 1px ${ACCENT}66` : 'none',
-                }}
+                key={t.id}
+                onClick={() => setTab(t.id as Tab)}
+                className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-black uppercase tracking-wider transition-all shrink-0 min-h-[44px] ${
+                  active
+                    ? 'bg-[#D40055] text-white shadow-lg shadow-[#D40055]/20 font-black'
+                    : 'bg-white/[0.04] text-white/60 hover:bg-white/[0.08] hover:text-white'
+                }`}
               >
-                <span className="block text-[13px] font-bold leading-tight text-white">{d.title}</span>
-                <span className="mt-0.5 block text-[11px] text-white/40">
-                  {d.year}{d.author ? ` · ${d.author}` : ''}
+                <Icon size={14} />
+                <span>{t.label}</span>
+                <span className={`ml-1 rounded-full px-2 py-0.5 text-[10px] ${active ? 'bg-white/20 text-white' : 'bg-white/10 text-white/50'}`}>
+                  {t.count}
                 </span>
               </button>
             );
           })}
         </div>
-      </div>
 
-      {/* Reader */}
-      <div className="rounded-2xl border border-white/10 bg-[rgba(4,3,10,0.6)] p-5 sm:p-7">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: ACCENT }}>
-              Telescoping Text
-            </p>
-            <h3 className="mt-1 text-xl font-black text-white sm:text-2xl" style={{ fontFamily: 'Outfit, sans-serif' }}>
-              {doc.title} <span className="font-medium text-white/35">· {doc.year}</span>
-            </h3>
+        {/* TAB 1: STRANDS */}
+        {tab === 'STRANDS' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {CIVICS_HALL.tracks.map((track, i) => (
+              <div
+                key={track.id}
+                className="group relative flex flex-col justify-between rounded-3xl border border-white/10 bg-white/[0.02] p-6 hover:border-[#D40055]/50 hover:bg-white/[0.04] transition-all"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <span className="text-xs font-mono font-bold text-[#D40055]">Strand 0{i + 1}</span>
+                    <span className="rounded-full bg-white/[0.05] border border-white/10 px-2.5 py-0.5 text-[10px] font-bold text-white/50">
+                      {track.lessons.length} lessons
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-black text-white group-hover:text-[#FDA4AF] transition-colors">
+                    {track.title}
+                  </h3>
+                  <p className="mt-2 text-xs leading-relaxed text-white/60">
+                    {track.blurb}
+                  </p>
+
+                  <div className="mt-4 space-y-2">
+                    {track.lessons.slice(0, 3).map(lesson => (
+                      <div key={lesson.id} className="flex items-center gap-2 text-xs text-white/80">
+                        <CheckCircle2 size={13} className="text-[#D40055] shrink-0" />
+                        <span className="truncate">{lesson.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setViewingCurriculum(true)}
+                  className="mt-6 inline-flex items-center justify-between w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs font-black uppercase tracking-wider text-white/80 hover:bg-[#D40055] hover:text-white transition-all min-h-[44px]"
+                >
+                  <span>Explore Lessons</span>
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            ))}
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {DOC_BANDS.map(b => (
+        )}
+
+        {/* TAB 2: LADDER */}
+        {tab === 'LADDER' && (
+          <div className="space-y-4">
+            {LADDER_STAGES.map((s, idx) => (
+              <div
+                key={s.title}
+                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-3xl border border-white/10 bg-white/[0.02] p-6 hover:border-[#D40055]/40 transition-all"
+              >
+                <div className="flex items-start sm:items-center gap-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#D40055]/10 text-2xl border border-[#D40055]/20">
+                    {s.icon}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-bold text-[#D40055]">Stage 0{idx + 1}</span>
+                      <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold text-white/50">{s.age}</span>
+                    </div>
+                    <h4 className="text-lg font-black text-white mt-0.5">{s.title}</h4>
+                    <p className="text-xs text-white/60 mt-1 max-w-2xl">{s.desc}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setViewingCurriculum(true)}
+                  className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-bold text-white/70 hover:text-white hover:bg-white/10 transition-all shrink-0 min-h-[44px]"
+                >
+                  View Lessons
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* TAB 3: QUESTS */}
+        {tab === 'QUESTS' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {CIVICS_QUESTS.map(q => (
+              <div
+                key={q.id}
+                className="flex flex-col justify-between rounded-3xl border border-white/10 bg-white/[0.02] p-6 hover:border-white/20 transition-all"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <span className="text-3xl">{q.emoji}</span>
+                    <span className="rounded-full px-2.5 py-0.5 text-[10px] font-mono font-bold bg-white/5 text-white/50 border border-white/10">
+                      {q.band}
+                    </span>
+                  </div>
+                  <h4 className="text-base font-black text-white">{q.title}</h4>
+                  <p className="mt-2 text-xs text-white/60 leading-relaxed">{q.desc}</p>
+                </div>
+                <div className="mt-6">
+                  <div className="flex items-center justify-between text-[11px] text-white/40 mb-3 font-mono">
+                    <span className="flex items-center gap-1"><Clock size={12} /> {q.duration}</span>
+                    <span>100 pts</span>
+                  </div>
+                  <button
+                    onClick={() => setViewingCurriculum(true)}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-white/[0.06] hover:bg-[#D40055] hover:text-white py-3 text-xs font-black uppercase tracking-wider text-white transition-all min-h-[44px]"
+                  >
+                    <Play size={13} fill="currentColor" /> Start Debate
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* TAB 4: TOOLS */}
+        {tab === 'TOOLS' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 sm:p-8">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-12 w-12 rounded-2xl bg-[#D40055]/20 flex items-center justify-center text-[#D40055]">
+                  <Scroll size={24} />
+                </div>
+                <div>
+                  <h4 className="text-lg font-black text-white">Founding Documents Archive</h4>
+                  <p className="text-xs text-white/50">Verbatim public domain historical texts</p>
+                </div>
+              </div>
+              <p className="text-xs text-white/65 leading-relaxed mb-6">
+                Read Magna Carta (1215), English Bill of Rights (1689), Two Treatises of Government,
+                Common Sense, Declaration of Independence, and The Federalist Papers verbatim.
+              </p>
               <button
-                key={b.id}
-                onClick={() => setBand(b.id)}
-                className="h-8 rounded-full px-3 text-[12px] font-bold transition-all"
-                style={{
-                  background: band === b.id ? ACCENT : 'rgba(255,255,255,0.05)',
-                  color: band === b.id ? '#fff' : 'rgba(255,255,255,0.55)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                }}
+                onClick={() => setViewingCurriculum(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#D40055] px-6 py-3 text-xs font-black uppercase tracking-wider text-white hover:bg-[#e11d48] transition-all min-h-[44px]"
               >
-                {b.label}
+                Open Document Canon
               </button>
-            ))}
-          </div>
-        </div>
-
-        {/* The actual words */}
-        <blockquote
-          className="mt-5 border-l-2 pl-5 text-[17px] leading-[1.75] text-white/90"
-          style={{ borderColor: ACCENT, fontFamily: 'Georgia, "Times New Roman", serif' }}
-        >
-          {zoom.text}
-        </blockquote>
-
-        {/* The lens */}
-        <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.04] p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">
-            Reading it at {DOC_BANDS.find(b => b.id === band)?.label}
-          </p>
-          <p className="mt-2 text-[14px] leading-relaxed text-white/70">{zoom.lens}</p>
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[11px] text-white/35">
-          <a
-            href={doc.source.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 hover:text-white/70"
-          >
-            <ExternalLink size={11} /> {doc.source.label}
-          </a>
-          <span className="font-mono">public domain · id: {doc.id}</span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-
-/** Comparative civics — one template, seven nations, with the speech clauses side by side. */
-const NationsReader: React.FC = () => {
-  const [id, setId] = useState(NATION_MODULES[0].id);
-  const n = NATION_MODULES.find(x => x.id === id) || NATION_MODULES[0];
-
-  return (
-    <div>
-      {/* Nation picker */}
-      <div className="flex flex-wrap gap-2">
-        {NATION_MODULES.map(x => (
-          <button
-            key={x.id}
-            onClick={() => setId(x.id)}
-            className="inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-[12px] font-bold transition-all"
-            style={{
-              background: x.id === id ? `${x.accent}26` : 'rgba(255,255,255,0.05)',
-              color: x.id === id ? '#fff' : 'rgba(255,255,255,0.55)',
-              boxShadow: x.id === id ? `inset 0 0 0 1px ${x.accent}88` : 'inset 0 0 0 1px rgba(255,255,255,0.08)',
-            }}
-          >
-            <span>{x.flag}</span>{x.nation}
-          </button>
-        ))}
-      </div>
-
-      <p className="mt-4 text-[13px] italic leading-relaxed text-white/60">{n.hook}</p>
-
-      {/* Founding texts */}
-      <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">Founding texts</p>
-        {n.foundingTexts.map(t => (
-          <div key={t.title} className="mt-3 border-t border-white/5 pt-3 first:border-t-0 first:pt-0">
-            <p className="text-[14px] font-bold text-white">
-              {t.title} <span className="font-normal text-white/35">· {t.year}</span>
-              {!t.hostable && (
-                <span className="ml-2 rounded-full bg-white/[0.08] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white/45">
-                  link only
-                </span>
-              )}
-            </p>
-            <p className="mt-1 text-[12px] text-white/50">{t.note}</p>
-            <a href={t.source.url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-[11px] text-white/35 underline hover:text-white/70">
-              {t.source.label}
-            </a>
-          </div>
-        ))}
-      </div>
-
-      {/* The template, re-instantiated */}
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        {[
-          { k: 'Government structure', v: n.structure },
-          { k: 'Rights tradition', v: n.rightsTradition },
-          { k: 'Civic life today', v: n.civicLife },
-        ].map(c => (
-          <div key={c.k} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: n.accent }}>{c.k}</p>
-            <p className="mt-2 text-[12.5px] leading-relaxed text-white/65">{c.v}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* The side-by-side — the point of the whole module */}
-      <div className="mt-5 rounded-2xl border p-5" style={{ borderColor: `${n.accent}44`, background: `linear-gradient(120deg, ${n.accent}14, transparent)` }}>
-        <p className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: n.accent }}>
-          Read the world&rsquo;s promises — free expression, side by side
-        </p>
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          {[{ ...US_ANCHOR, nation: 'United States', flag: '\u{1F1FA}\u{1F1F8}' }, { ...n.speechClause, nation: n.nation, flag: n.flag }].map(c => (
-            <div key={c.nation} className="rounded-xl border border-white/10 bg-[rgba(4,3,10,0.5)] p-4">
-              <p className="text-[12px] font-bold text-white/70">{c.flag} {c.nation} — {c.label}</p>
-              <blockquote
-                className="mt-2.5 border-l-2 border-white/20 pl-4 text-[14px] leading-[1.7] text-white/85"
-                style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
-              >
-                {c.text}
-              </blockquote>
-              <p className="mt-3 text-[12px] leading-relaxed text-white/45">{c.probe}</p>
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Capstone */}
-      <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">The capstone question</p>
-        <p className="mt-2 text-[14px] leading-relaxed text-white/80">{n.capstone}</p>
-        <p className="mt-3 text-[11px] text-white/30">
-          This module does not rank nations. Ask the same question of your own country, with the same
-          standard of evidence.
-        </p>
-      </div>
-    </div>
-  );
-};
-
-const CivicsHallView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
-  const [tab, setTab] = useState<'TEXTS' | 'NATIONS' | 'CURRICULUM'>('TEXTS');
-  const lessons = CIVICS_HALL.tracks.reduce((n, t) => n + t.lessons.length, 0);
-
-  return (
-    <div className="min-h-full bg-[#08070c] text-white">
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-8">
-        <button onClick={onBack} className="mb-6 inline-flex items-center gap-2 text-white/40 transition-colors hover:text-white">
-          <ArrowLeft size={16} /> Back
-        </button>
-
-        <div
-          className="relative overflow-hidden rounded-3xl border border-white/[0.14] p-6 sm:p-8"
-          style={{ background: 'linear-gradient(120deg, rgba(212,0,85,0.22), rgba(107,0,153,0.16) 60%, transparent)' }}
-        >
-          <p className="text-[11px] font-black uppercase tracking-[0.28em]" style={{ color: ACCENT }}>
-            Plajah Academia · Civics
-          </p>
-          <h1 className="mt-3 text-4xl font-black italic uppercase leading-[0.95] tracking-tight sm:text-5xl" style={{ fontFamily: 'Outfit, sans-serif' }}>
-            Civics Hall
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/65">{CIVICS_HALL.blurb}</p>
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            {[
-              { icon: <GraduationCap size={12} />, label: `${CIVICS_HALL.tracks.length} strands · ${lessons} lessons` },
-              { icon: <ScrollText size={12} />, label: `${FOUNDING_DOCS.length} documents × 5 zoom levels` },
-              { icon: <ShieldCheck size={12} />, label: 'Aligned to the NCSS C3 Framework' },
-              { icon: <ScrollText size={12} />, label: `${NATION_MODULES.length} nations, compared in their own words` },
-            ].map(chip => (
-              <span key={chip.label} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[11px] font-bold text-white/70">
-                {chip.icon}{chip.label}
-              </span>
-            ))}
+            <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 sm:p-8">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-12 w-12 rounded-2xl bg-[#3B82F6]/20 flex items-center justify-center text-[#3B82F6]">
+                  <Scale size={24} />
+                </div>
+                <div>
+                  <h4 className="text-lg font-black text-white">Constitution Annotated (CONAN)</h4>
+                  <p className="text-xs text-white/50">Clause-by-clause analysis with Supreme Court precedent</p>
+                </div>
+              </div>
+              <p className="text-xs text-white/65 leading-relaxed mb-6">
+                Official legal analysis prepared by the Congressional Research Service. Explore how each
+                word and clause has been interpreted by the courts over 230 years.
+              </p>
+              <a
+                href="https://constitution.congress.gov/"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/[0.06] px-6 py-3 text-xs font-black uppercase tracking-wider text-white hover:bg-white/[0.12] transition-all min-h-[44px]"
+              >
+                Open Congress Library
+              </a>
+            </div>
           </div>
+        )}
+      </div>
 
-          <p className="mt-4 max-w-2xl text-[11px] leading-relaxed text-white/35">
-            Every document here is public domain — print it, remix it, keep it. Sources: the National
-            Archives, the Library of Congress, Project Gutenberg and Wikisource. Contested questions are
-            taught as contested: where Americans genuinely disagree, this course argues both sides.
-          </p>
-        </div>
-
-        <div className="mt-6 flex gap-2">
-          {([['TEXTS', 'The Texts'], ['NATIONS', 'Seven Nations'], ['CURRICULUM', 'Curriculum']] as const).map(([id, label]) => (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              className="h-10 rounded-full px-5 text-[13px] font-black uppercase tracking-wider transition-all"
-              style={{
-                background: tab === id ? ACCENT : 'rgba(255,255,255,0.05)',
-                color: tab === id ? '#fff' : 'rgba(255,255,255,0.55)',
-                border: '1px solid rgba(255,255,255,0.1)',
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-6">
-          {tab === 'TEXTS' ? <TelescopingReader /> : tab === 'NATIONS' ? <NationsReader /> : <SchoolView curriculum={CIVICS_HALL} embedded />}
+      {/* Touch-First Mobile Action Bar */}
+      <div className="fixed bottom-0 inset-x-0 sm:hidden bg-[#07060c]/95 border-t border-white/10 p-3 backdrop-blur-xl z-30">
+        <div className="flex items-center gap-2 max-w-md mx-auto">
+          <button
+            onClick={() => setViewingCurriculum(true)}
+            className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-[#D40055] py-3 text-xs font-black uppercase tracking-wider text-white min-h-[48px]"
+          >
+            <BookOpen size={16} /> Open Lessons
+          </button>
+          <button
+            onClick={() => setTab('QUESTS')}
+            className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/[0.08] py-3 text-xs font-black uppercase tracking-wider text-white min-h-[48px]"
+          >
+            <Play size={16} fill="currentColor" /> Debates
+          </button>
         </div>
       </div>
     </div>

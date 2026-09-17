@@ -46,19 +46,22 @@ const gr = (c: string) => `linear-gradient(135deg,${c},${shade(c)})`;
 const col = (h: string) => HUE[h] || h;
 
 const SUBJECTS = [
-  { id: 'reading', ico: '📖', name: 'Reading & Literacy', blurb: 'Decoding to close reading.' },
-  { id: 'math', ico: '📐', name: 'Mathematics', blurb: 'Number sense to trig.' },
-  { id: 'science', ico: '🔬', name: 'Science', blurb: 'Observe, model, explain.' },
-  { id: 'history', ico: '🏛️', name: 'History & Civics', blurb: 'Sources & timelines.' },
-  { id: 'language', ico: '🗣️', name: 'World Languages', blurb: 'CEFR-benchmarked.' },
-  { id: 'art', ico: '🎨', name: 'Art & Design', blurb: 'Studio practice.' },
-  { id: 'music', ico: '🎵', name: 'Music', blurb: 'Theory & production.' },
+  { id: 'math', ico: '📐', name: 'Mathematics', blurb: 'Number sense, algebra, geometry & calculus.' },
+  { id: 'science', ico: '🔬', name: 'Science & Discovery', blurb: '3D anatomy, solar system, physics & NGSS.' },
+  { id: 'reading', ico: '📖', name: 'Language Arts & Literacy', blurb: 'Reading Quest, phonics, classics & writing.' },
+  { id: 'business', ico: '🚀', name: 'The Business School', blurb: 'Venture building, books, formation & GTM.' },
+  { id: 'money', ico: '💰', name: 'School of Money', blurb: 'Personal finance, credit & paper trading.' },
+  { id: 'history', ico: '🏛️', name: 'History & Civics', blurb: 'Sources, founding texts & timelines.' },
+  { id: 'language', ico: '🗣️', name: 'World Languages', blurb: 'CEFR-benchmarked Spanish, French & more.' },
+  { id: 'music', ico: '🎵', name: 'Music Conservatory', blurb: 'Chora theory, ear training & production.' },
+  { id: 'art', ico: '🎨', name: 'Art & Design', blurb: 'Studio practice & open museum halls.' },
 ];
 
-// Each subject routes into a real functional surface where its courses / modules / Quest live.
+// Each subject routes into a real functional discipline landing page.
 const SUBJECT_NAV: Record<string, string> = {
-  reading: 'READING_QUEST', math: 'MATH_CLASSROOM', science: 'SCIENCE_QUEST',
-  history: 'HISTORY_QUEST', language: 'LANGUAGE_QUEST', art: 'ART_GALLERY', music: 'MUSIC',
+  math: 'MATH_SCHOOL', science: 'SCIENCE_SCHOOL', reading: 'LANGUAGE_ARTS_SCHOOL',
+  business: 'BUSINESS_SCHOOL', money: 'MONEY_SCHOOL', history: 'CIVICS_HALL',
+  language: 'LANGUAGE_ARTS_SCHOOL', music: 'CHORA_CONSERVATORY', art: 'ART_GALLERY',
 };
 
 const RAILS = [

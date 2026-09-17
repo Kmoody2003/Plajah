@@ -2944,6 +2944,12 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'LEARNER_LEDGER'
   // Teacher Tools — gradebook, plan-from-mastery, creative assessment
   | 'TEACHER_TOOLS'
+  // Business School — entrepreneurship, venture stages, P&L, entity formation, GTM
+  | 'BUSINESS_SCHOOL'
+  // Core Academic Disciplines
+  | 'MATH_SCHOOL'
+  | 'SCIENCE_SCHOOL'
+  | 'LANGUAGE_ARTS_SCHOOL'
   // School of Money — the financial-literacy flagship (data/finlitCurriculum.ts on the school chassis)
   | 'MONEY_SCHOOL'
   // Civics Hall — the founding-documents flagship w/ the Telescoping Text reader

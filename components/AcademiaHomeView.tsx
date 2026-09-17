@@ -25,15 +25,18 @@ interface Tile {
 
 const TILES: Tile[] = [
   { key: 'classes',  label: 'My Classes',        desc: 'Courses, modules, assignments & grades', icon: LayoutGrid,   view: 'CLASSROOMS',    accent: '#FF8C00', roles: ['teacher', 'student'] },
+  { key: 'math',     label: 'Mathematics',       desc: 'Grade 1–College strands, practice drills & time attack', icon: LayoutGrid, view: 'MATH_SCHOOL', accent: '#3B82F6', roles: ['teacher', 'student'] },
+  { key: 'science',  label: 'Science & Discovery', desc: '3D anatomy, solar system, botany & NGSS labs', icon: FlaskConical, view: 'SCIENCE_SCHOOL', accent: '#06D6A0', roles: ['teacher', 'student'] },
+  { key: 'reading',  label: 'Language Arts',     desc: 'Reading Quest, leveled readers, phonics & writing', icon: BookOpen, view: 'LANGUAGE_ARTS_SCHOOL', accent: '#D40055', roles: ['teacher', 'parent', 'student'] },
+  { key: 'business', label: 'The Business School', desc: 'Venture building, books, formation & GTM with Aria', icon: Rocket, view: 'BUSINESS_SCHOOL', accent: '#8b5cf6', roles: ['teacher', 'student'], badge: 'Live' },
+  { key: 'money',    label: 'School of Money',   desc: 'Financial literacy, budgeting & practice portfolio', icon: Award, view: 'MONEY_SCHOOL', accent: '#F59E0B', roles: ['teacher', 'parent', 'student'] },
   { key: 'dojo',     label: 'Class Points',      desc: 'Behavior & skill points, attendance, class story', icon: Award, view: 'CLASS_POINTS', accent: '#2bd67a', roles: ['teacher', 'parent', 'student'] },
-  { key: 'reading',  label: 'Reading Quest',     desc: 'Gamified reading practice, PreK → G7', icon: BookOpen,     view: 'READING_QUEST', accent: '#36c5f0', roles: ['teacher', 'parent', 'student'] },
   { key: 'penna',    label: 'Penna',             desc: 'Handwriting workshop — trace letters, earn the picture, PreK →', icon: PenLine, view: 'HANDWRITING_WORKSHOP', accent: '#C9871F', roles: ['teacher', 'parent', 'student'], badge: 'New' },
   { key: 'lang',     label: 'Languages',         desc: 'Learn a language, Duolingo-style, in the lesson', icon: Languages, view: 'LANGUAGE_QUEST', accent: '#7a2bd6', roles: ['teacher', 'parent', 'student'], badge: 'New' },
   { key: 'tools',    label: 'Teacher Tools',     desc: 'Build lessons, quests & assignments', icon: ClipboardList, view: 'TEACHER_TOOLS', accent: '#FF8C00', roles: ['teacher'] },
   { key: 'ledger',   label: 'Learning Record',   desc: 'The portable, student-owned proficiency ledger', icon: ShieldCheck, view: 'LEARNER_LEDGER', accent: '#2bd67a', roles: ['teacher', 'parent', 'student'] },
   { key: 'library',  label: 'Kids Library',      desc: 'Leveled readers, phonics & sight words', icon: Library, view: 'KIDS_LIBRARY', accent: '#36c5f0', roles: ['parent', 'student'] },
-  { key: 'labs',     label: 'Museion',       desc: 'Arts, history & science across the disciplines', icon: FlaskConical, view: 'PLAJAH_LABS', accent: '#7a2bd6', roles: ['teacher', 'parent', 'student'] },
-  { key: 'praxis',   label: 'Start a Business',  desc: 'Learn entrepreneurship & money by building a real venture, with Aria', icon: Rocket, view: 'PRAXIS', accent: '#8b5cf6', roles: ['teacher', 'student'], badge: 'New' },
+  { key: 'labs',     label: 'Plajah Musecion',   desc: 'Living museum of arts, history & science disciplines', icon: FlaskConical, view: 'PLAJAH_LABS', accent: '#7a2bd6', roles: ['teacher', 'parent', 'student'] },
 ];
 
 // Content sources a teacher can pull into a lesson (Phase D preview — links into the archives).
@@ -66,7 +69,7 @@ const AcademiaHomeView: React.FC<{ profile?: UserProfile | null; onNavigate: (vi
       : 'Your quests, your lessons, and everything you\'re learning today.';
 
   return (
-    <div className="min-h-full bg-[#0a0a0f] text-white">
+    <div className="min-h-full bg-[#0a0a0f] text-white pb-20">
       <div className="max-w-5xl mx-auto px-5 py-8">
         {/* Header */}
         <div className="flex items-center gap-2 mb-3" style={{ color: age.accent }}><GraduationCap size={18} /><span className="text-[11px] font-black uppercase tracking-[0.3em]">Plajah Academia</span></div>
@@ -79,14 +82,11 @@ const AcademiaHomeView: React.FC<{ profile?: UserProfile | null; onNavigate: (vi
           <span title="Age-appropriate design, aligned to international ISCED stages" className="inline-flex items-center gap-1.5 text-[10px] font-bold text-white/45 bg-white/5 border border-white/10 rounded-full px-3 py-1">{age.isced}</span>
         </div>
 
-        {/* Due first — the fixed slot. Always above the tiles, for every role, because a
-            deadline that sits inside a tile is a deadline nobody sees. */}
+        {/* Due first — the fixed slot. Always above the tiles, for every role */}
         <div className="mb-8">
           <TodayDueFirst
             uid={(profile as any)?.uid}
             role={role}
-            // STUDENT_LESSON reads its id from the query string, so push the link before
-            // switching view — otherwise the lesson opens with no idea which one it is.
             onOpenAssignment={(id) => {
               try { window.history.pushState({}, '', lessonLink(id)); } catch { /* non-fatal */ }
               onNavigate('STUDENT_LESSON');
@@ -95,8 +95,37 @@ const AcademiaHomeView: React.FC<{ profile?: UserProfile | null; onNavigate: (vi
           />
         </div>
 
-        {/* Worth a look — invitation, not navigation. Sits between the deadline and the tile
-            grid: what you owe, then what you might want, then everything else. */}
+        {/* Quests Springboard — All Quests accessible in one touch */}
+        <div className="mb-8 p-4 sm:p-5 rounded-3xl border border-white/10 bg-white/[0.02]">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-base">⚡</span>
+              <h2 className="text-xs font-black uppercase tracking-wider text-white">Quests Springboard</h2>
+            </div>
+            <span className="text-[10px] font-mono text-white/40">Earn points & write to ledger</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            {[
+              { label: 'Reading Quest', icon: '📖', view: 'READING_QUEST', color: '#D40055' },
+              { label: 'Math Drill', icon: '🔢', view: 'MATH_CLASSROOM', color: '#3B82F6' },
+              { label: 'Science Quest', icon: '🧪', view: 'SCIENCE_QUEST', color: '#06D6A0' },
+              { label: 'Languages', icon: '🗣️', view: 'LANGUAGE_QUEST', color: '#7a2bd6' },
+              { label: 'Penna Tracing', icon: '✍️', view: 'HANDWRITING_WORKSHOP', color: '#F59E0B' },
+              { label: 'History Quest', icon: '🏛️', view: 'HISTORY_QUEST', color: '#FF8C00' },
+            ].map(q => (
+              <button
+                key={q.label}
+                onClick={() => onNavigate(q.view)}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/[0.04] border border-white/8 hover:bg-white/[0.08] hover:border-white/15 transition-all text-center min-h-[72px]"
+              >
+                <span className="text-xl mb-1">{q.icon}</span>
+                <span className="text-[11px] font-bold text-white/80">{q.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Worth a look — invitation, not navigation */}
         <div className="mb-9">
           <DiscoveryDoors role={role} onNavigate={onNavigate} />
         </div>

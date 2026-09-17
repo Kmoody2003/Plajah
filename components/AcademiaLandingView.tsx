@@ -33,7 +33,7 @@ interface School {
 const SCHOOLS: School[] = [
   {
     t: 'The Business School', ic: '🚀', a: '#8B5CF6', b: '#2a1650', badge: 'Praxis · LIVE NOW', live: true,
-    tags: ['Simulator', 'Real launch'], ladder: ['Spark', 'Validate', 'Form', 'Books', 'Operate', 'Fund', 'Grow'], nav: 'PRAXIS',
+    tags: ['Simulator', 'Real launch'], ladder: ['Spark', 'Validate', 'Form', 'Books', 'Operate', 'Fund', 'Grow'], nav: 'BUSINESS_SCHOOL',
     d: {
       prek: 'Run the class store — earn, count, and share. Business as play.',
       el: 'Your first lemonade-stand venture: price it, cost it, count the profit.',
@@ -131,16 +131,16 @@ const SCHOOLS: School[] = [
 
 /** Museums and modules that are LIVE on Plajah today. */
 const LABS: { t: string; ic: string; a: string; b: string; m: string; nav: string }[] = [
-  { t: 'The Human Body', ic: '🫀', a: '#8B5CF6', b: '#2a1650', m: 'Real 3D anatomy · 7 systems', nav: 'ACADEMIA_COURSES' },
-  { t: 'The Solar System', ic: '🪐', a: '#3B82F6', b: '#0f2246', m: 'Orbital simulation', nav: 'ACADEMIA_COURSES' },
-  { t: 'Plant Biology', ic: '🌱', a: '#06D6A0', b: '#0a3d30', m: 'Botany studio', nav: 'ACADEMIA_COURSES' },
+  { t: 'The Human Body', ic: '🫀', a: '#8B5CF6', b: '#2a1650', m: 'Real 3D anatomy · 7 systems', nav: 'SCIENCE_SCHOOL' },
+  { t: 'The Solar System', ic: '🪐', a: '#3B82F6', b: '#0f2246', m: 'Orbital simulation', nav: 'SCIENCE_SCHOOL' },
+  { t: 'Plant Biology', ic: '🌱', a: '#06D6A0', b: '#0a3d30', m: 'Botany studio', nav: 'SCIENCE_SCHOOL' },
   { t: 'Combat Atlas', ic: '🥋', a: '#EF4444', b: '#3d0f0f', m: 'Martial-arts museum · real mocap', nav: 'PLAJAH_LABS' },
-  { t: 'Science Studios', ic: '🔬', a: '#00DAF3', b: '#04324a', m: '12 data-driven disciplines', nav: 'PLAJAH_LABS' },
+  { t: 'Plajah Musecion', ic: '🔬', a: '#00DAF3', b: '#04324a', m: '16 living museum disciplines', nav: 'PLAJAH_LABS' },
   { t: 'Art Galleries', ic: '🖼️', a: '#EC4899', b: '#3d0a26', m: 'Open-access museum art', nav: 'ART_GALLERY' },
-  { t: 'Reading Quest', ic: '📖', a: '#D40055', b: '#3d0018', m: 'PreK–G7 · ledger-wired', nav: 'READING_QUEST' },
-  { t: 'Math Classroom', ic: '🔢', a: '#3B82F6', b: '#0f2246', m: 'Grades 1–8 · standards-tagged', nav: 'MATH_CLASSROOM' },
-  { t: 'Science Quest', ic: '🧪', a: '#8B5CF6', b: '#2a1650', m: 'NGSS practices', nav: 'SCIENCE_QUEST' },
-  { t: 'World Languages', ic: '🗣️', a: '#06D6A0', b: '#0a3d30', m: 'CEFR · spaced repetition', nav: 'LANGUAGE_QUEST' },
+  { t: 'Reading Quest', ic: '📖', a: '#D40055', b: '#3d0018', m: 'PreK–G7 · ledger-wired', nav: 'LANGUAGE_ARTS_SCHOOL' },
+  { t: 'Math Classroom', ic: '🔢', a: '#3B82F6', b: '#0f2246', m: 'Grades 1–8 · standards-tagged', nav: 'MATH_SCHOOL' },
+  { t: 'Science Quest', ic: '🧪', a: '#8B5CF6', b: '#2a1650', m: 'NGSS practices', nav: 'SCIENCE_SCHOOL' },
+  { t: 'World Languages', ic: '🗣️', a: '#06D6A0', b: '#0a3d30', m: 'CEFR · spaced repetition', nav: 'LANGUAGE_ARTS_SCHOOL' },
   { t: 'Music Theory', ic: '🎹', a: '#00DAF3', b: '#04324a', m: '7 lessons · ear training', nav: 'MUSIC_THEORY' },
   { t: 'The Sky', ic: '✨', a: '#A78BFA', b: '#2a1650', m: 'Your mastery as constellations', nav: 'ACADEMIA_SKY' },
 ];

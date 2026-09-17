@@ -39,7 +39,7 @@ export const WP_ITINERARY: WpStop[] = [
   { code: 'REL', name: 'Reello', desc: 'Video — your channel, no gatekeeper.', status: 'Boarding', statusKind: 'now', color: C.magenta, nav: 'VIDEOS' },
   { code: 'TAL', name: 'Taleo', desc: 'Film & TV — own it forever, DRM-free.', status: 'Boarding', statusKind: 'now', color: C.orange, nav: 'MOVIES_TV' },
   { code: 'LOR', name: 'Lorea', desc: 'Books & comics — write, draw, be read.', status: 'Boarding', statusKind: 'now', color: C.cyan, nav: 'BOOKS' },
-  { code: 'LAB', name: 'Plajah Labs', desc: 'Science you can play with.', status: 'Boarding', statusKind: 'now', color: C.lilac, nav: 'PLAJAH_LABS' },
+  { code: 'LAB', name: 'Plajah Musecion', desc: 'Science and living museums you can play with.', status: 'Boarding', statusKind: 'now', color: C.lilac, nav: 'PLAJAH_LABS' },
   { code: 'ACA', name: 'Academia', desc: 'Classrooms for teachers, students, families.', status: 'Boarding', statusKind: 'now', color: C.purple, nav: 'CLASSROOMS' },
   { code: 'BIZ', name: 'Business', desc: 'Shop, team, payments — your money, direct to you.', status: 'Boarding', statusKind: 'now', color: C.magenta, nav: 'PLAJAH_BUSINESS' },
   { code: 'SAN', name: 'Sanctuary', desc: 'Your inner circle — keep it free, or charge for access.', status: 'Boarding', statusKind: 'now', color: C.orange, nav: 'SANCTUARY' },

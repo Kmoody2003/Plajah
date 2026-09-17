@@ -204,6 +204,10 @@ const AcademiaTourView = retryLazy(() => import('./components/AcademiaTourView')
 const AcademiaHomeView = retryLazy(() => import('./components/AcademiaHomeView'));
 const AcademiaLandingView = retryLazy(() => import('./components/AcademiaLandingView'));
 const MoneySchoolView = retryLazy(() => import('./components/MoneySchoolView'));
+const BusinessSchoolView = retryLazy(() => import('./components/BusinessSchoolView'));
+const MathSchoolView = retryLazy(() => import('./components/MathSchoolView'));
+const ScienceSchoolView = retryLazy(() => import('./components/ScienceSchoolView'));
+const LanguageArtsSchoolView = retryLazy(() => import('./components/LanguageArtsSchoolView'));
 const CivicsHallView = retryLazy(() => import('./components/CivicsHallView'));
 const RealEstateSchoolView = retryLazy(() => import('./components/RealEstateSchoolView'));
 const EconSchoolView = retryLazy(() => import('./components/EconSchoolView'));
@@ -662,6 +666,7 @@ const App: React.FC = () => {
   // not a push). Lets goBack() return to the ACTUAL previous screen via the browser
   // history, and fall back to the Dashboard only when there's no in-app screen behind us.
   const navDepthRef = useRef(0);
+  const historyStackRef = useRef<AppView[]>([pitchInitialView]);
 
   // Back must never strand a signed-in person on the sign-in page. The first history entry
   // this app writes is LANDING (the replaceState at boot), so walking Back far enough always
@@ -683,18 +688,11 @@ const App: React.FC = () => {
       if (prev !== nextView || path) {
         window.history.pushState({ view: nextView }, '', path || window.location.pathname);
         navDepthRef.current += 1;
+        historyStackRef.current.push(nextView);
       }
       return nextView;
     });
   }, []);
-
-  // Universal back: return to the previous screen via real browser history (so back
-  // never jumps to a hardcoded destination). Falls back to a sensible view only when
-  // there's nothing in-app behind us (e.g. a direct deep-link landing).
-  const goBack = useCallback((fallback: AppView = 'DASHBOARD') => {
-    if (navDepthRef.current > 0) window.history.back();
-    else setView(fallback);
-  }, [setView]);
 
   // Open a Plajah Gallery (the shareable photo experience) from anywhere. The Photos
   // surfaces (PhotoManager / GlobalPhotosView) build an ephemeral gallery with
@@ -855,15 +853,19 @@ const App: React.FC = () => {
 
     const handlePopState = (event: PopStateEvent) => {
       navDepthRef.current = Math.max(0, navDepthRef.current - 1);
-      if (event.state && event.state.view) {
+      if (historyStackRef.current.length > 1) {
+        historyStackRef.current.pop();
+      }
+      const targetView = (event.state && event.state.view) || historyStackRef.current[historyStackRef.current.length - 1];
+      if (targetView) {
         // LANDING is the bottom of the stack, not a screen a signed-in person can be "at".
         // Anonymous sessions (a podcast guest listener) are excluded on purpose: for them the
         // sign-in page is still a destination they may well want Back to reach.
-        if (event.state.view === 'LANDING' && auth.currentUser && !auth.currentUser.isAnonymous && landingEscapeRef.current) {
+        if (targetView === 'LANDING' && auth.currentUser && !auth.currentUser.isAnonymous && landingEscapeRef.current) {
           landingEscapeRef.current();
           return;
         }
-        setViewInternal(event.state.view);
+        setViewInternal(targetView);
       }
     };
 
@@ -921,6 +923,29 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   // The profile the app behaves as — the active child overrides the logged-in parent.
   const effectiveProfile = activeChildProfile || userProfile;
+
+  // Universal back: return to the previous screen via real browser history (so back
+  // never jumps to a hardcoded destination). Falls back to a sensible view only when
+  // there's nothing in-app behind us (e.g. a direct deep-link landing).
+  const goBack = useCallback((fallback?: AppView) => {
+    const defaultFallback: AppView = (isEducationAccount(effectiveProfile) || (effectiveProfile as any)?.accountType === 'PARENT')
+      ? 'ACADEMIA_HOME'
+      : 'DASHBOARD';
+
+    if (historyStackRef.current.length > 1) {
+      historyStackRef.current.pop();
+      const prevView = historyStackRef.current[historyStackRef.current.length - 1];
+      if (navDepthRef.current > 0) {
+        window.history.back();
+      } else {
+        setViewInternal(prevView);
+      }
+    } else if (navDepthRef.current > 0) {
+      window.history.back();
+    } else {
+      setView(fallback || defaultFallback);
+    }
+  }, [setView, effectiveProfile]);
   const profileUnsubRef = useRef<(() => void) | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: 'createdAt' | 'title' | 'genre' | 'artist'; direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
   const [albums, setAlbums] = useState<Album[]>([]);
@@ -4856,15 +4881,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
             {view === 'ATHLETE_SHOWCASE' && (
-              <AthleteShowcaseView onBack={() => setView('PLAJAH_SPORTS')} />
+              <AthleteShowcaseView onBack={() => goBack('PLAJAH_SPORTS')} />
             )}
 
             {view === 'MATCH_FAN_ROOMS' && (
-              <MatchFanRoomsView currentUser={user} initialMatchId={fanRoomMatchId} initialMatch={fanRoomMatch} onBack={() => setView('PLAJAH_SPORTS')} />
+              <MatchFanRoomsView currentUser={user} initialMatchId={fanRoomMatchId} initialMatch={fanRoomMatch} onBack={() => goBack('PLAJAH_SPORTS')} />
             )}
 
             {view === 'CLASS_POINTS' && (
-              <ClassPointsView onBack={() => setView('CLASSROOMS')} onOpenReadingQuest={() => setView('READING_QUEST')} />
+              <ClassPointsView onBack={() => goBack('CLASSROOMS')} onOpenReadingQuest={() => setView('READING_QUEST')} />
             )}
 
             {view === 'ACADEMIA_TOUR' && (
@@ -4872,7 +4897,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 {/* Exiting a tour returns to Demos, not the dashboard — someone who just tried the
                     teacher walkthrough is far more likely to want the student one than to be done. */}
                 <AcademiaTourView
-                  onExit={() => setView('ACADEMIA_DEMOS')}
+                  onExit={() => goBack('ACADEMIA_DEMOS')}
                   onNavigate={(v) => setView(v as AppView)}
                   initialRole={demoRole}
                 />
@@ -4880,14 +4905,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'ACADEMIA_SKY' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading…</div>}>
-                <SkyRoute user={user} profile={userProfile} onBack={() => setView('ACADEMIA_HOME')} onNavigate={(v) => setView(v as any)} />
+                <SkyRoute user={user} profile={userProfile} onBack={() => goBack('ACADEMIA_HOME')} onNavigate={(v) => setView(v as any)} />
               </Suspense>
             )}
 
             {view === 'ACADEMIA_DEMOS' && (
               <Suspense fallback={null}>
                 <AcademiaDemosView
-                  onBack={() => setView(isEducationAccount(userProfile) || (userProfile as any)?.accountType === 'PARENT' ? 'ACADEMIA_HOME' : 'ACADEMIA_LANDING')}
+                  onBack={() => goBack('ACADEMIA_LANDING')}
                   onOpenTour={(role) => { setDemoRole(role); setView('ACADEMIA_TOUR'); }}
                   onNavigate={(v) => setView(v as AppView)}
                 />
@@ -4896,7 +4921,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'RICH_LESSON_STUDIO_DEMO' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/30 text-sm">Preparing Aria Lesson Studio…</div>}>
-                <RichLessonStudioDemo onBack={() => setView('ACADEMIA_DEMOS')} />
+                <RichLessonStudioDemo onBack={() => goBack('ACADEMIA_DEMOS')} />
               </Suspense>
             )}
 
@@ -4908,13 +4933,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'SCHOOL_PACKAGE' && (
               <Suspense fallback={null}>
-                <SchoolPackageView onNavigate={(v) => setView(v as AppView)} onBack={() => setView('ACADEMIA_HOME')} />
+                <SchoolPackageView onNavigate={(v) => setView(v as AppView)} onBack={() => goBack('ACADEMIA_HOME')} />
               </Suspense>
             )}
 
             {view === 'LANGUAGE_QUEST' && (
               <Suspense fallback={null}>
-                <LanguageQuestView user={user} profile={userProfile} onBack={() => setView(user ? 'ACADEMIA_HOME' : 'DASHBOARD')} />
+                <LanguageQuestView user={user} profile={userProfile} onBack={() => goBack('LANGUAGE_ARTS_SCHOOL')} />
               </Suspense>
             )}
 
@@ -4925,7 +4950,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
             {view === 'ROOM' && currentRoomId && (
-              <RoomView roomId={currentRoomId} user={user} onBack={() => setView(user ? 'FEED' : 'DASHBOARD')} />
+              <RoomView roomId={currentRoomId} user={user} onBack={() => goBack(user ? 'FEED' : 'DASHBOARD')} />
             )}
 
             {view === 'PODCAST_STUDIO' && (
@@ -4936,48 +4961,48 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   try { await saveStudioEpisode({ uid: user.uid, blob, title: 'New Episode', durationMs }); } catch (e) { console.error('[studio] save failed', e); }
                   setMusicInitialTab('PODCASTS'); setView('MUSIC');
                 }}
-                onClose={() => setView(user ? 'FEED' : 'DASHBOARD')}
+                onClose={() => goBack(user ? 'FEED' : 'DASHBOARD')}
               />
             )}
 
             {view === 'LIVE_TRANSLATION' && (
-              <LiveTranslation onBack={() => setView(user ? 'FEED' : 'DASHBOARD')} />
+              <LiveTranslation onBack={() => goBack(user ? 'FEED' : 'DASHBOARD')} />
             )}
 
             {view === 'PODCAST_CALLIN' && callinShowId && (
-              <PodcastCallIn showId={callinShowId} onClose={() => setView(user ? 'FEED' : 'DASHBOARD')} />
+              <PodcastCallIn showId={callinShowId} onClose={() => goBack(user ? 'FEED' : 'DASHBOARD')} />
             )}
 
             {view === 'PODCAST_LISTEN' && listenShowId && (
-              <PodcastListen showId={listenShowId} onClose={() => setView(user ? 'FEED' : 'DASHBOARD')} />
+              <PodcastListen showId={listenShowId} onClose={() => goBack(user ? 'FEED' : 'DASHBOARD')} />
             )}
 
             {view === 'READING_QUEST' && (
-              <ReadingQuestView onBack={() => setView('CLASSROOMS')} user={user} />
+              <ReadingQuestView onBack={() => goBack('LANGUAGE_ARTS_SCHOOL')} user={user} />
             )}
 
             {view === 'HANDWRITING_WORKSHOP' && (
-              <HandwritingWorkshopView onBack={() => setView('ACADEMIA_HOME')} user={user} profile={userProfile} />
+              <HandwritingWorkshopView onBack={() => goBack('LANGUAGE_ARTS_SCHOOL')} user={user} profile={userProfile} />
             )}
 
             {view === 'SCIENCE_QUEST' && (
-              <ScienceQuestView onBack={() => setView('CLASSROOMS')} user={user} />
+              <ScienceQuestView onBack={() => goBack('SCIENCE_SCHOOL')} user={user} />
             )}
 
             {view === 'HISTORY_QUEST' && (
-              <HistoryQuestView onBack={() => setView('CLASSROOMS')} user={user} />
+              <HistoryQuestView onBack={() => goBack('CIVICS_HALL')} user={user} />
             )}
 
             {view === 'LEARNER_LEDGER' && (
-              <LearnerLedgerView onBack={() => setView('CLASSROOMS')} user={user} />
+              <LearnerLedgerView onBack={() => goBack('ACADEMIA_HOME')} user={user} />
             )}
 
             {view === 'TEACHER_TOOLS' && (
-              <TeacherToolsView onBack={() => setView('CLASSROOMS')} user={user} />
+              <TeacherToolsView onBack={() => goBack('ACADEMIA_HOME')} user={user} />
             )}
 
             {view === 'KIDS_LIBRARY' && (
-              <KidsLibraryView onBack={() => setView('BOOKS')} />
+              <KidsLibraryView onBack={() => goBack('LANGUAGE_ARTS_SCHOOL')} />
             )}
 
             {view === 'PLAJAH_LABS' && (
@@ -5077,7 +5102,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'TERRA_MAP' && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <TerraExplorer
-                  onBack={() => setView('TERRA')}
+                  onBack={() => goBack('TERRA')}
                   onOpenPassport={(parcelId) => { setTerraPassportTarget({ parcelId }); setView('TERRA_PASSPORT'); }}
                   onOpenStudio={(parcelId) => { setTerraStudioParcel(parcelId); setView('TERRA_STUDIO'); }}
                 />
@@ -5090,33 +5115,33 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   parcelId={terraPassportTarget?.parcelId}
                   listingKey={terraPassportTarget?.listingKey}
                   currentUser={userProfile}
-                  onBack={() => setView('TERRA')}
+                  onBack={() => goBack('TERRA')}
                 />
               </Suspense>
             )}
 
             {view === 'TERRA_STUDIO' && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <ParcelStudio parcelId={terraStudioParcel} currentUser={userProfile} onBack={() => setView('TERRA')} />
+                <ParcelStudio parcelId={terraStudioParcel} currentUser={userProfile} onBack={() => goBack('TERRA')} />
               </Suspense>
             )}
 
             {view === 'TERRA_SCOUT' && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <SiteScout currentUser={userProfile} onBack={() => setView('TERRA')} />
+                <SiteScout currentUser={userProfile} onBack={() => goBack('TERRA')} />
               </Suspense>
             )}
 
             {view === 'TERRA_FILM' && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <ListingFilm currentUser={userProfile} onBack={() => setView('TERRA')} onOpenFabula={() => setView('FABULA')} />
+                <ListingFilm currentUser={userProfile} onBack={() => goBack('TERRA')} onOpenFabula={() => setView('FABULA')} />
               </Suspense>
             )}
 
             {view === 'TERRA_FEED' && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <TerraFeed
-                  onBack={() => setView('TERRA')}
+                  onBack={() => goBack('TERRA')}
                   onOpenListing={(listingKey) => { setTerraPassportTarget({ listingKey }); setView('TERRA_PASSPORT'); }}
                 />
               </Suspense>
@@ -5160,7 +5185,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'PRAXIS' && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <PraxisView user={user} profile={userProfile} onBack={() => setView('PLAJAH_BUSINESS')} onNavigate={handleGlobalNavigate} />
+                <PraxisView user={user} profile={userProfile} onBack={() => goBack('BUSINESS_SCHOOL')} onNavigate={handleGlobalNavigate} />
               </Suspense>
             )}
 
@@ -5179,14 +5204,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'VIDEO_MANAGER' && user && (
               <VideoManager 
                 user={user}
-                onBack={() => setView('CREATOR')}
+                onBack={() => goBack('CREATOR')}
               />
             )}
 
             {view === 'SANCTUARY_HUB' && (
               <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><div className="w-10 h-10 border-2 border-[--small-orange]/30 border-t-[--small-orange] rounded-full animate-spin" /></div>}>
                 <SanctuaryHubView
-                  onBack={() => setView('DASHBOARD')}
+                  onBack={() => goBack('DASHBOARD')}
                   onVisitProfile={(uid) => { setViewedUserId(uid); setView('SANCTUARY'); }}
                   onOpenDemo={() => { setViewedUserId(DEMO_SANCTUARY_ID); setView('SANCTUARY'); }}
                   currentUserId={user?.uid}
@@ -6033,39 +6058,115 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
             {view === 'ECON_SCHOOL' && (
-              <EconSchoolView onBack={() => setView('ACADEMIA_LANDING')} />
+              <Suspense fallback={null}>
+                <EconSchoolView
+                  onBack={() => goBack('ACADEMIA_LANDING')}
+                  onNavigate={(v) => setView(v as AppView)}
+                  user={user}
+                  profile={userProfile}
+                />
+              </Suspense>
             )}
             {view === 'PAPER_TRADING' && (
-              <PaperTradingView onBack={() => setView('MONEY_SCHOOL')} user={user} />
+              <PaperTradingView onBack={() => goBack('MONEY_SCHOOL')} user={user} />
             )}
             {view === 'PAPER_TRADING_CLASS' && (
-              <PaperTradingClassView onBack={() => setView('PAPER_TRADING')} user={user} />
+              <PaperTradingClassView onBack={() => goBack('PAPER_TRADING')} user={user} />
             )}
             {view === 'PHILOSOPHY_SCHOOL' && (
-              <PhilosophySchoolView onBack={() => setView('ACADEMIA_LANDING')} />
+              <Suspense fallback={null}>
+                <PhilosophySchoolView
+                  onBack={() => goBack('ACADEMIA_LANDING')}
+                  onNavigate={(v) => setView(v as AppView)}
+                  user={user}
+                  profile={userProfile}
+                />
+              </Suspense>
             )}
             {view === 'REAL_ESTATE_SCHOOL' && (
-              <RealEstateSchoolView onBack={() => setView('ACADEMIA_LANDING')} onNavigate={(v) => setView(v as AppView)} />
+              <Suspense fallback={null}>
+                <RealEstateSchoolView
+                  onBack={() => goBack('ACADEMIA_LANDING')}
+                  onNavigate={(v) => setView(v as AppView)}
+                  user={user}
+                  profile={userProfile}
+                />
+              </Suspense>
             )}
             {view === 'CIVICS_HALL' && (
-              <CivicsHallView onBack={() => setView('ACADEMIA_LANDING')} />
+              <Suspense fallback={null}>
+                <CivicsHallView
+                  onBack={() => goBack('ACADEMIA_LANDING')}
+                  onNavigate={(v) => setView(v as AppView)}
+                  user={user}
+                  profile={userProfile}
+                />
+              </Suspense>
             )}
             {view === 'MONEY_SCHOOL' && (
-              <MoneySchoolView onBack={() => setView('ACADEMIA_LANDING')} onNavigate={(v) => setView(v as AppView)} />
+              <Suspense fallback={null}>
+                <MoneySchoolView
+                  onBack={() => goBack('ACADEMIA_LANDING')}
+                  onNavigate={(v) => setView(v as AppView)}
+                  user={user}
+                  profile={userProfile}
+                />
+              </Suspense>
+            )}
+            {view === 'BUSINESS_SCHOOL' && (
+              <Suspense fallback={null}>
+                <BusinessSchoolView
+                  onBack={() => goBack('ACADEMIA_LANDING')}
+                  onNavigate={(v) => setView(v as AppView)}
+                  user={user}
+                  profile={userProfile}
+                />
+              </Suspense>
+            )}
+            {view === 'MATH_SCHOOL' && (
+              <Suspense fallback={null}>
+                <MathSchoolView
+                  onBack={() => goBack('ACADEMIA_LANDING')}
+                  onNavigate={(v) => setView(v as AppView)}
+                  user={user}
+                  profile={userProfile}
+                />
+              </Suspense>
+            )}
+            {view === 'SCIENCE_SCHOOL' && (
+              <Suspense fallback={null}>
+                <ScienceSchoolView
+                  onBack={() => goBack('ACADEMIA_LANDING')}
+                  onNavigate={(v) => setView(v as AppView)}
+                  onOpenModule={(m) => { setAcademiaModule(m); setView('ACADEMIA_COURSES'); }}
+                  user={user}
+                  profile={userProfile}
+                />
+              </Suspense>
+            )}
+            {view === 'LANGUAGE_ARTS_SCHOOL' && (
+              <Suspense fallback={null}>
+                <LanguageArtsSchoolView
+                  onBack={() => goBack('ACADEMIA_LANDING')}
+                  onNavigate={(v) => setView(v as AppView)}
+                  user={user}
+                  profile={userProfile}
+                />
+              </Suspense>
             )}
             {view === 'CLASSROOM_CLUB' && (
               <ClassroomClubView
                 profile={userProfile}
                 user={user}
                 onNavigate={(v) => setView(v as any)}
-                onBack={() => setView('CLASSROOMS')}
+                onBack={() => goBack('CLASSROOMS')}
               />
             )}
             {view === 'STUDENT_ID_CARD' && (
               <StudentIdCard
                 profile={userProfile}
                 onNavigate={(v) => setView(v as any)}
-                onBack={() => setView('LEARNER_LEDGER')}
+                onBack={() => goBack('LEARNER_LEDGER')}
               />
             )}
             {view === 'ACADEMIA_COURSES' && (
@@ -6084,7 +6185,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onNavigate={(v) => setView(v as any)}
                   onBrowseAll={() => setAcademiaBrowseGrid(true)}
                   onOpenModule={(m) => setAcademiaModule(m)}
-                  onBack={() => setView(isEducationAccount(userProfile) || (userProfile as any)?.accountType === 'PARENT' ? 'ACADEMIA_HOME' : 'ACADEMIA_LANDING')}
+                  onBack={() => goBack()}
                 />
               )
             )}
@@ -6113,7 +6214,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'ART_GALLERY' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading…</div>}>
-                <ArtGalleryView onBack={() => setView('GLOBAL_PHOTOS')} currentUser={user} />
+                <ArtGalleryView onBack={() => goBack('GLOBAL_PHOTOS')} currentUser={user} />
               </Suspense>
             )}
             {view === 'TELA' && (

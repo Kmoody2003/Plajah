@@ -13,6 +13,7 @@ import {
 } from './speechArchiveData';
 import { getSelfHostedFilm } from './selfHostedFilms';
 import { type VerifiedAudioAlignment } from './vaultAccuracy';
+import { alignHistoricTranscriptToTiming } from './slaveTranscriptionService';
 
 export interface ArchiveBook {
   id: string;
@@ -2233,6 +2234,20 @@ export const enrichInterviewTrack = (track: ArchiveTrack, r?: any): ArchiveTrack
 
   // 10. Authentic Transcript: Choose verbatim match or existing transcript
   const transcript = track.transcript || authenticTranscript || [];
+  let audioAlignment = track.audioAlignment;
+  if (!audioAlignment && transcript.length > 0 && track.url) {
+    audioAlignment = alignHistoricTranscriptToTiming(
+      transcript,
+      transcript.map(t => ({
+        start: t.time,
+        end: t.time + Math.max(2, (t.text.split(/\s+/).length || 1) * 0.4),
+        text: t.text,
+        speaker: t.speaker,
+      })),
+      track.url,
+      track.sourcePageUrl || track.url
+    );
+  }
 
   return {
     ...track,
@@ -2243,6 +2258,7 @@ export const enrichInterviewTrack = (track: ArchiveTrack, r?: any): ArchiveTrack
     timeline,
     companionArtifacts,
     transcript,
+    audioAlignment,
     fulltextUrl,
     pdfUrl,
   };

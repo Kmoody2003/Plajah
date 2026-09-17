@@ -293,17 +293,17 @@ export const INTERVIEW_MEDIA_REGISTRY: Record<string, InterviewMediaEntry> = {
 
 export function resolveInterviewKey(titleOrId: string): string | null {
   const s = (titleOrId || '').toLowerCase();
-  const isSideB = s.includes('side b') || s.includes('part 2') || s.includes('afs00342b') || s.includes('_b.');
-  if (s.includes('quarterman') || s.includes('afs00342')) return isSideB ? 'quarterman_b' : 'quarterman';
-  if (s.includes('mccrea') || s.includes('billy mccrea') || s.includes('afs03974')) return 'mccrea';
-  if (s.includes('fountain hughes') || s.includes('afs09990')) return 'hughes';
-  if (s.includes('bob ledbetter') || s.includes('uncle bob') || s.includes('afs03992')) return 'ledbetter';
+  const isSideB = s.includes('side b') || s.includes('part 2') || s.includes('part b') || /\bafs\s*0*342b\b/i.test(s) || s.includes('afs00342b') || s.includes('_b.') || s.includes('-b');
+  if (s.includes('quarterman') || s.includes('afs00342') || s.includes('afs 00342')) return isSideB ? 'quarterman_b' : 'quarterman';
+  if (s.includes('mccrea') || s.includes('billy mccrea') || s.includes('afs03974') || s.includes('afs 03974')) return 'mccrea';
+  if (s.includes('fountain hughes') || s.includes('hughes') || s.includes('afs09990') || s.includes('afs 09990')) return 'hughes';
+  if (s.includes('bob ledbetter') || s.includes('uncle bob') || s.includes('ledbetter') || s.includes('afs03992') || s.includes('afs 03992')) return 'ledbetter';
   if (s.includes('charlie smith')) return 'smith';
   if (s.includes('george johnson') || (s.includes('mound bayou') && s.includes('johnson'))) return 'johnson';
   if (s.includes('alice moseley') || s.includes('richard gaston') || s.includes("gee's bend") || s.includes("gees bend")) return 'moseley';
-  if (s.includes('isom smalley') || s.includes('harriet smith')) return 'smalley';
-  if (s.includes('celia mcdonald')) return 'mcdonald';
-  if (s.includes('laura polite') || s.includes('dave white') || (s.includes('sea island') && (s.includes('oral') || s.includes('interview')))) return 'seaislands';
+  if (s.includes('isom smalley') || s.includes('harriet smith') || s.includes('laura smalley')) return 'smalley';
+  if (s.includes('celia mcdonald') || s.includes('joe mcdonald')) return 'mcdonald';
+  if (s.includes('laura polite') || s.includes('dave white') || s.includes('samuel polite') || (s.includes('sea island') && (s.includes('oral') || s.includes('interview')))) return 'seaislands';
   return null;
 }
 

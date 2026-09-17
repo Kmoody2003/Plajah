@@ -222,8 +222,8 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00B4D8]/10 border border-[#00B4D8]/25 mb-6"
           >
             <FlaskConical size={11} className="text-[#00B4D8]" />
-            <span className={`${TYPE.labelSm} text-[#00B4D8]`}>Museion</span>
-            <span className={`px-1.5 py-0.5 bg-[#00B4D8]/20 rounded-full ${TYPE.labelSm} text-[#00B4D8]`}>Beta</span>
+            <span className={`${TYPE.labelSm} text-[#00B4D8]`}>Plajah Musecion</span>
+            <span className={`px-1.5 py-0.5 bg-[#00B4D8]/20 rounded-full ${TYPE.labelSm} text-[#00B4D8]`}>Living Museum</span>
           </motion.div>
 
           <motion.h1
@@ -234,7 +234,7 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
             className="font-black uppercase tracking-tighter leading-[0.85] mb-5"
           >
             <span className="text-white">Plajah</span>{' '}
-            <span className="bg-clip-text text-transparent" style={{ backgroundImage: BRAND }}>Labs</span>
+            <span className="bg-clip-text text-transparent" style={{ backgroundImage: BRAND }}>Musecion</span>
           </motion.h1>
 
           <motion.p

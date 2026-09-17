@@ -2,6 +2,7 @@ import { startVoiceSoundscape } from '../services/voiceSoundscapeEngine';
 import { validAlignment, activeCueIndex } from '../services/vaultAccuracy';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ArchiveTrack, enrichInterviewTrack, fetchAndParseLocTranscript } from '../services/archiveContentService';
+import { verifyAndAlignSlaveRecording, TranscriptMatchResult } from '../services/slaveTranscriptionService';
 import { Album, Track } from '../types';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import {
@@ -30,17 +31,38 @@ export const VaultInterviewView: React.FC<VaultInterviewViewProps> = ({
     return initialTrack.whyItExists ? initialTrack : enrichInterviewTrack(initialTrack);
   }, [initialTrack]);
 
+  const [activeTrack, setActiveTrack] = useState<ArchiveTrack>(track);
   const [liveTranscript, setLiveTranscript] = useState(track.transcript || []);
   const [isLoadingTranscript, setIsLoadingTranscript] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<TranscriptMatchResult | null>(null);
+
+  useEffect(() => {
+    setActiveTrack(track);
+  }, [track]);
+
+  const handleVerifyMatch = async () => {
+    setIsVerifying(true);
+    try {
+      const res = await verifyAndAlignSlaveRecording(activeTrack);
+      setActiveTrack(res.track);
+      setLiveTranscript(res.track.transcript || []);
+      setVerificationResult(res.matchResult);
+    } catch (e) {
+      console.warn('[Vault] Slave recording verification failed:', e);
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   // Dynamically load authentic Library of Congress XML transcript if available
   useEffect(() => {
     let cancelled = false;
-    setLiveTranscript(track.transcript || []);
+    setLiveTranscript(activeTrack.transcript || []);
     setIsLoadingTranscript(false);
-    if (track.fulltextUrl && (!track.transcript || track.transcript.length <= 4)) {
+    if (activeTrack.fulltextUrl && (!activeTrack.transcript || activeTrack.transcript.length <= 4)) {
       setIsLoadingTranscript(true);
-      fetchAndParseLocTranscript(track.fulltextUrl)
+      fetchAndParseLocTranscript(activeTrack.fulltextUrl)
         .then(lines => {
           if (!cancelled && lines && lines.length > 0) {
             setLiveTranscript(lines);
@@ -49,7 +71,7 @@ export const VaultInterviewView: React.FC<VaultInterviewViewProps> = ({
         .finally(() => { if (!cancelled) setIsLoadingTranscript(false); });
     }
     return () => { cancelled = true; };
-  }, [track.id, track.fulltextUrl, track.transcript]);
+  }, [activeTrack.id, activeTrack.fulltextUrl, activeTrack.transcript]);
 
   const {
     currentTrack,
@@ -124,11 +146,11 @@ export const VaultInterviewView: React.FC<VaultInterviewViewProps> = ({
   };
 
   // Find active transcript line based on currentTime (prioritizing authentic live transcript)
-  const hasVerifiedTiming = validAlignment(track.audioAlignment, track.url);
+  const hasVerifiedTiming = validAlignment(activeTrack.audioAlignment, activeTrack.url);
   const transcriptLines = hasVerifiedTiming
-    ? track.audioAlignment!.cues.map(c => ({ time: c.start, text: c.text, speaker: c.speaker || track.artist, translatedText: undefined as Record<string, string> | undefined }))
+    ? activeTrack.audioAlignment!.cues.map(c => ({ time: c.start, text: c.text, speaker: c.speaker || activeTrack.artist, translatedText: undefined as Record<string, string> | undefined }))
     : liveTranscript;
-  const activeLineIdx = hasVerifiedTiming && isCurrentPlaying ? activeCueIndex(track.audioAlignment!.cues, currentTime) : -1;
+  const activeLineIdx = hasVerifiedTiming && isCurrentPlaying ? activeCueIndex(activeTrack.audioAlignment!.cues, currentTime) : -1;
 
   // Auto-scroll teleprompter transcript
   useEffect(() => {
@@ -423,9 +445,20 @@ export const VaultInterviewView: React.FC<VaultInterviewViewProps> = ({
                   <div className="w-2 h-2 rounded-full bg-[#00DAF3] animate-pulse" />
                   <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/80">{hasVerifiedTiming ? 'Synchronized transcript' : 'Transcript reference'}</h3>
                 </div>
-                <span className="px-2 py-0.5 rounded-md bg-[#00DAF3]/10 border border-[#00DAF3]/30 text-[7.5px] font-mono font-bold text-[#00DAF3] flex items-center gap-1 w-fit">
-                  <ShieldCheck size={10} /> Archival Record Verified
-                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="px-2 py-0.5 rounded-md bg-[#00DAF3]/10 border border-[#00DAF3]/30 text-[7.5px] font-mono font-bold text-[#00DAF3] flex items-center gap-1 w-fit">
+                    <ShieldCheck size={10} /> {verificationResult?.isHighMatch ? 'Historic LoC Record Verified (Match Confirmed)' : 'Archival Record Verified'}
+                  </span>
+                  <button
+                    onClick={handleVerifyMatch}
+                    disabled={isVerifying}
+                    className="px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-[7.5px] font-mono font-bold text-white/70 hover:text-white transition-all flex items-center gap-1"
+                    title="Run transcription alignment engine to compare audio against Library of Congress historic transcripts"
+                  >
+                    <Sparkles size={10} className={isVerifying ? 'animate-spin text-[#00DAF3]' : 'text-amber-400'} />
+                    {isVerifying ? 'Verifying Match...' : 'Verify & Align Audio'}
+                  </button>
+                </div>
                 {isLoadingTranscript && (
                   <span className="text-[8px] font-mono text-[#FF8C00] animate-pulse">
                     Loading LoC XML...
