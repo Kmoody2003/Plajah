@@ -3,9 +3,10 @@
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap rescap">
+  xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4"
+  IgnorableNamespaces="uap rescap desktop4">
 
-  <Identity Name="Plajah.Platform" Publisher="CN=Plajah" Version="1.0.0.0" />
+  <Identity Name="Plajah.Platform" Publisher="CN=Plajah" Version="1.0.37.0" />
 
   <Properties>
     <DisplayName>Plajah</DisplayName>
@@ -23,10 +24,78 @@
   </Resources>
 
   <Applications>
-    <Application Id="App" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$">
+    <Application Id="App" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true">
       <uap:VisualElements
         DisplayName="Plajah"
         Description="Plajah — the creator platform: Fabula editor, Reello video, Chora music, live streaming and more, native on Windows."
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <!-- File type associations: Photos & Images -->
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="image">
+            <uap:SupportedFileTypes>
+              <uap:FileType>.jpg</uap:FileType>
+              <uap:FileType>.jpeg</uap:FileType>
+              <uap:FileType>.png</uap:FileType>
+              <uap:FileType>.gif</uap:FileType>
+              <uap:FileType>.webp</uap:FileType>
+              <uap:FileType>.avif</uap:FileType>
+              <uap:FileType>.bmp</uap:FileType>
+              <uap:FileType>.tiff</uap:FileType>
+              <uap:FileType>.tif</uap:FileType>
+              <uap:FileType>.ico</uap:FileType>
+              <uap:FileType>.svg</uap:FileType>
+              <uap:FileType>.heic</uap:FileType>
+              <uap:FileType>.dng</uap:FileType>
+              <uap:FileType>.raw</uap:FileType>
+            </uap:SupportedFileTypes>
+            <uap:DisplayName>Media Plajah Photo Viewer</uap:DisplayName>
+            <uap:EditFlags OpenIsSafe="true" />
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+        <!-- File type associations: Videos -->
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="video">
+            <uap:SupportedFileTypes>
+              <uap:FileType>.mp4</uap:FileType>
+              <uap:FileType>.mkv</uap:FileType>
+              <uap:FileType>.mov</uap:FileType>
+              <uap:FileType>.avi</uap:FileType>
+              <uap:FileType>.webm</uap:FileType>
+              <uap:FileType>.m4v</uap:FileType>
+              <uap:FileType>.wmv</uap:FileType>
+            </uap:SupportedFileTypes>
+            <uap:DisplayName>Media Plajah Video Player</uap:DisplayName>
+            <uap:EditFlags OpenIsSafe="true" />
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+        <!-- File type associations: Audio / Music -->
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="audio">
+            <uap:SupportedFileTypes>
+              <uap:FileType>.mp3</uap:FileType>
+              <uap:FileType>.wav</uap:FileType>
+              <uap:FileType>.flac</uap:FileType>
+              <uap:FileType>.aac</uap:FileType>
+              <uap:FileType>.m4a</uap:FileType>
+              <uap:FileType>.ogg</uap:FileType>
+              <uap:FileType>.wma</uap:FileType>
+              <uap:FileType>.aiff</uap:FileType>
+            </uap:SupportedFileTypes>
+            <uap:DisplayName>Media Plajah Music Player</uap:DisplayName>
+            <uap:EditFlags OpenIsSafe="true" />
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+      </Extensions>
+    </Application>
+    <Application Id="MediaPlajah" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true">
+      <uap:VisualElements
+        DisplayName="Media Plajah"
+        Description="Media Plajah — Standalone high-fidelity local media player with Chora bit-perfect audio, 4K video, and creative bridges."
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">
@@ -37,6 +106,8 @@
 
   <Capabilities>
     <Capability Name="internetClient" />
+    <rescap:Capability Name="runFullTrust" />
+    <uap:Capability Name="picturesLibrary" />
     <uap:Capability Name="videosLibrary" />
     <uap:Capability Name="musicLibrary" />
     <DeviceCapability Name="microphone" />

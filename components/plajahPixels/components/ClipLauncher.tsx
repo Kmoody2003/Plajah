@@ -26,7 +26,7 @@ import React, {
 import {
   Play, ChevronLeft, ChevronRight, Upload, Plus,
   Zap, Image, Wind, Radio, Search, SkipBack, SkipForward, Shuffle,
-  Eye, EyeOff, Power, X, Cpu, Trash2, Copy,
+  Eye, EyeOff, Power, X, Cpu, Trash2, Copy, Sparkles, Layers,
 } from 'lucide-react';
 import { VisualizationConfig, VisualizerMode, BackgroundMedia, BlendMode } from '../types';
 import { SCENE_CATALOG, SceneEntry } from '../engine/sceneCatalog';
@@ -240,6 +240,8 @@ interface Props {
   onLayersChange?: (layers: LauncherLayer[]) => void;
   /** Fired when a scene column is launched (live cut-list recording for Fabula export). */
   onSceneLaunch?: (col: number) => void;
+  /** Fired when the anticipated upcoming column changes for locked 60fps preloading (Step 8). */
+  onUpcomingColChange?: (col: number | null) => void;
   /** Layers loaded from a saved project; applied whenever importToken changes. */
   importLayers?: LauncherLayer[] | null;
   importToken?: number;
@@ -259,8 +261,8 @@ interface CellProps {
   onUpdateOpacity:  (opacity: number) => void;
   onClear?:         () => void;
   onCopyToNext?:    () => void;
-  /** Hover an assigned cell → live preview popup (null on leave). */
-  onHover?:         (clip: LauncherClip | null) => void;
+  /** Hover an assigned cell → live preview popup (null on leave) (Step 6). */
+  onHover?:         (clip: LauncherClip | null, rect?: DOMRect, layerIdx?: number, colIdx?: number) => void;
 }
 
 const ClipCell: React.FC<CellProps> = ({
@@ -307,7 +309,7 @@ const ClipCell: React.FC<CellProps> = ({
         opacity: clipOpacity < 1 ? 0.4 + clipOpacity * 0.6 : 1,
       }}
       onClick={clip ? onActivate : () => fileRef.current?.click()}
-      onMouseEnter={() => { if (clip) onHover?.(clip); }}
+      onMouseEnter={(e) => { if (clip) onHover?.(clip, e.currentTarget.getBoundingClientRect(), layerIdx, colIdx); }}
       onMouseLeave={() => onHover?.(null)}
       {...menu.bind()}
       onDragOver={e => { e.preventDefault(); setDragOver(true); }}
@@ -439,7 +441,7 @@ interface LayerRowProps {
   onClearRow:    () => void;
   onDeleteLayer: () => void;
   isDefaultLayer: boolean;
-  onHoverClip:   (clip: LauncherClip | null) => void;
+  onHoverClip:   (clip: LauncherClip | null, rect?: DOMRect, layerIdx?: number, colIdx?: number) => void;
 }
 
 const CELL_HEIGHT = 92;
@@ -592,7 +594,7 @@ const LayerRow: React.FC<LayerRowProps> = ({
               onUpdateOpacity={opacity => onUpdateClip(ci, { opacity })}
               onClear={() => onClearClip(ci)}
               onCopyToNext={() => onCopyClip(ci)}
-              onHover={onHoverClip}
+              onHover={(c, rect, li, col) => onHoverClip(c, rect, li ?? layerIdx, col ?? ci)}
             />
           ))}
         </div>
@@ -845,6 +847,127 @@ const SourceBrowser: React.FC<SourceBrowserProps> = ({
   );
 };
 
+// ─── Live Hover Preview Popup (Step 6) ────────────────────────────────────────
+// Floating mini-preview that opens when hovering over any assigned clip cell.
+// Completely isolated from the program canvas — never touches the live composite.
+
+interface HoverPopupState {
+  clip: LauncherClip;
+  rect: DOMRect;
+  layerIdx: number;
+  colIdx: number;
+}
+
+const HoverPreviewPopup: React.FC<{
+  hover: HoverPopupState;
+  layer: LauncherLayer;
+}> = ({ hover, layer }) => {
+  const { clip, rect, layerIdx, colIdx } = hover;
+  // Position above the cell; if too close to top edge (< 180px), position below
+  const top = rect.top < 180 ? rect.bottom + 8 : rect.top - 175;
+  const left = Math.max(12, Math.min(window.innerWidth - 220, rect.left - 45));
+  const accent = clip.color || '#6366f1';
+
+  return (
+    <div
+      className="fixed z-50 pointer-events-none flex flex-col rounded-xl overflow-hidden shadow-2xl backdrop-blur-md"
+      style={{
+        top,
+        left,
+        width: 200,
+        background: 'rgba(10, 10, 18, 0.95)',
+        border: `1px solid ${accent}66`,
+        boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 16px ${accent}22`,
+      }}
+    >
+      {/* Mini live preview viewport */}
+      <div className="relative w-full h-24 bg-black overflow-hidden flex items-center justify-center border-b border-white/10">
+        {clip.type === 'media' && clip.mediaUrl ? (
+          clip.mediaType === 'video' ? (
+            <video
+              src={clip.mediaUrl}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <img src={clip.mediaUrl} alt="" className="w-full h-full object-cover" />
+          )
+        ) : clip.type === 'color' ? (
+          <div className="w-full h-full flex items-center justify-center" style={{ background: clip.fillColor || '#000' }}>
+            <span className="text-[10px] font-mono font-bold uppercase text-white/90 drop-shadow">
+              {clip.fillColor || '#000000'}
+            </span>
+          </div>
+        ) : clip.type === 'milkdrop' ? (
+          <div
+            className="w-full h-full flex flex-col items-center justify-center p-2 text-center"
+            style={{ background: 'radial-gradient(ellipse at center, #7c3aed 0%, #1e1b4b 100%)' }}
+          >
+            <Sparkles className="w-5 h-5 text-purple-300 animate-pulse mb-1" />
+            <span className="text-[9px] font-black text-white/90 uppercase tracking-wider truncate w-full">
+              {clip.milkdropName || clip.name}
+            </span>
+          </div>
+        ) : clip.type === 'shader' ? (
+          <div
+            className="w-full h-full flex flex-col items-center justify-center p-2 text-center"
+            style={{ background: 'radial-gradient(ellipse at center, #0284c7 0%, #082f49 100%)' }}
+          >
+            <div className="text-[14px] font-mono font-black text-cyan-300">GLSL</div>
+            <span className="text-[8px] font-bold text-white/70 uppercase tracking-widest mt-1">
+              {clip.name}
+            </span>
+          </div>
+        ) : (
+          <div
+            className="w-full h-full flex flex-col items-center justify-center p-2 text-center"
+            style={{ background: `radial-gradient(ellipse at center, ${accent}66 0%, #000 100%)` }}
+          >
+            <Layers className="w-5 h-5 mb-1" style={{ color: accent }} />
+            <span className="text-[9px] font-black text-white uppercase tracking-wider truncate w-full">
+              {clip.name}
+            </span>
+          </div>
+        )}
+
+        {/* Live badge */}
+        <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-wider bg-black/60 backdrop-blur border border-white/20 text-white/90 flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: accent }} />
+          PREVIEW
+        </div>
+
+        {/* Pad index */}
+        <div className="absolute top-1.5 right-1.5 px-1 py-0.5 rounded text-[7px] font-mono font-bold bg-black/60 text-white/60">
+          P{layerIdx * 4 + colIdx + 1}
+        </div>
+      </div>
+
+      {/* Metadata card footer */}
+      <div className="p-2 flex flex-col gap-1">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-black text-white uppercase tracking-wide truncate max-w-[130px]">
+            {clip.name}
+          </span>
+          <span
+            className="text-[7px] font-black uppercase px-1 rounded"
+            style={{ background: `${accent}33`, color: accent }}
+          >
+            {clip.type}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between text-[8px] text-white/40 pt-1 border-t border-white/5 font-mono">
+          <span>{layer.name || `Layer ${layerIdx + 1}`}</span>
+          <span>{Math.round((clip.opacity ?? 1) * 100)}% · {layer.blendMode}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Main ClipLauncher ────────────────────────────────────────────────────────
 
 const DEFAULT_LAYER_NAMES = ['BG', 'VIZ', 'FX'];
@@ -853,7 +976,7 @@ const ClipLauncher: React.FC<Props> = ({
   config, onApply, milkdrop, onSetLayerMedia,
   bgMedia1, bgMedia2, shaderLibrary, onApplyShader,
   onLayerShader, onShaderParamsChange, onLayerModulation, onSyncSceneAuto, onSetBlendActive, analyser,
-  rightPanel, onPowerOff, onLayersChange, onSceneLaunch, importLayers, importToken,
+  rightPanel, onPowerOff, onLayersChange, onSceneLaunch, onUpcomingColChange, importLayers, importToken,
 }) => {
   const [layers,        setLayers]        = useState<LauncherLayer[]>(() => loadLayers());
 
@@ -971,8 +1094,60 @@ const ClipLauncher: React.FC<Props> = ({
   const GAP       = 4;
   const STEP      = CELL_W + GAP;
   const colCount  = layers[0]?.clips.length ?? NUM_COLS;
-
   const preloadRef = useRef<Record<string, HTMLVideoElement>>({});
+
+  // ── Hover preview popup state (Step 6) ──────────────────────────────────────
+  const [hoverPopup, setHoverPopup] = useState<HoverPopupState | null>(null);
+  const hoverTimeoutRef = useRef<number | null>(null);
+
+  const handleCellHover = useCallback((clip: LauncherClip | null, rect?: DOMRect, layerIdx?: number, colIdx?: number) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    if (!clip || !rect || layerIdx == null || colIdx == null) {
+      setHoverPopup(null);
+      setHoverSource(null);
+      return;
+    }
+    setHoverSource(clip);
+    hoverTimeoutRef.current = window.setTimeout(() => {
+      setHoverPopup({ clip, rect, layerIdx, colIdx });
+    }, 120);
+  }, []);
+
+  // ── Next-Column Preload (Step 8) ─────────────────────────────────────────────
+  // Anticipate upcoming column and pre-warm its video decoders for locked 60fps swaps
+  const activeCol = activeSceneColRef.current ?? (layers.find(l => l.activeCol != null)?.activeCol ?? null);
+  const upcomingCol = activeCol != null ? (activeCol + 1) % colCount : null;
+
+  useEffect(() => {
+    onUpcomingColChange?.(upcomingCol);
+  }, [upcomingCol, onUpcomingColChange]);
+
+  useEffect(() => {
+    if (upcomingCol == null) return;
+    const lrs = layersRef.current;
+    for (const layer of lrs) {
+      const clip = layer.clips[upcomingCol];
+      if (clip && clip.type === 'media' && clip.mediaUrl && clip.mediaType === 'video') {
+        const url = clip.mediaUrl;
+        let el = preloadRef.current[url];
+        if (!el) {
+          el = document.createElement('video');
+          el.crossOrigin = 'anonymous';
+          el.src = url;
+          el.preload = 'auto';
+          el.muted = true;
+          el.playsInline = true;
+          preloadRef.current[url] = el;
+        }
+        if (el.readyState < 2) {
+          try { el.load(); } catch { /* ignore */ }
+        }
+      }
+    }
+  }, [upcomingCol]);
 
   // ── Global blend toggle ──────────────────────────────────────────────────────
   const toggleBlend = useCallback(() => {
@@ -1810,7 +1985,7 @@ const ClipLauncher: React.FC<Props> = ({
                 onClearRow={() => clearRow(li)}
                 onDeleteLayer={() => deleteLayer(li)}
                 isDefaultLayer={li < 3}
-                onHoverClip={setHoverSource}
+                onHoverClip={handleCellHover}
               />
             </div>
           ))}
@@ -2340,6 +2515,11 @@ const ClipLauncher: React.FC<Props> = ({
             <div className="flex-1 overflow-y-auto">{rightPanel}</div>
           )}
         </div>
+      )}
+
+      {/* ── Live Hover Preview Popup (Step 6) ─────────────────────────────── */}
+      {hoverPopup && layers[hoverPopup.layerIdx] && (
+        <HoverPreviewPopup hover={hoverPopup} layer={layers[hoverPopup.layerIdx]} />
       )}
     </div>
   );

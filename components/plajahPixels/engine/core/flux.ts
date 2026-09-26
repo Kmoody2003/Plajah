@@ -16,6 +16,7 @@ import {
 } from '../../../../services/fabula/fluxNode';
 import { buildTapestryII, buildLattice, buildTunnel, buildAurora, buildSanctum } from './fluxCouncilScenes';
 import { buildPorcelainTide, buildVelvetBloom, buildPrismArchive } from './fluxAtelierScenes';
+import { buildDecoMorph } from './decoMorphScene';
 
 let status: 'idle' | 'loading' | 'ready' | 'failed' = 'idle';
 export function fluxStatus() { return status; }
@@ -132,6 +133,7 @@ const SCENE_BUILDERS: Record<FluxSceneId, ((THREE: any, renderer: any) => SceneI
   'porcelain-tide': buildPorcelainTide,
   'velvet-bloom': buildVelvetBloom,
   'prism-archive': buildPrismArchive,
+  'deco-morph': buildDecoMorph,
 };
 
 function getScene(e: Env, id: FluxSceneId): SceneInst | null {

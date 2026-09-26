@@ -41,6 +41,8 @@ interface Props {
    *  stack. Rendered hidden; their canvases are uploaded as top layers each frame.
    *  When set, the single GL canvas becomes the FULL output. */
   overlays?: React.ReactNode;
+  /** Preload clips from the upcoming column for locked 60fps scene/column swaps (Step 8). */
+  upcomingCol?: number | null;
 }
 
 const MAX_HEIGHT = 1080; // internal render-target cap (aspect preserved)
@@ -73,7 +75,7 @@ function pickSliceCanvas(w: HTMLElement | null | undefined): HTMLCanvasElement |
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
-const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying, bgSlice, gpuGenerators, onCanvas, overlays }) => {
+const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying, bgSlice, gpuGenerators, onCanvas, overlays, upcomingCol }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayHostRef = useRef<HTMLDivElement>(null);
@@ -178,15 +180,27 @@ const GLCompositorView: React.FC<Props> = ({ layers, analyser, config, isPlaying
     return el;
   };
 
-  // Pre-warm ALL launcher media on any change, so every clip is decode-ready
-  // before it's fired (instant, beat-tight switching for video).
+  // Pre-warm ALL launcher media on any change, plus proactively buffer the upcoming column
+  // (Step 8: Next-Column Preload) so every clip is decode-ready before it's fired.
   useEffect(() => {
     for (const layer of layers) {
       for (const clip of layer.clips) {
         if (clip && clip.type === 'media' && clip.mediaUrl) getWarmMedia(clip.mediaUrl, clip.mediaType);
       }
     }
-  }, [layers]);
+    // Proactively buffer upcoming column media for locked 60fps transitions
+    if (upcomingCol != null) {
+      for (const layer of layers) {
+        const clip = layer.clips[upcomingCol];
+        if (clip && clip.type === 'media' && clip.mediaUrl) {
+          const el = getWarmMedia(clip.mediaUrl, clip.mediaType);
+          if (el instanceof HTMLVideoElement && el.readyState < 2) {
+            try { el.load(); } catch { /* ignore */ }
+          }
+        }
+      }
+    }
+  }, [layers, upcomingCol]);
 
   // Init the compositor once. Fall back to the DOM stack if WebGL2 is missing.
   useEffect(() => {

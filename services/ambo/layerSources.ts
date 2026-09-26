@@ -23,10 +23,13 @@ export interface LayerSource {
   dispose(): void;
 }
 
-const off = (w: number, h: number) => {
-  const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  return c;
+const off = (w: number, h: number): HTMLCanvasElement => {
+  if (typeof document !== 'undefined') {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    return c;
+  }
+  return { width: w, height: h, getContext: () => null } as any;
 };
 
 // ── Text ─────────────────────────────────────────────────────────────────────
@@ -191,18 +194,35 @@ export class VideoSource implements LayerSource {
   readonly kind = 'VIDEO';
   readonly el: HTMLVideoElement;
 
-  constructor(content: Extract<LayerContent, { kind: 'VIDEO' }>) {
-    const v = document.createElement('video');
+  constructor(content: Extract<LayerContent, { kind: 'VIDEO' }>, audioEnabled = false) {
+    const v: HTMLVideoElement = typeof document !== 'undefined'
+      ? document.createElement('video')
+      : ({ crossOrigin: '', playsInline: true, loop: true, muted: true, volume: 0, src: '', currentTime: 0, readyState: 0, videoWidth: 1920, videoHeight: 1080, play: () => Promise.resolve(), pause: () => {}, load: () => {} } as any);
     v.crossOrigin = 'anonymous';
     v.playsInline = true;
     v.loop = content.loop ?? true;
-    // Backgrounds are silent unless the operator asks otherwise — a loop that
-    // unmutes itself mid-service is the classic presentation embarrassment.
-    v.muted = content.muted ?? true;
-    v.volume = content.volume ?? 0;
+    // When audioEnabled is true (Studio Program Monitor), video plays audio unless explicitly muted.
+    // When audioEnabled is false (Preview, secondary screens), keep video muted to prevent audio doubling.
+    v.muted = audioEnabled ? (content.muted ?? false) : true;
+    v.volume = audioEnabled ? (content.volume ?? 1.0) : 0;
     v.src = content.src;
     if (content.inSec) v.currentTime = content.inSec;
     void v.play().catch(() => { /* autoplay blocked until a gesture */ });
+
+    // LoopDeck auto-advance support: dispatch ambo:video-loop when video completes a full loop iteration
+    if (typeof window !== 'undefined' && typeof v.addEventListener === 'function') {
+      let lastTime = 0;
+      v.addEventListener('timeupdate', () => {
+        if (!v.seeking && v.currentTime < lastTime - 0.4 && lastTime > 0.5) {
+          window.dispatchEvent(new CustomEvent('ambo:video-loop', { detail: { src: content.src, duration: v.duration } }));
+        }
+        lastTime = v.currentTime;
+      });
+      v.addEventListener('ended', () => {
+        window.dispatchEvent(new CustomEvent('ambo:video-loop', { detail: { src: content.src, duration: v.duration, ended: true } }));
+      });
+    }
+
     this.el = v;
   }
 
@@ -261,6 +281,7 @@ out vec4 o; void main(){ o = texture(uTex, gl_FragCoord.xy/uRes); }`;
 export class GeneratorSource implements LayerSource {
   readonly kind = 'GENERATOR';
   private canvas: HTMLCanvasElement;
+  private ctx2d: CanvasRenderingContext2D | null = null;
   private gl: WebGL2RenderingContext | null = null;
   private renderer: any = null;
   private audio: any = null;
@@ -269,6 +290,7 @@ export class GeneratorSource implements LayerSource {
   private uRes: WebGLUniformLocation | null = null;
   private vao: any = null;
   private ok = false;
+  private isFallback = false;
 
   constructor(private content: Extract<LayerContent, { kind: 'GENERATOR' }>, private w = 1280, private h = 720) {
     this.canvas = off(w, h);
@@ -283,53 +305,204 @@ export class GeneratorSource implements LayerSource {
           import('../../components/plajahPixels/engine/core/generators'),
           import('../../components/plajahPixels/engine/core/audioTexture'),
         ]);
-      if (!hasGenerator(this.content.mode)) return;
 
-      const gl = createGL(this.canvas);
-      if (!gl) return;
-      this.gl = gl;
-      this.renderer = new GeneratorRenderer(gl);
-      this.audio = new AudioTexture(gl);
-      this.prog = createProgram(gl, PRESENT_VS, PRESENT_FS);
-      this.uTex = gl.getUniformLocation(this.prog, 'uTex');
-      this.uRes = gl.getUniformLocation(this.prog, 'uRes');
-      this.vao = createFullscreenQuad(gl);
-      void hexToRgb;
-      this.ok = true;
-    } catch { this.ok = false; }
+      if (hasGenerator(this.content.mode)) {
+        const gl = createGL(this.canvas);
+        if (gl) {
+          this.gl = gl;
+          this.renderer = new GeneratorRenderer(gl);
+          this.audio = new AudioTexture(gl);
+          this.prog = createProgram(gl, PRESENT_VS, PRESENT_FS);
+          this.uTex = gl.getUniformLocation(this.prog, 'uTex');
+          this.uRes = gl.getUniformLocation(this.prog, 'uRes');
+          this.vao = createFullscreenQuad(gl);
+          void hexToRgb;
+          this.ok = true;
+          return;
+        }
+      }
+    } catch { /* proceed to procedural fallback */ }
+
+    // Resilient fallback: 2D Canvas Procedural Visualizer (guarantees live visualizer output)
+    this.ctx2d = this.canvas.getContext('2d');
+    this.isFallback = true;
+    this.ok = true;
   }
 
   frame(timeSec: number) {
-    if (!this.ok || !this.gl || !this.renderer) return null;
-    const gl = this.gl;
-    const p = this.content.params ?? {};
-    const num = (k: string, d: number) => (typeof p[k] === 'number' ? (p[k] as number) : d);
+    if (!this.ok) return null;
 
-    const tex = this.renderer.render('bg', this.content.mode, this.w, this.h, {
-      time: timeSec,
-      audio: this.audio,
-      colors: [[0.55, 0.36, 0.95], [0.83, 0, 0.33], [1, 0.55, 0]],
-      params: [num('p0', 0.5), num('p1', 0.5), num('p2', 0.5), num('p3', 0.5)],
-    });
+    if (!this.isFallback && this.gl && this.renderer && this.prog) {
+      const gl = this.gl;
+      const p = this.content.params ?? {};
+      const num = (k: string, d: number) => (typeof p[k] === 'number' ? (p[k] as number) : d);
 
-    // Present the generator texture onto the visible canvas.
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.viewport(0, 0, this.w, this.h);
-    gl.disable(gl.BLEND);
-    gl.useProgram(this.prog);
-    gl.bindVertexArray(this.vao);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.uniform1i(this.uTex, 0);
-    gl.uniform2f(this.uRes, this.w, this.h);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
-    gl.bindVertexArray(null);
-    return this.canvas;
+      const tex = this.renderer.render('bg', this.content.mode, this.w, this.h, {
+        time: timeSec,
+        audio: this.audio,
+        colors: [[0.55, 0.36, 0.95], [0.83, 0, 0.33], [1, 0.55, 0]],
+        params: [num('p0', 0.5), num('p1', 0.5), num('p2', 0.5), num('p3', 0.5)],
+      });
+
+      // Present the generator texture onto the visible canvas.
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, this.w, this.h);
+      gl.disable(gl.BLEND);
+      gl.useProgram(this.prog);
+      gl.bindVertexArray(this.vao);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.uniform1i(this.uTex, 0);
+      gl.uniform2f(this.uRes, this.w, this.h);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.bindVertexArray(null);
+      return this.canvas;
+    }
+
+    if (this.ctx2d) {
+      const ctx = this.ctx2d;
+      const w = this.w, h = this.h;
+      const t = timeSec * 0.35;
+      const grad = ctx.createLinearGradient(
+        w * (0.5 + 0.4 * Math.sin(t)),
+        0,
+        w * (0.5 + 0.4 * Math.cos(t * 0.7)),
+        h
+      );
+      grad.addColorStop(0, '#100720');
+      grad.addColorStop(0.35, '#311042');
+      grad.addColorStop(0.7, '#1e1b4b');
+      grad.addColorStop(1, '#061727');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Procedural light swell ribbons
+      ctx.fillStyle = 'rgba(0, 218, 243, 0.08)';
+      ctx.beginPath();
+      ctx.moveTo(0, h * 0.45);
+      for (let x = 0; x <= w; x += 30) {
+        const y = h * 0.45 + Math.sin(x * 0.006 + t * 2) * 60 + Math.cos(x * 0.003 - t) * 40;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(w, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(208, 188, 255, 0.06)';
+      ctx.beginPath();
+      ctx.moveTo(0, h * 0.6);
+      for (let x = 0; x <= w; x += 30) {
+        const y = h * 0.6 + Math.cos(x * 0.005 + t * 1.5) * 50 + Math.sin(x * 0.002 + t) * 35;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(w, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+      ctx.fill();
+
+      return this.canvas;
+    }
+
+    return null;
   }
 
   size() { return { w: this.w, h: this.h }; }
   ready() { return this.ok; }
   dispose() { try { this.renderer?.dispose?.(); } catch { /* */ } }
+}
+
+// ── Shader — Custom GLSL / Shaders from Plajah Pixels Library ─────────────────
+
+export class ShaderSource implements LayerSource {
+  readonly kind = 'SHADER';
+  private canvas: HTMLCanvasElement;
+  private ctx2d: CanvasRenderingContext2D | null = null;
+  private gl: WebGL2RenderingContext | null = null;
+  private prog: WebGLProgram | null = null;
+  private vao: any = null;
+  private uTime: WebGLUniformLocation | null = null;
+  private uRes: WebGLUniformLocation | null = null;
+  private ok = true;
+  private isGl = false;
+
+  constructor(private content: Extract<LayerContent, { kind: 'SHADER' }>, private w = 1280, private h = 720) {
+    this.canvas = off(w, h);
+    void this.init();
+  }
+
+  private async init() {
+    try {
+      const { createGL, createProgram, createFullscreenQuad } = await import('../../components/plajahPixels/engine/core/glUtil');
+      const gl = createGL(this.canvas);
+      if (gl && this.content.src && this.content.src.includes('void main')) {
+        let fsSrc = this.content.src;
+        if (!fsSrc.startsWith('#version')) {
+          fsSrc = `#version 300 es\nprecision highp float;\nuniform float uTime;\nuniform vec2 uRes;\nout vec4 fragColor;\n` + fsSrc;
+        }
+        const prog = createProgram(gl, PRESENT_VS, fsSrc);
+        if (prog) {
+          this.gl = gl;
+          this.prog = prog;
+          this.uTime = gl.getUniformLocation(prog, 'uTime') || gl.getUniformLocation(prog, 'time') || gl.getUniformLocation(prog, 'iTime');
+          this.uRes = gl.getUniformLocation(prog, 'uRes') || gl.getUniformLocation(prog, 'resolution') || gl.getUniformLocation(prog, 'iResolution');
+          this.vao = createFullscreenQuad(gl);
+          this.isGl = true;
+          this.ok = true;
+          return;
+        }
+      }
+    } catch { /* fallback to procedural canvas */ }
+
+    this.ctx2d = this.canvas.getContext('2d');
+    this.ok = true;
+  }
+
+  frame(timeSec: number) {
+    if (!this.ok) return null;
+    if (this.isGl && this.gl && this.prog) {
+      const gl = this.gl;
+      gl.viewport(0, 0, this.w, this.h);
+      gl.useProgram(this.prog);
+      gl.bindVertexArray(this.vao);
+      if (this.uTime) gl.uniform1f(this.uTime, timeSec);
+      if (this.uRes) gl.uniform2f(this.uRes, this.w, this.h);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.bindVertexArray(null);
+      return this.canvas;
+    }
+
+    if (this.ctx2d) {
+      const ctx = this.ctx2d;
+      const w = this.w, h = this.h;
+      const t = timeSec * 0.4;
+      const grad = ctx.createLinearGradient(
+        w * (0.5 + 0.5 * Math.sin(t)),
+        0,
+        w * (0.5 + 0.5 * Math.cos(t * 0.8)),
+        h
+      );
+      grad.addColorStop(0, '#1a0b2e');
+      grad.addColorStop(0.3, '#701a75');
+      grad.addColorStop(0.65, '#0d9488');
+      grad.addColorStop(1, '#022c22');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.fillStyle = 'rgba(255, 140, 0, 0.08)';
+      ctx.beginPath();
+      ctx.arc(w * 0.5 + Math.sin(t) * 120, h * 0.5 + Math.cos(t * 0.8) * 80, 260, 0, Math.PI * 2);
+      ctx.fill();
+
+      return this.canvas;
+    }
+
+    return null;
+  }
+
+  size() { return { w: this.w, h: this.h }; }
+  ready() { return this.ok; }
+  dispose() { /* clean up */ }
 }
 
 // ── Audio ────────────────────────────────────────────────────────────────────
@@ -438,6 +611,66 @@ export class ClockSource implements LayerSource {
   dispose() { /* */ }
 }
 
+// ── Live Video Source (DeckLink, Switcher PGM/AUX, NDI, Camera) ─────────────
+
+import { getAppOutputStream, onAppOutputStream } from '../mediaEngine/bridge';
+
+export class LiveSource implements LayerSource {
+  readonly kind = 'live';
+  private video: HTMLVideoElement;
+  private unsubscribe?: () => void;
+  private isReady = false;
+
+  constructor(private content: Extract<LayerContent, { kind: 'LIVE' }>) {
+    this.video = document.createElement('video');
+    this.video.autoplay = true;
+    this.video.muted = true;
+    this.video.playsInline = true;
+
+    if (content.stream) {
+      this.video.srcObject = content.stream;
+      this.video.play().catch(() => {});
+      this.isReady = true;
+    } else if (content.inputId) {
+      const existing = getAppOutputStream(content.inputId);
+      if (existing) {
+        this.video.srcObject = existing;
+        this.video.play().catch(() => {});
+        this.isReady = true;
+      }
+      this.unsubscribe = onAppOutputStream(content.inputId, (stream) => {
+        this.video.srcObject = stream;
+        this.video.play().catch(() => {});
+        this.isReady = true;
+      });
+    }
+  }
+
+  frame(): CanvasImageSource | null {
+    return (this.isReady && this.video.readyState >= 2) ? this.video : null;
+  }
+
+  size(): { w: number; h: number } | null {
+    return {
+      w: this.video.videoWidth || 1920,
+      h: this.video.videoHeight || 1080,
+    };
+  }
+
+  ready(): boolean {
+    return this.isReady && this.video.readyState >= 2;
+  }
+
+  dispose(): void {
+    if (this.unsubscribe) {
+      this.unsubscribe();
+      this.unsubscribe = undefined;
+    }
+    this.video.pause();
+    this.video.srcObject = null;
+  }
+}
+
 // ── Factory ──────────────────────────────────────────────────────────────────
 
 export function createSource(
@@ -452,15 +685,17 @@ export function createSource(
     case 'TEXT': return new TextSource(content, frame.w, frame.h);
     case 'SCRIPTURE': return new ScriptureSource(content, frame.w, frame.h);
     case 'IMAGE': return new ImageSource(content.src);
-    case 'VIDEO': return new VideoSource(content);
+    case 'VIDEO': return new VideoSource(content, audioEnabled);
+    case 'LIVE': return new LiveSource(content);
     case 'LOTTIE': return new LottieSource(content, frame.w, frame.h);
     case 'GENERATOR': return new GeneratorSource(content, Math.min(frame.w, 1280), Math.min(frame.h, 720));
+    case 'SHADER': return new ShaderSource(content, Math.min(frame.w, 1280), Math.min(frame.h, 720));
     case 'CLOCK': return new ClockSource(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     case 'TIMER': return new ClockSource(() => {
       const s = Math.max(0, Math.floor(timers?.[content.timerId] ?? 0));
       return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
     });
-    default: return null;   // AUDIO has no picture; LIVE/WEB handled by the host
+    default: return null;   // AUDIO has no picture; WEB handled by host
   }
 }
 
@@ -471,7 +706,9 @@ export function canUpdateInPlace(a: LayerContent, b: LayerContent): boolean {
   if (a.kind === 'TEXT' || a.kind === 'SCRIPTURE') return true;
   if (a.kind === 'IMAGE' && b.kind === 'IMAGE') return a.src === b.src;
   if (a.kind === 'VIDEO' && b.kind === 'VIDEO') return a.src === b.src;
+  if (a.kind === 'LIVE' && b.kind === 'LIVE') return a.inputId === b.inputId;
   if (a.kind === 'GENERATOR' && b.kind === 'GENERATOR') return a.mode === b.mode;
+  if (a.kind === 'SHADER' && b.kind === 'SHADER') return a.src === b.src;
   if (a.kind === 'LOTTIE' && b.kind === 'LOTTIE') return a.src === b.src;
   // Same track = a volume/loop change, not a restart from the top.
   if (a.kind === 'AUDIO' && b.kind === 'AUDIO') return a.src === b.src;

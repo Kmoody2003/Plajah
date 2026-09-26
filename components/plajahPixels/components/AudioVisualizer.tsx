@@ -178,6 +178,9 @@ const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ a
       currentShake: 0
   });
 
+  // Persistent FFT data buffer (avoids GC churn every frame)
+  const dataArrayRef = useRef<Uint8Array | null>(null);
+
   // --- MIDI Visual Effect Refs ---
   const midiShockwavesRef = useRef<Array<{
     x: number;
@@ -1914,7 +1917,10 @@ const AudioVisualizer = forwardRef<HTMLCanvasElement, AudioVisualizerProps>(({ a
     }
 
     const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+    if (!dataArrayRef.current || dataArrayRef.current.length !== bufferLength) {
+      dataArrayRef.current = new Uint8Array(bufferLength);
+    }
+    const dataArray = dataArrayRef.current;
     analyser.getByteFrequencyData(dataArray);
 
     // Detect if the incoming FFT is completely zero/flat (e.g. track gap, paused, or suspended)

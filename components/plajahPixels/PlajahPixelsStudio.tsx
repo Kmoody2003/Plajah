@@ -6,7 +6,11 @@ import {
     Video, Image, Trash2, X, Plus, Wand2, RefreshCw, Layers2, Captions, Radio,
     Save, FolderOpen, CheckCircle, Grid3x3, Piano, Gauge, Activity, Box,
     Monitor, Maximize2, EyeOff, Eye, Circle, Tv, ArrowRight,
-    Download, Send, Loader2, SkipBack, SkipForward, Film, LayoutGrid,} from 'lucide-react';
+    Download, Send, Loader2, SkipBack, SkipForward, Film, LayoutGrid,
+    Repeat, Shuffle, Grid,
+} from 'lucide-react';
+import { AmboLedWallCanvas } from '../scripture/AmboLedWallCanvas';
+import PixelsWatchFolderLoopDeck from './components/PixelsWatchFolderLoopDeck';
 import { uploadVideo, createVideoPlaylist, postToFeed, auth } from '../../services/backendService';
 import AudioVisualizer from './components/AudioVisualizer';
 import StudioStage from './components/StudioStage';
@@ -242,6 +246,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
     const [dockEl, setDockEl] = useState<HTMLDivElement | null>(null);
     const [showMatte, setShowMatte] = useState(false);
     const [showClipGrid, setShowClipGrid] = useState(false); // compose default — the effect below keeps it in sync with the mode
+    const [showWatchFolderDeck, setShowWatchFolderDeck] = useState(false); // Watch folder random loop player
     /* One job, one set of surfaces. The booleans stay the source of truth so
        nothing else in the studio has to change; the mode just picks them. */
     useEffect(() => {
@@ -253,6 +258,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
     const [liveLayers, setLiveLayers] = useState<LauncherLayer[]>([]);
     const liveLayersRef = useRef<LauncherLayer[]>([]);
     useEffect(() => { liveLayersRef.current = liveLayers; }, [liveLayers]);
+    // Anticipated upcoming column for locked 60fps preloading (Step 8)
+    const [upcomingCol, setUpcomingCol] = useState<number | null>(null);
     // Layers loaded from a project, pushed back into the launcher on importToken bump.
     const [importLayers, setImportLayers] = useState<LauncherLayer[] | null>(null);
     const [importToken, setImportToken] = useState(0);
@@ -728,7 +735,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
     // BroadcastChannel, but reading getByteFrequencyData cross-window is fine.
     useEffect(() => {
         (window as any).__plajahPixelsGetAnalyser = () => analyserRef.current;
-        return () => { try { delete (window as any).__plajahPixelsGetAnalyser; } catch { /* */ } };
+        (window as any).__plajahPixelsGetCompositeCanvas = () => glCanvasRef.current;
+        return () => {
+            try { delete (window as any).__plajahPixelsGetAnalyser; } catch { /* */ }
+            try { delete (window as any).__plajahPixelsGetCompositeCanvas; } catch { /* */ }
+        };
     }, []);
 
     // Broadcast the full program STATE (composite layers + config + the global
@@ -1028,6 +1039,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
     const [showCloudProjects, setShowCloudProjects] = useState(false);
     const [cloudProjects, setCloudProjects] = useState<import('./services/projectService').CloudProjectMeta[]>([]);
     const [cloudProjectsLoading, setCloudProjectsLoading] = useState(false);
+    const [isLedWallModalOpen, setIsLedWallModalOpen] = useState(false);
 
     // ── Audio context setup (shared between file upload and project load) ───────
     const ensureAudioContext = () => {
@@ -1458,7 +1470,16 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                 onExit={onExit}
                 inspectorOpen={inspectorOpen}
                 onToggleInspector={() => setInspectorOpen(v => !v)}
-            />
+            >
+                <button
+                    onClick={() => setIsLedWallModalOpen(true)}
+                    className="h-7 px-2.5 rounded-control text-xs font-semibold flex items-center gap-1.5 transition-all text-white bg-gradient-to-r from-[#D40055]/25 to-[#FF8C00]/25 hover:from-[#D40055]/45 hover:to-[#FF8C00]/45 border border-[#FF8C00]/40 shadow-sm"
+                    title="Open LED Wall Auto-Mapping & Samsung SMART Signage Studio"
+                >
+                    <Grid size={13} className="text-[#00DAF3]" />
+                    <span className="hidden md:inline">LED & Signage</span>
+                </button>
+            </ModeBar>
         )}
 
         <div className="flex-1 min-h-0 flex overflow-hidden">
@@ -1563,6 +1584,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                 onApply={applyLook}
                                 onPowerOff={() => setShowClipGrid(false)}
                                 onLayersChange={setLiveLayers}
+                                onUpcomingColChange={setUpcomingCol}
                                 onSceneLaunch={handleSceneLaunch}
                                 importLayers={importLayers}
                                 importToken={importToken}
@@ -1614,6 +1636,13 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                                                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.35)' }}
                                             >
                                                 <Maximize2 className="w-3 h-3" /> Fullscreen External Display
+                                            </button>
+                                            <button
+                                                onClick={() => setIsLedWallModalOpen(true)}
+                                                className="w-full py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all text-white bg-gradient-to-r from-[#D40055]/30 to-[#FF8C00]/30 hover:from-[#D40055]/50 hover:to-[#FF8C00]/50 border border-[#FF8C00]/40 shadow-sm"
+                                                title="Open LED Wall Auto-Mapping & Samsung SMART Signage Studio"
+                                            >
+                                                <Grid className="w-3 h-3 text-[#00DAF3]" /> LED Wall & Signage Studio
                                             </button>
                                         </div>
 
@@ -1854,13 +1883,14 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                   gpuGenerators={config.gpuGenerators}
                   onCanvas={c => { glCanvasRef.current = c; }}
                   overlays={unify ? <>{vizOverlay}{fgOverlay}</> : undefined}
+                  upcomingCol={upcomingCol}
                 />
               )}
             </div>
 
             {/* Keep every launcher media clip decoded + buffered so firing a
                 column swaps instantly and holds 60fps (no first-frame stall). */}
-            <MediaPreloader layers={liveLayers} />
+            <MediaPreloader layers={liveLayers} upcomingCol={upcomingCol} />
 
             {/* ── Depth plane: VIZ midground (DOM) — empty when overlays are unified
                 into the GL canvas. ── */}
@@ -1967,6 +1997,15 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                         <Film className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.8)' }} />
                     </button>
                 )}
+                {/* Watch Folder Random LoopDeck — point to a folder and set loop amounts */}
+                <button
+                    onClick={() => setShowWatchFolderDeck(v => !v)}
+                    title="Watch Folder Loops — Point to a folder and auto-play loops randomly with custom loop amounts"
+                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${
+                        showWatchFolderDeck ? 'bg-purple-600/40 border-purple-500/60 shadow-purple-500/30' : 'bg-black/40 border-white/10 hover:bg-purple-500/30'
+                    }`}>
+                    <Repeat className="w-4 h-4 text-white/80" />
+                </button>
                 {/* Export to Fabula — send this session (scenes + live cut-list) to the editor */}
                 {!isRecording && (
                     <button onClick={exportToFabula}
@@ -2244,6 +2283,13 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
 
             {/* ─── Recording Save Modal ──────────────────────────────────────────── */}
             <AnimatePresence>
+                {showWatchFolderDeck && (
+                    <PixelsWatchFolderLoopDeck
+                        onClose={() => setShowWatchFolderDeck(false)}
+                        bgMedia1={bgMedia1}
+                        setBgMedia1={setBgMedia1}
+                    />
+                )}
                 {showRenderPanel && (
                     <TimelineMode layers={liveLayers} config={config} analyser={analyserRef.current}
                         sessionAudioUrl={audioBlobUrlRef.current} sessionAudioName={audioFileName}
@@ -3963,6 +4009,14 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
 
         {/* ── End outer flex wrapper */}
         </div>
+
+        {/* LED Wall Mapping, Samsung SSSP MDC & Digital Signage Studio Modal */}
+        {isLedWallModalOpen && (
+            <AmboLedWallCanvas
+                isOpen={isLedWallModalOpen}
+                onClose={() => setIsLedWallModalOpen(false)}
+            />
+        )}
         </InspectorProvider>
         </DepthProvider>
     );

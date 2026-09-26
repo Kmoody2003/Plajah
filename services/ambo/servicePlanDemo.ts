@@ -113,6 +113,10 @@ export interface PlanItem {
   plannedSec: number;
   /** The item currently on air. */
   live?: boolean;
+  /** Assigned default outputs for this presentation */
+  defaultOutputs?: string[];
+  /** Default duties mapped to devices when this item takes air */
+  defaultDuties?: Record<string, any>;
 }
 
 /** The ordered service — the open playlist. */

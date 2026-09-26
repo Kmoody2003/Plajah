@@ -23,6 +23,7 @@ import { SERIES_VII_ATELIER } from './seriesVII_atelier';
 import { SERIES_VII_MANIFESTO } from './seriesVII_manifesto';
 import { SERIES_VII_PHOSPHOR } from './seriesVII_phosphor';
 import { SERIES_VII_SALON } from './seriesVII_salon';
+import { COUNCIL_MASTERWORKS } from './milkdropCouncilShaders';
 //
 // Every work is Shadertoy-convention GLSL (`void mainImage(out vec4, in vec2)`)
 // and compiles as a drop-in string through the existing ShaderLayer /
@@ -626,15 +627,36 @@ export const SIGNATURE_WORKS: SignatureWork[] = [
   ...SERIES_VII_MANIFESTO,
   ...SERIES_VII_PHOSPHOR,
   ...SERIES_VII_SALON,
+  // ── Series VIII: Council Masterworks (Milkdrop-Grade Audio-Reactive Generative Shaders) ──
+  ...COUNCIL_MASTERWORKS.map((m, i) => ({
+    id: m.id,
+    n: 120 + i,
+    name: m.name,
+    series: 'VIII',
+    set: 'masterwork',
+    setTitle: 'Council Masterworks',
+    kit3d: false,
+    line: m.premise,
+    params: m.params,
+    reacts: m.reacts,
+    body: m.src,
+  })),
 ];
 
 /** Full, self-contained source for a work: preamble(s) + body. */
 export function signatureSource(w: SignatureWork): string {
+  if (w.series === 'VIII') return w.body;
   return (w.kit3d ? SIGNATURE_KIT + '\n\n' + SIGNATURE_KIT_3D : SIGNATURE_KIT) + '\n\n' + w.body;
 }
 
 /** The set a work belongs to, for grouping in a browser. */
 export const SIGNATURE_SETS: { id: string; series: string; title: string; blurb: string }[] = [
+  {
+    "id": "masterwork",
+    "series": "VIII",
+    "title": "Council Masterworks",
+    "blurb": "Six Milkdrop-grade audio-reactive masterworks. Navier-Stokes hypercaustics, Chladni quantum cymatics, 3D morphing monolith, bio-mycelium vortex, chromatic prism lattice, and astral ferrofluid ablation — built with the Design Council and multi-stem audio intelligence."
+  },
   {
     "id": "surge",
     "series": "I",

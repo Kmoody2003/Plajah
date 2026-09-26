@@ -215,6 +215,10 @@ const ShaderLayer: React.FC<Props> = ({ analyser, source, startTimeMs, onError, 
             level += fv;
           }
           bass /= (W * 0.08 * 255); mid /= (W * 0.27 * 255); treble /= (W * 0.65 * 255); level /= (W * 255);
+          // Boost dynamic contrast and transient punch for GLSL uniforms
+          bass = Math.min(1.0, Math.pow(bass * 1.35, 1.25));
+          mid = Math.min(1.0, Math.pow(mid * 1.25, 1.15));
+          treble = Math.min(1.0, treble * 1.20);
         } else {
           // Ambient rest state: calm breathing oscillation
           const t = now / 1000;
