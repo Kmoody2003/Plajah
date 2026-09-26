@@ -508,20 +508,6 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
     };
   }, []);
 
-  // Broadcast Master state to all slaved devices in real-time
-  useEffect(() => {
-    if (partySession?.isActive) {
-      broadcastMasterSource({
-        type: 'AMBO_PROGRAM',
-        liveStack: isBlackout ? {} : live,
-        slide: liveSlideObj,
-        nextSlide,
-        isPlaying: !isBlackout,
-        title: liveSlideObj?.label || 'Program Out Live',
-      });
-    }
-  }, [live, liveSlideObj, nextSlide, isBlackout, partySession?.isActive]);
-
   const probeDisplays = async () => {
     try {
       const detected = await detectScreens();
@@ -1823,6 +1809,20 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
 
   const liveIdx = slides.findIndex(s => s.id === liveSlideId);
   const nextSlide = liveIdx >= 0 && liveIdx + 1 < slides.length ? slides[liveIdx + 1] : previewSlide;
+
+  // Broadcast Master state to all slaved devices in real-time
+  useEffect(() => {
+    if (partySession?.isActive) {
+      broadcastMasterSource({
+        type: 'AMBO_PROGRAM',
+        liveStack: isBlackout ? {} : live,
+        slide: liveSlideObj,
+        nextSlide,
+        isPlaying: !isBlackout,
+        title: liveSlideObj?.label || 'Program Out Live',
+      });
+    }
+  }, [live, liveSlideObj, nextSlide, isBlackout, partySession?.isActive]);
 
   const elapsedClock = `${String(Math.floor(elapsed / 3600)).padStart(2, '0')}:${String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
 
