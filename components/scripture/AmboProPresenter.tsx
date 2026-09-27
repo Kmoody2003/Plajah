@@ -76,6 +76,7 @@ import {
   pingDevice, applyPlaylistItemDuties,
 } from '../../services/ambo/amboPartyEventService';
 import { useContextMenu } from '../ui/ContextMenu';
+import { auth } from '../../services/backendService';
 
 interface AmboProPresenterProps {
   onBack?: () => void;
@@ -497,7 +498,7 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
   const [partyDevices, setPartyDevices] = useState<PartyEventDevice[]>([]);
 
   useEffect(() => {
-    const user = auth.currentUser;
+    const user = auth?.currentUser;
     if (!user) return;
     const uid = user.uid;
     const unsubSession = listenToPartyEventSession(uid, setPartySession);
