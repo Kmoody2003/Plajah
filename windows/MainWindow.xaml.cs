@@ -162,6 +162,7 @@ public sealed partial class MainWindow : Window
     {
         var json = args.TryGetWebMessageAsString();
         if (string.IsNullOrEmpty(json)) return;
+        if (json.Contains("\"SPEECH_")) { _ = HandleSpeechMessageAsync(json); return; }   // Voca read-aloud
         _bridge?.HandleIncomingMessage(json);
     }
 
@@ -239,6 +240,32 @@ public sealed partial class MainWindow : Window
         => PostMessageToWeb("""{"type":"MEDIA_NEXT"}""");
 
     // ── Utilities ─────────────────────────────────────────────────────────────
+    // ── Voca read-aloud: native Windows speech (WebView2 has no Web Speech recogniser) ──────────
+    private SpeechBridgeService? _speech;
+    private async System.Threading.Tasks.Task HandleSpeechMessageAsync(string json)
+    {
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var type = root.TryGetProperty("type", out var t) ? t.GetString() : null;
+            _speech ??= new SpeechBridgeService(PostMessageToWeb);
+            switch (type)
+            {
+                case "SPEECH_START":
+                    var lang = root.TryGetProperty("lang", out var lv) ? lv.GetString() : "en-US";
+                    var words = new System.Collections.Generic.List<string>();
+                    if (root.TryGetProperty("words", out var wv) && wv.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        foreach (var w in wv.EnumerateArray()) { var sw = w.GetString(); if (!string.IsNullOrEmpty(sw)) words.Add(sw); }
+                    await _speech.StartAsync(lang, words); break;
+                case "SPEECH_STOP": await _speech.StopAsync(); break;
+                case "SPEECH_SUSPEND": await _speech.SuspendAsync(); break;
+                case "SPEECH_RESUME": await _speech.ResumeAsync(); break;
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Speech] {ex.Message}"); }
+    }
+
     public void PostMessageToWeb(string json)
     {
         DispatcherQueue.TryEnqueue(() =>

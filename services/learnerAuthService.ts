@@ -19,6 +19,9 @@ export interface ProvisionInput {
   birthYear?: number;
   role: 'parent' | 'teacher';
   classroomId?: string;
+  /** Guardian (or school, for teacher-provisioned students) allows Voca to listen while the child reads aloud.
+   *  Decided once at setup so the child is never stopped mid-lesson waiting for an adult. */
+  speechRecognition?: boolean;
 }
 export interface ProvisionResult { childUid: string; username: string; childState: string; claimCode?: string; }
 

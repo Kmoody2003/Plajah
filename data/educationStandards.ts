@@ -119,7 +119,14 @@ export const STANDARDS: LearningStandard[] = [
 
   // ── Fluency ──
   { id: 'CCSS.ELA-LITERACY.RF.1.4', framework: 'CCSS_ELA', subject: 'ELA', grade: 'g1', domain: 'Fluency', code: 'RF.1.4', statement: 'Read grade-level text with accuracy and appropriate rate to support comprehension.', prerequisites: ['CCSS.ELA-LITERACY.RF.1.3'], pillar: 'Fluency' },
+  { id: 'CCSS.ELA-LITERACY.RF.K.4', framework: 'CCSS_ELA', subject: 'ELA', grade: 'k', domain: 'Fluency', code: 'RF.K.4', statement: 'Read emergent-reader texts with purpose and understanding.', prerequisites: ['CCSS.ELA-LITERACY.RF.K.3'], pillar: 'Fluency' },
+  { id: 'CCSS.ELA-LITERACY.RF.2.4', framework: 'CCSS_ELA', subject: 'ELA', grade: 'g2', domain: 'Fluency', code: 'RF.2.4', statement: 'Read on-level text with accuracy, appropriate rate, and expression on successive readings.', prerequisites: ['CCSS.ELA-LITERACY.RF.1.4'], pillar: 'Fluency' },
+  { id: 'CCSS.ELA-LITERACY.RF.3.4', framework: 'CCSS_ELA', subject: 'ELA', grade: 'g3', domain: 'Fluency', code: 'RF.3.4', statement: 'Read on-level prose and poetry orally with accuracy, appropriate rate, and expression.', prerequisites: ['CCSS.ELA-LITERACY.RF.2.4'], pillar: 'Fluency' },
   { id: 'CCSS.ELA-LITERACY.RF.4.4', framework: 'CCSS_ELA', subject: 'ELA', grade: 'g4', domain: 'Fluency', code: 'RF.4.4', statement: 'Read grade-level prose and poetry with accuracy, rate, and expression (prosody).', prerequisites: ['CCSS.ELA-LITERACY.RF.1.4'], pillar: 'Fluency' },
+
+  { id: 'CCSS.ELA-LITERACY.RF.5.4', framework: 'CCSS_ELA', subject: 'ELA', grade: 'g5', domain: 'Fluency', code: 'RF.5.4', statement: 'Read on-level prose and poetry orally with accuracy, appropriate rate, and expression on successive readings.', prerequisites: ['CCSS.ELA-LITERACY.RF.4.4'], pillar: 'Fluency' },
+  { id: 'CCSS.ELA-LITERACY.SL.8.6', framework: 'CCSS_ELA', subject: 'ELA', grade: 'g8', domain: 'Speaking & Listening', code: 'SL.8.6', statement: 'Adapt speech to a variety of contexts and tasks, demonstrating command of formal English when indicated.', prerequisites: ['CCSS.ELA-LITERACY.RF.5.4'], pillar: 'Fluency' },
+  { id: 'CCSS.ELA-LITERACY.SL.11-12.4', framework: 'CCSS_ELA', subject: 'ELA', grade: 'g12', domain: 'Speaking & Listening', code: 'SL.11-12.4', statement: 'Present information clearly and with a distinct perspective; deliver text with appropriate expression.', prerequisites: ['CCSS.ELA-LITERACY.SL.8.6'], pillar: 'Fluency' },
 
   // ── Vocabulary ──
   { id: 'CCSS.ELA-LITERACY.L.1.4', framework: 'CCSS_ELA', subject: 'ELA', grade: 'g1', domain: 'Vocabulary Acquisition', code: 'L.1.4', statement: 'Determine the meaning of unknown words using context and known affixes.', pillar: 'Vocabulary' },
