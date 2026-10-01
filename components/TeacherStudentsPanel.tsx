@@ -16,6 +16,8 @@ interface Provisioned { displayName: string; username: string; claimCode: string
 
 const TeacherStudentsPanel: React.FC<{ user: any }> = ({ user }) => {
   const [loading, setLoading] = useState(true);
+  // Under COPPA a school may consent for classroom (educational) use; families can turn it off after claiming.
+  const [schoolVoice, setSchoolVoice] = useState(true);
   const [canProvision, setCanProvision] = useState(false);
   const [verification, setVerification] = useState('UNVERIFIED');
   const [email, setEmail] = useState('');
@@ -51,7 +53,7 @@ const TeacherStudentsPanel: React.FC<{ user: any }> = ({ user }) => {
     if (!name.trim() || !username.trim() || !password) return;
     setBusy(true); setError('');
     try {
-      const r = await provisionChild({ role: 'teacher', displayName: name.trim(), username: username.trim(), password, classroomId: classLabel.trim() || undefined });
+      const r = await provisionChild({ role: 'teacher', displayName: name.trim(), username: username.trim(), password, classroomId: classLabel.trim() || undefined, speechRecognition: schoolVoice });
       setCreated(c => [{ displayName: name.trim(), username: r.username, claimCode: r.claimCode || '' }, ...c]);
       setName(''); setUsername(''); setPassword(genPassword());
     } catch (e: any) { setError(e.message || 'Could not create the account.'); }
@@ -126,6 +128,10 @@ const TeacherStudentsPanel: React.FC<{ user: any }> = ({ user }) => {
                 {busy ? <Loader2 size={14} className="animate-spin" /> : <span className="flex items-center gap-1.5"><Plus size={13} /> Create</span>}
               </button>
             </div>
+            <label className="flex items-start gap-2 text-[10px] text-white/50 leading-relaxed cursor-pointer">
+              <input type="checkbox" checked={schoolVoice} onChange={e => setSchoolVoice(e.target.checked)} className="mt-0.5" />
+              <span><b className="text-white/80">Let Chora listen in Voca (school consent for classroom use).</b> Students can read aloud without waiting for a parent. Families can turn this off after they claim the account.</span>
+            </label>
             {error && <div className="flex items-center gap-2 text-[10px] text-red-400"><AlertCircle size={12} /> {error}</div>}
           </div>
 
