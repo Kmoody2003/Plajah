@@ -23,12 +23,16 @@ export type RecErrorCode = 'not-allowed' | 'no-mic' | 'network' | 'unsupported' 
 export interface RecError { code: RecErrorCode; message: string }
 export interface HeardWord { text: string; alts: string[] }
 
+export type EngineKind = 'web-speech' | 'android' | 'windows';
 export interface Recognizer {
-  readonly kind: 'web-speech';
+  readonly kind: EngineKind;
+  /** True when the engine reports its own mic level (native engines): the page must NOT open a second mic stream. */
+  readonly providesLevel?: boolean;
   start(): void; stop(): void; suspend(): void; resume(): void;
   noteVoiceActivity(): void;
   onWords?: (words: HeardWord[]) => void;
   onState?: (s: RecState, err?: RecError) => void;
+  onLevel?: (level: number, speaking: boolean) => void;
   readonly state: RecState;
 }
 
@@ -202,4 +206,98 @@ export class MicMeter {
     this.stream?.getTracks().forEach(t => t.stop()); this.stream = null;
     try { this.ctx?.close(); } catch { /* closed */ } this.ctx = null;
   }
+}
+
+// ------------------------------------------------------------------ native engines (Android app, Windows desktop app)
+/** Turns a stream of partial transcripts + a final into words, emitting only words that have stopped changing. */
+export class StableAssembler {
+  private emitted = 0; private last: string[] = [];
+  partial(text: string): HeardWord[] {
+    const w = split(text); let stable = 0;
+    while (stable < w.length - 1 && stable < this.last.length && this.last[stable].toLowerCase() === w[stable].toLowerCase()) stable++;
+    const out = stable > this.emitted ? w.slice(this.emitted, stable).map(t => ({ text: t, alts: [] as string[] })) : [];
+    this.emitted = Math.max(this.emitted, stable); this.last = w;
+    return out;
+  }
+  final(text: string, alts: string[] = []): HeardWord[] {
+    const w = split(text), altWords = alts.map(split);
+    const out = w.slice(this.emitted).map((t, k) => ({ text: t, alts: altWords.map(a => a[this.emitted + k]).filter(Boolean) as string[] }));
+    this.emitted = 0; this.last = [];
+    return out;
+  }
+  reset() { this.emitted = 0; this.last = []; }
+}
+
+const capacitor = (): any => (typeof window !== 'undefined' ? (window as any).Capacitor : null);
+export const androidSpeechAvailable = () => {
+  const C = capacitor();
+  return !!C?.isNativePlatform?.() && C.getPlatform?.() === 'android' && !!C.isPluginAvailable?.('PlajahSpeech');
+};
+export const windowsSpeechAvailable = () => typeof window !== 'undefined' && !!(window as any).chrome?.webview
+  && !!((window as any).__PLAJAH_WINUI__ || (window as any).__PLAJAH_PLATFORM__ === 'windows');
+
+/** Android app: native SpeechRecognizer via the PlajahSpeech Capacitor plugin (on-device first). */
+export class AndroidSpeechRecognizer implements Recognizer {
+  readonly kind = 'android' as const; readonly providesLevel = true;
+  state: RecState = 'idle';
+  onWords?: (w: HeardWord[]) => void; onState?: (s: RecState, e?: RecError) => void; onLevel?: (l: number, sp: boolean) => void;
+  private plugin: any; private subs: any[] = []; private asm = new StableAssembler(); private floor = 0.05;
+  constructor(private lang = 'en-US') { this.plugin = capacitor()?.Plugins?.PlajahSpeech ?? capacitor()?.registerPlugin?.('PlajahSpeech'); }
+  private set(s: RecState, e?: RecError) { this.state = s; this.onState?.(s, e); }
+  async start() {
+    if (!this.plugin) { this.set('error', { code: 'unsupported', message: 'Update the Plajah app to read aloud with Chora, or use Listener mode.' }); return; }
+    const on = async (ev: string, cb: (d: any) => void) => { this.subs.push(await this.plugin.addListener(ev, cb)); };
+    await on('partial', d => { const w = this.asm.partial(d?.text ?? ''); if (w.length) this.onWords?.(w); });
+    await on('final', d => { const w = this.asm.final(d?.text ?? '', d?.alts ?? []); if (w.length) this.onWords?.(w); });
+    await on('level', d => {
+      const l = Number(d?.level) || 0;
+      this.floor = l < this.floor ? l : this.floor * 0.995 + l * 0.005;
+      this.onLevel?.(l, l > Math.max(0.18, this.floor * 2.2));
+    });
+    await on('state', d => {
+      const st = d?.state as RecState;
+      if (st === 'listening' || st === 'starting' || st === 'suspended' || st === 'idle') { if (st === 'starting') this.asm.reset(); this.set(st); }
+    });
+    await on('error', d => this.set('error', { code: (d?.code ?? 'other') as RecErrorCode, message: d?.message ?? 'Listening stopped.' }));
+    try { await this.plugin.start({ lang: this.lang }); } catch { /* a refused permission is reported via the error event */ }
+  }
+  stop() { try { this.plugin?.stop(); } catch { /* already stopped */ } this.subs.forEach(s => s?.remove?.()); this.subs = []; this.set('idle'); }
+  suspend() { try { this.plugin?.suspend(); } catch { /* */ } this.asm.reset(); }
+  resume() { try { this.plugin?.resume(); } catch { /* */ } }
+  noteVoiceActivity() { /* the native session restarts itself */ }
+}
+
+/** Windows desktop app: native Windows speech via the WebView2 host bridge (falls back to offline passage-word mode). */
+export class WindowsSpeechRecognizer implements Recognizer {
+  readonly kind = 'windows' as const;
+  state: RecState = 'idle';
+  onWords?: (w: HeardWord[]) => void; onState?: (s: RecState, e?: RecError) => void; onLevel?: (l: number, sp: boolean) => void;
+  private asm = new StableAssembler();
+  private handler = (e: any) => {
+    let m: any;
+    try { m = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch { return; }
+    if (typeof m?.type !== 'string' || !m.type.startsWith('SPEECH_')) return;
+    if (m.type === 'SPEECH_PARTIAL') { const w = this.asm.partial(m.text ?? ''); if (w.length) this.onWords?.(w); }
+    else if (m.type === 'SPEECH_FINAL') { const w = this.asm.final(m.text ?? '', m.alts ?? []); if (w.length) this.onWords?.(w); }
+    else if (m.type === 'SPEECH_STATE') { if (m.state === 'starting') this.asm.reset(); if (m.state !== 'error') { this.state = m.state; this.onState?.(m.state); } }
+    else if (m.type === 'SPEECH_ERROR') { this.state = 'error'; this.onState?.('error', { code: m.code ?? 'other', message: m.message ?? 'Listening stopped.' }); }
+  };
+  constructor(private lang = 'en-US', private vocabulary: string[] = []) {}
+  private post(o: object) { try { (window as any).chrome.webview.postMessage(JSON.stringify(o)); } catch { /* host gone */ } }
+  start() { (window as any).chrome?.webview?.addEventListener('message', this.handler); this.post({ type: 'SPEECH_START', lang: this.lang, words: this.vocabulary }); }
+  stop() { this.post({ type: 'SPEECH_STOP' }); (window as any).chrome?.webview?.removeEventListener('message', this.handler); this.state = 'idle'; this.onState?.('idle'); }
+  suspend() { this.post({ type: 'SPEECH_SUSPEND' }); this.asm.reset(); }
+  resume() { this.post({ type: 'SPEECH_RESUME' }); }
+  noteVoiceActivity() { /* the host session restarts itself */ }
+}
+
+/** Can this device listen at all (any engine)? */
+export const listeningAvailable = () => androidSpeechAvailable() || windowsSpeechAvailable() || (speechSupported() && !isEmbeddedWebView());
+
+/** The best engine for this device. `vocabulary` = passage words (lets Windows run fully offline). */
+export function createRecognizer(opts: { lang?: string; vocabulary?: string[] } = {}): Recognizer {
+  const lang = opts.lang ?? 'en-US';
+  if (androidSpeechAvailable()) return new AndroidSpeechRecognizer(lang);
+  if (windowsSpeechAvailable()) return new WindowsSpeechRecognizer(lang, opts.vocabulary ?? []);
+  return new WebSpeechRecognizer(lang);
 }

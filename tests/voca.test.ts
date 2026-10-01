@@ -173,3 +173,18 @@ test('next passage prefers unread stories at the level', () => {
   p = applySession(p, sess({ passageId: first.id, accuracy: 0.99 }), { practice: [], comebacks: [] }).progress;
   assert.notEqual(nextPassage(p).id, first.id);
 });
+
+// ------------------------------------------------------------------ native engine word stabiliser
+import { StableAssembler } from '../services/voca/vocaSpeech';
+
+test('native partials emit only settled words; the final flushes the rest with alternatives', () => {
+  const a = new StableAssembler();
+  assert.deepEqual(a.partial('the'), []);                              // still forming
+  assert.deepEqual(a.partial('the cat').map(w => w.text), ['the']);     // "the" unchanged twice → settled
+  assert.deepEqual(a.partial('the cat can').map(w => w.text), ['cat']);
+  assert.deepEqual(a.partial('the cut can run').map(w => w.text), []);  // a revision is never emitted early
+  const fin = a.final('the cat can run', ['the cat can ran']);
+  assert.deepEqual(fin.map(w => w.text), ['can', 'run']);
+  assert.deepEqual(fin[1].alts, ['ran']);
+  assert.deepEqual(a.partial('next'), []);                              // new utterance starts clean
+});

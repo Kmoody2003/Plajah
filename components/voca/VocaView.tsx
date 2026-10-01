@@ -4,7 +4,7 @@ import { VOCA_LEVELS, levelInfo, passagesForLevel, type VocaPassage } from '../.
 import { createAlign, feedWord, judge, markHelped, moveOn, summarize, syllabify, type AlignEvent, type AlignState, type ReadingSummary } from '../../services/voca/vocaAlign';
 import { applySession, defaultProgress, dueReview, nextPassage, reviewResult, starsFor, startLevelFor, loadLocal, saveLocal, ZONE, type LevelChange, type VocaProgress, type VocaSession } from '../../services/voca/vocaProgress';
 import { loadCloud, saveCloud, pickNewer, recordToLedger } from '../../services/voca/vocaCloud';
-import { WebSpeechRecognizer, MicMeter, speechSupported, isEmbeddedWebView, type RecError, type RecState } from '../../services/voca/vocaSpeech';
+import { MicMeter, createRecognizer, listeningAvailable, isEmbeddedWebView, type Recognizer, type RecError, type RecState } from '../../services/voca/vocaSpeech';
 import { initVoice, speak, modelWord, cancelSpeech, ttsSupported } from '../../services/voca/vocaVoice';
 
 /**
@@ -122,7 +122,7 @@ const VocaView: React.FC<Props> = ({ onBack, user, profile }) => {
   const uid: string | null = user?.uid ?? null;
   const [progress, setProgress] = useState<VocaProgress>(() => loadLocal(uid) ?? defaultProgress(startLevelFor(profile)));
   const [screen, setScreen] = useState<Screen>('home');
-  const canListen = speechSupported() && !isEmbeddedWebView();
+  const canListen = listeningAvailable();
   const consent = voiceConsent(profile);
   const [mode, setMode] = useState<Mode>(canListen && consent ? 'voice' : 'listener');
   const [checked, setChecked] = useState(false);
@@ -243,8 +243,8 @@ const Home: React.FC<{ progress: VocaProgress; canListen: boolean; consent: bool
         </div>
       </div>
 
-      {!canListen && <div className="notice warn">This browser can't listen yet{isEmbeddedWebView() ? ' inside the app' : ''}. Voca will run in <b>Listener mode</b>: a grown-up taps ✓ or ✗ for each word. Chrome, Edge or Safari can listen.</div>}
-      {canListen && !consent && child && <div className="notice">Reading voice is off until a parent turns on <b>Voca reading voice</b> in Parental controls. Until then, read with a grown-up in Listener mode.</div>}
+      {!canListen && <div className="notice warn">{isEmbeddedWebView() ? <>Update the Plajah app so Chora can listen. Until then, Voca runs in <b>Listener mode</b>: a grown-up taps ✓ or ✗ for each word.</> : <>This browser can't listen yet. Voca will run in <b>Listener mode</b>: a grown-up taps ✓ or ✗ for each word. Chrome, Edge or Safari can listen, and so can the Plajah Android and Windows apps.</>}</div>}
+      {canListen && !consent && child && <div className="notice">Your grown-up chose to read along with you, so tap through in Listener mode together. They can let Chora listen anytime in Parental controls (Voca reading voice).</div>}
 
       <div className="grid2">
         <div className="card" style={{ display: 'grid', gap: 14 }}>
@@ -290,7 +290,7 @@ const MicCheck: React.FC<{ onPass: () => void; onListener: () => void }> = ({ on
   const [err, setErr] = useState<RecError | null>(null);
   const [state, setState] = useState<RecState>('idle');
   const [voiceSeen, setVoiceSeen] = useState(false);
-  const recRef = useRef<WebSpeechRecognizer | null>(null);
+  const recRef = useRef<Recognizer | null>(null);
   const meterRef = useRef<MicMeter | null>(null);
   const target = useMemo(() => new Set(['hi', 'chora', 'i', 'am', 'ready', 'to', 'read', 'cora', 'kora', 'im', 'ready']), []);
   const hits = heard.filter(w => target.has(w.toLowerCase().replace(/[^a-z]/g, ''))).length;
@@ -299,14 +299,15 @@ const MicCheck: React.FC<{ onPass: () => void; onListener: () => void }> = ({ on
   useEffect(() => {
     let alive = true;
     const meter = new MicMeter(); meterRef.current = meter;
-    const rec = new WebSpeechRecognizer(); recRef.current = rec;
-    meter.onLevel = (l, sp) => { if (!alive) return; setLvl(l); if (sp) { setVoiceSeen(true); rec.noteVoiceActivity(); } };
+    const rec = createRecognizer({ vocabulary: CHECK_LINE.toLowerCase().split(' ').concat(['im', 'chora']) }); recRef.current = rec;
+    const level = (l: number, sp: boolean) => { if (!alive) return; setLvl(l); if (sp) { setVoiceSeen(true); rec.noteVoiceActivity(); } };
+    meter.onLevel = level; rec.onLevel = level;
     rec.onState = (s, e) => { if (!alive) return; setState(s); if (e) setErr(e); };
     rec.onWords = ws => alive && setHeard(h => [...h, ...ws.map(w => w.text)].slice(-20));
     (async () => {
-      const e = await meter.start(); if (!alive) return;
-      if (e) { setErr(e); return; }
-      rec.suspend(); await speak('Say: ' + CHECK_LINE + '!'); if (!alive) return;
+      // native engines meter themselves; opening a second mic stream would compete with them
+      if (!rec.providesLevel) { const e = await meter.start(); if (!alive) return; if (e) { setErr(e); return; } }
+      await speak('Say: ' + CHECK_LINE + '!'); if (!alive) return;
       rec.start();
     })();
     return () => { alive = false; rec.stop(); meter.stop(); cancelSpeech(); };
@@ -368,7 +369,7 @@ const Reader: React.FC<{ passage: VocaPassage; mode: Mode; warmup: boolean; onDo
   const [paused, setPaused] = useState(false);
   const [quality, setQuality] = useState(1);
   const coach = useRef<Mascot2DHandle>(null);
-  const recRef = useRef<WebSpeechRecognizer | null>(null);
+  const recRef = useRef<Recognizer | null>(null);
   const meterRef = useRef<MicMeter | null>(null);
   const speaking = useRef(false);
   const pausedMs = useRef(0); const pauseStart = useRef<number | null>(null);
@@ -430,14 +431,14 @@ const Reader: React.FC<{ passage: VocaPassage; mode: Mode; warmup: boolean; onDo
   useEffect(() => {
     if (mode !== 'voice') return;
     let alive = true;
-    const rec = new WebSpeechRecognizer(); recRef.current = rec;
+    const rec = createRecognizer({ vocabulary: align.current.words.map(w => w.norm) }); recRef.current = rec;
     const meter = new MicMeter(); meterRef.current = meter;
     rec.onState = (st, e) => { if (!alive) return; setRecState(st); if (e) { setRecErr(e); if (e.code === 'network' || e.code === 'not-allowed' || e.code === 'no-mic' || e.code === 'unsupported') setLine(e.message); } };
     rec.onWords = ws => { if (!alive || speaking.current || doneRef.current) return; for (const w of ws) handle(feedWord(align.current, w.text, w.alts)); };
-    meter.onLevel = (l, sp) => { if (!alive) return; setLvl(l); if (sp && !speaking.current) { rec.noteVoiceActivity(); lastVoiceAt.current = Date.now(); if (align.current.startedAt === null) align.current.startedAt = Date.now(); } };
+    const level = (l: number, sp: boolean) => { if (!alive) return; setLvl(l); if (sp && !speaking.current) { rec.noteVoiceActivity(); lastVoiceAt.current = Date.now(); if (align.current.startedAt === null) align.current.startedAt = Date.now(); } };
+    meter.onLevel = level; rec.onLevel = level;
     (async () => {
-      const e = await meter.start(); if (!alive) return;
-      if (e) { setRecErr(e); setLine(e.message); return; }
+      if (!rec.providesLevel) { const e = await meter.start(); if (!alive) return; if (e) { setRecErr(e); setLine(e.message); return; } }
       rec.start();
     })();
     const onVis = () => { if (document.hidden) rec.suspend(); else if (!pauseStart.current && !speaking.current) rec.resume(); };

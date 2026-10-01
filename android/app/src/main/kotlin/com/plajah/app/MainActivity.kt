@@ -76,6 +76,8 @@ class MainActivity : BridgeActivity() {
         registerPlugin(PlajahCameraPlugin::class.java)
         // PlajahShell: lets the web app's "Switch to Native" toggle hand off to the Compose shell.
         registerPlugin(PlajahShellPlugin::class.java)
+        // PlajahSpeech: native (on-device first) speech recognition for Voca read-aloud — WebView has no Web Speech API
+        registerPlugin(PlajahSpeechPlugin::class.java)
 
         // Hold the native splash until the web layer has something on screen, then hand over.
         //
