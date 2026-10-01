@@ -106,6 +106,7 @@ const AcademiaHomeView: React.FC<{ profile?: UserProfile | null; onNavigate: (vi
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             {[
+              { label: 'Voca · Read Aloud', icon: '🎙️', view: 'VOCA', color: '#D40055' },
               { label: 'Reading Quest', icon: '📖', view: 'READING_QUEST', color: '#D40055' },
               { label: 'Math Drill', icon: '🔢', view: 'MATH_CLASSROOM', color: '#3B82F6' },
               { label: 'Science Quest', icon: '🧪', view: 'SCIENCE_QUEST', color: '#06D6A0' },

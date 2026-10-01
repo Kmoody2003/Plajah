@@ -4,7 +4,7 @@
 // session. Saves to the child's profile.parentalControls.
 
 import React, { useState } from 'react';
-import { ShieldCheck, Lock, Clock, Baby, Save, Eye } from 'lucide-react';
+import { ShieldCheck, Lock, Clock, Baby, Save, Eye, Mic } from 'lucide-react';
 import type { UserProfile, ParentalControls, MaturityRating } from '../types';
 import { CHILD_DEFAULTS, resolveControls } from '../services/contentSafety';
 import { updateUserProfile } from '../services/backendService';
@@ -67,6 +67,7 @@ const ParentalControlsPanel: React.FC<{ child: UserProfile; guardianUid?: string
 
         <Toggle title="Hide adult-themed posts" sub="Filter the social feed." on={c.hideAdultPosts} onToggle={() => set({ hideAdultPosts: !c.hideAdultPosts })} />
         <Toggle title="Kids Mode" sub="Friendly skin + only kid-safe sections (Lorea, Classroom, Games, Labs)." on={c.kidsMode} onToggle={() => set({ kidsMode: !c.kidsMode })} icon={<Baby size={16} />} />
+        <Toggle title="Voca reading voice" sub="Let Voca listen while they read aloud. Uses the browser's speech service (audio is sent to the browser maker to turn speech into words; Plajah stores no recordings). Off = an adult taps along in Listener mode." on={!!c.speechRecognition} onToggle={() => set({ speechRecognition: !c.speechRecognition })} icon={<Mic size={16} />} />
 
         {/* screen time */}
         <Row icon={<Clock size={16} />} title="Daily time limit" sub="Locks the session when reached (0 = unlimited).">

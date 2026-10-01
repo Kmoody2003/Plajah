@@ -1139,6 +1139,27 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isGuardianOf(userId);
       allow write: if isOwner(userId);
     }
+    // Voca read-aloud progress — the reader writes their own; guardians can read it.
+    match /vocaProgress/{userId} {
+      allow read: if isOwner(userId) || isGuardianOf(userId);
+      allow write: if isOwner(userId);
+    }
+    // Homeroom: a student asks their guardian for text chat. Only the child creates it, addressed to
+    // their own guardian; the child and that guardian can read it; only the guardian can resolve it.
+    match /chatRequests/{id} {
+      allow create: if isAuthenticated() && request.resource.data.childUid == request.auth.uid
+                    && request.resource.data.guardianUid == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.guardianUid
+                    && request.resource.data.status == 'pending';
+      allow read: if isAuthenticated() && (resource.data.childUid == request.auth.uid || resource.data.guardianUid == request.auth.uid);
+      allow update: if isAuthenticated() && resource.data.guardianUid == request.auth.uid;
+    }
+    // Homeroom: a student proposes a club and names a sponsor; it stays a draft until the sponsor accepts.
+    match /clubProposals/{id} {
+      allow create: if isAuthenticated() && request.resource.data.proposerUid == request.auth.uid
+                    && request.resource.data.status == 'awaiting_sponsor';
+      allow read: if isAuthenticated() && (resource.data.proposerUid == request.auth.uid || resource.data.sponsorUid == request.auth.uid);
+      allow update: if isAuthenticated() && resource.data.sponsorUid == request.auth.uid;
+    }
     // Penna handwriting workshop — the learner writes their own progress as they practice.
     match /handwritingProgress/{userId} {
       allow read: if isOwner(userId) || isGuardianOf(userId);
