@@ -236,6 +236,8 @@ const LanguageQuestView = retryLazy(() => import('./components/LanguageQuestView
 const EducationSocialView = retryLazy(() => import('./components/EducationSocialView'));
 const EducationRail = retryLazy(() => import('./components/EducationRail'));
 const ReadingQuestView = retryLazy(() => import('./components/ReadingQuestView'));
+const VocaView = retryLazy(() => import('./components/voca/VocaView'));
+const HomeroomView = retryLazy(() => import('./components/homeroom/HomeroomView'));
 const HandwritingWorkshopView = retryLazy(() => import('./components/HandwritingWorkshopView'));
 const ScienceQuestView = retryLazy(() => import('./components/ScienceQuestView'));
 const HistoryQuestView = retryLazy(() => import('./components/HistoryQuestView'));
@@ -643,6 +645,8 @@ const App: React.FC = () => {
     pitchParam === 'ora'          ? 'ORA'                :
     pitchParam === 'assignment'   ? 'STUDENT_ASSIGNMENT' :
     pitchParam === 'lesson'       ? 'STUDENT_LESSON'     :
+    pitchParam === 'voca'         ? 'VOCA'               :
+    pitchParam === 'homeroom'     ? 'STUDENT_HOME'       :
     pitchParam === 'fse' || pitchParam === 'experience' || pitchParam === 'plajah-fse' ? 'PLAJAH_FSE' :
     pitchParam === 'live-fx-lab' || pitchParam === 'livefx' ? 'LIVE_FX_LAB' :
     isWindowsApp() ? 'DASHBOARD' :
@@ -844,7 +848,7 @@ const App: React.FC = () => {
 
   // Enter Kids Mode for a child — the app then behaves as that child + lands on a safe home.
   useEffect(() => {
-    const h = (e: Event) => { const child = (e as CustomEvent)?.detail?.child; if (child) { setActiveChildProfile(child); setView('KIDS_LIBRARY'); } };
+    const h = (e: Event) => { const child = (e as CustomEvent)?.detail?.child; if (child) { setActiveChildProfile(child); setView('STUDENT_HOME'); } };
     window.addEventListener('plajah:enter-kids', h);
     return () => window.removeEventListener('plajah:enter-kids', h);
   }, [setView]);
@@ -2189,6 +2193,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('EDU_SOCIAL');
     } else if (target === 'READING_QUEST') {
       setView('READING_QUEST');
+    } else if (target === 'VOCA') {
+      setView('VOCA');
+    } else if (target === 'STUDENT_HOME') {
+      setView('STUDENT_HOME');
     } else if (target === 'HISTORY_QUEST') {
       setView('HISTORY_QUEST');
     } else if (target === 'SCIENCE_QUEST') {
@@ -2349,7 +2357,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         // so Nibbles-eligible). Only override the default landing views (DASHBOARD, or the mobile
         // MUSIC default) so an in-progress deep link is left alone.
         if (isEducationAccount(p) || (p as any)?.accountType === 'PARENT') {
-          setViewInternal(prev => (prev === 'DASHBOARD' || prev === 'MUSIC') ? 'ACADEMIA_HOME' : prev);
+          // Students and children land on Homeroom (their school-first home); teachers + parents on the portal.
+          const studentLike = (p as any)?.accountType === 'STUDENT' || (p as any)?.accountType === 'CHILD' || (p as any)?.isChild
+            || (p as any)?.childState === 'SCHOOL_PROVISIONED' || !!(p as any)?.provisionedByTeacherUid;
+          const landing: AppView = studentLike ? 'STUDENT_HOME' : 'ACADEMIA_HOME';
+          setViewInternal(prev => (prev === 'DASHBOARD' || prev === 'MUSIC') ? landing : prev);
         }
 
         if (p?.uiSettings?.lastTheme) {
@@ -5376,6 +5388,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'READING_QUEST' && (
               <ReadingQuestView onBack={() => goBack('LANGUAGE_ARTS_SCHOOL')} user={user} />
+            )}
+
+            {view === 'STUDENT_HOME' && (
+              <HomeroomView user={user} profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} />
+            )}
+
+            {view === 'VOCA' && (
+              <VocaView onBack={() => goBack('ACADEMIA_HOME')} user={user} profile={effectiveProfile || userProfile} />
             )}
 
             {view === 'HANDWRITING_WORKSHOP' && (

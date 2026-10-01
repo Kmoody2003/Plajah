@@ -2889,6 +2889,12 @@ export interface ParentalControls {
   guardianPasscodeHash?: string;
   /** Surfaces a child may open in Kids Mode (allow-list of AppView ids). Empty = default set. */
   allowedSurfaces?: string[];
+  /** Voca read-aloud: allow the browser's cloud speech recognition (audio goes to the browser vendor's speech
+   *  service). Off by default for children — without it Voca runs in Listener mode (no audio processed). */
+  speechRecognition?: boolean;
+  /** Homeroom chat: text chat with classmates (voice notes are always available). Granted by the guardian
+   *  on the child's request, with limits. */
+  textChat?: { enabled: boolean; scope: 'classes' | 'classes_clubs'; hours?: { start: number; end: number }; expiresAt?: number; grantedAt?: number };
   updatedAt?: number;
   updatedBy?: string;
 }
@@ -2936,6 +2942,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'STUDENT_LESSON'
   // Reading Quest (BETA) — Classrooms, Class-Points-integrated
   | 'READING_QUEST'
+  | 'VOCA'
+  | 'STUDENT_HOME'
   // Penna — handwriting workshop (form-scoring, pen/touch tracing)
   | 'HANDWRITING_WORKSHOP'
   // Science Quest (BETA) — NGSS cartridge on the same chassis
