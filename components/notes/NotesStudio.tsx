@@ -4,7 +4,7 @@ import type { TelaDoc, TelaFrame, TelaDevice } from '../../types';
 import { applyTelaOp } from '../tela/telaOps';
 import { makeBlock } from '../tela/TelaWriter';
 import PageCanvas from './PageCanvas';
-import type { NoteTool } from './InkLayer';
+import type { NoteTool } from '../ink';
 import MediaFinder from '../media/MediaFinder';
 import {
   loadNotes, createPage, createNotebook, createSection, ensureSubjectNotebook, upgradeLegacy, loadPageDoc, savePage, updatePageMeta, deletePage, takeNotesIntent, generalKey, type LoadedNotes,

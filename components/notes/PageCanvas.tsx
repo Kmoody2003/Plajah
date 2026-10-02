@@ -4,9 +4,9 @@ import type { TelaDoc, TelaFrame, TelaVectorObject } from '../../types';
 import { applyTelaOp, type TelaOp } from '../tela/telaOps';
 import { renderDevice, buildRenderMaps } from '../tela/renderDevice';
 import { makeBlock } from '../tela/TelaWriter';
-import InkLayer, { type NoteTool } from './InkLayer';
+import { InkLayer, InkStrokes, type NoteTool } from '../ink';
 import { PAGE_W, PAGE_H, inkDeviceOf, inkFrameOf, templateBackground, type PageTemplate } from '../../services/notesStructure';
-import { pathData, strokeInBox, boundsOf, type InkStyle, type Box } from '../../services/inkMath';
+import { strokeInBox, type InkStyle, type Box } from '../../services/inkMath';
 
 /**
  * One notebook page: a paper surface (with a template), free-floating Tela containers (typed text,
@@ -53,8 +53,6 @@ const PageCanvas: React.FC<Props> = ({ doc, template, tool, style, fingerDraws, 
   const endGesture = () => { if (gesture.current) { gesture.current = null; onCommit(); } };
 
   const interactive = tool === 'select' || tool === 'text' ? true : false;
-  const sel = selection.size ? strokes.filter(s => selection.has(s.id)) : [];
-  const selBox = sel.length ? boundsOf(sel.flatMap(s => s.points!), 8) : null;
 
   return (
     <div style={{ width: PAGE_W * zoom, height: PAGE_H * zoom }} className="relative mx-auto shadow-2xl rounded-sm notes-print" data-page>
@@ -77,10 +75,7 @@ const PageCanvas: React.FC<Props> = ({ doc, template, tool, style, fingerDraws, 
         })}
 
         {/* Committed ink (display only) */}
-        <svg width={PAGE_W} height={PAGE_H} className="absolute inset-0 pointer-events-none" aria-hidden>
-          {strokes.map(s => <path key={s.id} d={pathData(s.points!)} fill="none" stroke={s.stroke} strokeWidth={s.strokeWidth} strokeOpacity={s.opacity} strokeLinecap="round" strokeLinejoin="round" />)}
-          {selBox && <rect x={selBox.x} y={selBox.y} width={selBox.w} height={selBox.h} fill="rgba(0,218,243,0.08)" stroke="#00DAF3" strokeDasharray="6 4" strokeWidth={1.5} />}
-        </svg>
+        <InkStrokes width={PAGE_W} height={PAGE_H} strokes={strokes} selection={selection} />
 
         {!readOnly && <InkLayer width={PAGE_W} height={PAGE_H} tool={tool} style={style} fingerDraws={fingerDraws} strokes={strokes} hiddenIds={new Set()} onStroke={addStroke} onErase={erase} onLasso={lasso} onTap={tap} />}
       </div>

@@ -18,14 +18,16 @@
  */
 import React, { useRef, useState } from 'react';
 import {
-  MousePointer2, MousePointerClick, Scan, Square, Circle, Minus, PenTool, Type,
+  MousePointer2, MousePointerClick, Scan, Square, Circle, Minus, PenTool, Type, Brush, Pen, Pencil, Highlighter, Eraser, Lasso,
   ChevronUp, ChevronDown, Trash2, Link2, Unlink,
 } from 'lucide-react';
 import type { TelaVectorDevice, TelaVectorObject, TelaVectorObjectKind } from '../../types';
 import { pathDataFromNodes } from '../../services/telaImageTrace';
 import { layoutTextLines } from '../../services/tela/telaText';
+import { InkLayer, type NoteTool } from '../ink';
+import { strokeInBox, pathData, type InkStyle } from '../../services/inkMath';
 
-export type VectorTool = 'select' | 'direct' | 'marquee' | 'rect' | 'ellipse' | 'line' | 'pen' | 'text';
+export type VectorTool = 'select' | 'direct' | 'marquee' | 'rect' | 'ellipse' | 'line' | 'pen' | 'text' | 'ink';
 
 const newObjId = () => `obj_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
@@ -122,6 +124,8 @@ const ObjectEl: React.FC<{
   if (o.kind === 'PATH' && o.points) {
     const pts = [];
     for (let i = 0; i + 1 < o.points.length; i += 2) pts.push(`${o.points[i]},${o.points[i + 1]}`);
+    // Open freehand strokes render smoothed (quadratic through midpoints), matching Notes ink.
+    if (!o.pathClosed && o.points.length >= 6) return decorate(<path d={pathData(o.points)} {...common} />);
     return decorate(o.pathClosed ? <polygon points={pts.join(' ')} {...common} /> : <polyline points={pts.join(' ')} {...common} />);
   }
   if (o.kind === 'TEXT') {
@@ -365,7 +369,17 @@ const TOOLS: { id: VectorTool; icon: React.ReactNode; label: string }[] = [
   { id: 'line', icon: <Minus size={15} />, label: 'Line' },
   { id: 'pen', icon: <PenTool size={15} />, label: 'Pen / polyline' },
   { id: 'text', icon: <Type size={15} />, label: 'Text' },
+  { id: 'ink', icon: <Brush size={15} />, label: 'Ink — freehand pen, pencil, highlighter' },
 ];
+
+const INK_TOOLS: { id: NoteTool; icon: React.ReactNode; label: string }[] = [
+  { id: 'pen', icon: <Pen size={14} />, label: 'Pen' },
+  { id: 'pencil', icon: <Pencil size={14} />, label: 'Pencil' },
+  { id: 'highlighter', icon: <Highlighter size={14} />, label: 'Highlighter' },
+  { id: 'eraser', icon: <Eraser size={14} />, label: 'Eraser (whole strokes)' },
+  { id: 'lasso', icon: <Lasso size={14} />, label: 'Lasso select' },
+];
+const INK_COLORS = ['#16131f', '#D40055', '#6B0099', '#00A3B8', '#E07A00', '#2E7D32', '#ffffff'];
 
 const TelaVector: React.FC<TelaVectorProps> = (props) => {
   const {
@@ -387,6 +401,13 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
     setSelIdsI(next); setSelI(primary); props.onSelectionChange?.(next); props.onSelect?.(primary);
   };
   const select = (id: string | null) => selectMany(id ? [id] : []);
+
+  // Ink tool: sub-tool + style live here; strokes are ordinary PATH objects in the device.
+  const [inkTool, setInkTool] = useState<NoteTool>('pen');
+  const [inkStyle, setInkStyle] = useState<InkStyle>({ color: INK_COLORS[0], size: 2.4, tool: 'pen' });
+  const pickInk = (t: NoteTool) => { setInkTool(t); if (t === 'pen' || t === 'pencil' || t === 'highlighter') setInkStyle(st => ({ ...st, tool: t, size: t === 'highlighter' ? 3 : t === 'pencil' ? 2 : 2.4 })); };
+  const inkStrokes = device.objects.filter(o => o.kind === 'PATH' && o.points && !o.svgPathData);
+  const inkErased = useRef<Set<string>>(new Set());
 
   const svgRef = useRef<SVGSVGElement>(null);
   const [draft, setDraft] = useState<TelaVectorObject | null>(null);
@@ -420,6 +441,7 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
   const onBgPointerDown = (e: React.PointerEvent) => {
     if (readOnly) return;
     const p = svgPoint(e);
+    if (tool === 'ink') return; // the ink layer owns pointer input
     if (tool === 'select' || tool === 'direct') { select(null); return; }
     if (tool === 'marquee') {
       (e.currentTarget as Element).setPointerCapture(e.pointerId);
@@ -635,6 +657,22 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
         </div>
       )}
 
+      {/* Ink options — shown whenever the Ink tool is active (Studio hides the palette but not these). */}
+      {!readOnly && tool === 'ink' && (
+        <div onPointerDown={e => e.stopPropagation()} style={{ position: 'absolute', top: chrome ? 46 : 8, left: 8, zIndex: 4, display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', padding: 4, maxWidth: 'calc(100% - 16px)', background: 'rgba(18,13,28,0.92)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, backdropFilter: 'blur(6px)' }}>
+          {INK_TOOLS.map(t => (
+            <button key={t.id} title={t.label} aria-label={t.label} aria-pressed={inkTool === t.id} onClick={() => pickInk(t.id)}
+              style={{ display: 'grid', placeItems: 'center', width: 28, height: 28, borderRadius: 7, border: 'none', cursor: 'pointer', color: inkTool === t.id ? '#fff' : 'rgba(255,255,255,0.55)', background: inkTool === t.id ? 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))' : 'transparent' }}>{t.icon}</button>
+          ))}
+          <span style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.15)' }} />
+          {INK_COLORS.map(c => (
+            <button key={c} aria-label={`Ink colour ${c}`} aria-pressed={inkStyle.color === c} onClick={() => { setInkStyle(st => ({ ...st, color: c })); if (inkTool === 'eraser' || inkTool === 'lasso') pickInk('pen'); }}
+              style={{ width: 18, height: 18, borderRadius: 9, cursor: 'pointer', background: c, border: `2px solid ${inkStyle.color === c ? '#fff' : 'rgba(255,255,255,0.25)'}` }} />
+          ))}
+          <input type="range" min={1} max={12} step={0.5} value={inkStyle.size} onChange={e => setInkStyle(st => ({ ...st, size: +e.target.value }))} aria-label="Ink thickness" style={{ width: 70 }} />
+        </div>
+      )}
+
       <svg
         ref={svgRef}
         width={device.width}
@@ -702,6 +740,22 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
           </g>
         )}
       </svg>
+
+      {/* Freehand ink: a pressure-aware canvas over the artboard; each stroke is committed as a PATH object. */}
+      {!readOnly && tool === 'ink' && (
+        <InkLayer
+          width={device.width} height={device.height} tool={inkTool} style={inkStyle} fingerDraws
+          strokes={inkStrokes} hiddenIds={new Set()}
+          onStroke={o => onAddObject(o)}
+          onErase={ids => {
+            const live = new Set(device.objects.map(o => o.id));
+            for (const id of [...inkErased.current]) if (!live.has(id)) inkErased.current.delete(id);
+            for (const id of ids) if (live.has(id) && !inkErased.current.has(id)) { inkErased.current.add(id); onDeleteObject(id); }
+          }}
+          onLasso={box => selectMany(box ? inkStrokes.filter(s => strokeInBox(s.points!, box)).map(s => s.id) : [])}
+          onTap={() => {}}
+        />
+      )}
 
       {/* Inline properties popover — hidden when Studio hosts the panel. */}
       {chrome && !readOnly && selected && (

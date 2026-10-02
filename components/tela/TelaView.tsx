@@ -98,6 +98,7 @@ const STUDIO_VEC_TOOLS: { id: VectorTool; icon: React.ReactNode; label: string }
   { id: 'text', icon: <Type size={17} />, label: 'Text' },
 ];
 
+  { id: 'ink', icon: <Brush size={17} />, label: 'Ink — freehand (B)' },
 type StudioUnit = 'PX' | 'IN' | 'MM' | 'CM';
 type StudioSafeArea = 'NONE' | 'PRINT' | 'VIDEO' | 'BOTH';
 const unitMajorPx = (unit: StudioUnit) => unit === 'PX' ? 100 : unit === 'IN' ? 96 : unit === 'MM' ? 96 / 25.4 * 10 : 96 / 2.54;
@@ -1304,7 +1305,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
       }
       if (!mod && !event.altKey && focus.type === 'VECTOR') {
         const tools: Partial<Record<string, VectorTool>> = {
-          v: 'select', a: 'direct', m: 'marquee', r: 'rect', e: 'ellipse', l: 'line', p: 'pen', t: 'text',
+          v: 'select', a: 'direct', m: 'marquee', r: 'rect', e: 'ellipse', l: 'line', p: 'pen', t: 'text', b: 'ink',
         };
         if (tools[key]) { event.preventDefault(); setStudioTool(tools[key]!); return; }
       }
