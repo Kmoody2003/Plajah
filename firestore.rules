@@ -977,6 +977,9 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // Thesa stash — a person's saved cards + private notes. Owner-only, no admin escape hatch;
+      // never read by ranking, ads or recommendations (services/thesa/stashService).
+      match /thesa_stash/{cardId} { allow read, write: if isOwner(userId); }
       // Taleo thumbs up/down ratings on films/series — owner-private.
       match /titleRatings/{titleId} {
         allow read, write: if isOwner(userId);
