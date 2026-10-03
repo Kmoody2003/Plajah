@@ -4199,5 +4199,49 @@ service cloud.firestore {
       );
       allow delete: if isAuthenticated() && resource.data.teacherUid == request.auth.uid;
     }
+  
+    // ── Template library (Ambo slide templates, scripture looks, Tela motion templates) ──
+    // A saved template is a customised copy of a platform designer: base id + theme +
+    // field values + motion/palette overrides. Owner edits; read when public, shared
+    // with you, or yours. Anyone signed in may bump the `uses` counter on what they can read.
+    function tplReadable(d) {
+      return d.visibility == 'public'
+        || (isAuthenticated() && (d.ownerUid == request.auth.uid || request.auth.uid in d.get('sharedWith', [])))
+        || isAdmin();
+    }
+    function tplValid(d) {
+      return d.ownerUid == request.auth.uid
+        && d.kind in ['ambo-slide', 'scripture-look', 'tela-motion']
+        && d.visibility in ['private', 'shared', 'public']
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 120
+        && d.get('sharedWith', []) is list && d.get('sharedWith', []).size() <= 200
+        && d.get('thumb', '') is string && d.get('thumb', '').size() <= 200000;
+    }
+    match /templateLibrary/{templateId} {
+      allow read: if tplReadable(resource.data);
+      allow create: if isAuthenticated() && tplValid(request.resource.data);
+      allow update: if isAuthenticated() && (
+        (resource.data.ownerUid == request.auth.uid && tplValid(request.resource.data))
+        || (tplReadable(resource.data)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uses'])
+            && request.resource.data.uses == resource.data.get('uses', 0) + 1)
+      );
+      allow delete: if isAuthenticated() && (resource.data.ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // ── Tela document manifest (services/telaStore.ts) — owner only ──
+    match /tela_docs/{docId} {
+      allow read, update, delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+    }
+
+    // ── Ambo projects (services/ambo/amboStorageService.ts) ──
+    match /users/{userId}/amboProjects/{projectId} {
+      allow read, write: if isOwner(userId);
+    }
+    match /organizations/{orgId}/amboProjects/{projectId} {
+      allow read, write: if orgAdminOf(orgId)
+        || (isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/organizations/$(orgId)).data.get('members', []));
+    }
   }
 }

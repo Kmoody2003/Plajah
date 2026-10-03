@@ -17,9 +17,8 @@
 import type { LayerContent } from './showModel';
 import type { LayerSource } from './layerSources';
 import type { SlideObj, SlideTheme } from './slideTemplates/types';
-import { buildSlideObjects, templateById } from './slideTemplates/registry';
+import { buildSlideObjects, templateById, resolveTheme } from './slideTemplates/registry';
 import { disposeHost, type SlideHost } from './slideTemplates/live';
-import { themeById } from './slideTemplates/themes';
 import {
   drawSlideObjects, drawFallbackCard, loadSlideFonts, onSlideImageLoad, prefersReducedMotion,
   slideTemplateTiming, invalidateSlideLayouts, type FrameClock,
@@ -72,14 +71,14 @@ export class TelaTemplateSource implements LayerSource {
       requestLive(on: boolean) { self.liveAll = on; },
     };
     this.canvas = makeCanvas(this.w, this.h);
-    this.th = themeById(content.theme);
+    this.th = resolveTheme(content.theme, content.fields);
     this.build();
     this.unsubImage = onSlideImageLoad(() => { this.cacheValid = false; });
     try { (document as any).fonts?.addEventListener?.('loadingdone', this.onFontsDone); } catch { /* */ }
   }
 
   private build() {
-    this.th = themeById(this.content.theme);
+    this.th = resolveTheme(this.content.theme, this.content.fields);
     this.objs = buildSlideObjects(this.content.templateId, this.content.theme, this.content.fields, this.w, this.h);
     this.cacheValid = false;
     if (this.objs) {

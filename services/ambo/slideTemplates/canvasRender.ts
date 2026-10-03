@@ -16,7 +16,7 @@ import { layoutTextLines, fontShorthand } from '../../tela/telaText';
 import { ensureFontsForObjects } from '../../tela/telaFonts';
 import { lay, objBox, type Lay } from './layout';
 import { themeById } from './themes';
-import { buildSlideObjects } from './registry';
+import { buildSlideObjects, resolveTheme } from './registry';
 import type { SlideObj, SlideTheme } from './types';
 import { liveDrawer, type SlideHost } from './live';
 
@@ -455,7 +455,7 @@ export function renderSlideTemplate(
   w: number, h: number, opts: { t?: number; enterP?: number; exitP?: number; reducedMotion?: boolean; host?: SlideHost } = {},
 ): void {
   const reduced = !!opts.reducedMotion;
-  const th = themeById(theme);
+  const th = resolveTheme(theme, fields);
   try {
     const objs = memoBuild(templateId, theme, fields, w, h, fontEpoch);
     if (!objs) { drawFallbackCard(ctx, w, h, fields?.title || templateId); return; }

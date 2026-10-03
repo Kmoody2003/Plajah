@@ -4,7 +4,7 @@ import { lay } from './layout';
 import { themeById, SLIDE_THEMES } from './themes';
 import * as A from './designersA';
 import * as B from './designersB';
-import type { FieldDef, SlideObj, SlideTemplateDef } from './types';
+import type { FieldDef, SlideObj, SlideTemplateDef, SlideTheme, ThemeOverrides } from './types';
 import { PHOTO_TEMPLATES } from './templatesPhoto';
 import { VIDEO_TEMPLATES } from './templatesVideo';
 import { AUDIO_TEMPLATES } from './templatesAudio';
@@ -60,6 +60,35 @@ export function defaultFields(t: SlideTemplateDef): Record<string, string> {
 
 /** Reserved field: '__ground' = 'solid' (default) | 'translucent' (show the background layer through). */
 export const GROUND_FIELD = '__ground';
+/** Reserved field: JSON ThemeOverrides from a saved template (palette, motion, faces). */
+export const THEME_FIELD = '__theme';
+
+const COLOR_KEYS = ['accent', 'accent2', 'accent3', 'ground', 'ground2', 'ink', 'muted', 'panel', 'panelInk'] as const;
+const resolved = new Map<string, SlideTheme>();
+/** The theme as customised by a saved template's `__theme` field (the platform theme when absent). */
+export function resolveTheme(themeId: string | undefined, fields?: Record<string, string>): SlideTheme {
+  const base = themeById(themeId);
+  const raw = fields?.[THEME_FIELD];
+  if (!raw) return base;
+  const key = `${base.id}|${raw}`;
+  const hit = resolved.get(key); if (hit) return hit;
+  let o: ThemeOverrides = {};
+  try { o = JSON.parse(raw) || {}; } catch { return base; }
+  const c = { ...base.c };
+  for (const k of COLOR_KEYS) { const v = o[k]; if (typeof v === 'string' && /^#[0-9a-f]{3,8}$/i.test(v)) (c as any)[k] = v; }
+  const num = (v: unknown, lo: number, hi: number) => typeof v === 'number' && isFinite(v) ? Math.min(hi, Math.max(lo, v)) : undefined;
+  const motion = {
+    ...base.motion,
+    ...(o.enter ? { enter: o.enter } : {}), ...(o.exit ? { exit: o.exit } : {}),
+    ...(num(o.enterSec, .1, 6) !== undefined ? { enterSec: num(o.enterSec, .1, 6)! } : {}),
+    ...(num(o.exitSec, .1, 4) !== undefined ? { exitSec: num(o.exitSec, .1, 4)! } : {}),
+  };
+  const t = { ...base.t, ...(o.display ? { display: o.display } : {}), ...(o.text ? { text: o.text } : {}), ...(o.label ? { label: o.label } : {}) };
+  const th: SlideTheme = { ...base, c, motion, t };
+  if (resolved.size > 200) resolved.clear();
+  resolved.set(key, th);
+  return th;
+}
 
 const ROLE_GROUP: Record<string, number> = { GROUND: 0, ORNAMENT: 1, RULE: 1, IMAGE_SLOT: 1, LOGO: 1, LABEL: 2, HEADLINE: 3, DECK: 4, BODY: 4, CAPTION: 4, FOLIO: 4 };
 
@@ -72,9 +101,9 @@ function hash(s: string): number { let h = 7; for (let i = 0; i < s.length; i++)
 export function buildSlideObjects(templateId: string, themeId: string | undefined, fields: Record<string, string> | undefined, W: number, H: number): SlideObj[] | null {
   const t = templateById(templateId);
   if (!t || !(W > 0) || !(H > 0)) return null;
-  const th = themeById(themeId);
   const f: Record<string, string> = { ...defaultFields(t) };
   for (const [k, v] of Object.entries(fields || {})) if (typeof v === 'string') f[k] = v;
+  const th = resolveTheme(themeId, f);
   try {
     const objs = t.design({ W, H, L: lay(W, H), th, f, seed: hash(templateId) });
     const translucent = f[GROUND_FIELD] === 'translucent';

@@ -44,6 +44,14 @@ export type ExitStyle = 'fade-up' | 'fade' | 'slide' | 'wipe-out' | 'zoom-fade' 
 
 export interface ThemeMotion { enter: EnterStyle; enterSec: number; exit: ExitStyle; exitSec: number; ruleGrow: boolean }
 
+/** A user's customisation of a theme for one saved template (travels in the reserved `__theme` field). */
+export interface ThemeOverrides {
+  accent?: string; accent2?: string; accent3?: string;
+  ground?: string; ground2?: string; ink?: string; muted?: string; panel?: string; panelInk?: string;
+  enter?: EnterStyle; enterSec?: number; exit?: ExitStyle; exitSec?: number;
+  display?: FontKey; text?: FontKey; label?: FontKey;
+}
+
 export interface ThemePalette {
   ground: string; ground2: string; ink: string; muted: string;
   accent: string; accent2: string; accent3: string;
