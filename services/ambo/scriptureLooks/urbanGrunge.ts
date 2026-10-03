@@ -260,10 +260,10 @@ const SPRAY_SPOTS: Record<AspectClass, [number, number, number, number][]> = {
   portrait: [[0.5, 0.11, -0.06, 0.08], [0.5, 0.89, 0.05, 0.075]],
   classic: [[0.32, 0.11, -0.07, 0.105], [0.68, 0.9, 0.05, 0.095]],
   screen: [[0.24, 0.12, -0.08, 0.125], [0.77, 0.885, 0.06, 0.115]],
-  ultrawide: [[0.13, 0.3, -0.1, 0.17], [0.87, 0.7, 0.08, 0.16]],
+  ultrawide: [[0.2, 0.13, -0.07, 0.13], [0.8, 0.875, 0.06, 0.12]],
   wall: [[0.1, 0.32, -0.1, 0.2], [0.9, 0.68, 0.08, 0.2], [0.27, 0.86, 0.05, 0.1], [0.73, 0.14, -0.05, 0.1]],
 };
-const SPRAY_MAXW: Record<AspectClass, number> = { vertical: 0.86, portrait: 0.86, classic: 0.5, screen: 0.42, ultrawide: 0.24, wall: 0.17 };
+const SPRAY_MAXW: Record<AspectClass, number> = { vertical: 0.86, portrait: 0.86, classic: 0.5, screen: 0.42, ultrawide: 0.32, wall: 0.17 };
 
 function sprayPiece(ctx: Ctx, word: string, x: number, y: number, rot: number, size: number, color: string, reveal: number, mt: number, seed: number) {
   if (reveal <= 0) return;
@@ -421,7 +421,7 @@ const wheatPaste: ScriptureLayout = {
     ctx.restore();
 
     // the verse sheet: pasted down from the top, torn away downward on exit
-    const vis = Math.min(lifeIn(s, 1.8), 1 - lifeOut(s, 1.4));
+    const vis = Math.min(lifeIn(s, 1.8), 1 - lifeOut(s, 1.0));
     if (vis > 0) {
       ctx.save(); ctx.globalAlpha = a;
       const px = P.x - P.size * 0.2, py = P.y, pw = P.w + P.size * 0.4, ph = P.h;
@@ -518,7 +518,7 @@ const xeroxZine: ScriptureLayout = {
     ctx.restore();
 
     // the clean pasted label
-    const g = life(s, 2, 1.3);
+    const g = life(s, 2, 1.0);
     if (g > 0) {
       ctx.save(); ctx.globalAlpha = a * clamp01(g * 1.4);
       ctx.translate(s.w / 2, P.y + P.h / 2); ctx.rotate(-0.006 - (1 - g) * 0.05); ctx.scale(0.96 + g * 0.04, 0.96 + g * 0.04); ctx.translate(-s.w / 2, -(P.y + P.h / 2));
@@ -693,7 +693,7 @@ const risoMisprint: ScriptureLayout = {
     ctx.beginPath(); for (let k = -10; k < 16; k++) { const x0 = s.w * 0.7 + k * s.h * 0.04 + st; ctx.moveTo(x0, 0); ctx.lineTo(x0 + s.h * 0.3, s.h * 0.3); } ctx.stroke();
     ctx.restore();
     // plate shadow block in pink (misregistered), then the clean paper
-    const g = life(s, 2, 1.3);
+    const g = life(s, 2, 1.0);
     ctx.globalAlpha = a * g;
     ctx.fillStyle = RISO_PINK; ctx.fillRect(P.x + P.size * 0.35 + mx, P.y + P.size * 0.35 + my, P.w, P.h);
     ctx.globalCompositeOperation = 'source-over';
@@ -757,8 +757,10 @@ const ductTape: ScriptureLayout = {
       const baseY = P.ty + li * P.size * lh + P.size * 0.98;
       const y0 = baseY - P.size * 0.9;
       const x0 = s.w / 2 - sw / 2;
-      const q = easeOut(clamp01(s.enterP * 1.7 - (li / Math.max(1, n)) * 0.45));
-      const e = easeInOut(clamp01(s.exitP * 1.6 - ((n - 1 - li) / Math.max(1, n)) * 0.4));
+      // with Reference Lead the strips wait until the reference has had its moment
+      const q0 = s.transition === 'reference' ? clamp01((s.enterP - 0.5) / 0.5) : s.enterP;
+      const q = easeOut(clamp01(q0 * 1.7 - (li / Math.max(1, n)) * 0.45));
+      const e = easeInOut(clamp01((s.exitP - 0.3) * 2.2 - ((n - 1 - li) / Math.max(1, n)) * 0.35));
       if (q <= 0 || e >= 1) return;
       ctx.save(); ctx.globalAlpha = a * (1 - e);
       ctx.translate(e * s.w * 0.25, -e * sh * 0.8);
@@ -1035,7 +1037,7 @@ const stickerBomb: ScriptureLayout = {
       ctx.restore();
     }
     // the big white label
-    const lq = clamp01(s.enterP * 2.6), le = lifeOut(s, 1.3);
+    const lq = clamp01(s.enterP * 2.6), le = lifeOut(s, 1.0);
     if (lq > 0 && le < 1) {
       ctx.save(); ctx.globalAlpha = a * (1 - le);
       const cx = s.w / 2, cy = P.y + P.h / 2;
@@ -1047,7 +1049,7 @@ const stickerBomb: ScriptureLayout = {
       ctx.beginPath(); rr(ctx, P.x + P.size * 0.2, P.y + P.size * 0.2, P.w - P.size * 0.4, P.h - P.size * 0.4, P.size * 0.35); ctx.stroke();
       ctx.restore();
     }
-    drawReferenceLead(ctx, s, '#ffffff');
+    drawReferenceLead(ctx, s, '#141414');
     const r = verse(ctx, s, P, font, '#141414');
     drawReference(ctx, s, s.w / 2, r.bottom + P.size * 1.0, 'center', refSize(P), '#e0136f', { font: `900 ${refSize(P)}px ${SANS}`, tracking: 0.14 });
     drawCopyright(ctx, s, s.w / 2, s.h - safe(s) * 0.4, 'center', 'rgba(255,255,255,0.7)');
@@ -1064,7 +1066,7 @@ const stencilSpray: ScriptureLayout = {
     const font: Font = sz => `600 ${sz}px ${GROTESK}`;
     const P = panel(ctx, s, font, { yC: isVert(cls) ? 0.56 : 0.56, padTop: 2.7, padBottom: 1.85, maxH: cls === 'vertical' ? 0.42 : 0.46 });
     const sz = P.size;
-    const rev = life(s, 1.8, 1.3);
+    const rev = life(s, 1.8, 1.0);
     const plateCol = '#111113';
     ctx.save(); ctx.globalAlpha = a;
     // overspray halo (static, seeded)
