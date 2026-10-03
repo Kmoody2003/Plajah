@@ -30,6 +30,10 @@ import {
   Table2, FileText, Plus, Trash2, Scissors,
 } from 'lucide-react';
 import type { FieldDef, FieldKind } from '../../services/ambo/slideTemplates/types';
+import { resolvePhotoRef } from '../../services/ambo/slideTemplates/photoDrawers';
+
+/** sample:N tokens (offline procedural photos) can't load in <img>; resolve them to their SVG. */
+const thumbSrc = (v: string) => resolvePhotoRef(v)?.src ?? v;
 
 const LILAC = '#D0BCFF', CYAN = '#00DAF3', WARN = '#FFB547';
 export const fieldBox: React.CSSProperties = { background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: '#fff' };
@@ -422,7 +426,7 @@ const ImageEditor: React.FC<EditorProps> = ({ fd, value, onChange }) => {
       <div className="flex gap-2 items-start">
         <div {...drop.props} data-testid={`drop-${fd.key}`} className="w-[104px] h-[62px] flex-none rounded-md overflow-hidden grid place-items-center relative"
           style={{ background: 'repeating-conic-gradient(#1a1726 0% 25%, #14121e 0% 50%) 50% / 12px 12px', border: `1px dashed ${drop.over ? CYAN : 'rgba(255,255,255,.14)'}` }}>
-          {value && !broken ? <img src={value} alt="" className="absolute inset-0 w-full h-full object-cover" onError={() => setBroken(true)} />
+          {value && !broken ? <img src={thumbSrc(value)} alt="" className="absolute inset-0 w-full h-full object-cover" onError={() => setBroken(true)} />
             : <span className="text-[9px] text-white/35 text-center px-1">{broken ? "Can't load image" : 'Drop an image'}</span>}
           {up.busy && <span className="absolute inset-0 grid place-items-center bg-black/60 text-[9px]" style={{ color: CYAN }}>{up.busy}</span>}
         </div>
@@ -462,7 +466,7 @@ const ImagesEditor: React.FC<EditorProps> = ({ fd, value, onChange }) => {
             onDragEnd={() => { setDragFrom(null); setDragOver(null); }}
             className="group relative rounded overflow-hidden cursor-grab"
             style={{ aspectRatio: '1', background: '#14121e', outline: dragOver === i && dragFrom !== i ? `2px solid ${CYAN}` : '1px solid rgba(255,255,255,.08)', opacity: dragFrom === i ? .45 : 1 }}>
-            <img src={src} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+            <img src={thumbSrc(src)} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
             <span className="absolute top-0.5 left-0.5 min-w-[16px] h-4 px-1 rounded text-[9px] font-extrabold grid place-items-center" style={{ background: 'rgba(0,0,0,.7)', color: isSessionOnlyUrl(src) ? WARN : LILAC }}>{i + 1}</span>
             <button aria-label={`Remove image ${i + 1}`} data-action="remove" onClick={() => set(list.filter((_, j) => j !== i))}
               className="absolute top-0.5 right-0.5 w-4 h-4 rounded grid place-items-center bg-black/70 opacity-0 group-hover:opacity-100 hover:bg-red-500/80"><X size={10} /></button>
