@@ -33,6 +33,8 @@ export type SlideObj = TelaVectorObject & {
   front?: boolean;
   /** Entrance group, assigned by the registry from templateRole (0 ground … 4 body). */
   grp?: number;
+  /** Drawn every frame by a registered live drawer (see live.ts) instead of by kind. */
+  live?: { drawer: string; props?: Record<string, unknown> };
 };
 
 export type EnterStyle = 'rise' | 'fade' | 'slam' | 'wipe' | 'glow' | 'reveal' | 'float'
@@ -90,9 +92,19 @@ export interface SlideTheme {
   slot: { rx: number; tilt: number };
 }
 
-export interface FieldDef { key: string; label: string; default: string; multiline?: boolean; hint?: string }
+/** How the template editor should present a field. Values are always strings
+ *  (lists one per line; data as "Label, value" lines; numbers as text). */
+export type FieldKind = 'text' | 'image' | 'images' | 'video' | 'audio' | 'number' | 'select' | 'toggle' | 'data' | 'visualizer';
 
-export type TemplateCategory = 'Welcome' | 'Sermon' | 'Announcements' | 'Worship' | 'Giving' | 'Moments' | 'Media';
+export interface FieldDef {
+  key: string; label: string; default: string; multiline?: boolean; hint?: string;
+  kind?: FieldKind;
+  /** Choices for kind 'select'. */
+  options?: string[];
+}
+
+export type TemplateCategory = 'Welcome' | 'Sermon' | 'Announcements' | 'Worship' | 'Giving' | 'Moments' | 'Media'
+  | 'Photo' | 'Video' | 'Audio' | 'Data';
 
 export interface DesignCtx {
   W: number; H: number; L: Lay; th: SlideTheme;
@@ -108,4 +120,6 @@ export interface SlideTemplateDef {
   /** Default Ambo layer slot for the inserted slide. */
   slot: 'slide' | 'background';
   design: SlideDesigner;
+  /** Media templates own playback (video takeover, audio) — the source keeps them live. */
+  media?: 'photo' | 'video' | 'audio' | 'data';
 }

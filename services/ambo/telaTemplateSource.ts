@@ -17,7 +17,8 @@
 import type { LayerContent } from './showModel';
 import type { LayerSource } from './layerSources';
 import type { SlideObj, SlideTheme } from './slideTemplates/types';
-import { buildSlideObjects } from './slideTemplates/registry';
+import { buildSlideObjects, templateById } from './slideTemplates/registry';
+import { disposeHost, type SlideHost } from './slideTemplates/live';
 import { themeById } from './slideTemplates/themes';
 import {
   drawSlideObjects, drawFallbackCard, loadSlideFonts, onSlideImageLoad, prefersReducedMotion,
@@ -52,9 +53,24 @@ export class TelaTemplateSource implements LayerSource {
   private disposed = false;
   private unsubImage: () => void;
   private onFontsDone = () => this.rebuild();
+  // Live drawers (media, charts): host context + "redraw everything" requests.
+  private static seq = 0;
+  private liveAll = false;
+  readonly host: SlideHost;
 
-  constructor(private content: TelaContent, private w: number, private h: number) {
+  constructor(private content: TelaContent, private w: number, private h: number, audible = false) {
     this.w = Math.max(1, Math.round(w)); this.h = Math.max(1, Math.round(h));
+    const self = this;
+    this.host = {
+      id: `tts${++TelaTemplateSource.seq}-${Math.random().toString(36).slice(2, 7)}`,
+      audible,
+      get templateId() { return self.content.templateId; },
+      get fields() { return self.content.fields || {}; },
+      get w() { return self.w; }, get h() { return self.h; },
+      get shownSec() { return nowSec() - self.enterStart; },
+      get exitP() { return self.exitStart < 0 ? 0 : Math.min(1, (nowSec() - self.exitStart) / Math.max(.05, slideTemplateTiming(self.th, self.reduced).exitSec)); },
+      requestLive(on: boolean) { self.liveAll = on; },
+    };
     this.canvas = makeCanvas(this.w, this.h);
     this.th = themeById(content.theme);
     this.build();
@@ -110,13 +126,14 @@ export class TelaTemplateSource implements LayerSource {
       exitT: this.exitStart >= 0 ? now - this.exitStart : -1,
       reduced: this.reduced,
       enterFromGroup: this.enterFromGroup,
+      host: this.host,
     };
   }
 
   private ensureCaches() {
     if (this.cacheValid && this.back && this.front) return;
     const objs = this.objs || [];
-    const moving = (o: SlideObj) => !!o.amb && o.amb.kind !== 'countdown' && !this.reduced;
+    const moving = (o: SlideObj) => !!o.live || (!!o.amb && o.amb.kind !== 'countdown' && !this.reduced);
     this.liveFront = objs.filter(o => o.front || o.amb?.kind === 'countdown');
     this.live = objs.filter(o => !this.liveFront.includes(o) && moving(o));
     let lastLive = -1;
@@ -127,7 +144,7 @@ export class TelaTemplateSource implements LayerSource {
     const behind = new Set(objs.filter((o, i) => isStatic(o) && i < lastLive && o.kind !== 'TEXT'));
     this.back = this.back || makeCanvas(this.w, this.h);
     this.front = this.front || makeCanvas(this.w, this.h);
-    const steady: FrameClock = { t: 0, enterT: Infinity, exitT: -1, reduced: this.reduced };
+    const steady: FrameClock = { t: 0, enterT: Infinity, exitT: -1, reduced: this.reduced, host: this.host };
     const b = this.back.getContext('2d'), f = this.front.getContext('2d');
     if (b) { b.clearRect(0, 0, this.w, this.h); drawSlideObjects(b, objs, this.th, this.w, this.h, steady, o => behind.has(o)); }
     if (f) { f.clearRect(0, 0, this.w, this.h); drawSlideObjects(f, objs, this.th, this.w, this.h, steady, o => isStatic(o) && !behind.has(o)); }
@@ -142,7 +159,8 @@ export class TelaTemplateSource implements LayerSource {
       if (!this.objs) { drawFallbackCard(ctx, this.w, this.h, this.content.fields?.title || this.content.templateId); return this.canvas; }
       const now = nowSec(), c = this.clock(now);
       const tm = slideTemplateTiming(this.th, this.reduced);
-      const animating = c.exitT >= 0 || c.enterT < tm.enterSec + .05;
+      // Media takeovers (video full-screen, etc.) ask for full redraws while active.
+      const animating = this.liveAll || c.exitT >= 0 || c.enterT < tm.enterSec + .05;
       if (animating) {
         drawSlideObjects(ctx, this.objs, this.th, this.w, this.h, c);
       } else {
@@ -191,13 +209,20 @@ export class TelaTemplateSource implements LayerSource {
   ready() { return true; }
   dispose() {
     this.disposed = true;
+    disposeHost(this.host.id);
     this.unsubImage();
     try { (document as any).fonts?.removeEventListener?.('loadingdone', this.onFontsDone); } catch { /* */ }
     this.back = this.front = null; this.outgoing = null;
   }
 }
 
-export function createTelaTemplateSource(content: TelaContent, w: number, h: number): LayerSource | null {
+export function createTelaTemplateSource(content: TelaContent, w: number, h: number, audible = false): LayerSource | null {
   if (typeof document === 'undefined') return null;
-  return new TelaTemplateSource(content, w, h);
+  return new TelaTemplateSource(content, w, h, audible);
+}
+
+/** Media templates (video/audio) need their own source per take, never an in-place update. */
+export function isMediaTemplate(templateId: string): boolean {
+  const m = templateById(templateId)?.media;
+  return m === 'video' || m === 'audio';
 }

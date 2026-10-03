@@ -18,6 +18,7 @@ import { lay, objBox, type Lay } from './layout';
 import { themeById } from './themes';
 import { buildSlideObjects } from './registry';
 import type { SlideObj, SlideTheme } from './types';
+import { liveDrawer, type SlideHost } from './live';
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -31,7 +32,12 @@ export interface FrameClock {
   reduced?: boolean;
   /** Entrance applies only to groups ≥ this (a field edit re-enters just the words). */
   enterFromGroup?: number;
+  /** Per-source context for live drawers (absent in galleries / thumbnails). */
+  host?: SlideHost;
 }
+
+/** Set by drawSlideObjects so drawObject can hand live drawers their env. */
+let liveCtx: { th: SlideTheme; W: number; H: number; reduced: boolean; host?: SlideHost } | null = null;
 
 export function slideTemplateTiming(theme?: string | SlideTheme, reduced = false): { enterSec: number; exitSec: number; enterMs: number; exitMs: number } {
   const th = typeof theme === 'object' ? theme : themeById(theme);
@@ -319,6 +325,13 @@ export function drawObject(ctx: Ctx, o: SlideObj, a: Anim = IDLE, t = 0): void {
   const blur = (o.blur || 0) + a.blur;
   if (blur > .2) ctx.filter = `blur(${blur.toFixed(1)}px)`;
 
+  const ld = o.live ? liveDrawer(o.live.drawer) : undefined;
+  if (ld) {
+    const env = liveCtx;
+    try { ld(ctx, o, { t, th: env?.th ?? themeById(undefined), W: env?.W ?? o.w, H: env?.H ?? o.h, alpha: a.alpha, reduced: !!env?.reduced, host: env?.host }); } catch { /* a bad drawer never blanks the slide */ }
+    ctx.restore();
+    return;
+  }
   switch (o.kind) {
     case 'RECT': {
       const trace = () => roundRectPath(ctx, o.x, o.y, o.w, o.h, o.rx || 0);
@@ -391,6 +404,7 @@ function groupOrder(objs: SlideObj[]): number[] {
 export function drawSlideObjects(ctx: Ctx, objs: SlideObj[], th: SlideTheme, W: number, H: number, clock: FrameClock, include?: (o: SlideObj, i: number) => boolean): void {
   const L = lay(W, H), order = groupOrder(objs);
   const t = clock.reduced ? 0 : clock.t;
+  liveCtx = { th, W, H, reduced: !!clock.reduced, host: clock.host };
   for (let i = 0; i < objs.length; i++) {
     const o = objs[i];
     if (include && !include(o, i)) continue;
@@ -438,7 +452,7 @@ export function invalidateSlideLayouts(): void { fontEpoch++; memo.clear(); }
  */
 export function renderSlideTemplate(
   ctx: CanvasRenderingContext2D, templateId: string, theme: string | undefined, fields: Record<string, string> | undefined,
-  w: number, h: number, opts: { t?: number; enterP?: number; exitP?: number; reducedMotion?: boolean } = {},
+  w: number, h: number, opts: { t?: number; enterP?: number; exitP?: number; reducedMotion?: boolean; host?: SlideHost } = {},
 ): void {
   const reduced = !!opts.reducedMotion;
   const th = themeById(theme);
@@ -447,7 +461,7 @@ export function renderSlideTemplate(
     if (!objs) { drawFallbackCard(ctx, w, h, fields?.title || templateId); return; }
     const tm = slideTemplateTiming(th, reduced);
     const enterP = opts.enterP ?? 1, exitP = opts.exitP ?? 0;
-    const clock: FrameClock = { t: opts.t ?? 0, enterT: enterP >= 1 ? Infinity : Math.max(0, enterP) * tm.enterSec, exitT: exitP > 0 ? exitP * tm.exitSec : -1, reduced };
+    const clock: FrameClock = { t: opts.t ?? 0, enterT: enterP >= 1 ? Infinity : Math.max(0, enterP) * tm.enterSec, exitT: exitP > 0 ? exitP * tm.exitSec : -1, reduced, host: opts.host };
     ctx.save(); ctx.clearRect(0, 0, w, h);
     drawSlideObjects(ctx, objs, th, w, h, clock);
     ctx.restore();

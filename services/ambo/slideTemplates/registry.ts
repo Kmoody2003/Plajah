@@ -5,6 +5,10 @@ import { themeById, SLIDE_THEMES } from './themes';
 import * as A from './designersA';
 import * as B from './designersB';
 import type { FieldDef, SlideObj, SlideTemplateDef } from './types';
+import { PHOTO_TEMPLATES } from './templatesPhoto';
+import { VIDEO_TEMPLATES } from './templatesVideo';
+import { AUDIO_TEMPLATES } from './templatesAudio';
+import { DATA_TEMPLATES } from './templatesData';
 
 const F = (key: string, label: string, def: string, o: Partial<FieldDef> = {}): FieldDef => ({ key, label, default: def, ...o });
 
@@ -43,7 +47,10 @@ export const SLIDE_TEMPLATES: SlideTemplateDef[] = [
     fields: [F('title', 'Title', 'Stay Connected'), F('handle', 'Handle', '@gracecommunity'), F('web', 'Website', 'gracecommunity.church'), F('platforms', 'Platforms (one per line)', 'Instagram\nYouTube\nFacebook\nSpotify', { multiline: true }), F('connect', 'Connect prompt', 'New here? Scan to fill out a Connect Card — we would love to meet you.', { multiline: true }), F('qrLabel', 'QR caption', 'Connect card'), F('qrUrl', 'QR image URL', '', { hint: 'Optional — paste a QR code image link' })] },
 ];
 
-export const TEMPLATE_CATEGORIES = ['Welcome', 'Sermon', 'Worship', 'Announcements', 'Giving', 'Moments', 'Media'] as const;
+// Media and data templates live in their own files (each registers its live drawers on import).
+SLIDE_TEMPLATES.push(...PHOTO_TEMPLATES, ...VIDEO_TEMPLATES, ...AUDIO_TEMPLATES, ...DATA_TEMPLATES);
+
+export const TEMPLATE_CATEGORIES = ['Welcome', 'Sermon', 'Worship', 'Announcements', 'Giving', 'Moments', 'Media', 'Photo', 'Video', 'Audio', 'Data'] as const;
 
 export function templateById(id: string): SlideTemplateDef | undefined { return SLIDE_TEMPLATES.find(t => t.id === id); }
 

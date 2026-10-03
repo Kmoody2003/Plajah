@@ -1220,7 +1220,7 @@ export function createSource(
     case 'AUDIO': return audioEnabled ? new AudioSource(content) : null;
     case 'TEXT': return new TextSource(content, frame.w, frame.h);
     case 'LYRICS': return new LyricSource(content, frame.w, frame.h);
-    case 'TELA_TEMPLATE': return createTelaTemplateSource(content, frame.w, frame.h);
+    case 'TELA_TEMPLATE': return createTelaTemplateSource(content, frame.w, frame.h, audioEnabled);
     case 'SCRIPTURE': return new ScriptureSource(content, frame.w, frame.h);
     case 'IMAGE': return new ImageSource(content.src);
     case 'VIDEO': return new VideoSource(content, audioEnabled);
