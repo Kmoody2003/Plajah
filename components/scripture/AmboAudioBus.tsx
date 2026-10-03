@@ -8,7 +8,7 @@ import React, { useRef, useState, useSyncExternalStore } from 'react';
 import {
   Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, Volume2, VolumeX,
   ListMusic, ChevronDown, ChevronUp, X, FolderOpen, ArrowUp, ArrowDown, Trash2,
-  StickyNote, Layers, Film, TrendingDown, AlertTriangle,
+  StickyNote, Layers, Film, TrendingDown, AlertTriangle, Disc3,
 } from 'lucide-react';
 import { bus, registerLocalFiles, isTrackPlayable, isAudioFile, type BusTrack } from '../../services/ambo/audioBus';
 import {
@@ -37,7 +37,7 @@ const POLICIES: Array<{ id: VideoAudioPolicy; label: string; hint: string; icon:
 ];
 
 /** `controlsSlot`: presenter-owned controls on the bar (Mixer, Lyrics — they write the mixer and the Program stack). */
-export const AmboAudioBus: React.FC<{ controlsSlot?: React.ReactNode }> = ({ controlsSlot }) => {
+export const AmboAudioBus: React.FC<{ controlsSlot?: React.ReactNode; deckOpen?: boolean; onToggleDeck?: () => void }> = ({ controlsSlot, deckOpen, onToggleDeck }) => {
   const s = useAudioBus();
   const pr = useAudioPriority();
   useCuesVersion();
@@ -144,6 +144,17 @@ export const AmboAudioBus: React.FC<{ controlsSlot?: React.ReactNode }> = ({ con
             {s.muted ? <VolumeX size={12} /> : <Volume2 size={12} />}
           </button>
           <input type="range" min={0} max={1} step={0.01} value={s.volume} onChange={e => bus.setVolume(Number(e.target.value))} className="w-20 accent-[#D0BCFF] h-1" aria-label="Playlist volume" />
+          {onToggleDeck && (
+            <button
+              onClick={onToggleDeck}
+              disabled={!cur}
+              className={`ml-1 px-2 py-1 rounded text-[9.5px] font-bold border flex items-center gap-1 disabled:opacity-30 ${deckOpen ? 'text-black bg-[#FF8C00] border-[#FF8C00]' : 'text-white/70 bg-white/5 border-white/10 hover:bg-white/15'}`}
+              title={deckOpen ? 'Back to the compact player — the song keeps playing' : 'Expand this song into the DJ deck — waveform, EQ, loops, hot cues (no restart)'}
+            >
+              <Disc3 size={11} /> {deckOpen ? 'DJ Deck ▾' : 'DJ Deck'}
+            </button>
+          )}
+          {s.deck && !deckOpen && <span className="px-1.5 py-0.5 rounded text-[8.5px] font-bold text-[#FF8C00] bg-[#FF8C00]/15">ON DECK</span>}
           {controlsSlot && <span className="ml-1 flex items-center gap-1">{controlsSlot}</span>}
           <button onClick={() => bus.fadeOut(3)} disabled={!s.playing} className="ml-1 px-2 py-1 rounded text-[9.5px] font-bold text-white/70 bg-white/5 hover:bg-white/15 border border-white/10 disabled:opacity-30" title="Fade the music out over 3 seconds">Fade out</button>
           <button

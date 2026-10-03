@@ -23,6 +23,14 @@ import { platformAudio } from '../../services/mediaEngine/audioRuntime';
 import { otherAudioFactor, subscribeAudioPriority } from '../../services/ambo/audioPriority';
 import { lyricsFor, registerLyricClock } from '../../services/ambo/lyricFeed';
 import { amboAudio } from '../../services/ambo/amboAudioEngine';
+import { bus as audioBus, type DeckTransport } from '../../services/ambo/audioBus';
+
+/** Decoded songs, so compact ⇄ deck toggling doesn't re-download/re-decode. */
+const decodeCache = new Map<string, AudioBuffer>();
+function rememberDecoded(url: string, buf: AudioBuffer) {
+  decodeCache.delete(url); decodeCache.set(url, buf);
+  while (decodeCache.size > 4) decodeCache.delete(decodeCache.keys().next().value as string);
+}
 
 export interface AmboDJTrack {
   id?: string;
@@ -46,6 +54,12 @@ interface AmboDJTrackPlayerProps {
   isCuedInPreview?: boolean;
   onCueToPreview?: () => void;
   autoPlay?: boolean;
+  /**
+   * The deck is the EXPANDED VIEW of the audio playlist's current song: it
+   * takes the song over at the playlist's position (no restart), plays through
+   * the Playlist channel, and hands it back on close. See audioBus handover.
+   */
+  attachedToBus?: boolean;
   onSendLyricsToOutput?: (lyric: string) => void;
 }
 
@@ -57,6 +71,7 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
   isCuedInPreview = false,
   onCueToPreview,
   autoPlay = true,
+  attachedToBus = false,
   onSendLyricsToOutput,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -150,7 +165,7 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
     // limited and feeding the visualizers. Straight to the speakers only if
     // the mixer can't be built.
     try {
-      const input = amboAudio.channelInput('dj');
+      const input = amboAudio.channelInput(attachedToBus ? 'playlist' : 'dj');
       if (input && input.context === ctx) deck.connect(input);
       else deck.connect(ctx.destination);
     } catch { try { deck.connect(ctx.destination); } catch {} }
@@ -200,11 +215,13 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
         }
       }
 
-      if (track.url) {
+      if (track.url && decodeCache.has(track.url)) audioBuf = decodeCache.get(track.url)!;
+      else if (track.url) {
         try {
           const res = await fetch(track.url);
           const arrayBuf = await res.arrayBuffer();
           audioBuf = await ctx.decodeAudioData(arrayBuf);
+          rememberDecoded(track.url, audioBuf);
         } catch (e) {
           console.warn('[AmboDJTrackPlayer] Audio fetch/decode fallback', e);
         }
@@ -280,7 +297,29 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
         });
       }
 
-      if (autoPlay && deck) {
+      if (attachedToBus && deck && track.id) {
+        // Take the playlist's song over where it is — the bar kept playing
+        // while we decoded, so there's no restart, just a 60 ms crossfade.
+        const transport: DeckTransport = {
+          toggle: () => togglePlayRef.current(),
+          seek: (sec: number) => seekRef.current(sec),
+          time: () => deckRef.current?.currentTime ?? 0,
+          duration: () => deckRef.current?.duration ?? 0,
+          playing: () => !!deckRef.current?.isPlaying,
+        };
+        const h = audioBus.beginDeckHandoff(track.id, transport);
+        handedOverRef.current = !!h;
+        if (h) {
+          deck.seek(Math.min(h.time, Math.max(0, deck.duration - 0.05)));
+          setCurrentTime(h.time);
+          if (h.playing) {
+            deck.setVolume(0);
+            deck.play();
+            setIsPlaying(true);
+            for (let i = 1; i <= 6; i++) setTimeout(() => { try { deckRef.current?.setVolume(otherAudioFactor() * (i / 6)); } catch { /* */ } }, i * 10);
+          }
+        }
+      } else if (autoPlay && deck) {
         deck.play();
         setIsPlaying(true);
       }
@@ -291,6 +330,17 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
     return () => {
       active = false;
       if (analysisCancelRef.current) analysisCancelRef.current.cancelled = true;
+      // Collapse to compact: give the song back to the bar where the deck is.
+      if (attachedToBus && handedOverRef.current && deckRef.current && track.id) {
+        const d = deckRef.current;
+        audioBus.endDeckHandoff(track.id, d.currentTime, d.isPlaying);
+        handedOverRef.current = false;
+        // Fade the deck out across the bar's 60 ms fade-in, then stop — an
+        // equal crossfade rather than a dip.
+        for (let i = 1; i <= 6; i++) setTimeout(() => { try { d.setVolume(otherAudioFactor() * (1 - i / 6)); } catch { /* */ } }, i * 10);
+        setTimeout(() => { try { d.stop(); } catch { /* */ } }, 75);
+        return;
+      }
       if (deckRef.current) deckRef.current.stop();
     };
   }, [track.url, track.id]);
@@ -369,6 +419,12 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
     // Use platformAudio for routing
   }, [soundPads]);
 
+  // Latest handlers for the playlist bar's remote control while attached.
+  const togglePlayRef = useRef<() => void>(() => {});
+  const seekRef = useRef<(sec: number) => void>(() => {});
+  const handedOverRef = useRef(false);
+  const endedSentRef = useRef(false);
+
   // ── 3. Playback Controls — delegated to deck engine ──
   const togglePlay = () => {
     const deck = deckRef.current;
@@ -402,6 +458,8 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
   };
 
   const getDeckTime = useCallback(() => deckRef.current?.currentTime ?? 0, []);
+  togglePlayRef.current = () => togglePlay();
+  seekRef.current = (sec: number) => handleSeek(sec);
 
   const handleSeek = (timeSec: number) => {
     const deck = deckRef.current;
@@ -420,6 +478,7 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
         if (deck.currentTime >= deck.duration && !deck.activeLoop) {
           setIsPlaying(false);
         }
+        endedSentRef.current = false;
       }
       syncLoopFromDeck();
       rafRef.current = requestAnimationFrame(tick);
@@ -428,6 +487,25 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
   }, [isPlaying]);
+
+  // ── 4b. Attached to the playlist: report progress + advance at song end.
+  // A timer, not rAF — rAF stops in background tabs, and the playlist must
+  // still move on to the next song when nobody is looking at this window.
+  useEffect(() => {
+    if (!attachedToBus || !track.id) return;
+    const id = setInterval(() => {
+      const deck = deckRef.current;
+      if (!deck || !handedOverRef.current) return;
+      audioBus.reportDeck(track.id!, deck.currentTime, deck.duration, deck.isPlaying);
+      if (deck.isPlaying) { endedSentRef.current = false; return; }
+      if (deck.duration > 0 && deck.currentTime >= deck.duration - 0.05 && !deck.activeLoop && !endedSentRef.current) {
+        endedSentRef.current = true;
+        handedOverRef.current = false;
+        audioBus.deckEnded(track.id!);
+      }
+    }, 200);
+    return () => clearInterval(id);
+  }, [attachedToBus, track.id]);
 
   // ── 5. EQ Updates — uses shared deck engine (matches DJ Mode: -24dB to +6dB) ──
   const handleEqChange = (band: 'low' | 'mid' | 'high', val: number) => {
@@ -585,10 +663,12 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1 text-white/50 hover:text-red-400 rounded hover:bg-white/10 transition-all"
-            title="Close Player"
+            className={attachedToBus
+              ? 'px-2 py-0.5 text-[10px] font-bold text-white/70 hover:text-white rounded bg-white/5 hover:bg-white/15 border border-white/10 transition-all flex items-center gap-1'
+              : 'p-1 text-white/50 hover:text-red-400 rounded hover:bg-white/10 transition-all'}
+            title={attachedToBus ? 'Back to the compact player — the song keeps playing' : 'Close Player'}
           >
-            <X size={14} />
+            {attachedToBus ? <><ChevronDown size={12} /> Compact</> : <X size={14} />}
           </button>
         </div>
       </div>

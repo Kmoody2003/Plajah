@@ -50,7 +50,9 @@ import { MILKDROP_PREFIX } from '../../services/ambo/layerSources';
 import { type AmboDJTrack } from './AmboDJTrackPlayer';
 import { AmboNewAudioPlaylistModal, type AmboAudioPlaylist } from './AmboNewAudioPlaylistModal';
 import AmboChoraAudioPanel from './AmboChoraAudioPanel';
+import AmboScriptureLook from './AmboScriptureLook';
 import { rememberLyrics } from '../../services/ambo/lyricFeed';
+import { AmboSlideTemplateEntry } from './AmboSlideTemplateGallery';
 
 export type AmboLibraryTab =
   | 'shows'
@@ -85,6 +87,8 @@ interface AmboTabbedLibraryProps {
   onTakeAudioTrack?: (track: AmboDJTrack) => void;
   onInsertAudioSlide?: (track: AmboDJTrack) => void;
   onInsertMediaSlide?: (item: AmboMediaSourceItem) => void;
+  /** Insert a Tela-designed slide template into the active show (Shows tab). */
+  onInsertTemplateSlide?: (slide: Slide) => void;
   currentPlayingAudioId?: string | null;
   nativeSources: NativeSourceInfo[];
   onScanNdi: () => void;
@@ -306,6 +310,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   onTakeAudioTrack,
   onInsertAudioSlide,
   onInsertMediaSlide,
+  onInsertTemplateSlide,
   currentPlayingAudioId,
   nativeSources,
   onScanNdi,
@@ -1326,6 +1331,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
 
         {/* Global Search Bar & Collapse Button */}
         <div className="flex items-center gap-2 pl-2">
+          {activeTab === 'scripture' && <AmboScriptureLook />}
           {activeTab === 'scripture' && isScriptureLive && (
             <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-[#E3C57E]/20 text-[#E3C57E] border border-[#E3C57E]/40 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-[#E3C57E] animate-pulse" />
@@ -1686,6 +1692,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                   {cat}
                 </button>
               ))}
+              {/* Tela slide templates — opens the template gallery (inserts into the active show) */}
+              <AmboSlideTemplateEntry onInsert={onInsertTemplateSlide} activeShowTitle={shows.find(sh => sh.id === activeShowId)?.title} />
             </div>
             <div className="flex-1 p-3 overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {shows.map(show => {

@@ -16,7 +16,7 @@ import { createPortal } from 'react-dom';
 import {
   Search, Plus, Music, ChevronLeft, Sparkles, Volume2, Play, ListPlus, ListMusic,
   Shuffle, StickyNote, LayoutGrid, List as ListIcon, FolderOpen, ArrowUp, ArrowDown,
-  Trash2, MoreHorizontal, Check, CornerDownRight, Cloud, HardDrive, Layers,
+  Trash2, MoreHorizontal, Check, CornerDownRight, Cloud, HardDrive, Layers, Disc3,
 } from 'lucide-react';
 import type { Album } from '../../types';
 import type { AmboDJTrack } from './AmboDJTrackPlayer';
@@ -213,6 +213,11 @@ export const AmboChoraAudioPanel: React.FC<Props> = (p) => {
         className="px-2 py-1 rounded text-[10px] font-bold text-[#0b0812] bg-[#D0BCFF] hover:bg-white transition-all flex items-center gap-1"
         title={activePlaylist ? 'Play the playlist from this song (audio bus)' : 'Play now on the audio bus — runs independently of slides'}
       ><Play size={10} fill="currentColor" /> Play</button>
+      <button
+        onClick={() => p.onPlayAudioTrack?.(t)}
+        className="px-2 py-1 rounded text-[10px] font-bold text-white bg-[#FF8C00]/80 hover:bg-[#FF8C00] transition-all flex items-center gap-1"
+        title="Play in the DJ deck — the expanded player with waveform, EQ, loops and hot cues"
+      ><Disc3 size={10} /> DJ</button>
       <button
         onClick={() => bus.enqueue([toBus(t, activePlaylist?.id)])}
         className="p-1 rounded text-white/70 hover:text-white bg-white/5 hover:bg-white/15 border border-white/10"

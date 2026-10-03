@@ -14,7 +14,13 @@ import { amboAudio } from './amboAudioEngine';
 import type { LayerContent } from './showModel';
 import { lyricClockPos } from './showModel';
 import { lyricStyleById, renderLyricFrame } from './lyricStyles';
-import { drawScriptureGraphic } from '../scriptureGraphic';
+import { createTelaTemplateSource } from './telaTemplateSource';
+import { renderScripture, scriptureLayoutById, transitionById } from './scriptureLayouts';
+import { decoAlpha, type ScriptureState } from './scriptureKit';
+import { getScriptureLook, subscribeScriptureLook } from './scriptureLook';
+import { TypoScriptureBackground } from './typoScriptureBackground';
+import { chapterContextFor } from './scriptureContext';
+// (scripture is drawn by scriptureLayouts via ScriptureSource)
 import {
   createSlideBox, createScriptureBox, createScriptureWithReferenceBoxes,
   renderAutoFitText, autoFitFontSize, autoFlowText,
@@ -120,35 +126,200 @@ export class TextSource implements LayerSource {
 export class ScriptureSource implements LayerSource {
   readonly kind = 'SCRIPTURE';
   private canvas: HTMLCanvasElement;
+  private prev: HTMLCanvasElement | null = null;   // outgoing frame during a LOOK change crossfade
+  /** Text-only verse change: the outgoing verse, animated out over a held background. */
+  private swapFrom: { text: string; reference: string; translation?: string } | null = null;
+  private swapAt = 0;
+  private swapMs = 0;
+  /** Blend mode output: background art and text rendered as separate parts. */
+  private bgCanvas: HTMLCanvasElement | null = null;
+  private textCanvas: HTMLCanvasElement | null = null;
+  private lastParts: Array<{ img: CanvasImageSource; blend?: GlobalCompositeOperation; alpha?: number }> | null = null;
+  private born = typeof performance !== 'undefined' ? performance.now() : 0;
+  private changeAt = 0;
+  private exitAt = 0;
+  private exitMs = 0;
   private dirty = true;
+  private typo: TypoScriptureBackground | null = null;
+  /** Live Pixels generator for looks that declare `generator`. */
+  private gen: LayerSource | null = null;
+  private genMode = '';
+  private offLook: () => void;
+  private static readonly VERSE_XFADE_MS = 350;
+  /** The chapter's other verses from Lectio, for typographic backgrounds. */
+  private context: string[] | null = null;
+  private contextKey = '';
+  /** Background motion clock + smoothed rate (eases between hold and transition speeds). */
+  private mt = 0;
+  private rate = 1;
+  private lastNow = 0;
 
   constructor(private content: Extract<LayerContent, { kind: 'SCRIPTURE' }>, private w = 1920, private h = 1080) {
     this.canvas = off(w, h);
+    // A look change (layout/transition/accent) repaints every screen showing it.
+    this.offLook = subscribeScriptureLook(() => { this.dirty = true; this.syncTypo(); });
+    this.syncTypo();
+    this.loadContext();
+  }
+
+  /** Ask Lectio for the rest of the chapter (cached there; async). */
+  private loadContext() {
+    const key = `${this.content.reference}|${this.content.translation ?? ''}`;
+    if (key === this.contextKey) return;
+    this.contextKey = key;
+    void chapterContextFor(this.content.reference, this.content.translation).then(ctx => {
+      if (this.contextKey !== key || !ctx) return;
+      this.context = ctx.others.map(v => `${v.verse} ${v.text}`);
+      this.dirty = true;
+      if (this.typo && this.context.length) this.typo.setText(ctx.others.slice(0, 6).map(v => v.text).join(' '));
+    });
+  }
+
+  private text() { return (this.content.lines ?? []).join(' ').replace(/\s+/g, ' ').trim(); }
+  private layoutId() { return this.content.layoutId ?? getScriptureLook().layoutId; }
+  private transition() { return this.content.transition ?? getScriptureLook().transition; }
+  private accent() { return this.content.accent ?? getScriptureLook().accent; }
+
+  /** Start/stop the TYPO-engine background when the layout wants one. */
+  private syncTypo() {
+    if (typeof document === 'undefined') return;
+    const vol = scriptureLayoutById(this.layoutId()).typoVolume;
+    if (vol && !this.typo) this.typo = new TypoScriptureBackground(this.w, this.h, vol, this.context?.length ? this.context.slice(0, 6).join(' ') : this.text());
+    else if (!vol && this.typo) { this.typo.dispose(); this.typo = null; }
+    // Pixels generator background (half-res: it's atmosphere behind type).
+    const mode = scriptureLayoutById(this.layoutId()).generator || '';
+    if (mode !== this.genMode) {
+      this.gen?.dispose(); this.gen = null; this.genMode = mode;
+      if (mode) this.gen = new GeneratorSource({ kind: 'GENERATOR', mode } as any, Math.min(960, Math.round(this.w / 2)), Math.min(540, Math.round(this.h / 2)));
+    }
   }
 
   update(content: Extract<LayerContent, { kind: 'SCRIPTURE' }>) {
+    const textChanged = (content.lines ?? []).join('|') !== (this.content.lines ?? []).join('|') || content.reference !== this.content.reference;
+    const lookChanged = content.layoutId !== this.content.layoutId;
+    if (typeof document !== 'undefined') {
+      if (lookChanged) {
+        // A different look: crossfade the whole frame.
+        if (!this.prev) this.prev = off(this.w, this.h);
+        const pc = this.prev.getContext('2d');
+        if (pc) { pc.clearRect(0, 0, this.w, this.h); pc.drawImage(this.canvas, 0, 0); }
+        this.changeAt = performance.now();
+      } else if (textChanged) {
+        // Verse → verse: ONLY the text transitions; the background stays up.
+        this.swapFrom = { text: this.text(), reference: this.content.reference ?? '', translation: this.content.translation };
+        this.swapAt = performance.now();
+        const vt = transitionById(content.verseTransition ?? getScriptureLook().verseTransition);
+        this.swapMs = Math.max(350, vt.inSec * 800);
+      }
+    }
     this.content = content;
     this.dirty = true;
+    if (textChanged || lookChanged) { this.syncTypo(); this.loadContext(); }
   }
 
-  private render() {
+  private blend(): { mode: GlobalCompositeOperation; alpha: number } {
+    const mode = (this.content.bgBlend ?? getScriptureLook().bgBlend ?? 'normal') as string;
+    const alpha = this.content.bgOpacity ?? getScriptureLook().bgOpacity ?? 1;
+    return { mode: (mode === 'normal' ? 'source-over' : mode) as GlobalCompositeOperation, alpha };
+  }
+
+  /** Blend mode active → background art and text as separate parts for the compositor. */
+  parts(): Array<{ img: CanvasImageSource; blend?: GlobalCompositeOperation; alpha?: number }> | null {
+    const b = this.blend();
+    if (b.mode === 'source-over' && b.alpha >= 1) return null;
+    this.frame();
+    return this.lastParts;
+  }
+
+  /** Called by LayerRenderer when the slot is cleared: play the exit, return its length. */
+  beginExit(): number {
+    this.exitAt = performance.now();
+    this.exitMs = transitionById(this.transition()).outSec * 1000;
+    return this.exitMs;
+  }
+
+  frame() {
     const ctx = this.canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, this.w, this.h);
-    drawScriptureGraphic(ctx, {
-      lines: this.content.lines ?? [],
-      reference: this.content.reference ?? '',
-      variant: 'FULLSCREEN',
-      width: this.w,
-      height: this.h,
-    });
-    this.dirty = false;
-  }
+    if (!ctx) return null;
+    const now = performance.now();
+    const layout = scriptureLayoutById(this.layoutId());
+    const tr = transitionById(this.transition());
+    const t = (now - this.born) / 1000;
+    const enterP = Math.min(1, t / tr.inSec);
+    const exitP = this.exitAt ? Math.min(1, (now - this.exitAt) / Math.max(1, this.exitMs)) : 0;
+    const xfading = this.prev && now - this.changeAt < ScriptureSource.VERSE_XFADE_MS;
+    // Motion clock: subtle–moderate while the verse holds, dynamic through
+    // entrances, exits and verse changes; eased so speed never jumps.
+    const dt = this.lastNow ? Math.min(0.1, (now - this.lastNow) / 1000) : 0;
+    this.lastNow = now;
+    const target = 1 + 3 * (1 - enterP) + 3 * exitP + (xfading ? 1.6 : 0);
+    this.rate += (target - this.rate) * Math.min(1, dt * 6);
+    this.mt += dt * this.rate;
+    const settled = enterP >= 1 && !exitP && !xfading && !layout.animated && !this.typo && !this.gen && !this.swapFrom;
+    if (settled && !this.dirty) return this.canvas;
 
-  frame() { if (this.dirty) this.render(); return this.canvas; }
+    const base: ScriptureState = {
+      w: this.w, h: this.h, t,
+      text: this.text(),
+      reference: this.content.reference ?? '',
+      translation: this.content.translation,
+      copyright: this.content.copyright,
+      accent: this.accent(),
+      enterP, exitP,
+      transition: tr.id,
+      typoFrame: this.typo?.frame(now) ?? null,
+      context: this.context ?? undefined,
+      mt: this.mt,
+      genFrame: this.gen ? (this.gen.frame(t) as CanvasImageSource | null) : null,
+    };
+    // Text-only verse swap in progress?
+    const swapP = this.swapFrom ? Math.min(1, (now - this.swapAt) / Math.max(1, this.swapMs)) : 1;
+    if (this.swapFrom && swapP >= 1) this.swapFrom = null;
+    const vt = transitionById(this.content.verseTransition ?? getScriptureLook().verseTransition).id;
+    const heldDeco = decoAlpha(base);
+    /** Draw the verse text (incoming, and outgoing during a swap) — decoration per `deco`. */
+    const drawText = (c: CanvasRenderingContext2D, deco: number | undefined) => {
+      if (this.swapFrom) {
+        renderScripture(c, layout.id, { ...base, decoP: deco ?? heldDeco, enterP: swapP, exitP: 0, transition: vt });
+        renderScripture(c, layout.id, { ...base, text: this.swapFrom.text, reference: this.swapFrom.reference, translation: this.swapFrom.translation, decoP: 0, enterP: 1, exitP: swapP, transition: vt });
+      } else {
+        renderScripture(c, layout.id, deco === undefined ? base : { ...base, decoP: deco });
+      }
+    };
+
+    const b = this.blend();
+    ctx.clearRect(0, 0, this.w, this.h);
+    if (b.mode === 'source-over' && b.alpha >= 1) {
+      drawText(ctx, undefined);
+      this.lastParts = null;
+    } else {
+      // Two parts: background art (blended onto the layers beneath by the
+      // compositor) and the verse (normal), so the words stay crisp.
+      if (!this.bgCanvas) this.bgCanvas = off(this.w, this.h);
+      if (!this.textCanvas) this.textCanvas = off(this.w, this.h);
+      const bc = this.bgCanvas.getContext('2d')!, tc = this.textCanvas.getContext('2d')!;
+      bc.clearRect(0, 0, this.w, this.h); tc.clearRect(0, 0, this.w, this.h);
+      renderScripture(bc, layout.id, { ...base, noText: true });
+      drawText(tc, 0);
+      this.lastParts = [{ img: this.bgCanvas, blend: b.mode, alpha: b.alpha }, { img: this.textCanvas }];
+      // Combined frame for consumers that don't composite parts (thumbnails, legacy views).
+      ctx.save(); ctx.globalAlpha = b.alpha; ctx.drawImage(this.bgCanvas, 0, 0); ctx.restore();
+      ctx.drawImage(this.textCanvas, 0, 0);
+    }
+    // Look change: fade the previous look's frame out over the new one.
+    if (xfading && this.prev) {
+      ctx.globalAlpha = 1 - (now - this.changeAt) / ScriptureSource.VERSE_XFADE_MS;
+      ctx.drawImage(this.prev, 0, 0);
+      ctx.globalAlpha = 1;
+    } else if (this.prev && !xfading) {
+      this.prev = null;
+    }
+    this.dirty = false;
+    return this.canvas;
+  }
   size() { return { w: this.w, h: this.h }; }
   ready() { return !!(this.content.lines?.length); }
-  dispose() { /* */ }
+  dispose() { this.offLook(); this.typo?.dispose(); this.typo = null; this.gen?.dispose(); this.gen = null; }
 }
 
 // ── Image ────────────────────────────────────────────────────────────────────
@@ -1049,6 +1220,7 @@ export function createSource(
     case 'AUDIO': return audioEnabled ? new AudioSource(content) : null;
     case 'TEXT': return new TextSource(content, frame.w, frame.h);
     case 'LYRICS': return new LyricSource(content, frame.w, frame.h);
+    case 'TELA_TEMPLATE': return createTelaTemplateSource(content, frame.w, frame.h);
     case 'SCRIPTURE': return new ScriptureSource(content, frame.w, frame.h);
     case 'IMAGE': return new ImageSource(content.src);
     case 'VIDEO': return new VideoSource(content, audioEnabled);
@@ -1072,6 +1244,7 @@ export function canUpdateInPlace(a: LayerContent, b: LayerContent): boolean {
   if (a.kind === 'TEXT' || a.kind === 'SCRIPTURE') return true;
   // A re-anchored clock, a new style or the next song: repaint, never rebuild.
   if (a.kind === 'LYRICS') return true;
+  if (a.kind === 'TELA_TEMPLATE') return true; // field edits repaint
   if (a.kind === 'IMAGE' && b.kind === 'IMAGE') return a.src === b.src;
   if (a.kind === 'VIDEO' && b.kind === 'VIDEO') return a.src === b.src;
   if (a.kind === 'LIVE' && b.kind === 'LIVE') return a.inputId === b.inputId;

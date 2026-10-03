@@ -69,11 +69,16 @@ import { AmboNewShowModal } from './AmboNewShowModal';
 import { AmboProjectSwitcherModal } from './AmboProjectSwitcherModal';
 import { AmboImportModal } from './AmboImportModal';
 import AmboDJTrackPlayer, { type AmboDJTrack } from './AmboDJTrackPlayer';
-import AmboAudioBus from './AmboAudioBus';
+import AmboAudioBus, { useAudioBus } from './AmboAudioBus';
 import AmboLyricsControl from './AmboLyricsControl';
 import AmboMixer from './AmboMixer';
 import { amboAudio } from '../../services/ambo/amboAudioEngine';
-import { bus as audioBus } from '../../services/ambo/audioBus';
+import { stampScripture } from '../../services/ambo/scriptureLook';
+
+/** Stamp the operator's scripture look onto the verse as it goes to the outputs (mesh devices have no shared storage). */
+const withScriptureLook = (stack: LiveStack): LiveStack =>
+  stack.scripture ? { ...stack, scripture: { ...stack.scripture, content: stampScripture(stack.scripture.content) } } : stack;
+import { bus as audioBus, type BusTrack } from '../../services/ambo/audioBus';
 import { setProgramVideoAudible } from '../../services/ambo/audioPriority';
 import { AmboLedWallCanvas } from './AmboLedWallCanvas';
 import { AmboVideoTransportBar } from './AmboVideoTransportBar';
@@ -628,7 +633,38 @@ useEffect(() => {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // DJ Per-Track Audio Player State (horizontal waveform, cue points, FX, EQ, loops)
-  const [activeDjTrack, setActiveDjTrack] = useState<AmboDJTrack | null>(null);
+  // ── Player: compact bar ⇄ expanded DJ deck — two views of ONE song ──
+  // The DJ deck is the expanded view of the audio playlist's current song (it
+  // takes the song over at the same position; nothing restarts). Compact is
+  // the default; the DJ buttons on songs open them straight into the deck.
+  const [activeDjTrack, setActiveDjTrackState] = useState<AmboDJTrack | null>(null);
+  const [playerMode, setPlayerMode] = useState<'compact' | 'expanded'>('compact');
+  const busSnap = useAudioBus();
+  const busTrack = busSnap.queue[busSnap.index] ?? null;
+  useEffect(() => {
+    if (playerMode === 'expanded' && busTrack) {
+      setActiveDjTrackState(prev => (prev?.id === busTrack.id && (prev as any).__seq === busSnap.loadSeq ? prev : ({ ...busTrack, __seq: busSnap.loadSeq } as AmboDJTrack)));
+    } else {
+      setActiveDjTrackState(null);
+    }
+  }, [playerMode, busTrack?.id, busSnap.loadSeq]);
+  /** Open a song in the DJ deck (expanded), or collapse to compact with null. */
+  const setActiveDjTrack = (track: AmboDJTrack | null) => {
+    if (!track) { setPlayerMode('compact'); return; }
+    const bt: BusTrack = {
+      id: track.id || `t_${track.title}`, title: track.title, artist: track.artist, url: track.url,
+      coverImage: track.coverImage, duration: track.duration, key: track.key, bpm: track.bpm,
+      category: track.category, timeCodedLyrics: track.timeCodedLyrics,
+      source: (track as any).source ?? (track.category === 'Audius' ? 'audius' : 'chora'),
+    };
+    const cur = audioBus.state.queue[audioBus.state.index];
+    if (!cur || cur.id !== bt.id) {
+      audioBus.playNext(bt);
+      const idx = audioBus.state.queue.findIndex(t => t.id === bt.id);
+      if (idx >= 0 && idx !== audioBus.state.index) audioBus.jumpTo(idx);
+    }
+    setPlayerMode('expanded');
+  };
   const [isDjLiveOnProgram, setIsDjLiveOnProgram] = useState(false);
   const [isDjCuedInPreview, setIsDjCuedInPreview] = useState(false);
   const [djVisualizerEnabled, setDjVisualizerEnabled] = useState(false);
@@ -771,7 +807,7 @@ useEffect(() => {
   // Sync Live Stack & Timers to physical output windows
   useEffect(() => {
     if (!routerRef.current) return;
-    routerRef.current.send(effectiveLiveStack, { elapsed });
+    routerRef.current.send(withScriptureLook(effectiveLiveStack), { elapsed });
   }, [effectiveLiveStack, elapsed]);
 
   // Cleanup output windows and stop orphaned audio on window close or unmount
@@ -831,7 +867,7 @@ useEffect(() => {
     if (success) {
       setIsProgramWindowOpen(true);
       // Same stack the program monitor shows — master-off and blackout included.
-      routerRef.current.send(effectiveLiveStack, { elapsed });
+      routerRef.current.send(withScriptureLook(effectiveLiveStack), { elapsed });
     }
   };
 
@@ -1106,6 +1142,17 @@ useEffect(() => {
       return { ...sh, slides: [...sh.slides, newSlide] };
     }));
     setSelected(slides.length);
+  };
+
+  // Tela slide template (from the Shows-tab gallery): insert after the selected slide.
+  const handleInsertTemplateSlide = (newSlide: Slide) => {
+    setLibrary(libs => libs.map(sh => {
+      if (sh.id !== activeShow.id) return sh;
+      const next = [...sh.slides];
+      next.splice(selected >= 0 ? Math.min(selected + 1, next.length) : next.length, 0, newSlide);
+      return { ...sh, slides: next };
+    }));
+    setSelected(prev => (prev >= 0 ? prev + 1 : 0));
   };
 
   const [isDraggingOverDeck, setIsDraggingOverDeck] = useState(false);
@@ -3362,15 +3409,20 @@ useEffect(() => {
       </div>
 
       {/* ── AUDIO PLAYLIST BUS — independent of the layer stack ── */}
-      <AmboAudioBus controlsSlot={<><AmboMixer /><AmboLyricsControl live={liveLyrics} onSet={setLyricsLayer} /></>} />
+      <AmboAudioBus
+        deckOpen={playerMode === 'expanded'}
+        onToggleDeck={() => setPlayerMode(m => (m === 'expanded' ? 'compact' : 'expanded'))}
+        controlsSlot={<><AmboMixer /><AmboLyricsControl live={liveLyrics} onSet={setLyricsLayer} /></>} />
 
       {/* ── BROADCAST PER-TRACK DJ AUDIO PLAYER & HORIZONTAL WAVEFORM ── */}
       {activeDjTrack && (
         <div className="flex-none z-20">
           <AmboDJTrackPlayer
+            key={`${activeDjTrack.id || activeDjTrack.title}:${(activeDjTrack as any).__seq ?? 0}`}
             track={activeDjTrack}
+            attachedToBus
             onClose={() => {
-              setActiveDjTrack(null);
+              setPlayerMode('compact');
               setIsDjLiveOnProgram(false);
               setIsDjCuedInPreview(false);
             }}
@@ -3495,6 +3547,7 @@ useEffect(() => {
           shows={library}
           activeShowId={activeShowId}
           onSelectShow={setActiveShowId}
+          onInsertTemplateSlide={handleInsertTemplateSlide}
           isScriptureLive={!!live.scripture}
           activeTransition={activeTransition}
           transitionDurationSec={transitionDurationSec}

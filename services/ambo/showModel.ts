@@ -111,7 +111,22 @@ export type LayerContent =
   | { kind: 'GENERATOR'; mode: string; params?: Record<string, number | string> }
   | { kind: 'SHADER'; src: string; params?: Record<string, number> }
   | { kind: 'LOTTIE'; src: string; speed?: number; loop?: boolean }
-  | { kind: 'SCRIPTURE'; refId: string; translation?: string; lines?: string[]; reference?: string }
+  | { kind: 'SCRIPTURE'; refId: string; translation?: string; lines?: string[]; reference?: string;
+      /** scriptureLayouts.ts look — adapts to every output's aspect ratio. */
+      layoutId?: string;
+      /** Entrance transition when scripture comes up from clear (default 'crossfade'). */
+      transition?: string;
+      copyright?: string;
+      accent?: string;
+      /** Text-only transition between verses (background stays up). */
+      verseTransition?: string;
+      /** Background-art blend onto the layers below + its opacity. */
+      bgBlend?: string;
+      bgOpacity?: number }
+  /** A Tela-designed slide template, regenerated at each output's size. */
+  | { kind: 'TELA_TEMPLATE'; templateId: string; fields: Record<string, string>; theme?: string;
+      /** Background-art blend onto the layers below + its opacity (text stays normal). */
+      bgBlend?: string; bgOpacity?: number }
   | { kind: 'TIMER'; timerId: string; format?: 'mm:ss' | 'hh:mm:ss' | 'countdown' }
   | { kind: 'CLOCK'; format?: string }
   | { kind: 'LIVE'; inputId: string; stream?: MediaStream; label?: string; fit?: 'cover' | 'contain' | 'fill' }

@@ -60,6 +60,19 @@ export interface BusState {
   /** The current song couldn't be routed through the mixer (no CORS, proxy
    *  failed) and is playing directly: audible, but no meters/FX/visualizers. */
   unmetered: boolean;
+  /** The expanded DJ deck is playing this song (compact bar = remote control). */
+  deck: boolean;
+  /** Increments every time a song is (re)loaded — an expanded deck re-attaches on change. */
+  loadSeq: number;
+}
+
+/** What the DJ deck exposes while it holds the playlist's song. */
+export interface DeckTransport {
+  toggle(): void;
+  seek(sec: number): void;
+  time(): number;
+  duration(): number;
+  playing(): boolean;
 }
 
 const KEY = 'ambo_audio_bus_v1';
@@ -122,7 +135,7 @@ class AudioBus {
   state: BusState = {
     queue: [], index: -1, playing: false, heldByVideo: false,
     currentTime: 0, duration: 0, volume: 0.8, muted: false,
-    shuffle: false, repeat: 'all', crossfadeSec: 0, error: null, unmetered: false,
+    shuffle: false, repeat: 'all', crossfadeSec: 0, error: null, unmetered: false, deck: false, loadSeq: 0,
   };
 
   constructor() {
@@ -278,6 +291,10 @@ class AudioBus {
   private pendingAutoplay = false;
 
   private load(index: number, autoplay: boolean, crossfade = false, mode: RouteMode = 'cors') {
+    // A new song ends any deck handover — the element plays it; an expanded
+    // deck re-attaches to the new song itself.
+    if (this.deckT) { this.deckT = null; this.deckTrackId = null; this.state.deck = false; }
+    this.state.loadSeq++;
     const t = this.state.queue[index];
     if (!t) { this.stop(); return; }
     const url = resolveUrl(t);
@@ -448,7 +465,10 @@ class AudioBus {
     this.set({}, true);
   }
 
-  toggle() { this.state.playing ? this.pause() : this.play(); }
+  toggle() {
+    if (this.deckT) { this.deckT.toggle(); return; }
+    this.state.playing ? this.pause() : this.play();
+  }
 
   play() {
     if (this.state.index < 0) { if (this.state.queue.length) this.load(this.order[0] ?? 0, true); return; }
@@ -484,11 +504,14 @@ class AudioBus {
   next() { this.advance(1, this.state.crossfadeSec > 0); }
   prev() {
     // Like every player: restart the song unless we're at its top.
-    if (this.a && this.a.currentTime > 3) { this.a.currentTime = 0; return; }
+    if (this.exactTime() > 3) { this.seek(0); return; }
     this.advance(-1);
   }
 
-  seek(sec: number) { if (this.a) { this.a.currentTime = sec; this.set({ currentTime: sec }); } }
+  seek(sec: number) {
+    if (this.deckT) { this.deckT.seek(sec); this.set({ currentTime: sec }); return; }
+    if (this.a) { this.a.currentTime = sec; this.set({ currentTime: sec }); }
+  }
 
   setVolume(v: number) {
     this.state.volume = Math.min(1, Math.max(0, v));
@@ -504,8 +527,84 @@ class AudioBus {
   release() { this.pause(); }
 
   /** Sample-exact position, straight from the element (state is ~4 Hz). */
-  exactTime(): number { return this.a?.currentTime ?? this.state.currentTime; }
-  isAudiblyPlaying(): boolean { return !!this.a && !this.a.paused && this.state.playing && !this.state.heldByVideo; }
+  exactTime(): number {
+    if (this.deckT) return this.deckT.time();
+    return this.a?.currentTime ?? this.state.currentTime;
+  }
+  isAudiblyPlaying(): boolean {
+    if (this.deckT) return this.deckT.playing();
+    return !!this.a && !this.a.paused && this.state.playing && !this.state.heldByVideo;
+  }
+
+  // ── Compact ⇄ DJ deck handover ─────────────────────────────────────────────
+  // The thin bar and the DJ deck are two views of ONE song. The bar streams it
+  // through an <audio> element; the deck needs the decoded buffer (waveform,
+  // sample-accurate loops, EQ). So the song keeps playing in the bar while the
+  // deck decodes, then the deck takes over at the same position with a 60 ms
+  // crossfade — and hands it back the same way on collapse.
+  private deckT: DeckTransport | null = null;
+  private deckTrackId: string | null = null;
+  private lastDeckReport = 0;
+
+  /**
+   * The deck is ready to take over `trackId`. Returns where the song is and
+   * whether it's playing (the deck starts there), or null if the playlist has
+   * moved on to another song meanwhile.
+   */
+  beginDeckHandoff(trackId: string, transport: DeckTransport): { time: number; playing: boolean } | null {
+    const cur = this.state.queue[this.state.index];
+    if (!cur || cur.id !== trackId) return null;
+    const e = this.a;
+    const time = e ? e.currentTime : this.state.currentTime;
+    const playing = this.state.playing && !this.state.heldByVideo;
+    this.deckT = transport;
+    this.deckTrackId = trackId;
+    if (e) this.rampTo(0, 0.06, () => { try { e.pause(); } catch { /* */ } });
+    this.set({ deck: true });
+    return { time, playing };
+  }
+
+  /** The deck closed (collapse to compact): resume the element where the deck was. */
+  endDeckHandoff(trackId: string, time: number, playing: boolean) {
+    if (this.deckTrackId !== trackId) return;
+    this.deckT = null;
+    this.deckTrackId = null;
+    const cur = this.state.queue[this.state.index];
+    if (cur && cur.id === trackId && this.a) {
+      const e = this.a;
+      try { e.currentTime = time; } catch { /* */ }
+      if (playing && !this.state.heldByVideo) {
+        e.volume = 0;
+        void e.play().catch(() => {});
+        this.rampTo(this.gain(), 0.06);
+      }
+      this.set({ deck: false, playing, currentTime: time });
+    } else {
+      this.set({ deck: false });
+    }
+  }
+
+  /** The deck reached the end of the song: carry on with the playlist. */
+  deckEnded(trackId: string) {
+    if (this.deckTrackId !== trackId) return;
+    this.deckT = null;
+    this.deckTrackId = null;
+    this.set({ deck: false });
+    if (this.state.repeat === 'one') { this.load(this.state.index, true); return; }
+    this.advance(1);
+  }
+
+  /** The deck reports progress so the compact bar keeps showing it (≈5 Hz). */
+  reportDeck(trackId: string, time: number, duration: number, playing: boolean) {
+    if (this.deckTrackId !== trackId) return;
+    const now = performance.now();
+    if (now - this.lastDeckReport < 200 && playing === this.state.playing) return;
+    this.lastDeckReport = now;
+    this.state.currentTime = time;
+    this.state.duration = duration;
+    this.state.playing = playing;
+    this.notify();
+  }
 }
 
 export const bus = new AudioBus();

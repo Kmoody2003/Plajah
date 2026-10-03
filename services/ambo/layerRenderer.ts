@@ -44,6 +44,8 @@ export class LayerRenderer {
   private stack: LiveStack = {};
   private opts: RendererOptions = {};
   private running = false;
+  /** Sources playing an exit animation after their slot was cleared. */
+  private ghosts: Array<{ source: LayerSource; until: number }> = [];
 
   constructor(private canvas: HTMLCanvasElement, private frame: RenderFrame = { w: 1920, h: 1080 }) {
     canvas.width = frame.w;
@@ -108,6 +110,20 @@ export class LayerRenderer {
       setTimeout(() => { try { s.dispose(); } catch { /* */ } }, secs * 1000 + 250);
       return;
     }
+    // Visual exits (scripture): keep drawing the outgoing source until its
+    // exit animation completes, then dispose it.
+    if (typeof s.beginExit === 'function') {
+      let ms = 0;
+      try { ms = Number(s.beginExit()) || 0; } catch { ms = 0; }
+      if (ms > 0) {
+        this.ghosts.push({ source: entry.source, until: performance.now() + ms });
+        setTimeout(() => {
+          this.ghosts = this.ghosts.filter(g => g.source !== entry.source);
+          try { entry.source.dispose(); } catch { /* */ }
+        }, ms + 60);
+        return;
+      }
+    }
     entry.source.dispose();
   }
 
@@ -150,19 +166,39 @@ export class LayerRenderer {
     for (const { slot, layer } of compositeOrder(this.stack)) {
       const entry = this.entries.get(slot);
       if (!entry) continue;
-      const img = entry.source.frame(timeSec);
-      if (!img) continue;
+      // A source may supply PARTS (e.g. a look's background art with its own
+      // blend mode, then its text) so art composes onto the layers beneath
+      // while the words stay crisp.
+      const parts = (entry.source as any).parts?.(timeSec) as Array<{ img: CanvasImageSource; blend?: GlobalCompositeOperation; alpha?: number }> | null | undefined;
+      const img = parts ? null : entry.source.frame(timeSec);
+      if (!parts && !img) continue;
 
       ctx.save();
       applyTransform(ctx, layer.transform, w, h);
-      ctx.globalAlpha = layer.transform?.opacity ?? 1;
+      const baseAlpha = layer.transform?.opacity ?? 1;
+      ctx.globalAlpha = baseAlpha;
       if (layer.transform?.blend) ctx.globalCompositeOperation = layer.transform.blend as GlobalCompositeOperation;
 
       const natural = entry.source.size();
-      drawCover(ctx, img, natural, w, h);
+      if (parts) {
+        for (const part of parts) {
+          ctx.save();
+          if (part.blend) ctx.globalCompositeOperation = part.blend;
+          ctx.globalAlpha = baseAlpha * (part.alpha ?? 1);
+          drawCover(ctx, part.img, natural, w, h);
+          ctx.restore();
+        }
+      } else if (img) {
+        drawCover(ctx, img, natural, w, h);
+      }
 
       if (layer.mask) applyMask(ctx, layer.mask, w, h);
       ctx.restore();
+    }
+
+    for (const g of this.ghosts) {
+      const img = g.source.frame(timeSec);
+      if (img) drawCover(ctx, img, g.source.size(), w, h);
     }
 
     if (this.opts.outputMask) {
