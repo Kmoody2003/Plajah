@@ -11,6 +11,10 @@ import { FIGURES as MATH_DATA } from './lessonFigures/math-data';
 import { FIGURES as PHYSICS_SPACE } from './lessonFigures/physics-space';
 import { FIGURES as CHEM_LIFE_EARTH } from './lessonFigures/chem-life-earth';
 import { FIGURES as CS_MIND_HISTORY } from './lessonFigures/cs-mind-history';
+import { FIGURES as HISTORY_CIVICS } from './lessonFigures/history-civics';
+import { FIGURES as ARTS_MUSIC_FINANCE } from './lessonFigures/arts-music-finance';
+import { FIGURES as LAW } from './lessonFigures/law';
+import { FIGURES as MEDICINE } from './lessonFigures/medicine';
 
 const logistic = (t: number, K = 1000, N0 = 10, r = 0.6) => K / (1 + ((K - N0) / N0) * Math.exp(-r * t));
 const expo = (t: number, N0 = 10, r = 0.6) => N0 * Math.exp(r * t);
@@ -65,4 +69,15 @@ export const LESSON_FIGURES: Record<string, Figure[]> = {
 };
 
 // Batch-authored sets (data/lessonFigures/BRIEF.md). Hand-authored entries above win when a lesson appears in both.
-for (const set of [MATH_DATA, PHYSICS_SPACE, CHEM_LIFE_EARTH, CS_MIND_HISTORY]) for (const [id, figs] of Object.entries(set)) if (!LESSON_FIGURES[id]) LESSON_FIGURES[id] = figs;
+for (const set of [MATH_DATA, PHYSICS_SPACE, CHEM_LIFE_EARTH, CS_MIND_HISTORY, HISTORY_CIVICS, ARTS_MUSIC_FINANCE, LAW, MEDICINE]) for (const [id, figs] of Object.entries(set)) if (!LESSON_FIGURES[id]) LESSON_FIGURES[id] = figs;
+
+// Interactive simulators (components/learn/lesson/Sims.tsx), appended to the lesson's other figures.
+const SIMS: Record<string, Figure[]> = {
+  'lab-mathematics.l12': [{ id: 'unit-circle-sim', type: 'sim', sim: 'unitcircle', after: 2, layout: 'wide', title: 'Walk around the unit circle',
+    caption: 'Drag the angle: the point (cos theta, sin theta) always lies 1 unit from the centre, which is why cos squared plus sin squared is always 1.' }],
+  'lab-environment.l03': [{ id: 'logistic-sim', type: 'sim', sim: 'population', after: 2, layout: 'wide', title: 'Change the limits on a population',
+    caption: 'A modelled population starting at 10 individuals: logistic growth levels off at the carrying capacity K, and a faster growth rate r gets there sooner. Not field data.' }],
+  'lab-cs.l07': [{ id: 'bubble-sim', type: 'sim', sim: 'sorting', after: 2, layout: 'wide', title: 'Watch a sort compare and swap',
+    caption: 'Bubble sort is one simple way to sort by comparing pairs. Other methods use fewer comparisons, but the lower bound in this lesson applies to every method that sorts by comparison.' }],
+};
+for (const [id, figs] of Object.entries(SIMS)) LESSON_FIGURES[id] = [...(LESSON_FIGURES[id] || []), ...figs];
