@@ -8,7 +8,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BLEND_MODES, type BlendMode } from '../../services/ambo/scriptureLook';
 import { createPortal } from 'react-dom';
-import { LayoutTemplate, X, Check, Play, Pause, RotateCcw, Plus } from 'lucide-react';
+import { LayoutTemplate, X, Check, Play, Pause, RotateCcw, Plus, Image as ImageIcon, Film, Music, BarChart3, AlertTriangle } from 'lucide-react';
+import { TemplateFieldEditor, trimFieldKeys, isSessionOnlyUrl, splitLines } from './AmboTemplateFieldEditors';
+import type { SlideTemplateDef } from '../../services/ambo/slideTemplates/types';
 import { newId, type Slide } from '../../services/ambo/showModel';
 import { SLIDE_TEMPLATES, TEMPLATE_CATEGORIES, defaultFields, templateById, GROUND_FIELD } from '../../services/ambo/slideTemplates/registry';
 import { SLIDE_THEMES, DEFAULT_THEME_ID, themeById } from '../../services/ambo/slideTemplates/themes';
@@ -33,6 +35,12 @@ const ASPECTS: Array<{ id: string; label: string; w: number; h: number }> = [
 ];
 
 const LILAC = '#D0BCFF', CYAN = '#00DAF3', LIVE = '#FF8C00';
+
+/** Media templates own playback/data — badge them in the list and the category row. */
+type MediaType = NonNullable<SlideTemplateDef['media']>;
+const MEDIA_ICON: Record<MediaType, React.ComponentType<{ size?: number; style?: React.CSSProperties }>> = { photo: ImageIcon, video: Film, audio: Music, data: BarChart3 };
+const CATEGORY_MEDIA: Record<string, MediaType> = { Photo: 'photo', Video: 'video', Audio: 'audio', Data: 'data' };
+const mediaOf = (t: SlideTemplateDef): MediaType | undefined => t.media || CATEGORY_MEDIA[t.category];
 const glass: React.CSSProperties = { background: 'rgba(16,13,28,0.94)', border: '1px solid rgba(255,255,255,0.09)', backdropFilter: 'blur(18px)' };
 
 /** Fit an aspect inside a box. */
@@ -150,6 +158,10 @@ export const AmboSlideTemplateGallery: React.FC<AmboSlideTemplateGalleryProps> =
   const fields = useMemo<Record<string, string>>(() => ({ ...defaultFields(tpl), ...(fieldsById[tpl.id] || {}), [GROUND_FIELD]: translucent ? 'translucent' : 'solid' }), [tpl, fieldsById, translucent]);
   const list = SLIDE_TEMPLATES.filter(t => category === 'All' || t.category === category);
   const setField = (k: string, v: string) => setFieldsById(m => ({ ...m, [tpl.id]: { ...(m[tpl.id] || {}), [k]: v } }));
+  const trimKeys = useMemo(() => trimFieldKeys(tpl.fields), [tpl]);
+  const fieldCtx = { keys: tpl.fields.map(f => f.key), get: (k: string) => fields[k] ?? '', set: setField };
+  // blob: URLs die on reload / never reach other machines — say so before inserting.
+  const sessionOnly = tpl.fields.filter(fd => splitLines(fields[fd.key] || '').some(u => isSessionOnlyUrl(u.trim()))).map(fd => fd.label);
 
   const insert = () => {
     if (!onInsert) return;
@@ -162,7 +174,7 @@ export const AmboSlideTemplateGallery: React.FC<AmboSlideTemplateGalleryProps> =
       layers: [{ id: newId('ly_tpl'), slot, name: `${tpl.name} (${theme.name})`, content: { kind: 'TELA_TEMPLATE', templateId: tpl.id, fields: { ...fields }, theme: theme.id, ...(bgBlend !== 'normal' || bgOpacity < 1 ? { bgBlend, bgOpacity } : {}) } }],
     };
     onInsert(slide);
-    setFlash(`Added “${tpl.name}” to ${activeShowTitle || 'the show'}`);
+    setFlash(`Added “${tpl.name}” to ${activeShowTitle || 'the show'}${sessionOnly.length ? ' — local media is session-only' : ''}`);
     window.setTimeout(() => setFlash(''), 2200);
   };
 
@@ -223,18 +235,31 @@ export const AmboSlideTemplateGallery: React.FC<AmboSlideTemplateGalleryProps> =
           {/* Library */}
           <div className="flex-1 min-w-0 flex flex-col border-r" style={{ borderColor: 'rgba(255,255,255,.06)' }}>
             <div className="flex gap-1 px-3 pt-2 pb-1 flex-wrap">
-              {['All', ...TEMPLATE_CATEGORIES].map(cat => (
-                <button key={cat} onClick={() => setCategory(cat)} className="px-2 py-0.5 rounded-md text-[10.5px] font-semibold"
-                  style={{ color: category === cat ? '#fff' : 'rgba(255,255,255,.5)', background: category === cat ? 'rgba(255,255,255,.12)' : 'transparent' }}>{cat}</button>
-              ))}
+              {['All', ...TEMPLATE_CATEGORIES].map(cat => {
+                const n = cat === 'All' ? SLIDE_TEMPLATES.length : SLIDE_TEMPLATES.filter(t => t.category === cat).length;
+                const MIcon = CATEGORY_MEDIA[cat] ? MEDIA_ICON[CATEGORY_MEDIA[cat]] : null;
+                return (
+                  <button key={cat} onClick={() => setCategory(cat)} data-category={cat} className="px-2 py-0.5 rounded-md text-[10.5px] font-semibold inline-flex items-center gap-1"
+                    style={{ color: category === cat ? '#fff' : n ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.25)', background: category === cat ? 'rgba(255,255,255,.12)' : 'transparent' }}>
+                    {MIcon && <MIcon size={11} style={{ color: category === cat ? CYAN : 'rgba(0,218,243,.6)' }} />}{cat}
+                    {cat !== 'All' && <span className="text-[9px] opacity-50 font-mono">{n}</span>}
+                  </button>
+                );
+              })}
             </div>
             <div className="flex-1 overflow-y-auto p-3 grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbBox.w + 16}px, 1fr))`, alignContent: 'start' }}>
+              {!list.length && (
+                <div className="col-span-full text-[11px] text-white/40 p-6 text-center">No {category} templates yet — they are on their way.</div>
+              )}
               {list.map(t => {
                 const active = t.id === tpl.id;
+                const media = mediaOf(t);
+                const MIcon = media ? MEDIA_ICON[media] : null;
                 return (
                   <button key={t.id} onClick={() => { setTemplateId(t.id); setReplayKey(k => k + 1); }} className="rounded-xl p-2 text-left transition-all"
                     style={{ border: `1px solid ${active ? CYAN : 'rgba(255,255,255,.08)'}`, background: active ? 'rgba(0,218,243,.08)' : 'rgba(255,255,255,.03)', boxShadow: active ? '0 0 18px rgba(0,218,243,.15)' : 'none' }}>
-                    <div className="grid place-items-center" style={{ height: thumbBox.h }}>
+                    <div className="relative grid place-items-center" style={{ height: thumbBox.h }}>
+                      {MIcon && <span title={`${media} template`} className="absolute top-1 right-1 z-[1] w-5 h-5 rounded-md grid place-items-center" style={{ background: 'rgba(8,6,16,.78)', border: '1px solid rgba(0,218,243,.35)' }}><MIcon size={11} style={{ color: CYAN }} /></span>}
                       <Thumb templateId={t.id} theme={themeId} aspect={aspect} epoch={epoch} box={thumbBox} fields={fieldsById[t.id] ? { ...defaultFields(t), ...fieldsById[t.id] } : undefined} />
                     </div>
                     <div className="mt-1.5 flex items-center justify-between gap-1">
@@ -267,17 +292,15 @@ export const AmboSlideTemplateGallery: React.FC<AmboSlideTemplateGalleryProps> =
 
             <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
               <div className="text-[10.5px] text-white/50">{tpl.blurb}</div>
-              {tpl.fields.map(fd => (
-                <label key={fd.key} className="block">
-                  <span className="block text-[9.5px] font-extrabold uppercase tracking-wider text-white/40 mb-1">{fd.label}</span>
-                  {fd.multiline
-                    ? <textarea value={fields[fd.key] ?? ''} onChange={e => setField(fd.key, e.target.value)} rows={3} placeholder={fd.hint}
-                        className="w-full rounded-lg px-2.5 py-1.5 text-[12px] outline-none resize-y" style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: '#fff' }} />
-                    : <input value={fields[fd.key] ?? ''} onChange={e => setField(fd.key, e.target.value)} placeholder={fd.hint}
-                        className="w-full rounded-lg px-2.5 py-1.5 text-[12px] outline-none" style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: '#fff' }} />}
-                </label>
+              {tpl.fields.filter(fd => !trimKeys.has(fd.key)).map(fd => (
+                <TemplateFieldEditor key={`${tpl.id}:${fd.key}`} fd={fd} value={fields[fd.key] ?? ''} onChange={v => setField(fd.key, v)} ctx={fieldCtx} />
               ))}
-              <button onClick={() => setFieldsById(m => { const n = { ...m }; delete n[tpl.id]; return n; })} className="text-[10px] font-semibold text-white/45 hover:text-white">Reset words to defaults</button>
+              {sessionOnly.length > 0 && (
+                <div className="text-[9.5px] flex items-start gap-1 rounded-md px-2 py-1" style={{ color: '#FFB547', background: 'rgba(255,181,71,.08)' }}>
+                  <AlertTriangle size={11} className="flex-none mt-px" />{sessionOnly.join(', ')}: local file{sessionOnly.length > 1 ? 's are' : ' is'} session-only and will be missing after a reload.
+                </div>
+              )}
+              <button onClick={() => setFieldsById(m => { const n = { ...m }; delete n[tpl.id]; return n; })} className="text-[10px] font-semibold text-white/45 hover:text-white">Reset fields to defaults</button>
 
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <div>
