@@ -13,6 +13,7 @@
 //   8. Assets      — 24 Fabula DotLottie presets, Tela documents, Lower Thirds, and Fabula Transitions
 
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Search, BookOpen, Film, Music, Sparkles, Layers, Tv, Video,
   Sliders, Plus, Play, Eye, Check, Radio, FileText, Flame, Activity,
@@ -831,6 +832,28 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   const [selectedChapter, setSelectedChapter] = useState<number>(3);  // Default: John 3
   const [highlightVerseNum, setHighlightVerseNum] = useState<number | null>(16); // Default: John 3:16
   const autoCueOn = useSyncExternalStore(subscribeAutoCueNext, getAutoCueNext);
+  const chapterGridRef = useRef<HTMLDivElement>(null);
+  /** "All chapters" popup — every chapter of the open book at once (the inline box scrolls for long books). */
+  const chapterColRef = useRef<HTMLDivElement>(null);
+  const chapterPopRef = useRef<HTMLDivElement>(null);
+  const [chapterPopup, setChapterPopup] = useState<{ left: number; bottom: number; maxH: number } | null>(null);
+  const openChapterPopup = () => {
+    const r = chapterColRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const bottom = Math.max(8, window.innerHeight - r.bottom);
+    setChapterPopup({ left: Math.max(8, Math.min(r.right + 6, window.innerWidth - 580)), bottom, maxH: Math.min(window.innerHeight - bottom - 12, 720) });
+  };
+  useEffect(() => {
+    if (!chapterPopup) return;
+    const down = (e: PointerEvent) => { if (chapterPopRef.current && !chapterPopRef.current.contains(e.target as Node)) setChapterPopup(null); };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setChapterPopup(null); };
+    document.addEventListener('pointerdown', down, true);
+    document.addEventListener('keydown', key, true);
+    return () => { document.removeEventListener('pointerdown', down, true); document.removeEventListener('keydown', key, true); };
+  }, [chapterPopup]);
+  useEffect(() => {
+    chapterGridRef.current?.querySelector(`[data-ch="${selectedChapter}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [selectedChapter, selectedBookNum]);
   /** Does a reference like "John 3:16" or "John 3:16-17" cover this verse of the open chapter? */
   const refCovers = (ref: string | undefined, verse: number): boolean => {
     if (!ref || !activeBook) return false;
@@ -1320,10 +1343,10 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     >
       {/* ── Top Tabs Bar across the bottom dock ── */}
       <div
-        className="flex items-center justify-between px-3 border-b flex-none"
-        style={{ borderColor: line, background: 'rgba(15,10,24,0.95)' }}
+        className="grid items-center gap-3 px-3 border-b flex-none"
+        style={{ borderColor: line, background: 'rgba(15,10,24,0.95)', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)' }}
       >
-        <div className="flex items-center gap-1 overflow-x-auto py-1">
+        <div className="flex items-center gap-1 overflow-x-auto py-1 min-w-0">
           {tabs.map(tab => {
             const isActive = activeTab === tab.id;
             return (
@@ -1364,15 +1387,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
           })}
         </div>
 
-        {/* Global Search Bar & Collapse Button */}
-        <div className="flex items-center gap-2 pl-2">
-          {activeTab === 'scripture' && <AmboScriptureLook />}
-          {activeTab === 'scripture' && isScriptureLive && (
-            <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-[#E3C57E]/20 text-[#E3C57E] border border-[#E3C57E]/40 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#E3C57E] animate-pulse" />
-              <span>LIVE: Single-click transitions</span>
-            </span>
-          )}
+        {/* Global Search Bar — centred in the header */}
+        <div className="flex items-center justify-center">
           <div className="relative">
             <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/40" />
             <input
@@ -1385,7 +1401,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                 }
               }}
               placeholder={activeTab === 'scripture' ? 'Search John 3:16 or verse...' : `Search ${activeTab}...`}
-              className="pl-7 pr-7 py-1 w-44 lg:w-56 text-[11px] rounded-lg bg-black/40 border border-white/10 text-white placeholder-white/30 focus:border-[#00DAF3] focus:outline-hidden transition-all"
+              className="pl-7 pr-7 py-1 w-56 lg:w-80 text-[11px] rounded-lg bg-black/40 border border-white/10 text-white placeholder-white/30 focus:border-[#00DAF3] focus:outline-hidden transition-all"
             />
             {searchQuery && (
               <button
@@ -1396,6 +1412,17 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
               </button>
             )}
           </div>
+        </div>
+
+        {/* Look picker, live badge and collapse — right side */}
+        <div className="flex items-center justify-end gap-2 min-w-0">
+          {activeTab === 'scripture' && <AmboScriptureLook />}
+          {activeTab === 'scripture' && isScriptureLive && (
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-[#E3C57E]/20 text-[#E3C57E] border border-[#E3C57E]/40 flex items-center gap-1 flex-none">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#E3C57E] animate-pulse" />
+              <span>LIVE: Single-click transitions</span>
+            </span>
+          )}
           {onToggleCollapse && (
             <button
               onClick={onToggleCollapse}
@@ -1415,9 +1442,11 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
         {/* ========================================================================= */}
         {activeTab === 'scripture' && (
           <div className="flex-1 flex min-h-0 overflow-hidden">
-            {/* Left Column: Testament + 66 Books */}
+            {/* Left: Books column + Chapters column */}
+            <div className="flex flex-none min-h-0">
+            {/* Books: Testament + 66 Books */}
             <div
-              className="w-64 border-r flex flex-col flex-none min-h-0"
+              className="w-52 border-r flex flex-col flex-none min-h-0"
               style={{ borderColor: line, background: 'rgba(0,0,0,0.2)' }}
             >
               {/* Testament Selector */}
@@ -1467,32 +1496,89 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                 })}
               </div>
 
-              {/* Chapter Grid Bar */}
-              <div className="p-2 border-t flex flex-col gap-1.5" style={{ borderColor: line, background: 'rgba(0,0,0,0.3)' }}>
-                <div className="flex items-center justify-between text-[10px] font-semibold text-white/70">
-                  <span>{activeBook.name} Chapters</span>
-                  <span className="text-[#E3C57E] font-mono">Ch {selectedChapter} / {activeBook.chapters}</span>
+            </div>
+
+            {/* Chapters: every chapter of the book in a box of big buttons — nothing rolls off the edge */}
+            <div
+              ref={chapterColRef}
+              className="w-60 border-r flex flex-col flex-none min-h-0"
+              style={{ borderColor: line, background: 'rgba(0,0,0,0.3)' }}
+            >
+              <div className="px-2.5 py-1.5 border-b flex-none flex items-center gap-2" style={{ borderColor: line }}>
+                <div className="min-w-0 flex-1 leading-tight">
+                  <div className="text-[11px] font-extrabold text-white truncate">{activeBook.name}</div>
+                  <div className="text-[9.5px] text-white/50">{activeBook.chapters} chapter{activeBook.chapters === 1 ? '' : 's'} · <span className="text-[#E3C57E] font-mono font-bold">Ch {selectedChapter}</span></div>
                 </div>
-                <div className="flex gap-1 overflow-x-auto py-1 scrollbar-thin">
+                <button
+                  onClick={openChapterPopup}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold flex-none"
+                  style={{ background: 'rgba(227,197,126,0.14)', color: '#E3C57E', border: '1px solid rgba(227,197,126,0.35)' }}
+                  title={`See all ${activeBook.chapters} chapters of ${activeBook.name} at once`}
+                >
+                  <Maximize2 size={10} /> All
+                </button>
+              </div>
+              <div
+                ref={chapterGridRef}
+                role="listbox"
+                aria-label={`${activeBook.name} chapters`}
+                className="flex-1 min-h-0 overflow-y-auto p-2 grid grid-cols-6 gap-1 content-start custom-scrollbar"
+              >
+                {Array.from({ length: activeBook.chapters }, (_, i) => i + 1).map(ch => (
+                  <button
+                    key={ch}
+                    data-ch={ch}
+                    role="option"
+                    aria-selected={selectedChapter === ch}
+                    onClick={() => {
+                      setSelectedChapter(ch);
+                      setHighlightVerseNum(null);
+                    }}
+                    className={`h-8 rounded-md flex items-center justify-center font-mono text-[12px] font-bold transition-all ${
+                      selectedChapter === ch
+                        ? 'bg-[#E3C57E] text-[#1a1405] shadow-[0_0_10px_rgba(227,197,126,0.35)]'
+                        : 'bg-white/5 text-white/75 hover:bg-white/15 hover:text-white'
+                    }`}
+                  >
+                    {ch}
+                  </button>
+                ))}
+              </div>
+            </div>
+            </div>
+
+            {/* "All chapters" popup — the whole book, big buttons */}
+            {chapterPopup && typeof document !== 'undefined' && createPortal(
+              <div
+                ref={chapterPopRef}
+                role="dialog"
+                aria-label={`All ${activeBook.name} chapters`}
+                className="fixed z-[230] rounded-2xl border shadow-2xl flex flex-col overflow-hidden"
+                style={{ left: chapterPopup.left, bottom: chapterPopup.bottom, width: 560, maxHeight: chapterPopup.maxH, background: 'rgba(14,10,22,0.98)', borderColor: 'rgba(227,197,126,0.4)', boxShadow: '0 24px 70px rgba(0,0,0,0.65)', backdropFilter: 'blur(14px)' }}
+              >
+                <div className="px-4 py-2.5 border-b flex items-center gap-2 flex-none" style={{ borderColor: line }}>
+                  <span className="text-[13px] font-extrabold text-[#E3C57E]">{activeBook.name}</span>
+                  <span className="text-[10.5px] text-white/50">{activeBook.chapters} chapter{activeBook.chapters === 1 ? '' : 's'}</span>
+                  <div className="flex-1" />
+                  <button onClick={() => setChapterPopup(null)} aria-label="Close" className="w-7 h-7 grid place-items-center rounded-lg text-white/55 hover:text-white hover:bg-white/10"><X size={14} /></button>
+                </div>
+                <div className="p-3 overflow-y-auto grid grid-cols-12 gap-1.5 content-start custom-scrollbar">
                   {Array.from({ length: activeBook.chapters }, (_, i) => i + 1).map(ch => (
                     <button
                       key={ch}
-                      onClick={() => {
-                        setSelectedChapter(ch);
-                        setHighlightVerseNum(null);
-                      }}
-                      className={`w-6 h-6 rounded flex items-center justify-center font-mono text-[10px] font-bold flex-none transition-all ${
-                        selectedChapter === ch
-                          ? 'bg-[#E3C57E] text-[#1a1405]'
-                          : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
+                      data-popch={ch}
+                      onClick={() => { setSelectedChapter(ch); setHighlightVerseNum(null); setChapterPopup(null); }}
+                      className={`h-9 rounded-lg flex items-center justify-center font-mono text-[13px] font-bold transition-all ${
+                        selectedChapter === ch ? 'bg-[#E3C57E] text-[#1a1405] shadow-[0_0_12px_rgba(227,197,126,0.4)]' : 'bg-white/6 text-white/80 hover:bg-white/15 hover:text-white'
                       }`}
                     >
                       {ch}
                     </button>
                   ))}
                 </div>
-              </div>
-            </div>
+              </div>,
+              document.body,
+            )}
 
             {/* Right Column: Verses in Chapter Context */}
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
