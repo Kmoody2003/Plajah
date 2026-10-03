@@ -6711,3 +6711,26 @@ export interface TelaVersionMeta {
   createdAt: number;
   label?: string;
 }
+  /** Lesson presentation roles: the Academia lesson presenter reads these; other surfaces treat the block as plain text. */
+  lesson?: { role: 'lede' | 'body' | 'callout' | 'list'; bullet?: string; item?: number; variant?: string; label?: string; emphasised?: boolean; section?: number; sourceIndex?: number };
+/** A typed teaching figure (plate, audio, video, diagram, timeline, graph). Data charts use the native CHART device instead. */
+export interface TelaFigureDevice {
+  id: string;
+  type: 'FIGURE';
+  /** The lesson Figure model (components/learn/lesson/figures.ts); kept structural here so types.ts stays dependency-free. */
+  figure: any;
+  /** Index of the Writer text block this figure follows. */
+  after?: number;
+}
+
+  | TelaFigureDevice
+  /** Present when this doc is an Academia lesson: base lesson id, theme and the order figures sit in. */
+  lesson?: { lessonId: string; courseTitle?: string; theme?: string; figures: Array<{ deviceId: string; after: number; caption: string; credit?: string; sourceUrl?: string; alt?: string; layout?: string }> };
+  /** Versioned template provenance and media recipes travel with editable copies. */
+  templatePreset?: {
+    schemaVersion: 1;
+    templateId: string;
+    status: 'review' | 'available';
+    motion?: { duration: number; tracks: Array<{ objectId: string; property: 'rotation' | 'x' | 'y' | 'opacity'; from: number; to: number; delay: number; duration: number; loop?: 'restart' }> };
+    audio?: { notes: number[]; tempo: number };
+  };
