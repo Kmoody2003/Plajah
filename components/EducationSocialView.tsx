@@ -39,13 +39,16 @@ const EducationSocialView: React.FC<{
   currentUser: any;
   profile?: any;
   onVisitUser?: (uid: string) => void;
-}> = ({ currentUser, profile, onVisitUser }) => {
+  /** Post as this role (admin role lens). Omit to let createPost tag from the stored profile. */
+  eduRole?: Post['eduRole'];
+}> = ({ currentUser, profile, onVisitUser, eduRole }) => {
   const childUids: string[] = (profile?.childUids || []).filter(Boolean);
   const isParent = (profile?.accountType === 'PARENT') && childUids.length > 0;
 
   const [tab, setTab] = useState<'community' | 'children'>('community');
   const [eduPosts, setEduPosts] = useState<Post[]>([]);
   const [childPosts, setChildPosts] = useState<Post[]>([]);
+  const [roleFilter, setRoleFilter] = useState<'ALL' | NonNullable<Post['eduRole']>>('ALL');
 
   useEffect(() => {
     const unsub = listenToEduFeed(setEduPosts);
@@ -60,7 +63,7 @@ const EducationSocialView: React.FC<{
   }, [isParent, childUids.join(',')]);
 
   // Kid-safe: filter the community feed for the current viewer.
-  const community = filterPostsForViewer(eduPosts as any, profile) as unknown as Post[];
+  const community = (filterPostsForViewer(eduPosts as any, profile) as unknown as Post[]).filter(p => roleFilter === 'ALL' || p.eduRole === roleFilter);
 
   return (
     <div className="min-h-full bg-[#0a0a0f] text-white">
@@ -82,6 +85,18 @@ const EducationSocialView: React.FC<{
           </div>
         )}
 
+        {/* Who am I hearing from? */}
+        {tab === 'community' && (
+          <div className="flex gap-1.5 flex-wrap mb-4" role="group" aria-label="Filter by role">
+            {(['ALL', 'SCHOOL', 'TEACHER', 'STUDENT', 'PARENT'] as const).map(r => (
+              <button key={r} type="button" aria-pressed={roleFilter === r} onClick={() => setRoleFilter(r)}
+                className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-colors ${roleFilter === r ? 'bg-white text-[#12091b]' : 'bg-white/5 text-white/55 hover:bg-white/10'}`}>
+                {r === 'ALL' ? 'Everyone' : ROLE_BADGE[r].label + 's'}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Composer (posts auto-tag into the school feed) */}
         {currentUser && tab === 'community' && (
           <div className="mb-5">
@@ -95,6 +110,7 @@ const EducationSocialView: React.FC<{
                 await createPost({
                   text: data.text,
                   isPublic: true,
+                  ...(eduRole ? { eduRole } : {}),
                   ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
                   ...embedFields,
                 } as any);

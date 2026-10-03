@@ -1,0 +1,1198 @@
+{
+ "courseId": "med-skills",
+ "verifier": "B",
+ "fetched": 46,
+ "note": "Several sites returned 403 or a captcha to WebFetch (HHS, AHRQ, NEJM, ncbi.nlm.nih.gov/books, litfl). I used other open pages instead. PDF sources were opened through WebFetch and parsed locally. Wikipedia is cited for many physical-exam signs.",
+ "questions": [
+  {
+   "id": "med-skills.l01.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l01.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l01.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l01.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l01.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l02.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l02.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Pack-year"
+   ]
+  },
+  {
+   "id": "med-skills.l02.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l02.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l02.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l03.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l03.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l03.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l03.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l03.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l04.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://ubccpd.ca/sites/default/files/documents/SPIKES_Protocol_for_Breaking_Bad_News.pdf"
+   ]
+  },
+  {
+   "id": "med-skills.l04.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l04.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.bumc.bu.edu/im-residency/files/2013/03/Capacity.pdf"
+   ]
+  },
+  {
+   "id": "med-skills.l04.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l04.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l05.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l05.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l05.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://magazine.medlineplus.gov/article/getting-an-accurate-read-on-pulse-oximeters"
+   ]
+  },
+  {
+   "id": "med-skills.l05.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.aafp.org/pubs/afp/issues/2011/0901/p527.html"
+   ],
+   "note": "Systolic falls 30 mm Hg with HR +4: orthostatic hypotension with blunted chronotropic response (beta-blocker)."
+  },
+  {
+   "id": "med-skills.l05.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l06.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Jaundice"
+   ]
+  },
+  {
+   "id": "med-skills.l06.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l06.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Nail_clubbing"
+   ]
+  },
+  {
+   "id": "med-skills.l06.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Bilateral disc swelling = papilledema; hypertensive emergency is also possible but is not among the choices."
+  },
+  {
+   "id": "med-skills.l06.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l07.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Third_heart_sound"
+   ]
+  },
+  {
+   "id": "med-skills.l07.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l07.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Hypertrophic_cardiomyopathy",
+    "https://en.wikipedia.org/wiki/Aortic_stenosis"
+   ]
+  },
+  {
+   "id": "med-skills.l07.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l07.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l08.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l08.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Tactile_fremitus"
+   ]
+  },
+  {
+   "id": "med-skills.l08.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l08.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Pneumothorax"
+   ]
+  },
+  {
+   "id": "med-skills.l08.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Pneumothorax"
+   ]
+  },
+  {
+   "id": "med-skills.l09.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rovsing%27s_sign"
+   ]
+  },
+  {
+   "id": "med-skills.l09.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l09.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Courvoisier%27s_law"
+   ]
+  },
+  {
+   "id": "med-skills.l09.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Obturator_sign"
+   ]
+  },
+  {
+   "id": "med-skills.l10.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l10.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Facial_nerve_paralysis"
+   ]
+  },
+  {
+   "id": "med-skills.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Romberg%27s_test"
+   ]
+  },
+  {
+   "id": "med-skills.l10.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Brown-S%C3%A9quard_syndrome"
+   ]
+  },
+  {
+   "id": "med-skills.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Lachman_test"
+   ]
+  },
+  {
+   "id": "med-skills.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cauda_equina_syndrome"
+   ]
+  },
+  {
+   "id": "med-skills.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Carpal_tunnel_syndrome"
+   ]
+  },
+  {
+   "id": "med-skills.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Hickam%27s_dictum"
+   ]
+  },
+  {
+   "id": "med-skills.l12.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Likelihood_ratios_in_diagnostic_testing"
+   ]
+  },
+  {
+   "id": "med-skills.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Sensitivity_and_specificity"
+   ]
+  },
+  {
+   "id": "med-skills.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Likelihood_ratios_in_diagnostic_testing"
+   ],
+   "note": "(1-0.95)/0.60 = 0.083."
+  },
+  {
+   "id": "med-skills.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Likelihood_ratios_in_diagnostic_testing"
+   ],
+   "note": "Pretest odds 0.001 x 10 = 0.01, posttest about 1%."
+  },
+  {
+   "id": "med-skills.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC6251119/"
+   ]
+  },
+  {
+   "id": "med-skills.l14.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.cambridge.org/core/journals/advances-in-psychiatric-treatment/article/how-psychiatrists-think/710EC66B15D0B652F95886E3D49339DA"
+   ]
+  },
+  {
+   "id": "med-skills.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l14.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://rushem.org/2019/11/15/cognitive-bias-and-decision-making/"
+   ],
+   "note": "Framing plus diagnosis momentum is best; psych-out-like labeling also plays a part."
+  },
+  {
+   "id": "med-skills.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Reference_range"
+   ]
+  },
+  {
+   "id": "med-skills.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Troponin"
+   ]
+  },
+  {
+   "id": "med-skills.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/SOAP_note"
+   ]
+  },
+  {
+   "id": "med-skills.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://med.noridianmedicare.com/web/jeb/cert-reviews/mr/documentation-guidelines-for-amended-records"
+   ]
+  },
+  {
+   "id": "med-skills.l16.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l17.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://answers.childrenshospital.org/i-pass-handoffs/"
+   ]
+  },
+  {
+   "id": "med-skills.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l18.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l18.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://casrai.org/guides/universal-protocol-surgical-safety-checklist"
+   ]
+  },
+  {
+   "id": "med-skills.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l18.q4",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Lumbar_puncture"
+   ],
+   "note": "Imaging before LP is right; in suspected bacterial meningitis, empirical antibiotics should not wait for the CT, which the item does not mention."
+  },
+  {
+   "id": "med-skills.l18.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-skills.l01",
+   "claim": "Studies find physicians interrupt within seconds and most patients finish their opening statement quickly when allowed.",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC6318197/"
+   ],
+   "note": "Singh Ospina 2019 JGIM: median 11 s to interruption; uninterrupted patients took a median of 6 s."
+  },
+  {
+   "lessonId": "med-skills.l01",
+   "claim": "In many series the history alone points to the final diagnosis most of the time.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; widely cited but not checked."
+  },
+  {
+   "lessonId": "med-skills.l01",
+   "claim": "OLDCARTS = onset, location, duration, character, aggravating/alleviating factors, radiation, timing, severity.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against a page."
+  },
+  {
+   "lessonId": "med-skills.l02",
+   "claim": "Pack-years = packs per day multiplied by years smoked.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Pack-year"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l02",
+   "claim": "CAGE = cut down, annoyed, guilty, eye-opener.",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC11192223/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l02",
+   "claim": "AUDIT-C is a validated tool for identifying risky alcohol use.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against a page."
+  },
+  {
+   "lessonId": "med-skills.l03",
+   "claim": "NURSE = naming, understanding, respecting, supporting, exploring.",
+   "verdict": "supported",
+   "sources": [
+    "https://bpb-us-e1.wpmucdn.com/sites.uw.edu/dist/4/20234/files/2018/01/NURSE_TalkingMap_VitalTalk.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l03",
+   "claim": "Title VI of the Civil Rights Act and ACA Section 1557 are cited as bases for language access obligations in federally funded programs.",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://www.justice.gov/crt/limited-english-proficiency"
+   ],
+   "note": "HHS pages returned 403. DOJ's LEP page says lep.gov is suspended pending review under Executive Order 14224 (2025). The statutes still stand, but federal LEP guidance is in flux; check the current status before teaching."
+  },
+  {
+   "lessonId": "med-skills.l03",
+   "claim": "Teach-back asks the patient to explain the plan in their own words; universal precautions for health literacy.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "AHRQ toolkit page returned 403."
+  },
+  {
+   "lessonId": "med-skills.l04",
+   "claim": "SPIKES steps: Setting, Perception, Invitation, Knowledge, Emotions, Strategy and Summary.",
+   "verdict": "supported",
+   "sources": [
+    "https://ubccpd.ca/sites/default/files/documents/SPIKES_Protocol_for_Breaking_Bad_News.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l04",
+   "claim": "Capacity elements: communicate a choice, understand, appreciate, reason.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.bumc.bu.edu/im-residency/files/2013/03/Capacity.pdf"
+   ],
+   "note": "Appelbaum NEJM 2007."
+  },
+  {
+   "lessonId": "med-skills.l04",
+   "claim": "Capacity is a clinical judgment; competence is a legal determination made by a court.",
+   "verdict": "supported",
+   "sources": [
+    "https://medicine.vumc.org/sites/default/files/2023-12/01-24-Barstow-Eval-Capacity-AFP-2018.pdf"
+   ],
+   "note": "Barstow AFP 2018."
+  },
+  {
+   "lessonId": "med-skills.l05",
+   "claim": "BP categories: normal <120/80; elevated 120-129/<80; stage 1 130-139 or 80-89; stage 2 >=140/90 (attributed to the 2017 ACC/AHA guideline).",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC12425457/"
+   ],
+   "note": "The thresholds are correct, but the attribution is out of date. The 2025 AHA/ACC guideline (Aug 2025) replaced 2017 and kept the same categories and the 130/80 diagnostic threshold. The lesson should cite 2025."
+  },
+  {
+   "lessonId": "med-skills.l05",
+   "claim": "Orthostatic hypotension = fall of >=20 systolic or >=10 diastolic within 3 minutes of standing; no compensatory HR rise in autonomic failure.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.aafp.org/pubs/afp/issues/2011/0901/p527.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l05",
+   "claim": "Pulse oximetry: normal >=95%; affected by nail polish and poor perfusion; can overestimate saturation in darker skin.",
+   "verdict": "supported",
+   "sources": [
+    "https://magazine.medlineplus.gov/article/getting-an-accurate-read-on-pulse-oximeters"
+   ],
+   "note": "The CO-poisoning (falsely normal) part was not on this page. Minor internal inconsistency: the lesson lists five vital signs, then calls pain 'a fifth'."
+  },
+  {
+   "lessonId": "med-skills.l06",
+   "claim": "A hard left supraclavicular (Virchow) node is classically associated with abdominal malignancy.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Virchow%27s_node"
+   ],
+   "note": "Classically gastric cancer."
+  },
+  {
+   "lessonId": "med-skills.l06",
+   "claim": "ABCDE criteria with diameter above about 6 mm flag possible melanoma.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.aad.org/public/diseases/skin-cancer/find/at-risk/abcdes"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l06",
+   "claim": "Scleral icterus indicates bilirubin above about 2-3 mg/dL; clubbing accompanies lung cancer, bronchiectasis, cyanotic congenital heart disease.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Jaundice",
+    "https://en.wikipedia.org/wiki/Nail_clubbing"
+   ],
+   "note": "Wikipedia gives at least 3 mg/dL for conjunctival icterus."
+  },
+  {
+   "lessonId": "med-skills.l07",
+   "claim": "HCM murmur increases with Valsalva/standing and decreases with squatting; aortic stenosis murmur decreases with Valsalva.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Hypertrophic_cardiomyopathy",
+    "https://en.wikipedia.org/wiki/Aortic_stenosis"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l07",
+   "claim": "S3 is early diastolic, normal in young people, and suggests heart failure/volume overload in older adults; heard with the bell.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Third_heart_sound"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l07",
+   "claim": "Beck triad (muffled heart sounds, hypotension, raised JVP) suggests tamponade; AS = RUSB murmur radiating to carotids, soft S2, pulsus parvus et tardus.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Beck%27s_triad_(cardiology)",
+    "https://en.wikipedia.org/wiki/Aortic_stenosis"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l08",
+   "claim": "Fremitus is increased over consolidation and decreased over effusion or pneumothorax.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Tactile_fremitus"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l08",
+   "claim": "Egophony: spoken E sounds like A over consolidation.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Egophony"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l08",
+   "claim": "Pneumothorax: hyperresonance, decreased breath sounds and fremitus; tension adds tracheal deviation away from the affected side, distended neck veins and hypotension.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Pneumothorax"
+   ],
+   "note": "Wikipedia notes that tracheal deviation and JVD are unreliable and late signs."
+  },
+  {
+   "lessonId": "med-skills.l09",
+   "claim": "McBurney point lies one third of the way from the right ASIS to the umbilicus.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/McBurney%27s_point"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l09",
+   "claim": "Courvoisier sign: palpable nontender gallbladder with jaundice suggests malignant CBD obstruction (e.g., pancreatic cancer) rather than stones.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Courvoisier%27s_law"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l09",
+   "claim": "Murphy sign suggests cholecystitis; Rovsing sign (LLQ pressure causes RLQ pain) and obturator sign (internal rotation of flexed hip) suggest appendicitis.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Murphy%27s_sign",
+    "https://en.wikipedia.org/wiki/Rovsing%27s_sign",
+    "https://en.wikipedia.org/wiki/Obturator_sign"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l10",
+   "claim": "Positive Romberg indicates loss of proprioception (sensory ataxia), not a cerebellar lesion.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Romberg%27s_test"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l10",
+   "claim": "Brown-Sequard: ipsilateral weakness and loss of vibration/proprioception; contralateral loss of pain and temperature.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Brown-S%C3%A9quard_syndrome"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l10",
+   "claim": "An UMN facial lesion spares the forehead (bilateral cortical input); an LMN lesion such as Bell palsy involves the forehead.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Facial_nerve_paralysis"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l11",
+   "claim": "Lachman and anterior drawer assess the ACL; Lachman is more sensitive.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Lachman_test"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l11",
+   "claim": "Gout = negatively birefringent needle urate crystals; pseudogout = positively birefringent rhomboid CPP crystals.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Gout"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l11",
+   "claim": "Carpal tunnel (median nerve) causes numbness of thumb, index and middle fingers with thenar weakness when advanced; saddle anesthesia plus bowel/bladder dysfunction suggest cauda equina syndrome, a surgical emergency.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Carpal_tunnel_syndrome",
+    "https://en.wikipedia.org/wiki/Cauda_equina_syndrome"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l12",
+   "claim": "Hickam dictum: patients can have as many diseases as they please, in contrast to Occam razor.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Hickam%27s_dictum"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l12",
+   "claim": "Problem representation is a one-sentence abstract summary using semantic qualifiers that retrieves illness scripts.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Pages tried (UW pressbooks 403, clinicalreasoning.org DNS failure) could not be opened."
+  },
+  {
+   "lessonId": "med-skills.l12",
+   "claim": "Cannot-miss chest pain list: ACS, PE, aortic dissection, tension pneumothorax, esophageal rupture, tamponade.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against a page."
+  },
+  {
+   "lessonId": "med-skills.l13",
+   "claim": "LR+ = sens/(1-spec); LR- = (1-sens)/spec; odds = p/(1-p), p = odds/(1+odds).",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Likelihood_ratios_in_diagnostic_testing"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l13",
+   "claim": "Sensitivity/specificity are prevalence-independent; PPV/NPV depend on prevalence; SnNOut/SpPIn.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Sensitivity_and_specificity"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l13",
+   "claim": "Worked example: sens=spec=90% gives LR+ 9; a 1% pretest probability gives about 8% posttest, and 50% gives 90%.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Likelihood_ratios_in_diagnostic_testing"
+   ],
+   "note": "Checked by arithmetic with the page's formulas: 0.0101 x 9 = 0.091 odds = 8.3%."
+  },
+  {
+   "lessonId": "med-skills.l14",
+   "claim": "Premature closure is often described as the most common cognitive error in diagnosis; cognitive factors contribute to most diagnostic errors.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.rti.org/publication/diagnostic-error-in-internal-medicine"
+   ],
+   "note": "Graber 2005: cognitive factors 74%, system 65%; premature closure was the single most common."
+  },
+  {
+   "lessonId": "med-skills.l14",
+   "claim": "Definitions of anchoring, premature closure, availability, representativeness restraint.",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC6251119/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l14",
+   "claim": "Psych-out error, search satisficing, diagnosis momentum, framing and triage cueing definitions.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cambridge.org/core/journals/advances-in-psychiatric-treatment/article/how-psychiatrists-think/710EC66B15D0B652F95886E3D49339DA",
+    "https://rushem.org/2019/11/15/cognitive-bias-and-decision-making/"
+   ],
+   "note": "I found no source for the lesson's line that premature closure plus satisficing together are 'sometimes called the found it error'. Treat that phrase as unverified."
+  },
+  {
+   "lessonId": "med-skills.l15",
+   "claim": "Reference ranges include the central 95% of a healthy reference population.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Reference_range"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l15",
+   "claim": "Troponin marks myocardial injury and rises in myocarditis, sepsis, PE and renal failure, not only MI.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Troponin"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l15",
+   "claim": "Asymptomatic bacteriuria is common in older women and treating it usually does harm without benefit.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Asymptomatic_bacteriuria"
+   ],
+   "note": "Exceptions: pregnancy and urologic procedures."
+  },
+  {
+   "lessonId": "med-skills.l16",
+   "claim": "SOAP: Subjective = patient report; Objective = vitals, exam, labs; Assessment = synthesis/diagnosis; Plan.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/SOAP_note"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l16",
+   "claim": "Corrections are made as dated, signed entries that preserve the original; never alter a record to hide an error.",
+   "verdict": "supported",
+   "sources": [
+    "https://med.noridianmedicare.com/web/jeb/cert-reviews/mr/documentation-guidelines-for-amended-records"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l16",
+   "claim": "Access to PHI follows the minimum necessary principle under HIPAA.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.bricker.com/insights/resources/key/HIPAA-Privacy-Regulations-Other-Requirements-Relating-to-Uses-and-Disclosures-of-Protected-Health-Information-Minimum-Necessary-Requirements-164-514-d"
+   ],
+   "note": "Nuance: disclosures between providers for treatment are exempt from minimum necessary."
+  },
+  {
+   "lessonId": "med-skills.l17",
+   "claim": "I-PASS = illness severity, patient summary, action list, situational awareness/contingency planning, synthesis by receiver.",
+   "verdict": "supported",
+   "sources": [
+    "https://answers.childrenshospital.org/i-pass-handoffs/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l17",
+   "claim": "Structured handoffs have been associated with fewer preventable adverse events in resident handoff studies.",
+   "verdict": "supported",
+   "sources": [
+    "https://answers.childrenshospital.org/i-pass-handoffs/"
+   ],
+   "note": "I-PASS 2014 multicenter study: about a 30% fall in preventable adverse events."
+  },
+  {
+   "lessonId": "med-skills.l17",
+   "claim": "Oral presentations open with a one-liner of age, sex, background and reason for the encounter.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against a page."
+  },
+  {
+   "lessonId": "med-skills.l18",
+   "claim": "Universal Protocol: preprocedure verification, site marking, time-out immediately before starting.",
+   "verdict": "supported",
+   "sources": [
+    "https://casrai.org/guides/universal-protocol-surgical-safety-checklist"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l18",
+   "claim": "WHO five moments for hand hygiene.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Hand_washing"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l18",
+   "claim": "LP is done below the conus at L3-L4 or L4-L5; contraindications include mass lesion with raised ICP, bleeding disorder, skin infection.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Lumbar_puncture"
+   ],
+   "note": "The rib-border/neurovascular-bundle claim for thoracentesis was not on the opened page, so it is unverified."
+  }
+ ]
+}

@@ -4,9 +4,10 @@ import { getPlatformInfo } from '../hooks/usePlatform';
 import {
   likeVideo, unlikeVideo, postVideoComment, listenToVideoComments,
   fetchUserProfile, checkIfLiked, updateVideo, auth,
-  followUser, unfollowUser, isFollowing,
+  followUser, unfollowUser, isFollowing, createPost,
 } from '../services/backendService';
 import { buildShareUrl } from '../services/deepLinkService';
+import ShareButton from './ShareButton';
 import MediaThumb from './ui/MediaThumb';
 import { recordProgress, getResumePosition } from '../services/watchHistoryService';
 import { trackStart, trackProgress, trackComplete } from '../services/contentMetrics';
@@ -941,6 +942,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
       // While the up-next overlay owns the screen, Back belongs to it (dismiss the overlay), not to
       // the player underneath — otherwise Back would blow straight past the overlay and exit.
       if (showUpNext) return;
+      const target = ev.target as HTMLElement | null;
+      const active = document.activeElement as HTMLElement | null;
+      const isField = (el: HTMLElement | null) =>
+        !!(el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable || el.closest?.('input, textarea, select, [contenteditable="true"]')));
+      if (isField(target) || isField(active)) return;
+
       const kc = ev.keyCode || ev.which;
       if (kc === 4 || ev.key === 'Backspace' || ev.key === 'XF86Back' || ev.key === 'GoBack') {
         ev.preventDefault();
@@ -1424,12 +1431,38 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
                 <Heart size={15} fill={isLiked ? 'currentColor' : 'none'} />
                 {fmtCount(video.likesCount || 0)}
               </button>
-              <button
-                onClick={handleShare}
+              <ShareButton
+                title={video.title}
+                text={`Check out ${video.title} on Plajah`}
+                url={buildShareUrl('video', video.id)}
+                imageUrl={video.thumbnailUrl || video.coverImageUrl}
+                artist={ownerProfile?.displayName || video.artist}
+                contentType={
+                  (video as any).isCinema || /cinema|film|movie/i.test(video.genre || '') ? 'movie' : 'video'
+                }
+                ctaText={
+                  (video as any).isCinema || /cinema|film|movie/i.test(video.genre || '')
+                    ? '▶ STREAM FILM ON TALEO'
+                    : '▶ WATCH FULL CLIP ON PLAJAH'
+                }
                 className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white font-black text-[9px] uppercase tracking-widest transition-all"
-              >
-                <Share2 size={15} /> Share
-              </button>
+                onPostToPlajah={currentUser ? async () => {
+                  await createPost({
+                    text: `🎬 ${video.title}`,
+                    media: [{
+                      type: 'VIDEO',
+                      url: video.url || '',
+                      id: video.id,
+                      title: video.title,
+                      thumbnail: video.thumbnailUrl || video.coverImageUrl,
+                      muxPlaybackId: (video as any).muxPlaybackId,
+                    }],
+                  });
+                } : undefined}
+                plajahLabel="Post to Plajah feed"
+                label="Share"
+                iconSize={15}
+              />
               {/* Watch Party — host a synchronized session others follow. Hidden while already in one
                   (the status banner over the video handles host/follower state + leave). */}
               {!activePartyId && (
@@ -1499,7 +1532,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
                   <div className="mt-2 bg-white/[0.03] rounded-2xl border border-white/5 overflow-hidden" style={{ maxHeight: 500 }}>
                     <CommentSection
                       comments={comments}
-                      onPostComment={(text, parentId) => postVideoComment(video.id, text, parentId)}
+                      onPostComment={(text, parentId, _mediaTimestamp, gifUrl) => postVideoComment(video.id, text, parentId, gifUrl)}
+                      onPostGif={(gifUrl, parentId) => postVideoComment(video.id, '', parentId, gifUrl)}
                       currentUser={currentUser}
                       title="Comments"
                     />
@@ -1524,7 +1558,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
         <div className="flex-1 overflow-hidden">
           <CommentSection
             comments={comments}
-            onPostComment={(text, parentId) => postVideoComment(video.id, text, parentId)}
+            onPostComment={(text, parentId, _mediaTimestamp, gifUrl) => postVideoComment(video.id, text, parentId, gifUrl)}
+            onPostGif={(gifUrl, parentId) => postVideoComment(video.id, '', parentId, gifUrl)}
             currentUser={currentUser}
             title=""
           />

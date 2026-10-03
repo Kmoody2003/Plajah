@@ -1,0 +1,2814 @@
+{
+ "courseId": "classic-literature",
+ "label": "Classic Literature",
+ "lessons": [
+  {
+   "id": "11",
+   "title": "Alice's Adventures in Wonderland",
+   "body": [
+    "Lewis Carroll was the pen name of Charles Dodgson, an Oxford mathematics lecturer who first told the story to the daughters of a college colleague on a boat trip in 1862. The book appeared in 1865 and broke from earlier children's books, which mostly taught morals. It plays with logic, language, and Victorian manners, and it shows how Victorian children memorized and recited verse."
+   ]
+  },
+  {
+   "id": "236",
+   "title": "The Jungle Book",
+   "body": [
+    "Rudyard Kipling, who was born in India, published these linked stories in 1894. They include Mowgli, a boy raised by wolves, and other tales such as Rikki-Tikki-Tavi. The stories were written during British rule in India, and some of their attitudes reflect that time."
+   ]
+  },
+  {
+   "id": "514",
+   "title": "Little Women",
+   "body": [
+    "Louisa May Alcott published Little Women in 1868 and 1869, drawing on her own sisters and her father's unusual household in Massachusetts. It follows the four March sisters while their father is away serving in the Civil War. It was a rare book that treated girls' ambitions seriously."
+   ]
+  },
+  {
+   "id": "120",
+   "title": "Treasure Island",
+   "body": [
+    "Robert Louis Stevenson published Treasure Island in 1883 after serializing it as \"The Sea Cook\" in a boys' magazine. Narrated by young Jim Hawkins, it set many images of pirates, such as treasure maps, a one-legged sailor, and a parrot, that later stories repeated. Long John Silver is one of literature's great morally mixed characters."
+   ]
+  },
+  {
+   "id": "730",
+   "title": "Oliver Twist",
+   "body": [
+    "Charles Dickens published Oliver Twist in installments between 1837 and 1839, shortly after England's 1834 Poor Law reform created harsh workhouses. It follows an orphan who escapes the workhouse and falls in with London pickpockets led by Fagin. Dickens used it to criticize how society treated poor children."
+   ]
+  },
+  {
+   "id": "46",
+   "title": "A Christmas Carol",
+   "body": [
+    "Charles Dickens published A Christmas Carol on December 19, 1843, in a year when Britain faced widespread poverty and child labor. He wrote it quickly, and it helped shape how English-speaking people celebrate Christmas. It is divided into five \"staves,\" like verses of a song."
+   ]
+  },
+  {
+   "id": "1257",
+   "title": "The Three Musketeers",
+   "body": [
+    "Alexandre Dumas published the novel as a newspaper serial in 1844, setting it two centuries earlier in the reign of Louis XIII, when Cardinal Richelieu held enormous power. It follows the young Gascon d'Artagnan, who comes to Paris hoping to join the King's Musketeers. Many characters were based on real people from the period, mixed with invention."
+   ]
+  },
+  {
+   "id": "103",
+   "title": "Around the World in Eighty Days",
+   "body": [
+    "Jules Verne published this novel in 1872-1873, after new technology such as steamships, transcontinental railways, and the Suez Canal had made world travel faster. Phileas Fogg wagers that he can circle the globe in eighty days. The book reflects how the British Empire and fast communication were shrinking the world."
+   ]
+  },
+  {
+   "id": "164",
+   "title": "Twenty Thousand Leagues Under the Sea",
+   "body": [
+    "Jules Verne published the novel in 1869-1870, when submarines were primitive and the deep ocean was largely unknown. Captain Nemo's Nautilus was an imagined machine far ahead of its time. The book is told by Professor Aronnax, who is captured and carried through the world's seas."
+   ]
+  },
+  {
+   "id": "215",
+   "title": "The Call of the Wild",
+   "body": [
+    "Jack London published the book in 1903, drawing on his own time in the Klondike Gold Rush of 1897-1898. Buck, a pampered California dog, is stolen and sold to work as a sled dog in the north. The story follows his change from a domestic pet into a creature of the wild."
+   ]
+  },
+  {
+   "id": "74",
+   "title": "The Adventures of Tom Sawyer",
+   "body": [
+    "Mark Twain published the novel in 1876, drawing on his own boyhood in Hannibal, Missouri, which he renamed St. Petersburg. It is set before the Civil War in a river town where slavery existed. The story follows Tom through pranks, a murder he witnesses, and an adventure in a cave."
+   ]
+  },
+  {
+   "id": "1661",
+   "title": "The Adventures of Sherlock Holmes",
+   "body": [
+    "Arthur Conan Doyle collected twelve Holmes stories in 1892 after they first appeared in The Strand Magazine. Narrated by Dr. Watson, they follow the detective Sherlock Holmes in a fast-changing London of gaslight, trains, and telegrams. The stories helped shape the modern detective story."
+   ]
+  },
+  {
+   "id": "1342",
+   "title": "Pride and Prejudice",
+   "body": [
+    "Jane Austen published Pride and Prejudice in 1813, during the Regency, when a gentry daughter without an inheritance had few ways to secure her future except marriage. The novel follows the Bennet family, whose estate is entailed away from the five daughters. It mattered because it joined sharp social comedy to a love story driven by character rather than rank."
+   ]
+  },
+  {
+   "id": "84",
+   "title": "Frankenstein",
+   "body": [
+    "Mary Shelley began Frankenstein at nineteen, during a rainy 1816 summer near Lake Geneva, and published it anonymously in 1818. It was written as science was exploring electricity and the nature of life, and it is often called an early work of science fiction. The story is framed by letters from an Arctic explorer, Robert Walton, which hold Victor Frankenstein's and the creature's accounts."
+   ]
+  },
+  {
+   "id": "98",
+   "title": "A Tale of Two Cities",
+   "body": [
+    "Charles Dickens published A Tale of Two Cities in weekly installments in 1859, setting it during the French Revolution and the Reign of Terror. The story contrasts London and Paris and draws on Dickens's reading of Thomas Carlyle's history of the revolution. It is one of Dickens's only two historical novels and opens with the famous line about the best of times and the worst of times."
+   ]
+  },
+  {
+   "id": "345",
+   "title": "Dracula",
+   "body": [
+    "Bram Stoker published Dracula in 1897, when Victorians were anxious about invasion, disease, and changing roles for women. The novel is told through diaries, letters, newspaper clippings, and phonograph recordings, showing that the characters fight an old monster with modern tools like shorthand, typewriters, and blood transfusion. It established many of the vampire conventions later films used."
+   ]
+  },
+  {
+   "id": "76",
+   "title": "Adventures of Huckleberry Finn",
+   "body": [
+    "Mark Twain published Huckleberry Finn in 1884 (in the U.S. in 1885), setting it decades earlier along the Mississippi when slavery was legal. Narrated by an uneducated boy in regional dialect, it was groundbreaking in using vernacular American speech. It is both celebrated and debated for its satire of racism and for its use of period slurs."
+   ]
+  },
+  {
+   "id": "174",
+   "title": "The Picture of Dorian Gray",
+   "body": [
+    "Oscar Wilde first published The Picture of Dorian Gray in a magazine in 1890 and expanded it into a novel in 1891. It belongs to the Aesthetic movement, which argued for \"art for art's sake,\" and was criticized by contemporaries as immoral. The preface gathers Wilde's sayings about art and morality."
+   ]
+  },
+  {
+   "id": "1260",
+   "title": "Jane Eyre",
+   "body": [
+    "Charlotte Bronte published Jane Eyre in 1847 under the pen name Currer Bell, and it was an immediate success. It is narrated by Jane, an orphan who becomes a governess, and it blended romance, Gothic mystery, and social criticism at a time when women had few paths to independence. Its first-person confession was bold for its day."
+   ]
+  },
+  {
+   "id": "768",
+   "title": "Wuthering Heights",
+   "body": [
+    "Emily Bronte published Wuthering Heights in 1847 under the pen name Ellis Bell, and critics at first found it shocking. The story is set on the wild Yorkshire moors over two generations and is told through nested narrators, chiefly the housekeeper Nelly Dean and the tenant Mr. Lockwood. It was Emily's only novel."
+   ]
+  },
+  {
+   "id": "1513",
+   "title": "Romeo and Juliet",
+   "body": [
+    "William Shakespeare wrote Romeo and Juliet in the 1590s, drawing on an older Italian tale, and the first printing appeared in 1597. It was performed at the Globe-era London theaters, where all parts were played by men and boys. The play mixes comedy and tragedy and is written in a blend of verse and prose, including a sonnet in its opening speech."
+   ]
+  },
+  {
+   "id": "1524",
+   "title": "Hamlet",
+   "body": [
+    "Shakespeare wrote Hamlet around 1600, and early printed versions appeared in 1603 and 1604. It is based on an older Scandinavian legend of a prince avenging his father. It is Shakespeare's longest play and is known for its soliloquies, speeches in which a character speaks his thoughts aloud."
+   ]
+  },
+  {
+   "id": "1400",
+   "title": "Great Expectations",
+   "body": [
+    "Charles Dickens serialized Great Expectations in weekly installments in 1860 and 1861. It follows Pip, an orphan raised by his sister and her blacksmith husband, who comes into a mysterious fortune. The novel explores class mobility in Victorian England and is told by the grown Pip looking back."
+   ]
+  },
+  {
+   "id": "1184",
+   "title": "The Count of Monte Cristo",
+   "body": [
+    "Alexandre Dumas published this novel in newspaper installments in 1844-1846. It is set during the turbulent years after Napoleon's fall, when Bonapartists and royalists struggled for power in France. Its huge serial audience made it one of the best-selling adventure novels ever written."
+   ]
+  },
+  {
+   "id": "135",
+   "title": "Les Misérables",
+   "body": [
+    "Victor Hugo wrote the novel largely while in exile from Napoleon III's France and published it in 1862. It follows ex-convict Jean Valjean through the decades after Waterloo, ending around the Paris uprising of 1832. Hugo used the story to argue that poverty and a harsh legal system create \"miserables\"."
+   ]
+  },
+  {
+   "id": "161",
+   "title": "Sense and Sensibility",
+   "body": [
+    "Jane Austen's first published novel appeared anonymously in 1811, \"By a Lady\". Under the inheritance laws of the time, the Dashwood sisters lose their home to a male relative and must rely on marriage and connections. The novel shows how tightly money and reputation controlled women's choices."
+   ]
+  },
+  {
+   "id": "158",
+   "title": "Emma",
+   "body": [
+    "Jane Austen published Emma in 1815, setting it entirely in and around the village of Highbury. Austen herself said she was creating a heroine whom \"no one but myself will much like\". The story shows how a wealthy young woman's confidence in her own judgment leads her into comic and painful mistakes."
+   ]
+  },
+  {
+   "id": "36",
+   "title": "The War of the Worlds",
+   "body": [
+    "H. G. Wells published the novel in 1897-1898, when Britain ruled a vast empire. He flipped the usual story by imagining a more advanced power invading England and treating humans as the colonized. The book helped create the modern alien invasion story."
+   ]
+  },
+  {
+   "id": "35",
+   "title": "The Time Machine",
+   "body": [
+    "H. G. Wells published this short novel in 1895, drawing on Darwin's theory of evolution and worries about the gap between rich and poor in industrial Britain. The Time Traveller visits the year 802,701 and finds two descendants of humanity: the gentle Eloi and the underground Morlocks. It is one of the founding works of science fiction."
+   ]
+  },
+  {
+   "id": "43",
+   "title": "The Strange Case of Dr Jekyll and Mr Hyde",
+   "body": [
+    "Robert Louis Stevenson published this short novel in 1886, in a London that prized respectability and hidden private vice. The story is told through the eyes of lawyer Mr. Utterson, who slowly uncovers the link between the respected Dr. Jekyll and the brutal Mr. Hyde. It became so famous that \"Jekyll and Hyde\" is now a phrase for a split personality."
+   ]
+  },
+  {
+   "id": "844",
+   "title": "The Importance of Being Earnest",
+   "body": [
+    "Oscar Wilde's comedy premiered in London in 1895 and was subtitled \"A Trivial Comedy for Serious People\". Two friends invent false identities to escape their duties, and the play mocks Victorian ideas about respectability and marriage. It was a huge hit, but Wilde's scandal and trial soon ended his career."
+   ]
+  },
+  {
+   "id": "5200",
+   "title": "The Metamorphosis",
+   "body": [
+    "Franz Kafka, a German-speaking Jewish writer in Prague, published the novella in 1915. It opens with salesman Gregor Samsa waking to find himself changed into a giant insect, and the story never explains why. The book is a landmark of modernist and absurdist writing."
+   ]
+  },
+  {
+   "id": "25344",
+   "title": "The Scarlet Letter",
+   "body": [
+    "Nathaniel Hawthorne published the novel in 1850, setting it in seventeenth-century Puritan Massachusetts, a community ruled closely by religion. Hester Prynne is punished for adultery and made to wear a scarlet letter A. The book explores guilt, secrecy, and the harsh judgment of a strict society."
+   ]
+  },
+  {
+   "id": "1727",
+   "title": "The Odyssey",
+   "body": [
+    "The Odyssey is attributed to Homer and was performed aloud for centuries before it was written down. It tells of Odysseus's ten-year journey home after the Trojan War, while his wife Penelope and son Telemachus hold out against suitors in Ithaca. Greek ideas of hospitality, called xenia, shape nearly every episode."
+   ]
+  },
+  {
+   "id": "17405",
+   "title": "The Art of War",
+   "body": [
+    "Traditionally credited to Sun Tzu, a Chinese general, this short text was written during a long period of conflict among rival Chinese states. It advises that the best victory is won without fighting and that war should be avoided if possible. It is read today in military, business, and political settings."
+   ]
+  },
+  {
+   "id": "2701",
+   "title": "Moby Dick",
+   "body": [
+    "Herman Melville published Moby-Dick in 1851, drawing on his own time aboard a whaling ship in the 1840s. At that time whaling was a major American industry, and whale oil lit lamps across the country. The novel failed commercially at first and was recognized as a masterpiece only after Melville's death."
+   ]
+  },
+  {
+   "id": "2554",
+   "title": "Crime and Punishment",
+   "body": [
+    "Fyodor Dostoevsky serialized Crime and Punishment in 1866 in a Russian journal, setting it in the poor districts of St. Petersburg. It follows Raskolnikov, a former student who murders a pawnbroker, believing extraordinary people may break moral rules. Dostoevsky himself had been sentenced to prison in Siberia and drew on that experience."
+   ]
+  },
+  {
+   "id": "2600",
+   "title": "War and Peace",
+   "body": [
+    "Leo Tolstoy published War and Peace between 1865 and 1869. It follows several aristocratic Russian families through Napoleon's campaigns, including the 1812 invasion and the burning of Moscow. It blends fictional characters with real events and argues about what really causes history."
+   ]
+  },
+  {
+   "id": "1399",
+   "title": "Anna Karenina",
+   "body": [
+    "Leo Tolstoy serialized Anna Karenina from 1875 to 1877 and published it as a book in 1878. It interweaves the story of Anna, a married aristocrat who has an affair, with that of Levin, a landowner seeking purpose. It opens with the famous line that all happy families are alike while each unhappy family is unhappy in its own way."
+   ]
+  },
+  {
+   "id": "996",
+   "title": "Don Quixote",
+   "body": [
+    "Miguel de Cervantes published the first part of Don Quixote in 1605 and the second in 1615. It follows an old gentleman who reads so many chivalric romances that he sets out as a knight-errant, with his squire Sancho Panza. It is often called the first modern novel and a parody of the knightly tales that were then popular."
+   ]
+  },
+  {
+   "id": "6130",
+   "title": "The Iliad",
+   "body": [
+    "The Iliad is attributed to Homer and covers a few weeks in the tenth year of the Trojan War. It opens with the rage of Achilles after Agamemnon takes his prize and follows the death of Patroclus and Hector. It was composed in an oral tradition and became the foundation of Greek education and literature."
+   ]
+  },
+  {
+   "id": "145",
+   "title": "Middlemarch",
+   "body": [
+    "George Eliot, the pen name of Mary Ann Evans, published Middlemarch in installments in 1871-1872. It is set in a Midlands town around the time of the First Reform Act of 1832. Interwoven plots show the lives of Dorothea Brooke, Dr. Lydgate, and others, and the book is often called one of the greatest English novels."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "1342.q1",
+   "lessonId": "1342",
+   "kind": "mcq",
+   "prompt": "In Pride and Prejudice, who is the proud, wealthy gentleman Elizabeth Bennet first dislikes?",
+   "choices": [
+    "Mr. Wickham",
+    "Mr. Darcy",
+    "Mr. Bingley",
+    "Mr. Collins"
+   ]
+  },
+  {
+   "id": "1342.q2",
+   "lessonId": "1342",
+   "kind": "mcq",
+   "prompt": "Why is Mrs. Bennet so anxious to marry off her daughters?",
+   "choices": [
+    "The family estate is entailed to a male cousin, so the daughters will have little security",
+    "The family has just moved abroad",
+    "The father has sworn never to let them marry",
+    "The daughters have been banished from society"
+   ]
+  },
+  {
+   "id": "1342.q3",
+   "lessonId": "1342",
+   "kind": "mcq",
+   "prompt": "Which pairing best captures the book's main theme about character?",
+   "choices": [
+    "Social rank is the best guide to a person's worth",
+    "Wealth always brings happiness",
+    "Young people should never marry for love",
+    "First impressions can be wrong, and pride and prejudice must be overcome"
+   ]
+  },
+  {
+   "id": "1342.q4",
+   "lessonId": "1342",
+   "kind": "mcq",
+   "prompt": "Austen opens the novel with a sentence about \"a single man in possession of a good fortune\" needing a wife. This is an example of",
+   "choices": [
+    "A flashback",
+    "A cliffhanger",
+    "Irony, since the novel shows it is really the unmarried women who need husbands",
+    "Foreshadowing of a murder"
+   ]
+  },
+  {
+   "id": "1342.q5",
+   "lessonId": "1342",
+   "kind": "mcq",
+   "prompt": "When Elizabeth thinks Darcy is \"condescending,\" she means he",
+   "choices": [
+    "is quick to anger",
+    "acts as if he is above others and does them a favor by being polite",
+    "is shy and silent",
+    "is generous with his money"
+   ]
+  },
+  {
+   "id": "84.q1",
+   "lessonId": "84",
+   "kind": "mcq",
+   "prompt": "In Frankenstein, what does Victor Frankenstein do soon after he brings his creature to life?",
+   "choices": [
+    "He sails with it to America",
+    "He teaches it to read",
+    "He proudly shows it to the world",
+    "He is horrified and abandons it"
+   ]
+  },
+  {
+   "id": "84.q2",
+   "lessonId": "84",
+   "kind": "mcq",
+   "prompt": "The story is framed by letters from Robert Walton. Where is he traveling?",
+   "choices": [
+    "Across the Sahara",
+    "To the Amazon",
+    "Toward the North Pole",
+    "To the Pacific islands"
+   ]
+  },
+  {
+   "id": "84.q3",
+   "lessonId": "84",
+   "kind": "mcq",
+   "prompt": "Which theme is central to Victor's relationship with his creation?",
+   "choices": [
+    "The value of formal schooling",
+    "A creator's responsibility for what he makes",
+    "The joy of travel",
+    "The pleasure of country life"
+   ]
+  },
+  {
+   "id": "84.q4",
+   "lessonId": "84",
+   "kind": "mcq",
+   "prompt": "Why does Shelley include a long section in which the creature tells his own story?",
+   "choices": [
+    "To let the reader see the creature's point of view and feel sympathy for him",
+    "To prove he is only a monster",
+    "To advertise Victor's skill",
+    "To show the story is a comedy"
+   ]
+  },
+  {
+   "id": "84.q5",
+   "lessonId": "84",
+   "kind": "tf",
+   "prompt": "True or false: The creature in the novel is called \"Frankenstein.\"",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "11.q1",
+   "lessonId": "11",
+   "kind": "mcq",
+   "prompt": "How does Alice first get into Wonderland?",
+   "choices": [
+    "She walks through a wardrobe",
+    "She follows a White Rabbit down a rabbit hole",
+    "She is carried by a tornado",
+    "She sails across a lake"
+   ]
+  },
+  {
+   "id": "11.q2",
+   "lessonId": "11",
+   "kind": "mcq",
+   "prompt": "When Alice recites a poem she learned, it comes out wrong. Carroll is mostly",
+   "choices": [
+    "parodying the improving poems Victorian children memorized",
+    "recording a real tea-party of the Queen",
+    "telling a true history of a school",
+    "writing a map of England"
+   ]
+  },
+  {
+   "id": "11.q3",
+   "lessonId": "11",
+   "kind": "mcq",
+   "prompt": "Alice keeps shrinking and growing. What does this most suggest about her?",
+   "choices": [
+    "She is a magician",
+    "She hates drinking tea",
+    "She is trying to escape the Queen's army",
+    "Growing up is confusing, and she is unsure who she is"
+   ]
+  },
+  {
+   "id": "11.q4",
+   "lessonId": "11",
+   "kind": "mcq",
+   "prompt": "At the Mad Tea-Party, the conversations make little sense because they depend on",
+   "choices": [
+    "rules of cricket",
+    "the rules of chess alone",
+    "wordplay and logic that is almost right but twisted",
+    "Latin grammar"
+   ]
+  },
+  {
+   "id": "11.q5",
+   "lessonId": "11",
+   "kind": "mcq",
+   "prompt": "The Queen of Hearts is best known for shouting what command?",
+   "choices": [
+    "\"Run for the hills!\"",
+    "\"Off with their heads!\"",
+    "\"Bring me a cake!\"",
+    "\"Come to my ball!\""
+   ]
+  },
+  {
+   "id": "2701.q1",
+   "lessonId": "2701",
+   "kind": "mcq",
+   "prompt": "Who narrates Moby-Dick?",
+   "choices": [
+    "Starbuck",
+    "Captain Ahab",
+    "Queequeg",
+    "Ishmael"
+   ]
+  },
+  {
+   "id": "2701.q2",
+   "lessonId": "2701",
+   "kind": "mcq",
+   "prompt": "What industry does the Pequod's voyage represent?",
+   "choices": [
+    "Gold prospecting",
+    "Naval warfare",
+    "Nineteenth-century American whaling",
+    "Cotton shipping"
+   ]
+  },
+  {
+   "id": "2701.q3",
+   "lessonId": "2701",
+   "kind": "mcq",
+   "prompt": "What drives Captain Ahab's voyage?",
+   "choices": [
+    "A wish to return home to his family",
+    "An obsessive need for revenge on the white whale that took his leg",
+    "A search for a lost treasure",
+    "A scientific mission to map the coast"
+   ]
+  },
+  {
+   "id": "2701.q4",
+   "lessonId": "2701",
+   "kind": "mcq",
+   "prompt": "The white whale is best understood as",
+   "choices": [
+    "a symbol that different characters read in different ways",
+    "a ship in disguise",
+    "a clue to a lost map",
+    "a plain animal with no meaning"
+   ]
+  },
+  {
+   "id": "2701.q5",
+   "lessonId": "2701",
+   "kind": "mcq",
+   "prompt": "Ahab nails a gold doubloon to the mast. What is it for?",
+   "choices": [
+    "A memorial for his lost leg",
+    "Payment for the ship's cook",
+    "A charm against storms",
+    "A prize for the first man to sight Moby Dick"
+   ]
+  },
+  {
+   "id": "98.q1",
+   "lessonId": "98",
+   "kind": "mcq",
+   "prompt": "What does Sydney Carton do at the end of the novel?",
+   "choices": [
+    "He takes Charles Darnay's place at the guillotine",
+    "He escapes to England",
+    "He joins the revolutionaries",
+    "He marries Lucie"
+   ]
+  },
+  {
+   "id": "98.q2",
+   "lessonId": "98",
+   "kind": "mcq",
+   "prompt": "Which two cities does the title refer to?",
+   "choices": [
+    "Vienna and Berlin",
+    "London and Paris",
+    "Rome and Athens",
+    "Dublin and Edinburgh"
+   ]
+  },
+  {
+   "id": "98.q3",
+   "lessonId": "98",
+   "kind": "mcq",
+   "prompt": "Dr. Manette is \"recalled to life\" after eighteen years in which place?",
+   "choices": [
+    "A country monastery",
+    "A London poorhouse",
+    "The Bastille",
+    "A Paris hospital"
+   ]
+  },
+  {
+   "id": "98.q4",
+   "lessonId": "98",
+   "kind": "mcq",
+   "prompt": "The opening line, \"It was the best of times, it was the worst of times,\" is an example of",
+   "choices": [
+    "a metaphor with no contrast",
+    "onomatopoeia",
+    "a simile",
+    "antithesis, using balanced opposites"
+   ]
+  },
+  {
+   "id": "98.q5",
+   "lessonId": "98",
+   "kind": "mcq",
+   "prompt": "Madame Defarge keeps track of the people she wants to punish by",
+   "choices": [
+    "knitting their names into a register",
+    "writing in a diary",
+    "keeping coins in a jar",
+    "carving names in a table"
+   ]
+  },
+  {
+   "id": "345.q1",
+   "lessonId": "345",
+   "kind": "mcq",
+   "prompt": "Who first travels to Transylvania to meet Count Dracula?",
+   "choices": [
+    "Abraham Van Helsing",
+    "Dr. Seward",
+    "Arthur Holmwood",
+    "Jonathan Harker"
+   ]
+  },
+  {
+   "id": "345.q2",
+   "lessonId": "345",
+   "kind": "mcq",
+   "prompt": "What is the novel's unusual format?",
+   "choices": [
+    "A play script",
+    "A single long speech",
+    "It is told through diaries, letters, and clippings",
+    "A collection of poems"
+   ]
+  },
+  {
+   "id": "345.q3",
+   "lessonId": "345",
+   "kind": "mcq",
+   "prompt": "Which fear of Victorian society does the Count most clearly represent?",
+   "choices": [
+    "Fear of machines",
+    "Fear of foreign invasion and contagion",
+    "Fear of schooling",
+    "Fear of the sea"
+   ]
+  },
+  {
+   "id": "345.q4",
+   "lessonId": "345",
+   "kind": "mcq",
+   "prompt": "The heroes use modern tools such as typewriters, shorthand, and the phonograph. What does this suggest?",
+   "choices": [
+    "Modern science and ancient superstition collide in the story",
+    "Technology is useless against evil",
+    "The book is a science textbook",
+    "Technology is a magic spell cast by the Count"
+   ]
+  },
+  {
+   "id": "345.q5",
+   "lessonId": "345",
+   "kind": "tf",
+   "prompt": "True or false: Van Helsing is a vampire hunter and doctor who helps the group.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "76.q1",
+   "lessonId": "76",
+   "kind": "mcq",
+   "prompt": "Who escapes with Huck on the raft?",
+   "choices": [
+    "Jim, an enslaved man",
+    "Tom Sawyer",
+    "Pap Finn",
+    "The Duke"
+   ]
+  },
+  {
+   "id": "76.q2",
+   "lessonId": "76",
+   "kind": "mcq",
+   "prompt": "Where does most of the novel take place?",
+   "choices": [
+    "In New York City",
+    "Along the Mississippi River in the antebellum South",
+    "On a ship at sea",
+    "In the Rocky Mountains"
+   ]
+  },
+  {
+   "id": "76.q3",
+   "lessonId": "76",
+   "kind": "mcq",
+   "prompt": "When Huck decides he will \"go to hell\" rather than turn Jim in, the novel shows",
+   "choices": [
+    "that Huck is a coward",
+    "that Twain agrees with slavery",
+    "that Huck's true conscience is stronger than the wrong rules of his society",
+    "that Huck wants to be a pirate"
+   ]
+  },
+  {
+   "id": "76.q4",
+   "lessonId": "76",
+   "kind": "mcq",
+   "prompt": "Twain tells the story in Huck's own dialect. What effect does this have?",
+   "choices": [
+    "It makes the story hard to follow on purpose",
+    "It shows the narrator is the author",
+    "None of these",
+    "It gives a naive voice that makes the satire sharper"
+   ]
+  },
+  {
+   "id": "76.q5",
+   "lessonId": "76",
+   "kind": "mcq",
+   "prompt": "The Duke and the King are",
+   "choices": [
+    "con men who cheat the towns they visit",
+    "real royalty traveling in disguise",
+    "Union soldiers",
+    "actors hired by Tom Sawyer"
+   ]
+  },
+  {
+   "id": "174.q1",
+   "lessonId": "174",
+   "kind": "mcq",
+   "prompt": "What happens to the portrait in the novel?",
+   "choices": [
+    "It is sold to a museum",
+    "It ages and shows the effects of Dorian's sins while he stays young",
+    "It becomes more beautiful over time",
+    "It is destroyed on the first night"
+   ]
+  },
+  {
+   "id": "174.q2",
+   "lessonId": "174",
+   "kind": "mcq",
+   "prompt": "In which place is the story mainly set?",
+   "choices": [
+    "London in the late Victorian period",
+    "Revolutionary Paris",
+    "Medieval Florence",
+    "A Caribbean island"
+   ]
+  },
+  {
+   "id": "174.q3",
+   "lessonId": "174",
+   "kind": "mcq",
+   "prompt": "Lord Henry Wotton's philosophy mostly encourages Dorian to",
+   "choices": [
+    "give his fortune to charity",
+    "become a clergyman",
+    "None of these",
+    "pursue pleasure and beauty without regard to consequences"
+   ]
+  },
+  {
+   "id": "174.q4",
+   "lessonId": "174",
+   "kind": "mcq",
+   "prompt": "Lord Henry speaks in witty, paradoxical sayings. These are best called",
+   "choices": [
+    "soliloquies",
+    "prologues",
+    "epigrams",
+    "similes"
+   ]
+  },
+  {
+   "id": "174.q5",
+   "lessonId": "174",
+   "kind": "mcq",
+   "prompt": "Why is Sibyl Vane's story important?",
+   "choices": [
+    "She paints the portrait",
+    "Dorian's cruelty to her marks the first major step in his moral decline",
+    "She becomes Lord Henry's wife",
+    "She rescues Dorian from prison"
+   ]
+  },
+  {
+   "id": "1260.q1",
+   "lessonId": "1260",
+   "kind": "mcq",
+   "prompt": "What is Jane Eyre's job at Thornfield Hall?",
+   "choices": [
+    "Governess to Adele",
+    "Nurse to Mr. Rochester",
+    "Cook",
+    "Housekeeper"
+   ]
+  },
+  {
+   "id": "1260.q2",
+   "lessonId": "1260",
+   "kind": "mcq",
+   "prompt": "Which setting is the harsh charity school Jane attends as a girl?",
+   "choices": [
+    "Moor House",
+    "Lowood",
+    "Gateshead",
+    "Thornfield"
+   ]
+  },
+  {
+   "id": "1260.q3",
+   "lessonId": "1260",
+   "kind": "mcq",
+   "prompt": "Why does Jane leave Thornfield after the wedding is stopped?",
+   "choices": [
+    "She wants to see the sea",
+    "She inherits money abroad",
+    "She learns Rochester is already married and refuses to compromise her principles",
+    "She is fired"
+   ]
+  },
+  {
+   "id": "1260.q4",
+   "lessonId": "1260",
+   "kind": "mcq",
+   "prompt": "Jane often addresses the reader directly (for example, \"Reader, I married him\"). This technique",
+   "choices": [
+    "proves the story is false",
+    "proves Jane is not the author",
+    "shows that someone else is writing",
+    "makes the narration feel like an intimate confession"
+   ]
+  },
+  {
+   "id": "1260.q5",
+   "lessonId": "1260",
+   "kind": "mcq",
+   "prompt": "Which phrase best describes the mysterious laughter at Thornfield?",
+   "choices": [
+    "A hint of a hidden secret, a Gothic device",
+    "A mistake by the narrator",
+    "A comic aside",
+    "A weather report"
+   ]
+  },
+  {
+   "id": "768.q1",
+   "lessonId": "768",
+   "kind": "mcq",
+   "prompt": "Who is the brooding, vengeful man at the center of Wuthering Heights?",
+   "choices": [
+    "Heathcliff",
+    "Edgar Linton",
+    "Hareton Earnshaw",
+    "Mr. Lockwood"
+   ]
+  },
+  {
+   "id": "768.q2",
+   "lessonId": "768",
+   "kind": "mcq",
+   "prompt": "Where is the novel set?",
+   "choices": [
+    "A farm in Kansas",
+    "The Yorkshire moors in northern England",
+    "The streets of London",
+    "A castle in Scotland"
+   ]
+  },
+  {
+   "id": "768.q3",
+   "lessonId": "768",
+   "kind": "mcq",
+   "prompt": "Which narrator tells most of the story to Mr. Lockwood?",
+   "choices": [
+    "Catherine Linton",
+    "Isabella Linton",
+    "Nelly Dean, the housekeeper",
+    "Joseph"
+   ]
+  },
+  {
+   "id": "768.q4",
+   "lessonId": "768",
+   "kind": "mcq",
+   "prompt": "The novel uses nested narrators. What effect does this create?",
+   "choices": [
+    "It proves the story is a diary",
+    "It makes the plot simpler",
+    "It removes all suspense",
+    "Doubt about how reliable any single account is"
+   ]
+  },
+  {
+   "id": "768.q5",
+   "lessonId": "768",
+   "kind": "mcq",
+   "prompt": "Which theme best captures how Heathcliff treats the next generation?",
+   "choices": [
+    "Revenge continuing across generations",
+    "The value of travel",
+    "Peaceful rural life",
+    "Religious conversion"
+   ]
+  },
+  {
+   "id": "514.q1",
+   "lessonId": "514",
+   "kind": "mcq",
+   "prompt": "Which March sister dreams of being a writer?",
+   "choices": [
+    "Meg",
+    "Beth",
+    "Amy",
+    "Jo"
+   ]
+  },
+  {
+   "id": "514.q2",
+   "lessonId": "514",
+   "kind": "mcq",
+   "prompt": "During most of the novel, where is the March sisters' father?",
+   "choices": [
+    "Out west panning for gold",
+    "Working in Europe",
+    "Away serving in the Civil War as a chaplain",
+    "In prison"
+   ]
+  },
+  {
+   "id": "514.q3",
+   "lessonId": "514",
+   "kind": "mcq",
+   "prompt": "The sisters' play-acting of Pilgrim's Progress suggests that growing up is",
+   "choices": [
+    "something to be avoided",
+    "a journey where each person has burdens to overcome",
+    "None of these",
+    "a race with a winner"
+   ]
+  },
+  {
+   "id": "514.q4",
+   "lessonId": "514",
+   "kind": "mcq",
+   "prompt": "Alcott gives each sister a different personality and goal. This technique is called",
+   "choices": [
+    "using foils to contrast characters",
+    "stream of consciousness",
+    "flashback",
+    "a cliffhanger ending each chapter"
+   ]
+  },
+  {
+   "id": "514.q5",
+   "lessonId": "514",
+   "kind": "mcq",
+   "prompt": "Which sister quietly plays the piano and falls gravely ill?",
+   "choices": [
+    "Meg",
+    "Amy",
+    "Jo",
+    "Beth"
+   ]
+  },
+  {
+   "id": "120.q1",
+   "lessonId": "120",
+   "kind": "mcq",
+   "prompt": "Who is the one-legged sea cook who joins the voyage?",
+   "choices": [
+    "Ben Gunn",
+    "Captain Flint",
+    "Long John Silver",
+    "Billy Bones"
+   ]
+  },
+  {
+   "id": "120.q2",
+   "lessonId": "120",
+   "kind": "mcq",
+   "prompt": "How does Jim Hawkins get the treasure map?",
+   "choices": [
+    "From a fortune teller",
+    "From a bottle in the sea",
+    "From his father's will",
+    "From the chest of the dead old sailor Billy Bones"
+   ]
+  },
+  {
+   "id": "120.q3",
+   "lessonId": "120",
+   "kind": "mcq",
+   "prompt": "What is a major theme of the novel?",
+   "choices": [
+    "Growing up through adventure, and the moral ambiguity of greed",
+    "The value of idleness",
+    "The importance of silence",
+    "Life in a big city"
+   ]
+  },
+  {
+   "id": "120.q4",
+   "lessonId": "120",
+   "kind": "mcq",
+   "prompt": "Jim narrates in first person, looking back on the events. This allows Stevenson to",
+   "choices": [
+    "describe the future of Jim's life",
+    "build suspense and share Jim's limited knowledge",
+    "show everyone's thoughts",
+    "avoid describing the island"
+   ]
+  },
+  {
+   "id": "120.q5",
+   "lessonId": "120",
+   "kind": "tf",
+   "prompt": "True or false: Long John Silver is a simple villain with no good qualities.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "1513.q1",
+   "lessonId": "1513",
+   "kind": "mcq",
+   "prompt": "Which two families are feuding in Romeo and Juliet?",
+   "choices": [
+    "The Tudors and Stuarts",
+    "The Montagues and the Capulets",
+    "The Medicis and Borgias",
+    "The Lancasters and Yorks"
+   ]
+  },
+  {
+   "id": "1513.q2",
+   "lessonId": "1513",
+   "kind": "mcq",
+   "prompt": "Where is the play set?",
+   "choices": [
+    "Verona, Italy",
+    "Athens, Greece",
+    "London, England",
+    "Elsinore, Denmark"
+   ]
+  },
+  {
+   "id": "1513.q3",
+   "lessonId": "1513",
+   "kind": "mcq",
+   "prompt": "What leads to the lovers' deaths?",
+   "choices": [
+    "A shipwreck",
+    "A famine",
+    "A war with another city",
+    "Haste, bad timing, and the long family feud"
+   ]
+  },
+  {
+   "id": "1513.q4",
+   "lessonId": "1513",
+   "kind": "mcq",
+   "prompt": "The play's prologue is a sonnet that announces the ending. This is",
+   "choices": [
+    "a cliffhanger",
+    "None of these",
+    "foreshadowing",
+    "a soliloquy"
+   ]
+  },
+  {
+   "id": "1513.q5",
+   "lessonId": "1513",
+   "kind": "mcq",
+   "prompt": "When Juliet asks \"wherefore art thou Romeo?\" she means",
+   "choices": [
+    "where are you?",
+    "why are you Romeo, a Montague?",
+    "who are you?",
+    "what time is it?"
+   ]
+  },
+  {
+   "id": "1524.q1",
+   "lessonId": "1524",
+   "kind": "mcq",
+   "prompt": "Who is Hamlet's uncle, now king after marrying Hamlet's mother?",
+   "choices": [
+    "Fortinbras",
+    "Polonius",
+    "Laertes",
+    "Claudius"
+   ]
+  },
+  {
+   "id": "1524.q2",
+   "lessonId": "1524",
+   "kind": "mcq",
+   "prompt": "Where is the play set?",
+   "choices": [
+    "A castle in Scotland",
+    "A tavern in London",
+    "The royal castle of Elsinore in Denmark",
+    "The palace at Versailles"
+   ]
+  },
+  {
+   "id": "1524.q3",
+   "lessonId": "1524",
+   "kind": "mcq",
+   "prompt": "Which theme is shown by Hamlet's long delay in taking revenge?",
+   "choices": [
+    "The pleasure of travel",
+    "Action versus overthinking and the moral weight of revenge",
+    "The joy of conquest",
+    "The value of a quick temper"
+   ]
+  },
+  {
+   "id": "1524.q4",
+   "lessonId": "1524",
+   "kind": "mcq",
+   "prompt": "In \"To be, or not to be,\" Hamlet speaks his thoughts alone on stage. This device is called",
+   "choices": [
+    "a soliloquy",
+    "a prologue",
+    "a stage direction",
+    "an aside to the audience about the plot only"
+   ]
+  },
+  {
+   "id": "1524.q5",
+   "lessonId": "1524",
+   "kind": "mcq",
+   "prompt": "Hamlet stages a play to test Claudius. What does he hope to learn?",
+   "choices": [
+    "Whether the Danes support him",
+    "Whether the players can sing",
+    "Whether Ophelia loves him",
+    "Whether Claudius reacts with guilt to a murder scene like his own crime"
+   ]
+  },
+  {
+   "id": "1400.q1",
+   "lessonId": "1400",
+   "kind": "mcq",
+   "prompt": "Who is the narrator of Great Expectations?",
+   "choices": [
+    "Pip",
+    "Joe Gargery",
+    "Herbert Pocket",
+    "Magwitch"
+   ]
+  },
+  {
+   "id": "1400.q2",
+   "lessonId": "1400",
+   "kind": "mcq",
+   "prompt": "Who is secretly the source of Pip's fortune?",
+   "choices": [
+    "Joe Gargery",
+    "Magwitch, the convict Pip helped as a child",
+    "Miss Havisham",
+    "Mr. Jaggers"
+   ]
+  },
+  {
+   "id": "1400.q3",
+   "lessonId": "1400",
+   "kind": "mcq",
+   "prompt": "What does Pip learn about wealth and class by the end?",
+   "choices": [
+    "Education is worthless",
+    "Wealth guarantees happiness",
+    "True worth lies in character and loyalty, not status",
+    "Class has no effect on people"
+   ]
+  },
+  {
+   "id": "1400.q4",
+   "lessonId": "1400",
+   "kind": "mcq",
+   "prompt": "Miss Havisham's stopped clocks and decaying wedding cake are examples of",
+   "choices": [
+    "None of these",
+    "a simile with no meaning",
+    "dialect",
+    "symbolism for a life frozen in hurt"
+   ]
+  },
+  {
+   "id": "1400.q5",
+   "lessonId": "1400",
+   "kind": "mcq",
+   "prompt": "Estella was raised by Miss Havisham to",
+   "choices": [
+    "break men's hearts",
+    "become a nurse",
+    "run the forge",
+    "run a school"
+   ]
+  },
+  {
+   "id": "730.q1",
+   "lessonId": "730",
+   "kind": "mcq",
+   "prompt": "What famous request does Oliver make in the workhouse?",
+   "choices": [
+    "\"Take me home.\"",
+    "\"Where is my father?\"",
+    "\"I am a gentleman.\"",
+    "\"Please, sir, I want some more.\""
+   ]
+  },
+  {
+   "id": "730.q2",
+   "lessonId": "730",
+   "kind": "mcq",
+   "prompt": "Which gang leader trains boys to pick pockets in London?",
+   "choices": [
+    "Bill Sikes",
+    "Mr. Brownlow",
+    "Fagin",
+    "Mr. Bumble"
+   ]
+  },
+  {
+   "id": "730.q3",
+   "lessonId": "730",
+   "kind": "mcq",
+   "prompt": "Dickens wrote Oliver Twist partly to criticize",
+   "choices": [
+    "the cost of theater tickets",
+    "how society treated poor children and workhouse policy",
+    "the length of London bridges",
+    "the tax on tea"
+   ]
+  },
+  {
+   "id": "730.q4",
+   "lessonId": "730",
+   "kind": "mcq",
+   "prompt": "Dickens gives officials like Mr. Bumble comically exaggerated manners. This is",
+   "choices": [
+    "satire",
+    "tragic irony only",
+    "stream of consciousness",
+    "an elegy"
+   ]
+  },
+  {
+   "id": "730.q5",
+   "lessonId": "730",
+   "kind": "mcq",
+   "prompt": "Which kind man takes Oliver in and tries to help him?",
+   "choices": [
+    "Mr. Sowerberry",
+    "Bill Sikes",
+    "Noah Claypole",
+    "Mr. Brownlow"
+   ]
+  },
+  {
+   "id": "46.q1",
+   "lessonId": "46",
+   "kind": "mcq",
+   "prompt": "Who is Ebenezer Scrooge's dead business partner who appears as a ghost?",
+   "choices": [
+    "Bob Cratchit",
+    "Jacob Marley",
+    "Fred",
+    "Fezziwig"
+   ]
+  },
+  {
+   "id": "46.q2",
+   "lessonId": "46",
+   "kind": "mcq",
+   "prompt": "Which family does Scrooge's clerk Bob Cratchit have?",
+   "choices": [
+    "A poor family including the sick boy Tiny Tim",
+    "A family of ghosts",
+    "A rich merchant family",
+    "A group of sailors"
+   ]
+  },
+  {
+   "id": "46.q3",
+   "lessonId": "46",
+   "kind": "mcq",
+   "prompt": "What is the main theme of the story?",
+   "choices": [
+    "Success through greed",
+    "The danger of the sea",
+    "The importance of silence",
+    "Generosity and the possibility of redemption"
+   ]
+  },
+  {
+   "id": "46.q4",
+   "lessonId": "46",
+   "kind": "mcq",
+   "prompt": "The ghosts of Christmas Past, Present, and Yet to Come work as a",
+   "choices": [
+    "set of riddles",
+    "a mystery solved by a detective",
+    "structure moving the story through time",
+    "chorus in a play"
+   ]
+  },
+  {
+   "id": "46.q5",
+   "lessonId": "46",
+   "kind": "mcq",
+   "prompt": "When Scrooge calls Christmas \"humbug,\" he means it is",
+   "choices": [
+    "wonderful",
+    "nonsense",
+    "a type of sweet",
+    "it is a Christmas cake"
+   ]
+  },
+  {
+   "id": "2554.q1",
+   "lessonId": "2554",
+   "kind": "mcq",
+   "prompt": "Who is the main character of Crime and Punishment?",
+   "choices": [
+    "Svidrigailov",
+    "Porfiry Petrovich",
+    "Razumikhin",
+    "Rodion Raskolnikov"
+   ]
+  },
+  {
+   "id": "2554.q2",
+   "lessonId": "2554",
+   "kind": "mcq",
+   "prompt": "In which city is the novel mostly set?",
+   "choices": [
+    "Paris",
+    "Warsaw",
+    "St. Petersburg",
+    "Moscow"
+   ]
+  },
+  {
+   "id": "2554.q3",
+   "lessonId": "2554",
+   "kind": "mcq",
+   "prompt": "Raskolnikov believes extraordinary people may break moral rules. What does the novel show?",
+   "choices": [
+    "He becomes a famous leader",
+    "The theory collapses under his guilt and conscience",
+    "The theory is proven true",
+    "No one cares what he does"
+   ]
+  },
+  {
+   "id": "2554.q4",
+   "lessonId": "2554",
+   "kind": "mcq",
+   "prompt": "Dostoevsky shows Raskolnikov's fevers, dreams, and racing thoughts. This is an example of",
+   "choices": [
+    "psychological realism",
+    "fable",
+    "None of these",
+    "epistolary form"
+   ]
+  },
+  {
+   "id": "2554.q5",
+   "lessonId": "2554",
+   "kind": "mcq",
+   "prompt": "Which character encourages Raskolnikov toward confession and redemption?",
+   "choices": [
+    "The pawnbroker",
+    "Luzhin",
+    "Dunya's landlady",
+    "Sonya Marmeladova"
+   ]
+  },
+  {
+   "id": "2600.q1",
+   "lessonId": "2600",
+   "kind": "mcq",
+   "prompt": "Which French leader's invasion of Russia is central to War and Peace?",
+   "choices": [
+    "Louis XIV",
+    "Charlemagne",
+    "Robespierre",
+    "Napoleon"
+   ]
+  },
+  {
+   "id": "2600.q2",
+   "lessonId": "2600",
+   "kind": "mcq",
+   "prompt": "Which two characters are among the novel's main young nobles?",
+   "choices": [
+    "Anna and Vronsky",
+    "Jean Valjean and Javert",
+    "Pierre Bezukhov and Andrei Bolkonsky",
+    "Raskolnikov and Sonya"
+   ]
+  },
+  {
+   "id": "2600.q3",
+   "lessonId": "2600",
+   "kind": "mcq",
+   "prompt": "Tolstoy argues in the novel that history is",
+   "choices": [
+    "shaped only by Napoleon",
+    "driven by countless small forces, not just great men",
+    "decided by luck alone with no pattern",
+    "shaped only by weather"
+   ]
+  },
+  {
+   "id": "2600.q4",
+   "lessonId": "2600",
+   "kind": "mcq",
+   "prompt": "Why does Tolstoy alternate between salons and battlefields?",
+   "choices": [
+    "To contrast private life and public events and question what matters",
+    "Because the story is a diary",
+    "To save space",
+    "To avoid describing war"
+   ]
+  },
+  {
+   "id": "2600.q5",
+   "lessonId": "2600",
+   "kind": "mcq",
+   "prompt": "In the novel, a \"salon\" is",
+   "choices": [
+    "a type of ship",
+    "a military order",
+    "a kind of Russian tea",
+    "a gathering of aristocrats for conversation"
+   ]
+  },
+  {
+   "id": "1399.q1",
+   "lessonId": "1399",
+   "kind": "mcq",
+   "prompt": "What choice does Anna make that scandalizes St. Petersburg society?",
+   "choices": [
+    "She becomes a nun",
+    "She leaves her husband for Count Vronsky",
+    "She joins the army",
+    "She sells her estate"
+   ]
+  },
+  {
+   "id": "1399.q2",
+   "lessonId": "1399",
+   "kind": "mcq",
+   "prompt": "Who is the landowner whose parallel story explores faith and meaning?",
+   "choices": [
+    "Konstantin Levin",
+    "Oblonsky",
+    "Dolly",
+    "Karenin"
+   ]
+  },
+  {
+   "id": "1399.q3",
+   "lessonId": "1399",
+   "kind": "mcq",
+   "prompt": "The novel begins \"All happy families are alike; each unhappy family is unhappy in its own way.\" This sets up",
+   "choices": [
+    "a sea voyage",
+    "a travel narrative",
+    "a war story",
+    "a study of different troubled marriages and families"
+   ]
+  },
+  {
+   "id": "1399.q4",
+   "lessonId": "1399",
+   "kind": "mcq",
+   "prompt": "Why does Tolstoy tell Anna's and Levin's stories in parallel?",
+   "choices": [
+    "To shorten the book",
+    "Because they are enemies",
+    "Their opposite paths comment on each other",
+    "To confuse the reader"
+   ]
+  },
+  {
+   "id": "1399.q5",
+   "lessonId": "1399",
+   "kind": "mcq",
+   "prompt": "How do high society characters generally treat Anna after her affair?",
+   "choices": [
+    "They ignore it entirely",
+    "They shun her while excusing similar behavior by men",
+    "They throw a party for her",
+    "They ask her to run the government"
+   ]
+  },
+  {
+   "id": "996.q1",
+   "lessonId": "996",
+   "kind": "mcq",
+   "prompt": "Why does Alonso Quixano become Don Quixote?",
+   "choices": [
+    "He inherits a title from a king",
+    "He reads too many chivalric romances and decides to become a knight",
+    "He is cursed by a witch",
+    "He is paid to act in a play"
+   ]
+  },
+  {
+   "id": "996.q2",
+   "lessonId": "996",
+   "kind": "mcq",
+   "prompt": "Who is Don Quixote's down-to-earth companion?",
+   "choices": [
+    "Sancho Panza, his squire",
+    "The barber",
+    "Dulcinea",
+    "Rocinante"
+   ]
+  },
+  {
+   "id": "996.q3",
+   "lessonId": "996",
+   "kind": "mcq",
+   "prompt": "When Quixote charges at windmills thinking they are giants, this shows",
+   "choices": [
+    "that he is a great warrior",
+    "that windmills were enemies",
+    "that Quixote is a skilled engineer",
+    "the clash between illusion and reality"
+   ]
+  },
+  {
+   "id": "996.q4",
+   "lessonId": "996",
+   "kind": "mcq",
+   "prompt": "Cervantes wrote the book largely as",
+   "choices": [
+    "a legal handbook",
+    "a cookbook of Spanish dishes",
+    "a parody of chivalric romances",
+    "a travel guide to Spain"
+   ]
+  },
+  {
+   "id": "996.q5",
+   "lessonId": "996",
+   "kind": "mcq",
+   "prompt": "In Part Two, characters have read Part One. This technique is called",
+   "choices": [
+    "epigram",
+    "metafiction",
+    "allegory only",
+    "allegory of nature"
+   ]
+  },
+  {
+   "id": "1184.q1",
+   "lessonId": "1184",
+   "kind": "mcq",
+   "prompt": "Why is Edmond Dantes imprisoned in the Chateau d'If?",
+   "choices": [
+    "He refuses to join the army",
+    "He is falsely accused of treason by men who envy him",
+    "He steals a ship from his employer",
+    "He fights a duel and kills a nobleman"
+   ]
+  },
+  {
+   "id": "1184.q2",
+   "lessonId": "1184",
+   "kind": "mcq",
+   "prompt": "Where does Dantes find the treasure that makes him rich?",
+   "choices": [
+    "On the island of Monte Cristo",
+    "Under the Chateau d'If",
+    "In a Roman villa",
+    "In a Paris bank vault"
+   ]
+  },
+  {
+   "id": "1184.q3",
+   "lessonId": "1184",
+   "kind": "mcq",
+   "prompt": "Which theme best describes the novel's central question?",
+   "choices": [
+    "Why the monarchy should be restored",
+    "Whether money can buy happiness in a quiet village",
+    "How to build a ship",
+    "Whether revenge can ever be fully just"
+   ]
+  },
+  {
+   "id": "1184.q4",
+   "lessonId": "1184",
+   "kind": "mcq",
+   "prompt": "Dumas hides the Count's identity from other characters, but readers know it. This is an example of what?",
+   "choices": [
+    "Onomatopoeia",
+    "Alliteration",
+    "Dramatic irony",
+    "Personification"
+   ]
+  },
+  {
+   "id": "1184.q5",
+   "lessonId": "1184",
+   "kind": "mcq",
+   "prompt": "When the text says Dantes shows \"fortitude\" in prison, what does it mean?",
+   "choices": [
+    "A talent for languages",
+    "Courage and endurance in hardship",
+    "Great wealth",
+    "A love of food"
+   ]
+  },
+  {
+   "id": "135.q1",
+   "lessonId": "135",
+   "kind": "mcq",
+   "prompt": "What small crime first sends Jean Valjean to prison?",
+   "choices": [
+    "Stealing bread",
+    "Forging a letter",
+    "Smuggling",
+    "Starting a riot"
+   ]
+  },
+  {
+   "id": "135.q2",
+   "lessonId": "135",
+   "kind": "mcq",
+   "prompt": "Which major historical event is a setting for part of the novel?",
+   "choices": [
+    "The Black Death",
+    "The Battle of Waterloo and later Paris uprising of 1832",
+    "The American Civil War",
+    "The Crusades"
+   ]
+  },
+  {
+   "id": "135.q3",
+   "lessonId": "135",
+   "kind": "mcq",
+   "prompt": "What act changes Valjean's life early in the book?",
+   "choices": [
+    "He inherits money",
+    "A judge frees him",
+    "A bishop shows him mercy after he steals silver",
+    "A soldier saves him from drowning"
+   ]
+  },
+  {
+   "id": "135.q4",
+   "lessonId": "135",
+   "kind": "mcq",
+   "prompt": "Hugo often pauses the plot for long essays on topics like Waterloo or the sewers. What is this technique called?",
+   "choices": [
+    "Pun",
+    "Flashback",
+    "Soliloquy",
+    "Digression"
+   ]
+  },
+  {
+   "id": "135.q5",
+   "lessonId": "135",
+   "kind": "mcq",
+   "prompt": "Why does Inspector Javert struggle at the end of the story?",
+   "choices": [
+    "He cannot reconcile his rigid view of law with Valjean's mercy",
+    "He loses his badge",
+    "He is promoted",
+    "He learns Valjean is a nobleman"
+   ]
+  },
+  {
+   "id": "161.q1",
+   "lessonId": "161",
+   "kind": "mcq",
+   "prompt": "Which sisters are the central characters of the novel?",
+   "choices": [
+    "Emma and Isabella Woodhouse",
+    "Meg and Jo March",
+    "Jane and Elizabeth Bennet",
+    "Elinor and Marianne Dashwood"
+   ]
+  },
+  {
+   "id": "161.q2",
+   "lessonId": "161",
+   "kind": "mcq",
+   "prompt": "Why must the Dashwood women leave their home at the beginning?",
+   "choices": [
+    "The house burns down",
+    "They are in debt to a neighbor",
+    "Inheritance passes to their half-brother John",
+    "A war begins"
+   ]
+  },
+  {
+   "id": "161.q3",
+   "lessonId": "161",
+   "kind": "mcq",
+   "prompt": "What is a main theme of the book?",
+   "choices": [
+    "Life in the Navy",
+    "The balance between reason and emotion",
+    "The dangers of the sea",
+    "The rise of industry"
+   ]
+  },
+  {
+   "id": "161.q4",
+   "lessonId": "161",
+   "kind": "mcq",
+   "prompt": "Austen often uses a narrator who gently mocks selfishness, such as in John and Fanny Dashwood's conversation about helping the family. This is an example of what?",
+   "choices": [
+    "Irony",
+    "Alliteration",
+    "Epic simile",
+    "Onomatopoeia"
+   ]
+  },
+  {
+   "id": "161.q5",
+   "lessonId": "161",
+   "kind": "mcq",
+   "prompt": "Why is Marianne's illness a turning point?",
+   "choices": [
+    "It ends the novel",
+    "It cancels her wedding",
+    "It reunites her with her father",
+    "It makes her rethink her extreme sensibility"
+   ]
+  },
+  {
+   "id": "158.q1",
+   "lessonId": "158",
+   "kind": "mcq",
+   "prompt": "What is Emma Woodhouse's favorite hobby?",
+   "choices": [
+    "Politics",
+    "Sailing",
+    "Painting portraits of the poor",
+    "Matchmaking"
+   ]
+  },
+  {
+   "id": "158.q2",
+   "lessonId": "158",
+   "kind": "mcq",
+   "prompt": "Where does the story take place?",
+   "choices": [
+    "London docks",
+    "A ship at sea",
+    "The village of Highbury",
+    "A castle in Scotland"
+   ]
+  },
+  {
+   "id": "158.q3",
+   "lessonId": "158",
+   "kind": "mcq",
+   "prompt": "Which theme matters most to Emma's growth?",
+   "choices": [
+    "War",
+    "Self-knowledge",
+    "Revenge",
+    "Exploration"
+   ]
+  },
+  {
+   "id": "158.q4",
+   "lessonId": "158",
+   "kind": "mcq",
+   "prompt": "Whose view do we mostly see in the narration, causing readers to believe Emma's mistaken ideas at first?",
+   "choices": [
+    "Emma's, through free indirect discourse",
+    "Letters from Harriet",
+    "A neutral newspaper",
+    "Mr. Knightley's diary"
+   ]
+  },
+  {
+   "id": "158.q5",
+   "lessonId": "158",
+   "kind": "mcq",
+   "prompt": "Who gently criticizes Emma and eventually becomes her husband?",
+   "choices": [
+    "Mr. Martin",
+    "Mr. Elton",
+    "Frank Churchill",
+    "Mr. Knightley"
+   ]
+  },
+  {
+   "id": "1257.q1",
+   "lessonId": "1257",
+   "kind": "mcq",
+   "prompt": "Who is the young man who travels to Paris hoping to become a musketeer?",
+   "choices": [
+    "Aramis",
+    "Athos",
+    "D'Artagnan",
+    "Porthos"
+   ]
+  },
+  {
+   "id": "1257.q2",
+   "lessonId": "1257",
+   "kind": "mcq",
+   "prompt": "In which country and century does the story take place?",
+   "choices": [
+    "Italy in the 1900s",
+    "England in the 1800s",
+    "Spain in the 1400s",
+    "France in the 1620s"
+   ]
+  },
+  {
+   "id": "1257.q3",
+   "lessonId": "1257",
+   "kind": "mcq",
+   "prompt": "What is the motto the friends share?",
+   "choices": [
+    "All for one, one for all",
+    "Honor above gold",
+    "Death before defeat",
+    "The sword is mightier than the pen"
+   ]
+  },
+  {
+   "id": "1257.q4",
+   "lessonId": "1257",
+   "kind": "mcq",
+   "prompt": "Why do many chapters end at a moment of danger?",
+   "choices": [
+    "It was originally a play",
+    "The book was first published in newspaper installments",
+    "The author disliked endings",
+    "It was a school assignment"
+   ]
+  },
+  {
+   "id": "1257.q5",
+   "lessonId": "1257",
+   "kind": "mcq",
+   "prompt": "Who is the main female villain, a spy for Cardinal Richelieu?",
+   "choices": [
+    "Madame de Chevreuse",
+    "Constance Bonacieux",
+    "Milady de Winter",
+    "Queen Anne"
+   ]
+  },
+  {
+   "id": "103.q1",
+   "lessonId": "103",
+   "kind": "mcq",
+   "prompt": "What does Phileas Fogg bet?",
+   "choices": [
+    "That he can climb Everest",
+    "That he can win a chess match",
+    "That he can find buried treasure",
+    "That he can travel around the world in eighty days"
+   ]
+  },
+  {
+   "id": "103.q2",
+   "lessonId": "103",
+   "kind": "mcq",
+   "prompt": "Who is Fogg's French servant?",
+   "choices": [
+    "Aouda",
+    "Stuart",
+    "Passepartout",
+    "Fix"
+   ]
+  },
+  {
+   "id": "103.q3",
+   "lessonId": "103",
+   "kind": "mcq",
+   "prompt": "Why was a trip like this newly possible in the 1870s?",
+   "choices": [
+    "Airplanes",
+    "Steamships, railways, and the Suez Canal",
+    "Rockets",
+    "Teleportation"
+   ]
+  },
+  {
+   "id": "103.q4",
+   "lessonId": "103",
+   "kind": "mcq",
+   "prompt": "How does Fogg win the bet at the very end?",
+   "choices": [
+    "He gains a day by crossing the International Date Line eastward",
+    "The judges extend the deadline",
+    "He cheats the clock",
+    "He takes a balloon"
+   ]
+  },
+  {
+   "id": "103.q5",
+   "lessonId": "103",
+   "kind": "mcq",
+   "prompt": "Detective Fix follows Fogg because he thinks Fogg is:",
+   "choices": [
+    "A spy",
+    "A prince",
+    "A pirate",
+    "A bank robber"
+   ]
+  },
+  {
+   "id": "164.q1",
+   "lessonId": "164",
+   "kind": "mcq",
+   "prompt": "What is the name of Captain Nemo's submarine?",
+   "choices": [
+    "The Hispaniola",
+    "The Beagle",
+    "The Nautilus",
+    "The Pequod"
+   ]
+  },
+  {
+   "id": "164.q2",
+   "lessonId": "164",
+   "kind": "mcq",
+   "prompt": "Who tells the story?",
+   "choices": [
+    "Ned Land",
+    "Conseil",
+    "Captain Nemo",
+    "Professor Pierre Aronnax"
+   ]
+  },
+  {
+   "id": "164.q3",
+   "lessonId": "164",
+   "kind": "mcq",
+   "prompt": "The story begins with sailors reporting a mysterious \"monster\". What is it really?",
+   "choices": [
+    "The submarine Nautilus",
+    "A volcano",
+    "A giant squid",
+    "A whale"
+   ]
+  },
+  {
+   "id": "164.q4",
+   "lessonId": "164",
+   "kind": "mcq",
+   "prompt": "Why does Verne include long lists of fish and sea creatures?",
+   "choices": [
+    "To teach French grammar",
+    "To give an air of scientific realism",
+    "To fill pages",
+    "To confuse readers"
+   ]
+  },
+  {
+   "id": "164.q5",
+   "lessonId": "164",
+   "kind": "mcq",
+   "prompt": "What does Ned Land want throughout the book?",
+   "choices": [
+    "To find Atlantis",
+    "To hunt whales for profit",
+    "To escape the Nautilus",
+    "To become captain"
+   ]
+  },
+  {
+   "id": "36.q1",
+   "lessonId": "36",
+   "kind": "mcq",
+   "prompt": "Where do the Martian cylinders first land?",
+   "choices": [
+    "Near Woking in Surrey",
+    "In New York",
+    "In Paris",
+    "In Edinburgh"
+   ]
+  },
+  {
+   "id": "36.q2",
+   "lessonId": "36",
+   "kind": "mcq",
+   "prompt": "Which planet do the invaders come from?",
+   "choices": [
+    "Venus",
+    "Mars",
+    "Jupiter",
+    "Mercury"
+   ]
+  },
+  {
+   "id": "36.q3",
+   "lessonId": "36",
+   "kind": "mcq",
+   "prompt": "How are the Martians finally defeated?",
+   "choices": [
+    "By a cannon",
+    "By a flood",
+    "By Earth's bacteria",
+    "By the Royal Navy alone"
+   ]
+  },
+  {
+   "id": "36.q4",
+   "lessonId": "36",
+   "kind": "mcq",
+   "prompt": "Wells wrote while Britain ruled a great empire. What idea does reversing roles produce?",
+   "choices": [
+    "A friendly alliance",
+    "A peace treaty",
+    "An economic boom",
+    "The invaders treat humans as Europeans treated colonized peoples"
+   ]
+  },
+  {
+   "id": "36.q5",
+   "lessonId": "36",
+   "kind": "mcq",
+   "prompt": "What are the Martians' walking war machines called?",
+   "choices": [
+    "Tripods",
+    "Zeppelins",
+    "Ironclads",
+    "Dreadnoughts"
+   ]
+  },
+  {
+   "id": "35.q1",
+   "lessonId": "35",
+   "kind": "mcq",
+   "prompt": "What are the two groups the Time Traveller meets in 802,701?",
+   "choices": [
+    "The Martians and the Venusians",
+    "The Lilliputians and the Brobdingnagians",
+    "The Hobbits and the Orcs",
+    "The Eloi and the Morlocks"
+   ]
+  },
+  {
+   "id": "35.q2",
+   "lessonId": "35",
+   "kind": "mcq",
+   "prompt": "What is the name of the Eloi woman he saves from drowning?",
+   "choices": [
+    "Hester",
+    "Aouda",
+    "Weena",
+    "Alice"
+   ]
+  },
+  {
+   "id": "35.q3",
+   "lessonId": "35",
+   "kind": "mcq",
+   "prompt": "What social problem does Wells use the future to comment on?",
+   "choices": [
+    "Overpopulation of cats",
+    "The gap between rich and poor",
+    "Free schooling",
+    "Sports"
+   ]
+  },
+  {
+   "id": "35.q4",
+   "lessonId": "35",
+   "kind": "mcq",
+   "prompt": "Why is the story told as the Traveller's account to dinner guests?",
+   "choices": [
+    "It forms a frame story that makes the fantastic tale seem like a report",
+    "Because it is a letter",
+    "To add a second plot",
+    "To hide the ending"
+   ]
+  },
+  {
+   "id": "35.q5",
+   "lessonId": "35",
+   "kind": "tf",
+   "prompt": "The Time Traveller's first theory about the Eloi and Morlocks proves entirely correct.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "43.q1",
+   "lessonId": "43",
+   "kind": "mcq",
+   "prompt": "What is Dr. Jekyll's secret?",
+   "choices": [
+    "He creates a potion that turns him into Mr. Hyde",
+    "He is a spy",
+    "He has a twin",
+    "He is a ghost"
+   ]
+  },
+  {
+   "id": "43.q2",
+   "lessonId": "43",
+   "kind": "mcq",
+   "prompt": "In which city is the story set?",
+   "choices": [
+    "Dublin",
+    "London",
+    "Paris",
+    "New York"
+   ]
+  },
+  {
+   "id": "43.q3",
+   "lessonId": "43",
+   "kind": "mcq",
+   "prompt": "What central idea does the novel explore?",
+   "choices": [
+    "Family inheritance",
+    "The joy of travel",
+    "The good and evil that exist in one person",
+    "Politics in the colonies"
+   ]
+  },
+  {
+   "id": "43.q4",
+   "lessonId": "43",
+   "kind": "mcq",
+   "prompt": "Why is the full truth revealed late in the book?",
+   "choices": [
+    "It is a dream",
+    "The author forgot details",
+    "The narrator is lying",
+    "It is held back for mystery and told in letters"
+   ]
+  },
+  {
+   "id": "43.q5",
+   "lessonId": "43",
+   "kind": "mcq",
+   "prompt": "Who is the lawyer who investigates the strange case?",
+   "choices": [
+    "Mr. Utterson",
+    "Mr. Pickwick",
+    "Mr. Darcy",
+    "Mr. Holmes"
+   ]
+  },
+  {
+   "id": "215.q1",
+   "lessonId": "215",
+   "kind": "mcq",
+   "prompt": "What kind of animal is Buck?",
+   "choices": [
+    "A bear",
+    "A large dog",
+    "A wolf",
+    "A horse"
+   ]
+  },
+  {
+   "id": "215.q2",
+   "lessonId": "215",
+   "kind": "mcq",
+   "prompt": "During which event is the story set?",
+   "choices": [
+    "The Klondike Gold Rush",
+    "The American Revolution",
+    "World War I",
+    "The Dust Bowl"
+   ]
+  },
+  {
+   "id": "215.q3",
+   "lessonId": "215",
+   "kind": "mcq",
+   "prompt": "What is the central conflict in Buck's life?",
+   "choices": [
+    "Town versus city",
+    "School versus work",
+    "Money versus love",
+    "Instinct versus civilization"
+   ]
+  },
+  {
+   "id": "215.q4",
+   "lessonId": "215",
+   "kind": "mcq",
+   "prompt": "What does \"the law of club and fang\" refer to?",
+   "choices": [
+    "A law of the Yukon government",
+    "A dog show rule",
+    "The harsh rule that strength decides survival",
+    "A rule about gold"
+   ]
+  },
+  {
+   "id": "215.q5",
+   "lessonId": "215",
+   "kind": "mcq",
+   "prompt": "Who is the kind man Buck loves?",
+   "choices": [
+    "Spitz",
+    "John Thornton",
+    "Hal",
+    "Perrault"
+   ]
+  },
+  {
+   "id": "236.q1",
+   "lessonId": "236",
+   "kind": "mcq",
+   "prompt": "Who raises Mowgli in the jungle?",
+   "choices": [
+    "Wolves",
+    "Tigers",
+    "Monkeys",
+    "Elephants"
+   ]
+  },
+  {
+   "id": "236.q2",
+   "lessonId": "236",
+   "kind": "mcq",
+   "prompt": "Which country is the story set in?",
+   "choices": [
+    "Australia",
+    "India",
+    "Brazil",
+    "Kenya"
+   ]
+  },
+  {
+   "id": "236.q3",
+   "lessonId": "236",
+   "kind": "mcq",
+   "prompt": "What is the \"Law of the Jungle\" mostly about?",
+   "choices": [
+    "A written law book for people",
+    "A king's decrees",
+    "Rules that all animals must obey to keep order",
+    "Rules of a sport"
+   ]
+  },
+  {
+   "id": "236.q4",
+   "lessonId": "236",
+   "kind": "mcq",
+   "prompt": "What technique makes animals talk and obey laws like people?",
+   "choices": [
+    "Simile",
+    "Hyperbole",
+    "Irony",
+    "Personification"
+   ]
+  },
+  {
+   "id": "236.q5",
+   "lessonId": "236",
+   "kind": "mcq",
+   "prompt": "Who is the main villain hunting Mowgli?",
+   "choices": [
+    "Shere Khan the tiger",
+    "Baloo the bear",
+    "Bagheera the panther",
+    "Kaa the python"
+   ]
+  },
+  {
+   "id": "844.q1",
+   "lessonId": "844",
+   "kind": "mcq",
+   "prompt": "What fake name does Jack Worthing use in town?",
+   "choices": [
+    "Cecil",
+    "Ernest",
+    "Algernon",
+    "Bunbury"
+   ]
+  },
+  {
+   "id": "844.q2",
+   "lessonId": "844",
+   "kind": "mcq",
+   "prompt": "What does \"Bunburying\" mean in the play?",
+   "choices": [
+    "Inventing a fictional person as an excuse to escape duties",
+    "Gardening",
+    "Public speaking",
+    "Baking buns"
+   ]
+  },
+  {
+   "id": "844.q3",
+   "lessonId": "844",
+   "kind": "mcq",
+   "prompt": "What is Wilde mostly satirizing?",
+   "choices": [
+    "Science",
+    "Sea voyages",
+    "Political revolution",
+    "Victorian respectability and marriage customs"
+   ]
+  },
+  {
+   "id": "844.q4",
+   "lessonId": "844",
+   "kind": "mcq",
+   "prompt": "Lady Bracknell's short, witty, twisted sayings are known as:",
+   "choices": [
+    "Soliloquies",
+    "Allegories",
+    "Epigrams",
+    "Sonnets"
+   ]
+  },
+  {
+   "id": "844.q5",
+   "lessonId": "844",
+   "kind": "mcq",
+   "prompt": "What is the final twist about Jack's name?",
+   "choices": [
+    "He has no name",
+    "His real name is Ernest after all",
+    "He is a prince",
+    "He is a spy"
+   ]
+  },
+  {
+   "id": "5200.q1",
+   "lessonId": "5200",
+   "kind": "mcq",
+   "prompt": "What does Gregor Samsa discover when he wakes up?",
+   "choices": [
+    "He is in prison",
+    "He has become famous",
+    "He has turned into a giant insect",
+    "He has lost his job"
+   ]
+  },
+  {
+   "id": "5200.q2",
+   "lessonId": "5200",
+   "kind": "mcq",
+   "prompt": "What was Gregor's job?",
+   "choices": [
+    "Sailor",
+    "Teacher",
+    "Doctor",
+    "Traveling salesman"
+   ]
+  },
+  {
+   "id": "5200.q3",
+   "lessonId": "5200",
+   "kind": "mcq",
+   "prompt": "What happens to the family's attitude toward Gregor over time?",
+   "choices": [
+    "They grow more resentful and neglectful",
+    "They treat him like a king",
+    "They give him a medal",
+    "They move away immediately"
+   ]
+  },
+  {
+   "id": "5200.q4",
+   "lessonId": "5200",
+   "kind": "mcq",
+   "prompt": "The impossible event is told in a calm, matter-of-fact tone. What effect does that have?",
+   "choices": [
+    "It makes it a news report",
+    "It makes the situation more unsettling and absurd",
+    "It makes it funny only",
+    "It reveals it is a dream"
+   ]
+  },
+  {
+   "id": "5200.q5",
+   "lessonId": "5200",
+   "kind": "mcq",
+   "prompt": "Which family member at first cares for Gregor and plays violin?",
+   "choices": [
+    "His father",
+    "His aunt",
+    "His sister Grete",
+    "His mother"
+   ]
+  },
+  {
+   "id": "74.q1",
+   "lessonId": "74",
+   "kind": "mcq",
+   "prompt": "How does Tom get other boys to whitewash his fence?",
+   "choices": [
+    "He pays them",
+    "He threatens them",
+    "He makes the work seem like a privilege",
+    "He tricks them with a riddle"
+   ]
+  },
+  {
+   "id": "74.q2",
+   "lessonId": "74",
+   "kind": "mcq",
+   "prompt": "What river runs near the setting of the story?",
+   "choices": [
+    "The Thames",
+    "The Hudson",
+    "The Nile",
+    "The Mississippi"
+   ]
+  },
+  {
+   "id": "74.q3",
+   "lessonId": "74",
+   "kind": "mcq",
+   "prompt": "Which event does Tom witness in the graveyard?",
+   "choices": [
+    "A murder by Injun Joe",
+    "A funeral of a king",
+    "A ghost parade",
+    "A robbery by Huck"
+   ]
+  },
+  {
+   "id": "74.q4",
+   "lessonId": "74",
+   "kind": "mcq",
+   "prompt": "Twain uses spelling to imitate how characters speak. This is called:",
+   "choices": [
+    "Rhyme",
+    "Dialect",
+    "Meter",
+    "Allusion"
+   ]
+  },
+  {
+   "id": "74.q5",
+   "lessonId": "74",
+   "kind": "mcq",
+   "prompt": "Where do Tom and Becky get lost?",
+   "choices": [
+    "On a steamboat",
+    "In a cornfield",
+    "In McDougal's Cave",
+    "In a big city"
+   ]
+  },
+  {
+   "id": "25344.q1",
+   "lessonId": "25344",
+   "kind": "mcq",
+   "prompt": "What is Hester Prynne forced to wear?",
+   "choices": [
+    "A black hood",
+    "A red ribbon",
+    "A gold cross",
+    "A scarlet letter A"
+   ]
+  },
+  {
+   "id": "25344.q2",
+   "lessonId": "25344",
+   "kind": "mcq",
+   "prompt": "Where and when is the story set?",
+   "choices": [
+    "Paris in the 1700s",
+    "Victorian London",
+    "Puritan Boston in the 1600s",
+    "California in the 1800s"
+   ]
+  },
+  {
+   "id": "25344.q3",
+   "lessonId": "25344",
+   "kind": "mcq",
+   "prompt": "Who is the father of Hester's daughter Pearl?",
+   "choices": [
+    "The governor",
+    "Arthur Dimmesdale",
+    "Hester's father",
+    "Roger Chillingworth"
+   ]
+  },
+  {
+   "id": "25344.q4",
+   "lessonId": "25344",
+   "kind": "mcq",
+   "prompt": "The scarlet letter takes on new meanings across the story. What technique is this?",
+   "choices": [
+    "Symbolism",
+    "Alliteration",
+    "Onomatopoeia",
+    "Hyperbole"
+   ]
+  },
+  {
+   "id": "25344.q5",
+   "lessonId": "25344",
+   "kind": "mcq",
+   "prompt": "What is Roger Chillingworth's secret relationship to Hester?",
+   "choices": [
+    "He is her father",
+    "He is her brother",
+    "He is her employer",
+    "He is her long-lost husband"
+   ]
+  },
+  {
+   "id": "1727.q1",
+   "lessonId": "1727",
+   "kind": "mcq",
+   "prompt": "Where is Odysseus trying to return?",
+   "choices": [
+    "Sparta",
+    "Athens",
+    "Ithaca",
+    "Troy"
+   ]
+  },
+  {
+   "id": "1727.q2",
+   "lessonId": "1727",
+   "kind": "mcq",
+   "prompt": "Who waits for Odysseus and fends off suitors?",
+   "choices": [
+    "Helen",
+    "Circe",
+    "Calypso",
+    "Penelope"
+   ]
+  },
+  {
+   "id": "1727.q3",
+   "lessonId": "1727",
+   "kind": "mcq",
+   "prompt": "How does Odysseus escape the Cyclops Polyphemus?",
+   "choices": [
+    "He blinds him and gives his name as \"Nobody\"",
+    "He wrestles him",
+    "He sings to him",
+    "He pays him"
+   ]
+  },
+  {
+   "id": "1727.q4",
+   "lessonId": "1727",
+   "kind": "mcq",
+   "prompt": "Phrases like \"rosy-fingered Dawn\" repeated through the poem are called:",
+   "choices": [
+    "Footnotes",
+    "Epithets",
+    "Soliloquies",
+    "Couplets"
+   ]
+  },
+  {
+   "id": "1727.q5",
+   "lessonId": "1727",
+   "kind": "mcq",
+   "prompt": "Which value is tested when strangers arrive at a home in the poem?",
+   "choices": [
+    "Speed",
+    "Education",
+    "Hospitality (xenia)",
+    "Wealth"
+   ]
+  },
+  {
+   "id": "6130.q1",
+   "lessonId": "6130",
+   "kind": "mcq",
+   "prompt": "Whose anger begins the poem?",
+   "choices": [
+    "Odysseus",
+    "Achilles",
+    "Paris",
+    "Hector"
+   ]
+  },
+  {
+   "id": "6130.q2",
+   "lessonId": "6130",
+   "kind": "mcq",
+   "prompt": "Which war does the poem cover?",
+   "choices": [
+    "The Trojan War",
+    "The Persian Wars",
+    "The Punic Wars",
+    "The Peloponnesian War"
+   ]
+  },
+  {
+   "id": "6130.q3",
+   "lessonId": "6130",
+   "kind": "mcq",
+   "prompt": "What event makes Achilles return to battle?",
+   "choices": [
+    "A gift of gold",
+    "Orders from Zeus",
+    "An injury to his heel",
+    "The death of Patroclus"
+   ]
+  },
+  {
+   "id": "6130.q4",
+   "lessonId": "6130",
+   "kind": "mcq",
+   "prompt": "Long comparisons that stretch across many lines, like a warrior compared to a lion, are called:",
+   "choices": [
+    "Haiku",
+    "Puns",
+    "Epic similes",
+    "Acrostics"
+   ]
+  },
+  {
+   "id": "6130.q5",
+   "lessonId": "6130",
+   "kind": "mcq",
+   "prompt": "What happens when King Priam visits Achilles?",
+   "choices": [
+    "They make peace for good",
+    "Priam begs for Hector's body and they share grief",
+    "Priam steals Achilles' armor",
+    "They duel"
+   ]
+  },
+  {
+   "id": "145.q1",
+   "lessonId": "145",
+   "kind": "mcq",
+   "prompt": "Who is the idealistic young woman at the center of the novel?",
+   "choices": [
+    "Elizabeth Bennet",
+    "Dorothea Brooke",
+    "Becky Sharp",
+    "Jane Eyre"
+   ]
+  },
+  {
+   "id": "145.q2",
+   "lessonId": "145",
+   "kind": "mcq",
+   "prompt": "What is Middlemarch?",
+   "choices": [
+    "A fictional provincial English town",
+    "A castle in Scotland",
+    "A ship",
+    "A war"
+   ]
+  },
+  {
+   "id": "145.q3",
+   "lessonId": "145",
+   "kind": "mcq",
+   "prompt": "Whom does Dorothea marry first, expecting a life of intellectual purpose?",
+   "choices": [
+    "Will Ladislaw",
+    "Dr. Lydgate",
+    "Sir James Chettam",
+    "Mr. Casaubon"
+   ]
+  },
+  {
+   "id": "145.q4",
+   "lessonId": "145",
+   "kind": "mcq",
+   "prompt": "Eliot's narrator often steps in to comment on characters and morality. This is called:",
+   "choices": [
+    "Stream of consciousness",
+    "Epistolary form",
+    "Omniscient narration",
+    "First-person narration"
+   ]
+  },
+  {
+   "id": "145.q5",
+   "lessonId": "145",
+   "kind": "mcq",
+   "prompt": "What does the novel suggest about a good life?",
+   "choices": [
+    "Only great deeds matter",
+    "Many small, unrecorded acts can shape the world",
+    "Wealth ensures happiness",
+    "Reform is impossible"
+   ]
+  },
+  {
+   "id": "1661.q1",
+   "lessonId": "1661",
+   "kind": "mcq",
+   "prompt": "Who narrates most of the stories?",
+   "choices": [
+    "Holmes",
+    "Dr. Watson",
+    "Moriarty",
+    "Inspector Lestrade"
+   ]
+  },
+  {
+   "id": "1661.q2",
+   "lessonId": "1661",
+   "kind": "mcq",
+   "prompt": "What is the address of Sherlock Holmes?",
+   "choices": [
+    "221B Baker Street",
+    "12 Grimmauld Place",
+    "10 Downing Street",
+    "1 Fleet Street"
+   ]
+  },
+  {
+   "id": "1661.q3",
+   "lessonId": "1661",
+   "kind": "mcq",
+   "prompt": "Which method does Holmes emphasize in solving cases?",
+   "choices": [
+    "Guessing",
+    "Magic",
+    "Confessions only",
+    "Careful observation and logical deduction"
+   ]
+  },
+  {
+   "id": "1661.q4",
+   "lessonId": "1661",
+   "kind": "mcq",
+   "prompt": "A false clue that leads away from the truth is called a:",
+   "choices": [
+    "Epigraph",
+    "Prologue",
+    "Red herring",
+    "Metaphor"
+   ]
+  },
+  {
+   "id": "1661.q5",
+   "lessonId": "1661",
+   "kind": "mcq",
+   "prompt": "In \"A Scandal in Bohemia\", who outwits Holmes?",
+   "choices": [
+    "Moriarty",
+    "Irene Adler",
+    "Mrs. Hudson",
+    "Mycroft"
+   ]
+  },
+  {
+   "id": "17405.q1",
+   "lessonId": "17405",
+   "kind": "mcq",
+   "prompt": "What does Sun Tzu say is the best way to win?",
+   "choices": [
+    "Win without fighting",
+    "Raise a larger army",
+    "Rely on luck",
+    "Attack at once"
+   ]
+  },
+  {
+   "id": "17405.q2",
+   "lessonId": "17405",
+   "kind": "mcq",
+   "prompt": "In which country was the text written?",
+   "choices": [
+    "Japan",
+    "China",
+    "Persia",
+    "Greece"
+   ]
+  },
+  {
+   "id": "17405.q3",
+   "lessonId": "17405",
+   "kind": "mcq",
+   "prompt": "What does the text say about knowing yourself and your enemy?",
+   "choices": [
+    "Only the enemy matters",
+    "Only yourself matters",
+    "Knowing both prevents defeat in a hundred battles",
+    "It is useless"
+   ]
+  },
+  {
+   "id": "17405.q4",
+   "lessonId": "17405",
+   "kind": "mcq",
+   "prompt": "Short, memorable statements of principle in the book are called:",
+   "choices": [
+    "Epics",
+    "Sonnets",
+    "Ballads",
+    "Aphorisms"
+   ]
+  },
+  {
+   "id": "17405.q5",
+   "lessonId": "17405",
+   "kind": "mcq",
+   "prompt": "A \"feint\" in strategy is:",
+   "choices": [
+    "A move meant to mislead the opponent",
+    "A formal surrender",
+    "A tax on soldiers",
+    "A retreat to base"
+   ]
+  }
+ ]
+}

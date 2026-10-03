@@ -1,0 +1,93 @@
+[
+ {
+  "lesson": "lab-mathematics.l02",
+  "id": "euclid-flow",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-mathematics.l05",
+  "id": "pnt-ratio",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-mathematics.l06",
+  "id": "euler-product",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-mathematics.l07",
+  "id": "two-roots",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-mathematics.l07",
+  "id": "no-roots",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-mathematics.l10",
+  "id": "area-x2",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-mathematics.l11",
+  "id": "harmonic-basel",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-mathematics.l12",
+  "id": "euler-cos-sin",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-data.l02",
+  "id": "normal-heights",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-data.l03",
+  "id": "standard-error",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-data.l04",
+  "id": "base-rate-tree",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-data.l05",
+  "id": "multiple-tests",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-data.l09",
+  "id": "sigmoid",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ }
+]

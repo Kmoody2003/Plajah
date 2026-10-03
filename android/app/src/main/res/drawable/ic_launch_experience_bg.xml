@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shared adaptive-icon background for the experience launchers (same near-black tile as the
+     main Plajah icon). Foregrounds: mipmap-*/ic_launch_<slug>_foreground.png -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:type="radial"
+        android:gradientRadius="80%p"
+        android:centerX="0.5"
+        android:centerY="0.45"
+        android:startColor="#1A1024"
+        android:endColor="#07060B" />
+</shape>

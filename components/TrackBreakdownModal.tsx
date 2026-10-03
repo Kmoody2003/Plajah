@@ -32,6 +32,7 @@ import {
 } from '../services/guidedListening';
 import { quickStems, separateStemsCloud } from '../services/fabula/stemSeparation';
 import { demucsCapability, isDemucsModelAvailable, separateStemsLocal, type DemucsTier } from '../services/demucsClient';
+import { isWindowsApp } from '../services/windowsBridgeService';
 import SheetMusic from './SheetMusic';
 import VerovioScore from './VerovioScore';
 import { db } from '../services/firebase';
@@ -1611,7 +1612,7 @@ const TrackBreakdownModal: React.FC<TrackBreakdownModalProps> = ({
     setStudioState('running'); setStudioProgress(0);
     try {
       // On-device path (audio never leaves the machine).
-      if (onDevice && demucsCap.tier !== 'blocked' && await isDemucsModelAvailable()) {
+      if (isWindowsApp() || (onDevice && demucsCap.tier !== 'blocked' && await isDemucsModelAvailable())) {
         try {
           const stems = await separateStemsLocal(track.url, p => setStudioProgress(p));
           studioStemsRef.current = {

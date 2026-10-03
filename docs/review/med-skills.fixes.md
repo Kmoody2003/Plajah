@@ -1,0 +1,7 @@
+# med-skills fixes (asOf 2026-10)
+
+- l05: cited 2017 ACC/AHA only. Now cites 2025 AHA/ACC guideline (replaced 2017; same categories, 130/80 threshold). Source: https://pmc.ncbi.nlm.nih.gov/articles/PMC12425457/
+- l03: Title VI/1557 claim was vague. Now: Title VI bars national-origin discrimination; 45 CFR 92.201 requires reasonable steps for meaningful access, free accurate timely qualified interpreters, no requiring patients to bring interpreters, no minors except brief emergencies. Status: rule remains codified; EO 14224 (2025) and DOJ suspension of lep.gov make wider federal guidance in flux. Sources opened: https://www.ecfr.gov/current/title-45/part-92/section-92.201 (via eCFR renderer API), https://www.justice.gov/crt/limited-english-proficiency (HHS page 403).
+- l14: removed unsourced "found it" error term; search satisficing is named as satisfaction of search (radiology). "Most common cognitive error" for premature closure now attributed to Graber 2005 (100 cases, single most common cognitive cause). Source: search summary of Graber et al., Arch Intern Med 2005 (https://www.researchgate.net/publication/298348382_Diagnostic_Error_in_Internal_Medicine); full text not opened.
+- l18.q4: options and explanation now state head CT first with empiric antibiotics not delayed; lesson gained matching sentence. Source: IDSA summary https://www.aafp.org/pubs/afp/issues/2005/0515/p2003.html (via search; page not fetched).
+- Other unverifiable claims: standard teaching, left unchanged.

@@ -22,7 +22,9 @@
 // the sermon point, exactly as ProPresenter and FreeShow do it. Putting
 // scripture on the `slide` slot would make it replace the slide instead, which
 // is a different and much weaker product.
-export const LAYER_ORDER = ['background', 'fill', 'slide', 'scripture', 'prop', 'overlay', 'mask'] as const;
+// 'lyrics' is its own slot (Chora lyric sync) so it can sit over a slide or a
+// verse without replacing either, and never collides with an audio bed.
+export const LAYER_ORDER = ['background', 'fill', 'slide', 'scripture', 'lyrics', 'prop', 'overlay', 'audio', 'mask'] as const;
 export type LayerSlot = typeof LAYER_ORDER[number];
 
 export const LAYER_LABEL: Record<LayerSlot, string> = {
@@ -30,8 +32,10 @@ export const LAYER_LABEL: Record<LayerSlot, string> = {
   fill: 'Media fill',
   slide: 'Slide',
   scripture: 'Scripture',
+  lyrics: 'Lyrics',
   prop: 'Props',
   overlay: 'Overlay',
+  audio: 'Audio Track',
   mask: 'Mask',
 };
 
@@ -110,9 +114,22 @@ export type LayerContent =
   | { kind: 'SCRIPTURE'; refId: string; translation?: string; lines?: string[]; reference?: string }
   | { kind: 'TIMER'; timerId: string; format?: 'mm:ss' | 'hh:mm:ss' | 'countdown' }
   | { kind: 'CLOCK'; format?: string }
-  | { kind: 'LIVE'; inputId: string }
+  | { kind: 'LIVE'; inputId: string; stream?: MediaStream; label?: string; fit?: 'cover' | 'contain' | 'fill' }
   | { kind: 'WEB'; url: string }
+  /** Chora lyric sync. Every window computes the song position itself from
+   *  the clock anchor (wall time → song time), so the type animates locally at
+   *  full frame rate and a projector never waits on the studio for a frame. */
+  | { kind: 'LYRICS'; lines: Array<{ time: number; text: string }>; styleId: string;
+      title?: string; artist?: string; trackId?: string; bpm?: number; firstBeat?: number;
+      clock: LyricClock }
   | { kind: 'CLEAR' };
+
+/** Song position = playing ? anchorPos + (Date.now() − anchorMs)/1000 × rate : anchorPos */
+export interface LyricClock { anchorMs: number; anchorPos: number; rate: number; playing: boolean }
+
+export function lyricClockPos(c: LyricClock, nowMs = Date.now()): number {
+  return c.playing ? c.anchorPos + ((nowMs - c.anchorMs) / 1000) * c.rate : c.anchorPos;
+}
 
 export interface SlideLayer {
   id: string;
@@ -122,6 +139,22 @@ export interface SlideLayer {
   mask?: MaskSpec;
   /** Hidden without being deleted — the operator's "mute this element". */
   enabled?: boolean;
+  /** Tela document parity: optional layer label */
+  name?: string;
+  /** Tela document parity: explicit zIndex for ordering within or across slots */
+  zIndex?: number;
+  /** Tela document parity: alias for enabled/visible */
+  visible?: boolean;
+  /** Tela document parity: locked state preventing accidental modification */
+  locked?: boolean;
+  /** Tela document parity: layer opacity (0 to 1) */
+  opacity?: number;
+  /** Tela document parity: CSS/compositing blend mode */
+  blendMode?: 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten' | 'color-dodge' | 'color-burn' | 'hard-light' | 'soft-light' | 'difference' | 'exclusion' | 'hue' | 'saturation' | 'color' | 'luminosity';
+  /** Tela document parity: linkage to backing Tela device */
+  telaDeviceId?: string;
+  telaFrameId?: string;
+  meta?: Record<string, any>;
 }
 
 /** Which engine renders a given content kind. Single source of truth. */
@@ -156,6 +189,15 @@ export type Action =
 
 // ── Slides, groups, arrangements ─────────────────────────────────────────────
 
+export interface LoopDeckSettings {
+  enabled: boolean;
+  loopCount: number;             // number of times clip/slide loops before advancing (default: 1)
+  selectionMode: 'sequential' | 'random'; // sequential in-order or random shuffle
+  watchFolderConnected?: boolean;
+  watchFolderName?: string;
+  watchFolderPath?: string;
+}
+
 export interface Slide {
   id: string;
   label?: string;
@@ -170,6 +212,8 @@ export interface Slide {
   notes?: string;
   /** Stage-display-only text: the speaker's cue, never on program. */
   stageNotes?: string;
+  /** Per-slide loop count override in LoopDeck mode. */
+  loopCount?: number;
 }
 
 export interface SlideGroup { name: string; slideIds: string[]; color?: string; }
@@ -189,6 +233,8 @@ export interface Show {
   ccliNumber?: string;
   author?: string;
   tags?: string[];
+  /** LoopDeck playback configuration for auto-advancing after N loops, random selection, and watch folders. */
+  loopDeck?: LoopDeckSettings;
 }
 
 /**
@@ -237,7 +283,7 @@ export type LiveStack = Partial<Record<LayerSlot, LiveLayer>>;
 export function applySlide(stack: LiveStack, slide: Slide, now: number): LiveStack {
   const next: LiveStack = { ...stack };
   for (const layer of slide.layers) {
-    if (layer.enabled === false) continue;
+    if (layer.enabled === false || layer.visible === false) continue;
     if (layer.content.kind === 'CLEAR') { delete next[layer.slot]; continue; }
     next[layer.slot] = {
       content: layer.content,
@@ -260,6 +306,58 @@ export function clearLayer(stack: LiveStack, slot: LayerSlot): LiveStack {
 /** Everything off. The panic button. */
 export function clearAll(): LiveStack { return {}; }
 
+// ── Per-Auxiliary Bus Clearing Helpers ───────────────────────────────────────
+
+/**
+ * Check if a specific layer slot is cleared on a given bus.
+ */
+export function isBusLayerCleared(busClearedSlots: Set<LayerSlot> | undefined, slot: LayerSlot): boolean {
+  return busClearedSlots ? busClearedSlots.has(slot) : false;
+}
+
+/**
+ * Clear a specific layer on an auxiliary bus without disturbing other buses or Program Out.
+ */
+export function clearBusLayer(busClearedSlots: Set<LayerSlot> | undefined, slot: LayerSlot): Set<LayerSlot> {
+  const next = new Set(busClearedSlots || []);
+  next.add(slot);
+  return next;
+}
+
+/**
+ * Clear all layers on an auxiliary bus (bus-level panic button).
+ */
+export function clearBusAll(): Set<LayerSlot> {
+  return new Set(LAYER_ORDER);
+}
+
+/**
+ * Reset / restore all cleared layers on an auxiliary bus.
+ */
+export function resetBusClearing(): Set<LayerSlot> {
+  return new Set();
+}
+
+/**
+ * Resolve the effective live stack for an auxiliary bus, honoring both
+ * the output's allowed layer slots AND any active per-bus layer clearing masks.
+ */
+export function stackForBus(
+  stack: LiveStack,
+  allowedLayers: LayerSlot[] | readonly LayerSlot[],
+  busClearedSlots?: Set<LayerSlot>
+): LiveStack {
+  const allow = new Set(allowedLayers);
+  const out: LiveStack = {};
+  for (const slot of LAYER_ORDER) {
+    if (!allow.has(slot)) continue;
+    if (busClearedSlots && busClearedSlots.has(slot)) continue;
+    const layer = stack[slot];
+    if (layer) out[slot] = layer;
+  }
+  return out;
+}
+
 /** Live layers in composite order, bottom first. */
 export function compositeOrder(stack: LiveStack): Array<{ slot: LayerSlot; layer: LiveLayer }> {
   return LAYER_ORDER
@@ -277,8 +375,17 @@ export function enginesInUse(stack: LiveStack): SourceEngine[] {
 let seq = 0;
 export const newId = (prefix = 'x') => `${prefix}${++seq}_${LAYER_ORDER.length}`;
 
-/** A slide that shows text over whatever background is already running. */
-export function textSlide(text: string, opts: { style?: TextStyle; label?: string; group?: string } = {}): Slide {
+/**
+ * A slide that shows text over whatever background is already running.
+ * Default text layers have enabled: false by default unless defaultEnabled is true,
+ * ensuring placeholder text never clutters clean media until activated.
+ */
+export function textSlide(
+  text: string,
+  opts: { style?: TextStyle; label?: string; group?: string; defaultEnabled?: boolean } = {}
+): Slide {
+  const isDefaultPlaceholder = !text || text.trim() === '' || text === 'New Slide Text';
+  const enabled = opts.defaultEnabled !== undefined ? opts.defaultEnabled : !isDefaultPlaceholder;
   return {
     id: newId('sl'),
     label: opts.label,
@@ -286,6 +393,8 @@ export function textSlide(text: string, opts: { style?: TextStyle; label?: strin
     layers: [{
       id: newId('ly'),
       slot: 'slide',
+      enabled,
+      visible: enabled,
       content: { kind: 'TEXT', blocks: [{ text, role: 'body' }], style: opts.style },
     }],
   };
@@ -299,3 +408,12 @@ export function backgroundSlide(content: LayerContent, label = 'Background'): Sl
     layers: [{ id: newId('ly'), slot: 'background', content }],
   };
 }
+
+export interface PlaylistItem {
+  id: string;
+  title: string;
+  show: Show;
+  plannedSec: number;
+  live?: boolean;
+}
+

@@ -14,9 +14,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  BarChart3, BookHeart, Brush, CheckCircle2, ChevronDown, ChevronLeft, Circle, CircleHelp, Clipboard, Copy, CopyPlus, Database, Feather, FileDown, FilePlus2, FileText, FileUp, Folder, FormInput,
+  BarChart3, BookHeart, BookOpen, Brush, CheckCircle2, ChevronDown, ChevronLeft, Circle, CircleHelp, Clipboard, Copy, CopyPlus, Database, Feather, FileDown, FilePlus2, FileText, FileUp, Folder, FormInput,
   Grid3X3, Image as ImageIcon, ImagePlus, LayoutPanelTop, Link as LinkIcon, Link2, Loader2,
-  Minus, Monitor, MousePointer2, MousePointerClick, Music2, PenLine, PenTool, Plus, Scan, Shapes, Sparkles, Square, TextQuote, Trash2, Type, X,
+  Minus, Monitor, MousePointer2, MousePointerClick, Music2, PenLine, PenTool, Plus, Scan, Shapes, Sparkles, Square, TextQuote, Trash2, Type, Wand2, X,
 } from 'lucide-react';
 import type {
   TelaAssignmentAudienceRole, TelaBaseDevice, TelaBinding, TelaBlock, TelaDevice, TelaDoc, TelaDocMeta, TelaField,
@@ -67,6 +67,8 @@ import { useContextMenu } from '../ui/ContextMenu';
 import { makeTelaChart } from '../../services/telaChartData';
 
 const ComicDrawCanvas = React.lazy(() => import('../ComicDrawCanvas'));
+const TelaComicStudio = React.lazy(() => import('./TelaComicStudio').then(m => ({ default: m.TelaComicStudio })));
+const LocalCreativeStudio = React.lazy(() => import('../Fabula/LocalCreativeStudio').then(m => ({ default: m.LocalCreativeStudio })));
 
 // ── Presets ───────────────────────────────────────────────────────────────────
 // PRESETS + the op reducer (applyTelaOp/TelaOp) now live in ./telaOps so the
@@ -96,6 +98,7 @@ const STUDIO_VEC_TOOLS: { id: VectorTool; icon: React.ReactNode; label: string }
   { id: 'line', icon: <Minus size={17} />, label: 'Line' },
   { id: 'pen', icon: <PenTool size={17} />, label: 'Pen / polyline' },
   { id: 'text', icon: <Type size={17} />, label: 'Text' },
+  { id: 'ink', icon: <Brush size={17} />, label: 'Ink — freehand (B)' },
 ];
 
 type StudioUnit = 'PX' | 'IN' | 'MM' | 'CM';
@@ -330,6 +333,8 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
   const [assignmentLayoutMatch, setAssignmentLayoutMatch] = useState<{ name: string; confidence: number } | null>(null);
   const [autoFormatUndo, setAutoFormatUndo] = useState<TelaDoc | null>(null);
   const [autoFormatReport, setAutoFormatReport] = useState<TelaAutoFormatReport | null>(null);
+  const [comicStudioOpen, setComicStudioOpen] = useState(false);
+  const [localStudioOpen, setLocalStudioOpen] = useState(false);
   // Author-in-place flying menu (raised from a ✎ badge — the same menu the
   // reference-embed uses). Ref-based so edits resolve live against the doc.
   const [flying, setFlying] = useState<{ ref: FlyingRef; anchor: { x: number; y: number } } | null>(null);
@@ -1304,7 +1309,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
       }
       if (!mod && !event.altKey && focus.type === 'VECTOR') {
         const tools: Partial<Record<string, VectorTool>> = {
-          v: 'select', a: 'direct', m: 'marquee', r: 'rect', e: 'ellipse', l: 'line', p: 'pen', t: 'text',
+          v: 'select', a: 'direct', m: 'marquee', r: 'rect', e: 'ellipse', l: 'line', p: 'pen', t: 'text', b: 'ink',
         };
         if (tools[key]) { event.preventDefault(); setStudioTool(tools[key]!); return; }
       }
@@ -1912,6 +1917,10 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
               <button className={menuBarItem} onClick={() => { addGridSheet(); setAppMenuOpen(null); }}><Grid3X3 size={14}/>Grid sheet</button>
               <button className={menuBarItem} onClick={() => { addVectorArtboard(); setAppMenuOpen(null); }}><Shapes size={14}/>Vector artboard</button>
               <button className={menuBarItem} onClick={() => { addImageCanvas(); setAppMenuOpen(null); }}><ImageIcon size={14}/>Image canvas</button>
+              <div className="h-px my-1 bg-white/[.07]"/>
+              <div className="px-3 py-1 text-[9px] font-extrabold uppercase tracking-[.12em] text-[#a78bfa]">Local AI Creative Suite</div>
+              <button className={menuBarItem} onClick={() => { setComicStudioOpen(true); setAppMenuOpen(null); }}><BookOpen size={14} color="#a78bfa"/>Comic & Storybook Studio<span className="ml-auto text-[9px] text-[#34d399]">Local GPU</span></button>
+              <button className={menuBarItem} onClick={() => { setLocalStudioOpen(true); setAppMenuOpen(null); }}><Wand2 size={14} color="#f59e0b"/>Local Creative Studio<span className="ml-auto text-[9px] text-[#34d399]">Local GPU</span></button>
               <div className="px-3 py-2 text-[9px] leading-relaxed text-white/35">Images · audio · video · PDF · 3D · fonts · archives · other files</div>
             </>}
             {menu === 'DOCUMENT' && <>
@@ -2025,12 +2034,15 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
               {isVec
                 ? <>{STUDIO_VEC_TOOLS.map(t => (
                     <button key={t.id} title={t.label} style={railBtn(studioTool === t.id)} onClick={() => setStudioTool(t.id)}>{t.icon}</button>
-                  ))}<div className="w-7 my-1" style={{ borderTop:'1px solid rgba(255,255,255,.1)' }}/><button title="Turn selected text into an interactive question" style={railBtn(assignmentBuilderOpen)} onClick={() => openAssignmentBuilder()}><CircleHelp size={17}/></button><button title="Shapes and design templates" style={railBtn(studioCreativeLibraryOpen)} onClick={() => setStudioCreativeLibraryOpen(true)}><Shapes size={17}/></button><button title="Universal Library" style={railBtn(ulOpen)} onClick={() => setUlOpen(v => !v)}>▦</button></>
+                  ))}<div className="w-7 my-1" style={{ borderTop:'1px solid rgba(255,255,255,.1)' }}/><button title="Comic & Storybook Studio (Local GPU)" style={railBtn(comicStudioOpen)} onClick={() => setComicStudioOpen(true)}><BookOpen size={17} color="#a78bfa"/></button><button title="Local Creative Studio (Local GPU)" style={railBtn(localStudioOpen)} onClick={() => setLocalStudioOpen(true)}><Wand2 size={17} color="#f59e0b"/></button><button title="Turn selected text into an interactive question" style={railBtn(assignmentBuilderOpen)} onClick={() => openAssignmentBuilder()}><CircleHelp size={17}/></button><button title="Shapes and design templates" style={railBtn(studioCreativeLibraryOpen)} onClick={() => setStudioCreativeLibraryOpen(true)}><Shapes size={17}/></button><button title="Universal Library" style={railBtn(ulOpen)} onClick={() => setUlOpen(v => !v)}>▦</button></>
                 : (
                   <>
                     <button title="Select / move" style={railBtn(true)} onClick={() => {}}><MousePointer2 size={17} /></button>
                     <button title="Upload image layer" style={railBtn(false)} disabled={studioImgBusy} onClick={() => studioFileRef.current?.click()}>{studioImgBusy ? <Loader2 size={17} className="animate-spin" /> : <ImagePlus size={17} />}</button>
                     <button title="Open Lorea pressure paint engine" style={railBtn(studioPaintOpen)} onClick={() => setStudioPaintOpen(true)}><Brush size={17}/></button>
+                    <div className="w-7 my-1" style={{ borderTop:'1px solid rgba(255,255,255,.1)' }}/>
+                    <button title="Comic & Storybook Studio (Local GPU)" style={railBtn(comicStudioOpen)} onClick={() => setComicStudioOpen(true)}><BookOpen size={17} color="#a78bfa"/></button>
+                    <button title="Local Creative Studio (Local GPU)" style={railBtn(localStudioOpen)} onClick={() => setLocalStudioOpen(true)}><Wand2 size={17} color="#f59e0b"/></button>
                     <button title="Build assignment properties" style={railBtn(assignmentBuilderOpen)} onClick={() => openAssignmentBuilder()}><CircleHelp size={17}/></button>
                     <button title="Design templates" style={railBtn(studioCreativeLibraryOpen)} onClick={() => setStudioCreativeLibraryOpen(true)}><Shapes size={17}/></button><button title="Universal Library" style={railBtn(ulOpen)} onClick={() => setUlOpen(v => !v)}>▦</button>
                   </>
@@ -2418,6 +2430,102 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
             <button className="grid place-items-center w-8 h-8 rounded-[9px] text-white/70 hover:text-white hover:bg-white/[0.08]" onClick={() => zoomBy(1.2)} title="Zoom in"><Plus size={14} /></button>
           </div>
         </div>
+      )}
+
+      {comicStudioOpen && createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', backdropFilter: 'blur(6px)' }}>
+          <div style={{ width: '1150px', height: '840px', maxWidth: '96vw', maxHeight: '94vh', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 25px 80px rgba(0,0,0,0.9)' }}>
+            <React.Suspense fallback={<div className="p-8 text-white">Loading Comic Studio…</div>}>
+              <TelaComicStudio
+                onClose={() => setComicStudioOpen(false)}
+                onInsertPageIntoTela={(pageSpec) => {
+                  const width = 1200;
+                  const height = 1600;
+                  const validPanels = pageSpec.panels.filter(p => p.renderedImageUrl);
+                  const total = Math.max(1, validPanels.length);
+                  const cols = 2;
+                  const rows = Math.ceil(total / cols);
+                  const pw = Math.round((width - 60) / cols);
+                  const ph = Math.round((height - 80) / rows);
+                  const layers = validPanels.map((panel, idx) => {
+                    const row = Math.floor(idx / cols);
+                    const col = idx % cols;
+                    const px = 20 + col * (pw + 20);
+                    const py = 20 + row * (ph + 20);
+                    return {
+                      id: uid('lyr'),
+                      name: `Panel ${idx + 1}`,
+                      url: panel.renderedImageUrl!,
+                      x: px,
+                      y: py,
+                      w: pw,
+                      h: ph,
+                      rot: 0,
+                      opacity: 1,
+                      blend: 'normal' as const,
+                      adjust: { brightness: 0, contrast: 0, saturation: 0, hue: 0, blur: 0 },
+                      visible: true,
+                      locked: false,
+                    };
+                  });
+                  const imgDev: TelaImageDevice = {
+                    id: uid('dev'),
+                    type: 'IMAGE',
+                    name: `${pageSpec.title} (Artwork)`,
+                    width,
+                    height,
+                    layers,
+                  };
+                  addFrame('BOARD', 'FREE', imgDev, pageSpec.title, { size: { w: width, h: height } });
+                  setComicStudioOpen(false);
+                  setPosture('BOARD');
+                }}
+              />
+            </React.Suspense>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {localStudioOpen && createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', backdropFilter: 'blur(6px)' }}>
+          <div style={{ width: '1150px', height: '840px', maxWidth: '96vw', maxHeight: '94vh', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 25px 80px rgba(0,0,0,0.9)' }}>
+            <React.Suspense fallback={<div className="p-8 text-white">Loading Creative Studio…</div>}>
+              <LocalCreativeStudio
+                onClose={() => setLocalStudioOpen(false)}
+                onSendToTela={(url) => {
+                  const width = 1024;
+                  const height = 1024;
+                  const imgDev: TelaImageDevice = {
+                    id: uid('dev'),
+                    type: 'IMAGE',
+                    name: 'Local AI Render',
+                    width,
+                    height,
+                    layers: [{
+                      id: uid('lyr'),
+                      name: 'Layer 1',
+                      url,
+                      x: 0,
+                      y: 0,
+                      w: width,
+                      h: height,
+                      rot: 0,
+                      opacity: 1,
+                      blend: 'normal' as const,
+                      adjust: { brightness: 0, contrast: 0, saturation: 0, hue: 0, blur: 0 },
+                      visible: true,
+                      locked: false,
+                    }],
+                  };
+                  addFrame('SCREEN', 'FREE', imgDev, 'Local AI Generation', { size: { w: width, h: height } });
+                  setLocalStudioOpen(false);
+                }}
+              />
+            </React.Suspense>
+          </div>
+        </div>,
+        document.body
       )}
 
       {assignmentBuilderOpen && createPortal(

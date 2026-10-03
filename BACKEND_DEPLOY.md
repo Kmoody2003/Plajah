@@ -72,6 +72,23 @@ push, cron), `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` + `STRIPE_PRICE_TIER1
 `PRINTFUL_API_KEY`, `GELATO_API_KEY`, `BING_SEARCH_KEY`. Missing keys just disable
 that one feature — the server starts regardless.
 
+### Stripe webhooks for Elevate giving (two endpoints, two secrets)
+
+Church gifts, monthly renewals, refunds, disputes and payouts flow into the Finance Hub / books
+automatically. In Stripe Dashboard > Developers > Webhooks create BOTH (Stripe signs each separately):
+
+1. **Platform** endpoint `https://plajah.com/api/stripe/webhook`, "Events on your account".
+   Existing events plus: `invoice.paid`, `charge.refunded`, `charge.dispute.created`,
+   `charge.dispute.closed`. Secret -> `STRIPE_WEBHOOK_SECRET`.
+2. **Connect** endpoint `https://plajah.com/api/stripe/connect-webhook`, "Events on Connected accounts".
+   Events: `payout.created`, `payout.updated`, `payout.paid`, `payout.failed`, `payout.canceled`,
+   `balance.available`, `account.updated`, `charge.refunded`, `charge.dispute.created`,
+   `charge.dispute.closed`. Secret -> `STRIPE_CONNECT_WEBHOOK_SECRET`.
+
+Optional: `ELEVATE_TZ` (default `America/Detroit`) sets the calendar day a gift is dated on.
+If webhooks were ever down, the Finance Hub > Reconciliation > "Sync now" (also runs automatically on
+open) backfills missed gifts and payouts from Stripe, idempotently.
+
 ---
 
 ## Deploying

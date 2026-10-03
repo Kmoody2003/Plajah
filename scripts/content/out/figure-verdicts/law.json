@@ -1,0 +1,240 @@
+[
+ {
+  "lesson": "law-civpro.l01",
+  "id": "fed-civil-stages",
+  "verdict": "ok",
+  "issue": "Matches lesson stages; caption slightly simplifies summary judgment (also needs entitlement to judgment as a matter of law) but mirrors lesson.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-civpro.l01",
+  "id": "civpro-dates",
+  "verdict": "ok",
+  "issue": "1938 FRCP, Kokkonen 1994, Steel Co. 1998 all confirmed and stated in lesson.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-g912.l06",
+  "id": "civil-case-flow",
+  "verdict": "ok",
+  "issue": "Consistent with lesson. Note settlement can occur at any stage and many cases end by dismissal; the figure follows the lesson wording.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-g912.l06",
+  "id": "discovery-tools",
+  "verdict": "ok",
+  "issue": "Matches lesson.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-g912.l07",
+  "id": "criminal-case-flow",
+  "verdict": "ok",
+  "issue": "Matches lesson; grand jury only for serious federal crimes, node says indictment or preliminary hearing, which is acceptable.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-g912.l07",
+  "id": "criminal-landmarks",
+  "verdict": "ok",
+  "issue": "Gideon 1963 and Miranda 1966 correct.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-g912.l02",
+  "id": "separation-checks",
+  "verdict": "ok",
+  "issue": "Content correct. Layout note: very long edge labels on the pre/con pair may crowd; consider shortening to \"override veto (2/3 of each chamber)\" and \"impeach and remove\".",
+  "fix": ""
+ },
+ {
+  "lesson": "law-g912.l02",
+  "id": "sop-cases",
+  "verdict": "ok",
+  "issue": "Marbury 1803, Youngstown 1952 correct.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-g912.l11",
+  "id": "negligence-elements",
+  "verdict": "ok",
+  "issue": "Four elements correct and match lesson.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-g912.l12",
+  "id": "contract-formation",
+  "verdict": "ok",
+  "issue": "Matches lesson; \"requires\" ignores promissory estoppel exception, which lesson notes separately.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-g912.l12",
+  "id": "contract-cases",
+  "verdict": "ok",
+  "issue": "Hadley 1854 and Lucy v. Zehmer 1954 (Va.) correct.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-g912.l01",
+  "id": "law-hierarchy",
+  "verdict": "unsure",
+  "issue": "Two issues: (1) grid rows imply equal rank across columns, so a state constitution (row 0) looks level with the U.S. Constitution and above federal statutes, but federal statutes and treaties override conflicting state constitutions under the Supremacy Clause; (2) the edge from state agency regulations to city and county ordinances implies ordinances rank below state regulations, which the lesson does not state.",
+  "fix": "Remove edge sr->lo (or add lo with no rank edge); extend caption: \"Federal law overrides conflicting state law at every level (Supremacy Clause); rows do not show cross-column rank.\""
+ },
+ {
+  "lesson": "law-g912.l01",
+  "id": "precedent-binding",
+  "verdict": "ok",
+  "issue": "Matches lesson (lesson also says courts follow their own earlier decisions).",
+  "fix": ""
+ },
+ {
+  "lesson": "law-g912.l05",
+  "id": "two-court-systems",
+  "verdict": "ok",
+  "issue": "Matches lesson.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-g912.l05",
+  "id": "fed-jurisdiction",
+  "verdict": "unsure",
+  "issue": "Diversity element correct (28 USC 1332: exceeds $75,000, complete diversity). Caption \"needs one of these bases\" overreaches: other statutory bases exist (e.g. CAFA, supplemental, admiralty/bankruptcy grants). Lesson names only these two.",
+  "fix": "Caption: \"A federal court needs a statutory basis, most often one of these two; state courts are courts of general jurisdiction and hear most disputes.\""
+ },
+ {
+  "lesson": "law-conlaw.l01",
+  "id": "marbury-reasoning",
+  "verdict": "ok",
+  "issue": "Matches lesson and the opinion; caption says three steps, four boxes (three steps plus conclusion), acceptable.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-conlaw.l01",
+  "id": "jr-timeline",
+  "verdict": "ok",
+  "issue": "Marbury 1803, Martin v. Hunter's Lessee 1816, Cooper v. Aaron 1958 correct.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-conlaw.l02",
+  "id": "youngstown-zones",
+  "verdict": "ok",
+  "issue": "Jackson three zones correct.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-conlaw.l02",
+  "id": "sop-case-years",
+  "verdict": "ok",
+  "issue": "All years correct (1935, 1952, 1983, 1989, 2019, 2022, 2024). Note: lesson also says Humphrey's Executor was overruled in Trump v. Slaughter (2026), which I cannot confirm; the timeline entry for 1935 carries no status note, so consider adding \"(later limited)\" or keep as is.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-torts.l04",
+  "id": "negligence-elements",
+  "verdict": "ok",
+  "issue": "Correct.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-torts.l04",
+  "id": "palsgraf-chain",
+  "verdict": "ok",
+  "issue": "Facts, 1928, Cardozo/Andrews correct. Layout note: the two holding boxes have no edges, so they float unconnected.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-torts.l05",
+  "id": "hand-formula",
+  "verdict": "ok",
+  "issue": "Carroll Towing 1947, B < PL correct.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-torts.l07",
+  "id": "actual-cause-tests",
+  "verdict": "ok",
+  "issue": "Summers v. Tice 1948 (Cal.) correct; tests correct.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-contracts.l01",
+  "id": "contracts-sources",
+  "verdict": "ok",
+  "issue": "Matches lesson.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-contracts.l01",
+  "id": "contract-elements",
+  "verdict": "ok",
+  "issue": "Caption \"all three together make a promise enforceable\" ignores exceptions such as promissory estoppel (stated in the other lesson); acceptable under bargain theory.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-contracts.l02",
+  "id": "offer-ends",
+  "verdict": "ok",
+  "issue": "Matches lesson list and Restatement 87(2) cite.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-contracts.l03",
+  "id": "mirror-image",
+  "verdict": "ok",
+  "issue": "Matches lesson; oversimplifies that a mere request to change a term is still an acceptance.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-contracts.l03",
+  "id": "bilateral-unilateral",
+  "verdict": "ok",
+  "issue": "Restatement (Second) 32 correct.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-college.l07",
+  "id": "two-directions",
+  "verdict": "ok",
+  "issue": "Matches lesson.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-g68.l03",
+  "id": "bill-to-law",
+  "verdict": "ok",
+  "issue": "Ten days excluding Sundays correct (Art. I s.7); lesson omits the pocket veto and the figure omits it too.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-g35.l06",
+  "id": "bill-simple",
+  "verdict": "ok",
+  "issue": "Matches lesson.",
+  "fix": ""
+ },
+ {
+  "lesson": "law-g35.l07",
+  "id": "three-jobs",
+  "verdict": "unsure",
+  "issue": "Diagram has no edges; three boxes in a row are readable but not a flow.",
+  "fix": "Acceptable; optionally none."
+ },
+ {
+  "lesson": "law-g35.l07",
+  "id": "checks-simple",
+  "verdict": "unsure",
+  "issue": "Layout: President, Congress, Courts share one row, so the p->j edge (picks judges) runs straight through the Congress box. Edge label on j->c is very long.",
+  "fix": "Move Courts to col 1 row 1 (below Congress), shorten label to \"can rule a law unconstitutional (Marbury, 1803)\"."
+ },
+ {
+  "lesson": "law-g35.l12",
+  "id": "court-levels",
+  "verdict": "ok",
+  "issue": "Matches lesson; nine justices correct.",
+  "fix": ""
+ }
+]

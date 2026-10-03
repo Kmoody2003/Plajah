@@ -1,0 +1,1310 @@
+{
+ "courseId": "law-civpro",
+ "verifier": "B",
+ "note": "Justia returned 403 to WebFetch and curl; used Cornell LII (FRCP, FRAP, 28 U.S.C., Supreme Court opinions) and the Oyez API instead. U.S. federal law, checked 2026-10-02. Lessons do not cover Trump v. CASA (2025, universal injunctions), Rule 16.1 MDL (eff. Dec 1, 2025) or Berk v. Choy (2026): gaps, not errors.",
+ "fetched": 60,
+ "questions": [
+  {
+   "id": "law-civpro.l01.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l01.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l01.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l01.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l01.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Sinochem/Ruhrgas let a court take a non-merits threshold ground (e.g. personal jurisdiction) first, but only choice 2 matches Steel Co."
+  },
+  {
+   "id": "law-civpro.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l02.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l02.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l03.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l03.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l03.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l03.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l04.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l04.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l04.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l05.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l05.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l05.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l05.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l05.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l06.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l06.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l06.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l07.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l07.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l07.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l07.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l08.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l08.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l08.q4",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": true,
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/28/1391"
+   ],
+   "note": "Premise says the company is subject to personal jurisdiction in Colorado; under 28 U.S.C. 1391(c)(2)/(d) an entity then resides in Colorado (a single-district state), so venue is proper under 1391(b)(1); choice 0 is only conditionally right and the intended 'improper venue' answer is doubtful."
+  },
+  {
+   "id": "law-civpro.l08.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l09.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l09.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l09.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l09.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l09.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l10.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l10.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l10.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l10.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l11.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l11.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l11.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l11.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l12.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l12.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l12.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l12.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l12.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l13.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l13.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l13.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l13.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l13.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "On these facts one claimant shares the stakeholder's state, so Rule 22 interpleader would lack diversity; choice 3 states the requirement correctly."
+  },
+  {
+   "id": "law-civpro.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l14.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l14.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l14.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l14.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l15.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l15.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l15.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l15.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l16.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l16.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l16.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l16.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l17.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l17.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l17.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l17.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l17.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l18.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l18.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l18.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l18.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l19.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l19.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l19.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Stem ends 'A court may' and the choices say 'it' without the prompt naming offensive collateral estoppel; reads slightly truncated but answerable."
+  },
+  {
+   "id": "law-civpro.l19.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l20.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-civpro.l20.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/rules/frap/rule_4"
+   ],
+   "note": "30 days from Jan 15 is Feb 14, so Feb 10 is timely under FRAP 4(a)(4)(A)."
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-civpro.l01",
+   "claim": "Kokkonen v. Guardian Life (1994): federal courts are of limited jurisdiction, presumed to lack it; burden on the party asserting it",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/511/375"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l01",
+   "claim": "Rules Enabling Act, 28 U.S.C. 2072: rules may not abridge, enlarge or modify any substantive right",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/28/2072"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l01",
+   "claim": "Steel Co. v. Citizens for a Better Environment (1998) requires jurisdiction before merits",
+   "verdict": "supported",
+   "sources": [
+    "https://api.oyez.org/cases/1997/96-643"
+   ],
+   "note": "Oyez confirms the 1998 decision turned on jurisdiction (standing); rejection of hypothetical jurisdiction is from memory."
+  },
+  {
+   "lessonId": "law-civpro.l02",
+   "claim": "Louisville & Nashville R.R. v. Mottley (1908): lifetime passes; an anticipated federal defence does not create arising-under jurisdiction",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/211/149"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l02",
+   "claim": "Grable & Sons v. Darue (2005): IRS-notice quiet-title case; necessarily raised, disputed, substantial, no disruption of federal-state balance",
+   "verdict": "supported",
+   "sources": [
+    "https://api.oyez.org/cases/2004/04-603"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l02",
+   "claim": "Gunn v. Minton (2013): state legal-malpractice claim from a patent case does not arise under federal law",
+   "verdict": "supported",
+   "sources": [
+    "https://api.oyez.org/cases/2012/11-1118"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l03",
+   "claim": "28 U.S.C. 1332(a): amount must exceed $75,000 exclusive of interest and costs; corporation is a citizen of state of incorporation and principal place of business",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/28/1332"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l03",
+   "claim": "Carden v. Arkoma (1990) member-by-member citizenship; Newman-Green (1989) US citizen domiciled abroad is stateless for diversity",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/494/185",
+    "https://www.law.cornell.edu/supremecourt/text/490/826"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l03",
+   "claim": "Hertz v. Friend (2010) nerve-centre test; St. Paul Mercury (1938) legal-certainty test",
+   "verdict": "supported",
+   "sources": [
+    "https://api.oyez.org/cases/2009/08-1107",
+    "https://www.law.cornell.edu/supremecourt/text/303/283"
+   ],
+   "note": "Oyez confirms Hertz decided 2010-02-23; nerve-centre wording from memory."
+  },
+  {
+   "lessonId": "law-civpro.l04",
+   "claim": "1367(b) bars plaintiffs' claims against persons joined under Rules 14, 19, 20, 24 in diversity-only cases; 1367(c) novel or complex state issue; Owen v. Kroger (1978)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/28/1367",
+    "https://www.law.cornell.edu/supremecourt/text/437/365"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l04",
+   "claim": "Exxon Mobil v. Allapattah (2005): one plaintiff meeting the amount allows supplemental jurisdiction over others' smaller claims",
+   "verdict": "supported",
+   "sources": [
+    "https://api.oyez.org/cases/2004/04-70"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l04",
+   "claim": "Removal: forum-defendant rule 1441(b)(2); all properly joined and served defendants consent; 30-day notice; 1-year limit for diversity absent bad faith",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/28/1441",
+    "https://www.law.cornell.edu/uscode/text/28/1446"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l05",
+   "claim": "International Shoe v. Washington (1945): minimum contacts / fair play and substantial justice",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/326/310"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l05",
+   "claim": "Burnham v. Superior Court (1990): tag jurisdiction upheld unanimously in result with split reasoning",
+   "verdict": "supported",
+   "sources": [
+    "https://api.oyez.org/cases/1989/89-44"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l05",
+   "claim": "Pennoyer v. Neff decided 1878; Rule 12(h)(1) waiver of personal-jurisdiction defence",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/95/714",
+    "https://www.law.cornell.edu/rules/frcp/rule_12"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l06",
+   "claim": "World-Wide Volkswagen v. Woodson (1980): no jurisdiction over NY dealer/distributor in Oklahoma",
+   "verdict": "supported",
+   "sources": [
+    "https://api.oyez.org/cases/1979/78-1078"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l06",
+   "claim": "Bristol-Myers Squibb (2017) no specific jurisdiction over nonresidents' claims; Walden v. Fiore (2014) defendant's own forum contacts",
+   "verdict": "supported",
+   "sources": [
+    "https://api.oyez.org/cases/2016/16-466",
+    "https://api.oyez.org/cases/2013/12-574"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l06",
+   "claim": "Ford Motor v. Montana Eighth Judicial District (2021): 'relate to' does not require strict causation",
+   "verdict": "supported",
+   "sources": [
+    "https://api.oyez.org/cases/2020/19-368"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l07",
+   "claim": "Goodyear (2011) and Daimler (2014): general jurisdiction where at home, paradigm = incorporation and principal place of business",
+   "verdict": "supported",
+   "sources": [
+    "https://api.oyez.org/cases/2010/10-76",
+    "https://api.oyez.org/cases/2013/11-965"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l07",
+   "claim": "BNSF v. Tyrrell (2017): substantial Montana operations do not make railroad at home",
+   "verdict": "supported",
+   "sources": [
+    "https://api.oyez.org/cases/2016/16-405"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l07",
+   "claim": "Mallory v. Norfolk Southern (2023): registration-as-consent statute does not violate due process; rests on Pennsylvania Fire (1917)",
+   "verdict": "supported",
+   "sources": [
+    "https://api.oyez.org/cases/2022/21-1168"
+   ],
+   "note": "Decided 2023-06-27 (5-4). Dormant Commerce Clause question left open; no later Supreme Court ruling known to me as of Oct 2026."
+  },
+  {
+   "lessonId": "law-civpro.l08",
+   "claim": "28 U.S.C. 1391(b) venue options and 1391(c) residence (person = domicile; entity = where subject to personal jurisdiction); 1404(a) transfer incl. to a district all parties consent to",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/28/1391",
+    "https://www.law.cornell.edu/uscode/text/28/1404"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l08",
+   "claim": "Van Dusen (1964), Ferens (1990), Goldlawr (1962), Piper (1981): transfer carries law; 1406 transfer without personal jurisdiction; unfavourable change in law not decisive",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/376/612",
+    "https://www.law.cornell.edu/supremecourt/text/494/516",
+    "https://www.law.cornell.edu/supremecourt/text/369/463",
+    "https://www.law.cornell.edu/supremecourt/text/454/235"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l08",
+   "claim": "Worked example: company subject to personal jurisdiction in Colorado but events in Arizona means Colorado venue may be improper under 1391(b)(2)",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/28/1391"
+   ],
+   "note": "Under 1391(c)(2)/(d) an entity defendant subject to personal jurisdiction in Colorado (a single-district state) resides there, so venue is proper under 1391(b)(1) regardless of (b)(2). Same flaw affects question l08.q4."
+  },
+  {
+   "lessonId": "law-civpro.l09",
+   "claim": "Rule 4(c)(2) server 18+ non-party; Rule 4(e)(2)(B) abode service on resident of suitable age; Rule 4(d) waiver gives 60 days from request",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_4",
+    "https://www.law.cornell.edu/rules/frcp/rule_12"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l09",
+   "claim": "Rule 4(m): 90 days, dismiss without prejudice or order service; must extend for good cause",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_4"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l09",
+   "claim": "Rule 4(k)(2) federal-claim jurisdiction over defendant not subject to any state's jurisdiction; Rule 12(a)(1)(A)(i) 21 days to answer",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_4",
+    "https://www.law.cornell.edu/rules/frcp/rule_12"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l10",
+   "claim": "Erie R.R. v. Tompkins (1938) overruled Swift; no federal general common law",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/304/64"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l10",
+   "claim": "Hanna v. Plumer (1965), Guaranty Trust v. York (1945), Byrd (1958), Klaxon (1941) as described",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/380/460",
+    "https://www.law.cornell.edu/supremecourt/text/326/99",
+    "https://www.law.cornell.edu/supremecourt/text/356/525",
+    "https://www.law.cornell.edu/supremecourt/text/313/487"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l10",
+   "claim": "Walker v. Armco (1980) Rule 3 does not toll state limitations; Shady Grove (2010) Rule 23 displaces NY bar; Gasperini (1996)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/446/740",
+    "https://api.oyez.org/cases/2009/08-1008",
+    "https://api.oyez.org/cases/1995/95-719"
+   ],
+   "note": "Not covered: Berk v. Choy (Jan 2026), holding a state affidavit-of-merit requirement inapplicable in federal court; worth adding as the current Erie development (from memory, page not opened)."
+  },
+  {
+   "lessonId": "law-civpro.l11",
+   "claim": "Twombly (2007) plausibility; Iqbal (2009) two-step approach and applies to all civil actions",
+   "verdict": "supported",
+   "sources": [
+    "https://api.oyez.org/cases/2006/05-1126",
+    "https://api.oyez.org/cases/2008/07-1015"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l11",
+   "claim": "Swierkiewicz (2002) no prima facie case pleading; Erickson v. Pardus (2007) pro se",
+   "verdict": "supported",
+   "sources": [
+    "https://api.oyez.org/cases/2001/00-1853",
+    "https://api.oyez.org/cases/2006/06-7317"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l11",
+   "claim": "Rule 11(c)(2) 21-day safe harbour",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_11"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l12",
+   "claim": "Rule 12(b) seven defences; Rule 12(h)(1) waiver of (b)(2)-(5) if omitted",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_12"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l12",
+   "claim": "Rule 15(a)(1) amend once as of course within 21 days; Rule 15(c)(1)(C) mistake concerning identity; Krupski (2010) focuses on what the added party knew",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_15",
+    "https://api.oyez.org/cases/2009/09-337"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l12",
+   "claim": "Rule 13(a) compulsory counterclaim same transaction or occurrence; 13(g) crossclaims",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_13"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l13",
+   "claim": "Rule 14: no leave needed if third-party complaint filed within 14 days after serving original answer",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_14"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l13",
+   "claim": "Statutory interpleader 28 U.S.C. 1335 requires $500 or more",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/28/1335"
+   ],
+   "note": "Minimal-diversity point from memory."
+  },
+  {
+   "lessonId": "law-civpro.l13",
+   "claim": "Temple v. Synthes (1990) joint tortfeasors not required parties; Rule 19(b) equity and good conscience; Pimentel (2008) dismissal",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/498/5",
+    "https://www.law.cornell.edu/rules/frcp/rule_19",
+    "https://api.oyez.org/cases/2007/06-1204"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l14",
+   "claim": "CAFA 1332(d): over $5,000,000 aggregate, 100+ members, minimal diversity",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/28/1332"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l14",
+   "claim": "Rule 23(f) petition within 14 days; 23(c)(2)(B) best notice practicable",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_23"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l14",
+   "claim": "Wal-Mart v. Dukes (2011), Comcast (2013), Amchem (1997), Smith v. Bayer (2011), TransUnion v. Ramirez (2021), Shutts (1985) as described",
+   "verdict": "supported",
+   "sources": [
+    "https://api.oyez.org/cases/2010/10-277",
+    "https://api.oyez.org/cases/2012/11-864",
+    "https://api.oyez.org/cases/1996/96-270",
+    "https://api.oyez.org/cases/2010/09-1205",
+    "https://api.oyez.org/cases/2020/20-297",
+    "https://www.law.cornell.edu/supremecourt/text/472/797"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l15",
+   "claim": "Rule 26(b)(1) relevance plus proportionality factors",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_26"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l15",
+   "claim": "Rule 30 limits 10 depositions per side and 1 day of 7 hours; Rule 33 limit 25 interrogatories incl. discrete subparts",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_30",
+    "https://www.law.cornell.edu/rules/frcp/rule_33"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l15",
+   "claim": "Hickman v. Taylor (1947) / Rule 26(b)(3) substantial need and undue hardship; Upjohn (1981) rejects control-group test",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/329/495",
+    "https://www.law.cornell.edu/rules/frcp/rule_26",
+    "https://www.law.cornell.edu/supremecourt/text/449/383"
+   ],
+   "note": "Privilege-log mention is consistent with the Dec 1, 2025 amendments to Rules 16(b)/26(f) (from memory)."
+  },
+  {
+   "lessonId": "law-civpro.l16",
+   "claim": "Rule 56(a): no genuine dispute as to any material fact and entitled to judgment as a matter of law",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_56"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l16",
+   "claim": "Celotex (1986), Anderson v. Liberty Lobby (1986), Matsushita (1986), Scott v. Harris (2007), Tolan v. Cotton (2014)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/477/317",
+    "https://api.oyez.org/cases/1985/84-1602",
+    "https://api.oyez.org/cases/1985/83-2004",
+    "https://api.oyez.org/cases/2006/05-1631",
+    "https://api.oyez.org/cases/2013/13-551"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l16",
+   "claim": "Rule 50(b) renewed motion within 28 days after judgment; Unitherm (2006) requires preverdict 50(a) motion",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_50",
+    "https://api.oyez.org/cases/2005/04-597"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l17",
+   "claim": "Rule 38(b): written jury demand no later than 14 days after last pleading directed to the issue is served",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_38"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l17",
+   "claim": "Rule 48: 6 to 12 jurors, unanimous unless stipulated; Colgrove v. Battin (1973) six-person jury",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_48",
+    "https://www.law.cornell.edu/supremecourt/text/413/149"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l17",
+   "claim": "Beacon Theatres (1959), Dairy Queen (1962), Ross v. Bernhard (1970), Curtis v. Loether (1974), Tull (1987), Feltner (1998), Markman (1996), Edmonson (1991), Galloway (1943)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/359/500",
+    "https://www.law.cornell.edu/supremecourt/text/369/469",
+    "https://www.law.cornell.edu/supremecourt/text/396/531",
+    "https://www.law.cornell.edu/supremecourt/text/415/189",
+    "https://www.law.cornell.edu/supremecourt/text/481/412",
+    "https://api.oyez.org/cases/1997/96-1768",
+    "https://api.oyez.org/cases/1995/95-26",
+    "https://www.law.cornell.edu/supremecourt/text/500/614",
+    "https://www.law.cornell.edu/supremecourt/text/319/372"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l18",
+   "claim": "Rule 41(b): dismissal other than for jurisdiction, venue or Rule 19 joinder operates as adjudication on the merits",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_41"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l18",
+   "claim": "Federated Dept. Stores v. Moitie (1981): non-appealing parties bound despite later reversal of others",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/452/394"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l18",
+   "claim": "Semtek v. Lockheed Martin (2001): federal common law adopts preclusion law of the state where the diversity court sat",
+   "verdict": "supported",
+   "sources": [
+    "https://api.oyez.org/cases/2000/99-1551"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l19",
+   "claim": "Parklane Hosiery (1979) offensive nonmutual estoppel with discretion factors incl. wait-and-see",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/439/322"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l19",
+   "claim": "Blonder-Tongue (1971) defensive use against patentee",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/402/313"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l19",
+   "claim": "Taylor v. Sturgell (2008) rejects virtual representation; Montana v. United States (1979)",
+   "verdict": "supported",
+   "sources": [
+    "https://api.oyez.org/cases/2007/07-371",
+    "https://www.law.cornell.edu/supremecourt/text/440/147"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l20",
+   "claim": "28 U.S.C. 1292(b) application within ten days; Microsoft v. Baker (2017); Mohawk (2009) privilege orders not collateral orders; Cohen (1949)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/28/1292",
+    "https://api.oyez.org/cases/2016/15-457",
+    "https://api.oyez.org/cases/2009/08-678",
+    "https://www.law.cornell.edu/supremecourt/text/337/541"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l20",
+   "claim": "FRAP 4(a)(1): 30 days, 60 when US a party; 4(a)(4) timely Rule 59(e) motion (28 days) resets time",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frap/rule_4",
+    "https://www.law.cornell.edu/rules/frcp/rule_59"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-civpro.l20",
+   "claim": "Rule 60(c)(1): reasons (1)-(3) no more than a year; Anderson v. Bessemer City (1985) clear error",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_60",
+    "https://www.law.cornell.edu/supremecourt/text/470/564"
+   ],
+   "note": ""
+  }
+ ]
+}

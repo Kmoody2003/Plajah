@@ -3556,8 +3556,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               type="button"
               onClick={async (e) => {
                 e.stopPropagation();
-                const shareLink = initialAlbum?.id ? buildShareUrl('album', initialAlbum.id) : window.location.origin;
-                const shareData = { title: title || 'Check out this album on Plajah', text: shareText(title, artist), url: shareLink };
+                const isMix = subType === 'MIX' || initialAlbum?.subType === 'MIX';
+                const shareLink = initialAlbum?.id ? buildShareUrl(isMix ? 'mix' : 'album', initialAlbum.id) : window.location.origin;
+                const shareData = { title: title || (isMix ? 'Check out this mix on Plajah' : 'Check out this album on Plajah'), text: shareText(title, artist), url: shareLink };
                 if (navigator.share) { try { await navigator.share(shareData); } catch {} }
                 else { await navigator.clipboard.writeText(shareLink); }
               }}
@@ -3672,9 +3673,10 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             <button
               type="button"
               onClick={async () => {
-                const shareLink = initialAlbum?.id ? buildShareUrl('album', initialAlbum.id) : window.location.origin;
+                const isMix = subType === 'MIX' || initialAlbum?.subType === 'MIX';
+                const shareLink = initialAlbum?.id ? buildShareUrl(isMix ? 'mix' : 'album', initialAlbum.id) : window.location.origin;
                 const shareData = {
-                  title: title || 'Check out this album on Plajah',
+                  title: title || (isMix ? 'Check out this mix on Plajah' : 'Check out this album on Plajah'),
                   text: shareText(title, artist),
                   url: shareLink,
                 };

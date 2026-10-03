@@ -1,0 +1,1131 @@
+{
+ "courseId": "publishing-business",
+ "verifier": "B",
+ "questions": [
+  {
+   "id": "publishing-business.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l01.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Weakest is the vague one; other options are concrete."
+  },
+  {
+   "id": "publishing-business.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l09.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l10.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l16.q2",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Registration or refusal is required (Fourth Estate v. Wall-Street.com, 2019); exceptions exist for foreign works."
+  },
+  {
+   "id": "publishing-business.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l17.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l17.q3",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Option-to-match (last refusal) concern is the standard Authors Guild critique."
+  },
+  {
+   "id": "publishing-business.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l18.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l18.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l19.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l19.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l20.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "publishing-business.l20.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "publishing-business.l01",
+   "claim": "Comps should be published in roughly the last five years",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Common trade convention (agents commonly say 3-5 years)."
+  },
+  {
+   "lessonId": "publishing-business.l01",
+   "claim": "Premise as protagonist+want+obstacle test",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard craft convention."
+  },
+  {
+   "lessonId": "publishing-business.l01",
+   "claim": "Cosy mysteries commonly ~70,000 words",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Approximate; varies by source."
+  },
+  {
+   "lessonId": "publishing-business.l02",
+   "claim": "Inciting incident ~10%, midpoint 50%, climax 85-90%",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Heuristic beat-sheet figures, not a standard; text calls them tools."
+  },
+  {
+   "lessonId": "publishing-business.l02",
+   "claim": "Three-act structure: setup, confrontation, resolution",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard Aristotelian/Syd Field model."
+  },
+  {
+   "lessonId": "publishing-business.l02",
+   "claim": "Worked example arithmetic (10% of 60,000 = 6,000; 85-90% = 51,000-54,000)",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l03",
+   "claim": "Typical adult novel 70,000-100,000 words",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Widely cited range."
+  },
+  {
+   "lessonId": "publishing-business.l03",
+   "claim": "80,000/2,500 = 32 weeks; at 1,000 words 16 weeks",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic: 1,000x5=5,000/wk, 80,000/5,000=16."
+  },
+  {
+   "lessonId": "publishing-business.l03",
+   "claim": "32 weeks is a little over seven months",
+   "verdict": "supported",
+   "sources": [],
+   "note": "32/4.35 = 7.4 months."
+  },
+  {
+   "lessonId": "publishing-business.l04",
+   "claim": "10% of 90,000 words leaves 81,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l04",
+   "claim": "Revision works large to small; mechanical pass last",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard editorial practice."
+  },
+  {
+   "lessonId": "publishing-business.l04",
+   "claim": "Style sheet records names, spellings, timeline",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard copyediting tool (Chicago Manual of Style)."
+  },
+  {
+   "lessonId": "publishing-business.l05",
+   "claim": "Four stages: developmental, line, copy, proofreading in that order",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard; terminology varies slightly by country."
+  },
+  {
+   "lessonId": "publishing-business.l05",
+   "claim": "Proofreading is on typeset pages and does not rewrite",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard definition."
+  },
+  {
+   "lessonId": "publishing-business.l05",
+   "claim": "Traditional publishers provide editors at no charge to author",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Industry norm."
+  },
+  {
+   "lessonId": "publishing-business.l06",
+   "claim": "Five to eight beta readers suggested",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Advice, not a fact."
+  },
+  {
+   "lessonId": "publishing-business.l06",
+   "claim": "4 of 6 = two thirds",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l06",
+   "claim": "Beta readers used after own revisions, before final editing",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Common practice."
+  },
+  {
+   "lessonId": "publishing-business.l07",
+   "claim": "Romance traditionally requires happy ending (HEA/HFN)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "RWA definition: emotionally satisfying and optimistic ending."
+  },
+  {
+   "lessonId": "publishing-business.l07",
+   "claim": "Cosy mysteries avoid graphic violence",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Genre definition."
+  },
+  {
+   "lessonId": "publishing-business.l07",
+   "claim": "Category differs from genre; used for shelving/listing",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l08",
+   "claim": "Query letter is one page with hook, book info, bio",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard format."
+  },
+  {
+   "lessonId": "publishing-business.l08",
+   "claim": "12 chapters x 5,000 = 60,000 words",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l08",
+   "claim": "Fiction sold on complete manuscript for debut; nonfiction on proposal",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Industry norm."
+  },
+  {
+   "lessonId": "publishing-business.l09",
+   "claim": "Agent commission commonly ~15% domestic",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Often 20% foreign/film; norm is 15%."
+  },
+  {
+   "lessonId": "publishing-business.l09",
+   "claim": "AAR canon of ethics prohibits members charging reading fees",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Verified from knowledge of AAR canon; confirm on site."
+  },
+  {
+   "lessonId": "publishing-business.l09",
+   "claim": "12,000 x 0.15 = 1,800; author gets 10,200",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l10",
+   "claim": "Advance not repaid if book fails to earn out unless breach",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard; contracts may have exceptions (e.g. non-delivery)."
+  },
+  {
+   "lessonId": "publishing-business.l10",
+   "claim": "10,000/2 = 5,000 copies to earn out; 8,000 copies yields 6,000 beyond advance",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l10",
+   "claim": "Publishers keep reserve against returns",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard royalty statement practice."
+  },
+  {
+   "lessonId": "publishing-business.l11",
+   "claim": "Writer Beware is run by SFWA",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Yes, a project of the Science Fiction and Fantasy Writers of America."
+  },
+  {
+   "lessonId": "publishing-business.l11",
+   "claim": "Red flags: upfront fees, mandatory copy purchases, long rights grabs",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l11",
+   "claim": "Worked example 800-4,000 = -3,200",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l12",
+   "claim": "ISBN is 13 digits",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Since 2007; earlier 10 digits."
+  },
+  {
+   "lessonId": "publishing-business.l12",
+   "claim": "US ISBNs sold through Bowker (myidentifiers.com)",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l12",
+   "claim": "Each format/edition needs its own ISBN",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l13",
+   "claim": "BISAC subject codes set by Book Industry Study Group",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l13",
+   "claim": "Thema codes widely used in the UK",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Thema is international; UK adopts it via Book Industry Communication."
+  },
+  {
+   "lessonId": "publishing-business.l13",
+   "claim": "Metadata can usually be changed without republishing",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Platform-dependent."
+  },
+  {
+   "lessonId": "publishing-business.l14",
+   "claim": "15 x 0.60 = 9.00; minus 4.50 = 4.50; direct 10.50",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l14",
+   "claim": "Bookshops/libraries typically expect ~40% or more discount",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard trade discount 40-55%."
+  },
+  {
+   "lessonId": "publishing-business.l14",
+   "claim": "2,000 x 2.50 = 5,000; 800 unsold",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l15",
+   "claim": "~9,000 words per finished hour rule of thumb",
+   "verdict": "supported",
+   "sources": [],
+   "note": "ACX cites about 9,300 words/hour; text says rule of thumb."
+  },
+  {
+   "lessonId": "publishing-business.l15",
+   "claim": "Narrators paid per finished hour or royalty share",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l15",
+   "claim": "Audiobook cover art usually square",
+   "verdict": "supported",
+   "sources": [],
+   "note": "ACX requires 2400x2400."
+  },
+  {
+   "lessonId": "publishing-business.l16",
+   "claim": "Copyright exists automatically on fixation in tangible form",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l16",
+   "claim": "Registration generally required before suing for US works",
+   "verdict": "supported",
+   "sources": [],
+   "note": "17 USC 411(a); Fourth Estate v. Wall-Street.com (2019)."
+  },
+  {
+   "lessonId": "publishing-business.l16",
+   "claim": "Statutory damages/fees require registration before infringement or within 3 months of first publication",
+   "verdict": "supported",
+   "sources": [],
+   "note": "17 USC 412."
+  },
+  {
+   "lessonId": "publishing-business.l17",
+   "claim": "Authors Guild recommends reversion by earnings/sales threshold",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l17",
+   "claim": "Out-of-print clauses weak because of ebooks/POD",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l17",
+   "claim": "Audit clause allows accountant inspection of records",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "publishing-business.l18",
+   "claim": "Do not pay for or trade reviews; platforms remove such reviews",
+   "verdict": "supported",
+   "sources": [],
+   "note": "FTC rule effective 2024 also bans buying reviews."
+  },
+  {
+   "lessonId": "publishing-business.l18",
+   "claim": "400 x 0.05 = 20",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l18",
+   "claim": "Newsletters must meet consent/unsubscribe rules (CAN-SPAM, GDPR)",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l19",
+   "claim": "Self-employment tax 15.3%",
+   "verdict": "supported",
+   "sources": [],
+   "note": "12.4% SS + 2.9% Medicare; SS wage-base cap changes yearly."
+  },
+  {
+   "lessonId": "publishing-business.l19",
+   "claim": "Authors report income on Schedule C",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l19",
+   "claim": "5,000-1,200 = 3,800",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l20",
+   "claim": "Lorea import formats: txt, Markdown, Fountain, docx, PDF",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Matches project's own import feature; not independently externally checkable."
+  },
+  {
+   "lessonId": "publishing-business.l20",
+   "claim": "Platform certificate is not copyright registration",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "publishing-business.l20",
+   "claim": "ISBN purchased through national agency",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  }
+ ]
+}

@@ -25,18 +25,20 @@ import * as FilmProduction from '../services/filmProductionService';
 import { patchSceneWithAction, putLocationWithAction } from '../services/productionActionService';
 import { askProductionBrain, type ProductionBrainAnswer } from '../services/productionIntelligenceService';
 import { addHqAsset } from '../services/orgAssets';
-import { buildFabulaProjectFromTakes } from '../services/filmEditBridge';
+import { buildFabulaProjectFromTakes, pickSelect } from '../services/filmEditBridge';
 import { transcribeAndScoreTake, coverageGaps } from '../services/takeScoring';
 import { startTakeRecorder, recordingToFile, pendingCameraTiers, type TakeRecorderHandle } from '../services/takeCapture';
 import { compareFrames, grabFrame, type ContinuityResult } from '../services/continuityCheck';
 import { toSRT, toVTT, cuesFromTakes, downloadSidecar } from '../services/captionSidecar';
 import { LOUDNESS_PRESETS, evaluateLoudness } from '../services/loudnessQC';
 import { subscribeBreakdownElements, type BreakdownElement } from '../services/productionBreakdownService';
-import { uploadFile } from '../services/backendService';
+import { uploadFile, auth as pmAuth } from '../services/backendService';
+import { BillingHubMount, SoonPill, useBillingNav } from './BillingMounts';
 import { FilmStaffingTab } from './film/FilmStaffingTab';
 import { FilmBreakdownTab } from './film/FilmBreakdownTab';
 import { FilmScheduleTab as ProductionScheduleTab } from './film/FilmScheduleTab';
 import ProductionChatWorkspace from './film/ProductionChatWorkspace';
+import { ProductionFinance } from './film/ProductionFinance';
 import { listWritingProjects, type WritingProject, type WritingChapter } from '../services/loreaProjectsService';
 import { MusicReleasesTab } from './music/MusicReleasesTab';
 import {
@@ -238,7 +240,7 @@ const EmptyState: React.FC<{ icon: React.ReactNode; title: string; body: string;
 
 // ─── Tab: Overview ─────────────────────────────────────────────────────────────
 
-const OverviewTab: React.FC<{ onSwitchTab: (t: PMTab) => void }> = ({ onSwitchTab }) => {
+export const OverviewTab: React.FC<{ onSwitchTab: (t: PMTab) => void }> = ({ onSwitchTab }) => {
   const members   = memberStore.get();
   const contracts = contractStore.get();
   const invoices  = invoiceStore.get();
@@ -315,7 +317,7 @@ const OverviewTab: React.FC<{ onSwitchTab: (t: PMTab) => void }> = ({ onSwitchTa
 
 // ─── Tab: Payroll ──────────────────────────────────────────────────────────────
 
-const PayrollTab: React.FC = () => {
+export const PayrollTab: React.FC = () => {
   const [members, setMembers] = useState<BandMember[]>(() => memberStore.get());
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: '', role: '', email: '', splitPercent: '' });
@@ -465,7 +467,7 @@ const CONTRACT_TEMPLATES: { type: ContractType; clauses: string[] }[] = [
   ]},
 ];
 
-const ContractsTab: React.FC = () => {
+export const ContractsTab: React.FC = () => {
   const [contracts, setContracts] = useState<Contract[]>(() => contractStore.get());
   const [adding, setAdding] = useState(false);
   const [viewingTemplate, setViewingTemplate] = useState<typeof CONTRACT_TEMPLATES[0] | null>(null);
@@ -621,9 +623,11 @@ const ContractsTab: React.FC = () => {
 
 // ─── Tab: Invoices ─────────────────────────────────────────────────────────────
 
-const InvoicesTab: React.FC = () => {
+export const InvoicesTab: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>(() => invoiceStore.get());
   const [adding, setAdding] = useState(false);
+  const [billingOpen, setBillingOpen] = useState(false);
+  const billingNav = useBillingNav();
   const [form, setForm] = useState({ client: '', clientEmail: '', dueDate: '', notes: '', lineItems: [{ description: '', qty: '1', rate: '' }] });
 
   const save = (inv: Invoice[]) => { invoiceStore.set(inv); setInvoices(inv); };
@@ -656,6 +660,19 @@ const InvoicesTab: React.FC = () => {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+      {/* Plajah Billing — real invoices, payment links & payouts on YOUR own Stripe account (flag-gated). */}
+      {pmAuth.currentUser?.uid && (
+        <div className="p-4 rounded-2xl bg-emerald-500/[0.06] border border-emerald-500/20 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-black text-white">Plajah Billing{billingNav.state === 'soon' && <SoonPill />}</p>
+              <p className="text-[11px] text-white/50">Send invoices that clients pay online straight to your own Stripe account. Connect Stripe to start invoicing.</p>
+            </div>
+            <button onClick={() => setBillingOpen(o => !o)} className="shrink-0 px-3 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-black uppercase tracking-widest">{billingOpen ? 'Hide' : 'Open'}</button>
+          </div>
+          {billingOpen && <BillingHubMount entity={{ kind: 'USER', id: pmAuth.currentUser.uid }} entityName={pmAuth.currentUser.displayName || 'My business'} canManage />}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-base font-black uppercase tracking-widest text-white">Invoices</h3>
@@ -769,7 +786,7 @@ const InvoicesTab: React.FC = () => {
 
 const TASK_CATEGORIES = ['Pre-Show', 'Day Of Show', 'Post-Show', 'Admin', 'Creative', 'Press', 'Legal', 'Finance', 'Other'];
 
-const TasksTab: React.FC = () => {
+export const TasksTab: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>(() => taskStore.get());
   const [adding, setAdding] = useState(false);
   const [filter, setFilter] = useState<TaskStatus | 'ALL'>('ALL');
@@ -904,7 +921,7 @@ const TasksTab: React.FC = () => {
 
 // ─── Tab: Vendors ──────────────────────────────────────────────────────────────
 
-const VendorsTab: React.FC = () => {
+export const VendorsTab: React.FC = () => {
   const [vendors, setVendors] = useState<Vendor[]>(() => vendorStore.get());
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
@@ -1022,7 +1039,7 @@ const VendorsTab: React.FC = () => {
 
 // ─── Tab: Venues ───────────────────────────────────────────────────────────────
 
-const VenuesTab: React.FC = () => {
+export const VenuesTab: React.FC = () => {
   const [venues, setVenues] = useState<Venue[]>(() => venueStore.get());
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
@@ -1143,7 +1160,7 @@ const VenuesTab: React.FC = () => {
 
 // ─── Tab: Ad Hub ───────────────────────────────────────────────────────────────
 
-const AdHubTab: React.FC = () => {
+export const AdHubTab: React.FC = () => {
   const adChannels = [
     { name: 'Plajah Boost', description: 'Algorithmic content boost within the Plajah platform. Increases reach across feeds, search, and discovery.', action: 'Manage Packages', route: 'AD_PACKAGES', color: '#FF8C00', icon: <Zap size={16} /> },
     { name: 'TikTok Creator', description: 'Promote your content to TikTok audiences. Use Plajah content links as your destination.', action: 'Go to TikTok Ads', url: 'https://ads.tiktok.com', color: '#00f2ea', icon: <TrendingUp size={16} /> },
@@ -1219,7 +1236,7 @@ const AdHubTab: React.FC = () => {
 
 // ─── Tab: Events (launch pad for Event Production Studio) ─────────────────────
 
-const EventsLaunchTab: React.FC = () => {
+export const EventsLaunchTab: React.FC = () => {
   const navigate = (target: string) => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target } }));
 
   const tools = [
@@ -1310,7 +1327,7 @@ const EventsLaunchTab: React.FC = () => {
  * Deliberately a launch card rather than the flow itself: the studio is a full-screen,
  * multi-step surface, and running it inside a tab's scroll container fights it.
  */
-const CareerImportLaunchTab: React.FC = () => {
+export const CareerImportLaunchTab: React.FC = () => {
   const navigate = () => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'CAREER_IMPORT' } }));
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -1529,7 +1546,7 @@ const MusicDemoDetail: React.FC<{ onOpenMelos: () => void }> = ({ onOpenMelos })
   );
 };
 
-const MelosLaunchTab: React.FC<{ currentUser?: UserProfile | null }> = ({ currentUser }) => {
+export const MelosLaunchTab: React.FC<{ currentUser?: UserProfile | null }> = ({ currentUser }) => {
   const navigate = (target: string, extra: object = {}) =>
     window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target, ...extra } }));
 
@@ -1662,7 +1679,7 @@ const MelosLaunchTab: React.FC<{ currentUser?: UserProfile | null }> = ({ curren
   );
 };
 
-const BoardsLaunchTab: React.FC = () => {
+export const BoardsLaunchTab: React.FC = () => {
   const navigate = (target: string) => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target } }));
   const BOARDS_KEY = 'plajah_artist_boards_v1';
   const boards: any[] = React.useMemo(() => { try { return JSON.parse(localStorage.getItem(BOARDS_KEY) || '[]'); } catch { return []; } }, []);
@@ -1826,7 +1843,7 @@ function ensureFilmDemo() {
 
 // ─── Film Tab: Overview ─────────────────────────────────────────────────────
 
-const FilmOverviewTab: React.FC = () => {
+export const FilmOverviewTab: React.FC = () => {
   const { scenes, budgetLines: budget, members: crew, locations, festivals } = useProd();
   const totalEst  = budget.reduce((s, b) => s + b.estimated, 0);
   const totalAct  = budget.reduce((s, b) => s + b.actual, 0);
@@ -1884,7 +1901,7 @@ const FilmOverviewTab: React.FC = () => {
 
 const REVISION_HEX: Record<string, string> = { WHITE: '#e5e5e5', BLUE: '#60a5fa', PINK: '#f9a8d4', YELLOW: '#fde047', GREEN: '#4ade80', GOLDENROD: '#eab308', BUFF: '#f0d9a8', SALMON: '#fca5a5', CHERRY: '#e11d48', TAN: '#d2b48c', GRAY: '#9ca3af' };
 
-const FilmScriptTab: React.FC = () => {
+export const FilmScriptTab: React.FC = () => {
   const { prod, scenes, me } = useProd();
   const [filter, setFilter] = useState<string>('ALL');
   const [drafts, setDrafts] = useState<Awaited<ReturnType<typeof FilmProduction.fetchScriptDrafts>>>([]);
@@ -1997,7 +2014,15 @@ type BudgetSeg = 'lines' | 'po' | 'petty' | 'time' | 'report';
 const PO_STATUSES: FilmProduction.POStatus[] = ['DRAFT', 'ISSUED', 'PARTIAL', 'PAID', 'VOID'];
 const poStatusColor: Record<string, string> = { DRAFT: 'text-white/40 bg-white/5', ISSUED: 'text-blue-400 bg-blue-500/10', PARTIAL: 'text-yellow-400 bg-yellow-500/10', PAID: 'text-emerald-400 bg-emerald-500/10', VOID: 'text-red-400 bg-red-500/10' };
 
-const FilmBudgetTab: React.FC = () => {
+/** Production finance (budget builder, costs, reports, invoices) — gated by the PRODUCTION_FINANCE billing flag. */
+const FilmFinanceTab: React.FC = () => {
+  const { prod, scenes, callSheets, isOwner, readOnly, can } = useProd();
+  if (!prod) return <p className="text-xs text-white/40 p-6">Create or select a production to manage its finances.</p>;
+  return <ProductionFinance prodId={prod.id} prodName={prod.title} totalDays={prod.totalDays} scenes={scenes} callSheets={callSheets}
+    canManage={!readOnly && (isOwner || can('MANAGE_BUDGET'))} isDemo={prod.id === 'demo_film_local'} />;
+};
+
+export const FilmBudgetTab: React.FC = () => {
   const { prod, budgetLines: lines, purchaseOrders, pettyCash, timecards, members, dprs, isOwner, readOnly, can } = useProd();
   const canManage = !readOnly && (isOwner || can('MANAGE_BUDGET'));
   const [seg, setSeg] = useState<BudgetSeg>('lines');
@@ -2230,7 +2255,7 @@ const FilmBudgetTab: React.FC = () => {
 
 // ─── Film Tab: Crew ─────────────────────────────────────────────────────────
 
-const FilmCrewTab: React.FC = () => {
+export const FilmCrewTab: React.FC = () => {
   const { prod, members } = useProd();
   const crew: FilmCrewMember[] = useMemo(() => members.map(member => ({
     id: member.id, name: member.name, role: member.role,
@@ -2320,7 +2345,7 @@ const FilmCrewTab: React.FC = () => {
 
 // ─── Film Tab: Locations ────────────────────────────────────────────────────
 
-const FilmLocationsTab: React.FC = () => {
+export const FilmLocationsTab: React.FC = () => {
   const { prod, locations: locs, me } = useProd();
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'INT' as FilmLocation['type'], address: '', city: '', contactName: '', contactPhone: '', permitStatus: 'SCOUTED' as FilmLocation['permitStatus'], rentalFee: '', notes: '' });
@@ -2418,7 +2443,7 @@ const clearanceStatusColor: Record<string, string> = {
   EXPIRED: 'text-red-400 bg-red-500/10', NA: 'text-white/30 bg-white/5',
 };
 
-const FilmClearancesTab: React.FC = () => {
+export const FilmClearancesTab: React.FC = () => {
   const { prod, clearances, members, locations, scenes, isOwner, readOnly, can } = useProd();
   const canManage = !readOnly && (isOwner || can('MANAGE_LOCATIONS') || can('MANAGE_REPORTS'));
   const [adding, setAdding] = useState(false);
@@ -2610,7 +2635,7 @@ const readVideoDuration = (file: File): Promise<number> => new Promise(resolve =
 const DELIVERABLE_STATUSES: FilmProduction.DeliverableStatus[] = ['NEEDED', 'IN_PROGRESS', 'READY', 'DELIVERED', 'NA'];
 const dlvStatusColor: Record<string, string> = { NEEDED: 'text-red-400 bg-red-500/10', IN_PROGRESS: 'text-yellow-400 bg-yellow-500/10', READY: 'text-blue-400 bg-blue-500/10', DELIVERED: 'text-emerald-400 bg-emerald-500/10', NA: 'text-white/30 bg-white/5' };
 
-const FilmDeliverablesTab: React.FC = () => {
+export const FilmDeliverablesTab: React.FC = () => {
   const { prod, deliverables, takes, isOwner, readOnly, can } = useProd();
   const canManage = !readOnly && (isOwner || can('MANAGE_REPORTS') || can('MANAGE_POST'));
   const [specId, setSpecId] = useState(FilmProduction.DELIVERY_SPECS[0].id);
@@ -2759,7 +2784,7 @@ const CaptureSlot: React.FC<{ label: string; hint: string; src: { url: string } 
   </div>
 );
 
-const FilmContinuityTab: React.FC = () => {
+export const FilmContinuityTab: React.FC = () => {
   const { prod, scenes, continuityChecks, me, isOwner, readOnly, can } = useProd();
   const canManage = !readOnly && (isOwner || can('MANAGE_REPORTS') || can('EDIT_SCRIPT_BREAKDOWN'));
   const [sceneId, setSceneId] = useState('');
@@ -2943,7 +2968,7 @@ const TakeRecorderModal: React.FC<{ sceneNum: string; nextTake: number; onFile: 
   );
 };
 
-const FilmEditTab: React.FC = () => {
+export const FilmEditTab: React.FC = () => {
   const { prod, scenes, takes, members, me, isOwner, readOnly, can } = useProd();
   const canManage = !readOnly && (isOwner || can('MANAGE_REPORTS') || can('EDIT_SCRIPT_BREAKDOWN'));
   const [busyScene, setBusyScene] = useState<string | null>(null);
@@ -2956,10 +2981,8 @@ const FilmEditTab: React.FC = () => {
   const ordered = [...scenes].sort((a, b) => (a.shootDay - b.shootDay) || (a.order ?? 0) - (b.order ?? 0) || a.sceneNum.localeCompare(b.sceneNum, undefined, { numeric: true }));
   const takesByScene = (sceneId: string) => takes.filter(t => t.sceneId === sceneId).sort((a, b) => a.takeNumber - b.takeNumber);
   const scenesCovered = ordered.filter(s => takes.some(t => t.sceneId === s.id && (t.proxyUrl || t.proxyAssetId))).length;
-  const selectFor = (sceneId: string) => {
-    const c = takes.filter(t => t.sceneId === sceneId && t.status !== 'NG' && (t.proxyUrl || t.proxyAssetId));
-    return c.find(t => t.circled) || [...c].sort((a, b) => (b.rating || 0) - (a.rating || 0) || a.takeNumber - b.takeNumber)[0];
-  };
+  // Same rule the assembly uses (services/filmEditBridge.pickSelect) so this label always matches the cut.
+  const selectFor = (sceneId: string) => pickSelect(sceneId, takes)?.take;
 
   const addTake = async (scene: FilmProduction.ProductionScene, file?: File | null) => {
     if (!prod || !file) return;
@@ -3177,7 +3200,7 @@ const FilmScheduleTab: React.FC = () => {
 
 // ─── Film Tab: Distribution ─────────────────────────────────────────────────
 
-const FilmDistroTab: React.FC = () => {
+export const FilmDistroTab: React.FC = () => {
   const { prod, festivals: subs } = useProd();
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ festival: '', tier: 'B' as FilmFestivalSub['tier'], deadline: '', fee: '', status: 'PLANNING' as FilmFestivalSub['status'], category: '', notes: '' });
@@ -3795,10 +3818,10 @@ const WriterPressTab: React.FC = () => (
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-type PMTab =
+export type PMTab =
   | 'overview' | 'releases' | 'productions' | 'import' | 'payroll' | 'contracts' | 'invoices' | 'tasks' | 'vendors' | 'venues' | 'events' | 'boards' | 'promote'
   | 'film_overview' | 'film_script' | 'film_breakdown' | 'film_budget' | 'film_crew' | 'film_locations' | 'film_schedule' | 'film_distro'
-  | 'film_hub' | 'film_chat' | 'film_callsheets' | 'film_staffing' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports' | 'film_clearances' | 'film_edit' | 'film_continuity' | 'film_deliverables'
+  | 'film_hub' | 'film_chat' | 'film_callsheets' | 'film_staffing' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports' | 'film_clearances' | 'film_edit' | 'film_continuity' | 'film_deliverables' | 'film_finance'
   | 'writer_overview' | 'writer_projects' | 'writer_manuscripts' | 'writer_research' | 'writer_submissions' | 'writer_events' | 'writer_press';
 
 type Discipline = 'music' | 'film' | 'writer';
@@ -3807,7 +3830,7 @@ interface Props {
   currentUser?: UserProfile | null;
 }
 
-const PM_TABS: { id: PMTab; label: string; icon: React.ReactNode; color: string }[] = [
+export const PM_TABS: { id: PMTab; label: string; icon: React.ReactNode; color: string }[] = [
   { id: 'overview',   label: 'Overview',    icon: <Briefcase size={13} />,  color: '#FF8C00' },
   { id: 'releases',   label: 'Releases',    icon: <Music2 size={13} />,     color: '#FF8C00' },
   { id: 'productions',label: 'Productions', icon: <Disc3 size={13} />,      color: '#D40055' },
@@ -3844,6 +3867,7 @@ const FILM_TABS: { id: PMTab; label: string; icon: React.ReactNode; color: strin
   { id: 'film_script',     label: 'Script',       icon: <Clapperboard size={13} />, color: '#a855f7' },
   { id: 'film_breakdown',  label: 'Breakdown',    icon: <Layers size={13} />,       color: '#f97316' },
   { id: 'film_budget',     label: 'Budget',       icon: <DollarSign size={13} />,   color: '#10b981' },
+  { id: 'film_finance',    label: 'Finance',      icon: <Receipt size={13} />,      color: '#10b981' },
   { id: 'film_crew',       label: 'Crew',         icon: <Users size={13} />,        color: '#a855f7' },
   { id: 'film_schedule',   label: 'Schedule',     icon: <Calendar size={13} />,     color: '#3b82f6' },
   { id: 'film_locations',  label: 'Locations',    icon: <MapPin size={13} />,       color: '#ef4444' },
@@ -3929,6 +3953,7 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
       case 'film_script':         return <FilmScriptTab />;
       case 'film_breakdown':      return <FilmBreakdownTab />;
       case 'film_budget':         return <FilmBudgetTab />;
+      case 'film_finance':        return <FilmFinanceTab />;
       case 'film_crew':           return <FilmCrewTab />;
       case 'film_locations':      return <FilmLocationsTab />;
       case 'film_clearances':     return <FilmClearancesTab />;

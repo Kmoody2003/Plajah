@@ -1,0 +1,13 @@
+{
+  "_doc": "Human review decisions applied AFTER merge-verdicts.ts. resolved = a flag we reviewed and judged a checker slip or an already-fixed claim (removed from FLAGGED). fix = a question reworded after the check; withheld from practice until a fresh check agrees.",
+  "resolved": [
+    "film-business.l01.q1", "film-business.l01.q2", "ip-protection.l02.q2", "ip-protection.l13.q2", "ip-protection.l15.q5",
+    "music-theory-early.l02.q2", "music-history-eras.l20", "music-theory-college.l12"
+  ],
+  "fix": [
+    "ip-protection.l06.q2", "music-business.l04.q3", "music-theory-college.l21.q1", "music-theory-early.l01.q5",
+    "music-theory-elementary.l17.q5", "music-theory-secondary.l15.q1", "music-theory.l12.q3", "art-movements-modern.l18.q5",
+    "history-south-america.l21.q4", "lit-studies-modern.l25.q1", "world-mythology.l25.q5", "film-genres.l03.q4",
+    "color-theory.l15.q4", "audio-engineering.l14.q1", "design-movements.l15.q5", "music-genres.l03.q4"
+  ]
+}

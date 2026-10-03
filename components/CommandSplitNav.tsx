@@ -117,6 +117,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'TELA', label: 'Tela', icon: LayoutPanelTop },
   ]},
   { key: 'Platform', icon: Factory, items: [
+    { id: 'PLAJAH_HOME', label: 'Plajah Home', icon: Home },
     { id: 'HELP_CENTER', label: 'Help Center', icon: HelpCircle },
     { id: 'BROWSER', label: 'Partner Sites', icon: Monitor },
   ]},

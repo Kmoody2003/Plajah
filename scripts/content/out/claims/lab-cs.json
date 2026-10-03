@@ -1,0 +1,772 @@
+{
+ "courseId": "lab-cs",
+ "label": "Computer Science",
+ "lessons": [
+  {
+   "id": "lab-cs.l01",
+   "title": "Algorithms",
+   "body": [
+    "An algorithm is a finite, unambiguous sequence of steps that solves a class of problems. Two words carry the weight. Unambiguous means each step is precise enough for a machine, or a careful person, to carry out without guessing. Finite means the procedure must end for every valid input and deliver the correct answer.",
+    "The oldest non-trivial algorithm still in daily use is Euclid's method for the greatest common divisor, from around 300 BC. To find the GCD of 48 and 18, divide 48 by 18 and keep the remainder, 12. Then divide 18 by 12, remainder 6. Then divide 12 by 6, remainder 0. The last non-zero remainder, 6, is the answer.",
+    "The word itself comes from the name of the mathematician Al-Khwarizmi. Later, Donald Knuth showed how to analyse algorithms rigorously, by counting the steps they take as the input grows. That lets us compare methods independently of any particular hardware.",
+    "Landmark algorithms such as Euclid's GCD, quicksort and Dijkstra's shortest path show how clever ordering of steps can turn an impractical brute-force search into something fast enough for a phone map to use. Choosing the right algorithm often matters more than buying a faster machine."
+   ]
+  },
+  {
+   "id": "lab-cs.l02",
+   "title": "The Turing Machine",
+   "body": [
+    "In 1936 Alan Turing described an abstract machine so simple it seems almost useless. It has an unbounded tape of cells holding symbols, a head that reads and writes one cell at a time and moves left or right, and a finite table of rules that says, for each state and symbol, what to write, which way to move and which state to enter next.",
+    "Despite this minimalism, the Turing machine captures everything we mean by effective computation. Alonzo Church independently defined computation with the lambda calculus, and other formal models appeared too. All were shown to define the same class of computable functions. The Church-Turing thesis says that anything a human could compute by rote, a Turing machine can compute.",
+    "A tiny example: a machine that starts at the left end of a binary string, flips each 0 to 1 and each 1 to 0, moves right, and halts at the first blank cell. Given 1011 it leaves 0100 on the tape.",
+    "The machine matters because it is a yardstick. If something cannot be done by a Turing machine, no ordinary computer can do it either, however fast. Turing used this model to prove that some problems have no algorithmic solution at all."
+   ]
+  },
+  {
+   "id": "lab-cs.l03",
+   "title": "The Halting Problem",
+   "body": [
+    "Can we write a program that looks at any other program and its input and says whether it will eventually halt or run forever? Such a checker would be extremely useful for finding infinite loops. In 1936 Turing proved that no such general program can exist. The halting problem is undecidable.",
+    "The proof is an argument by contradiction. Suppose a perfect halting-decider existed. Build a new program that runs the decider on itself and then does the opposite: if the decider says it halts, loop forever; if the decider says it loops, halt immediately. Asking what this program does produces a contradiction, so the decider cannot exist.",
+    "Notice what the result does not say. It does not say that every program is impossible to analyse. A program with no loops obviously halts, and many specific programs can be proven to halt or loop. What is impossible is a single method that gives the right answer for every program and input.",
+    "Church reached a related conclusion, showing the Entscheidungsproblem undecidable. Together these results established that computation has hard limits, discovered before any electronic computer was built.",
+    "Everyday consequence: no tool can promise to find all infinite loops in all software."
+   ]
+  },
+  {
+   "id": "lab-cs.l04",
+   "title": "The Stored-Program Computer",
+   "body": [
+    "Early electronic machines such as ENIAC were rewired by hand for each new task. John von Neumann's 1945 First Draft of a Report on the EDVAC described a better idea: store the program in the same addressable memory as the data it works on. Instructions become just numbers in memory.",
+    "The processor then repeats a simple cycle forever. It fetches the next instruction from memory, decodes it to see what it asks for, and executes it, perhaps reading or writing data, before moving on to the next instruction. That fetch-decode-execute cycle is still how processors work today.",
+    "Putting code and data in one memory has a profound consequence. Because a program is just data, one program can read, create or modify another. A compiler is a program whose output is another program. Grace Hopper built the first compiler in 1952, translating symbolic code into machine code, which opened the way for high-level languages.",
+    "Claude Shannon contributed the other basic ingredient of this era. His 1948 theory gave the field its unit of information, the bit, and showed that switching circuits implement Boolean logic.",
+    "Everyday example: when you install an app, your computer copies the program into memory as data and then runs it."
+   ]
+  },
+  {
+   "id": "lab-cs.l05",
+   "title": "Big-O Growth",
+   "body": [
+    "To compare algorithms without depending on any specific computer, computer scientists ask how the number of steps grows as the input size n increases. Big-O notation gives an upper bound on that growth. Formally, f(n) is O(g(n)) if f(n) is at most a constant times g(n) for all n beyond some threshold.",
+    "In practice this means ignoring constant factors and lower-order terms. An algorithm that takes 3n^2 + 5n + 2 steps is O(n^2), because for large n the n^2 term dominates everything else.",
+    "Common growth rates, from gentle to severe, are constant, logarithmic, linear, n log n, quadratic and exponential. The differences are dramatic. If an O(n^2) algorithm handles 1,000 items in a second, doubling the input to 2,000 items takes about four seconds, because (2n)^2 is 4n^2. An O(n) method would only double.",
+    "Constants still matter at small sizes. Suppose algorithm A takes 100n steps and algorithm B takes n^2 steps. At n = 50, B needs 2,500 steps and A needs 5,000, so B wins. They are equal at n = 100, and beyond that A is faster and keeps getting relatively faster as n grows.",
+    "Big-O is the shared language for talking about algorithm cost, popularised by Knuth's analysis of algorithms."
+   ]
+  },
+  {
+   "id": "lab-cs.l06",
+   "title": "Recursion and Divide-and-Conquer",
+   "body": [
+    "Recursion defines a solution in terms of smaller instances of the same problem. Every recursive method needs at least one base case, a tiny instance answered directly, so that the descent eventually stops. Without a base case a recursive function calls itself forever, until the system runs out of memory for the call stack.",
+    "Recursion is the natural way to express divide-and-conquer algorithms such as mergesort and quicksort. Split the problem into pieces, solve each piece recursively, and combine the results. It also mirrors mathematical induction, where a base case plus a step from smaller to larger proves a claim for all sizes.",
+    "The running time of such algorithms is described by a recurrence: T(n) = a x T(n/b) + f(n), where a is the number of subproblems, b is the factor by which the size shrinks and f(n) is the cost of dividing and combining. The Master Theorem solves these by comparing f(n) with n raised to log base b of a. Mergesort has a = 2, b = 2 and f(n) proportional to n, giving O(n log n).",
+    "Halving also gives logarithmic behaviour: starting at 1,024 items and halving until one remains takes 10 steps, since 2 to the 10th is 1,024.",
+    "Church's lambda calculus showed that recursion alone is enough to express every computable function."
+   ]
+  },
+  {
+   "id": "lab-cs.l07",
+   "title": "The Cost of Sorting",
+   "body": [
+    "Sorting is one of the most studied problems in computing, and we can prove a limit on how fast any comparison-based method can be. A comparison sort learns about the data only by asking whether one item is smaller than another. The decision-tree argument shows such an algorithm needs at least on the order of n log n comparisons in the worst case.",
+    "Here is the idea. Every comparison has two outcomes, so after k comparisons the algorithm can distinguish at most 2^k situations. But the correct output depends on which of the n! possible orderings of the input actually occurred, and the algorithm must be able to produce the right answer for each. So we need 2^k to be at least n!, which means k is at least log2(n!). That quantity grows like n log n.",
+    "Small cases show this. Three items have 6 possible orderings. Two comparisons give at most 4 outcomes, which is not enough, but three comparisons give 8, which suffices. So sorting three items needs 3 comparisons in the worst case.",
+    "Mergesort achieves O(n log n), so it is asymptotically as good as any comparison sort can be. This is a rare, satisfying result: an algorithm matched by a proof that nothing in its class can do better."
+   ]
+  },
+  {
+   "id": "lab-cs.l08",
+   "title": "P versus NP",
+   "body": [
+    "Complexity theory sorts problems by the resources, mainly time, that any algorithm must use. The class P contains problems that can be solved in polynomial time. The class NP contains problems whose proposed solutions can be checked in polynomial time. Every problem in P is also in NP, because if you can solve a problem quickly you can certainly check an answer quickly.",
+    "The great open question is whether P equals NP: can every problem whose solution is quickly checkable also be quickly solved? Many problems, such as a large Sudoku or scheduling puzzle, look easy to verify and hard to solve, but nobody has proven they are genuinely hard. The question is one of the seven Clay Millennium Prize Problems.",
+    "In 1971 Stephen Cook proved that Boolean satisfiability, SAT, is NP-complete, meaning every problem in NP can be translated into SAT efficiently. A fast algorithm for SAT would therefore make every NP problem fast. In 1972 Richard Karp showed 21 classic problems are NP-complete too, revealing how common intractability is.",
+    "Most researchers suspect P is not equal to NP, but the proof remains unknown.",
+    "Everyday example: finding a schedule that satisfies hundreds of constraints may be very slow, yet checking a proposed schedule against the constraints is quick."
+   ]
+  },
+  {
+   "id": "lab-cs.l09",
+   "title": "Information, Entropy and Error Codes",
+   "body": [
+    "Claude Shannon's 1948 paper A Mathematical Theory of Communication made information measurable. The unit is the bit. The entropy of a source is H = minus the sum of p_i x log2(p_i), summed over its possible symbols. It is the average information per symbol, and also the theoretical lower bound for lossless compression.",
+    "A fair coin has two equally likely outcomes, so its entropy is 1 bit per flip. A coin that lands heads 99 percent of the time is far more predictable, so its entropy is much lower, and its output can be compressed more heavily. Predictable data carries less information.",
+    "Real channels are noisy, so messages need error-detecting and error-correcting codes. The Hamming distance between two equal-length words is the number of positions where they differ. For 10110 and 11100 the words differ at positions 2 and 4, so the distance is 2. If every pair of valid codewords is far apart, a few flipped bits still leave the received word closest to the correct codeword, so errors can be detected or corrected.",
+    "The Shannon-Hartley formula then caps the error-free data rate of a channel at C = B x log2(1 + S/N).",
+    "Together these ideas underlie compression, storage and every network link."
+   ]
+  },
+  {
+   "id": "lab-cs.l10",
+   "title": "Cryptography and Public Keys",
+   "body": [
+    "Modern cryptography is built on computational hardness. A scheme is secure not because its method is secret, but because breaking it would require solving a problem for which no efficient algorithm is known, such as factoring a very large integer or computing a discrete logarithm.",
+    "For centuries, secret communication required the two parties to share a secret key first, which meant meeting in person or trusting a courier. In 1976 Whitfield Diffie and Martin Hellman published New Directions in Cryptography, introducing public-key ideas. Their key-exchange method lets two parties who have never met agree on a shared secret over an open channel, even if an eavesdropper hears everything they say.",
+    "In 1978 Rivest, Shamir and Adleman published RSA, the first practical public-key cryptosystem, based on the difficulty of integer factorisation. Multiplying two huge primes is easy, but recovering them from the product is believed to be infeasible.",
+    "Claude Shannon had earlier placed cryptography on an information-theoretic footing in 1949 and defined perfect secrecy.",
+    "These ideas underpin TLS, the padlock in your browser. When you connect to a shop, public-key methods establish the shared key that then protects your traffic, even though no secret was ever exchanged beforehand."
+   ]
+  },
+  {
+   "id": "lab-cs.l11",
+   "title": "Parallelism and Moore's Law",
+   "body": [
+    "For decades, computers improved on a steady schedule. Moore's observation, from 1965, is that the number of transistors on a chip roughly doubles every two years: N(t) = N0 x 2^(t/2). Over 10 years that is 2^5 = 32 times as many transistors. This empirical trend drove exponential gains in computing power.",
+    "When single processors stopped getting faster at the same pace, designers added more cores. But extra processors cannot speed up work that must happen in sequence. Amdahl's law (1967) quantifies this. If a fraction p of a task can be parallelised across n processors, the overall speed-up is S = 1 / ((1 - p) + p/n).",
+    "Suppose 80 percent of a job can be parallelised and you use 4 processors. Then S = 1 / (0.2 + 0.8/4) = 1 / 0.4 = 2.5. Four processors give only 2.5 times the speed, not 4.",
+    "The serial fraction (1 - p) sets a hard ceiling. Even with unlimited processors, the term p/n shrinks to zero, leaving S = 1 / (1 - p). If 90 percent is parallel, the maximum possible speed-up is 10, no matter how many cores you add.",
+    "This is why software design for parallelism matters as much as buying hardware."
+   ]
+  },
+  {
+   "id": "lab-cs.l12",
+   "title": "Machine Learning and Gradient Descent",
+   "body": [
+    "Machine learning replaces hand-written rules with models that learn their own parameters from data. The model makes predictions, a loss function measures how wrong they are, and an optimisation procedure adjusts the parameters to reduce the loss. For classification, the standard loss is cross-entropy, which compares the predicted probability for each class with the true label.",
+    "The workhorse optimiser is gradient descent. The gradient of the loss points in the direction of steepest increase, so we move the parameters a small step the opposite way: theta_new = theta - eta x gradient, where eta is the learning rate. If a parameter is 5, the learning rate is 0.1 and the gradient is 4, the new value is 5 - 0.1 x 4 = 4.6.",
+    "The learning rate matters. Too small and training crawls; too large and the steps overshoot the minimum, bouncing back and forth or even diverging.",
+    "The central tension of machine learning is generalisation. A model must fit its training data and also work on examples it has never seen. A model that memorises the training set can score perfectly there yet fail on new data, which is why practitioners hold out validation data and use regularisation.",
+    "Arthur Samuel coined the term machine learning in 1959 with a checkers program that improved by playing itself."
+   ]
+  },
+  {
+   "id": "lab-cs.l13",
+   "title": "Neural Networks and Attention",
+   "body": [
+    "A neural network stacks layers of simple units. Each unit takes a weighted sum of its inputs and passes it through a nonlinear activation function. The sigmoid, 1 / (1 + e^-z), squashes any value into the range between 0 and 1. The ReLU, max(0, z), passes positive values unchanged and sets negatives to zero, and it dominates deep networks because it helps avoid vanishing gradients.",
+    "The nonlinearity is essential. Without it, stacking layers would collapse into a single linear function, however many layers you used. With it, a large enough network can approximate any continuous function, according to the universal approximation theorem.",
+    "The output layer of a classifier often uses softmax, which turns raw scores into probabilities: each score is exponentiated and divided by the sum of all the exponentials. If four scores are equal, each class gets probability 0.25.",
+    "Training uses backpropagation, which applies the chain rule to send the loss gradient backward through every layer so gradient descent can update all the weights. Hinton, Rumelhart and Williams popularised this in 1986.",
+    "In 2012 AlexNet, a deep convolutional network trained on GPUs, won the ImageNet challenge by a wide margin and launched the deep-learning era. In 2017 the Transformer, built on attention, enabled today's large language models."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "lab-cs.l01.q1",
+   "lessonId": "lab-cs.l01",
+   "kind": "mcq",
+   "prompt": "Which pair of properties is essential for an algorithm?",
+   "choices": [
+    "Finite and unambiguous",
+    "Recursive and parallel",
+    "Short and elegant",
+    "Fast and written in code"
+   ]
+  },
+  {
+   "id": "lab-cs.l01.q2",
+   "lessonId": "lab-cs.l01",
+   "kind": "mcq",
+   "prompt": "What does Euclid's algorithm compute?",
+   "choices": [
+    "The largest prime below a number",
+    "The greatest common divisor of two numbers",
+    "The square root of a number",
+    "The sum of divisors"
+   ]
+  },
+  {
+   "id": "lab-cs.l01.q3",
+   "lessonId": "lab-cs.l01",
+   "kind": "mcq",
+   "prompt": "Using Euclid's algorithm, what is the GCD of 48 and 18?",
+   "choices": [
+    "9",
+    "12",
+    "6",
+    "3"
+   ]
+  },
+  {
+   "id": "lab-cs.l01.q4",
+   "lessonId": "lab-cs.l01",
+   "kind": "mcq",
+   "prompt": "A procedure is precise at every step but, for some valid inputs, never stops. Is it an algorithm in the usual sense?",
+   "choices": [
+    "Yes, if it is written in a modern language",
+    "Only if it runs on a fast computer",
+    "Yes, precision is all that matters",
+    "No, it must terminate on every valid input with the right answer"
+   ]
+  },
+  {
+   "id": "lab-cs.l02.q1",
+   "lessonId": "lab-cs.l02",
+   "kind": "mcq",
+   "prompt": "Which set of components defines a Turing machine?",
+   "choices": [
+    "A CPU, RAM and a disk",
+    "A stack and a compiler",
+    "A keyboard and a monitor",
+    "A tape, a read/write head and a finite rule table"
+   ]
+  },
+  {
+   "id": "lab-cs.l02.q2",
+   "lessonId": "lab-cs.l02",
+   "kind": "mcq",
+   "prompt": "The Church-Turing thesis says that",
+   "choices": [
+    "Anything effectively computable by rote can be computed by a Turing machine",
+    "Computers are faster than humans",
+    "Turing machines need infinite time",
+    "Every function is computable"
+   ]
+  },
+  {
+   "id": "lab-cs.l02.q3",
+   "lessonId": "lab-cs.l02",
+   "kind": "mcq",
+   "prompt": "A machine starts at the left end of the tape 1011, flips each bit (0 to 1, 1 to 0), moving right until it reaches a blank. What is on the tape when it halts?",
+   "choices": [
+    "1011",
+    "0100",
+    "1100",
+    "0010"
+   ]
+  },
+  {
+   "id": "lab-cs.l02.q4",
+   "lessonId": "lab-cs.l02",
+   "kind": "mcq",
+   "prompt": "Why is the Turing machine's extreme simplicity not a limitation as a model of computation?",
+   "choices": [
+    "Because real computers cannot do more than a human",
+    "Because it is faster than real computers",
+    "Because other formal models of computation turned out to be equivalent in power",
+    "Because tapes are unlimited in speed"
+   ]
+  },
+  {
+   "id": "lab-cs.l03.q1",
+   "lessonId": "lab-cs.l03",
+   "kind": "mcq",
+   "prompt": "What does the halting problem ask?",
+   "choices": [
+    "How much memory a program needs",
+    "Whether a program is written without errors",
+    "Whether an arbitrary program will eventually stop on a given input",
+    "How fast a program runs"
+   ]
+  },
+  {
+   "id": "lab-cs.l03.q2",
+   "lessonId": "lab-cs.l03",
+   "kind": "mcq",
+   "prompt": "Who proved the halting problem undecidable, and when?",
+   "choices": [
+    "Cook, 1971",
+    "Hopper, 1952",
+    "Shannon, 1948",
+    "Turing, 1936"
+   ]
+  },
+  {
+   "id": "lab-cs.l03.q3",
+   "lessonId": "lab-cs.l03",
+   "kind": "mcq",
+   "prompt": "A company advertises a tool that can examine any program and always correctly report whether it will loop forever. What is the best response?",
+   "choices": [
+    "Doubt it: no program can solve the halting problem for all programs and inputs",
+    "Believe it if it is written in C",
+    "Doubt it only for programs longer than a million lines",
+    "Believe it if it is fast enough"
+   ]
+  },
+  {
+   "id": "lab-cs.l03.q4",
+   "lessonId": "lab-cs.l03",
+   "kind": "mcq",
+   "prompt": "Which statement correctly describes what undecidability of the halting problem implies?",
+   "choices": [
+    "No individual program can ever be proven to halt",
+    "There is no single algorithm that correctly decides halting for every program, though many specific programs can be analysed",
+    "All programs eventually halt",
+    "Only very short programs can be analysed"
+   ]
+  },
+  {
+   "id": "lab-cs.l04.q1",
+   "lessonId": "lab-cs.l04",
+   "kind": "mcq",
+   "prompt": "What is the central idea of the stored-program (von Neumann) architecture?",
+   "choices": [
+    "The processor has no cycle",
+    "Instructions and data share one addressable memory",
+    "Programs run only on special hardware",
+    "Memory is read-only"
+   ]
+  },
+  {
+   "id": "lab-cs.l04.q2",
+   "lessonId": "lab-cs.l04",
+   "kind": "mcq",
+   "prompt": "Which document of 1945 described the stored-program design?",
+   "choices": [
+    "Reflections on the Motive Power of Fire",
+    "On Computable Numbers",
+    "First Draft of a Report on the EDVAC",
+    "The C Programming Language"
+   ]
+  },
+  {
+   "id": "lab-cs.l04.q3",
+   "lessonId": "lab-cs.l04",
+   "kind": "mcq",
+   "prompt": "In which order does the processor repeat its basic cycle?",
+   "choices": [
+    "Fetch, execute, decode",
+    "Execute, fetch, decode",
+    "Decode, execute, fetch",
+    "Fetch, decode, execute"
+   ]
+  },
+  {
+   "id": "lab-cs.l04.q4",
+   "lessonId": "lab-cs.l04",
+   "kind": "mcq",
+   "prompt": "Because code and data share memory, which important kind of software becomes possible?",
+   "choices": [
+    "Programs that read or produce other programs, such as compilers",
+    "Programs that never use memory",
+    "Hardware without any instructions",
+    "Programs that cannot be changed"
+   ]
+  },
+  {
+   "id": "lab-cs.l05.q1",
+   "lessonId": "lab-cs.l05",
+   "kind": "mcq",
+   "prompt": "Big-O notation describes",
+   "choices": [
+    "An upper bound on how cost grows with input size",
+    "The memory in bytes",
+    "The number of lines of code",
+    "The exact running time in seconds"
+   ]
+  },
+  {
+   "id": "lab-cs.l05.q2",
+   "lessonId": "lab-cs.l05",
+   "kind": "mcq",
+   "prompt": "An algorithm takes 3n^2 + 5n + 2 steps. Its growth is",
+   "choices": [
+    "O(n)",
+    "O(n^2)",
+    "O(2^n)",
+    "O(log n)"
+   ]
+  },
+  {
+   "id": "lab-cs.l05.q3",
+   "lessonId": "lab-cs.l05",
+   "kind": "mcq",
+   "prompt": "An O(n^2) algorithm takes 1 second for 1,000 items. Roughly how long for 2,000 items?",
+   "choices": [
+    "1 second",
+    "2 seconds",
+    "4 seconds",
+    "8 seconds"
+   ]
+  },
+  {
+   "id": "lab-cs.l05.q4",
+   "lessonId": "lab-cs.l05",
+   "kind": "mcq",
+   "prompt": "Algorithm A takes 100n steps and algorithm B takes n^2 steps. Which statement is correct?",
+   "choices": [
+    "B is faster for every n",
+    "They always take the same number of steps",
+    "A is faster for every n",
+    "B is faster for n below 100, and A is faster for n above 100"
+   ]
+  },
+  {
+   "id": "lab-cs.l06.q1",
+   "lessonId": "lab-cs.l06",
+   "kind": "mcq",
+   "prompt": "What is the purpose of a base case in a recursive function?",
+   "choices": [
+    "To store results in memory",
+    "To call the function twice",
+    "To make the function run faster",
+    "To stop the recursion by answering the smallest instance directly"
+   ]
+  },
+  {
+   "id": "lab-cs.l06.q2",
+   "lessonId": "lab-cs.l06",
+   "kind": "mcq",
+   "prompt": "The Master Theorem is used to",
+   "choices": [
+    "Solve running-time recurrences of divide-and-conquer algorithms",
+    "Compress data",
+    "Encrypt messages",
+    "Prove programs halt"
+   ]
+  },
+  {
+   "id": "lab-cs.l06.q3",
+   "lessonId": "lab-cs.l06",
+   "kind": "mcq",
+   "prompt": "A recursive search halves the number of items each call and stops at 1 item. Starting with 1,024 items, how many halvings are needed?",
+   "choices": [
+    "11",
+    "10",
+    "8",
+    "9"
+   ]
+  },
+  {
+   "id": "lab-cs.l06.q4",
+   "lessonId": "lab-cs.l06",
+   "kind": "mcq",
+   "prompt": "For mergesort, a = 2 subproblems, each of size n/2, with f(n) proportional to n to merge. What running time does the Master Theorem give?",
+   "choices": [
+    "O(n)",
+    "O(n^2)",
+    "O(n log n)",
+    "O(log n)"
+   ]
+  },
+  {
+   "id": "lab-cs.l07.q1",
+   "lessonId": "lab-cs.l07",
+   "kind": "mcq",
+   "prompt": "What is the worst-case lower bound for comparison-based sorting of n items?",
+   "choices": [
+    "Order 2^n",
+    "Order n",
+    "Order n log n",
+    "Order log n"
+   ]
+  },
+  {
+   "id": "lab-cs.l07.q2",
+   "lessonId": "lab-cs.l07",
+   "kind": "mcq",
+   "prompt": "How many possible orderings (permutations) do n distinct items have?",
+   "choices": [
+    "n log n",
+    "n squared",
+    "2n",
+    "n factorial"
+   ]
+  },
+  {
+   "id": "lab-cs.l07.q3",
+   "lessonId": "lab-cs.l07",
+   "kind": "mcq",
+   "prompt": "Three distinct items have 6 possible orderings. What is the minimum number of comparisons that guarantees sorting them in the worst case?",
+   "choices": [
+    "3",
+    "4",
+    "6",
+    "2"
+   ]
+  },
+  {
+   "id": "lab-cs.l07.q4",
+   "lessonId": "lab-cs.l07",
+   "kind": "mcq",
+   "prompt": "Why must the decision tree of a correct comparison sort have at least n! leaves?",
+   "choices": [
+    "Each comparison creates n! branches",
+    "Each distinct input ordering needs its own distinct result, and there are n! of them",
+    "Sorting requires n! swaps",
+    "Because trees always have n! leaves"
+   ]
+  },
+  {
+   "id": "lab-cs.l08.q1",
+   "lessonId": "lab-cs.l08",
+   "kind": "mcq",
+   "prompt": "The class P contains problems that",
+   "choices": [
+    "Have no solution",
+    "Can be solved in polynomial time",
+    "Can only be verified, not solved",
+    "Require quantum computers"
+   ]
+  },
+  {
+   "id": "lab-cs.l08.q2",
+   "lessonId": "lab-cs.l08",
+   "kind": "mcq",
+   "prompt": "The class NP contains problems whose solutions",
+   "choices": [
+    "Are always impossible to find",
+    "Need exponential memory",
+    "Can be checked in polynomial time",
+    "Cannot be checked"
+   ]
+  },
+  {
+   "id": "lab-cs.l08.q3",
+   "lessonId": "lab-cs.l08",
+   "kind": "mcq",
+   "prompt": "A problem has the property that any proposed answer can be checked quickly, but no one knows a fast way to find an answer. Which class is it certainly in?",
+   "choices": [
+    "Neither",
+    "Undecidable problems only",
+    "P",
+    "NP"
+   ]
+  },
+  {
+   "id": "lab-cs.l08.q4",
+   "lessonId": "lab-cs.l08",
+   "kind": "mcq",
+   "prompt": "Stephen Cook proved SAT is NP-complete. What would a fast (polynomial-time) algorithm for SAT imply?",
+   "choices": [
+    "Every problem in NP could be solved in polynomial time",
+    "All problems become undecidable",
+    "P would be empty",
+    "Only SAT is easy"
+   ]
+  },
+  {
+   "id": "lab-cs.l09.q1",
+   "lessonId": "lab-cs.l09",
+   "kind": "mcq",
+   "prompt": "What is the entropy of a fair coin flip?",
+   "choices": [
+    "1 bit",
+    "2 bits",
+    "0.5 bits",
+    "0 bits"
+   ]
+  },
+  {
+   "id": "lab-cs.l09.q2",
+   "lessonId": "lab-cs.l09",
+   "kind": "mcq",
+   "prompt": "Hamming distance between two equal-length words is",
+   "choices": [
+    "The number of matching symbols",
+    "The number of positions where they differ",
+    "The sum of their values",
+    "Their length difference"
+   ]
+  },
+  {
+   "id": "lab-cs.l09.q3",
+   "lessonId": "lab-cs.l09",
+   "kind": "mcq",
+   "prompt": "What is the Hamming distance between 10110 and 11100?",
+   "choices": [
+    "4",
+    "1",
+    "2",
+    "3"
+   ]
+  },
+  {
+   "id": "lab-cs.l09.q4",
+   "lessonId": "lab-cs.l09",
+   "kind": "mcq",
+   "prompt": "A coin lands heads 99 percent of the time. Compared with a fair coin, its output should be",
+   "choices": [
+    "Exactly as compressible",
+    "Impossible to encode",
+    "Less compressible, since it has higher entropy",
+    "More compressible, since its entropy is lower"
+   ]
+  },
+  {
+   "id": "lab-cs.l10.q1",
+   "lessonId": "lab-cs.l10",
+   "kind": "mcq",
+   "prompt": "Who published the first public-key key-exchange idea in 1976?",
+   "choices": [
+    "Turing and Church",
+    "Knuth and Dijkstra",
+    "Cook and Karp",
+    "Diffie and Hellman"
+   ]
+  },
+  {
+   "id": "lab-cs.l10.q2",
+   "lessonId": "lab-cs.l10",
+   "kind": "mcq",
+   "prompt": "RSA's security is based on the difficulty of",
+   "choices": [
+    "Factoring large integers",
+    "Compressing files",
+    "Compiling code",
+    "Sorting large lists"
+   ]
+  },
+  {
+   "id": "lab-cs.l10.q3",
+   "lessonId": "lab-cs.l10",
+   "kind": "mcq",
+   "prompt": "Two people who have never met want to agree on a secret over an open channel that an eavesdropper can read. Which technique solves this?",
+   "choices": [
+    "Sending the key in plain text",
+    "Public-key key exchange such as Diffie-Hellman",
+    "Using Hamming codes",
+    "Sorting the message"
+   ]
+  },
+  {
+   "id": "lab-cs.l10.q4",
+   "lessonId": "lab-cs.l10",
+   "kind": "mcq",
+   "prompt": "RSA's algorithm is public, yet it is still considered secure. Why?",
+   "choices": [
+    "Because it only works on small numbers",
+    "Because attackers never read the specifications",
+    "Because its security rests on the hardness of a problem, not on keeping the method secret",
+    "Because the algorithm changes daily"
+   ]
+  },
+  {
+   "id": "lab-cs.l11.q1",
+   "lessonId": "lab-cs.l11",
+   "kind": "mcq",
+   "prompt": "Amdahl's law shows that parallel speed-up is limited by",
+   "choices": [
+    "Memory colour",
+    "The clock frequency alone",
+    "The serial fraction of the work",
+    "The number of transistors"
+   ]
+  },
+  {
+   "id": "lab-cs.l11.q2",
+   "lessonId": "lab-cs.l11",
+   "kind": "mcq",
+   "prompt": "Moore's observation says transistor density roughly",
+   "choices": [
+    "Stays constant",
+    "Triples every month",
+    "Halves every year",
+    "Doubles about every two years"
+   ]
+  },
+  {
+   "id": "lab-cs.l11.q3",
+   "lessonId": "lab-cs.l11",
+   "kind": "mcq",
+   "prompt": "A job is 80 percent parallelisable and runs on 4 processors. What is the Amdahl speed-up?",
+   "choices": [
+    "2.5",
+    "1.6",
+    "2.0",
+    "3.2"
+   ]
+  },
+  {
+   "id": "lab-cs.l11.q4",
+   "lessonId": "lab-cs.l11",
+   "kind": "mcq",
+   "prompt": "If 90 percent of a task is parallelisable, what is the maximum possible speed-up however many processors you add?",
+   "choices": [
+    "9",
+    "10",
+    "90",
+    "Unlimited"
+   ]
+  },
+  {
+   "id": "lab-cs.l12.q1",
+   "lessonId": "lab-cs.l12",
+   "kind": "mcq",
+   "prompt": "What does gradient descent do?",
+   "choices": [
+    "Randomly guesses parameters",
+    "Moves parameters a small step opposite the gradient to reduce the loss",
+    "Sorts the training data",
+    "Increases the loss to speed learning"
+   ]
+  },
+  {
+   "id": "lab-cs.l12.q2",
+   "lessonId": "lab-cs.l12",
+   "kind": "mcq",
+   "prompt": "The central tension in machine learning is",
+   "choices": [
+    "Hardware versus software",
+    "Speed versus memory",
+    "Fitting the training data while generalising to unseen examples",
+    "Python versus C"
+   ]
+  },
+  {
+   "id": "lab-cs.l12.q3",
+   "lessonId": "lab-cs.l12",
+   "kind": "mcq",
+   "prompt": "A parameter is 5, the learning rate is 0.1 and the gradient of the loss is 4. What is the parameter after one gradient-descent step?",
+   "choices": [
+    "5.4",
+    "4.0",
+    "0.4",
+    "4.6"
+   ]
+  },
+  {
+   "id": "lab-cs.l12.q4",
+   "lessonId": "lab-cs.l12",
+   "kind": "mcq",
+   "prompt": "What typically goes wrong if the learning rate is set far too large?",
+   "choices": [
+    "Steps overshoot the minimum and the loss may oscillate or diverge",
+    "The gradient becomes zero",
+    "The model stops needing data",
+    "Training becomes more accurate"
+   ]
+  },
+  {
+   "id": "lab-cs.l13.q1",
+   "lessonId": "lab-cs.l13",
+   "kind": "mcq",
+   "prompt": "The sigmoid activation maps any real input to",
+   "choices": [
+    "The range between 0 and 1",
+    "The range between -1 and 0",
+    "Any positive number",
+    "Exactly 0 or 1"
+   ]
+  },
+  {
+   "id": "lab-cs.l13.q2",
+   "lessonId": "lab-cs.l13",
+   "kind": "mcq",
+   "prompt": "What does the ReLU activation do?",
+   "choices": [
+    "Squares its input",
+    "Passes positive values unchanged and sets negative values to zero",
+    "Maps inputs into (0, 1)",
+    "Always outputs 1"
+   ]
+  },
+  {
+   "id": "lab-cs.l13.q3",
+   "lessonId": "lab-cs.l13",
+   "kind": "mcq",
+   "prompt": "A classifier's four output scores are all equal. After softmax, what probability does each class get?",
+   "choices": [
+    "0.10",
+    "0.20",
+    "0.25",
+    "0.50"
+   ]
+  },
+  {
+   "id": "lab-cs.l13.q4",
+   "lessonId": "lab-cs.l13",
+   "kind": "mcq",
+   "prompt": "Why are nonlinear activation functions essential in a multi-layer network?",
+   "choices": [
+    "They make the network smaller",
+    "They remove the need for training",
+    "They convert probabilities to labels",
+    "Without them, stacked layers collapse into a single linear function"
+   ]
+  }
+ ]
+}

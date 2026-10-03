@@ -49,6 +49,17 @@ New-SelfSignedCertificate -Type Custom -Subject "CN=Plajah" -KeyUsage DigitalSig
 # production: an EV/OV code-signing cert, or publish through the Microsoft Store (Store signs it).
 ```
 
+For a local self-signed package, Windows AppX deployment may require the
+certificate in the machine Trusted People store. Run PowerShell as Administrator
+once, then install the package:
+
+```powershell
+$cer = "$env:USERPROFILE\Desktop\Plajah-Development-CodeSigning.cer"
+Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+$msix = "windows-native\Plajah.WinUI\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\AppPackages\Plajah.WinUI_1.0.0.0_x64_Test\Plajah.WinUI_1.0.0.0_x64.msix"
+Add-AppxPackage -Path $msix
+```
+
 ## Files
 - `Plajah.WinUI/Plajah.WinUI.csproj` — net8.0-windows + WindowsAppSDK 1.7 + WebView2, single-project MSIX
 - `Plajah.WinUI/App.xaml{,.cs}` — app bootstrap
@@ -58,10 +69,28 @@ New-SelfSignedCertificate -Type Custom -Subject "CN=Plajah" -KeyUsage DigitalSig
   (export from the existing PWA icons; 150/44/50 px PNGs are enough to build)
 
 ## Roadmap after first compile
-1. **Local project folders**: bridge WebView2 `window.chrome.webview.postMessage` ↔ C# file APIs so
-   Fabula's local-first media reads real folders (no IndexedDB stash limit).
-2. **Native render service**: hand Fabula export jobs to a C# Media Foundation/NVENC encoder —
-   hardware renders far beyond the browser's WebCodecs path.
-3. **Crossover integration**: the desktop Crossover (Tauri) already does hw transcode; either bridge
-   to it or fold its ffmpeg core in here as the proxy/render engine.
-4. Store submission (Partner Center) → winget + Store distribution.
+See [docs/WINDOWS_NATIVE_ACCELERATION_ROADMAP.md](../docs/WINDOWS_NATIVE_ACCELERATION_ROADMAP.md) for
+the full RTX, Intel Arc, DirectML, local AI, Windows Hello, media, and native UX backlog.
+See [docs/WINDOWS_PRO_MEDIA_STACK.md](../docs/WINDOWS_PRO_MEDIA_STACK.md) for the Fabula, Melos,
+Pixels, DeckLink, NDI, low-latency audio, and native Crossover implementation contract.
+See [docs/WINDOWS_DESIGN_ARTIFACT_01_PLATFORM_SHELL.md](../docs/WINDOWS_DESIGN_ARTIFACT_01_PLATFORM_SHELL.md)
+and [docs/WINDOWS_DESIGN_ARTIFACT_02_PRO_STUDIO_PARITY.md](../docs/WINDOWS_DESIGN_ARTIFACT_02_PRO_STUDIO_PARITY.md)
+for the visual parity references.
+
+The first implementation priorities are hardware diagnostics, measured WebCodecs acceleration,
+DirectML local inference, then native Media Foundation/NVENC export. NVIDIA-specific CUDA/TensorRT
+providers remain optional accelerators; Intel Arc and CPU fallbacks stay supported.
+
+### VST3 host worker
+
+The Rust worker at `rust/plajah-vst3-host` provides the native execution layer for Steinberg VST3
+plugins: isolated loading, parameter access, MIDI notes, and state save/restore over JSON lines.
+Build it after installing Visual Studio Build Tools with the **Desktop development with C++** workload:
+
+```powershell
+cargo build --manifest-path rust/plajah-vst3-host/Cargo.toml --release
+```
+
+The worker is deliberately separate from WebView2 so a third-party plugin crash cannot take down the
+UI. Visual Studio Build Tools with the Desktop development with C++ workload is installed on the
+development machine, and the release worker builds with the MSVC linker.

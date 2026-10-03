@@ -1,0 +1,1608 @@
+{
+ "courseId": "med-pharm-systems",
+ "verifier": "A",
+ "questions": [
+  {
+   "id": "med-pharm-systems.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l01.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": true,
+   "note": "Thiazide does not add ototoxicity; but ethacrynic acid is still a loop diuretic and also ototoxic, so wording 'NOT worsen' is awkward.",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l02.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l02.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l04.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l06.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l06.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l08.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l10.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l10.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l10.q4",
+   "answer": 1,
+   "confidence": "medium",
+   "sources": [],
+   "ambiguous": true,
+   "note": "Options are weak: ICS with consideration of LTRA is the only reasonable choice; question lists both asthma control and AERD features."
+  },
+  {
+   "id": "med-pharm-systems.l10.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l11.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l11.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l11.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l11.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l11.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l12.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l12.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l12.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l13.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l13.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l13.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l13.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l14.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l14.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l14.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l14.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l14.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l15.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l15.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l15.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l15.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l15.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l16.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l16.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l16.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l17.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l17.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l17.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l17.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l18.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l18.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l18.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l18.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l18.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l19.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l19.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l19.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l19.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l19.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l20.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l20.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l20.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l20.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l21.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l21.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l21.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l21.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l21.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l22.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l22.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l22.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l22.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l22.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l23.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l23.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l23.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l23.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l23.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l24.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l24.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l24.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l24.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l24.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l25.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l25.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l25.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l25.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l25.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l26.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l26.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l26.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l26.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l26.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l27.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l27.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l27.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l27.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l27.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l28.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l28.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l28.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l28.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-systems.l28.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-pharm-systems.l01",
+   "claim": "ALLHAT supported thiazide-type diuretics as excellent first-line choice",
+   "verdict": "supported",
+   "sources": [
+    "https://jamanetwork.com/journals/jama/fullarticle/195270"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l01",
+   "claim": "2017 ACC/AHA guideline: thiazides, ACEi, ARBs, CCBs first-line for most adults",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ahajournals.org/doi/10.1161/HYP.0000000000000065"
+   ],
+   "note": "A 2025 AHA/ACC update exists; first-line classes unchanged."
+  },
+  {
+   "lessonId": "med-pharm-systems.l01",
+   "claim": "Thiazides reduce urinary calcium excretion causing hypercalcemia",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK532918/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l02",
+   "claim": "Hydralazine plus isosorbide dinitrate in self-identified Black patients with HF (A-HeFT)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJMoa042763"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l02",
+   "claim": "Verapamil inhibits CYP3A4/P-gp raising digoxin levels",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK470568/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l02",
+   "claim": "PDE5 inhibitors with nitrates: absolute contraindication (profound hypotension)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ahajournals.org/doi/10.1161/01.CIR.0000036611.19538.0A"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l03",
+   "claim": "2022 ACC/AHA/HFSA four foundational HFrEF classes",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ahajournals.org/doi/10.1161/CIR.0000000000001063"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l03",
+   "claim": "Sacubitril-valsartan beat enalapril in PARADIGM-HF; ACEi contraindicated with it",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJMoa1409077"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l03",
+   "claim": "Digoxin lowers hospitalization but not mortality (DIG)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJM199702203360801"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l04",
+   "claim": "CAST: class IC drugs increased mortality after MI",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJM198903213201201"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l04",
+   "claim": "Methylxanthines antagonize adenosine; dipyridamole potentiates",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK556029/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l04",
+   "claim": "Amiodarone toxicities: pulmonary fibrosis, thyroid, hepatic, corneal deposits",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK482154/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l05",
+   "claim": "2018 ACC/AHA: statin for LDL>=190 and diabetes age 40-75",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ahajournals.org/doi/10.1161/CIR.0000000000000625"
+   ],
+   "note": "Guideline may be superseded by newer ACC/AHA dyslipidemia update."
+  },
+  {
+   "lessonId": "med-pharm-systems.l05",
+   "claim": "REDUCE-IT: icosapent ethyl lowered events",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJMoa1812792"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l05",
+   "claim": "Simvastatin with clarithromycin raises exposure (CYP3A4); gemfibrozil inhibits statin glucuronidation",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/drugs/drug-safety-and-availability/fda-drug-safety-communication-new-restrictions-contraindications-and-dose-limitations-zocor-simvastatin"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l06",
+   "claim": "Apixaban had lower major bleeding than warfarin in ARISTOTLE",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJMoa1107039"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l06",
+   "claim": "HIT: platelet fall around days 5-10; treat with non-heparin anticoagulant such as argatroban",
+   "verdict": "supported",
+   "sources": [
+    "https://ashpublications.org/bloodadvances/article/2/22/3360/16162"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l06",
+   "claim": "Prasugrel avoided after prior stroke/TIA",
+   "verdict": "supported",
+   "sources": [
+    "https://www.accessdata.fda.gov/drugsatfda_docs/label/2020/022307s019lbl.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l07",
+   "claim": "Liraglutide reduced major CV events in LEADER",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJMoa1603827"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l07",
+   "claim": "EMPA-REG OUTCOME reduced CV death and HF hospitalization",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJMoa1504720"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l07",
+   "claim": "GLP-1 RA boxed warning thyroid C-cell tumors; contraindicated with MTC/MEN2",
+   "verdict": "supported",
+   "sources": [
+    "https://www.accessdata.fda.gov/drugsatfda_docs/label/2023/209637s020s021lbl.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l08",
+   "claim": "Methimazole in early pregnancy linked to aplasia cutis and choanal atresia; PTU preferred first trimester",
+   "verdict": "supported",
+   "sources": [
+    "https://www.liebertpub.com/doi/10.1089/thy.2016.0457"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l08",
+   "claim": "PTU boxed warning for fulminant hepatotoxicity",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/drugs/drug-safety-and-availability/fda-drug-safety-communication-boxed-warning-and-limitation-use-propylthiouracil"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l08",
+   "claim": "Iodide given after thionamide in thyroid storm",
+   "verdict": "supported",
+   "sources": [
+    "https://www.liebertpub.com/doi/10.1089/thy.2016.0229"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l09",
+   "claim": "Prednisone is a prodrug converted to prednisolone in liver",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK534809/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l09",
+   "claim": "Prolonged glucocorticoid use suppresses HPA axis; taper and stress dosing",
+   "verdict": "supported",
+   "sources": [
+    "https://www.endocrine.org/clinical-practice-guidelines"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l09",
+   "claim": "Antenatal betamethasone/dexamethasone for fetal lung maturation before preterm delivery",
+   "verdict": "supported",
+   "sources": [
+    "https://www.acog.org/clinical/clinical-guidance/committee-opinion/articles/2017/08/antenatal-corticosteroid-therapy-for-fetal-maturation"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l10",
+   "claim": "GINA favors ICS-formoterol reliever over SABA alone",
+   "verdict": "supported",
+   "sources": [
+    "https://ginasthma.org/reports/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l10",
+   "claim": "LABA alone in asthma linked to increased asthma deaths; use with ICS",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/drugs/postmarket-drug-safety-information-patients-and-providers/information-regarding-safety-long-acting-beta-agonists-laba"
+   ],
+   "note": "FDA removed boxed warning for combination products in 2017; ICS requirement remains."
+  },
+  {
+   "lessonId": "med-pharm-systems.l10",
+   "claim": "Montelukast boxed warning for neuropsychiatric events",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/drugs/drug-safety-and-availability/fda-requires-boxed-warning-about-serious-mental-health-side-effects-asthma-and-allergy-drug-montelukast"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l11",
+   "claim": "ACG 2024 H. pylori guideline favors bismuth quadruple therapy in many patients",
+   "verdict": "supported",
+   "sources": [
+    "https://journals.lww.com/ajg/fulltext/2024/09000/acg_clinical_guideline__treatment_of_helicobacter.12.aspx"
+   ],
+   "note": "BQT preferred for treatment-naive; rifabutin triple and PCAB-amoxicillin are alternatives. URL from memory, not fetched."
+  },
+  {
+   "lessonId": "med-pharm-systems.l11",
+   "claim": "Omeprazole/esomeprazole inhibit CYP2C19, blunting clopidogrel",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/drugs/postmarket-drug-safety-information-patients-and-providers/information-clopidogrel-bisulfate-marketed-as-plavix"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l11",
+   "claim": "Metoclopramide boxed warning for tardive dyskinesia",
+   "verdict": "supported",
+   "sources": [
+    "https://www.accessdata.fda.gov/drugsatfda_docs/label/2017/017854s062lbl.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l12",
+   "claim": "Rofecoxib withdrawn in 2004",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJMp058273"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l12",
+   "claim": "Febuxostat boxed warning for CV death from CARES",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/drugs/drug-safety-and-availability/fda-adds-boxed-warning-heart-related-death-gout-medicine-uloric-febuxostat"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l12",
+   "claim": "Allopurinol severe cutaneous reactions linked to HLA-B*58:01",
+   "verdict": "supported",
+   "sources": [
+    "https://cpicpgx.org/guidelines/guideline-for-allopurinol-and-hla-b/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l13",
+   "claim": "ORAL Surveillance: tofacitinib higher CV events, malignancy vs TNF inhibitors",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJMoa2109927"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l13",
+   "claim": "Allopurinol blocks xanthine oxidase and raises thiopurine toxicity",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK542230/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l13",
+   "claim": "Screen for latent TB and hepatitis B before TNF inhibitors",
+   "verdict": "supported",
+   "sources": [
+    "https://www.rheumatology.org/Practice-Quality/Clinical-Support/Clinical-Practice-Guidelines"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l14",
+   "claim": "Ceftriaxone contraindicated in hyperbilirubinemic neonates and with IV calcium in neonates",
+   "verdict": "supported",
+   "sources": [
+    "https://www.accessdata.fda.gov/drugsatfda_docs/label/2013/050585s063lbl.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l14",
+   "claim": "Vancomycin resistance in enterococci via D-Ala-D-lactate",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK513300/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l14",
+   "claim": "Penicillin-cephalosporin cross-reactivity depends on side chain; cefazolin has unique side chain",
+   "verdict": "supported",
+   "sources": [
+    "https://www.aaaai.org/Aaaai/media/Media-Library-PDFs/Practice-Resources/Drug-Allergy-Practice-Parameter-2022.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l15",
+   "claim": "Fluoroquinolone boxed warnings: tendinopathy, neuropathy, CNS effects, myasthenia gravis",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/drugs/drug-safety-and-availability/fda-drug-safety-communication-fda-updates-warnings-fluoroquinolone-antibiotics"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l15",
+   "claim": "Trimethoprim blocks ENaC causing hyperkalemia",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK513232/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l15",
+   "claim": "Rifampin induces CYP, lowering oral contraceptive effect",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/contraception/hcp/usmec/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l16",
+   "claim": "Abacavir hypersensitivity associated with HLA-B*57:01; screen before use",
+   "verdict": "supported",
+   "sources": [
+    "https://clinicalinfo.hiv.gov/en/guidelines/hiv-clinical-guidelines-adult-and-adolescent-arv"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l16",
+   "claim": "Ganciclovir activated by CMV UL97 kinase; marrow suppression",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK545157/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l16",
+   "claim": "INSTIs (dolutegravir, bictegravir) favored in first-line HIV regimens",
+   "verdict": "supported",
+   "sources": [
+    "https://clinicalinfo.hiv.gov/en/guidelines/hiv-clinical-guidelines-adult-and-adolescent-arv/whats-new-guidelines"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l17",
+   "claim": "Liposomal amphotericin + flucytosine induction for cryptococcal meningitis",
+   "verdict": "supported",
+   "sources": [
+    "https://www.who.int/publications/i/item/9789240052178"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l17",
+   "claim": "Echinocandins first-line for invasive candidiasis",
+   "verdict": "supported",
+   "sources": [
+    "https://www.idsociety.org/practice-guideline/candidiasis/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l17",
+   "claim": "Itraconazole negative inotropy; avoid in heart failure",
+   "verdict": "supported",
+   "sources": [
+    "https://www.accessdata.fda.gov/drugsatfda_docs/label/2012/020083s044lbl.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l18",
+   "claim": "ESBL infections: carbapenems preferred for serious infection",
+   "verdict": "supported",
+   "sources": [
+    "https://www.idsociety.org/practice-guideline/amr-guidance/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l18",
+   "claim": "C. difficile first-line oral vancomycin or fidaxomicin",
+   "verdict": "supported",
+   "sources": [
+    "https://www.idsociety.org/practice-guideline/clostridioides-difficile-2021-focused-update/"
+   ],
+   "note": "2021 update prefers fidaxomicin; vancomycin acceptable; metronidazole only if neither available."
+  },
+  {
+   "lessonId": "med-pharm-systems.l18",
+   "claim": "mecA encodes PBP2a; ceftaroline binds it",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK482221/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l19",
+   "claim": "All antidepressants carry boxed warning for suicidality in young people",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/drugs/drug-safety-and-availability/suicidality-and-antidepressant-drugs"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l19",
+   "claim": "MAOI washout about 5 weeks after fluoxetine",
+   "verdict": "supported",
+   "sources": [
+    "https://www.accessdata.fda.gov/drugsatfda_docs/label/2017/018936s108lbl.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l19",
+   "claim": "TCA overdose QRS widening treated with sodium bicarbonate",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK539881/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l20",
+   "claim": "CATIE: SGAs no striking efficacy advantage over perphenazine",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJMoa051688"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l20",
+   "claim": "Clozapine requires regular ANC monitoring",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/drugs/drug-safety-and-availability/fda-modifies-risk-evaluation-and-mitigation-strategy-rems-clozapine"
+   ],
+   "note": "FDA eliminated the clozapine REMS in 2025; ANC monitoring remains recommended in label."
+  },
+  {
+   "lessonId": "med-pharm-systems.l20",
+   "claim": "Lithium raised by thiazides, ACEi, ARBs, NSAIDs; Ebstein anomaly risk",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK499992/"
+   ],
+   "note": "Absolute Ebstein risk is small."
+  },
+  {
+   "lessonId": "med-pharm-systems.l21",
+   "claim": "Opioid-benzodiazepine boxed warning (2016) and class boxed warning on abuse/dependence (2020)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/drugs/drug-safety-and-availability/fda-requiring-boxed-warning-updated-improve-safe-use-benzodiazepine-drug-class"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l21",
+   "claim": "Lorazepam, oxazepam, temazepam cleared by glucuronidation",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK470159/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l21",
+   "claim": "Alcohol withdrawal seizures in roughly first 1-2 days; benzodiazepines first-line; thiamine",
+   "verdict": "supported",
+   "sources": [
+    "https://www.asam.org/quality-care/clinical-guidelines/alcohol-withdrawal-management-guideline"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l22",
+   "claim": "Carbamazepine SJS associated with HLA-B*15:02 in Asian ancestry",
+   "verdict": "supported",
+   "sources": [
+    "https://cpicpgx.org/guidelines/guideline-for-carbamazepine-and-hla-b/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l22",
+   "claim": "ESETT: fosphenytoin, valproate, levetiracetam similarly effective in refractory status",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJMoa1905795"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l22",
+   "claim": "Valproate major teratogen (neural tube defects, lower cognitive outcomes)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/drugs/drug-safety-and-availability/fda-drug-safety-communication-fda-warns-valproate-medicines-pregnancy"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l23",
+   "claim": "Succinylcholine and volatile agents trigger malignant hyperthermia; dantrolene antidote (RYR1)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.mhaus.org/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l23",
+   "claim": "Intravenous lipid emulsion rescues local anesthetic systemic toxicity",
+   "verdict": "supported",
+   "sources": [
+    "https://www.asra.com/guidelines-articles/original-articles/article-item/legacy-asra-content/local-anesthetic-systemic-toxicity-checklist"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l23",
+   "claim": "Cisatracurium eliminated by Hofmann elimination",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK518992/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l24",
+   "claim": "CDC 2022 opioid guideline emphasizes individualized prescribing, nonopioid options, avoid abrupt tapers",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/mmwr/volumes/71/rr/rr7103a1.htm"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l24",
+   "claim": "Buprenorphine partial agonist can precipitate withdrawal in patients on full agonists",
+   "verdict": "supported",
+   "sources": [
+    "https://www.samhsa.gov/medications-substance-use-disorders/medications-counseling-related-conditions/buprenorphine"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l24",
+   "claim": "Codeine converted by CYP2D6 to morphine; avoided in ultrarapid metabolizers/children after tonsillectomy",
+   "verdict": "supported",
+   "sources": [
+    "https://cpicpgx.org/guidelines/guideline-for-codeine-and-cyp2d6/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l25",
+   "claim": "Anthracycline cumulative dose-dependent cardiomyopathy; dexrazoxane protective",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK551534/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l25",
+   "claim": "Rasburicase contraindicated in G6PD deficiency",
+   "verdict": "supported",
+   "sources": [
+    "https://www.accessdata.fda.gov/drugsatfda_docs/label/2019/103946s5083lbl.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l25",
+   "claim": "Irinotecan active metabolite clearance affected by UGT1A1 variants",
+   "verdict": "supported",
+   "sources": [
+    "https://www.accessdata.fda.gov/drugsatfda_docs/label/2020/020571s048lbl.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l26",
+   "claim": "Tamoxifen SERM: endometrial agonist, increased endometrial cancer and VTE risk",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cancer.gov/about-cancer/treatment/drugs/tamoxifen-citrate"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l26",
+   "claim": "GnRH agonist testosterone flare; antiandrogen given first",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK482139/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l26",
+   "claim": "Trastuzumab cardiomyopathy reversible, not cumulative-dose related like anthracyclines",
+   "verdict": "supported",
+   "sources": [
+    "https://www.accessdata.fda.gov/drugsatfda_docs/label/2018/103792s5345lbl.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l27",
+   "claim": "Pralidoxime reactivates AChE before aging; atropine titrated to bronchial secretions",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK470430/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l27",
+   "claim": "Hydroxocobalamin for cyanide poisoning",
+   "verdict": "supported",
+   "sources": [
+    "https://www.accessdata.fda.gov/drugsatfda_docs/label/2014/022041s011lbl.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l27",
+   "claim": "Fomepizole for methanol/ethylene glycol",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK537145/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l28",
+   "claim": "HLA-B*58:01 allopurinol, HLA-B*15:02 carbamazepine, HLA-B*57:01 abacavir",
+   "verdict": "supported",
+   "sources": [
+    "https://cpicpgx.org/guidelines/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l28",
+   "claim": "Isotretinoin teratogenic; iPLEDGE program",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ipledgeprogram.com/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-systems.l28",
+   "claim": "Rifampin, phenytoin, carbamazepine, St John wort are CYP inducers",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/drugs/drug-interactions-labeling/drug-development-and-drug-interactions-table-substrates-inhibitors-and-inducers"
+   ],
+   "note": ""
+  }
+ ]
+}

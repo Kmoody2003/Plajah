@@ -63,27 +63,53 @@ export function recordingToFile(rec: TakeRecording, sceneNum: string, takeNumber
 
 // ─── P4: camera-ingest adapter seam ──────────────────────────────────────────
 
-export type CameraTierKind = 'device' | 'manual' | 'c2c' | 'blackmagic' | 'arri' | 'canon' | 'ndi_srt';
+import { isWindowsApp } from './windowsBridgeService';
+import { nativeCameraControl } from './mediaEngine/bridge';
+
+export type CameraTierKind = 'device' | 'manual' | 'c2c' | 'blackmagic' | 'arri' | 'canon' | 'ndi_srt' | 'omt' | 'avb';
 export interface CameraTier {
   kind: CameraTierKind;
   label: string;
   transport: string;
   runtime: 'browser' | 'native' | 'server';
-  available: boolean;   // true = usable from the web app today
+  available: boolean;   // true = usable in current environment
   note: string;
 }
 
-/** The ingest transport table — the seam pro-camera adapters plug into. Only the
- *  browser tiers are live today; the pro tiers need the native/desktop build. */
-export const CAMERA_TIERS: CameraTier[] = [
-  { kind: 'device',     label: 'This device',      transport: 'getUserMedia · MediaRecorder',              runtime: 'browser', available: true,  note: 'Phone/laptop camera → low-bitrate proxy. Works today.' },
-  { kind: 'manual',     label: 'Manual upload',    transport: 'file picker',                                runtime: 'browser', available: true,  note: 'Drop a proxy exported from any camera or card.' },
-  { kind: 'c2c',        label: 'Camera-to-Cloud',  transport: 'Frame.io C2C API / webhooks',                runtime: 'server',  available: false, note: 'Camera-agnostic: Teradek/Accsoon edge uploaders POST proxies + scene/take metadata. Needs a server webhook.' },
-  { kind: 'blackmagic', label: 'Blackmagic',       transport: 'Camera Control protocol + BRAW SDK',         runtime: 'native',  available: false, note: 'Slate metadata over the network; BRAW conform to masters on the Crossover desktop tier.' },
-  { kind: 'arri',       label: 'ARRI',             transport: 'Camera Access Protocol (REST + WebSocket)',  runtime: 'native',  available: false, note: 'The most-open pro API — scene/take + reel over the network.' },
-  { kind: 'canon',      label: 'Canon',            transport: 'CCAPI (REST)',                               runtime: 'native',  available: false, note: 'REST camera control + metadata on the native/desktop build.' },
-  { kind: 'ndi_srt',    label: 'NDI / SRT',        transport: 'low-latency contribution stream',            runtime: 'native',  available: false, note: 'Live video-village monitoring feed; proxies land as takes.' },
-];
+/** The ingest transport table — the seam pro-camera adapters plug into.
+ *  Pro camera tiers (Blackmagic, ARRI, Canon, NDI/SRT, OMT, AVB) are unlocked on Windows Native. */
+export const getCameraTiers = (): CameraTier[] => {
+  const isNative = isWindowsApp();
+  return [
+    { kind: 'device',     label: 'This device',      transport: 'getUserMedia · MediaRecorder',              runtime: 'browser', available: true,      note: 'Phone/laptop camera → low-bitrate proxy. Works today.' },
+    { kind: 'manual',     label: 'Manual upload',    transport: 'file picker',                                runtime: 'browser', available: true,      note: 'Drop a proxy exported from any camera or card.' },
+    { kind: 'c2c',        label: 'Camera-to-Cloud',  transport: 'Frame.io C2C API / webhooks',                runtime: 'server',  available: false,     note: 'Camera-agnostic: Teradek/Accsoon edge uploaders POST proxies + scene/take metadata. Needs a server webhook.' },
+    { kind: 'blackmagic', label: 'Blackmagic',       transport: 'Camera Control protocol + BRAW SDK',         runtime: 'native',  available: isNative,  note: 'Slate metadata over the network; BRAW conform to masters on the desktop tier.' },
+    { kind: 'arri',       label: 'ARRI',             transport: 'Camera Access Protocol (REST + WebSocket)',  runtime: 'native',  available: isNative,  note: 'The most-open pro API — scene/take + reel over the network.' },
+    { kind: 'canon',      label: 'Canon',            transport: 'CCAPI (REST)',                               runtime: 'native',  available: isNative,  note: 'REST camera control + metadata on the native/desktop build.' },
+    { kind: 'ndi_srt',    label: 'NDI / SRT',        transport: 'low-latency contribution stream',            runtime: 'native',  available: isNative,  note: 'Live video-village monitoring feed; proxies land as takes.' },
+    { kind: 'omt',        label: 'OMT (Open Media Transport)', transport: 'ultra-low latency LAN feed',      runtime: 'native',  available: isNative,  note: 'Studio LAN contribution with alpha transparency and sub-frame latency.' },
+    { kind: 'avb',        label: 'AVB / Milan Network Audio',  transport: 'IEEE 1722 AVTP deterministic audio', runtime: 'native', available: isNative,  note: 'Direct multi-track stage box & microphone audio capture synchronized via gPTP.' },
+  ];
+};
 
-export const availableCameraTiers = () => CAMERA_TIERS.filter(tier => tier.available);
-export const pendingCameraTiers = () => CAMERA_TIERS.filter(tier => !tier.available);
+export const CAMERA_TIERS = getCameraTiers();
+
+export const availableCameraTiers = () => getCameraTiers().filter(tier => tier.available);
+export const pendingCameraTiers = () => getCameraTiers().filter(tier => !tier.available);
+
+/** Dispatch command to a connected pro camera via the native bridge. */
+export async function sendCameraCommand(
+  kind: CameraTierKind,
+  command: string,
+  endpoint = '',
+  params?: Record<string, unknown>,
+): Promise<any> {
+  const protoMap: Record<string, string> = {
+    canon: 'canon_ccapi',
+    arri: 'arri_cap',
+    blackmagic: 'blackmagic_control',
+  };
+  const protocol = protoMap[kind] || 'canon_ccapi';
+  return nativeCameraControl(kind, command, protocol, endpoint, params);
+}

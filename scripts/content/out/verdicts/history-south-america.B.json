@@ -1,0 +1,1588 @@
+{
+ "courseId": "history-south-america",
+ "verifier": "B",
+ "note": "Only 4 pages fetched; remaining claims checked from knowledge.",
+ "fetched": 4,
+ "questions": [
+  {
+   "id": "history-south-america.l01.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l01.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l01.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l01.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l02.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l02.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l02.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l02.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l03.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l03.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l03.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l04.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l04.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l04.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l05.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l05.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l05.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l05.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l06.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l06.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l06.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l07.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l07.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l07.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l07.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l07.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l08.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l08.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l08.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l09.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l09.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l09.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l10.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l10.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l10.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l12.q1",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Estimate-based figure; answer follows the lesson and standard references."
+  },
+  {
+   "id": "history-south-america.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l12.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l12.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l14.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l14.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l15.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l16.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l17.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l18.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l18.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l18.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l18.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l19.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l19.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l20.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l20.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l20.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l20.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l21.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l21.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l21.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l21.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l21.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l22.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l22.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l22.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l22.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l22.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l23.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l23.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l23.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l23.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l23.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l24.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l24.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l24.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l24.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l24.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l25.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l25.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l25.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l25.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l25.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Estimate-based figure; answer follows the lesson and standard references."
+  },
+  {
+   "id": "history-south-america.l26.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l26.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l26.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l26.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l26.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l27.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l27.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l27.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l27.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l27.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l28.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l28.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l28.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l28.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-south-america.l28.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "history-south-america.l01",
+   "claim": "Humans reached the Americas from Asia many thousands of years ago, exact dates debated",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l01",
+   "claim": "Quipus recorded numbers; narrative content debated",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l01",
+   "claim": "Highland peoples herded llamas and alpacas",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l02",
+   "claim": "Caral dated c. 3000-1800 BCE, Supe valley, no pottery",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Caral"
+   ],
+   "note": "Confirmed on an opened page."
+  },
+  {
+   "lessonId": "history-south-america.l02",
+   "claim": "Chavin de Huantar flourished c. 900-200 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l02",
+   "claim": "Tomb of Lord of Sipan found 1987",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l03",
+   "claim": "Major Inca expansion began c. 1430s under Pachacuti",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l03",
+   "claim": "Tawantinsuyu stretched from Ecuador to central Chile",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l03",
+   "claim": "Mit'a was a rotating labour obligation; quipus used for records",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l04",
+   "claim": "Terra preta is dark fertile anthropogenic Amazonian soil",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l04",
+   "claim": "Portuguese arrived 1500 and met Tupi peoples first",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l04",
+   "claim": "Mapuche resisted Inca and fought the long Arauco War vs Spain",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l05",
+   "claim": "Maya Classic period c. 250-900 CE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l05",
+   "claim": "Tenochtitlan traditionally founded c. 1325",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l05",
+   "claim": "Triple Alliance formed 1428",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l06",
+   "claim": "Columbus reached Bahamas area October 1492",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l06",
+   "claim": "Treaty of Tordesillas signed 1494",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Treaty_of_Tordesillas"
+   ],
+   "note": "Confirmed on an opened page."
+  },
+  {
+   "lessonId": "history-south-america.l06",
+   "claim": "Cabral reached Brazil 1500",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l07",
+   "claim": "Tenochtitlan fell August 1521",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l07",
+   "claim": "Malintzin spoke Nahuatl and Maya",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l07",
+   "claim": "Smallpox epidemic struck Tenochtitlan c. 1520",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l08",
+   "claim": "Cajamarca capture of Atahualpa November 1532",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l08",
+   "claim": "Huayna Capac died c. 1527; Huascar-Atahualpa civil war",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l08",
+   "claim": "Vilcabamba state ended 1572 with execution of Tupac Amaru",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l09",
+   "claim": "Smallpox/measles were new to the Americas",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l09",
+   "claim": "Pre-contact population estimates vary widely",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l09",
+   "claim": "Taino declined to very small numbers within decades",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l10",
+   "claim": "New Laws of 1542",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l10",
+   "claim": "Cerro Rico silver found 1545",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l10",
+   "claim": "Toledo's mita in 1570s; Crown's quinto (fifth)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l11",
+   "claim": "Captaincies in 1530s; governor-general to Salvador 1549",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l11",
+   "claim": "Gold found in Minas Gerais in 1690s",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l11",
+   "claim": "Capital moved Salvador to Rio in 1763",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l12",
+   "claim": "Slave Voyages: ~12 million embarked, ~10.7 million disembarked, Brazil nearly half",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; Slave Voyages gives roughly 12.5M embarked, so 'around 12 million' is approximate."
+  },
+  {
+   "lessonId": "history-south-america.l12",
+   "claim": "Palmares destroyed 1694; Zumbi killed 1695",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Palmares_(quilombo)"
+   ],
+   "note": "Confirmed on an opened page."
+  },
+  {
+   "lessonId": "history-south-america.l12",
+   "claim": "Zumbi remembered on national Black Consciousness Day (20 Nov)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l13",
+   "claim": "Mestizo = Spanish+Indigenous; mulato = Spanish+African",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l13",
+   "claim": "Casta paintings are 18th-century Mexican",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l13",
+   "claim": "Franciscans, Dominicans, Jesuits ran missions",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l14",
+   "claim": "Charles III reigned 1759-1788",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l14",
+   "claim": "New Granada re-established 1739; Rio de la Plata 1776; Jesuits expelled 1767",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l14",
+   "claim": "Tupac Amaru II rebellion 1780, executed 1781; Comunero Revolt 1781",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l15",
+   "claim": "Napoleon placed Joseph on Spanish throne 1808; Caracas and Buenos Aires juntas 1810",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l15",
+   "claim": "Haiti independence 1804, revolution began 1791",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l15",
+   "claim": "Petion aided Bolivar 1816 in exchange for abolition promise",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l16",
+   "claim": "Bolivar born Caracas 1783",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l16",
+   "claim": "Boyaca Aug 1819; Carabobo June 1821; Pichincha 1822; Ayacucho 1824",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l16",
+   "claim": "Bolivia founded 1825; Bolivar died 1830 near Santa Marta",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l17",
+   "claim": "Tucuman independence declaration 1816",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l17",
+   "claim": "Chacabuco Feb 1817, Maipu 1818, Chile formally declared independence 1818",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l17",
+   "claim": "San Martin proclaimed Peruvian independence July 1821; Guayaquil meeting July 1822",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l18",
+   "claim": "Portuguese court in Rio 1808; Brazil kingdom 1815",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l18",
+   "claim": "Pedro declared independence 7 Sept 1822; Brazil slavery ended 1888",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Lei_%C3%81urea"
+   ],
+   "note": "Confirmed on an opened page."
+  },
+  {
+   "lessonId": "history-south-america.l18",
+   "claim": "Hidalgo Grito 1810, executed 1811; Morelos executed 1815; Plan of Iguala 1821",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l19",
+   "claim": "Rosas dominated Buenos Aires 1829-1852",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l19",
+   "claim": "Gran Colombia dissolved c. 1830",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l19",
+   "claim": "Spain kept Cuba and Puerto Rico until 1898",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l20",
+   "claim": "Peru guano exports from 1840s",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l20",
+   "claim": "Putumayo rubber abuses investigated early 1900s",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l20",
+   "claim": "Brazil coffee centered on Sao Paulo",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l21",
+   "claim": "Chile abolished 1823; Mexico 1829",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l21",
+   "claim": "Cuba abolished slavery 1886; Brazil slave trade ended 1850",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l21",
+   "claim": "Japanese migration to Brazil began 1908",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l22",
+   "claim": "Paraguayan War 1864-1870; Solano Lopez killed 1870",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l22",
+   "claim": "War of the Pacific 1879-1884; Peru lost Tarapaca",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l22",
+   "claim": "Bolivia lost coastline; 1904 treaty with Chile",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l23",
+   "claim": "Mexican Revolution began 1910 with Madero; Constitution 1917",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l23",
+   "claim": "Cardenas nationalised oil 1938",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l23",
+   "claim": "Bay of Pigs 1961; Missile Crisis 1962; Bolivia 1952 revolution",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l24",
+   "claim": "Vargas in power 1930, Estado Novo 1937-45, again 1951-54",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l24",
+   "claim": "Peron elected 1946, overthrown 1955",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l24",
+   "claim": "Import substitution industrialisation after the Depression",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l25",
+   "claim": "Guatemala coup 1954; Brazil coup 1964, military rule to 1985",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l25",
+   "claim": "Pinochet coup 11 Sept 1973, ruled to 1990",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l25",
+   "claim": "Argentine junta 1976; 1984 commission documented several thousand cases; 30,000 often cited",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l26",
+   "claim": "Mexico debt crisis 1982",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l26",
+   "claim": "Argentina 1983; Uruguay and Brazil 1985; Chile plebiscite 1988",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l26",
+   "claim": "Nunca Mas 1984; Rettig report 1991; Chavez elected 1998",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l27",
+   "claim": "CONAIE founded 1986; EZLN uprising 1 Jan 1994",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l27",
+   "claim": "Cochabamba water protests 2000; Morales elected 2005; constitutions 2009 (Bolivia), 2008 (Ecuador)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l27",
+   "claim": "Colombia 1991 constitution and 1993 law; Brazil quota law 2012",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l28",
+   "claim": "Region among most unequal in the world",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l28",
+   "claim": "Poverty fell in many countries in the 2000s commodity boom",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "history-south-america.l28",
+   "claim": "Millions of Venezuelans have emigrated",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  }
+ ]
+}

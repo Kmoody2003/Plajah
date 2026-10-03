@@ -1,0 +1,1660 @@
+{
+ "courseId": "history-europe",
+ "verifier": "A",
+ "note": "WebFetch used for 4 claims only; the rest from knowledge.",
+ "fetched": 4,
+ "questions": [
+  {
+   "id": "history-europe.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l01.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l01.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l02.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l02.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l02.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l02.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l03.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l03.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l03.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l04.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l04.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l04.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l04.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l05.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l05.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l05.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l06.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l06.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l06.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l07.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l07.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l07.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l08.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l08.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l08.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l09.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l09.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l09.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l10.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l10.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l10.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l11.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l11.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l11.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l12.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l13.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l13.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l13.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l14.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l14.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l15.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l15.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l15.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l15.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l16.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l17.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l17.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l17.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l18.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l18.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l19.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l19.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l19.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l20.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l20.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l20.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l21.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l21.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l21.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l21.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l21.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l22.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l22.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l22.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l22.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l22.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l23.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l23.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l23.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l23.q4",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "1866 war excluded Austria.",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l23.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l24.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l24.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l24.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l24.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l24.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l25.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l25.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l25.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l25.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l25.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l26.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l26.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l26.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l26.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l26.q5",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Genocide classification is contested; question is about differing classification.",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l27.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l27.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l27.q3",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Hyperinflation (1923) predates 1929; Great Depression fits 'after 1929'.",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l27.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l27.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l28.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l28.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l28.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l28.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l28.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l29.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l29.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l29.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l29.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l29.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l30.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l30.q2",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Ghana first sub-Saharan British colony.",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l30.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l30.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l30.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l31.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l31.q2",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Maastricht signed 1992; EU formally in force 1993.",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l31.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l31.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l31.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l32.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l32.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l32.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l32.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-europe.l32.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "history-europe.l01",
+   "claim": "Ventris showed in 1952 that Linear B writes early Greek",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l01",
+   "claim": "Minoan palaces such as Knossos date from around 2000 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l01",
+   "claim": "Greek alphabet adapted from Phoenician appeared around 800 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l02",
+   "claim": "Cleisthenes reforms c. 508 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l02",
+   "claim": "Peloponnesian War 431-404 BCE ended in Athenian defeat",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l02",
+   "claim": "Socrates executed 399 BCE; Alexander died 323 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l03",
+   "claim": "Republic traditionally founded 509 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l03",
+   "claim": "Punic Wars 264-146 BCE; Cannae 216, Zama 202",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l03",
+   "claim": "Tiberius Gracchus 133 BCE, Gaius 121 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l04",
+   "claim": "Caesar crossed Rubicon 49 BCE, assassinated 15 March 44 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l04",
+   "claim": "Actium 31 BCE; Augustus title 27 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l04",
+   "claim": "Caracalla extended citizenship 212 CE; Trajan peak c. 117 CE",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l05",
+   "claim": "Edict of Milan 313 CE; Nicaea 325; Constantinople dedicated 330",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Edict_of_Milan"
+   ],
+   "note": "Edict of Milan 313 confirmed; often described as a joint agreement rather than a single edict."
+  },
+  {
+   "lessonId": "history-europe.l05",
+   "claim": "Theodosius made Nicene Christianity state religion 380; Adrianople 378",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l05",
+   "claim": "Alaric sacked Rome 410; Odoacer deposed Romulus Augustulus 476",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l06",
+   "claim": "Justinian ruled 527-565; Hagia Sophia completed 537; Nika riots 532",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l06",
+   "claim": "Iconoclasm ended 843; mutual excommunications 1054",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l06",
+   "claim": "Fourth Crusade sack 1204; Mehmed II took Constantinople 1453",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l07",
+   "claim": "Charlemagne crowned by Leo III on Christmas Day 800",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l07",
+   "claim": "Treaty of Verdun 843 divided empire among grandsons",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Treaty_of_Verdun"
+   ],
+   "note": "Confirmed 843."
+  },
+  {
+   "lessonId": "history-europe.l07",
+   "claim": "Clovis converted to Catholic Christianity around 500; Benedict Rule 6th century",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l08",
+   "claim": "Tariq ibn Ziyad invaded 711, defeating Roderic",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l08",
+   "claim": "Abd al-Rahman I 756; Abd al-Rahman III caliph 929",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l08",
+   "claim": "Toledo fell 1085; Granada fell 1492; Jews expelled or forced to convert 1492",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l09",
+   "claim": "Lindisfarne raid 793",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l09",
+   "claim": "Rollo granted land c. 911; Cnut king of England 1016",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l09",
+   "claim": "Iceland settled c. 870, Althing c. 930, Greenland c. 985; L'Anse aux Meadows c. 1000",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/L%27Anse_aux_Meadows"
+   ],
+   "note": "Page confirms c. 1000 (tree-ring 1021) activity."
+  },
+  {
+   "lessonId": "history-europe.l10",
+   "claim": "Investiture Controversy; Canossa 1077; Concordat of Worms 1122",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l10",
+   "claim": "Battle of Hastings 1066",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l10",
+   "claim": "Domesday Book compiled 1086",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l11",
+   "claim": "Council of Clermont 1095 under Urban II",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l11",
+   "claim": "First Crusade took Jerusalem July 1099",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l11",
+   "claim": "Saladin retook Jerusalem 1187; Acre fell 1291",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l12",
+   "claim": "Plague arrived at Messina October 1347",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l12",
+   "claim": "Yersinia pestis confirmed by ancient DNA",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l12",
+   "claim": "Statute of Labourers 1351; Peasants Revolt 1381; Strasbourg massacre 1349",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l13",
+   "claim": "Magna Carta sealed 1215 at Runnymede",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l13",
+   "claim": "Estates General first met 1302; Golden Bull 1356 with seven electors",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l13",
+   "claim": "Hundred Years War 1337-1453; Crecy 1346, Agincourt 1415, Joan of Arc burned 1431",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l14",
+   "claim": "Michelangelo David completed 1504",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l14",
+   "claim": "Gutenberg Bible printed c. 1455 in Mainz",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l14",
+   "claim": "Burckhardt popularised the Renaissance concept; East Asian movable type predates Gutenberg",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l15",
+   "claim": "Ninety-Five Theses 1517; nailing to door debated",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l15",
+   "claim": "Diet of Worms 1521; Act of Supremacy 1534",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l15",
+   "claim": "Council of Trent 1545-1563; Jesuits 1540; Peace of Augsburg 1555",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l16",
+   "claim": "French Wars of Religion began 1562; St Bartholomew 24 Aug 1572",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l16",
+   "claim": "Edict of Nantes 1598, revoked 1685",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l16",
+   "claim": "Thirty Years War 1618-1648; Charles I executed 1649",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l17",
+   "claim": "Da Gama reached India 1498; Tordesillas 1494",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l17",
+   "claim": "Magellan expedition circumnavigation 1522, Magellan died 1521",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l17",
+   "claim": "Dutch East India Company founded 1602; Tenochtitlan fell 1521",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l18",
+   "claim": "Copernicus and Vesalius both published 1543",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l18",
+   "claim": "Galileo tribunal 1633 under house arrest",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l18",
+   "claim": "Royal Society 1660; Principia 1687",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l19",
+   "claim": "Louis XIV reign 1643, personal rule 1661-1715",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l19",
+   "claim": "Montesquieu Spirit of the Laws 1748; Encyclopedie 1751-1772",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l19",
+   "claim": "Peter the Great founded St Petersburg 1703; Wollstonecraft 1792",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l20",
+   "claim": "Tennis Court Oath June 1789; Bastille 14 July 1789",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l20",
+   "claim": "Louis XVI executed January 1793; Robespierre executed July 1794",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l20",
+   "claim": "Haiti independent 1804; Napoleon emperor 1804; Waterloo 18 June 1815",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l21",
+   "claim": "Stockton and Darlington 1825; Liverpool and Manchester 1830",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l21",
+   "claim": "Watt engines in 1770s",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l21",
+   "claim": "Factory Act 1833 limited children hours in textile mills",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l22",
+   "claim": "Greek revolt 1821; Belgian independence 1830",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l22",
+   "claim": "Communist Manifesto published Feb 1848; Louis-Philippe overthrown Feb 1848",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l22",
+   "claim": "Louis-Napoleon elected president Dec 1848; serfdom ended in Habsburg lands",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l23",
+   "claim": "Kingdom of Italy 1861; Venice 1866; Rome 1870",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l23",
+   "claim": "Bismarck minister-president 1862; wars 1864, 1866, 1870-71",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l23",
+   "claim": "German Empire proclaimed 18 Jan 1871 at Versailles",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l24",
+   "claim": "Berlin Conference 1884-85",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l24",
+   "claim": "Congo Free State taken over by Belgium 1908",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l24",
+   "claim": "Adwa 1896; Crown rule in India 1858",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l25",
+   "claim": "Franz Ferdinand shot 28 June 1914 by Princip",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l25",
+   "claim": "Armistice 11 Nov 1918; US entered April 1917",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l25",
+   "claim": "Article 231 of Versailles; four empires ended",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l26",
+   "claim": "Tsar abdicated Feb/March 1917; Bolsheviks seized power Oct/Nov 1917",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l26",
+   "claim": "Brest-Litovsk March 1918; USSR formed Dec 1922; Lenin died 1924",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l26",
+   "claim": "Famine 1932-33; Great Terror 1937-38",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l27",
+   "claim": "Hyperinflation 1923; March on Rome Oct 1922",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l27",
+   "claim": "Nazis about 37 percent in July 1932; Hitler chancellor 30 Jan 1933",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Nazi_Party"
+   ],
+   "note": "Appointment date confirmed on page; 37% figure from knowledge (37.3%)."
+  },
+  {
+   "lessonId": "history-europe.l27",
+   "claim": "Nuremberg Laws 1935; Munich Agreement 1938; Spanish Civil War 1936-39",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l28",
+   "claim": "Invasion of Poland 1 Sept 1939; USSR invaded Poland 17 Sept; Barbarossa 22 June 1941",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l28",
+   "claim": "Normandy 6 June 1944; Wannsee Jan 1942",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l28",
+   "claim": "About six million Jews murdered; WWII dead 70-85 million",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l29",
+   "claim": "Fulton speech 1946; Truman Doctrine 1947; Marshall Plan 1948",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l29",
+   "claim": "Berlin blockade 1948; NATO 1949; Warsaw Pact 1955",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l29",
+   "claim": "Hungary 1956; Prague Spring 1968; Berlin Wall 1961; Helsinki 1975",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l30",
+   "claim": "India and Pakistan 1947; Indonesia 1949",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l30",
+   "claim": "Ghana 1957; seventeen African states in 1960",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l30",
+   "claim": "Algerian war 1954-62; Portuguese colonies after 1974 revolution",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l31",
+   "claim": "Schuman 9 May 1950; ECSC 1951; Treaty of Rome 1957",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l31",
+   "claim": "UK, Ireland, Denmark 1973; Greece 1981; Spain and Portugal 1986",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l31",
+   "claim": "Maastricht 1992; euro cash 2002; Brexit referendum June 2016; left 31 Jan 2020",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l32",
+   "claim": "Berlin Wall opened 9 Nov 1989; Germany reunified 3 Oct 1990",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l32",
+   "claim": "Soviet Union dissolved Dec 1991; Ceausescu executed 25 Dec 1989",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-europe.l32",
+   "claim": "Srebrenica about 8,000 killed July 1995; Dayton 1995; 2004 EU enlargement of ten states",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  }
+ ]
+}

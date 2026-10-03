@@ -391,10 +391,12 @@
         "userName": { "type": "string" },
         "userPhoto": { "type": "string" },
         "text": { "type": "string" },
+        "gifUrl": { "type": "string", "description": "Optional GIF or sticker URL" },
+        "parentId": { "type": "string", "description": "Optional parent comment ID for replies" },
         "mediaTimestamp": { "type": "number", "description": "Timestamp in the video for time-stamped comments" },
         "timestamp": { "type": "number" }
       },
-      "required": ["id", "videoId", "userId", "text", "timestamp"]
+      "required": ["id", "videoId", "userId", "timestamp"]
     },
     "VideoPlaylist": {
       "title": "VideoPlaylist",

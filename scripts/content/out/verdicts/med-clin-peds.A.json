@@ -1,0 +1,1172 @@
+{
+ "courseId": "med-clin-peds",
+ "verifier": "A",
+ "note": "Several publisher pages returned 403/404; some sources are search-result pages whose snippets supported the claim. Textbook claims not checked were left unverifiable.",
+ "fetched": 26,
+ "questions": [
+  {
+   "id": "med-clin-peds.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l01.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Positive screen should prompt referral; some would also discuss repeat, but referral is guideline-consistent.",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l02.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l02.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l04.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l06.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l06.q3",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": true,
+   "note": "Periventricular calcification favours CMV but toxoplasmosis/rubella not fully excluded by stem.",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l06.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l08.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l09.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": true,
+   "note": "Children with negative RADT: culture backup is standard (IDSA 2012, AAP Red Book); IDSA 2025 partial update added clinical scoring, so a scoring-based no-test approach is arguable.",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l10.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l10.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l10.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l10.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l11.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l11.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l11.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l11.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l11.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l12.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l12.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l12.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l13.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l13.q3",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Cerebral oedema management in DKA: mannitol or hypertonic saline both accepted.",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l13.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l13.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l14.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l14.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l14.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l14.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l14.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l15.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l15.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l15.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l15.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l15.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l16.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l16.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l16.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l17.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l17.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l17.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l17.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l18.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l18.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l18.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l18.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-clin-peds.l18.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-clin-peds.l01",
+   "claim": "WHO growth standards recommended birth-2 y, CDC charts from 2 y (US)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/growth-chart-training/hcp/using-growth-charts/index.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-peds.l01",
+   "claim": "AAP 2020: general developmental screening at 9, 18, 30 months; autism screening at 18 and 24 months",
+   "verdict": "supported",
+   "sources": [
+    "https://publications.aap.org/pediatrics/article/145/1/e20193449/36971/Promoting-Optimal-Development-Identifying-Infants"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-peds.l01",
+   "claim": "Newborns lose up to ~10% of birth weight and regain it by ~2 weeks",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l02",
+   "claim": "AAP 2022 hyperbilirubinemia guideline uses hour-specific thresholds by gestational age and neurotoxicity risk factors",
+   "verdict": "supported",
+   "sources": [
+    "https://publications.aap.org/pediatrics/article/150/3/e2022058859/188726/Clinical-Practice-Guideline-Revision-Management-of"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-peds.l02",
+   "claim": "CCHD pulse oximetry at 24 h or later; fail below ~90% or persistent hand-foot difference triggers echo",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://www.aap.org/en/patient-care/congenital-heart-defects/newborn-screening-for-critical-congenital-heart-defect-cchd/"
+   ],
+   "note": "Pages found confirm timing >=24 h and >3% difference; the exact <90% cutoff was not confirmed on an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l02",
+   "claim": "Jaundice in first 24 h is pathologic (usually haemolytic); raised direct bilirubin suggests cholestasis",
+   "verdict": "supported",
+   "sources": [
+    "https://www.aafp.org/pubs/afp/issues/2023/0500/neonatal-hyperbilirubinemia.html"
+   ],
+   "note": "Guideline: measure TSB/TcB ASAP for jaundice <24 h; direct rise suggests cholestasis."
+  },
+  {
+   "lessonId": "med-clin-peds.l03",
+   "claim": "Maternal GBS screening at 36-37 weeks with intrapartum prophylaxis (AAP 2019 report)",
+   "verdict": "supported",
+   "sources": [
+    "https://publications.aap.org/pediatrics/article/144/2/e20191881/38546/Management-of-Infants-at-Risk-for-Group-B"
+   ],
+   "note": "Screening window 36 0/7-37 6/7 weeks; AAP/ACOG 2019."
+  },
+  {
+   "lessonId": "med-clin-peds.l03",
+   "claim": "Erb palsy involves C5-C6 with arm adducted/internally rotated, grasp preserved",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l03",
+   "claim": "Antenatal corticosteroids accelerate fetal lung maturity; RDS shows ground-glass/air bronchograms",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l04",
+   "claim": "AAP health supervision report for Down syndrome is dated 2022",
+   "verdict": "supported",
+   "sources": [
+    "https://publications.aap.org/pediatrics/article/149/5/e2022057010/186778/Health-Supervision-for-Children-and-Adolescents"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-peds.l04",
+   "claim": "Fragile X: CGG repeat expansion in FMR1; anticipation through maternal transmission",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l04",
+   "claim": "22q11.2 deletion features (CATCH-22) and live vaccines withheld if T-cell function severely reduced",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l05",
+   "claim": "CF diagnosis: sweat chloride 60 mmol/L or more after IRT-based newborn screen",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nhlbi.nih.gov/health/cystic-fibrosis/diagnosis"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-peds.l05",
+   "claim": "SMA is on newborn screening panels because therapy works best early",
+   "verdict": "supported",
+   "sources": [
+    "https://www.mdedge.com/clinicalneurologynews/article/170539/neonatal-medicine/spinal-muscular-atrophy-added-newborn"
+   ],
+   "note": "Added to RUSP July 2018."
+  },
+  {
+   "lessonId": "med-clin-peds.l05",
+   "claim": "Duchenne: out-of-frame dystrophin deletions, onset 3-5 y, Gowers sign",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l06",
+   "claim": "Preconception folate reduces neural tube defect risk",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/folic-acid/about/index.html"
+   ],
+   "note": "CDC: 400 mcg daily for all who could become pregnant; 4000 mcg after a prior NTD."
+  },
+  {
+   "lessonId": "med-clin-peds.l06",
+   "claim": "DDH: ultrasound before 4-6 months then radiograph; Pavlik harness in young infants",
+   "verdict": "supported",
+   "sources": [
+    "https://hipdysplasia.org/wp-content/uploads/2025/08/Referral-for-hip-dysplasia-Shaw_Segal.pdf"
+   ],
+   "note": "AAP 2016 report: ultrasound younger than 4 months, radiograph from 4 months."
+  },
+  {
+   "lessonId": "med-clin-peds.l06",
+   "claim": "CMV is the most common congenital infection in developed countries; hearing loss main morbidity",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l07",
+   "claim": "Lesson lists HepB, rotavirus, flu, HepA as stable routine recommendations while saying CDC schedule under revision",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.cdc.gov/vaccines/hcp/imz-schedules/child-adolescent-age.html",
+    "https://www.ajmc.com/view/cdc-reduces-us-childhood-immunization-schedule-from-17-to-11-diseases",
+    "https://www.healthychildren.org/English/news/Pages/AAPs-recommended-childhood-and-adolescent-immunization-schedule-for-2026.aspx"
+   ],
+   "note": "CDC changed the schedule Jan 2026 (approved without ACIP) to 11 routine diseases; rotavirus and flu moved to shared decision-making, HepA/HepB to risk-based/SCDM, RSV and COVID also shifted. The AAP 2026 schedule keeps 18 diseases routine and is endorsed by 12 organisations. The lesson hedges appropriately, but the 'core principles stable' list is not CDC-current. The CDC schedule page I opened was still labelled 2025 (addendum July 2, 2025)."
+  },
+  {
+   "lessonId": "med-clin-peds.l07",
+   "claim": "MMR and varicella at 12-15 months with second dose at 4-6 years; HepA from 12 months; rotavirus from 2 months",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/vaccines/hcp/imz-schedules/child-adolescent-notes.html"
+   ],
+   "note": "Matches CDC 2025 notes (HepA start 12-23 months); 2026 CDC changes affect rotavirus/HepA status, not ages."
+  },
+  {
+   "lessonId": "med-clin-peds.l07",
+   "claim": "No MMR-autism link; ~95% coverage needed for measles herd immunity",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/measles/vaccines/index.html"
+   ],
+   "note": "CDC page states no link to autism; the 95% figure is not stated on that page (widely cited)."
+  },
+  {
+   "lessonId": "med-clin-peds.l08",
+   "claim": "AAP 2021 febrile infant guideline: well-appearing 8-60 days, stepwise using UA, ANC, CRP, procalcitonin",
+   "verdict": "supported",
+   "sources": [
+    "https://publications.aap.org/journal-blogs/blog/16182/The-First-AAP-Clinical-Practice-Guideline-for"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-peds.l08",
+   "claim": "Kocher criteria: fever, non-weight-bearing, high ESR, high WBC",
+   "verdict": "supported",
+   "sources": [
+    "https://www.mdcalc.com/calc/1817/kocher-criteria-septic-arthritis"
+   ],
+   "note": "Thresholds ESR>40, WBC>12,000, temp>38.5."
+  },
+  {
+   "lessonId": "med-clin-peds.l08",
+   "claim": "Neonates <=28 days with rectal temp >=38.0C: full sepsis workup, IV antibiotics, admission; acyclovir if HSV suspected",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://publications.aap.org/journal-blogs/blog/16182/The-First-AAP-Clinical-Practice-Guideline-for"
+   ],
+   "note": "AAP 2021 guideline addresses 8-60 days; the <=28 day full-workup norm is consistent but not confirmed in detail on an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l09",
+   "claim": "AAP 2013 AOM guideline: observation in selected children, amoxicillin first-line",
+   "verdict": "supported",
+   "sources": [
+    "https://publications.aap.org/pediatrics/article/131/3/e964/30912/The-Diagnosis-and-Management-of-Acute-Otitis-Media"
+   ],
+   "note": "2013 remains the current AAP guideline per search; no 2025 update found."
+  },
+  {
+   "lessonId": "med-clin-peds.l09",
+   "claim": "GAS pharyngitis: rapid test, backup culture if negative (IDSA 2012)",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://www.idsociety.org/news--publications-new/articles/2025/idsa-releases-new-guidelines-for-diagnosing-strep-throat/"
+   ],
+   "note": "IDSA published a 2025 partial update (Oct 14 2025) recommending clinical scoring systems before testing; testing/treatment sections still pending. The 2012 citation is partly superseded; backup-culture detail not confirmed."
+  },
+  {
+   "lessonId": "med-clin-peds.l09",
+   "claim": "Measles: Koplik spots, pneumonia most common cause of death, vitamin A",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l10",
+   "claim": "AAP 2014 bronchiolitis guideline: supportive care, no routine bronchodilators/steroids/antibiotics",
+   "verdict": "supported",
+   "sources": [
+    "https://publications.aap.org/pediatrics/article/134/5/e1474/75848/Clinical-Practice-Guideline-The-Diagnosis"
+   ],
+   "note": "Still the current AAP guideline (2014); no new AAP edition found."
+  },
+  {
+   "lessonId": "med-clin-peds.l10",
+   "claim": "RSV prevention: nirsevimab or clesrovimab for infants; maternal vaccine in late pregnancy",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/rsv/hcp/vaccine-clinical-guidance/infants-young-children.html",
+    "https://www.cdc.gov/rsv/hcp/vaccine-clinical-guidance/pregnant-people.html",
+    "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC12393692/"
+   ],
+   "note": "Clesrovimab FDA-approved June 9 2025, ACIP-recommended June 26 2025, infants <8 months; maternal Abrysvo at 32-36 weeks Sept-Jan; most infants need only one product. The 2026 CDC schedule moved RSV to risk-based/SCDM."
+  },
+  {
+   "lessonId": "med-clin-peds.l10",
+   "claim": "Asthma: NHLBI 2007 with 2020 updates; combined ICS-formoterol reliever approaches in some ages",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nhlbi.nih.gov/sites/default/files/publications/Asthma%20Clinicians%20Guide%20508_02-03-21.pdf"
+   ],
+   "note": "2020 focused update supports SMART for ages 4+."
+  },
+  {
+   "lessonId": "med-clin-peds.l11",
+   "claim": "Rotavirus vaccine routine; norovirus now predominates in gastroenteritis",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://www.ajmc.com/view/cdc-reduces-us-childhood-immunization-schedule-from-17-to-11-diseases"
+   ],
+   "note": "Rotavirus is shared clinical decision-making in the 2026 CDC schedule, routine in AAP; norovirus claim not checked."
+  },
+  {
+   "lessonId": "med-clin-peds.l11",
+   "claim": "Antibiotics may worsen STEC infection leading to HUS",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l11",
+   "claim": "Celiac screening with IgA tTG plus total IgA; biopsy while on gluten",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l12",
+   "claim": "Kawasaki: IVIG within first 10 days with aspirin (AHA 2017)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ahajournals.org/doi/10.1161/CIR.0000000000001295"
+   ],
+   "note": "IVIG 2 g/kg plus aspirin remains standard, but AHA issued a 2024 update superseding 2017 (flexible aspirin dosing, IVIG after day 10 if inflammation persists); lesson cites 2017 only."
+  },
+  {
+   "lessonId": "med-clin-peds.l12",
+   "claim": "Kawasaki criteria: fever 5+ days plus 4 of 5 features",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l12",
+   "claim": "ToF tet spells relieved by squatting; PGE1 for ductal-dependent lesions; indomethacin/ibuprofen closes PDA",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l13",
+   "claim": "ISPAD 2022 DKA guideline: fluids then insulin infusion; cerebral oedema risk",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ispad.org/resources/ispad-clinical-practice-consensus-guidelines/2022-ispad-clinical-practice-consensus-guidelines.html"
+   ],
+   "note": "ISPAD 2022 DKA chapter is the current DKA chapter; 2024 chapters cover other topics."
+  },
+  {
+   "lessonId": "med-clin-peds.l13",
+   "claim": "Precocious puberty defined as before age 8 in girls, 9 in boys",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l13",
+   "claim": "21-hydroxylase deficiency most common CAH; elevated 17-OHP; newborn screening detects it",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l14",
+   "claim": "AAP 2011: no neuroimaging/EEG/routine labs after simple febrile seizure; LP if meningeal signs",
+   "verdict": "supported",
+   "sources": [
+    "https://publications.aap.org/pediatrics/article/127/2/389/65189/Febrile-Seizures-Guideline-for-the-Neurodiagnostic"
+   ],
+   "note": "Guideline covers 6-60 months; LP recommended with meningeal signs. Lesson's 'under 12 months' LP wording is looser than the guideline (LP 'an option' 6-12 months if immunization incomplete)."
+  },
+  {
+   "lessonId": "med-clin-peds.l14",
+   "claim": "Infantile spasms first-line ACTH/steroids, vigabatrin in tuberous sclerosis",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l14",
+   "claim": "Absence: 3-Hz spike-wave, ethosuximide for absence-only",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l15",
+   "claim": "Sickle cell: penicillin prophylaxis, hydroxyurea, TCD screening; fever is an emergency",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l15",
+   "claim": "Hemophilia: prolonged PTT, normal PT; emicizumab for hemophilia A",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l15",
+   "claim": "Neuroblastoma MYCN amplification poor prognosis; Wilms associated with WAGR/BWS",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l16",
+   "claim": "TEN-4-FACESp: bruising torso/ear/neck in child <4 y, any bruise in infant <4 months",
+   "verdict": "supported",
+   "sources": [
+    "https://www.aafp.org/pubs/afp/issues/2022/0600/p661.html"
+   ],
+   "note": "Rule covers infants 4.99 months and younger; also frenulum, angle of jaw, cheeks, eyelids, subconjunctivae and patterned bruising. Buttocks is not part of the rule."
+  },
+  {
+   "lessonId": "med-clin-peds.l16",
+   "claim": "Classic metaphyseal and posterior rib fractures highly specific; skeletal survey for suspected abuse under 2 y",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l16",
+   "claim": "US mandated reporting at reasonable suspicion; CAPTA conditions funding",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l17",
+   "claim": "USPSTF 2022: screen adolescents 12-18 for major depressive disorder",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/screening-depression-suicide-risk-children-adolescents"
+   ],
+   "note": "Grade B, published Oct 11 2022; insufficient evidence for suicide risk screening and for age 11 or younger."
+  },
+  {
+   "lessonId": "med-clin-peds.l17",
+   "claim": "Cervical screening begins at 21; chlamydia/gonorrhoea screening in sexually active females under 25",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-peds.l17",
+   "claim": "Leading cause of teen death: accidents then suicide/homicide",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked; recent CDC data list firearms as a leading cause, so the ordering may be dated."
+  },
+  {
+   "lessonId": "med-clin-peds.l18",
+   "claim": "AAP: autism-specific screening at 18 and 24 months with M-CHAT-R/F",
+   "verdict": "supported",
+   "sources": [
+    "https://publications.aap.org/pediatrics/article/145/1/e20193449/36971/Promoting-Optimal-Development-Identifying-Infants"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-peds.l18",
+   "claim": "AAP 2019 ADHD: parent training first-line for age 4-5; methylphenidate if inadequate; guideline ages 4-18",
+   "verdict": "supported",
+   "sources": [
+    "https://publications.aap.org/pediatrics/article/144/4/e20192528/81590/Clinical-Practice-Guideline-for-the-Diagnosis"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-peds.l18",
+   "claim": "Enuresis alarm has highest long-term cure rate; desmopressin for sleepovers",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  }
+ ]
+}

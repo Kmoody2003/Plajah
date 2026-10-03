@@ -1,0 +1,820 @@
+{
+ "courseId": "lab-physics",
+ "label": "Physics",
+ "lessons": [
+  {
+   "id": "lab-physics.l01",
+   "title": "Newton's Laws of Motion",
+   "body": [
+    "Isaac Newton gathered the mechanics of everyday life into three laws. The first is inertia: an object keeps doing what it is doing, resting or moving in a straight line at steady speed, unless a net force acts on it. The second makes force quantitative. The net force on an object equals its mass times its acceleration, F = m a, or more generally the rate of change of its momentum. The third says forces come in pairs: when one body pushes on another, the other pushes back equally and oppositely.",
+    "Everyday example: push an empty shopping cart and then a full one with the same force. The full cart has more mass, so it accelerates less. A 10 kg cart pushed with a net force of 30 N accelerates at 3 m/s squared.",
+    "Galileo had already noticed that, ignoring air, all bodies fall with the same acceleration regardless of mass. In 1971 an Apollo 15 astronaut dropped a hammer and a feather on the airless Moon and they landed together. Heavier objects feel more gravitational force but also need more force to accelerate, so the effects cancel.",
+    "These laws work superbly whenever speeds are far below the speed of light and objects are larger than atoms. Outside that range, relativity and quantum mechanics take over."
+   ]
+  },
+  {
+   "id": "lab-physics.l02",
+   "title": "Universal Gravitation",
+   "body": [
+    "Newton's great leap was to see that the force that pulls an apple down is the same one that holds the Moon in orbit. His law of universal gravitation says every pair of masses attracts along the line joining them, with a force F = G m1 m2 / r squared. Here m1 and m2 are the masses, r is the distance between their centres, and G is the gravitational constant, a very small number that sets the strength of the force.",
+    "Two things follow. First, the force grows with the product of the masses, so doubling one mass doubles the force. Second, it falls off with the square of the distance. Move twice as far away and the pull drops to one quarter; move three times as far and it drops to one ninth.",
+    "Everyday example: you and a friend attract each other gravitationally, but because G is tiny and your masses are small, the force is far too weak to notice. Only planet-sized masses make gravity obvious.",
+    "Astronauts on the space station float, but not because gravity is absent there. Gravity at that height is still strong. They float because they and the station are in continuous free fall around the Earth.",
+    "This law unified terrestrial and celestial motion, creating the template for later physics."
+   ]
+  },
+  {
+   "id": "lab-physics.l03",
+   "title": "Kinetic Energy and Conservation Laws",
+   "body": [
+    "Kinetic energy is the energy a body has because it is moving: E_k = one half m v squared, measured in joules. Because speed is squared, speed matters far more than mass. Double the speed and the kinetic energy grows four times. A 2 kg object moving at 3 m/s has E_k = 0.5 x 2 x 9 = 9 J.",
+    "Everyday example: a car at 60 km/h has four times the kinetic energy of the same car at 30 km/h, which is why stopping distances and crash damage rise so steeply with speed.",
+    "Kinetic energy is one piece of a bigger idea: conservation laws. In an isolated system, energy, momentum and electric charge are conserved, meaning their totals do not change even though they can move between objects or change form. A pendulum swings by trading gravitational energy for kinetic energy and back again.",
+    "Emmy Noether proved something deeper. Each conservation law is tied to a symmetry of nature. Conservation of energy comes from the fact that the laws of physics do not change with time, and conservation of momentum comes from the laws being the same everywhere in space. Conservation laws are therefore not arbitrary rules but consequences of the structure of the laws themselves."
+   ]
+  },
+  {
+   "id": "lab-physics.l04",
+   "title": "Springs and Pendulums",
+   "body": [
+    "Many systems oscillate: a spring bouncing, a swing, a pendulum clock. They share a common cause, a restoring force that pulls the system back toward its resting position. For an ideal spring, Hooke's law says F = -k x. The force is proportional to the displacement x, and the minus sign means it points opposite to the displacement. The spring constant k, in newtons per metre, measures stiffness. A spring with k = 200 N/m stretched by 0.05 m pulls back with 10 N.",
+    "Everyday example: a bathroom scale and a car's suspension both rely on springs that push back in proportion to how far they are compressed.",
+    "A simple pendulum swinging through small angles has a period T = 2 pi times the square root of L / g, where L is its length and g is the gravitational acceleration. The surprise is what is missing: the period does not depend on the mass of the bob or, for small swings, on how wide it swings. A pendulum 1 m long has a period of about 2 seconds on Earth.",
+    "Because the period depends on length, quadrupling the length only doubles the period. Galileo's observations of swinging lamps led to the idea of using pendulums to keep time."
+   ]
+  },
+  {
+   "id": "lab-physics.l05",
+   "title": "Waves",
+   "body": [
+    "A wave is a repeating disturbance that carries energy from place to place without carrying matter along with it. Ripples on a pond, sound in air, and light all share the same basic description. The distance between successive crests is the wavelength. The number of crests passing a point each second is the frequency, measured in hertz (Hz). The wave relation ties them together with the wave speed: v = f lambda.",
+    "For example, a wave with a frequency of 50 Hz and a wavelength of 4 m travels at 50 x 4 = 200 m/s.",
+    "The speed of a wave is usually set by the medium it travels through, not by the source. Sound travels at a particular speed in air no matter how loud or how high the note. So if you raise the frequency of a wave in a given medium, the wavelength must shrink to keep the product the same. Doubling the frequency halves the wavelength.",
+    "Everyday example: a short string on a guitar vibrates at a higher frequency than a long string, producing a higher pitch.",
+    "Waves can overlap and combine, reinforcing or cancelling each other. This interference is the signature that distinguishes waves from simple streams of particles, and it will return when we meet light and electrons."
+   ]
+  },
+  {
+   "id": "lab-physics.l06",
+   "title": "Heat, Work and the Ideal Gas",
+   "body": [
+    "Thermodynamics is the physics of heat, work and energy. Its first law is a statement of energy conservation: the change in a system's internal energy equals the heat added to it minus the work the system does, delta U = Q - W. If you add 500 J of heat to a gas and it does 200 J of work pushing a piston, its internal energy rises by 300 J.",
+    "Everyday example: pump a bicycle tyre quickly and the pump warms up. You do work on the gas, increasing its internal energy.",
+    "The ideal gas law describes how pressure P, volume V, amount of gas n and temperature T are connected: P V = n R T, where R is the gas constant. Temperature here must be in kelvin, the absolute scale where zero means no thermal motion to remove.",
+    "The law gives quick predictions. In a sealed rigid container, the volume and the amount of gas cannot change, so pressure is proportional to temperature. That is why a sealed can left in a hot place can burst, and why tyre pressure rises as you drive.",
+    "The nineteenth century united the study of heat and mechanics into a single concept of energy that can change form but is never created or destroyed."
+   ]
+  },
+  {
+   "id": "lab-physics.l07",
+   "title": "Entropy and the Arrow of Time",
+   "body": [
+    "Entropy is often described as disorder, but its precise meaning comes from counting. Ludwig Boltzmann showed that entropy S measures how many microscopic arrangements, called microstates, are consistent with what we observe at large scale: S = k_B ln Omega, where Omega is the number of microstates and k_B is Boltzmann's constant. This equation is engraved on his gravestone.",
+    "The second law of thermodynamics says that the entropy of an isolated system never decreases. Systems drift toward the large-scale states that have the most microstates, because those are overwhelmingly more probable. Sadi Carnot's study of steam engines had already hinted at this: it set an upper limit on how efficient any heat engine can be, and Clausius later coined the word entropy.",
+    "Everyday example: put an ice cube in a warm drink. Heat flows from the warm drink to the ice, never the reverse, because there are vastly more ways for thermal energy to be spread out evenly. A dropped glass shatters but never reassembles for the same reason: there are enormously more arrangements of broken pieces than of an intact glass.",
+    "This is why the second law gives time a direction, and it links thermodynamics, statistical mechanics and even information theory."
+   ]
+  },
+  {
+   "id": "lab-physics.l08",
+   "title": "Electric Charge and Coulomb's Law",
+   "body": [
+    "Electric charge, measured in coulombs, comes in two kinds. Like charges repel and opposite charges attract. Charles-Augustin Coulomb measured the force in 1785 and found that it is proportional to the product of the two charges and inversely proportional to the square of their separation: F = k q1 q2 / r squared, where k = 1/(4 pi epsilon-zero).",
+    "Compare this with gravity. Both are inverse-square laws, but they differ in an important way. Gravity only ever attracts, whereas electric forces can attract or repel. And the electric force between charged particles is vastly stronger than their gravitational pull, which is why static electricity can lift a scrap of paper against the pull of the entire Earth.",
+    "Scaling is straightforward. Double one charge and the force doubles. Double the distance and the force drops to a quarter. Do both at once and the net result is a factor of 2 x 1/4 = 1/2.",
+    "Everyday example: clothes cling together in a dryer because friction moves charge from one fabric to another and the opposite charges attract.",
+    "Gauss's law expresses the same physics in terms of fields: the electric flux through a closed surface is proportional to the charge enclosed. It is one of Maxwell's four equations."
+   ]
+  },
+  {
+   "id": "lab-physics.l09",
+   "title": "Induction and Maxwell's Light",
+   "body": [
+    "In 1820 Hans Christian Orsted noticed that a current in a wire deflects a nearby compass needle, linking electricity to magnetism. In 1831 Michael Faraday found the reverse: a changing magnetic flux through a circuit induces an electromotive force, written as EMF = -d(flux)/dt. The key word is changing. A magnet held still beside a coil produces nothing; move the magnet in and out and a current flows.",
+    "Everyday example: a bicycle dynamo or a power-station generator spins a coil in a magnetic field so that the flux through it keeps changing, producing a steady electrical output.",
+    "James Clerk Maxwell then fitted everything into four equations. A changing electric field creates a magnetic field and a changing magnetic field creates an electric field, so a self-sustaining wave can travel through empty space. He calculated its speed and found it matched the speed of light, concluding that light itself is an electromagnetic wave.",
+    "Maxwell's theory predicted radio waves, and in 1887 Heinrich Hertz detected them, confirming that electromagnetic waves travel at light speed. Radio, microwaves, visible light and X-rays are all the same kind of wave, differing only in wavelength."
+   ]
+  },
+  {
+   "id": "lab-physics.l10",
+   "title": "Special Relativity and E = mc squared",
+   "body": [
+    "Special relativity rests on two postulates. First, the laws of physics are the same in every inertial frame, meaning for any observers moving at constant velocity. Second, light travels at the same speed c, about 3 x 10^8 m/s, for all of them. The second sounds harmless but it has radical consequences: moving clocks run slow (time dilation), moving objects shorten along their direction of motion (length contraction), and events that look simultaneous to one observer may not to another.",
+    "The evidence is concrete. The Michelson-Morley experiment of 1887 found no ether wind, supporting the constancy of light speed. In 1941 Rossi and Hall showed that fast cosmic-ray muons reach the ground because their internal clocks run slow. In 1971 Hafele and Keating flew atomic clocks around the world and found the tiny predicted disagreement with clocks on the ground.",
+    "The theory also makes mass and energy interchangeable: E = m c squared. Because c squared is enormous, a tiny mass corresponds to a vast energy. Converting 1 kg of mass would release about 9 x 10^16 joules.",
+    "Everyday relevance: particle accelerators confirm relativity daily, since their particles move so fast that Newtonian predictions fail."
+   ]
+  },
+  {
+   "id": "lab-physics.l11",
+   "title": "General Relativity",
+   "body": [
+    "Einstein's general relativity recasts gravity. Rather than a force acting across empty space, gravity is the curvature of spacetime itself. Mass and energy bend the geometry, and objects follow the straightest possible paths through it. The Earth orbits the Sun not because the Sun pulls it with a rope but because the Sun curves the spacetime the Earth travels through. A useful picture is a heavy ball denting a stretched rubber sheet, though the real curvature involves time as well as space.",
+    "The theory made precise predictions that were later confirmed. It explained the slow drift, or precession, of Mercury's orbit that Newtonian gravity could not account for. In 1919 Arthur Eddington's eclipse expedition measured starlight bending around the Sun by the amount general relativity predicted, which made Einstein famous. It predicts gravitational time dilation, where clocks run slower in stronger gravity, and gravitational waves, ripples in spacetime.",
+    "In 2015 LIGO detected gravitational waves from two merging black holes, confirming a century-old prediction. The detectors measure stretches far smaller than a proton.",
+    "Everyday relevance: GPS satellites must correct for these timing effects, or their position estimates would drift."
+   ]
+  },
+  {
+   "id": "lab-physics.l12",
+   "title": "Quantum Mechanics",
+   "body": [
+    "Quantum mechanics began in 1900 when Max Planck explained black-body radiation by assuming energy is emitted in discrete packets rather than continuously. In 1905 Einstein used the same idea to explain the photoelectric effect: light ejects electrons from a metal as if it arrives in particles, photons, each with energy E = h f, where h is Planck's constant and f is the light's frequency.",
+    "The mature theory replaces definite trajectories with a wavefunction. The Schrodinger equation governs how the wavefunction changes with time, and its square gives the probability of finding a particle in a particular place. Quantities such as energy come in discrete levels, as in Bohr's model of the atom.",
+    "Heisenberg's uncertainty principle sets a limit: the uncertainties in position and momentum obey delta x times delta p is at least h-bar / 2. Squeeze one down and the other must grow. This is not a flaw in our instruments but a feature of nature.",
+    "Quantum mechanics is the most precisely tested theory in science. It underlies chemistry, since it determines how atoms bond, and technologies such as lasers and the semiconductors in every phone and computer."
+   ]
+  },
+  {
+   "id": "lab-physics.l13",
+   "title": "Wave-Particle Duality",
+   "body": [
+    "For centuries physicists argued whether light was a wave or a stream of particles. Thomas Young's double-slit experiment in 1801 seemed to settle it: light passing through two narrow slits produced bands of bright and dark fringes, the signature of waves interfering. Yet the photoelectric effect in 1905 showed light delivering energy in discrete particle-like quanta.",
+    "Quantum mechanics says the answer is both. Light and matter each display wave behaviour, interference and diffraction, and particle behaviour, discrete and localised detections. Which face appears depends on the experiment performed.",
+    "Matter shows the same duality. In the Davisson-Germer experiment of 1927 electrons bounced off a crystal diffracted like waves, confirming that matter has a wave nature. In the double-slit experiment with single electrons, sent one at a time, each electron lands at a single spot like a particle, yet as thousands accumulate they build up an interference pattern, a result seen by Tonomura in 1989.",
+    "This is the puzzling part: a single particle somehow behaves as if it passed through both slits. The duality is not a hidden classical picture but a reminder that quantum objects are neither classical waves nor classical particles."
+   ]
+  },
+  {
+   "id": "lab-physics.l14",
+   "title": "The Standard Model and the Modern Frontier",
+   "body": [
+    "By the 1960s physicists had found a zoo of particles, and a tidier picture emerged. The Standard Model catalogues the fundamental particles and describes three of the four known forces: the electromagnetic force, the weak force and the strong force. Gravity is not included. Its pieces were built through quantum electrodynamics, developed by Feynman and others, and the quark model proposed in 1964.",
+    "Predictions were confirmed particle by particle, culminating in the observation of the Higgs boson at the Large Hadron Collider at CERN in 2012. The Higgs field is how fundamental particles acquire their mass.",
+    "Meanwhile cosmology matured. The Big Bang model, together with the discovery that most of the universe's matter is dark matter and that its expansion is driven by dark energy, shows that the particles of the Standard Model make up only a small share of the cosmos. Edwin Hubble had earlier shown that galaxies lie beyond our own and are receding, so the universe is expanding.",
+    "New windows have opened: LIGO detected gravitational waves in 2015 and the Event Horizon Telescope imaged a black-hole shadow in 2019. Unifying gravity with quantum theory remains the great open problem."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "lab-physics.l01.q1",
+   "lessonId": "lab-physics.l01",
+   "kind": "mcq",
+   "prompt": "Which law of motion states that an object keeps its state of rest or steady straight-line motion unless a net force acts on it?",
+   "choices": [
+    "The second law",
+    "The first law",
+    "The third law",
+    "The law of gravitation"
+   ]
+  },
+  {
+   "id": "lab-physics.l01.q2",
+   "lessonId": "lab-physics.l01",
+   "kind": "mcq",
+   "prompt": "In Newton's second law, what does the net force on an object equal for constant mass?",
+   "choices": [
+    "Mass times velocity",
+    "Mass divided by acceleration",
+    "Mass times acceleration",
+    "Mass times speed squared"
+   ]
+  },
+  {
+   "id": "lab-physics.l01.q3",
+   "lessonId": "lab-physics.l01",
+   "kind": "mcq",
+   "prompt": "A net force of 30 N acts on a 10 kg cart. What is its acceleration?",
+   "choices": [
+    "0.3 m/s squared",
+    "300 m/s squared",
+    "40 m/s squared",
+    "3 m/s squared"
+   ]
+  },
+  {
+   "id": "lab-physics.l01.q4",
+   "lessonId": "lab-physics.l01",
+   "kind": "mcq",
+   "prompt": "On the airless Moon a hammer and a feather dropped together land at the same time. What best explains this?",
+   "choices": [
+    "Gravity on the Moon pulls harder on feathers",
+    "Without air resistance, all objects fall with the same acceleration",
+    "Heavier objects have less inertia",
+    "The Moon has no gravity so nothing falls"
+   ]
+  },
+  {
+   "id": "lab-physics.l02.q1",
+   "lessonId": "lab-physics.l02",
+   "kind": "mcq",
+   "prompt": "In the law of universal gravitation, how does the force between two masses depend on the distance between them?",
+   "choices": [
+    "It is proportional to the distance",
+    "It is inversely proportional to the distance squared",
+    "It does not depend on distance",
+    "It is proportional to the distance squared"
+   ]
+  },
+  {
+   "id": "lab-physics.l02.q2",
+   "lessonId": "lab-physics.l02",
+   "kind": "tf",
+   "prompt": "Newton's law of gravitation applies to every pair of masses, not just to planets.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lab-physics.l02.q3",
+   "lessonId": "lab-physics.l02",
+   "kind": "mcq",
+   "prompt": "The distance between two masses is tripled. By what factor does the gravitational force change?",
+   "choices": [
+    "It becomes 1/3 as large",
+    "It becomes 1/9 as large",
+    "It becomes 3 times as large",
+    "It becomes 9 times as large"
+   ]
+  },
+  {
+   "id": "lab-physics.l02.q4",
+   "lessonId": "lab-physics.l02",
+   "kind": "mcq",
+   "prompt": "Astronauts on the space station float. What is the correct explanation?",
+   "choices": [
+    "There is no gravity at that height",
+    "They are far beyond the Earth gravitational pull",
+    "They and the station are in continuous free fall around the Earth",
+    "The station spins to cancel gravity"
+   ]
+  },
+  {
+   "id": "lab-physics.l03.q1",
+   "lessonId": "lab-physics.l03",
+   "kind": "mcq",
+   "prompt": "What is the formula for kinetic energy?",
+   "choices": [
+    "m v",
+    "one half m v squared",
+    "m a",
+    "m g h"
+   ]
+  },
+  {
+   "id": "lab-physics.l03.q2",
+   "lessonId": "lab-physics.l03",
+   "kind": "mcq",
+   "prompt": "According to Emmy Noether, what is every conservation law connected to?",
+   "choices": [
+    "A symmetry of nature",
+    "A measuring instrument",
+    "The speed of light",
+    "The temperature of a system"
+   ]
+  },
+  {
+   "id": "lab-physics.l03.q3",
+   "lessonId": "lab-physics.l03",
+   "kind": "mcq",
+   "prompt": "What is the kinetic energy of a 2 kg object moving at 3 m/s?",
+   "choices": [
+    "6 J",
+    "3 J",
+    "18 J",
+    "9 J"
+   ]
+  },
+  {
+   "id": "lab-physics.l03.q4",
+   "lessonId": "lab-physics.l03",
+   "kind": "mcq",
+   "prompt": "Why does doubling a car speed make crashes much more severe than doubling its mass would?",
+   "choices": [
+    "Kinetic energy grows with the square of speed, so doubling speed quadruples it",
+    "Speed and mass affect kinetic energy equally",
+    "Kinetic energy does not depend on speed",
+    "Faster cars lose their momentum"
+   ]
+  },
+  {
+   "id": "lab-physics.l04.q1",
+   "lessonId": "lab-physics.l04",
+   "kind": "mcq",
+   "prompt": "What does the minus sign in Hooke's law F = -k x tell us?",
+   "choices": [
+    "The spring has negative stiffness",
+    "The force points opposite to the displacement",
+    "The force is always smaller than kx",
+    "The spring is losing energy"
+   ]
+  },
+  {
+   "id": "lab-physics.l04.q2",
+   "lessonId": "lab-physics.l04",
+   "kind": "mcq",
+   "prompt": "For small swings, which two quantities set the period of a simple pendulum?",
+   "choices": [
+    "Mass and amplitude",
+    "Mass and length",
+    "Amplitude and gravity",
+    "Length and gravitational acceleration"
+   ]
+  },
+  {
+   "id": "lab-physics.l04.q3",
+   "lessonId": "lab-physics.l04",
+   "kind": "mcq",
+   "prompt": "A spring with k = 200 N/m is stretched 0.05 m. What is the magnitude of its restoring force?",
+   "choices": [
+    "10 N",
+    "4000 N",
+    "0.25 N",
+    "100 N"
+   ]
+  },
+  {
+   "id": "lab-physics.l04.q4",
+   "lessonId": "lab-physics.l04",
+   "kind": "mcq",
+   "prompt": "A pendulum is made 4 times longer. What happens to its period?",
+   "choices": [
+    "It becomes 4 times longer",
+    "It becomes 16 times longer",
+    "It doubles",
+    "It stays the same"
+   ]
+  },
+  {
+   "id": "lab-physics.l05.q1",
+   "lessonId": "lab-physics.l05",
+   "kind": "mcq",
+   "prompt": "What is the relation between wave speed, frequency and wavelength?",
+   "choices": [
+    "v = f / lambda",
+    "v = f lambda",
+    "v = lambda / f",
+    "v = f + lambda"
+   ]
+  },
+  {
+   "id": "lab-physics.l05.q2",
+   "lessonId": "lab-physics.l05",
+   "kind": "mcq",
+   "prompt": "In what unit is frequency measured?",
+   "choices": [
+    "Metres",
+    "Joules",
+    "Hertz",
+    "Newtons"
+   ]
+  },
+  {
+   "id": "lab-physics.l05.q3",
+   "lessonId": "lab-physics.l05",
+   "kind": "mcq",
+   "prompt": "A wave has frequency 50 Hz and wavelength 4 m. What is its speed?",
+   "choices": [
+    "12.5 m/s",
+    "200 m/s",
+    "54 m/s",
+    "46 m/s"
+   ]
+  },
+  {
+   "id": "lab-physics.l05.q4",
+   "lessonId": "lab-physics.l05",
+   "kind": "mcq",
+   "prompt": "A wave travels through the same medium and its frequency is doubled. What happens to its wavelength?",
+   "choices": [
+    "It doubles",
+    "It stays the same",
+    "It becomes four times larger",
+    "It is halved"
+   ]
+  },
+  {
+   "id": "lab-physics.l06.q1",
+   "lessonId": "lab-physics.l06",
+   "kind": "mcq",
+   "prompt": "The first law of thermodynamics is a statement of which principle?",
+   "choices": [
+    "Conservation of energy",
+    "Conservation of charge",
+    "Increase of entropy",
+    "Inverse-square force"
+   ]
+  },
+  {
+   "id": "lab-physics.l06.q2",
+   "lessonId": "lab-physics.l06",
+   "kind": "mcq",
+   "prompt": "In the ideal gas law P V = n R T, in which units must the temperature be given?",
+   "choices": [
+    "Celsius",
+    "Fahrenheit",
+    "Joules",
+    "Kelvin"
+   ]
+  },
+  {
+   "id": "lab-physics.l06.q3",
+   "lessonId": "lab-physics.l06",
+   "kind": "mcq",
+   "prompt": "A gas absorbs 500 J of heat and does 200 J of work on its surroundings. What is the change in its internal energy?",
+   "choices": [
+    "300 J",
+    "700 J",
+    "100 J",
+    "200 J"
+   ]
+  },
+  {
+   "id": "lab-physics.l06.q4",
+   "lessonId": "lab-physics.l06",
+   "kind": "mcq",
+   "prompt": "A sealed rigid can of gas is heated. Why does the pressure rise?",
+   "choices": [
+    "The gas gains mass",
+    "The volume must have increased",
+    "With volume and amount fixed, pressure is proportional to temperature",
+    "The gas constant R increases with heat"
+   ]
+  },
+  {
+   "id": "lab-physics.l07.q1",
+   "lessonId": "lab-physics.l07",
+   "kind": "mcq",
+   "prompt": "What does Boltzmann entropy S = k_B ln Omega count?",
+   "choices": [
+    "The total energy of a system",
+    "The number of microscopic states consistent with a macrostate",
+    "The speed of the particles",
+    "The mass of a gas"
+   ]
+  },
+  {
+   "id": "lab-physics.l07.q2",
+   "lessonId": "lab-physics.l07",
+   "kind": "tf",
+   "prompt": "The second law says the entropy of an isolated system never decreases.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lab-physics.l07.q3",
+   "lessonId": "lab-physics.l07",
+   "kind": "mcq",
+   "prompt": "An ice cube is dropped into a warm drink. In which direction does heat flow spontaneously?",
+   "choices": [
+    "From the ice to the drink",
+    "From the drink to the ice",
+    "No heat flows",
+    "Back and forth equally"
+   ]
+  },
+  {
+   "id": "lab-physics.l07.q4",
+   "lessonId": "lab-physics.l07",
+   "kind": "mcq",
+   "prompt": "Why does a dropped glass shatter but never spontaneously reassemble?",
+   "choices": [
+    "Reassembly would break conservation of energy",
+    "Broken states have vastly more microstates than the intact glass",
+    "Gravity only pulls things apart",
+    "The glass loses entropy when it breaks"
+   ]
+  },
+  {
+   "id": "lab-physics.l08.q1",
+   "lessonId": "lab-physics.l08",
+   "kind": "mcq",
+   "prompt": "According to Coulomb's law, what happens between two like charges?",
+   "choices": [
+    "They repel each other",
+    "They attract each other",
+    "They exert no force",
+    "They merge"
+   ]
+  },
+  {
+   "id": "lab-physics.l08.q2",
+   "lessonId": "lab-physics.l08",
+   "kind": "mcq",
+   "prompt": "Gauss's law relates the electric flux through a closed surface to what?",
+   "choices": [
+    "The surface area alone",
+    "The charge enclosed",
+    "The temperature inside",
+    "The mass inside"
+   ]
+  },
+  {
+   "id": "lab-physics.l08.q3",
+   "lessonId": "lab-physics.l08",
+   "kind": "mcq",
+   "prompt": "One charge is doubled and the distance between the two charges is also doubled. How does the electric force change?",
+   "choices": [
+    "It is unchanged",
+    "It doubles",
+    "It becomes one half",
+    "It becomes one quarter"
+   ]
+  },
+  {
+   "id": "lab-physics.l08.q4",
+   "lessonId": "lab-physics.l08",
+   "kind": "mcq",
+   "prompt": "Coulomb and gravity are both inverse-square laws. What is a key difference?",
+   "choices": [
+    "Electric forces can attract or repel, while gravity only attracts",
+    "Gravity can repel, but electric forces cannot",
+    "Gravity is the stronger force between particles",
+    "Only electric forces depend on distance"
+   ]
+  },
+  {
+   "id": "lab-physics.l09.q1",
+   "lessonId": "lab-physics.l09",
+   "kind": "mcq",
+   "prompt": "What did Orsted discover in 1820?",
+   "choices": [
+    "Radio waves",
+    "A current deflects a compass needle",
+    "The electron",
+    "Magnetic monopoles"
+   ]
+  },
+  {
+   "id": "lab-physics.l09.q2",
+   "lessonId": "lab-physics.l09",
+   "kind": "mcq",
+   "prompt": "What did Heinrich Hertz detect in 1887?",
+   "choices": [
+    "Gravitational waves",
+    "Photons",
+    "Cosmic rays",
+    "Radio waves"
+   ]
+  },
+  {
+   "id": "lab-physics.l09.q3",
+   "lessonId": "lab-physics.l09",
+   "kind": "mcq",
+   "prompt": "A bar magnet is held perfectly still next to a coil of wire. What current flows in the coil?",
+   "choices": [
+    "A steady current",
+    "No induced current, because the flux is not changing",
+    "A current that grows with time",
+    "An alternating current"
+   ]
+  },
+  {
+   "id": "lab-physics.l09.q4",
+   "lessonId": "lab-physics.l09",
+   "kind": "mcq",
+   "prompt": "What led Maxwell to conclude that light is an electromagnetic wave?",
+   "choices": [
+    "His equations predicted a wave travelling at the speed of light",
+    "Light bends around the Sun",
+    "Light can be polarised",
+    "Compass needles point to light sources"
+   ]
+  },
+  {
+   "id": "lab-physics.l10.q1",
+   "lessonId": "lab-physics.l10",
+   "kind": "mcq",
+   "prompt": "What do the two postulates of special relativity say?",
+   "choices": [
+    "Physics is the same in all inertial frames and light speed is the same for all observers",
+    "Mass is constant and time is absolute",
+    "Light needs an ether and has variable speed",
+    "Gravity is a curvature and light is a particle"
+   ]
+  },
+  {
+   "id": "lab-physics.l10.q2",
+   "lessonId": "lab-physics.l10",
+   "kind": "mcq",
+   "prompt": "What did the Michelson-Morley experiment find?",
+   "choices": [
+    "The speed of light in water",
+    "Gravitational waves",
+    "No ether wind",
+    "Time dilation of muons"
+   ]
+  },
+  {
+   "id": "lab-physics.l10.q3",
+   "lessonId": "lab-physics.l10",
+   "kind": "mcq",
+   "prompt": "Using E = m c squared with c about 3 x 10^8 m/s, roughly how much energy corresponds to 1 kg of mass?",
+   "choices": [
+    "3 x 10^8 J",
+    "9 x 10^8 J",
+    "3 x 10^16 J",
+    "9 x 10^16 J"
+   ]
+  },
+  {
+   "id": "lab-physics.l10.q4",
+   "lessonId": "lab-physics.l10",
+   "kind": "mcq",
+   "prompt": "Cosmic-ray muons reach the ground even though they decay quickly. How does special relativity explain this?",
+   "choices": [
+    "They travel faster than light",
+    "They gain mass",
+    "Their clocks run slow because they move fast",
+    "Gravity pulls them down faster"
+   ]
+  },
+  {
+   "id": "lab-physics.l11.q1",
+   "lessonId": "lab-physics.l11",
+   "kind": "mcq",
+   "prompt": "In general relativity, what is gravity?",
+   "choices": [
+    "A force carried by a particle across space",
+    "A kind of magnetism",
+    "The curvature of spacetime produced by mass and energy",
+    "An illusion caused by acceleration of stars"
+   ]
+  },
+  {
+   "id": "lab-physics.l11.q2",
+   "lessonId": "lab-physics.l11",
+   "kind": "mcq",
+   "prompt": "What did the 1919 Eddington eclipse expedition measure?",
+   "choices": [
+    "The mass of the Sun",
+    "The bending of starlight around the Sun",
+    "The speed of light",
+    "The expansion of the universe"
+   ]
+  },
+  {
+   "id": "lab-physics.l11.q3",
+   "lessonId": "lab-physics.l11",
+   "kind": "mcq",
+   "prompt": "Astronomers found that Mercury's orbit drifts in a way Newtonian gravity could not explain. Which theory accounts for it exactly?",
+   "choices": [
+    "Special relativity",
+    "General relativity",
+    "Kepler laws",
+    "Quantum mechanics"
+   ]
+  },
+  {
+   "id": "lab-physics.l11.q4",
+   "lessonId": "lab-physics.l11",
+   "kind": "mcq",
+   "prompt": "Why was the 2015 LIGO detection of gravitational waves so important?",
+   "choices": [
+    "It disproved relativity",
+    "It confirmed a prediction made about a century earlier",
+    "It detected dark matter directly",
+    "It showed that gravity is a particle"
+   ]
+  },
+  {
+   "id": "lab-physics.l12.q1",
+   "lessonId": "lab-physics.l12",
+   "kind": "mcq",
+   "prompt": "What was Planck's key idea in 1900?",
+   "choices": [
+    "Light is a wave",
+    "Atoms are indivisible",
+    "Energy is emitted in discrete packets",
+    "Time is relative"
+   ]
+  },
+  {
+   "id": "lab-physics.l12.q2",
+   "lessonId": "lab-physics.l12",
+   "kind": "mcq",
+   "prompt": "What does the square of the wavefunction give?",
+   "choices": [
+    "The mass of a particle",
+    "The probability of finding it somewhere",
+    "The exact path it follows",
+    "Its charge"
+   ]
+  },
+  {
+   "id": "lab-physics.l12.q3",
+   "lessonId": "lab-physics.l12",
+   "kind": "mcq",
+   "prompt": "According to the uncertainty principle, what happens to the momentum uncertainty if a particle position is pinned down more precisely?",
+   "choices": [
+    "It shrinks as well",
+    "It stays the same",
+    "It becomes zero",
+    "It must grow"
+   ]
+  },
+  {
+   "id": "lab-physics.l12.q4",
+   "lessonId": "lab-physics.l12",
+   "kind": "mcq",
+   "prompt": "Why is quantum mechanics relevant to everyday technology?",
+   "choices": [
+    "It only applies to distant stars",
+    "It describes atoms, which underlies lasers and semiconductors",
+    "It replaces Newton for all large objects",
+    "It describes planetary orbits"
+   ]
+  },
+  {
+   "id": "lab-physics.l13.q1",
+   "lessonId": "lab-physics.l13",
+   "kind": "mcq",
+   "prompt": "What did Young's double-slit experiment show about light?",
+   "choices": [
+    "It behaves as a wave",
+    "It is made only of particles",
+    "It travels infinitely fast",
+    "It has no energy"
+   ]
+  },
+  {
+   "id": "lab-physics.l13.q2",
+   "lessonId": "lab-physics.l13",
+   "kind": "mcq",
+   "prompt": "What did the Davisson-Germer experiment show?",
+   "choices": [
+    "Light is quantised",
+    "Electrons diffract like waves",
+    "Atoms have a nucleus",
+    "Gravity bends light"
+   ]
+  },
+  {
+   "id": "lab-physics.l13.q3",
+   "lessonId": "lab-physics.l13",
+   "kind": "mcq",
+   "prompt": "The photoelectric effect shows light ejecting electrons in discrete amounts of energy. Which aspect of light does it reveal?",
+   "choices": [
+    "Its wave nature",
+    "Its particle (photon) nature",
+    "Its refraction",
+    "Its polarisation"
+   ]
+  },
+  {
+   "id": "lab-physics.l13.q4",
+   "lessonId": "lab-physics.l13",
+   "kind": "mcq",
+   "prompt": "Electrons are sent through a double slit one at a time and an interference pattern slowly builds up. Why is this surprising?",
+   "choices": [
+    "Single electrons were expected to interfere only with each other in groups",
+    "Each electron is detected at one spot like a particle, yet the pattern is wave-like",
+    "It means electrons are heavier than expected",
+    "It shows electrons travel faster than light"
+   ]
+  },
+  {
+   "id": "lab-physics.l14.q1",
+   "lessonId": "lab-physics.l14",
+   "kind": "mcq",
+   "prompt": "Which of the four known forces is NOT described by the Standard Model?",
+   "choices": [
+    "Electromagnetism",
+    "The strong force",
+    "The weak force",
+    "Gravity"
+   ]
+  },
+  {
+   "id": "lab-physics.l14.q2",
+   "lessonId": "lab-physics.l14",
+   "kind": "mcq",
+   "prompt": "Which particle was observed at the Large Hadron Collider in 2012?",
+   "choices": [
+    "The Higgs boson",
+    "The positron",
+    "The neutron",
+    "The graviton"
+   ]
+  },
+  {
+   "id": "lab-physics.l14.q3",
+   "lessonId": "lab-physics.l14",
+   "kind": "mcq",
+   "prompt": "Edwin Hubble showed that \"nebulae\" were really other galaxies and that they are receding. What did this provide evidence for?",
+   "choices": [
+    "A static universe",
+    "The cosmic expansion",
+    "The existence of the ether",
+    "Proton decay"
+   ]
+  },
+  {
+   "id": "lab-physics.l14.q4",
+   "lessonId": "lab-physics.l14",
+   "kind": "mcq",
+   "prompt": "Why does the discovery of dark matter and dark energy matter for the Standard Model?",
+   "choices": [
+    "It shows the Standard Model particles make up only a small share of the cosmos",
+    "It proves the Standard Model is wrong in every detail",
+    "It shows gravity is a particle",
+    "It replaces the Higgs boson"
+   ]
+  }
+ ]
+}

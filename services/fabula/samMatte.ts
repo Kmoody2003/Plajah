@@ -89,13 +89,44 @@ function maskToCanvas(maskTensor: any, scores: number[] | Float32Array, fw: numb
   return out;
 }
 
-async function runSam(handle: SamHandle, frame: HTMLCanvasElement, point: Point2, w: number, h: number, feather: number, into?: HTMLCanvasElement): Promise<HTMLCanvasElement | null> {
+export interface SamPromptOptions {
+  point?: Point2;
+  points?: Array<{ x: number; y: number; label?: number }>;
+  box?: [number, number, number, number]; // [x1, y1, x2, y2] normalized 0..1
+}
+
+export type SamPrompt = Point2 | SamPromptOptions;
+
+async function runSam(handle: SamHandle, frame: HTMLCanvasElement, prompt: SamPrompt, w: number, h: number, feather: number, into?: HTMLCanvasElement): Promise<HTMLCanvasElement | null> {
   const { model, processor, tf } = handle;
   const raw = await tf.RawImage.fromCanvas(frame);
-  // Prompt in PIXELS of the work frame. SAM's processor consumes [batch][points][x,y].
-  const px = Math.max(0, Math.min(frame.width - 1, Math.round(point.x * frame.width)));
-  const py = Math.max(0, Math.min(frame.height - 1, Math.round(point.y * frame.height)));
-  const inputs = await processor(raw, { input_points: [[[px, py]]], input_labels: [[1]] });
+
+  // Normalize prompt into points & labels
+  let inputPoints: number[][] = [];
+  let inputLabels: number[] = [];
+
+  if ('points' in prompt && prompt.points && prompt.points.length > 0) {
+    inputPoints = prompt.points.map(p => [
+      Math.max(0, Math.min(frame.width - 1, Math.round(p.x * frame.width))),
+      Math.max(0, Math.min(frame.height - 1, Math.round(p.y * frame.height))),
+    ]);
+    inputLabels = prompt.points.map(p => (p.label ?? 1));
+  } else if ('box' in prompt && prompt.box) {
+    const [bx1, by1, bx2, by2] = prompt.box;
+    inputPoints = [
+      [Math.max(0, Math.min(frame.width - 1, Math.round(bx1 * frame.width))), Math.max(0, Math.min(frame.height - 1, Math.round(by1 * frame.height)))],
+      [Math.max(0, Math.min(frame.width - 1, Math.round(bx2 * frame.width))), Math.max(0, Math.min(frame.height - 1, Math.round(by2 * frame.height)))],
+    ];
+    inputLabels = [2, 3]; // 2 = top-left corner, 3 = bottom-right corner for SAM box prompt
+  } else {
+    const pt = 'point' in prompt && prompt.point ? prompt.point : (prompt as Point2);
+    const px = Math.max(0, Math.min(frame.width - 1, Math.round((pt.x ?? 0.5) * frame.width)));
+    const py = Math.max(0, Math.min(frame.height - 1, Math.round((pt.y ?? 0.5) * frame.height)));
+    inputPoints = [[px, py]];
+    inputLabels = [1];
+  }
+
+  const inputs = await processor(raw, { input_points: [inputPoints], input_labels: [inputLabels] });
   const outputs = await model(inputs);
   const masks = await processor.post_process_masks(outputs.pred_masks, inputs.original_sizes, inputs.reshaped_input_sizes);
   const scores = outputs.iou_scores?.data ? Array.from(outputs.iou_scores.data as Float32Array) : [];
@@ -103,10 +134,10 @@ async function runSam(handle: SamHandle, frame: HTMLCanvasElement, point: Point2
 }
 
 /** Exact per-frame object matte (offline export). Returns null if the model is unavailable. */
-export async function segmentSam(el: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement, point: Point2, w: number, h: number, feather = 0): Promise<HTMLCanvasElement | null> {
+export async function segmentSam(el: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement, prompt: SamPrompt, w: number, h: number, feather = 0): Promise<HTMLCanvasElement | null> {
   const handle = await loadSam(); if (!handle) return null;
   const wf = workFrame(el); if (!wf) return null;
-  try { return await runSam(handle, wf.canvas, point, w, h, feather); }
+  try { return await runSam(handle, wf.canvas, prompt, w, h, feather); }
   catch (e) { console.warn('[samMatte] segment failed:', (e as Error)?.message || e); return null; }
 }
 

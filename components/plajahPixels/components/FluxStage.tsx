@@ -8,6 +8,19 @@ import React, { useEffect, useRef } from 'react';
 import { VisualizationConfig, MODE_TO_FLUX_SCENE } from '../types';
 import { renderFluxLatest } from '../engine/core/flux';
 import { FluxMusicSampler } from '../../../services/fabula/fluxMusic';
+import { AdaptiveScale, quantizePx } from '../engine/core/adaptiveScale';
+
+// Render tier, per device: 'ultra' opts the scenes that have one (Deco Morph) into their photoreal
+// variant — PBR gold, soft shadows, AO, two rays per pixel — for high-end GPUs.
+export type FluxQuality = 'standard' | 'ultra';
+const QUALITY_KEY = 'plajah.fluxQuality';
+export function getFluxQuality(): FluxQuality {
+  try { return localStorage.getItem(QUALITY_KEY) === 'ultra' ? 'ultra' : 'standard'; } catch { return 'standard'; }
+}
+export function setFluxQuality(q: FluxQuality) {
+  try { localStorage.setItem(QUALITY_KEY, q); } catch { /* private mode: this session only */ }
+  window.dispatchEvent(new CustomEvent('plajah:flux-quality', { detail: q }));
+}
 
 interface Props {
   analyser: AnalyserNode | null;
@@ -28,12 +41,19 @@ const FluxStage: React.FC<Props> = ({ analyser, config, isPlaying, id }) => {
     let freq = new Uint8Array(2048);
     const music=new FluxMusicSampler();
     const start = performance.now();
+    let quality: FluxQuality = getFluxQuality();
+    const onQuality = (e: Event) => { quality = ((e as CustomEvent).detail as FluxQuality) || getFluxQuality(); };
+    const onStorage = (e: StorageEvent) => { if (e.key === QUALITY_KEY) quality = getFluxQuality(); };
+    window.addEventListener('plajah:flux-quality', onQuality); window.addEventListener('storage', onStorage);
 
+    // Dynamic resolution: the scale steps down when frames run long and probes back up when
+    // they're on time, so the stage holds 60fps on weaker GPUs instead of stuttering.
+    const adapt = new AdaptiveScale(0.5, 1, 1);
     function resize() {
       const host = cv.parentElement!;
       const r = host.getBoundingClientRect();
-      cv.width = Math.max(2, Math.floor(r.width * DPR));
-      cv.height = Math.max(2, Math.floor(r.height * DPR));
+      const w = quantizePx(r.width * DPR * adapt.scale), h = quantizePx(r.height * DPR * adapt.scale);
+      if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
     }
     resize();
     const ro = new ResizeObserver(resize);
@@ -42,6 +62,7 @@ const FluxStage: React.FC<Props> = ({ analyser, config, isPlaying, id }) => {
     let raf = 0;
     let lastResume = 0;
     function loop(now: number) {
+      if (adapt.frame(now)) resize();
       const cfg = cfgRef.current;
       const scene = MODE_TO_FLUX_SCENE[cfg.mode] || 'field';
       const a = analyserRef.current;
@@ -92,7 +113,7 @@ const FluxStage: React.FC<Props> = ({ analyser, config, isPlaying, id }) => {
       }
       const t = (now - start) / 1000;
       const src = renderFluxLatest(
-        { scene: scene as any, sensitivity: cfg.sensitivity, exposure: 1, bloom: Math.max(0.4, Math.min(2, (cfg.glowIntensity || 15) / 15)) },
+        { scene: scene as any, sensitivity: cfg.sensitivity, exposure: 1, bloom: Math.max(0.4, Math.min(2, (cfg.glowIntensity || 15) / 15)), quality },
         cv.width, cv.height, t, bands,
       );
       ctx.clearRect(0, 0, cv.width, cv.height);
@@ -100,7 +121,7 @@ const FluxStage: React.FC<Props> = ({ analyser, config, isPlaying, id }) => {
       raf = requestAnimationFrame(loop);
     }
     raf = requestAnimationFrame(loop);
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); window.removeEventListener('plajah:flux-quality', onQuality); window.removeEventListener('storage', onStorage); };
   }, []);
 
   const blend = { mixBlendMode: config.blendMode as any };

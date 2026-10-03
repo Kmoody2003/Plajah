@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import HistoryMomentPulseCard from './HistoryMomentPulseCard';
+import { takeVaultPreset } from '../services/loreaOpen';
 import { Album, Track, UserProfile, Playlist } from '../types';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { canUpload } from '../services/tvCapabilities';
@@ -311,8 +312,11 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   //   PRIMARY   what kind of audio this is        (null = the featured view)
   //   SECONDARY genre/subcategory, scoped to kind (null = all of that kind)
   //   SORT      a ranking, never a category
-  const [vaultKindSel, setVaultKindSel] = useState<AudioKind | null>(null);
-  const [vaultSub, setVaultSub] = useState<string | null>(null);
+  // A pending preset (from Language Arts / Learn: "hear the era") opens straight onto that shelf. Read once.
+  const vaultPresetRef = useRef<ReturnType<typeof takeVaultPreset> | undefined>(undefined);
+  if (vaultPresetRef.current === undefined) vaultPresetRef.current = takeVaultPreset();
+  const [vaultKindSel, setVaultKindSel] = useState<AudioKind | null>(() => (vaultPresetRef.current?.kind as AudioKind) ?? null);
+  const [vaultSub, setVaultSub] = useState<string | null>(() => vaultPresetRef.current?.sub ?? null);
   const [vaultSort, setVaultSort] = useState<VaultSort>('TRENDING');
   const [vaultLoading, setVaultLoading] = useState(false);
   const [vaultShelves, setVaultShelves] = useState<Array<VaultShelf & { items: ArchiveTrack[] }>>([]);

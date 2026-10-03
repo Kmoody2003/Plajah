@@ -1,0 +1,22 @@
+# med-premed-chem: claims for expert review
+
+- l01: 18F half-life about 110 minutes (standard value 109.8); 99mTc and 131I uses stated qualitatively.
+- l01: Cr and Cu configuration exceptions given as textbook; real-world deviations are not discussed.
+- l02: bond angles for NH3 (about 107) and H2O (about 104.5) are approximate.
+- l03: plasma osmolality range 285 to 295 mOsm/kg is approximate and lab-dependent; 5% dextrose osmolarity about 278 mmol/L (50 g/L / 180.16).
+- l03: normal saline calculated osmolarity about 308 mOsm/L (ideal, ignores osmotic coefficient, real value about 286 mOsm/kg).
+- l04: ATP hydrolysis standard free energy about -30.5 kJ/mol (-7.3 kcal/mol); values in the literature range from -30 to -32.
+- l05: steady state in 4 to 5 half-lives (94 to 97%) and ethanol/phenytoin zero-order or saturable behaviour are textbook simplifications.
+- l06: Ksp for AgCl 1.8 x 10^-10 (textbook value); kidney-stone qualitative statement not quantified.
+- l07: aspirin pKa about 3.5 (reported 3.5 in several sources); ionisation percentages are approximations. Salicylate alkalinisation described mechanistically only.
+- l08: bicarbonate pKa 6.1 and CO2 solubility factor 0.03 mmol/L/mmHg (standard).
+- l09: Nernst factor 61.5 mV at 310 K and ion concentrations (K+ 4 and 140 mM) are typical, not universal; NADH about -0.32 V and O2/H2O about +0.82 V are standard biochemical potentials.
+- l10: pKa ranges (carboxylic acid 4 to 5, phenol 10, alcohol 16, alkyne 25, ammonium 10 to 11) are approximate.
+- l11: thalidomide enantiomer interconversion in vivo and its teratogenicity statement kept deliberately general; (S)-ibuprofen as the more active COX inhibitor and esomeprazole as the S-enantiomer of omeprazole stated as established.
+- l11: L-lactic acid produced in muscle is (S)-lactate (standard, but lactate is also made as D-lactate by gut bacteria).
+- l12: nitrogen mustard aziridinium and N7 guanine alkylation; bifunctional crosslinking. SAM methyl transfer by SN2.
+- l13: mutarotation equilibrium about two thirds beta for glucose (reported about 64 percent beta); amide stability "half-lives of years" is loose (published figures are much longer for peptide bonds).
+- l13: alpha-hydrogen ketone pKa about 19 to 20.
+- l14: IR and NMR shift windows are approximate textbook ranges; the nitrogen rule statement.
+- l15: reasons for the high energy of ATP anhydride bonds are debated; thioester relative reactivity statement simplified; citrate synthase described as aldol-type.
+- l16: pyridinium pKa about 5; histidine side chain pKa near 6; Lipinski thresholds are rough; acetaminophen/NAPQI mechanism summarised and no dosing or timing given.

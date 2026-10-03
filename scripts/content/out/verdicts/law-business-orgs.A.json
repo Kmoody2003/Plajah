@@ -1,0 +1,852 @@
+{
+ "courseId": "law-business-orgs",
+ "verifier": "A",
+ "note": "WebSearch/WebFetch hit session limit before any page opened; all answers from knowledge, all claims unverifiable.",
+ "fetched": 0,
+ "questions": [
+  {
+   "id": "law-business-orgs.l01.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l01.q2",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l01.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l02.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l02.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l02.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l03.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l03.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l03.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l03.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l04.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l04.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l04.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l04.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l05.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l05.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l05.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l05.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l06.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l06.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l06.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l07.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l07.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l07.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l07.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l08.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l08.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l08.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l09.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l09.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l09.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l09.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l10.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l10.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l10.q5",
+   "answer": 1,
+   "confidence": "low",
+   "ambiguous": true,
+   "sources": [],
+   "note": "Under pre-2025 DGCL 144(a)(1) one disinterested director could suffice; under SB 21 (2025) a 2-member disinterested committee is needed when most directors are interested. Answer depends on statute version; unverified (web tools unavailable)."
+  },
+  {
+   "id": "law-business-orgs.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l11.q2",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Correct under MFW case law; SB 21 (2025) now lets controller deals use either committee or minority vote."
+  },
+  {
+   "id": "law-business-orgs.l11.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l11.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l12.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l12.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l12.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l13.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l13.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l13.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l13.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l14.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l14.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l14.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l15.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l15.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l15.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l15.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l16.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l16.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l16.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l17.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l17.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l17.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l17.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l18.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l18.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l18.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l19.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l19.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l19.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l20.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l20.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l20.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-business-orgs.l01",
+   "claim": "Named cases/statutes as stated",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "law-business-orgs.l02",
+   "claim": "Named cases/statutes as stated",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "law-business-orgs.l03",
+   "claim": "Dissolution in partnership at will on express will of at least half the partners",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Flag: under RUPA 801 a partner at will can force dissolution by notice of express will to withdraw; the half-of-partners rule applies to term partnerships after wrongful dissociation. From memory only."
+  },
+  {
+   "lessonId": "law-business-orgs.l04",
+   "claim": "Named cases/statutes as stated",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "law-business-orgs.l05",
+   "claim": "Delaware SB 21 (2025) safe harbors and narrowed 220; constitutionality still being litigated",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Recheck: Delaware Supreme Court may have ruled on SB 21 validity (Rutledge v. Clearway) since text was written; also Moelis/DGCL 122(18) not covered. Not verified."
+  },
+  {
+   "lessonId": "law-business-orgs.l06",
+   "claim": "Named cases/statutes as stated",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "law-business-orgs.l07",
+   "claim": "Named cases/statutes as stated",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "law-business-orgs.l08",
+   "claim": "Named cases/statutes as stated",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "law-business-orgs.l09",
+   "claim": "Named cases/statutes as stated",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "law-business-orgs.l10",
+   "claim": "SB 21 revised DGCL 144 safe harbors; validity still being worked out",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Recheck: Delaware Supreme Court may have ruled on SB 21 validity (Rutledge v. Clearway) since text was written; also Moelis/DGCL 122(18) not covered. Not verified."
+  },
+  {
+   "lessonId": "law-business-orgs.l11",
+   "claim": "MFW requires both committee and minority vote; SB 21 changed controller safe harbors",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Recheck: Delaware Supreme Court may have ruled on SB 21 validity (Rutledge v. Clearway) since text was written; also Moelis/DGCL 122(18) not covered. Not verified."
+  },
+  {
+   "lessonId": "law-business-orgs.l12",
+   "claim": "Named cases/statutes as stated",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "law-business-orgs.l13",
+   "claim": "Delaware amended 220 in 2025 to define records narrowly",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Recheck: Delaware Supreme Court may have ruled on SB 21 validity (Rutledge v. Clearway) since text was written; also Moelis/DGCL 122(18) not covered. Not verified."
+  },
+  {
+   "lessonId": "law-business-orgs.l14",
+   "claim": "Named cases/statutes as stated",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "law-business-orgs.l15",
+   "claim": "Named cases/statutes as stated",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "law-business-orgs.l16",
+   "claim": "Named cases/statutes as stated",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "law-business-orgs.l17",
+   "claim": "Named cases/statutes as stated",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "law-business-orgs.l18",
+   "claim": "Named cases/statutes as stated",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "law-business-orgs.l19",
+   "claim": "Named cases/statutes as stated",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "law-business-orgs.l20",
+   "claim": "Named cases/statutes as stated",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  }
+ ]
+}

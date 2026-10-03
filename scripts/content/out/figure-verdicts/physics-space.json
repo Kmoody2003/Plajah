@@ -1,0 +1,205 @@
+[
+  {
+    "lesson": "lab-physics.l03",
+    "id": "ke-vs-speed",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-physics.l03",
+    "id": "ke-car-relative",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-physics.l04",
+    "id": "pendulum-period",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-physics.l04",
+    "id": "hooke-spring",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-physics.l05",
+    "id": "wavelength-sound",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-physics.l05",
+    "id": "wave-relation",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-physics.l06",
+    "id": "rigid-container-pressure",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-physics.l06",
+    "id": "first-law-budget",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-physics.l10",
+    "id": "lorentz-factor",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-physics.l10",
+    "id": "relativity-evidence",
+    "verdict": "ok",
+    "issue": "Dates correct (1887, 1905, 1941, 1971). Title says evidence but 1905 is the theory; caption already notes this. Rossi-Hall 1941 wording matches lesson.",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-astronomy.l03",
+    "id": "inverse-square",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-astronomy.l03",
+    "id": "neptune-timeline",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-astronomy.l08",
+    "id": "schwarzschild-radius",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-astronomy.l08",
+    "id": "black-hole-milestones",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-astronomy.l09",
+    "id": "parallax-distance",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-astronomy.l10",
+    "id": "distance-modulus",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-astronomy.l10",
+    "id": "distance-ladder",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-astronomy.l11",
+    "id": "hubble-law",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-astronomy.l11",
+    "id": "redshift-example",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-engineering.l03",
+    "id": "stretch-vs-length",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-engineering.l03",
+    "id": "stretch-vs-area",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-engineering.l05",
+    "id": "buckling-length",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-engineering.l05",
+    "id": "effective-length-k",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-engineering.l08",
+    "id": "carnot-limit",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-engineering.l08",
+    "id": "heat-engine-flow",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-engineering.l10",
+    "id": "power-vs-current",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-engineering.l10",
+    "id": "ohm-line",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-engineering.l13",
+    "id": "shannon-capacity",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "lab-engineering.l13",
+    "id": "semiconductor-milestones",
+    "verdict": "unsure",
+    "issue": "Transistor attribution: the 1947 point-contact device was demonstrated by Bardeen and Brattain; Shockley led the group and shared the 1956 Nobel but did not co-build it. Dates (1947, 1948, 1958-59) are correct. Matches lesson text, which has the same wording.",
+    "fix": "Optional: \"Bardeen and Brattain, in Shockley's group, demonstrate the first transistor at Bell Labs\"."
+  }
+]

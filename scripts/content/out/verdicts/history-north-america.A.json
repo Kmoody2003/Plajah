@@ -1,0 +1,1648 @@
+{
+ "courseId": "history-north-america",
+ "verifier": "A",
+ "note": "Only 3 pages opened via WebFetch; remaining claims checked from knowledge, not fetched.",
+ "fetched": 3,
+ "questions": [
+  {
+   "id": "history-north-america.l01.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l01.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l02.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l02.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l03.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l03.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l03.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l03.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l03.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l04.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l04.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l04.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l04.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l05.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l05.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l05.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l05.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l06.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l06.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l06.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l07.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l07.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l07.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l07.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l08.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l08.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l09.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l09.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l09.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l10.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l10.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l10.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l11.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l11.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l12.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l12.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l12.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l13.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l13.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l13.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l14.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l14.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l14.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l15.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l15.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l15.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l16.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l16.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l16.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l17.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l17.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l17.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l18.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l18.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l18.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l19.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l19.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l20.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l20.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l21.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l21.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l21.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l21.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l21.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l22.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l22.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l22.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l22.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l22.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l23.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l23.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l23.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l23.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l23.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l24.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l24.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l24.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l24.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l24.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l25.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l25.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l25.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l25.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l25.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l26.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l26.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l26.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l26.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l26.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l27.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l27.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l27.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l27.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l27.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l28.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l28.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l28.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l28.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l28.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l29.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l29.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l29.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l29.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l29.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l30.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l30.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l30.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l30.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l30.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l31.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l31.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l31.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l31.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l31.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l32.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l32.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l32.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l32.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-north-america.l32.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "history-north-america.l01",
+   "claim": "People in the Americas 15,000+ years ago",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l01",
+   "claim": "1492 population north of Mexico ~2 to 7+ million",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l01",
+   "claim": "Three Sisters beans add nitrogen",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l02",
+   "claim": "Cahokia flourished c.1050-1200 CE; Monks Mound largest earthen mound north of Mexico",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cahokia"
+   ],
+   "note": "Source gives peak 1100-1200 and 10,200-15,300 at 1050-1100; lesson consistent."
+  },
+  {
+   "lessonId": "history-north-america.l02",
+   "claim": "Tuscarora joined the Haudenosaunee in the 1720s",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l02",
+   "claim": "Tenochtitlan traditionally founded 1325",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l03",
+   "claim": "Norse at L'Anse aux Meadows c.1000",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l03",
+   "claim": "Crosby coined Columbian Exchange in 1972",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l03",
+   "claim": "Columbus landed in the Bahamas in October 1492",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l04",
+   "claim": "Tenochtitlan fell August 1521",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l04",
+   "claim": "New Laws of 1542; St. Augustine founded 1565",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l04",
+   "claim": "Pueblo Revolt 1680, Spanish out ~12 years, Pope of Ohkay Owingeh",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l05",
+   "claim": "Champlain founded Quebec 1608",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l05",
+   "claim": "English captured New Amsterdam 1664",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l05",
+   "claim": "Jamestown 1607, Pilgrims 1620, Puritans 1630",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l06",
+   "claim": "~12 million Africans carried across Atlantic",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l06",
+   "claim": "~400,000 to what became the U.S.",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l06",
+   "claim": "1662 Virginia partus sequitur ventrem law; Stono 1739",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l07",
+   "claim": "1775 population ~2.5 million, about 1 in 5 of African descent",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l07",
+   "claim": "Salem 1692: twenty people executed",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l07",
+   "claim": "Pennsylvania founded 1681; House of Burgesses 1619",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l08",
+   "claim": "Powhatan wars 1622 and 1644",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l08",
+   "claim": "Pequot War 1636-37",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l08",
+   "claim": "King Philip's War 1675-76 among bloodiest per capita",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l09",
+   "claim": "Treaty of Paris 1763 France ceded Canada and east of Mississippi (Spain got Louisiana west, via 1762 secret treaty confirmed)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Louisiana west of Mississippi went to Spain by the 1762 Treaty of Fontainebleau, confirmed 1763; minor imprecision."
+  },
+  {
+   "lessonId": "history-north-america.l09",
+   "claim": "Stamp Act 1765 repealed 1766",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l09",
+   "claim": "Boston Massacre March 1770 five killed; Coercive Acts 1774",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l10",
+   "claim": "Lexington and Concord April 19, 1775",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l10",
+   "claim": "Saratoga Oct 1777; French alliance 1778",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l10",
+   "claim": "Yorktown surrender Oct 1781; Treaty of Paris 1783; Sullivan Campaign 1779",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l11",
+   "claim": "Articles ratified 1781",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l11",
+   "claim": "New Hampshire ninth state June 1788",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l11",
+   "claim": "Slave trade not bannable until 1808; Bill of Rights 1791",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l12",
+   "claim": "Louisiana Purchase $15 million 1803",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l12",
+   "claim": "Marbury v. Madison 1803; Haiti founded 1804",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l12",
+   "claim": "Lewis and Clark 1804-1806; Alien and Sedition Acts 1798",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l13",
+   "claim": "Cotton gin patented 1794",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l13",
+   "claim": "Indian Removal Act 1830; Cherokee Nation v. Georgia 1831; Worcester 1832",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l13",
+   "claim": "Treaty of New Echota 1835; ~16,000 removed 1838-39; ~4,000 died",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Trail_of_Tears"
+   ],
+   "note": "Source gives 4,000-8,000 deaths; lesson says commonly cited about 4,000, the low end."
+  },
+  {
+   "lessonId": "history-north-america.l14",
+   "claim": "Mexico abolished slavery 1829; Texas Revolution 1835; San Jacinto April 1836",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l14",
+   "claim": "Texas annexed 1845; war declared May 1846; Mexico City Sept 1847",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l14",
+   "claim": "Treaty of Guadalupe Hidalgo 1848, $15 million",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l15",
+   "claim": "The Liberator 1831; Douglass escaped 1838",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l15",
+   "claim": "Seneca Falls July 1848",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l15",
+   "claim": "Nearly four million enslaved by 1860; Nat Turner 1831",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l16",
+   "claim": "Missouri Compromise 1820 and 36-30 line",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l16",
+   "claim": "Kansas-Nebraska 1854; Dred Scott 1857; Harpers Ferry 1859",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l16",
+   "claim": "Lincoln elected Nov 1860; seven states seceded by early 1861",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l17",
+   "claim": "Fort Sumter April 12, 1861",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l17",
+   "claim": "Emancipation Proclamation Jan 1, 1863; ~180,000 Black soldiers",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l17",
+   "claim": "Lee surrendered April 9, 1865; 620,000+ dead; 13th Amendment Dec 1865",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l18",
+   "claim": "Freedmen's Bureau 1865; 14th 1868; 15th 1870",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l18",
+   "claim": "Johnson impeached 1868, acquitted by one vote; Revels 1870",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l18",
+   "claim": "Compromise of 1877; Plessy 1896; Black Reconstruction 1935",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l19",
+   "claim": "Transcontinental railroad completed 1869 at Promontory Summit",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l19",
+   "claim": "Dawes Act 1887; Sherman Act 1890; Carlisle 1879",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l19",
+   "claim": "Haymarket 1886; Wounded Knee Dec 1890 killed well over 150 Lakota",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l20",
+   "claim": "~20 million immigrants 1880-1920; Ellis Island 1892; Angel Island 1910",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l20",
+   "claim": "Chinese Exclusion Act 1882, repealed 1943",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l20",
+   "claim": "Great Migration ~1916-1970, ~6 million; Immigration Act of 1924",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Great_Migration_(African_American)"
+   ],
+   "note": "Source dates Great Migration 1910-1970; lesson says around 1916 (main surge), acceptable."
+  },
+  {
+   "lessonId": "history-north-america.l21",
+   "claim": "The Jungle 1906; Meat Inspection and Pure Food Acts 1906",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l21",
+   "claim": "16th and 17th Amendments 1913, 18th 1919, 19th 1920",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l21",
+   "claim": "Hull House 1889; NAACP 1909",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l22",
+   "claim": "Lusitania 1915 ~1,200 dead incl. 128 Americans",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l22",
+   "claim": "Zimmermann Telegram; U.S. entered April 1917; armistice Nov 11, 1918",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l22",
+   "claim": "Debs sentenced to ten years; Senate rejected Versailles",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l23",
+   "claim": "Prohibition 1920-1933",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l23",
+   "claim": "Great Gatsby 1925; Scopes trial 1925",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l23",
+   "claim": "Tulsa 1921 deaths estimated dozens to ~300",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l24",
+   "claim": "Black Tuesday Oct 29, 1929; unemployment ~25% in 1933",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l24",
+   "claim": "Smoot-Hawley 1930; FDIC 1933",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l24",
+   "claim": "Social Security Act and Wagner Act 1935",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l25",
+   "claim": "Pearl Harbor Dec 7, 1941; D-Day June 6, 1944; Hiroshima Aug 6, Nagasaki Aug 9; formal surrender Sept 2",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l25",
+   "claim": "EO 9066 Feb 1942, ~120,000 incarcerated; Korematsu 1944",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l25",
+   "claim": "Civil Liberties Act 1988; 400,000+ Americans died",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l26",
+   "claim": "Truman Doctrine 1947; Marshall Plan 1948; NATO 1949",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l26",
+   "claim": "Korean War 1950-53; Cuban Missile Crisis Oct 1962; Sputnik 1957; Apollo 11 1969",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l26",
+   "claim": "Interstate Highway Act 1956; Berlin Wall fell Nov 1989; USSR dissolved Dec 1991",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l27",
+   "claim": "Brown v. Board May 17, 1954; Little Rock 1957",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l27",
+   "claim": "Parks arrested Dec 1, 1955; Greensboro 1960; March on Washington Aug 28, 1963",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l27",
+   "claim": "Civil Rights Act 1964; Bloody Sunday March 7, 1965; VRA 1965; Fair Housing 1968; King killed April 4",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l28",
+   "claim": "Tet Jan 1968; Kent State May 1970 four killed; Paris Accords Jan 1973; Saigon April 1975",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l28",
+   "claim": "Medicare/Medicaid 1965; Title IX 1972; Roe 1973; Stonewall June 1969",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l28",
+   "claim": "Watergate break-in June 1972; Nixon resigned Aug 9, 1974",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l29",
+   "claim": "Plains of Abraham 1759; Treaty of Paris 1763; Quebec Act 1774",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l29",
+   "claim": "Confederation July 1, 1867 with four provinces",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l29",
+   "claim": "Manitoba 1870, BC 1871, PEI 1873, AB/SK 1905, NL 1949; CPR 1885; referendums 1980 and 1995",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l30",
+   "claim": "Royal Proclamation 1763; Numbered Treaties 1-11 between 1871 and 1921; Indian Act 1876",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l30",
+   "claim": "Last federal residential school closed 1996; TRC 2008-2015, 94 Calls to Action",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l30",
+   "claim": "Riel hanged Nov 16, 1885; Nunavut 1999; Section 35 of 1982 Act",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l31",
+   "claim": "Grito de Dolores Sept 16, 1810; Plan of Iguala 1821; republic 1824",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l31",
+   "claim": "Constitution 1857; Puebla May 5, 1862; Maximilian executed 1867",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l31",
+   "claim": "Porfiriato 1876-1911; Madero 1910; Constitution of 1917",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l32",
+   "claim": "NAFTA took effect 1994; replaced by USMCA 2020",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l32",
+   "claim": "Immigration Act 1965 ended quotas; Fox elected 2000",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "history-north-america.l32",
+   "claim": "9/11 nearly 3,000 killed; Obama elected 2008",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  }
+ ]
+}

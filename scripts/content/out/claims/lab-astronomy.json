@@ -1,0 +1,749 @@
+{
+ "courseId": "lab-astronomy",
+ "label": "Astronomy",
+ "lessons": [
+  {
+   "id": "lab-astronomy.l01",
+   "title": "The Copernican Revolution",
+   "body": [
+    "For nearly 1500 years the dominant picture was Ptolemy's geocentric system, with the Earth at the centre and the Sun, Moon and planets circling it. In 1543 Nicolaus Copernicus published a model with the Sun at the centre. It explained retrograde motion, when a planet seems to loop backwards against the stars, as a natural result of Earth overtaking slower outer planets. It also ordered the planets by orbital period.",
+    "Tycho Brahe then supplied what the new model needed: decades of careful naked-eye positions, accurate to about one arcminute. Tycho also showed that comets lie beyond the Moon. In 1609 Johannes Kepler used Tycho's Mars data to show that orbits are ellipses, not circles.",
+    "Galileo turned a telescope on the sky in 1610 and saw four large moons orbiting Jupiter, so not everything circles the Earth. He also saw the phases of Venus, which fit a Sun-centred system, and mountains on the Moon and spots on the Sun, which showed that heavenly bodies are not perfect. The revolution was driven by new evidence and better instruments, not by authority."
+   ]
+  },
+  {
+   "id": "lab-astronomy.l02",
+   "title": "Kepler's Laws of Planetary Motion",
+   "body": [
+    "Johannes Kepler found three laws that describe how planets move. The first says that each planet moves on an ellipse with the Sun at one focus, not at the centre. The second says that a line joining the planet to the Sun sweeps out equal areas in equal times, so a planet moves fastest when it is closest to the Sun and slowest when it is farthest. The third links size to timing: the square of the orbital period is proportional to the cube of the semi-major axis, T squared proportional to a cubed.",
+    "For objects orbiting the Sun, using years for T and astronomical units (AU) for a, the law becomes simply T squared = a cubed. Earth has a = 1 AU and T = 1 year. A planet with a = 4 AU has T squared = 64, so T = 8 years.",
+    "In full form, T squared = 4 pi squared a cubed / (G M), where M is the mass of the central body. This means that if you can measure the period and size of an orbit, you can weigh what is being orbited, such as a planet from its moon or a star from its planet. Kepler described the pattern; Newton later explained why it exists."
+   ]
+  },
+  {
+   "id": "lab-astronomy.l03",
+   "title": "Gravitation and Escape",
+   "body": [
+    "Isaac Newton showed that the force that pulls an apple down also keeps the Moon in orbit. His law of universal gravitation says F = G m1 m2 / r squared. The force grows with both masses and falls off with the square of the distance between their centres. Double the distance and the force drops to a quarter; triple it and the force drops to one ninth.",
+    "An orbit is a continuous fall. A satellite is moving sideways so fast that as it falls toward Earth, the surface curves away beneath it. This explains Kepler's laws and why astronauts in orbit feel weightless: they are in free fall, not beyond gravity's reach.",
+    "To escape a body entirely, you need escape velocity, v = sqrt(2 G M / r). From Earth's surface this is about 11.2 kilometres per second. It depends on the mass and radius of the body but not on the mass of the rocket. Gravity theory made astonishing predictions: in 1846 Le Verrier and Adams computed where an unseen planet had to be to explain irregularities in Uranus's motion, and Neptune was found within a degree of the predicted position."
+   ]
+  },
+  {
+   "id": "lab-astronomy.l04",
+   "title": "Spectroscopy and Starlight",
+   "body": [
+    "Spectroscopy spreads light into its component wavelengths, like a prism. A hot dense object produces a smooth, continuous glow. Gases between us and the source remove particular wavelengths, leaving dark absorption lines, and hot thin gases emit bright lines. Each element has its own pattern of lines, so a star's spectrum acts like a barcode for what it contains.",
+    "Spectra also reveal temperature. Wien's displacement law says the wavelength where a body radiates most strongly shifts inversely with temperature: lambda max = b / T. Hot stars peak in blue and look blue-white, while cool stars peak in red and look red. Annie Jump Cannon classified hundreds of thousands of stars and arranged the spectral types in the sequence O, B, A, F, G, K, M, from hottest to coolest.",
+    "In 1925 Cecilia Payne used ionization theory to interpret these spectra and showed that stars are mostly hydrogen and helium. Many astronomers had assumed stars had a composition like Earth's. Different spectral lines were mostly telling about temperature, not abundance, and once that was corrected, hydrogen turned out to dominate the visible universe."
+   ]
+  },
+  {
+   "id": "lab-astronomy.l05",
+   "title": "Luminosity: Size and Temperature",
+   "body": [
+    "Luminosity is the total energy a star radiates each second. The Stefan-Boltzmann law gives it as L = 4 pi R squared sigma T to the fourth power. Two things matter: the surface area, which grows as the square of the radius R, and the temperature T, which has a very strong effect because it is raised to the fourth power.",
+    "Try some comparisons. A star with the same temperature but three times the radius has 3 squared, or 9 times, the luminosity. A star the same size but twice as hot has 2 to the fourth power, or 16 times, the luminosity. A star can therefore be very bright either by being very hot or by being enormous, as red giants are.",
+    "This is why the Hertzsprung-Russell diagram, which plots luminosity against temperature, is so powerful. Most stars fall along a diagonal band called the main sequence, where stars fuse hydrogen in their cores. Giants lie above it, being cool but huge, and white dwarfs lie below it, being hot but tiny. A star's position on the diagram tells you a lot about its size and its stage of life."
+   ]
+  },
+  {
+   "id": "lab-astronomy.l06",
+   "title": "How Stars Live: Stellar Evolution",
+   "body": [
+    "Stars form when a cold cloud of gas and dust becomes massive enough that gravity overcomes its internal pressure and it collapses. This critical mass depends on the cloud's temperature and density and is called the Jeans mass. As the core heats up, hydrogen fusion ignites and the star joins the main sequence.",
+    "On the main sequence, a star is in balance: the outward pressure from fusion energy holds up against the inward pull of gravity. This stage takes most of its life. Mass decides everything. Massive stars burn fuel far faster, so they are brighter but live much shorter lives than small, dim stars, which can last far longer than the current age of the universe.",
+    "When hydrogen in the core runs out, the balance shifts. A low-mass star like the Sun swells into a red giant, then sheds its outer layers and leaves behind a hot, dense core called a white dwarf. A star above about eight solar masses fuses heavier and heavier elements, then its core collapses in a supernova, leaving behind a neutron star or a black hole. Observations such as SN 1987A let astronomers check this story in a nearby star's death."
+   ]
+  },
+  {
+   "id": "lab-astronomy.l07",
+   "title": "Stellar Remnants and the Chandrasekhar Limit",
+   "body": [
+    "A white dwarf is the exposed core of a dead low-mass star, about the size of Earth but with a mass comparable to the Sun. It no longer fuses anything. What holds it up is electron degeneracy pressure, a quantum effect that resists squeezing electrons into the same state. This pressure cannot grow without limit.",
+    "In 1930 Subrahmanyan Chandrasekhar used relativity and quantum theory to show that a white dwarf heavier than about 1.44 solar masses cannot support itself and must collapse further. This is the Chandrasekhar limit. A white dwarf in a binary system can gain material from a companion until it approaches this limit, and then it explodes as a Type Ia supernova. Because the trigger mass is nearly the same each time, these explosions have similar brightness, which is why they serve as standard candles.",
+    "Cores that collapse beyond the limit become neutron stars, which are only about 20 kilometres wide yet more massive than the Sun. Fritz Zwicky proposed in the 1930s that supernovae form neutron stars. In 1967 Jocelyn Bell Burnell spotted precisely repeating radio pulses, which turned out to be rapidly spinning neutron stars called pulsars."
+   ]
+  },
+  {
+   "id": "lab-astronomy.l08",
+   "title": "Black Holes",
+   "body": [
+    "If a mass is squeezed into a small enough region, its escape velocity exceeds the speed of light. The critical radius is the Schwarzschild radius, r = 2 G M / c squared. Within it lies the event horizon, a one-way boundary from which nothing, not even light, can return. The radius is proportional to mass, and it is about 3 kilometres for each solar mass. So a black hole of 10 solar masses has an event horizon about 30 kilometres in radius.",
+    "Black holes form when massive stellar cores collapse. Supermassive black holes, with millions to billions of solar masses, sit at the centres of galaxies. Since they emit no light themselves, astronomers detect them by their effects. Stars orbit the Galactic Centre so fast that they reveal a black hole called Sagittarius A* of about four million solar masses, a result recognised by the 2020 Nobel Prize. Gas falling in becomes extremely hot and radiates strongly. In 2015 LIGO detected gravitational waves from two black holes merging, and in 2019 the Event Horizon Telescope imaged the shadow of the black hole in galaxy M87.",
+    "A black hole is not a cosmic vacuum cleaner; at a distance, it attracts like any object of the same mass."
+   ]
+  },
+  {
+   "id": "lab-astronomy.l09",
+   "title": "Parallax: The First Rung",
+   "body": [
+    "Hold a finger at arm's length and look at it with one eye and then the other: it seems to jump against the background. Astronomers use the same effect. As Earth orbits the Sun, nearby stars appear to shift slightly against far more distant stars. Half of the total shift over six months is the parallax angle p.",
+    "The distance follows from simple geometry. If p is measured in arcseconds, then d = 1 / p, where d is in parsecs. A star with a parallax of 0.25 arcseconds is 4 parsecs away, or about 13 light-years, since one parsec is about 3.26 light-years. The smaller the angle, the farther the star.",
+    "The method is wonderfully direct because it needs no assumptions about the star's brightness. Its limit is how small an angle we can measure. From the ground, atmospheric blurring restricts it to relatively nearby stars. ESA's Gaia spacecraft has measured parallaxes for nearly two billion stars with great precision, and these measurements anchor the cosmic distance ladder. Parallax is the first rung, and the methods that reach further are calibrated against it."
+   ]
+  },
+  {
+   "id": "lab-astronomy.l10",
+   "title": "Standard Candles and the Distance Ladder",
+   "body": [
+    "Apparent brightness falls with distance, so if we know how bright an object truly is, we can work out how far away it is. Such objects are called standard candles. Astronomers describe brightness with magnitudes: apparent magnitude m is how bright it looks, and absolute magnitude M is how bright it truly is. The distance modulus connects them: m - M = 5 log10(d) - 5, with d in parsecs. If m - M = 5, then log10(d) = 2, so d = 100 parsecs.",
+    "The key discovery came from Henrietta Leavitt, who found that Cepheid variable stars pulse with a period that is related to their true luminosity. Measure how long a Cepheid takes to pulse and you know how bright it really is. Edwin Hubble used Cepheids in the Andromeda Nebula in the 1920s to show that it lies far beyond our Galaxy.",
+    "The cosmic distance ladder links methods. Parallax calibrates Cepheids, Cepheids calibrate Type Ia supernovae, and supernovae reach across billions of light-years. Each rung rests on the one below, so any error in the lower rungs carries upward through the whole ladder."
+   ]
+  },
+  {
+   "id": "lab-astronomy.l11",
+   "title": "Redshift and Hubble's Law",
+   "body": [
+    "When a source moves away from us, its light is stretched to longer wavelengths, shifting toward the red. Redshift is defined as z = (observed wavelength - emitted wavelength) / emitted wavelength. A spectral line emitted at 600 nanometres and observed at 660 nanometres has z = 60 / 600 = 0.1.",
+    "Early in the 1910s, Vesto Slipher found that most spiral nebulae showed redshifts. In 1927 Georges Lemaitre derived from general relativity that the universe should be expanding, and in 1929 Edwin Hubble showed observationally that galaxies recede at speeds proportional to their distance: v = H0 d. With H0 near 70 kilometres per second per megaparsec, a galaxy 100 megaparsecs away recedes at about 7000 kilometres per second.",
+    "For distant galaxies the redshift is mostly not an ordinary Doppler shift. Space itself is expanding, stretching the light as it travels. This is why the law does not place us at a special centre: from any galaxy, the others appear to move away, like dots on the surface of an inflating balloon. Redshift therefore serves as a probe of distance and of cosmic history."
+   ]
+  },
+  {
+   "id": "lab-astronomy.l12",
+   "title": "The Cosmic Microwave Background",
+   "body": [
+    "Run the expansion backwards and the universe was once much hotter and denser, which is the Big Bang model. Early on it was an opaque plasma of electrons and nuclei, with light trapped by constant scattering. About 380,000 years after the Big Bang it cooled enough for electrons and nuclei to combine into atoms, and light could finally travel freely.",
+    "That light is still arriving from every direction. Stretched by billions of years of expansion, it now falls in the microwave range and corresponds to a nearly perfect blackbody at about 2.7 kelvin. Arno Penzias and Robert Wilson detected it in 1965 as an unexplained hiss in their antenna, and received the 1978 Nobel Prize. COBE confirmed its thermal spectrum in 1992, and the Planck satellite later mapped it precisely.",
+    "The radiation is very smooth, but it has tiny temperature ripples. These mark slightly denser regions that later grew into galaxies. By analysing the pattern, cosmologists determine the age, composition and geometry of the universe, including its age of about 13.8 billion years. The microwave background is the oldest light we can observe."
+   ]
+  },
+  {
+   "id": "lab-astronomy.l13",
+   "title": "Dark Matter and Dark Energy",
+   "body": [
+    "In 1933 Fritz Zwicky studied the Coma Cluster and found that its galaxies move too fast to be held together by their visible mass alone. In the 1970s Vera Rubin measured the speeds of stars in spiral galaxies. If most mass were in the bright centre, stars farther out should orbit more slowly, as planets do in the solar system. Instead their speeds stayed high far from the centre. This suggests that galaxies are surrounded by large amounts of unseen matter, called dark matter. The Bullet Cluster, where gravity from the mass is displaced from the visible gas after a collision, gave further direct evidence.",
+    "Separately, observations of distant supernovae show that cosmic expansion is accelerating. The unknown cause is called dark energy. Together, dark matter and dark energy make up about 95 percent of the universe's contents, with dark matter roughly five times more abundant than ordinary matter.",
+    "Neither has been identified directly. The names reflect our ignorance rather than a known substance. They remain among the deepest open problems in physics."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "lab-astronomy.l01.q1",
+   "lessonId": "lab-astronomy.l01",
+   "kind": "mcq",
+   "prompt": "Who published a Sun-centred model of the solar system in 1543?",
+   "choices": [
+    "Nicolaus Copernicus",
+    "Ptolemy",
+    "Tycho Brahe",
+    "Isaac Newton"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l01.q2",
+   "lessonId": "lab-astronomy.l01",
+   "kind": "mcq",
+   "prompt": "What did Galileo discover orbiting Jupiter in 1610?",
+   "choices": [
+    "Rings",
+    "A second Sun",
+    "Thousands of asteroids",
+    "Four large moons"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l01.q3",
+   "lessonId": "lab-astronomy.l01",
+   "kind": "mcq",
+   "prompt": "Why were Tycho Brahe's observations so important for Kepler?",
+   "choices": [
+    "They used a telescope to see Mars up close",
+    "They proved the Earth is at the centre",
+    "They were the most precise naked-eye positions available, which allowed Kepler to detect elliptical orbits",
+    "They were collected by Kepler himself"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l01.q4",
+   "lessonId": "lab-astronomy.l01",
+   "kind": "mcq",
+   "prompt": "Galileo observed the phases of Venus. Why did this support a Sun-centred model?",
+   "choices": [
+    "It showed Venus is larger than Earth",
+    "It showed Venus orbits the Sun, which is incompatible with a simple Earth-centred arrangement",
+    "It showed Venus has an atmosphere",
+    "It showed Venus has moons"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l02.q1",
+   "lessonId": "lab-astronomy.l02",
+   "kind": "mcq",
+   "prompt": "What shape are planetary orbits according to Kepler's first law?",
+   "choices": [
+    "Perfect circles",
+    "Ellipses with the Sun at one focus",
+    "Spirals",
+    "Squares"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l02.q2",
+   "lessonId": "lab-astronomy.l02",
+   "kind": "mcq",
+   "prompt": "According to Kepler's second law, when does a planet move fastest?",
+   "choices": [
+    "When it is closest to the Sun",
+    "When it is farthest from the Sun",
+    "At the same speed all the time",
+    "When it is at the midpoint of its orbit"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l02.q3",
+   "lessonId": "lab-astronomy.l02",
+   "kind": "mcq",
+   "prompt": "An object orbits the Sun with a semi-major axis of 9 AU. Using T squared = a cubed (years and AU), what is its period?",
+   "choices": [
+    "3 years",
+    "9 years",
+    "81 years",
+    "27 years"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l02.q4",
+   "lessonId": "lab-astronomy.l02",
+   "kind": "mcq",
+   "prompt": "Why can Kepler's third law be used to measure the mass of a planet?",
+   "choices": [
+    "Planets with more mass have longer days",
+    "The law only works for the Sun",
+    "The period and orbit size of a moon depend on the planet's mass",
+    "Mass is proportional to the period of its own rotation"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l03.q1",
+   "lessonId": "lab-astronomy.l03",
+   "kind": "mcq",
+   "prompt": "How does gravitational force change if the distance between two masses is doubled?",
+   "choices": [
+    "It halves",
+    "It doubles",
+    "It becomes one quarter",
+    "It becomes four times as large"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l03.q2",
+   "lessonId": "lab-astronomy.l03",
+   "kind": "mcq",
+   "prompt": "About what speed is the escape velocity from Earth's surface?",
+   "choices": [
+    "1.12 km/s",
+    "11.2 km/s",
+    "112 km/s",
+    "300 000 km/s"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l03.q3",
+   "lessonId": "lab-astronomy.l03",
+   "kind": "mcq",
+   "prompt": "A spacecraft moves from a distance of 1 unit to 3 units from a planet's centre. By what factor does the gravitational force on it change?",
+   "choices": [
+    "It becomes one ninth",
+    "It becomes one third",
+    "It triples",
+    "It becomes nine times as large"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l03.q4",
+   "lessonId": "lab-astronomy.l03",
+   "kind": "mcq",
+   "prompt": "Astronauts on the International Space Station float. What is the best explanation?",
+   "choices": [
+    "There is no gravity at that height",
+    "Space has no air pressure",
+    "The station spins to cancel gravity",
+    "They and the station are in continuous free fall around Earth"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l04.q1",
+   "lessonId": "lab-astronomy.l04",
+   "kind": "mcq",
+   "prompt": "What does a dark absorption line in a star's spectrum indicate?",
+   "choices": [
+    "A broken telescope",
+    "A gap in the star",
+    "A planet passing in front",
+    "A gas that absorbs light at that specific wavelength"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l04.q2",
+   "lessonId": "lab-astronomy.l04",
+   "kind": "mcq",
+   "prompt": "Which spectral type is the hottest in the sequence O, B, A, F, G, K, M?",
+   "choices": [
+    "M",
+    "G",
+    "O",
+    "K"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l04.q3",
+   "lessonId": "lab-astronomy.l04",
+   "kind": "mcq",
+   "prompt": "Star X peaks in the blue part of the spectrum, and star Y peaks in the red. Which is hotter?",
+   "choices": [
+    "Star Y",
+    "Star X",
+    "They have the same temperature",
+    "It depends only on distance"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l04.q4",
+   "lessonId": "lab-astronomy.l04",
+   "kind": "mcq",
+   "prompt": "Before Cecilia Payne, many astronomers thought stars were made of the same stuff as Earth. What did she show?",
+   "choices": [
+    "Stars are mostly hydrogen and helium; spectral line differences mainly reflect temperature",
+    "Stars are mostly iron",
+    "Stars have no hydrogen",
+    "Stars are hollow"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l05.q1",
+   "lessonId": "lab-astronomy.l05",
+   "kind": "mcq",
+   "prompt": "What is luminosity?",
+   "choices": [
+    "The total energy a star radiates each second",
+    "How bright a star looks from Earth",
+    "The distance to a star",
+    "A star's mass"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l05.q2",
+   "lessonId": "lab-astronomy.l05",
+   "kind": "mcq",
+   "prompt": "Where do most stars lie on the Hertzsprung-Russell diagram?",
+   "choices": [
+    "In the lower left corner only",
+    "In a single point",
+    "Along a horizontal line at the top",
+    "Along the main sequence"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l05.q3",
+   "lessonId": "lab-astronomy.l05",
+   "kind": "mcq",
+   "prompt": "Star B has the same radius as star A but twice the surface temperature. How many times more luminous is B?",
+   "choices": [
+    "2 times",
+    "4 times",
+    "16 times",
+    "8 times"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l05.q4",
+   "lessonId": "lab-astronomy.l05",
+   "kind": "mcq",
+   "prompt": "A red giant is cooler than the Sun but much more luminous. How is that possible?",
+   "choices": [
+    "It must be much closer to us",
+    "Its radius is so large that its surface area more than makes up for the lower temperature",
+    "Cool stars always shine brighter",
+    "The Stefan-Boltzmann law does not apply to giants"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l06.q1",
+   "lessonId": "lab-astronomy.l06",
+   "kind": "mcq",
+   "prompt": "What process powers a main-sequence star?",
+   "choices": [
+    "Burning of gas in oxygen",
+    "Hydrogen fusion into helium in its core",
+    "Radioactive decay of uranium",
+    "Gravity pulling in meteorites"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l06.q2",
+   "lessonId": "lab-astronomy.l06",
+   "kind": "mcq",
+   "prompt": "Which property of a star mostly determines its life story?",
+   "choices": [
+    "Its mass",
+    "Its colour at birth",
+    "Its distance from Earth",
+    "Its name"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l06.q3",
+   "lessonId": "lab-astronomy.l06",
+   "kind": "mcq",
+   "prompt": "What is the most likely final state of a star like the Sun?",
+   "choices": [
+    "A black hole",
+    "A neutron star",
+    "A supernova remnant only",
+    "A white dwarf"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l06.q4",
+   "lessonId": "lab-astronomy.l06",
+   "kind": "mcq",
+   "prompt": "Massive stars have far more fuel than small stars, yet they live much shorter lives. Why?",
+   "choices": [
+    "They contain no hydrogen",
+    "They are cooler",
+    "They burn their fuel much faster because of higher core pressure and temperature",
+    "Fusion does not occur in them"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l07.q1",
+   "lessonId": "lab-astronomy.l07",
+   "kind": "mcq",
+   "prompt": "What is the approximate value of the Chandrasekhar limit?",
+   "choices": [
+    "14.4 solar masses",
+    "0.144 solar masses",
+    "1.44 solar masses",
+    "144 solar masses"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l07.q2",
+   "lessonId": "lab-astronomy.l07",
+   "kind": "mcq",
+   "prompt": "Who discovered pulsars in 1967?",
+   "choices": [
+    "Vera Rubin",
+    "Jocelyn Bell Burnell",
+    "Annie Jump Cannon",
+    "Karl Jansky"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l07.q3",
+   "lessonId": "lab-astronomy.l07",
+   "kind": "mcq",
+   "prompt": "A white dwarf of 1.2 solar masses is slowly gaining mass from a companion. What will happen when it nears 1.44 solar masses?",
+   "choices": [
+    "It will explode as a Type Ia supernova",
+    "It will become a main-sequence star",
+    "It will turn into a red giant",
+    "Nothing, because the limit does not matter"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l07.q4",
+   "lessonId": "lab-astronomy.l07",
+   "kind": "mcq",
+   "prompt": "Why are Type Ia supernovae useful as standard candles?",
+   "choices": [
+    "They are always nearby",
+    "They happen at regular times",
+    "They are fainter than other stars",
+    "They are triggered at nearly the same mass, so their peak brightness is similar"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l08.q1",
+   "lessonId": "lab-astronomy.l08",
+   "kind": "mcq",
+   "prompt": "What is the event horizon of a black hole?",
+   "choices": [
+    "The surface of a solid star",
+    "The ring of dust around it",
+    "The point where gravity becomes zero",
+    "The boundary beyond which nothing, not even light, can escape"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l08.q2",
+   "lessonId": "lab-astronomy.l08",
+   "kind": "mcq",
+   "prompt": "What did the Event Horizon Telescope image in 2019?",
+   "choices": [
+    "A newborn star",
+    "Our Sun's corona",
+    "The shadow of the black hole in galaxy M87",
+    "A supernova explosion"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l08.q3",
+   "lessonId": "lab-astronomy.l08",
+   "kind": "mcq",
+   "prompt": "The Schwarzschild radius is about 3 km per solar mass. About what is it for a 10 solar-mass black hole?",
+   "choices": [
+    "3 km",
+    "30 km",
+    "0.3 km",
+    "300 km"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l08.q4",
+   "lessonId": "lab-astronomy.l08",
+   "kind": "mcq",
+   "prompt": "If the Sun were suddenly replaced by a black hole of the same mass, what would happen to Earth's orbit?",
+   "choices": [
+    "It would continue unchanged, since gravity at a distance depends only on mass",
+    "Earth would be pulled in immediately",
+    "Earth would fly away",
+    "The orbit would shrink to a quarter"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l09.q1",
+   "lessonId": "lab-astronomy.l09",
+   "kind": "mcq",
+   "prompt": "What causes the apparent shift of a nearby star against distant stars over a year?",
+   "choices": [
+    "Earth's motion around the Sun",
+    "The star's rotation",
+    "The Moon's motion",
+    "Changes in the star's brightness"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l09.q2",
+   "lessonId": "lab-astronomy.l09",
+   "kind": "mcq",
+   "prompt": "Which spacecraft measured precise parallaxes for nearly two billion stars?",
+   "choices": [
+    "Voyager",
+    "Planck",
+    "Cassini",
+    "Gaia"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l09.q3",
+   "lessonId": "lab-astronomy.l09",
+   "kind": "mcq",
+   "prompt": "A star has a parallax of 0.25 arcseconds. How far away is it?",
+   "choices": [
+    "0.25 parsecs",
+    "2.5 parsecs",
+    "4 parsecs",
+    "40 parsecs"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l09.q4",
+   "lessonId": "lab-astronomy.l09",
+   "kind": "mcq",
+   "prompt": "Why does parallax work only for relatively nearby stars?",
+   "choices": [
+    "Distant stars do not exist",
+    "The angles for distant stars become too small to measure accurately",
+    "Distant stars do not shine",
+    "Earth stops moving at large distances"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l10.q1",
+   "lessonId": "lab-astronomy.l10",
+   "kind": "mcq",
+   "prompt": "What did Henrietta Leavitt discover about Cepheid variable stars?",
+   "choices": [
+    "They all have the same colour",
+    "Their pulsation period is related to their true luminosity",
+    "They are the closest stars to Earth",
+    "They do not pulsate"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l10.q2",
+   "lessonId": "lab-astronomy.l10",
+   "kind": "mcq",
+   "prompt": "What is the correct order of rungs on the distance ladder, from nearest to farthest?",
+   "choices": [
+    "Parallax, Cepheids, Type Ia supernovae",
+    "Type Ia supernovae, Cepheids, parallax",
+    "Cepheids, parallax, supernovae",
+    "Parallax, supernovae, Cepheids"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l10.q3",
+   "lessonId": "lab-astronomy.l10",
+   "kind": "mcq",
+   "prompt": "A star has m - M = 5. Using m - M = 5 log10(d) - 5, what is its distance?",
+   "choices": [
+    "10 parsecs",
+    "50 parsecs",
+    "1000 parsecs",
+    "100 parsecs"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l10.q4",
+   "lessonId": "lab-astronomy.l10",
+   "kind": "mcq",
+   "prompt": "Why is an error in the parallax measurements a problem for distances to far galaxies?",
+   "choices": [
+    "Parallax is used to measure galaxies directly",
+    "Galaxies are too bright to measure",
+    "Each rung is calibrated by the one below it, so errors carry upward",
+    "Errors only affect nearby stars"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l11.q1",
+   "lessonId": "lab-astronomy.l11",
+   "kind": "mcq",
+   "prompt": "What does a redshift in a galaxy's spectrum indicate?",
+   "choices": [
+    "The galaxy is cooling",
+    "The galaxy is approaching us",
+    "Its light has been stretched to longer wavelengths, as the galaxy recedes",
+    "The galaxy contains only red stars"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l11.q2",
+   "lessonId": "lab-astronomy.l11",
+   "kind": "mcq",
+   "prompt": "What does Hubble's law state?",
+   "choices": [
+    "Brighter galaxies are always closer",
+    "Recession speed is proportional to distance",
+    "Galaxies orbit the Milky Way",
+    "All galaxies move at the same speed"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l11.q3",
+   "lessonId": "lab-astronomy.l11",
+   "kind": "mcq",
+   "prompt": "With H0 = 70 km/s per megaparsec, how fast does a galaxy 200 megaparsecs away recede?",
+   "choices": [
+    "14 000 km/s",
+    "3500 km/s",
+    "7000 km/s",
+    "140 000 km/s"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l11.q4",
+   "lessonId": "lab-astronomy.l11",
+   "kind": "mcq",
+   "prompt": "Astronomers in a distant galaxy would also see other galaxies receding. What does this suggest?",
+   "choices": [
+    "We are at the exact centre of the universe",
+    "Only the Milky Way is unusual",
+    "Galaxies are exploding",
+    "Expansion has no special centre; every observer sees the same pattern"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l12.q1",
+   "lessonId": "lab-astronomy.l12",
+   "kind": "mcq",
+   "prompt": "About how old was the universe when the cosmic microwave background light was released?",
+   "choices": [
+    "About 380 million years",
+    "About 3.8 billion years",
+    "About 380 years",
+    "About 380 000 years"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l12.q2",
+   "lessonId": "lab-astronomy.l12",
+   "kind": "mcq",
+   "prompt": "Who detected the cosmic microwave background in 1965?",
+   "choices": [
+    "Hubble and Lemaitre",
+    "Rubin and Zwicky",
+    "Penzias and Wilson",
+    "Jansky and Bell"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l12.q3",
+   "lessonId": "lab-astronomy.l12",
+   "kind": "mcq",
+   "prompt": "Why is the CMB found in the microwave range today rather than visible light?",
+   "choices": [
+    "It is made by microwave ovens",
+    "Expansion of the universe has stretched its wavelengths",
+    "The light was always microwaves",
+    "Cold dust absorbs the visible light"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l12.q4",
+   "lessonId": "lab-astronomy.l12",
+   "kind": "mcq",
+   "prompt": "Why are the tiny ripples in the CMB temperature important?",
+   "choices": [
+    "They mark slightly denser regions that later grew into galaxies",
+    "They are errors in the instruments",
+    "They show that the CMB comes from the Sun",
+    "They show the universe is perfectly uniform"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l13.q1",
+   "lessonId": "lab-astronomy.l13",
+   "kind": "mcq",
+   "prompt": "Whose measurements of galaxy rotation curves provided strong evidence for dark matter?",
+   "choices": [
+    "Vera Rubin",
+    "Edwin Hubble",
+    "Carl Sagan",
+    "Johannes Kepler"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l13.q2",
+   "lessonId": "lab-astronomy.l13",
+   "kind": "mcq",
+   "prompt": "What is dark energy thought to do?",
+   "choices": [
+    "Hold galaxies together",
+    "Power stars",
+    "Absorb all light",
+    "Drive the accelerating expansion of the universe"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l13.q3",
+   "lessonId": "lab-astronomy.l13",
+   "kind": "mcq",
+   "prompt": "Dark matter and dark energy together make up about what fraction of the universe's contents?",
+   "choices": [
+    "5 percent",
+    "25 percent",
+    "95 percent",
+    "50 percent"
+   ]
+  },
+  {
+   "id": "lab-astronomy.l13.q4",
+   "lessonId": "lab-astronomy.l13",
+   "kind": "mcq",
+   "prompt": "In the Bullet Cluster, the gravitational mass is displaced from the visible gas. What does this indicate?",
+   "choices": [
+    "The cluster has no dark matter",
+    "Most of the mass is in a component that does not interact like ordinary gas",
+    "Gravity does not work in clusters",
+    "The gas has escaped the universe"
+   ]
+  }
+ ]
+}

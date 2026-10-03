@@ -7,16 +7,18 @@
 // engine components are lazy-loaded so they never weigh down the player bundle.
 
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
-import { VisualizerMode, type VisualizationConfig } from './plajahPixels/types';
+import { VisualizerMode, type VisualizationConfig, isStudioMode } from './plajahPixels/types';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
 
 const ButterchurnLayer = React.lazy(() => import('./plajahPixels/components/ButterchurnLayer'));
 const ShaderLayer = React.lazy(() => import('./plajahPixels/components/ShaderLayer'));
 const AudioVisualizer = React.lazy(() => import('./plajahPixels/components/AudioVisualizer'));
+const StudioStage = React.lazy(() => import('./plajahPixels/components/StudioStage'));
 const FluxStage = React.lazy(() => import('./plajahPixels/components/FluxStage'));
+const TypoStage = React.lazy(() => import('./ChoraTypoVisualizer'));
 
-export type FxEngine = 'MILKDROP' | 'SHADER' | 'GENERATOR' | 'FLUX';
+export type FxEngine = 'MILKDROP' | 'SHADER' | 'GENERATOR' | 'FLUX' | 'TYPO';
 
 /**
  * Frames per second the Pixels engines should target on this device. 0 = uncapped.
@@ -95,6 +97,12 @@ export const FLUX_MODES: { name: string; mode: VisualizerMode }[] = [
   { name: 'Porcelain Tide', mode: VisualizerMode.PorcelainTide },
   { name: 'Velvet Bloom', mode: VisualizerMode.VelvetBloom },
   { name: 'Prism Archive', mode: VisualizerMode.PrismArchive },
+  { name: 'Deco Geometry Morph', mode: VisualizerMode.DecoMorph },
+  { name: 'Egyptian Temple', mode: VisualizerMode.EgyptTemple },
+  { name: 'Venetian Maiolica', mode: VisualizerMode.VenetianMaiolica },
+  { name: 'Hellenic Marble', mode: VisualizerMode.HellenicMarble },
+  { name: 'Japanese Ink', mode: VisualizerMode.JapaneseInk },
+  { name: 'African Bogolan', mode: VisualizerMode.AfricanBogolan },
 ];
 
 // ── Generator presets — every Plajah Pixels scene, chrome stripped ──
@@ -126,12 +134,29 @@ export async function loadMilkdropNames(): Promise<string[]> {
   return _milkdropNames;
 }
 
+// ── Kinetic Typographic Sacred Geometry presets ──
+const TYPO_MODES: { name: string; preset: import('./ChoraTypoVisualizer').TypoVolumePreset }[] = [
+  { name: 'Obsidian & Neon', preset: 'SPHERE' },
+  { name: 'Glass Lattice', preset: 'CUBIC_GLASS' },
+  { name: 'Constructivist Sun', preset: 'SUNBURST' },
+  { name: 'Lyric Helix', preset: 'DNA_HELIX' },
+  { name: 'Contour Field', preset: 'TOPOGRAPHY' },
+  { name: 'Type Gear', preset: 'GEAR' },
+  { name: 'Chaos Drain', preset: 'VORTEX' },
+  { name: 'Letter Skyline', preset: 'SKYLINE' },
+  { name: 'Word Wings', preset: 'BUTTERFLY' },
+  { name: 'Tide Lines', preset: 'OCEAN_WAVES' },
+  { name: 'Bauhaus Shatter', preset: 'SHATTER' },
+  { name: 'Letter Maze', preset: 'MAZE' },
+];
+
 // Preset-list metadata the selector uses to label. MilkDrops is loaded async (above).
 export const FX_ENGINE_PRESETS: Record<FxEngine, string[]> = {
   MILKDROP: [], // filled at runtime via loadMilkdropNames()
   SHADER: [],   // filled at runtime via loadSignatureShaders()
   GENERATOR: GEN_MODES.map(g => g.name),
   FLUX: FLUX_MODES.map(f => f.name),
+  TYPO: TYPO_MODES.map(t => t.name),
 };
 
 /** `names` supplies the runtime list for the async engines (MilkDrops, Shaders); the
@@ -147,8 +172,8 @@ const BASE_CONFIG: VisualizationConfig = {
   gpuGenerators: false, unifyOverlays: false, workerCompositor: false,
   gradeBrightness: 1, gradeContrast: 1, gradeSaturation: 1, gradeGamma: 1,
   colorPalette: ['#FF00CC', '#3333FF', '#00CCFF', '#FFFFFF'],
-  smoothingTimeConstant: 0.8, minDecibels: -90, maxDecibels: -10, fftSize: 2048,
-  sensitivity: 1.5, glowIntensity: 15, speed: 1.0,
+  smoothingTimeConstant: 0.62, minDecibels: -85, maxDecibels: -15, fftSize: 2048,
+  sensitivity: 1.85, glowIntensity: 15, speed: 1.0,
   enableBlur: true, blurStrength: 0.8, blendMode: 'screen',
   backgroundOpacity: 1.0, backgroundPulseIntensity: 0.5,
   enableBackgroundRotation: false, backgroundRotationInterval: 4,
@@ -237,13 +262,21 @@ export default function FxStageVisualizers({
     <Suspense fallback={<Loading />}>
       {engine === 'MILKDROP' && <ButterchurnLayer analyser={analyser} presetIndex={presetIndex} fpsCap={fps} renderScale={renderScale} />}
       {engine === 'SHADER' && (shader
-        ? <ShaderLayer key={shader.name} analyser={analyser} source={shader.source} startTimeMs={startTimeMs} params={shader.params} fpsCap={fps} renderScale={renderScale} />
+        ? <ShaderLayer analyser={analyser} source={shader.source} startTimeMs={startTimeMs} params={shader.params} fpsCap={fps} renderScale={renderScale} />
         : <Loading />)}
       {engine === 'GENERATOR' && (
-        <AudioVisualizer analyser={analyser} config={genConfig} isPlaying={isPlaying} hasBackground={false} renderScale={renderScale} />
+        isStudioMode(genConfig.mode)
+          ? <StudioStage analyser={analyser} config={genConfig} isPlaying={isPlaying} />
+          : <AudioVisualizer analyser={analyser} config={genConfig} isPlaying={isPlaying} hasBackground={false} renderScale={renderScale} />
       )}
       {engine === 'FLUX' && (
         <FluxStage analyser={analyser} config={fluxConfig} isPlaying={isPlaying} />
+      )}
+      {engine === 'TYPO' && (
+        <TypoStage
+          preset={TYPO_MODES[((presetIndex % TYPO_MODES.length) + TYPO_MODES.length) % TYPO_MODES.length].preset}
+          analyser={analyser} isPlaying={isPlaying} fpsCap={fps} renderScale={renderScale}
+        />
       )}
     </Suspense>
   );

@@ -143,6 +143,23 @@ export async function recomputeOrgStaffUids(orgId: string): Promise<void> {
   } catch { /* non-fatal: HQ access falls back to owners/admins until the next staff change */ }
 }
 
+/**
+ * Elevate: deterministic membership marker orgMemberIndex/{orgId_uid}. Firestore rules cannot query
+ * memberships by random id, so thread-comment rules key on this marker (ACTIVE members only, plus
+ * the ministry ids they belong to for DEPARTMENT threads). Derived from orgMemberships — best-effort.
+ * Call after ANY membership create/accept/remove/role-or-ministry change (exported for elevateService).
+ */
+export async function syncMemberIndex(orgId: string, uid: string): Promise<void> {
+  try {
+    const snap = await getDocs(query(collection(db, 'orgMemberships'), where('orgId', '==', orgId), where('userId', '==', uid)));
+    const active = snap.docs.map(d => d.data() as OrgMembership).filter(m => m.status === 'ACTIVE');
+    const ref = doc(db, 'orgMemberIndex', `${orgId}_${uid}`);
+    if (!active.length) { await deleteDoc(ref).catch(() => {}); return; }
+    const ministryIds = Array.from(new Set(active.flatMap(m => (m.ministryRoles || []).map(r => r.ministryId))));
+    await setDoc(ref, { orgId, userId: uid, ministryIds, updatedAt: Date.now() });
+  } catch { /* non-fatal: member falls back to following the org to comment */ }
+}
+
 /** Resolve the parent org id for a membership doc (staff functions that only carry a membershipId). */
 async function orgIdOfMembership(membershipId: string): Promise<string | undefined> {
   try { return (await getDoc(doc(db, 'orgMemberships', membershipId))).data()?.orgId as string | undefined; }
@@ -166,6 +183,7 @@ export async function joinOrganization(orgId: string, opts?: { role?: OrgRole; t
     joinedAt: now,
   };
   await setDoc(ref, stripUndefined(membership));
+  if (membership.status === 'ACTIVE') await syncMemberIndex(orgId, membership.userId);
   return membership;
 }
 
@@ -187,13 +205,16 @@ export async function addOrgMember(orgId: string, member: { userId: string; disp
   };
   await setDoc(ref, stripUndefined(m));
   await recomputeOrgStaffUids(orgId);
+  await syncMemberIndex(orgId, m.userId);
   return m;
 }
 
 export async function removeOrgMember(membershipId: string): Promise<void> {
-  const orgId = await orgIdOfMembership(membershipId);
+  const prev = (await getDoc(doc(db, 'orgMemberships', membershipId)).catch(() => null))?.data();
+  const orgId = prev?.orgId as string | undefined;
   await deleteDoc(doc(db, 'orgMemberships', membershipId));
   if (orgId) await recomputeOrgStaffUids(orgId);
+  if (orgId && prev?.userId) await syncMemberIndex(orgId, prev.userId);
 }
 
 /** Grant/revoke edit rights by putting a member's uid in (or out of) org.admins. */
@@ -293,6 +314,10 @@ export async function acceptOrgMember(membershipId: string, role?: OrgRole): Pro
   await updateDoc(doc(db, 'orgMemberships', membershipId), stripUndefined({ status: 'ACTIVE', acceptedAt: Date.now(), role }));
   const orgId = await orgIdOfMembership(membershipId);
   if (orgId) await recomputeOrgStaffUids(orgId);
+  if (orgId) {
+    const uid = (await getDoc(doc(db, 'orgMemberships', membershipId)).catch(() => null))?.data()?.userId as string | undefined;
+    if (uid) await syncMemberIndex(orgId, uid);
+  }
 }
 
 /** Owner/admin declines a PENDING applicant (removes the request). */
@@ -345,8 +370,11 @@ export async function submitChurchPrayer(orgId: string, request: string, isPriva
   return ref.id;
 }
 
-export function listenToChurchPrayers(orgId: string, callback: (prayers: ChurchPrayer[]) => void) {
-  const q = query(collection(db, 'churchPrayers'), where('orgId', '==', orgId), limit(100));
+/** `canSeePrivate` = pastor / minister / prayer warrior / admin. Everyone else only queries the public wall (rules enforce this). */
+export function listenToChurchPrayers(orgId: string, callback: (prayers: ChurchPrayer[]) => void, canSeePrivate = true) {
+  const q = canSeePrivate
+    ? query(collection(db, 'churchPrayers'), where('orgId', '==', orgId), limit(100))
+    : query(collection(db, 'churchPrayers'), where('orgId', '==', orgId), where('isPrivate', '==', false), limit(100));
   return onSnapshot(q,
     snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChurchPrayer)).sort((a, b) => b.timestamp - a.timestamp)),
     err => console.warn('[church] prayers listener:', err.message),
@@ -451,5 +479,16 @@ export async function migrateLegacyBrands(): Promise<Organization[]> {
     }).catch(() => null);
     if (org) created.push(org);
   }
+  // Link the account to its first migrated brand org (account <-> org stay in sync) unless already linked.
+  try {
+    const uid = auth.currentUser?.uid;
+    if (uid && created[0]) {
+      const snap = await getDoc(doc(db, 'users', uid));
+      if (!(snap.data() as any)?.linkedOrgId) {
+        await updateDoc(doc(db, 'users', uid), { linkedOrgId: created[0].id });
+        await updateOrganization(created[0].id, { accountUid: uid });
+      }
+    }
+  } catch { /* non-fatal */ }
   return created;
 }

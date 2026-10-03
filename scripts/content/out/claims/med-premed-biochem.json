@@ -1,0 +1,1139 @@
+{
+ "courseId": "med-premed-biochem",
+ "label": "Biochemistry for Medicine",
+ "lessons": [
+  {
+   "id": "med-premed-biochem.l01",
+   "title": "Amino Acids, Charge and Isoelectric Point",
+   "body": [
+    "Each standard amino acid has a central alpha carbon bonded to an amino group, a carboxyl group, a hydrogen and a variable side chain. At physiological pH the carboxyl is deprotonated and the amino group is protonated, so the molecule is a zwitterion with no net charge. Except for glycine, whose side chain is hydrogen, the alpha carbon is a stereocentre, and mammalian proteins contain the L form.",
+    "Side chains sort the amino acids into classes. Nonpolar aliphatic: glycine, alanine, valine, leucine, isoleucine, methionine and proline (proline is a ring that bends the backbone). Aromatic: phenylalanine, tyrosine and tryptophan. Polar uncharged: serine, threonine, cysteine, asparagine and glutamine. Acidic: aspartate and glutamate. Basic: lysine, arginine and histidine. Approximate side-chain pKa values are aspartate 3.9, glutamate 4.3, histidine 6.0, cysteine 8.3, tyrosine 10.1, lysine 10.5 and arginine 12.5. Cysteine thiols can oxidise to form disulfide bonds. Nine are classically listed as essential in humans because the body cannot make them: histidine, isoleucine, leucine, lysine, methionine, phenylalanine, threonine, tryptophan and valine.",
+    "Worked example: glycine has pKa values of about 2.3 (carboxyl) and 9.6 (amino). Below pH 2.3 it is mostly cationic, between the two it is the neutral zwitterion, and above 9.6 it is anionic. The isoelectric point pI, the pH of zero net charge, is the average of the two pKa values that flank the neutral form: (2.3 + 9.6) / 2 = 5.95. For an acidic amino acid such as aspartate average the two acidic pKa values, giving about (2.0 + 3.9) / 2 = 2.9. For lysine average the two basic values, about 9.7. At a pH above its pI a molecule carries net negative charge and moves toward the anode in electrophoresis; below its pI it moves toward the cathode. Buffering is best within one unit of a pKa, which is why histidine, with a pKa near 6, is a common catalytic acid and base in enzymes at neutral pH.",
+    "Medical link: phenylalanine hydroxylase converts phenylalanine to tyrosine, and its deficiency causes phenylketonuria. The accumulated phenylalanine harms the developing brain unless it is restricted in the diet, which is why newborn screening exists, and tyrosine becomes conditionally essential."
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l02",
+   "title": "Protein Structure, Folding and Misfolding",
+   "body": [
+    "Primary structure is the sequence of amino acids joined by peptide bonds, read from the N-terminus to the C-terminus. The peptide bond is planar because of resonance, so the backbone flexes only about the phi and psi angles. Secondary structure is local, held by hydrogen bonds between backbone groups: the alpha helix has 3.6 residues per turn, with each carbonyl bonding to the NH four residues ahead, while beta sheets form between strands. Proline disrupts helices, and glycine allows tight turns. Tertiary structure is the overall fold, stabilised mostly by the hydrophobic effect that buries nonpolar side chains in a core, plus hydrogen bonds, salt bridges and disulfide bonds. Quaternary structure is the assembly of several chains, as in haemoglobin (four subunits).",
+    "Christian Anfinsen showed with ribonuclease that the sequence alone can specify the fold: urea and a reducing agent unfolded the protein, and removing them let it refold to activity. In cells, chaperones such as heat shock proteins prevent aggregation while chains fold. Denaturation by heat, pH extremes, urea or detergents disrupts non-covalent forces but leaves peptide bonds intact.",
+    "Collagen shows how structure explains disease. Its repeating Gly-X-Y sequence lets three left-handed chains twist into a right-handed triple helix, with glycine fitting at the crowded centre. Proline and lysine residues are hydroxylated by enzymes that need ascorbic acid (vitamin C) as a cofactor, and without it the helix is unstable, leading to scurvy with bleeding gums and poor wound healing. Substitution of the central glycine by a larger residue disrupts the helix in osteogenesis imperfecta, and Ehlers-Danlos syndromes involve defective collagen processing.",
+    "Misfolding diseases: prion diseases such as Creutzfeldt-Jakob disease arise when the normal alpha-helix-rich cellular prion protein is converted into a beta-sheet-rich, protease-resistant isoform that induces further conversion. Amyloid deposits, which are fibrillar beta-sheet aggregates, are found in Alzheimer disease (beta-amyloid) and in systemic amyloidosis. Proteins that are misfolded may also be tagged with ubiquitin for degradation by the proteasome.",
+    "An important trap is to say that denaturation breaks peptide bonds. It does not. Another is to assume that disulfide bonds are the main driving force for folding, when the hydrophobic effect is the dominant one."
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l03",
+   "title": "Enzymes and Michaelis-Menten Kinetics",
+   "body": [
+    "Enzymes are catalysts, mostly proteins, that lower the activation energy by binding and stabilising the transition state. They do not change delta G or the equilibrium constant. The active site binds substrate with specificity, and induced fit describes the conformational adjustment on binding. Many enzymes need cofactors: metal ions, or organic coenzymes such as NAD+ and the vitamin-derived thiamine pyrophosphate. Enzymes are named by function, and are often regulated by covalent modification (phosphorylation), allosteric effectors, or activation of inactive precursors (zymogens).",
+    "For a simple one-substrate reaction the Michaelis-Menten equation is v = Vmax [S] / (Km + [S]). Vmax is the maximum rate at saturating substrate, and Vmax = kcat x [E]total. Km is the substrate concentration at which v = Vmax / 2, and it loosely reflects affinity: a lower Km means tighter apparent binding. The ratio kcat / Km measures catalytic efficiency.",
+    "Worked example: Vmax = 100 umol/min and Km = 2 mM. At [S] = 2 mM, v = 100 x 2 / 4 = 50 umol/min. At [S] = 6 mM, v = 100 x 6 / 8 = 75 umol/min. At very high [S] the curve flattens toward 100. In the Lineweaver-Burk double-reciprocal plot, 1/v = (Km / Vmax)(1/[S]) + 1/Vmax, the y-intercept is 1/Vmax, the x-intercept is -1/Km and the slope is Km / Vmax.",
+    "Reversible inhibitors differ. A competitive inhibitor resembles the substrate and binds the active site: apparent Km rises, Vmax is unchanged, and excess substrate overcomes it. In the plot the lines cross on the y-axis. If the inhibitor doubles apparent Km to 4 mM, at 6 mM substrate v = 100 x 6 / 10 = 60. A noncompetitive inhibitor binds elsewhere on the enzyme or enzyme-substrate complex without blocking substrate binding, lowering Vmax with unchanged Km, and the lines cross on the x-axis. An uncompetitive inhibitor binds only the enzyme-substrate complex and lowers both Vmax and Km, giving parallel lines. Irreversible inhibitors form covalent bonds: aspirin acetylates cyclooxygenase.",
+    "Clinical examples: statins compete with HMG-CoA at HMG-CoA reductase, and methotrexate competitively inhibits dihydrofolate reductase. Ethanol is a better substrate for alcohol dehydrogenase than methanol or ethylene glycol, which is one reason ethanol was used as an antidote. Sulfonamides compete with para-aminobenzoic acid in bacterial folate synthesis."
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l04",
+   "title": "Haemoglobin, Cooperativity and Oxygen Transport",
+   "body": [
+    "Myoglobin is a single-chain haem protein in muscle with a hyperbolic oxygen-binding curve and a high affinity: its P50 (the partial pressure giving half saturation) is about 1 mmHg. Adult haemoglobin A is a tetramer of two alpha and two beta chains, each with a haem group, and its curve is sigmoidal with a P50 near 26 mmHg. Cooperativity means that binding of oxygen to one subunit raises the affinity of the others. In the tense (T) state the affinity is low, and oxygen binding shifts the tetramer toward the relaxed (R) state. This lets haemoglobin load oxygen in the lungs and unload it in tissues over a narrow pressure range, which myoglobin could not do.",
+    "The curve shifts right (lower affinity, easier unloading) with higher CO2, lower pH (the Bohr effect), higher temperature and higher 2,3-bisphosphoglycerate (2,3-BPG), made in red cells by a side-branch of glycolysis, which binds the central cavity of the deoxy form. Exercising muscle therefore receives more oxygen. Chronic hypoxia, as at altitude, raises 2,3-BPG. Fetal haemoglobin (alpha2 gamma2) binds 2,3-BPG less strongly, so it has higher affinity and takes oxygen from maternal blood across the placenta. Stored blood loses 2,3-BPG, which temporarily raises affinity.",
+    "Carbon monoxide binds haem iron with an affinity roughly 200 times that of oxygen and also left-shifts the curve, impairing release of the oxygen that is still carried. It is dangerous because standard two-wavelength pulse oximetry cannot distinguish carboxyhaemoglobin from oxyhaemoglobin, so the reading can look normal while tissue oxygen delivery is reduced. In methaemoglobinaemia the haem iron is oxidised to Fe3+ and cannot bind oxygen. Cyanide, by contrast, inhibits cytochrome oxidase in mitochondria rather than haemoglobin.",
+    "Worked comparison: at tissue PO2 of 40 mmHg haemoglobin is only about 75% saturated, but at lung PO2 near 100 mmHg it is about 97% saturated, so roughly a fifth of the oxygen is delivered per pass at rest. A hyperbolic curve like myoglobin would deliver far less over the same range.",
+    "Sickle cell disease results from a single substitution (glutamate to valine at position 6 of the beta chain). The hydrophobic valine creates a sticky patch that lets deoxygenated HbS polymerise into fibres, distorting red cells. Thalassaemias are quantitative defects in globin chain production, not an altered amino acid."
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l05",
+   "title": "Membranes and Transport",
+   "body": [
+    "Biological membranes are bilayers of amphipathic lipids (phospholipids, glycolipids and cholesterol) with embedded and peripheral proteins, described by the fluid mosaic model. Phospholipids have hydrophilic heads facing water and hydrophobic tails forming the core, which blocks charged and large polar molecules. Fluidity rises with unsaturated fatty acids, whose kinks prevent tight packing, and falls with longer saturated chains. Cholesterol buffers fluidity, stiffening the bilayer near body temperature and preventing tight packing at low temperature. Lipid rafts are cholesterol and sphingolipid-rich microdomains. Phosphatidylserine normally faces the inner leaflet, and its appearance on the outer surface is an apoptosis signal.",
+    "Transport comes in classes. Small nonpolar molecules (oxygen, CO2, steroid hormones) diffuse directly. Channels and carriers perform facilitated diffusion downhill without energy. Glucose enters cells by GLUT transporters with tissue-specific properties: GLUT1 in red cells and the blood-brain barrier, GLUT2 (high capacity, low affinity) in liver and pancreatic beta cells, GLUT4 in muscle and fat and moved to the surface by insulin, and GLUT5 for fructose. Primary active transport uses ATP directly, as in the Na+/K+-ATPase, which exports three sodium ions and imports two potassium ions per ATP and maintains the gradients that drive secondary active transport, cell volume and the resting potential. Secondary transport uses an existing gradient: SGLT cotransporters bring glucose in with sodium in the intestine and renal proximal tubule, and SGLT2 inhibitors block renal glucose reabsorption.",
+    "The free energy of moving a solute uphill is delta G = RT ln(c2 / c1) + zF delta psi. Worked example: concentrating an uncharged solute tenfold costs RT ln 10 = 8.314 x 310 x 2.303 = about 5.9 kJ/mol, a small fraction of one ATP's hydrolysis energy.",
+    "Clinical links: digoxin inhibits the Na+/K+-ATPase in cardiac muscle. The rise in intracellular sodium reduces extrusion of calcium by the Na+/Ca2+ exchanger, so intracellular calcium increases and contractility improves. Digoxin competes with potassium at the pump, so hypokalaemia increases its binding and toxicity. In cystic fibrosis, the CFTR chloride channel is defective; the common F508del mutation causes misfolding and degradation of the protein, so chloride and water secretion are reduced and mucus becomes thick. Osmosis follows solute movement, so water flows toward the compartment with greater osmolarity.",
+    "A frequent trap is to say the pump moves two sodium for three potassium. The ratio is three sodium out and two potassium in, which makes it electrogenic."
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l06",
+   "title": "Bioenergetics and Metabolic Regulation",
+   "body": [
+    "Cells run on free energy captured in ATP. The standard free energy of ATP hydrolysis to ADP and phosphate at pH 7 is about -30.5 kJ/mol, and the physiological value is more negative because ATP is held far above equilibrium relative to ADP and phosphate. Compounds can be ranked by phosphoryl transfer potential: phosphoenolpyruvate (about -62 kJ/mol), 1,3-bisphosphoglycerate (about -49), creatine phosphate (about -43), ATP (about -30) and glucose 6-phosphate (about -14). A compound higher on the list can phosphorylate ADP, and ATP can phosphorylate compounds lower on the list. Substrate-level phosphorylation is direct transfer from such a molecule to ADP, as in glycolysis and the TCA cycle, whereas oxidative phosphorylation uses a proton gradient.",
+    "Coupled reaction example: hexokinase phosphorylates glucose. Glucose plus phosphate to glucose 6-phosphate has delta G degrees prime of about +13.8 kJ/mol, and ATP hydrolysis is -30.5, so the coupled reaction has delta G degrees prime = 13.8 - 30.5 = -16.7 kJ/mol, making it effectively irreversible. Creatine phosphate acts as a rapid buffer for ATP in muscle through creatine kinase.",
+    "Oxidation of fuels transfers electrons to NAD+ and FAD. NADH, produced mainly in catabolic pathways, feeds the respiratory chain, whereas NADPH, made in the pentose phosphate pathway, supplies reducing power for biosynthesis, antioxidant defence and the respiratory burst. The cell keeps the NAD+ to NADH ratio high and the NADP+ to NADPH ratio low, favouring oxidation by the first and reductions by the second.",
+    "Metabolism is regulated by controlling committed or irreversible steps through allosteric effectors, covalent modification and enzyme amount. In the fed state, insulin promotes glucose uptake, glycogen and fat synthesis. In fasting, glucagon and epinephrine, acting through cyclic AMP, promote glycogenolysis, gluconeogenesis and lipolysis. Energy status is sensed by AMP-activated protein kinase, which switches on catabolism and off anabolism when AMP rises.",
+    "Tissues differ in fuel preference. Red blood cells have no mitochondria and depend on glycolysis, so they produce lactate even when oxygen is plentiful. The brain normally uses glucose and adapts to use ketone bodies in prolonged fasting. Heart muscle prefers fatty acids. Liver is the main site of gluconeogenesis, and muscle lacks glucose 6-phosphatase, so it cannot release free glucose to blood.",
+    "The complete aerobic oxidation of one glucose yields roughly 30 to 32 ATP by current estimates, replacing older textbook figures of 36 to 38."
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l07",
+   "title": "Glycolysis and Gluconeogenesis",
+   "body": [
+    "Glycolysis converts glucose to two pyruvate in the cytosol. In the investment phase, hexokinase (or liver glucokinase) phosphorylates glucose to glucose 6-phosphate, which phosphoglucose isomerase converts to fructose 6-phosphate, and phosphofructokinase-1 (PFK-1) makes fructose 1,6-bisphosphate using a second ATP. Aldolase splits that into two three-carbon pieces, which triose phosphate isomerase interconverts. In the payoff phase, glyceraldehyde 3-phosphate dehydrogenase makes NADH and 1,3-bisphosphoglycerate, phosphoglycerate kinase makes ATP by substrate-level phosphorylation, and after mutase and enolase steps pyruvate kinase makes a second ATP from phosphoenolpyruvate. Net per glucose: two ATP (four made, two spent), two NADH and two pyruvate.",
+    "Control is at the three irreversible steps. Hexokinase is inhibited by its product, glucose 6-phosphate. Glucokinase has a high Km, so it responds to blood glucose after meals and is not inhibited by glucose 6-phosphate. PFK-1 is the main control point: it is activated by AMP and by fructose 2,6-bisphosphate (insulin raises it) and inhibited by ATP and citrate. Pyruvate kinase is activated by fructose 1,6-bisphosphate (feed-forward) and, in liver, switched off by glucagon-driven phosphorylation.",
+    "Without oxygen, or in cells without mitochondria, lactate dehydrogenase regenerates NAD+ by reducing pyruvate to lactate, so glycolysis can continue. Rapidly growing tumours often take up glucose and produce lactate even in oxygen (the Warburg effect), which is the basis of FDG-PET imaging. Arsenate can replace phosphate in the glyceraldehyde 3-phosphate step and uncouple ATP production there.",
+    "Gluconeogenesis makes glucose from lactate, glycerol and glucogenic amino acids, mainly in liver and kidney. It reverses glycolysis by bypassing the three irreversible steps: pyruvate carboxylase (needs biotin; in mitochondria) and phosphoenolpyruvate carboxykinase turn pyruvate into phosphoenolpyruvate, fructose 1,6-bisphosphatase reverses PFK-1, and glucose 6-phosphatase reverses hexokinase. In the Cori cycle muscle lactate goes to the liver for conversion to glucose. Even-chain fatty acids cannot make net glucose, though glycerol can.",
+    "Pyruvate kinase deficiency, an autosomal recessive condition, causes chronic haemolytic anaemia. Red cells depend on glycolysis for ATP, and low ATP impairs the membrane pumps, so the cells become rigid and are cleared by the spleen. Metabolites upstream of the block, including 2,3-bisphosphoglycerate, accumulate, which shifts the oxygen curve to the right."
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l08",
+   "title": "Pyruvate Dehydrogenase and the TCA Cycle",
+   "body": [
+    "In mitochondria, the pyruvate dehydrogenase (PDH) complex turns pyruvate into acetyl-CoA, CO2 and NADH. It has three enzymes and five cofactors: E1 uses thiamine pyrophosphate (from vitamin B1), E2 uses lipoic acid and coenzyme A (from pantothenate), and E3 uses FAD (from riboflavin) and NAD+ (from niacin). The reaction is irreversible, which is why fatty acids cannot be converted to glucose. PDH is inhibited by its products, acetyl-CoA and NADH, and by ATP, through PDH kinase, and activated by pyruvate, ADP, and calcium through phosphatase. Thiamine deficiency, seen in alcohol use disorder, impairs PDH and alpha-ketoglutarate dehydrogenase, so pyruvate and lactate accumulate, producing beriberi or Wernicke encephalopathy with confusion, ophthalmoplegia and ataxia. Thiamine must be given before glucose, because a glucose load increases demand on the thiamine-dependent enzymes and can worsen the deficit. Arsenite inhibits lipoic acid. Inherited PDH deficiency causes lactic acidosis and neurological injury, and a high-fat, low-carbohydrate diet is used to provide an alternative acetyl-CoA source.",
+    "The TCA (Krebs) cycle begins when citrate synthase joins acetyl-CoA (two carbons) to oxaloacetate (four) to form citrate (six). Aconitase isomerises citrate to isocitrate; isocitrate dehydrogenase makes the first NADH and CO2; alpha-ketoglutarate dehydrogenase, a complex similar to PDH using the same cofactors, makes the second NADH and CO2; succinyl-CoA synthetase makes GTP (or ATP); succinate dehydrogenase makes FADH2 and is also complex II of the respiratory chain; fumarase adds water; and malate dehydrogenase regenerates oxaloacetate with a third NADH. Per acetyl-CoA: 3 NADH, 1 FADH2, 1 GTP and 2 CO2. The two carbons that leave as CO2 are not the ones that entered in that turn.",
+    "Isocitrate dehydrogenase is the major regulated step, activated by ADP and calcium and inhibited by ATP and NADH, as is alpha-ketoglutarate dehydrogenase, so the cycle slows when energy is plentiful. Fluoroacetate is converted to fluorocitrate, which inhibits aconitase. Intermediates leave for biosynthesis, such as citrate for fatty acids and oxaloacetate for gluconeogenesis, so they must be replenished (anaplerosis), for example by pyruvate carboxylase.",
+    "Worked ATP count per glucose using about 2.5 ATP per NADH and 1.5 per FADH2: glycolysis 2 ATP plus 2 NADH (3 to 5 ATP depending on the shuttle), PDH 2 NADH (5), the TCA cycle 6 NADH (15), 2 FADH2 (3) and 2 GTP (2). The total is about 30 to 32 ATP."
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l09",
+   "title": "The Respiratory Chain and Oxidative Phosphorylation",
+   "body": [
+    "The inner mitochondrial membrane holds four electron-transport complexes. Complex I (NADH dehydrogenase) passes electrons from NADH to ubiquinone (coenzyme Q) and pumps four protons. Complex II (succinate dehydrogenase) passes electrons from succinate, via FADH2, to ubiquinone without pumping protons. Complex III (cytochrome bc1) passes electrons from ubiquinol to cytochrome c and pumps four protons through the Q cycle. Complex IV (cytochrome c oxidase) transfers electrons to oxygen, forming water, and pumps two protons per pair of electrons. The Mitchellian chemiosmotic mechanism couples this flow to ATP synthase (complex V): protons returning through the F0 channel rotate the machine and drive F1 to make ATP.",
+    "Worked yield: NADH drives proton pumping at complexes I, III and IV, giving 4 + 4 + 2 = 10 protons. ATP synthase needs about four protons per ATP (three for the synthase and one to bring in phosphate), so 10 / 4 = 2.5 ATP per NADH. FADH2 enters at complex II and skips complex I, so 4 + 2 = 6 protons gives 1.5 ATP. Cytosolic NADH from glycolysis reaches the matrix by shuttles: the malate-aspartate shuttle preserves NADH (2.5 ATP each), while the glycerol 3-phosphate shuttle delivers FADH2 (1.5 ATP each), which explains why the glucose total is stated as 30 to 32 ATP.",
+    "The cell links respiration to demand through respiratory control: without ADP the proton gradient builds up and electron transport slows. Inhibitors act at defined sites. Rotenone and amobarbital block complex I, antimycin A blocks complex III, and cyanide, azide and carbon monoxide block complex IV. Oligomycin blocks the ATP synthase, so the gradient builds and electron flow stops. Uncouplers dissipate the gradient, so oxygen use rises while ATP production falls and energy is released as heat. Examples are 2,4-dinitrophenol, high-dose salicylate (which explains the fever and sweating of aspirin overdose) and the physiological uncoupling protein thermogenin (UCP1) in brown fat.",
+    "Cyanide poisoning stops cytochrome oxidase, so tissues cannot use oxygen despite normal arterial oxygen content. Anaerobic glycolysis raises lactate, and the venous blood remains oxygen-rich. Hydroxocobalamin, which binds cyanide, is a standard antidote.",
+    "Mitochondrial DNA encodes 13 respiratory chain proteins, plus tRNAs and rRNAs, and is inherited maternally, with variable severity because of heteroplasmy. Examples include Leber hereditary optic neuropathy and MELAS. Tissues with high energy demand, such as brain, muscle and heart, are most affected."
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l10",
+   "title": "Glycogen, the Pentose Phosphate Pathway and Sugar Disorders",
+   "body": [
+    "Glycogen is a branched polymer of glucose stored in liver and muscle. Synthesis uses UDP-glucose, glycogen synthase (rate-limiting; links alpha-1,4 bonds) and a branching enzyme (alpha-1,6 branches). Breakdown uses glycogen phosphorylase, which needs pyridoxal phosphate and releases glucose 1-phosphate, and a debranching enzyme. Liver glycogen maintains blood glucose through glucose 6-phosphatase, while muscle glycogen fuels muscle itself. Glucagon and epinephrine raise cyclic AMP, activate protein kinase A, phosphorylate and activate phosphorylase kinase and then phosphorylase, and inactivate glycogen synthase. Insulin does the opposite by dephosphorylating them.",
+    "Glycogen storage diseases follow the enzymes. Type I (von Gierke, glucose 6-phosphatase deficiency): severe fasting hypoglycaemia, hepatomegaly, lactic acidosis, hyperuricaemia and hyperlipidaemia, because glucose 6-phosphate cannot be released and is driven into glycolysis and other pathways. Type II (Pompe, lysosomal acid alpha-glucosidase): cardiomegaly and hypotonia. Type III (Cori, debranching enzyme): milder hypoglycaemia with abnormal glycogen having short outer branches. Type V (McArdle, muscle phosphorylase): exercise cramps, myoglobinuria and no rise in lactate during ischaemic exercise.",
+    "The pentose phosphate pathway has an oxidative phase and a non-oxidative phase. Glucose 6-phosphate dehydrogenase (G6PD), the rate-limiting enzyme, makes NADPH and leads to ribulose 5-phosphate, and the non-oxidative phase (using transketolase, which needs thiamine) interconverts sugars to give ribose 5-phosphate for nucleotides. NADPH keeps glutathione reduced, protecting red cells from oxidants. In X-linked G6PD deficiency, oxidative stress such as infection, fava beans or drugs like primaquine causes haemolytic anaemia with Heinz bodies and bite cells. The trait offers some protection against malaria.",
+    "Galactose is converted to glucose 1-phosphate. Galactokinase deficiency causes cataracts. Classic galactosaemia, from deficiency of galactose-1-phosphate uridyltransferase, causes poor feeding, jaundice, hepatomegaly, cataracts and susceptibility to Escherichia coli sepsis in newborns, and is managed by removing lactose and galactose. Fructose is phosphorylated by fructokinase in liver. Hereditary fructose intolerance (aldolase B deficiency) causes hypoglycaemia and liver injury after fructose or sucrose, since fructose 1-phosphate accumulates and traps phosphate. Essential fructosuria (fructokinase deficiency) is benign. Excess glucose in the lens or nerve is converted by aldose reductase to sorbitol, contributing to diabetic cataracts and neuropathy."
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l11",
+   "title": "Fatty Acid Oxidation, Ketones, Lipid Synthesis and Cholesterol",
+   "body": [
+    "In fasting, hormone-sensitive lipase in adipose tissue releases fatty acids and glycerol, stimulated by glucagon and epinephrine and suppressed by insulin. Fatty acids are activated to acyl-CoA in the cytosol and carried into mitochondria by the carnitine shuttle, where carnitine palmitoyltransferase I (CPT-I) is the regulated step, inhibited by malonyl-CoA from fatty acid synthesis. Each round of beta-oxidation has four steps (acyl-CoA dehydrogenase making FADH2, enoyl-CoA hydratase, 3-hydroxyacyl-CoA dehydrogenase making NADH, and thiolase) and removes an acetyl-CoA. Worked yield for palmitate (16 carbons): 7 cycles give 7 FADH2 and 7 NADH, and 8 acetyl-CoA. Using 1.5 and 2.5 ATP respectively, 7 x 4 = 28, plus 8 x 10 = 80 from the acetyl-CoA, makes 108, minus 2 for activation, so net about 106 ATP. Odd-chain fatty acids end in propionyl-CoA, converted via methylmalonyl-CoA to succinyl-CoA (needs biotin and vitamin B12). Medium-chain acyl-CoA dehydrogenase deficiency causes hypoketotic hypoglycaemia during fasting, with dicarboxylic aciduria.",
+    "When acetyl-CoA exceeds the TCA cycle capacity, as in prolonged fasting or uncontrolled type 1 diabetes, the liver makes ketone bodies (acetoacetate, 3-hydroxybutyrate, and acetone) through HMG-CoA synthase. Brain, muscle and heart use them as fuel, but the liver cannot because it lacks the transferase that activates acetoacetate. Excess ketoacids cause diabetic ketoacidosis.",
+    "Fatty acid synthesis occurs in the cytosol. Citrate leaves mitochondria, is cleaved to acetyl-CoA, and acetyl-CoA carboxylase (biotin; activated by citrate and insulin; the rate-limiting step) makes malonyl-CoA. Fatty acid synthase then builds palmitate using NADPH, and the fed state therefore favours synthesis while suppressing oxidation.",
+    "Cholesterol is made from acetyl-CoA, with HMG-CoA reductase as the committed step. Statins competitively inhibit it, which lowers hepatic cholesterol, upregulates LDL receptors and lowers plasma LDL. Lipoproteins move lipid: chylomicrons carry dietary triglyceride and are hydrolysed by lipoprotein lipase (activated by apoC-II), VLDL carries hepatic triglyceride, becomes IDL and then LDL, which delivers cholesterol through LDL receptors, and HDL returns cholesterol to the liver. Familial hypercholesterolaemia results from LDL receptor defects, causing very high LDL, tendon xanthomas and early coronary disease."
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l12",
+   "title": "Amino Acid Nitrogen, the Urea Cycle and Inborn Errors",
+   "body": [
+    "Amino acid nitrogen is removed mainly by transamination: an aminotransferase (using pyridoxal phosphate, from vitamin B6) moves the amino group to alpha-ketoglutarate, making glutamate. ALT (alanine aminotransferase) and AST (aspartate aminotransferase) are the clinically familiar examples, and raised levels signal liver cell damage. Glutamate dehydrogenase releases ammonia in the liver. Because free ammonia is toxic to the brain, it is carried to the liver as alanine (from muscle) and glutamine (from many tissues), where the carbon skeletons enter glucose or ketone pathways and the nitrogen is converted to urea.",
+    "The urea cycle takes place in liver, partly in the mitochondria and partly in the cytosol. Carbamoyl phosphate synthetase I (CPS I; rate-limiting, activated by N-acetylglutamate) combines ammonia and bicarbonate. Ornithine transcarbamylase (OTC) makes citrulline, which leaves the mitochondria. Argininosuccinate synthetase adds aspartate, the lyase releases fumarate, and arginase cleaves arginine to urea and ornithine. Making one urea costs four high-energy phosphate bonds. The carbamoyl phosphate of CPS I is distinct from the cytosolic carbamoyl phosphate of pyrimidine synthesis.",
+    "Hyperammonaemia produces vomiting, lethargy, cerebral oedema and coma, since ammonia is converted in brain to glutamine, which swells astrocytes, and consumes glutamate and alpha-ketoglutarate. OTC deficiency is the commonest urea cycle disorder and is X-linked. Carbamoyl phosphate spills into pyrimidine synthesis, so orotic acid is raised in urine, which distinguishes OTC deficiency from CPS I deficiency. Management includes protein restriction and ammonia scavengers such as sodium benzoate and phenylbutyrate. In hepatic encephalopathy, shunting and liver failure raise ammonia, and lactulose acidifies the colon so ammonia is trapped as ammonium and expelled in the stool.",
+    "Other disorders: phenylketonuria (phenylalanine hydroxylase or its tetrahydrobiopterin cofactor) with a mousy odour and intellectual disability if untreated. Maple syrup urine disease, a defect of branched-chain alpha-ketoacid dehydrogenase, which uses the same cofactors as PDH, causes sweet-smelling urine and neurological damage, with accumulation of leucine, isoleucine and valine. Homocystinuria (cystathionine beta-synthase deficiency, sometimes responsive to vitamin B6) causes lens dislocation, thrombosis and a marfanoid habitus. Alkaptonuria (homogentisate oxidase) causes dark urine on standing and arthritis. Glucogenic amino acids give pyruvate or TCA intermediates, while leucine and lysine are purely ketogenic."
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l13",
+   "title": "Signal Transduction: Receptors, G Proteins and Kinases",
+   "body": [
+    "Cells detect hormones and neurotransmitters through receptors, and the signal is amplified through intracellular cascades. Lipid-soluble ligands such as steroid and thyroid hormones cross the membrane and bind nuclear receptors that act as transcription factors. Water-soluble ligands bind surface receptors: G protein-coupled receptors (GPCRs), receptor tyrosine kinases (RTKs), cytokine receptors that activate JAK-STAT, and ligand-gated ion channels.",
+    "A GPCR has seven transmembrane helices and signals through a heterotrimeric G protein. On ligand binding the alpha subunit swaps GDP for GTP and dissociates. Gs activates adenylyl cyclase, raising cyclic AMP, which activates protein kinase A. Gi inhibits adenylyl cyclase. Gq activates phospholipase C, which cleaves PIP2 into IP3 (releasing calcium from the endoplasmic reticulum) and diacylglycerol (activating protein kinase C). The signal ends when the alpha subunit's intrinsic GTPase hydrolyses GTP, and phosphodiesterases degrade cyclic AMP. Caffeine and theophylline inhibit phosphodiesterase, while sildenafil inhibits PDE5, increasing cyclic GMP, which is produced when nitric oxide activates soluble guanylyl cyclase.",
+    "Toxins hit G proteins. Cholera toxin ADP-ribosylates the alpha subunit of Gs, locking it active, so cyclic AMP rises in enterocytes and drives chloride and water secretion through CFTR, producing profuse watery diarrhoea. Pertussis toxin ADP-ribosylates Gi, preventing inhibition. Beta-adrenergic receptors couple to Gs, which is why beta-agonists raise cardiac contractility and relax bronchial smooth muscle.",
+    "RTKs, such as the insulin receptor and the EGF receptor, dimerise on binding and phosphorylate each other on tyrosines. Adaptor proteins then activate Ras and the MAP kinase cascade, which promotes growth, or the PI3K-Akt pathway, which promotes survival and, for insulin, GLUT4 translocation. Ras is a small GTPase, and mutations that abolish its GTPase activity leave it permanently on, a frequent oncogenic event. Many cancers are driven by hyperactive kinases, so kinase inhibitors are targeted treatments: imatinib blocks the BCR-ABL fusion tyrosine kinase formed by the Philadelphia chromosome translocation t(9;22) in chronic myeloid leukaemia. Receptor desensitisation occurs through phosphorylation and arrestin binding.",
+    "A useful habit is to ask four questions of any pathway: what is the receptor, what is the transducer, what is the second messenger, and how does the signal end."
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l14",
+   "title": "Nucleic Acid Structure, Replication and Repair",
+   "body": [
+    "A nucleotide is a base, a pentose sugar and one or more phosphates. Purines (adenine, guanine) have two rings and pyrimidines (cytosine, thymine, uracil) have one. DNA is a double helix of two antiparallel strands joined by hydrogen bonds: A pairs with T by two bonds, and G pairs with C by three. Chargaff's rules follow: in double-stranded DNA A = T and G = C. Worked example: if 30% of the bases are A, then T is 30%, and the remaining 40% divides equally, so G = C = 20%. More G-C content means a higher melting temperature.",
+    "Replication is semiconservative. Helicase unwinds the helix at an origin and topoisomerases relieve the supercoiling ahead of the fork. Primase lays down a short RNA primer, and DNA polymerase extends it only in the 5-prime to 3-prime direction by adding nucleotides to a 3-prime hydroxyl. The leading strand is made continuously and the lagging strand in Okazaki fragments. In bacteria, DNA polymerase III is the main replicative enzyme, with 3-prime to 5-prime exonuclease proofreading, and polymerase I removes RNA primers and fills gaps. Ligase seals nicks. Telomerase, a reverse transcriptase carrying its own RNA template, extends the ends of eukaryotic chromosomes.",
+    "Drugs exploit differences. Fluoroquinolones inhibit bacterial DNA gyrase (topoisomerase II) and topoisomerase IV, while etoposide and irinotecan target human topoisomerases. Antimetabolites interfere with nucleotide supply: methotrexate blocks dihydrofolate reductase, 5-fluorouracil inhibits thymidylate synthase, and hydroxyurea inhibits ribonucleotide reductase. Purine salvage by HGPRT is lost in Lesch-Nyhan syndrome, causing uric acid overproduction, self-injurious behaviour and dystonia. Gout results from urate crystals and is treated by lowering urate production with allopurinol, which inhibits xanthine oxidase.",
+    "Repair pathways match the damage. Nucleotide excision repair removes bulky lesions such as UV-induced thymine dimers, and it is defective in xeroderma pigmentosum, with extreme sun sensitivity and skin cancers. Base excision repair removes single damaged bases such as deaminated cytosine, using a glycosylase. Mismatch repair corrects replication errors, and its loss causes Lynch syndrome (hereditary non-polyposis colorectal cancer) with microsatellite instability. Double-strand breaks are repaired by homologous recombination, which needs BRCA1 and BRCA2, or by error-prone non-homologous end joining."
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l15",
+   "title": "Transcription, RNA Processing and Translation",
+   "body": [
+    "Transcription copies one DNA strand (the template) into RNA, built 5-prime to 3-prime. In bacteria one RNA polymerase with a sigma factor starts at the promoter. In eukaryotes RNA polymerase II makes mRNA, guided by transcription factors binding promoter elements such as the TATA box, with enhancers acting at a distance. Rifampin inhibits bacterial RNA polymerase, and alpha-amanitin from the death cap mushroom inhibits eukaryotic RNA polymerase II, leading to liver failure.",
+    "Eukaryotic pre-mRNA is processed in the nucleus: a 7-methylguanosine cap is added at the 5-prime end, a poly-A tail at the 3-prime end, and introns are removed by the spliceosome, a complex of small nuclear ribonucleoproteins that recognises conserved splice sites. Splicing mutations in the globin gene cause some forms of beta-thalassaemia. Antibodies against small nuclear ribonucleoproteins (anti-Smith) are specific for systemic lupus erythematosus.",
+    "The genetic code is read in triplets (codons). It is degenerate (several codons per amino acid), unambiguous, nearly universal, and non-overlapping, with AUG as the start codon (methionine) and UAA, UAG and UGA as stops. Worked example: a template DNA strand 3-prime TACGGATTT 5-prime is transcribed to mRNA 5-prime AUGCCUAAA 3-prime, which reads Met-Pro-Lys. Point mutations are silent (same amino acid, thanks to wobble), missense (different amino acid, as in sickle cell), or nonsense (a premature stop). Insertions or deletions that are not multiples of three cause frameshifts.",
+    "Translation uses aminoacyl-tRNA synthetases to charge tRNAs, and ribosomes (80S in eukaryotes, built from 40S and 60S subunits; 70S in bacteria, built from 30S and 50S). Initiation positions the first tRNA at AUG, elongation cycles through the A, P and E sites with peptidyl transferase forming the bond, and release factors terminate at a stop codon. Antibiotics exploit bacterial differences: aminoglycosides and tetracyclines bind the 30S subunit (aminoglycosides causing misreading, tetracyclines blocking aminoacyl-tRNA entry), whereas macrolides block translocation and chloramphenicol blocks peptidyl transferase at the 50S subunit. Diphtheria toxin ADP-ribosylates eukaryotic elongation factor 2, halting host protein synthesis.",
+    "Because proteins can be modified after translation (cleavage, glycosylation, phosphorylation), the genome does not simply predict the function."
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l16",
+   "title": "Regulation of Gene Expression and Medical Genetics",
+   "body": [
+    "In bacteria genes are grouped in operons. In the lac operon, the repressor blocks transcription when lactose is absent. Allolactose, derived from lactose, binds the repressor and releases it. Even then, expression is high only when glucose is low, because low glucose raises cyclic AMP, which binds the catabolite activator protein and boosts transcription. So the operon is fully on with lactose present and glucose absent.",
+    "Eukaryotic regulation is layered. Transcription factors and enhancers control initiation. Chromatin structure matters: histone acetylation loosens chromatin and increases transcription, histone deacetylation compacts it, and methylation of cytosine at CpG islands generally silences genes. Epigenetic marks can be inherited through cell division. Imprinting, where only one parental allele is expressed, explains why deletion of the same region of chromosome 15 causes Prader-Willi syndrome when paternal and Angelman syndrome when maternal. RNA interference by microRNAs lowers translation or stability of target mRNAs.",
+    "Inherited disease reflects the type of mutation. Sickle cell disease arises from a missense change (GAG to GTG) giving valine for glutamate. Most cystic fibrosis in people of European ancestry arises from F508del, an in-frame deletion of three bases removing one phenylalanine, which causes CFTR misfolding. Trinucleotide repeat expansions underlie Huntington disease (CAG), fragile X syndrome (CGG) and others, with anticipation as repeats lengthen across generations. Many thalassaemia mutations affect splicing or promoters.",
+    "Worked Hardy-Weinberg example: if cystic fibrosis, an autosomal recessive disease, affects 1 in 2500 people, then q squared = 0.0004, so q = 0.02 and p = 0.98. The carrier frequency is 2pq = 2 x 0.98 x 0.02 = 0.039, about 1 in 25. This assumes random mating, no selection, migration or mutation and a large population.",
+    "Laboratory tools: PCR amplifies DNA with thermostable polymerase and primers, reverse-transcription PCR measures RNA, Southern blot detects DNA, Northern RNA and Western protein. Genome editing with CRISPR-Cas9 uses a guide RNA to direct a nuclease to a target. As of this writing, the first approved CRISPR-based therapy (exagamglogene autotemcel) is for sickle cell disease and transfusion-dependent beta-thalassaemia, which edits a regulatory site in blood stem cells to restore fetal haemoglobin. Treat such regulatory status as changing quickly."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-premed-biochem.l01.q1",
+   "lessonId": "med-premed-biochem.l01",
+   "kind": "mcq",
+   "prompt": "What is the isoelectric point of a molecule?",
+   "choices": [
+    "The pH at which it has the maximum buffer capacity",
+    "The pH at which it is most soluble in water",
+    "The pH at which it carries no net charge",
+    "The pH at which it is exactly half protonated"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l01.q2",
+   "lessonId": "med-premed-biochem.l01",
+   "kind": "mcq",
+   "prompt": "What is the approximate pI of glycine, with pKa values of 2.3 and 9.6?",
+   "choices": [
+    "About 7.0",
+    "About 2.3",
+    "About 11.9",
+    "About 5.95"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l01.q3",
+   "lessonId": "med-premed-biochem.l01",
+   "kind": "mcq",
+   "prompt": "Which amino acid side chain has a pKa near physiological pH and often acts as a catalytic acid and base in enzymes?",
+   "choices": [
+    "Histidine, pKa about 6",
+    "Lysine, pKa about 10.5",
+    "Aspartate, pKa about 3.9",
+    "Arginine, pKa about 12.5"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l01.q4",
+   "lessonId": "med-premed-biochem.l01",
+   "kind": "mcq",
+   "prompt": "At pH 7.4 a peptide has a pI of 9.0. In which direction does it move in an electric field?",
+   "choices": [
+    "Toward the anode because the pH is clearly above its pI",
+    "Toward the cathode because it is positively charged",
+    "Toward the anode because it carries a net negative charge",
+    "It does not move because it has exactly no net charge"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l01.q5",
+   "lessonId": "med-premed-biochem.l01",
+   "kind": "mcq",
+   "prompt": "A 7-month-old with sickle cell trait has haemoglobin electrophoresis at pH 8.6, where proteins are net negative and migrate toward the anode. How does HbS differ from HbA?",
+   "choices": [
+    "It does not migrate because valine is a basic residue that neutralises the whole protein",
+    "It migrates identically because the substitution is conservative and leaves the charge unaltered",
+    "It migrates more slowly because glutamate, which is negatively charged, is replaced by neutral valine",
+    "It migrates more quickly because valine is hydrophobic and heavier than glutamate"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l02.q1",
+   "lessonId": "med-premed-biochem.l02",
+   "kind": "mcq",
+   "prompt": "Which force is the main driver of protein folding in water?",
+   "choices": [
+    "Ionic bonds between all of the charged side chains",
+    "The hydrophobic effect that buries nonpolar side chains",
+    "Covalent disulfide bonds between cysteine side chains",
+    "The planar peptide bond between consecutive residues"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l02.q2",
+   "lessonId": "med-premed-biochem.l02",
+   "kind": "mcq",
+   "prompt": "Why does scurvy affect collagen stability?",
+   "choices": [
+    "Vitamin C is needed to hydroxylate proline and lysine residues",
+    "Vitamin C is needed to form the intrachain disulfide bonds of collagen",
+    "Vitamin C is needed to place glycine at every third residue of collagen",
+    "Vitamin C is needed to glycosylate the amino-terminal end of collagen"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l02.q3",
+   "lessonId": "med-premed-biochem.l02",
+   "kind": "mcq",
+   "prompt": "What happens to a protein when it is denatured by urea?",
+   "choices": [
+    "Peptide bonds are hydrolysed and the chain is cut into amino acids",
+    "The primary structure is rearranged into a different sequence",
+    "The chain is covalently crosslinked into a larger insoluble mass",
+    "Non-covalent structure is lost while peptide bonds remain intact"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l02.q4",
+   "lessonId": "med-premed-biochem.l02",
+   "kind": "mcq",
+   "prompt": "Which change characterises the conversion of the normal cellular prion protein to the disease form?",
+   "choices": [
+    "The addition of a nucleic acid that acts as a template",
+    "A cleavage that releases the N-terminal domain of the protein",
+    "A shift from alpha-helix-rich to beta-sheet-rich structure",
+    "A change in amino acid sequence from a point mutation in the chain"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l02.q5",
+   "lessonId": "med-premed-biochem.l02",
+   "kind": "mcq",
+   "prompt": "A 4-year-old boy has recurrent fractures, blue sclerae and a family history of similar problems, and sequencing finds a glycine-to-serine substitution in a collagen chain at a Gly-X-Y position. Which mechanism best explains the bone fragility?",
+   "choices": [
+    "The change shifts the protein into a beta-sheet that aggregates as insoluble amyloid fibres",
+    "The bulkier residue disrupts tight packing in the triple helix and weakens the collagen",
+    "The substitution blocks hydroxylation of proline because serine cannot bind the cofactor",
+    "The substitution creates a new disulfide bond that crosslinks the triple helix excessively"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l03.q1",
+   "lessonId": "med-premed-biochem.l03",
+   "kind": "mcq",
+   "prompt": "What does Km represent in the Michaelis-Menten equation?",
+   "choices": [
+    "The substrate concentration at which the rate is half of Vmax",
+    "The maximum rate of the enzyme at fully saturating substrate",
+    "The total concentration of enzyme needed for any catalysis",
+    "The equilibrium constant of the reaction that is being catalysed"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l03.q2",
+   "lessonId": "med-premed-biochem.l03",
+   "kind": "mcq",
+   "prompt": "With Vmax = 100 umol/min and Km = 2 mM, what is the velocity at [S] = 6 mM?",
+   "choices": [
+    "90 umol/min",
+    "75 umol/min",
+    "50 umol/min",
+    "60 umol/min"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l03.q3",
+   "lessonId": "med-premed-biochem.l03",
+   "kind": "mcq",
+   "prompt": "What effect does a competitive inhibitor have on the kinetic parameters?",
+   "choices": [
+    "Apparent Km and Vmax both decrease",
+    "Apparent Km decreases and Vmax is unchanged",
+    "Apparent Km increases and Vmax is unchanged",
+    "Apparent Km is unchanged and Vmax decreases"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l03.q4",
+   "lessonId": "med-premed-biochem.l03",
+   "kind": "mcq",
+   "prompt": "On a Lineweaver-Burk plot, two lines (with and without inhibitor) cross on the y-axis. What does this indicate?",
+   "choices": [
+    "Noncompetitive inhibition with a lower Vmax",
+    "Uncompetitive inhibition with parallel lines",
+    "Irreversible inhibition with a higher Km",
+    "Competitive inhibition with the same Vmax"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l03.q5",
+   "lessonId": "med-premed-biochem.l03",
+   "kind": "mcq",
+   "prompt": "A 31-year-old is brought in after drinking antifreeze containing ethylene glycol. Why might intravenous ethanol or fomepizole reduce toxicity?",
+   "choices": [
+    "They compete with ethylene glycol at alcohol dehydrogenase, slowing production of toxic metabolites",
+    "They raise the Vmax of alcohol dehydrogenase, which accelerates clearance of ethylene glycol",
+    "They bind ethylene glycol irreversibly in plasma, which prevents any access to the enzyme",
+    "They activate aldehyde dehydrogenase, which converts the toxic metabolites to a harmless product"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l04.q1",
+   "lessonId": "med-premed-biochem.l04",
+   "kind": "mcq",
+   "prompt": "Which factor shifts the haemoglobin oxygen-dissociation curve to the right?",
+   "choices": [
+    "Decreased temperature",
+    "Increased pH",
+    "Carbon monoxide binding",
+    "Increased 2,3-BPG"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l04.q2",
+   "lessonId": "med-premed-biochem.l04",
+   "kind": "mcq",
+   "prompt": "Why does fetal haemoglobin have a higher oxygen affinity than adult haemoglobin?",
+   "choices": [
+    "It contains myoglobin-like single subunits",
+    "It lacks cooperativity in oxygen binding",
+    "It binds 2,3-BPG less strongly",
+    "It has a haem group with a different metal"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l04.q3",
+   "lessonId": "med-premed-biochem.l04",
+   "kind": "mcq",
+   "prompt": "Why does a sigmoidal curve suit haemoglobin better than a hyperbolic curve for oxygen delivery?",
+   "choices": [
+    "It prevents oxygen from leaving until the tissue PO2 has fallen to zero",
+    "It loads nearly fully in lungs and unloads over a small drop in PO2 in tissues",
+    "It binds more oxygen at every pressure than any hyperbolic curve does",
+    "It makes oxygen release independent of tissue conditions such as local pH"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l04.q4",
+   "lessonId": "med-premed-biochem.l04",
+   "kind": "mcq",
+   "prompt": "What is the Bohr effect?",
+   "choices": [
+    "Lower pH and higher CO2 reduce haemoglobin affinity for oxygen",
+    "Higher pH increases the release of oxygen in the active tissues",
+    "Oxygen binding raises the production of 2,3-BPG within red cells",
+    "Carbon monoxide raises the affinity of the haem group for oxygen"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l04.q5",
+   "lessonId": "med-premed-biochem.l04",
+   "kind": "mcq",
+   "prompt": "A 40-year-old man is found confused in a garage with a running car. His pulse oximeter reads 98%, arterial PO2 is normal and he has headache and tachycardia. Which explanation fits?",
+   "choices": [
+    "Cyanide has blocked cytochrome oxidase, which leaves haemoglobin saturated while the tissues cannot use the oxygen",
+    "Methaemoglobin has formed, which raises the arterial PO2 reading and makes the pulse oximeter overestimate saturation",
+    "Haemoglobin is held in the T state, which lowers its oxygen affinity and lowers the pulse oximeter reading itself",
+    "Carboxyhaemoglobin is read as oxyhaemoglobin, and the left-shifted curve impairs release of the remaining oxygen"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l05.q1",
+   "lessonId": "med-premed-biochem.l05",
+   "kind": "mcq",
+   "prompt": "What is the stoichiometry of the Na+/K+-ATPase per cycle?",
+   "choices": [
+    "Three sodium ions in and two potassium ions out, for one ATP",
+    "One sodium ion out and one potassium ion in, for one ATP",
+    "Three sodium ions out and two potassium ions in, for one ATP",
+    "Two sodium ions out and three potassium ions in, for one ATP"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l05.q2",
+   "lessonId": "med-premed-biochem.l05",
+   "kind": "mcq",
+   "prompt": "Which GLUT transporter is insulin-dependent and found in skeletal muscle and adipose tissue?",
+   "choices": [
+    "GLUT1, which provides basal glucose uptake in red cells and brain",
+    "GLUT2, which has a high capacity in liver and pancreatic beta cells",
+    "GLUT5, which carries fructose in the small intestine and in sperm",
+    "GLUT4, which is moved to the plasma membrane after insulin signalling"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l05.q3",
+   "lessonId": "med-premed-biochem.l05",
+   "kind": "mcq",
+   "prompt": "About how much free energy is needed to concentrate an uncharged solute tenfold at 310 K?",
+   "choices": [
+    "About 5.9 kJ/mol, from RT ln 10",
+    "About 30.5 kJ/mol, the full energy of one ATP",
+    "About 0.6 kJ/mol, from RT divided by ten",
+    "About 59 kJ/mol, from ten times RT ln 10"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l05.q4",
+   "lessonId": "med-premed-biochem.l05",
+   "kind": "mcq",
+   "prompt": "Why does cholesterol help the membrane remain functional across temperature changes?",
+   "choices": [
+    "It flips from the outer to the inner leaflet to carry ions across the bilayer",
+    "It stiffens fluid membranes at body temperature and prevents tight packing in the cold",
+    "It forms covalent crosslinks between fatty acid tails at all temperatures",
+    "It replaces the proteins of the membrane, which lowers its transition temperature"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l05.q5",
+   "lessonId": "med-premed-biochem.l05",
+   "kind": "mcq",
+   "prompt": "A 72-year-old woman with heart failure takes digoxin and furosemide and presents with nausea, visual changes and arrhythmia. Serum potassium is 2.9 mmol/L. Which mechanism links her potassium level to digoxin toxicity?",
+   "choices": [
+    "Low extracellular potassium blocks the exchanger that exports calcium, which directly lowers the digoxin level",
+    "Low extracellular potassium increases digoxin binding to albumin, which prevents its action at the heart",
+    "Low extracellular potassium leaves more pump sites free for digoxin, which increases pump inhibition",
+    "Low extracellular potassium raises sodium pump activity, which increases digoxin clearance by the kidney"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l06.q1",
+   "lessonId": "med-premed-biochem.l06",
+   "kind": "mcq",
+   "prompt": "Which compound has the highest phosphoryl transfer potential among these?",
+   "choices": [
+    "Creatine phosphate",
+    "Phosphoenolpyruvate",
+    "Glucose 6-phosphate",
+    "ATP"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l06.q2",
+   "lessonId": "med-premed-biochem.l06",
+   "kind": "mcq",
+   "prompt": "Glucose + Pi to glucose 6-phosphate has delta G degrees prime of +13.8 kJ/mol. What is the delta G degrees prime when it is coupled to ATP hydrolysis (-30.5 kJ/mol)?",
+   "choices": [
+    "-16.7 kJ/mol, so the coupled reaction is favourable",
+    "+44.3 kJ/mol, so the coupled reaction is unfavourable",
+    "-44.3 kJ/mol, so the coupled reaction is very favourable",
+    "+16.7 kJ/mol, so the coupled reaction is unfavourable"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l06.q3",
+   "lessonId": "med-premed-biochem.l06",
+   "kind": "mcq",
+   "prompt": "Which tissue lacks glucose 6-phosphatase and so cannot release free glucose into the blood?",
+   "choices": [
+    "Liver",
+    "Kidney cortex",
+    "Small intestinal epithelium",
+    "Skeletal muscle"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l06.q4",
+   "lessonId": "med-premed-biochem.l06",
+   "kind": "mcq",
+   "prompt": "What is the principal role of NADPH compared with NADH?",
+   "choices": [
+    "NADPH is made mainly by the TCA cycle for glycolytic regeneration",
+    "NADPH transfers phosphate groups between ATP and creatine in muscle",
+    "NADPH provides reducing power for biosynthesis and antioxidant defence",
+    "NADPH carries electrons to the respiratory chain to make most ATP"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l06.q5",
+   "lessonId": "med-premed-biochem.l06",
+   "kind": "mcq",
+   "prompt": "A 55-year-old man has fasted for three days. Which tissue would still be dependent on glucose rather than on ketone bodies or fatty acids, and why?",
+   "choices": [
+    "Adipose tissue, because it cannot oxidise anything other than glucose at all",
+    "Red blood cells, because they have no mitochondria to oxidise other fuels",
+    "Cardiac muscle, because it lacks the enzymes needed to oxidise fatty acids",
+    "Skeletal muscle, because it cannot take up any ketone bodies from blood"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l07.q1",
+   "lessonId": "med-premed-biochem.l07",
+   "kind": "mcq",
+   "prompt": "Which enzyme is the main rate-limiting step of glycolysis?",
+   "choices": [
+    "Phosphofructokinase-1",
+    "Aldolase",
+    "Triose phosphate isomerase",
+    "Enolase"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l07.q2",
+   "lessonId": "med-premed-biochem.l07",
+   "kind": "mcq",
+   "prompt": "What is the net ATP yield from glycolysis of one glucose to two pyruvate?",
+   "choices": [
+    "Zero ATP, since the cost equals the gain",
+    "Two ATP, four made and two used",
+    "Four ATP, with none consumed",
+    "Eight ATP, including the NADH made"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l07.q3",
+   "lessonId": "med-premed-biochem.l07",
+   "kind": "mcq",
+   "prompt": "Which enzyme is NOT used to bypass an irreversible step in gluconeogenesis?",
+   "choices": [
+    "Fructose 1,6-bisphosphatase",
+    "Glucose 6-phosphatase",
+    "Phosphoglycerate kinase",
+    "Pyruvate carboxylase"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l07.q4",
+   "lessonId": "med-premed-biochem.l07",
+   "kind": "mcq",
+   "prompt": "Why does lactate dehydrogenase activity let glycolysis continue without oxygen?",
+   "choices": [
+    "It produces extra ATP by oxidative phosphorylation in the cytosol of the cell",
+    "It converts lactate to glucose by the reverse of the glycolysis pathway directly",
+    "It removes protons and so keeps the pH from changing in the working muscle",
+    "It regenerates NAD+ from NADH so glyceraldehyde 3-phosphate oxidation can continue"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l07.q5",
+   "lessonId": "med-premed-biochem.l07",
+   "kind": "mcq",
+   "prompt": "A 6-month-old infant has pallor, jaundice and splenomegaly. Blood film shows haemolysis, and enzyme assay shows deficient pyruvate kinase. Why do the red cells fail?",
+   "choices": [
+    "Reduced glycolytic ATP impairs membrane pumps, so cells swell and become rigid and are cleared by the spleen",
+    "Excess NADPH production damages haemoglobin, so oxidised protein forms Heinz bodies that the spleen removes",
+    "Failure to make 2,3-bisphosphoglycerate leaves haemoglobin binding oxygen too tightly in the circulation",
+    "Accumulation of lactate lowers the intracellular pH, which causes the haemoglobin to polymerise in the cell"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l08.q1",
+   "lessonId": "med-premed-biochem.l08",
+   "kind": "mcq",
+   "prompt": "Which vitamin-derived cofactor is needed by E1 of the pyruvate dehydrogenase complex?",
+   "choices": [
+    "Biotin",
+    "Pyridoxal phosphate",
+    "Tetrahydrofolate",
+    "Thiamine pyrophosphate"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l08.q2",
+   "lessonId": "med-premed-biochem.l08",
+   "kind": "mcq",
+   "prompt": "What is the yield of reduced coenzymes and GTP per acetyl-CoA entering the TCA cycle?",
+   "choices": [
+    "3 NADH, 1 FADH2 and 3 GTP",
+    "4 NADH, 0 FADH2 and 2 GTP",
+    "3 NADH, 1 FADH2 and 1 GTP",
+    "2 NADH, 2 FADH2 and 1 GTP"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l08.q3",
+   "lessonId": "med-premed-biochem.l08",
+   "kind": "mcq",
+   "prompt": "Which TCA cycle enzyme is also complex II of the respiratory chain?",
+   "choices": [
+    "Fumarase",
+    "Succinate dehydrogenase",
+    "Isocitrate dehydrogenase",
+    "Malate dehydrogenase"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l08.q4",
+   "lessonId": "med-premed-biochem.l08",
+   "kind": "mcq",
+   "prompt": "Why can a high-fat, low-carbohydrate diet help a child with PDH deficiency?",
+   "choices": [
+    "It supplies acetyl-CoA and ketones that bypass the defective enzyme",
+    "It restores the PDH complex activity by induction of the gene",
+    "It raises the pyruvate level so the remaining enzyme works faster",
+    "It supplies lipoic acid to correct a cofactor shortage in the child"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l08.q5",
+   "lessonId": "med-premed-biochem.l08",
+   "kind": "mcq",
+   "prompt": "A 52-year-old man with chronic alcohol use is brought in confused with nystagmus, ataxia and lactic acidosis. A nurse is about to start dextrose infusion. What is the best reasoning?",
+   "choices": [
+    "Give niacin first, since glucose would otherwise be converted to ethanol by fermentation in the liver",
+    "Give biotin first, since pyruvate carboxylase is needed to stop the glucose load from raising lactate",
+    "Give no vitamin, since lactic acidosis resolves once enough glucose has been given to the patient",
+    "Give thiamine first, since glucose metabolism needs thiamine-dependent enzymes that are already impaired"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l09.q1",
+   "lessonId": "med-premed-biochem.l09",
+   "kind": "mcq",
+   "prompt": "Which respiratory chain complex does NOT pump protons?",
+   "choices": [
+    "Complex III, cytochrome bc1",
+    "Complex IV, cytochrome c oxidase",
+    "Complex II, succinate dehydrogenase",
+    "Complex I, NADH dehydrogenase"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l09.q2",
+   "lessonId": "med-premed-biochem.l09",
+   "kind": "mcq",
+   "prompt": "About 10 protons are pumped per NADH, and about 4 protons are needed per ATP. What is the ATP yield per NADH?",
+   "choices": [
+    "About 3 ATP, from the older textbook figure",
+    "About 4 ATP, from the proton number alone",
+    "About 10 ATP, from one ATP for each proton pumped",
+    "About 2.5 ATP, from 10 divided by 4"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l09.q3",
+   "lessonId": "med-premed-biochem.l09",
+   "kind": "mcq",
+   "prompt": "Which agent blocks the flow of protons through the ATP synthase and so stops electron transport?",
+   "choices": [
+    "Oligomycin",
+    "Rotenone",
+    "Dinitrophenol",
+    "Antimycin A"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l09.q4",
+   "lessonId": "med-premed-biochem.l09",
+   "kind": "mcq",
+   "prompt": "Why does a large aspirin overdose cause fever?",
+   "choices": [
+    "Salicylate blocks glycolysis, which diverts glucose into heat production",
+    "Salicylate uncouples oxidative phosphorylation, releasing energy as heat",
+    "Salicylate inhibits complex IV, which raises the temperature of the tissue",
+    "Salicylate activates ATP synthase, which dissipates energy as heat"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l09.q5",
+   "lessonId": "med-premed-biochem.l09",
+   "kind": "mcq",
+   "prompt": "A 28-year-old chemist is found unresponsive after a laboratory accident, with a pulse of 130, lactate of 14 mmol/L and bright-red venous blood. Which mechanism explains the picture?",
+   "choices": [
+    "ATP synthase is uncoupled, so oxygen use falls and the venous oxygen content rises through the lungs",
+    "Haemoglobin has been oxidised to methaemoglobin, which is why the venous blood appears bright red",
+    "Cytochrome c oxidase is inhibited, so tissues cannot use oxygen and anaerobic glycolysis produces lactate",
+    "Complex I is blocked, so NADH accumulates and forces the oxygen to be diverted into the haemoglobin"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l10.q1",
+   "lessonId": "med-premed-biochem.l10",
+   "kind": "mcq",
+   "prompt": "Which enzyme is the rate-limiting step of the pentose phosphate pathway?",
+   "choices": [
+    "Glucose 6-phosphate dehydrogenase",
+    "Transketolase",
+    "Transaldolase",
+    "Phosphoglucose isomerase"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l10.q2",
+   "lessonId": "med-premed-biochem.l10",
+   "kind": "mcq",
+   "prompt": "In which glycogen storage disease is there no rise in lactate during ischaemic forearm exercise, along with cramps and myoglobinuria?",
+   "choices": [
+    "Cori disease, due to debranching enzyme deficiency",
+    "McArdle disease, due to muscle phosphorylase deficiency",
+    "Von Gierke disease, due to glucose 6-phosphatase deficiency",
+    "Pompe disease, due to lysosomal alpha-glucosidase deficiency"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l10.q3",
+   "lessonId": "med-premed-biochem.l10",
+   "kind": "mcq",
+   "prompt": "Which accumulates in hereditary fructose intolerance and causes hypoglycaemia?",
+   "choices": [
+    "Sorbitol, which traps water and inhibits glycogen breakdown and gluconeogenesis in the liver",
+    "Fructose 6-phosphate, which traps phosphate and inhibits the transport of glucose into the cell",
+    "Fructose 1-phosphate, which traps phosphate and inhibits glycogen breakdown and gluconeogenesis",
+    "Galactose 1-phosphate, which traps phosphate and inhibits glycogen breakdown and gluconeogenesis"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l10.q4",
+   "lessonId": "med-premed-biochem.l10",
+   "kind": "mcq",
+   "prompt": "How does G6PD deficiency lead to haemolysis?",
+   "choices": [
+    "Too much NADPH oxidises haemoglobin to methaemoglobin in the red cells",
+    "Too little glucose enters the cell, which stops glycolytic ATP production",
+    "Too little ribose 5-phosphate prevents red cells from making their DNA",
+    "Too little NADPH leaves glutathione unable to protect red cells from oxidants"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l10.q5",
+   "lessonId": "med-premed-biochem.l10",
+   "kind": "mcq",
+   "prompt": "A 2-week-old breast-fed infant has jaundice, vomiting and hepatomegaly, with cataracts and an Escherichia coli sepsis. Reducing substances are present in the urine and glucose oxidase testing is negative. Which enzyme is deficient?",
+   "choices": [
+    "Galactose-1-phosphate uridyltransferase",
+    "Aldolase B",
+    "Glucose 6-phosphatase",
+    "Galactokinase"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l11.q1",
+   "lessonId": "med-premed-biochem.l11",
+   "kind": "mcq",
+   "prompt": "What is the rate-limiting step of fatty acid oxidation?",
+   "choices": [
+    "Activation by acyl-CoA synthetase",
+    "Transport via carnitine palmitoyltransferase I",
+    "The action of enoyl-CoA hydratase",
+    "The thiolase cleavage step"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l11.q2",
+   "lessonId": "med-premed-biochem.l11",
+   "kind": "mcq",
+   "prompt": "What is the approximate net ATP yield from complete oxidation of palmitate?",
+   "choices": [
+    "About 106 ATP",
+    "About 36 ATP",
+    "About 129 ATP",
+    "About 8 ATP"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l11.q3",
+   "lessonId": "med-premed-biochem.l11",
+   "kind": "mcq",
+   "prompt": "Why can the liver make ketone bodies but not use them?",
+   "choices": [
+    "It lacks HMG-CoA synthase, so cannot make ketones in the first place",
+    "It lacks mitochondria that can oxidise acetyl-CoA to carbon dioxide",
+    "It lacks the transporter that carries ketones into the hepatocyte",
+    "It lacks the transferase that activates acetoacetate to acetoacetyl-CoA"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l11.q4",
+   "lessonId": "med-premed-biochem.l11",
+   "kind": "mcq",
+   "prompt": "What is the mechanism by which statins lower plasma LDL?",
+   "choices": [
+    "They activate acetyl-CoA carboxylase, which diverts acetyl-CoA to fatty acids",
+    "They bind bile acids in the gut, which blocks the reabsorption of cholesterol",
+    "They inhibit HMG-CoA reductase, which upregulates hepatic LDL receptors",
+    "They inhibit lipoprotein lipase, which stops VLDL from becoming LDL in plasma"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l11.q5",
+   "lessonId": "med-premed-biochem.l11",
+   "kind": "mcq",
+   "prompt": "A 9-month-old becomes lethargic and hypoglycaemic after a viral illness with poor feeding. Ketones are low, and urine organic acids show dicarboxylic acids. Which defect fits best?",
+   "choices": [
+    "HMG-CoA reductase deficiency, which prevents the synthesis of cholesterol and the bile acids",
+    "Medium-chain acyl-CoA dehydrogenase deficiency, which impairs fasting fatty acid oxidation",
+    "Glucose 6-phosphatase deficiency, which impairs the release of glucose from glycogen stores",
+    "Hormone-sensitive lipase deficiency, which prevents the release of fatty acids from adipose tissue"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l12.q1",
+   "lessonId": "med-premed-biochem.l12",
+   "kind": "mcq",
+   "prompt": "Which cofactor is needed by aminotransferases such as ALT and AST?",
+   "choices": [
+    "Biotin",
+    "Lipoic acid",
+    "Pyridoxal phosphate",
+    "Thiamine pyrophosphate"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l12.q2",
+   "lessonId": "med-premed-biochem.l12",
+   "kind": "mcq",
+   "prompt": "Which enzyme is the regulated, rate-limiting step of the urea cycle and is activated by N-acetylglutamate?",
+   "choices": [
+    "Ornithine transcarbamylase",
+    "Arginase",
+    "Argininosuccinate lyase",
+    "Carbamoyl phosphate synthetase I"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l12.q3",
+   "lessonId": "med-premed-biochem.l12",
+   "kind": "mcq",
+   "prompt": "Why does ornithine transcarbamylase deficiency raise urinary orotic acid?",
+   "choices": [
+    "Carbamoyl phosphate accumulates and enters pyrimidine synthesis",
+    "Aspartate accumulates and enters the pyrimidine synthesis route",
+    "Orotate phosphoribosyltransferase is directly inhibited by ammonia",
+    "Uridine monophosphate synthase is activated by the rise in citrulline"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l12.q4",
+   "lessonId": "med-premed-biochem.l12",
+   "kind": "mcq",
+   "prompt": "How does lactulose lower blood ammonia in hepatic encephalopathy?",
+   "choices": [
+    "It is absorbed and binds ammonia in plasma to form a renal excretion product",
+    "It acidifies the colon so NH3 is converted to NH4+ and trapped",
+    "It stimulates hepatic urea synthesis, which uses up the extra ammonia",
+    "It inhibits glutaminase, which prevents ammonia release from glutamine"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l12.q5",
+   "lessonId": "med-premed-biochem.l12",
+   "kind": "mcq",
+   "prompt": "A 3-day-old term infant, previously well, has poor feeding, a sweet maple-syrup odour of the urine and progressive lethargy with seizures. Which enzyme is deficient and which amino acids accumulate?",
+   "choices": [
+    "Cystathionine beta-synthase, with accumulation of homocysteine and methionine in the plasma",
+    "Homogentisate oxidase, with accumulation of homogentisic acid in the connective tissue",
+    "Branched-chain alpha-ketoacid dehydrogenase, with accumulation of leucine, isoleucine and valine",
+    "Phenylalanine hydroxylase, with accumulation of phenylalanine and its keto acid derivatives"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l13.q1",
+   "lessonId": "med-premed-biochem.l13",
+   "kind": "mcq",
+   "prompt": "Which G protein activates phospholipase C?",
+   "choices": [
+    "Gs",
+    "Gi",
+    "Gt",
+    "Gq"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l13.q2",
+   "lessonId": "med-premed-biochem.l13",
+   "kind": "mcq",
+   "prompt": "How does cholera toxin cause watery diarrhoea?",
+   "choices": [
+    "It activates phospholipase C, which releases calcium and drives sodium absorption",
+    "It inhibits CFTR, which blocks chloride movement and causes fluid to remain in the cell",
+    "It locks Gs in its active state, raising cyclic AMP and chloride secretion",
+    "It inhibits Gi, which prevents the fall in cyclic AMP in the enterocyte"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l13.q3",
+   "lessonId": "med-premed-biochem.l13",
+   "kind": "mcq",
+   "prompt": "Why does sildenafil produce vasodilation?",
+   "choices": [
+    "It inhibits guanylyl cyclase, so cyclic GMP falls in smooth muscle",
+    "It inhibits PDE5, so cyclic GMP rises in smooth muscle",
+    "It activates adenylyl cyclase, so cyclic AMP rises in smooth muscle",
+    "It blocks nitric oxide synthase, so less nitric oxide is made"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l13.q4",
+   "lessonId": "med-premed-biochem.l13",
+   "kind": "mcq",
+   "prompt": "What is a typical outcome of a Ras mutation that removes its GTPase activity?",
+   "choices": [
+    "Ras stays active and the growth signal is persistent",
+    "Ras becomes inactive and the growth signal is lost entirely",
+    "Ras binds GDP permanently and the cell cannot divide",
+    "Ras is degraded rapidly and the MAP kinase pathway is blocked"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l13.q5",
+   "lessonId": "med-premed-biochem.l13",
+   "kind": "mcq",
+   "prompt": "A 48-year-old man has fatigue, splenomegaly and a white count of 120,000 per microlitre with immature granulocytes. Cytogenetics shows t(9;22). Which treatment mechanism is the best fit?",
+   "choices": [
+    "Inhibiting dihydrofolate reductase to block thymidine synthesis in the proliferating leukaemic cells",
+    "Activating Gi in the leukaemic cells to lower cyclic AMP and so reduce their proliferation rate",
+    "Blocking the oestrogen receptor so that the nuclear receptor stops activating leukaemic genes",
+    "Inhibiting the constitutively active BCR-ABL tyrosine kinase to switch off proliferative signalling"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l14.q1",
+   "lessonId": "med-premed-biochem.l14",
+   "kind": "mcq",
+   "prompt": "How many hydrogen bonds join a G-C base pair?",
+   "choices": [
+    "Three",
+    "Two",
+    "Four",
+    "One"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l14.q2",
+   "lessonId": "med-premed-biochem.l14",
+   "kind": "mcq",
+   "prompt": "In a double-stranded DNA sample 30% of the bases are adenine. What percentage is guanine?",
+   "choices": [
+    "10%",
+    "20%",
+    "30%",
+    "40%"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l14.q3",
+   "lessonId": "med-premed-biochem.l14",
+   "kind": "mcq",
+   "prompt": "Which enzyme removes RNA primers and fills the gap in bacterial replication?",
+   "choices": [
+    "Primase",
+    "DNA ligase",
+    "DNA polymerase I",
+    "DNA polymerase III"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l14.q4",
+   "lessonId": "med-premed-biochem.l14",
+   "kind": "mcq",
+   "prompt": "Which repair pathway is defective in xeroderma pigmentosum?",
+   "choices": [
+    "Mismatch repair",
+    "Base excision repair",
+    "Homologous recombination",
+    "Nucleotide excision repair"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l14.q5",
+   "lessonId": "med-premed-biochem.l14",
+   "kind": "mcq",
+   "prompt": "A 39-year-old woman has a strong family history of colorectal and endometrial cancer, and her tumour shows microsatellite instability. Which defect most likely underlies this?",
+   "choices": [
+    "Loss of DNA mismatch repair, which allows replication errors in repeated sequences to persist",
+    "Loss of nucleotide excision repair, which prevents removal of the thymine dimers caused by sunlight",
+    "Loss of homologous recombination, which prevents accurate repair of the double-strand breaks",
+    "Loss of telomerase activity, which shortens the chromosomes during every round of cell division"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l15.q1",
+   "lessonId": "med-premed-biochem.l15",
+   "kind": "mcq",
+   "prompt": "Which of these is the start codon in mRNA?",
+   "choices": [
+    "GUA",
+    "AUG",
+    "UAA",
+    "UGA"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l15.q2",
+   "lessonId": "med-premed-biochem.l15",
+   "kind": "mcq",
+   "prompt": "A template strand 3-prime TACGGATTT 5-prime is transcribed and translated. What peptide results?",
+   "choices": [
+    "Met-Pro-Lys",
+    "Met-Gly-Leu",
+    "Tyr-Gly-Phe",
+    "Met-Pro-stop"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l15.q3",
+   "lessonId": "med-premed-biochem.l15",
+   "kind": "mcq",
+   "prompt": "Which antibiotic class blocks entry of aminoacyl-tRNA into the A site of the bacterial 30S subunit?",
+   "choices": [
+    "Macrolides",
+    "Chloramphenicol",
+    "Rifamycins",
+    "Tetracyclines"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l15.q4",
+   "lessonId": "med-premed-biochem.l15",
+   "kind": "mcq",
+   "prompt": "What is the effect of a nonsense mutation?",
+   "choices": [
+    "The reading frame shifts for every downstream codon",
+    "The codon changes but the same amino acid is coded",
+    "A premature stop codon truncates the protein",
+    "One amino acid is replaced by a different amino acid"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l15.q5",
+   "lessonId": "med-premed-biochem.l15",
+   "kind": "mcq",
+   "prompt": "A 61-year-old forager develops vomiting and diarrhoea 12 hours after eating wild mushrooms, apparently improves, then develops jaundice and rising transaminases. Which molecular target explains the toxin?",
+   "choices": [
+    "The 60S ribosomal subunit, inhibited at the peptidyl transferase step",
+    "Eukaryotic RNA polymerase II, inhibited by alpha-amanitin",
+    "Bacterial RNA polymerase, inhibited by a toxin of mushroom origin",
+    "Eukaryotic elongation factor 2, inhibited by ADP-ribosylation"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l16.q1",
+   "lessonId": "med-premed-biochem.l16",
+   "kind": "mcq",
+   "prompt": "In the lac operon, which condition gives maximal expression?",
+   "choices": [
+    "Lactose present and glucose present",
+    "Lactose absent and glucose absent",
+    "Lactose present and glucose absent",
+    "Lactose absent and glucose present"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l16.q2",
+   "lessonId": "med-premed-biochem.l16",
+   "kind": "mcq",
+   "prompt": "If cystic fibrosis affects 1 in 2500 people, what is the approximate carrier frequency by Hardy-Weinberg?",
+   "choices": [
+    "About 1 in 50",
+    "About 1 in 2500",
+    "About 1 in 250",
+    "About 1 in 25"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l16.q3",
+   "lessonId": "med-premed-biochem.l16",
+   "kind": "mcq",
+   "prompt": "Which change describes the usual cystic fibrosis mutation, F508del?",
+   "choices": [
+    "An in-frame three-base deletion that removes one phenylalanine",
+    "A frameshift deletion that changes every downstream amino acid",
+    "A nonsense mutation that causes a premature stop codon in CFTR",
+    "A trinucleotide repeat expansion that silences the CFTR promoter"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l16.q4",
+   "lessonId": "med-premed-biochem.l16",
+   "kind": "mcq",
+   "prompt": "What is the usual effect of histone acetylation on transcription?",
+   "choices": [
+    "It blocks the binding of every transcription factor",
+    "It loosens chromatin and increases transcription",
+    "It compacts chromatin and decreases transcription",
+    "It methylates the DNA and silences the gene"
+   ]
+  },
+  {
+   "id": "med-premed-biochem.l16.q5",
+   "lessonId": "med-premed-biochem.l16",
+   "kind": "mcq",
+   "prompt": "A newborn has hypotonia and poor feeding, later developing hyperphagia and obesity. Testing shows a deletion on the paternally inherited chromosome 15q11-q13. Which concept best explains why the same deletion on the maternal chromosome causes a different syndrome?",
+   "choices": [
+    "Mitochondrial heteroplasmy, in which the proportion of mutant DNA varies between the cells",
+    "X-inactivation, in which one of the two X chromosomes is silenced at random in each cell",
+    "Genomic imprinting, in which only one parental copy of the region is normally expressed",
+    "Anticipation, in which a trinucleotide repeat lengthens and worsens disease across generations"
+   ]
+  }
+ ]
+}

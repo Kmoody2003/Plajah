@@ -1,0 +1,1195 @@
+{
+ "courseId": "med-clin-fm",
+ "verifier": "B",
+ "note": "WebSearch and WebFetch were rate-limited (session limit) for this run; pages were opened with curl instead (USPSTF, PubMed/eutils, PMC, OSHA, EPA, GINA, GOLD, Wikipedia, Guardian). CDC and AHA journal sites returned 403, so CDC schedule pages could not be read directly.",
+ "fetched": 44,
+ "questions": [
+  {
+   "id": "med-clin-fm.l01.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l01.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l01.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l01.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l01.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l02.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l02.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/colorectal-cancer-screening"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l02.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/lung-cancer-screening"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l02.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/cervical-cancer-screening"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l02.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "Stem mentions 15-year life expectancy, but USPSTF 2018 (still the final statement) is grade D at 70 and older regardless.",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/prostate-cancer-screening"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l03.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/hypertension-in-adults-screening"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l03.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/statin-use-in-adults-preventive-medication"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l03.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/abdominal-aortic-aneurysm-screening"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l03.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l03.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/aspirin-to-prevent-cardiovascular-disease-preventive-medication"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l04.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l04.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l04.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l04.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l04.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/29370152/"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l05.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/hepatitis-c-screening"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l05.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/chlamydia-and-gonorrhea-screening"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l05.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l05.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l05.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/folic-acid-for-the-prevention-of-neural-tube-defects-preventive-medication"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l06.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l06.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l06.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l06.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l06.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l07.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l07.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l07.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l07.q4",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "ADA supports less stringent goals (e.g. <8%) with limited life expectancy; some sources would accept even looser targets, but option 0 is clearly best.",
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l07.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l08.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l08.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l08.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l08.q4",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Assumes he is already on or starting dual long-acting bronchodilators; GOLD supports LABA+LAMA+ICS with eosinophils >=300 and exacerbations.",
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l08.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l09.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l09.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/obesity-in-adults-interventions"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l09.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l09.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l10.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l10.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/tobacco-use-in-adults-and-pregnant-women-counseling-and-interventions"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l10.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l12.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/falls-prevention-community-dwelling-older-adults-interventions"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l14.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/31908163/"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l14.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l16.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.epa.gov/radon/health-risk-radon"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l17.q2",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Correct under CDC BLRV 3.5 ug/dL guidance; chelation threshold is 45 ug/dL.",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/34710078/"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l18.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/31843864/"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l18.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l18.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l18.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-clin-fm.l01",
+   "claim": "Primary care pillars (first contact, continuity, comprehensiveness, coordination) are attributed to Barbara Starfield.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Starfield 2005 Milbank Q paper opened (PMID 16202000) but the abstract does not list the four features; consistent with her work but not confirmed from an opened page."
+  },
+  {
+   "lessonId": "med-clin-fm.l01",
+   "claim": "Quaternary prevention means protecting patients from unnecessary medical intervention / overmedicalization.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened for this definition."
+  },
+  {
+   "lessonId": "med-clin-fm.l01",
+   "claim": "Imaging should be avoided for uncomplicated low back pain in the first six weeks.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "ACP 2017 abstract opened does not address imaging timing."
+  },
+  {
+   "lessonId": "med-clin-fm.l02",
+   "claim": "USPSTF 2024: biennial mammography for women 40 to 74 (grade B).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/breast-cancer-screening"
+   ],
+   "note": "Final statement dated 2024-04-30; still current."
+  },
+  {
+   "lessonId": "med-clin-fm.l02",
+   "claim": "USPSTF 2018 cervical screening: cytology q3y at 21-29; at 30-65 cytology q3y, hrHPV alone q5y or cotesting q5y.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/cervical-cancer-screening"
+   ],
+   "note": "The 2018 statement remains the posted final recommendation as of this check; a draft update (Dec 2024, adding self-collected HPV) existed but no newer final was shown on the page."
+  },
+  {
+   "lessonId": "med-clin-fm.l02",
+   "claim": "USPSTF 2021 lung screening: annual LDCT at 50-80 with >=20 pack-years, current smoker or quit within 15 years.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/lung-cancer-screening"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l02",
+   "claim": "USPSTF 2018 prostate: individual decision at 55-69 (C), against at 70+ (D); 2021 CRC 45-49 B, 50-75 A.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/prostate-cancer-screening",
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/colorectal-cancer-screening"
+   ],
+   "note": "Prostate statement still dated 2018-05-08 (an update is in progress at USPSTF)."
+  },
+  {
+   "lessonId": "med-clin-fm.l03",
+   "claim": "USPSTF 2021 recommends hypertension screening in adults 18+ with out-of-office confirmation before diagnosis.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/hypertension-in-adults-screening"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l03",
+   "claim": "USPSTF 2022 statins: grade B for 40-75 with >=1 risk factor and 10-yr risk >=10%; grade C at 7.5 to <10%.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/statin-use-in-adults-preventive-medication"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l03",
+   "claim": "USPSTF 2021 diabetes screening 35-70 with overweight/obesity; ADA tests BMI>=25 with risk factors and everyone from age 35; prediabetes A1c 5.7-6.4%.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/screening-for-prediabetes-and-type-2-diabetes",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC12690183/"
+   ],
+   "note": "Checked against ADA Standards of Care 2026, section 2."
+  },
+  {
+   "lessonId": "med-clin-fm.l03",
+   "claim": "DPP: lifestyle reduced progression ~58%, metformin ~31%.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/11832527/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l03",
+   "claim": "USPSTF 2019 AAA (B ever-smoking men 65-75; C never-smoking men) and 2022 aspirin (C at 40-59 with >=10% risk; D at 60+).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/abdominal-aortic-aneurysm-screening",
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/aspirin-to-prevent-cardiovascular-disease-preventive-medication"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l04",
+   "claim": "Established features of the childhood schedule include hepatitis B at birth, rotavirus in infancy and annual influenza from 6 months.",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Vaccination_policy_of_the_United_States",
+    "https://en.wikipedia.org/wiki/Advisory_Committee_on_Immunization_Practices",
+    "https://www.theguardian.com/us-news/2026/mar/16/judge-blocks-rfk-jr-vaccine-policy-changes"
+   ],
+   "note": "Status is legally contested. On 5 Jan 2026 HHS removed universal recommendations for rotavirus, influenza, RSV, meningococcal, hepatitis A and hepatitis B, and ACIP had voted (Dec 2025) to end the universal hepatitis B birth dose. On 16 Mar 2026 a federal judge stayed those January changes and all votes of the reconstituted ACIP. Whether that injunction still holds (appeal) could not be confirmed. The lesson calls these \"established\" with no mention of the 2025-26 changes and litigation, which it should state."
+  },
+  {
+   "lessonId": "med-clin-fm.l04",
+   "claim": "Recombinant zoster vaccine, two doses, recommended for adults 50 and over.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/29370152/"
+   ],
+   "note": "ACIP 2017/2018 recommendation for immunocompetent adults >=50; extension to immunocompromised adults 19+ (2022) not checked."
+  },
+  {
+   "lessonId": "med-clin-fm.l04",
+   "claim": "HPV: two doses if started before age 15, three if started at 15 or older.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/27977643/"
+   ],
+   "note": "ACIP 2016 two-dose schedule for initiation at 9-14. Any 2025-26 changes by the reconstituted ACIP not checked."
+  },
+  {
+   "lessonId": "med-clin-fm.l04",
+   "claim": "Tdap in every pregnancy, ideally at 27 to 36 weeks.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "ACIP 2012 report (PMID 23425962) located but the 27-36 week wording was not confirmed in the abstract."
+  },
+  {
+   "lessonId": "med-clin-fm.l05",
+   "claim": "USPSTF (2019) HIV screening ages 15-65; USPSTF (2023) PrEP; USPSTF (2020) HCV screening ages 18-79.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/human-immunodeficiency-virus-hiv-infection-screening",
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/prevention-of-human-immunodeficiency-virus-hiv-infection-pre-exposure-prophylaxis",
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/hepatitis-c-screening"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l05",
+   "claim": "Syphilis screening: USPSTF 2022 for people at increased risk, 2018 for all pregnant people.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/syphilis-infection-nonpregnant-adults-adolescents-screening",
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/syphilis-infection-in-pregnancy-screening"
+   ],
+   "note": "The 2022 nonpregnant statement is right, but the pregnancy recommendation was reaffirmed in a final statement dated 2025-05-13 (grade A), so \"2018\" is out of date."
+  },
+  {
+   "lessonId": "med-clin-fm.l05",
+   "claim": "USPSTF 2021 chlamydia/gonorrhea screening in sexually active women 24 and younger and older women at increased risk; USPSTF 2023 folic acid 0.4-0.8 mg.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/chlamydia-and-gonorrhea-screening",
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/folic-acid-for-the-prevention-of-neural-tube-defects-preventive-medication"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l06",
+   "claim": "2017 ACC/AHA defines hypertension as >=130/80 and an updated ACC/AHA guideline was issued in 2025.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/29133356/",
+    "https://pubmed.ncbi.nlm.nih.gov/40811497/"
+   ],
+   "note": "2025 AHA/ACC multisociety guideline published 14 Aug 2025 (Circulation/Hypertension)."
+  },
+  {
+   "lessonId": "med-clin-fm.l06",
+   "claim": "SPRINT: systolic target 120 vs 140 lowered CV events and mortality in high-risk adults without diabetes, with more adverse events.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/26551272/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l06",
+   "claim": "In Black patients initial therapy favors a thiazide or CCB based on ALLHAT.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-fm.l07",
+   "claim": "ADA: A1c goal <7% reasonable for many nonpregnant adults; Standards updated annually.",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC12690178/"
+   ],
+   "note": "Standards of Care 2026 section 6, rec 6.3a."
+  },
+  {
+   "lessonId": "med-clin-fm.l07",
+   "claim": "UKPDS long-term follow-up showed a legacy effect on MI and mortality.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/18784090/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l07",
+   "claim": "KDIGO 2024 CKD guideline; CKD staged by eGFR (G1-G5) and albuminuria.",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/38490803/"
+   ],
+   "note": "Existence of KDIGO 2024 guideline confirmed; staging cut-offs not confirmed from the abstract."
+  },
+  {
+   "lessonId": "med-clin-fm.l08",
+   "claim": "GINA 2024 recommends against SABA-only treatment; ICS-formoterol reliever track preferred.",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://ginasthma.org/reports/"
+   ],
+   "note": "GINA reports page lists the 2026 Strategy Report as current; the course cites GINA 2024 (superseded edition). Content not checked against the report itself."
+  },
+  {
+   "lessonId": "med-clin-fm.l08",
+   "claim": "GOLD 2024: add ICS for frequent exacerbations with eosinophils >=300.",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://goldcopd.org/2026-gold-report/"
+   ],
+   "note": "GOLD 2026 report is current; course cites GOLD 2024. Threshold content not confirmed from an opened page."
+  },
+  {
+   "lessonId": "med-clin-fm.l08",
+   "claim": "USPSTF finds insufficient evidence to screen asymptomatic adults for thyroid disease.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/thyroid-dysfunction-screening"
+   ],
+   "note": "Statement dated 2015."
+  },
+  {
+   "lessonId": "med-clin-fm.l09",
+   "claim": "USPSTF 2018: offer/refer adults with BMI >=30 to intensive multicomponent behavioral interventions; obesity BMI >=30, class 2 35, class 3 40.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/obesity-in-adults-interventions"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l09",
+   "claim": "USPSTF: intensive behavioral programs (>=26 contact hours) for children 6 and older with obesity.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/obesity-in-children-and-adolescents-screening"
+   ],
+   "note": "Statement dated 2024-06-18; 26-hour figure is from lesson and consistent with USPSTF but only the 6+ age was confirmed in extracted text."
+  },
+  {
+   "lessonId": "med-clin-fm.l09",
+   "claim": "Semaglutide reduced major CV events in people with obesity and established CVD (SELECT).",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/37952131/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l10",
+   "claim": "USPSTF 2021: ask, advise, behavioral + FDA pharmacotherapy for nonpregnant adults (A); behavioral for pregnant persons.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/tobacco-use-in-adults-and-pregnant-women-counseling-and-interventions"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l10",
+   "claim": "USPSTF 2018 alcohol screening for adults 18+; USPSTF 2020 drug use screening for adults 18+.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/unhealthy-alcohol-use-in-adolescents-and-adults-screening-and-behavioral-counseling-interventions",
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/drug-use-illicit-screening"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l10",
+   "claim": "EAGLES found no significant increase in serious neuropsychiatric events with varenicline vs placebo.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/27116918/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l11",
+   "claim": "USPSTF recommends against screening for testicular cancer (grade D).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/testicular-cancer-screening"
+   ],
+   "note": "Reaffirmed 2011."
+  },
+  {
+   "lessonId": "med-clin-fm.l11",
+   "claim": "TRAVERSE found testosterone noninferior for MACE in hypogonadal men at risk.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/37326322/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l11",
+   "claim": "5-alpha-reductase inhibitors lower PSA by about half.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-fm.l12",
+   "claim": "USPSTF (2018) recommends DXA screening for women 65+ and younger postmenopausal women at increased risk.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/osteoporosis-screening"
+   ],
+   "note": "The content is right, but the current USPSTF osteoporosis statement is dated 2025-01-14 (replacing 2018)."
+  },
+  {
+   "lessonId": "med-clin-fm.l12",
+   "claim": "WHI found increased breast cancer, stroke, VTE and coronary events with combined estrogen-progestin.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/12117397/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l12",
+   "claim": "Migraine with aura is US MEC category 4 for combined hormonal contraception.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "CDC MEC pages blocked automated access; not confirmed."
+  },
+  {
+   "lessonId": "med-clin-fm.l13",
+   "claim": "The 2024 USPSTF recommends exercise (B) and individualized multifactorial interventions (C) for fall prevention in adults 65+ at increased risk.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/falls-prevention-community-dwelling-older-adults-interventions"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l13",
+   "claim": "The 2024 USPSTF falls statement recommends against vitamin D to prevent falls (grade D).",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/falls-prevention-community-dwelling-older-adults-interventions"
+   ],
+   "note": "The 2024 statement explicitly does not address vitamin D for falls; the grade D was in the 2018 statement, and the topic moved to the separate vitamin D/calcium recommendation."
+  },
+  {
+   "lessonId": "med-clin-fm.l13",
+   "claim": "USPSTF: insufficient evidence for cognitive impairment screening in older adults (I).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/cognitive-impairment-in-older-adults-screening"
+   ],
+   "note": "Statement dated 2020."
+  },
+  {
+   "lessonId": "med-clin-fm.l14",
+   "claim": "ACP 2017 LBP: nonpharmacologic first (heat, massage, acupuncture, manipulation; chronic: exercise, rehab, MBSR, CBT).",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/28192789/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l14",
+   "claim": "ACR 2019 OA: strong recommendations for exercise, weight loss, self-efficacy programs, topical NSAIDs for knee, oral NSAIDs, IA steroids.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/31908163/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l14",
+   "claim": "Urate-lowering therapy titrated to serum urate <6 mg/dL.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/32390306/"
+   ],
+   "note": "ACR 2020 gout guideline."
+  },
+  {
+   "lessonId": "med-clin-fm.l15",
+   "claim": "USPSTF 2023: insufficient evidence for clinician visual skin cancer screening (I).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/skin-cancer-screening"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l15",
+   "claim": "USPSTF recommends sun-protection counseling for young adults, adolescents and children with fair skin (B).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/skin-cancer-counseling"
+   ],
+   "note": "Statement dated 2018; applies to ages 6 months to 24 years with fair skin."
+  },
+  {
+   "lessonId": "med-clin-fm.l15",
+   "claim": "Melanoma ABCDE diameter threshold >6 mm.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-fm.l16",
+   "claim": "Hearing conservation programs required at 85 dBA 8-hour TWA.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.osha.gov/noise"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l16",
+   "claim": "OSH Act of 1970 created OSHA and NIOSH.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "OSHA and NIOSH pages did not return usable text."
+  },
+  {
+   "lessonId": "med-clin-fm.l16",
+   "claim": "Asbestos-related cancer follows exposure by 20 to 40 years.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-fm.l17",
+   "claim": "CDC blood lead reference value is 3.5 ug/dL.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/34710078/"
+   ],
+   "note": "Updated October 2021."
+  },
+  {
+   "lessonId": "med-clin-fm.l17",
+   "claim": "Radon is the second leading cause of lung cancer and leading cause among nonsmokers; EPA action level 4 pCi/L.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.epa.gov/radon/health-risk-radon"
+   ],
+   "note": "The \"consider mitigation at 2-4\" part was not confirmed."
+  },
+  {
+   "lessonId": "med-clin-fm.l17",
+   "claim": "Flint water source change in 2014 caused pipe corrosion.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/30321004/"
+   ],
+   "note": "April 2014 switch to Flint River without corrosion control."
+  },
+  {
+   "lessonId": "med-clin-fm.l18",
+   "claim": "AAP recommends autism-specific screening at 18 and 24 months.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/31843864/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l18",
+   "claim": "USPSTF recommends oral fluoride for children over 6 months with deficient water and fluoride varnish on primary teeth.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/prevention-of-dental-caries-in-children-younger-than-age-5-years-screening-and-interventions1"
+   ],
+   "note": "USPSTF 2021. FDA actions on ingestible pediatric fluoride in 2025 were not checked and may affect practice."
+  },
+  {
+   "lessonId": "med-clin-fm.l18",
+   "claim": "USPSTF recommends depression screening annually from age 12.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/screening-depression-suicide-risk-children-adolescents"
+   ],
+   "note": "USPSTF 2022 recommends screening adolescents 12-18; it does not specify \"annually\"."
+  }
+ ]
+}

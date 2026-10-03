@@ -1,0 +1,537 @@
+{
+ "courseId": "philosophy-school",
+ "label": "School of Philosophy",
+ "lessons": [
+  {
+   "id": "ph-wonder-1",
+   "title": "Running a Wonder Circle",
+   "body": [
+    "A wonder circle is a group sitting together, taking one genuine question seriously, and giving reasons. That is the whole method, and it is more demanding than it sounds because most classroom talk is not that.",
+    "Start with a question that has no answer key and that the adult in the room does not already know the answer to. Is it ever fair to break a promise? Could a robot be your friend? Is a copy of a painting still art? If the teacher knows the answer, it is a quiz, and children detect that instantly.",
+    "Then hold three rules. One: you must give a reason. \"Because I think so\" is an invitation to say more, not a contribution. Two: you may change your mind, and doing so is treated as a success rather than a defeat — this single norm does more for a group's thinking than any content. Three: you speak to each other, not to the teacher. The adult's job is to ask \"what makes you say that?\" and \"does anyone see it differently?\", and otherwise to stay quiet.",
+    "Two things go wrong predictably. Adults fill silences too fast — count to ten, because young children need longer to assemble a thought than the pause feels. And discussions drift to whatever is most entertaining; the fix is to write the question where everyone can see it and return to it.",
+    "You are not teaching children philosophy. You are noticing that they already do it, and giving them a room where it is expected."
+   ]
+  },
+  {
+   "id": "ph-wonder-2",
+   "title": "Question of the Week",
+   "body": [
+    "By eight or nine, children can do something the youngest cannot: hold a position, hear a genuine objection, and respond to it rather than repeating themselves. That capacity is what this band builds.",
+    "The structure is a week. On Monday the question goes up — What makes something alive? Is it ever right to lie? Should everyone get the same, or what they need? Children write a first answer with one reason, privately, before any discussion. That private step matters, because it prevents the whole room converging on whoever spoke first.",
+    "Midweek is the circle, and the new move is the objection. Every child practises the sentence \"I think X, but someone might say Y\" — because being able to state the case against your own view is the beginning of thinking rather than merely believing.",
+    "On Friday they write a final answer and, crucially, note whether it changed and why. Over a term this produces a visible record of a mind at work, which is more valuable to a child than any single conclusion.",
+    "Fables and folk tales make excellent prompts and are almost all public domain, so a class can read the actual story rather than a summary. The tortoise and the hare is a genuine question about whether persistence beats talent. The story is doing philosophy already; you are just slowing it down."
+   ]
+  },
+  {
+   "id": "ph-arg-1",
+   "title": "Premises, Conclusions and the Fallacies",
+   "body": [
+    "An argument, in philosophy, is not a quarrel. It is a set of claims — premises — offered in support of another claim — the conclusion. The first skill is separating them, because in ordinary speech they arrive tangled and the conclusion is often unstated.",
+    "Then two independent questions, which learners routinely merge. Is the reasoning valid — if the premises were true, would the conclusion have to follow? And are the premises actually true? An argument can be perfectly valid and still worthless because a premise is false, and an argument can have all-true premises and prove nothing because the reasoning does not connect them. Keeping these apart is most of the skill.",
+    "Fallacies are moves that resemble reasoning and are not. Attacking the person rather than the claim. Rebuilding an opponent's position as something weaker and defeating that. Presenting two options as exhaustive when others exist. Treating the absence of disproof as proof. Appealing to an authority outside their field. Assuming what you set out to show.",
+    "Naming them is useful and has a trap worth warning learners about: fallacy-spotting can become its own bad habit, where labelling a move replaces engaging with it. The discipline is to state your opponent's argument in a form they would accept *before* you object to it. If you cannot, you have not understood it well enough to disagree with it yet."
+   ]
+  },
+  {
+   "id": "ph-arg-2",
+   "title": "Socrates on Trial",
+   "body": [
+    "In 399 BC an elderly Athenian was tried for impiety and corrupting the young, convicted, and executed. Plato's account of his defence is short, dramatic, in the public domain in classic translation, and works remarkably well read aloud with parts.",
+    "Stage it rather than summarising it, because the argument only lands when heard. Socrates does not do what a defendant is supposed to do. He does not plead, flatter the jury, or bring his family in to be pitied. He cross-examines his accuser in open court, and the examination is a live demonstration of the method that got him prosecuted in the first place.",
+    "Two claims from it are worth a full discussion. That he knows only that he knows nothing — which is not modesty but a precise epistemic position, and worth asking whether it is coherent. And that the unexamined life is not worth living — a claim strong enough that learners should be invited to disagree with it, because many thoughtful people do.",
+    "Then the question the whole trial poses, and which this course does not resolve: was Athens wrong to convict him? He genuinely did unsettle young people's confidence in inherited beliefs, and the city had recently survived a coup involving men associated with him. A society deciding how much destabilising questioning it can tolerate is not a stupid society. Have learners argue both sides in role before saying what they think — the point is that the case is harder than its reputation."
+   ]
+  },
+  {
+   "id": "ph-arg-3",
+   "title": "Formal Logic: Making Validity Mechanical",
+   "body": [
+    "Ordinary language is ambiguous in ways that hide reasoning errors. Formal logic strips arguments to their structure so validity becomes something you can check rather than something you sense.",
+    "Truth-functional logic handles claims combined with *and*, *or*, *not*, *if–then*, and *if and only if*. Each connective has a truth table defining exactly when the compound is true. The one that consistently surprises people is the conditional: \"if P then Q\" is false only when P is true and Q is false, which means a conditional with a false antecedent counts as true. That is a deliberate technical decision, not a claim about ordinary usage, and saying so plainly saves a great deal of confusion.",
+    "With the connectives defined, validity becomes checkable. An argument is valid when no assignment of truth values makes every premise true and the conclusion false, and you can test it exhaustively with a truth table or derive it with a proof system.",
+    "Two patterns are worth memorising because their invalid twins are so tempting. Affirming the antecedent is valid; affirming the consequent is not. Denying the consequent is valid; denying the antecedent is not. Almost every everyday reasoning slip is one of the two invalid forms.",
+    "The open textbook forall x: Calgary is a complete course for this, freely licensed, with exercises and answers — so a learner can work through a genuine logic course without paying anyone."
+   ]
+  },
+  {
+   "id": "ph-eth-1",
+   "title": "Consequences, Duties and Character",
+   "body": [
+    "Western moral philosophy offers three dominant frameworks. Learners should be able to argue inside each, because the interesting cases are precisely the ones where they disagree.",
+    "Consequentialism holds that rightness depends on outcomes — classically, the action producing the greatest wellbeing overall. Its strengths are real: it takes suffering seriously, it is impartial between people, and it gives a clear procedure. Its notorious difficulty is that it can license terrible acts to individuals when the sums come out right, and it demands calculations of the future that nobody can actually perform.",
+    "Deontology holds that some acts are right or wrong in themselves, regardless of outcome, because of duties and rights. Kant's formulations — act only on principles you could will everyone to follow; treat people always as ends and never merely as means — capture something consequentialism misses, namely that persons are not resources to be optimised. Its difficulty is rigidity, and what to do when duties conflict.",
+    "Virtue ethics asks a different question entirely: not \"what should I do?\" but \"what kind of person should I be?\" It focuses on character developed through practice, and on judgement rather than rules. Its strength is realism about how moral life is actually lived; its difficulty is that it gives less guidance when you need an answer now.",
+    "The mature position is not to pick one and apply it mechanically. It is to notice that each captures something the others miss, and that they conflict in identifiable ways — which is why the next lesson practises reasoning in cases where they genuinely do."
+   ]
+  },
+  {
+   "id": "ph-eth-2",
+   "title": "Ethics Bowl: Deliberation, Not Debate",
+   "body": [
+    "Debate assigns you a side and rewards you for winning. Ethics bowl does something different and, for teaching, better: teams analyse the same case, present their reasoning, and are judged on the quality of that reasoning — including how well they engage with what the other team said.",
+    "The consequence is that agreeing with your opponent is not a loss. Conceding a good point improves your score. That single design choice changes the behaviour in the room completely, because the incentive is to understand rather than to score.",
+    "Run it in four moves. Present your analysis of the case — what is at stake, whose interests are involved, which considerations matter and why. Respond to the other team, engaging with their strongest point rather than their weakest. Answer judges' questions, which will probe the part of your view you were least sure about. Then reflect: what, if anything, moved.",
+    "Good cases share features. They are genuinely hard, with thoughtful people on both sides. They are concrete rather than abstract. They avoid the purely political questions where learners arrive with fixed positions, because the aim is reasoning rather than rehearsal.",
+    "Write your own cases from real situations in your school or town. Doing so is itself a philosophical exercise, since a good case requires identifying exactly where the difficulty sits — and cases written locally engage learners far more than borrowed ones."
+   ]
+  },
+  {
+   "id": "ph-hist-1",
+   "title": "What Can I Know? Descartes to Hume",
+   "body": [
+    "Early modern philosophy begins with a demolition. Descartes asks what he can be certain of, and sets out to doubt everything doubtable: the senses deceive, dreams are indistinguishable from waking while they last, and for all he can prove some deceiver may be manufacturing his experience wholesale. What survives is that he is thinking, and therefore exists — a single point of certainty from which he tries to rebuild.",
+    "Whether the rebuilding works is one of the great arguments in philosophy, and learners should read enough to have a view rather than being handed a verdict.",
+    "Hume then presses harder, and his target is causation. We see one event follow another, repeatedly. We never observe the connection itself — only the sequence. So what justifies expecting the future to resemble the past? Any argument that it will seems to assume the very principle in question. This is the problem of induction, and it has never been solved to general satisfaction, which is worth stating plainly rather than papering over.",
+    "Kant's response is the pivot of modern philosophy: perhaps the structure is contributed by the mind. We do not perceive raw reality; we perceive it organised by categories our understanding imposes, including causation. That does not defeat scepticism so much as relocate it, and arguing about whether that is a solution or a retreat is exactly the seminar.",
+    "Read these in public-domain translations or the modernised Early Modern Texts versions, which keep the argument and remove the eighteenth-century sentence structure."
+   ]
+  },
+  {
+   "id": "ph-hist-2",
+   "title": "Liberty: Locke, Mill and the Limits of Interference",
+   "body": [
+    "This unit is deliberately the same material as Strand I of Civics Hall. Locke's Second Treatise lives once on Plajah and serves both schools, which is exactly right: the political-philosophy question and the civics question are the same question approached from different directions.",
+    "Locke supplies the architecture. People are naturally free and equal; no one holds authority by nature; legitimate government therefore arises only by consent and holds power in trust for a purpose. When it destroys the ends it was constituted to protect, the trust is broken. That argument justified a revolution and then a constitution, which tells you how much work it does.",
+    "Mill asks a different and sharper question: granted a legitimate government, when may it interfere with an individual? His answer is the harm principle — power may rightfully be exercised over a member of a civilised community against their will only to prevent harm to others. A person's own good is not sufficient warrant.",
+    "That principle is far more contested than its popularity suggests, and the seminar is in the objections. What counts as harm — physical only, or also offence, or economic damage? Who counts as capable of self-government, given Mill's own exclusions? Does the principle survive contact with cases where individual choices aggregate into collective damage?",
+    "Read both in public domain, then bring them to a live regulation and see what each would say. That is the exercise: not what Mill thought, but what Mill's argument commits you to."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "philosophy-school.ph-wonder-1.q1",
+   "lessonId": "ph-wonder-1",
+   "kind": "mcq",
+   "prompt": "What kind of question should a wonder circle start with?",
+   "choices": [
+    "A question the teacher answers first",
+    "A quiz question with an answer key",
+    "A question about the day's news only",
+    "A genuine question the adult does not already know the answer to"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-wonder-1.q2",
+   "lessonId": "ph-wonder-1",
+   "kind": "mcq",
+   "prompt": "Which is one of the three rules of a wonder circle in the lesson?",
+   "choices": [
+    "Never change your mind",
+    "The loudest voice decides",
+    "You must give a reason",
+    "Speak only to the teacher"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-wonder-1.q3",
+   "lessonId": "ph-wonder-1",
+   "kind": "mcq",
+   "prompt": "A child says, \"A robot can't be a friend, because I just think so.\" What response fits the lesson best?",
+   "choices": [
+    "Move on to a different child",
+    "Ask \"what makes you say that?\"",
+    "Tell the child they are wrong",
+    "Give the correct answer"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-wonder-1.q4",
+   "lessonId": "ph-wonder-1",
+   "kind": "mcq",
+   "prompt": "Why does the lesson treat changing your mind as a success rather than a defeat?",
+   "choices": [
+    "It does more for a group's thinking than any content",
+    "It proves the teacher was right",
+    "It lets the group avoid reasons",
+    "It shortens the discussion"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-wonder-2.q1",
+   "lessonId": "ph-wonder-2",
+   "kind": "mcq",
+   "prompt": "What do children do on Monday in the Question of the Week?",
+   "choices": [
+    "Write a first answer with one reason, privately",
+    "Read a summary of the answer",
+    "Hold the final debate",
+    "Vote on the correct answer"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-wonder-2.q2",
+   "lessonId": "ph-wonder-2",
+   "kind": "mcq",
+   "prompt": "What sentence frame does the lesson say children practise at midweek?",
+   "choices": [
+    "I know X and you are wrong",
+    "I think X, but someone might say Y",
+    "X is true because the teacher said so",
+    "Y is false"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-wonder-2.q3",
+   "lessonId": "ph-wonder-2",
+   "kind": "mcq",
+   "prompt": "A class reads the tortoise and the hare. Which philosophical question does the lesson say it raises?",
+   "choices": [
+    "Whether races are fair to hares",
+    "Whether animals can talk",
+    "Whether persistence beats talent",
+    "Whether stories should be shortened"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-wonder-2.q4",
+   "lessonId": "ph-wonder-2",
+   "kind": "mcq",
+   "prompt": "Why does the lesson ask children to note on Friday whether their answer changed and why?",
+   "choices": [
+    "It lets the teacher grade right and wrong answers",
+    "It ends the topic permanently",
+    "It rewards children who never change",
+    "It produces a visible record of a mind at work, more valuable than any single conclusion"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-arg-1.q1",
+   "lessonId": "ph-arg-1",
+   "kind": "mcq",
+   "prompt": "In philosophy, what is an argument?",
+   "choices": [
+    "A list of facts",
+    "A heated quarrel",
+    "A set of premises offered in support of a conclusion",
+    "Any strongly held opinion"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-arg-1.q2",
+   "lessonId": "ph-arg-1",
+   "kind": "mcq",
+   "prompt": "What does it mean for an argument to be valid?",
+   "choices": [
+    "Its premises are all true",
+    "It is written clearly",
+    "Most people agree with it",
+    "If the premises were true, the conclusion would have to follow"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-arg-1.q3",
+   "lessonId": "ph-arg-1",
+   "kind": "mcq",
+   "prompt": "\"Either you support this plan completely or you hate our city.\" Which fallacy from the lesson does this resemble?",
+   "choices": [
+    "Presenting two options as exhaustive when others exist",
+    "Attacking the person",
+    "Assuming what you set out to show",
+    "Appealing to an authority outside their field"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-arg-1.q4",
+   "lessonId": "ph-arg-1",
+   "kind": "mcq",
+   "prompt": "What discipline does the lesson recommend before objecting to an opponent's argument?",
+   "choices": [
+    "Ignore their premises",
+    "State their argument in a form they would accept",
+    "Find a weaker version",
+    "Label its fallacy immediately"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-arg-2.q1",
+   "lessonId": "ph-arg-2",
+   "kind": "mcq",
+   "prompt": "Of what was Socrates charged at his trial, according to the lesson?",
+   "choices": [
+    "Theft and fraud",
+    "Impiety and corrupting the young",
+    "Tax evasion",
+    "Treason and murder"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-arg-2.q2",
+   "lessonId": "ph-arg-2",
+   "kind": "mcq",
+   "prompt": "Whose account of Socrates' defence is the Apology in this lesson?",
+   "choices": [
+    "Plato's",
+    "Aristotle's",
+    "Kant's",
+    "Mill's"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-arg-2.q3",
+   "lessonId": "ph-arg-2",
+   "kind": "mcq",
+   "prompt": "Which behaviour does the lesson say Socrates did NOT do, contrary to what a defendant is supposed to do?",
+   "choices": [
+    "Cross-examine his accuser",
+    "Use his usual method",
+    "Speak in open court",
+    "Plead, flatter the jury or bring his family to be pitied"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-arg-2.q4",
+   "lessonId": "ph-arg-2",
+   "kind": "mcq",
+   "prompt": "Why does the lesson suggest learners argue both sides in role before saying what they think of the verdict?",
+   "choices": [
+    "Because Socrates asked them to",
+    "Because the verdict is known to be correct",
+    "Because the case against him is harder than its reputation and the course does not resolve it",
+    "Because roles make it shorter"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-arg-3.q1",
+   "lessonId": "ph-arg-3",
+   "kind": "mcq",
+   "prompt": "According to the lesson, when is \"if P then Q\" false?",
+   "choices": [
+    "When P is true and Q is false",
+    "When P is false",
+    "When both are false",
+    "When Q is true"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-arg-3.q2",
+   "lessonId": "ph-arg-3",
+   "kind": "mcq",
+   "prompt": "Which of these argument forms is valid?",
+   "choices": [
+    "Affirming the consequent",
+    "Affirming the antecedent",
+    "Denying the antecedent",
+    "None of these forms"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-arg-3.q3",
+   "lessonId": "ph-arg-3",
+   "kind": "mcq",
+   "prompt": "\"If it rains, the street is wet. The street is wet. Therefore it rained.\" Which form is this?",
+   "choices": [
+    "Affirming the antecedent",
+    "Denying the consequent",
+    "Affirming the consequent",
+    "Denying the antecedent"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-arg-3.q4",
+   "lessonId": "ph-arg-3",
+   "kind": "mcq",
+   "prompt": "Why does the lesson say the conditional's truth table (true when the antecedent is false) is a \"deliberate technical decision\"?",
+   "choices": [
+    "Because it describes ordinary usage exactly",
+    "Because it was proven false",
+    "Because conditionals are not part of logic",
+    "Because it is a defined convention, not a claim about everyday \"if\""
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-eth-1.q1",
+   "lessonId": "ph-eth-1",
+   "kind": "mcq",
+   "prompt": "Which framework holds that rightness depends on outcomes, classically the greatest wellbeing overall?",
+   "choices": [
+    "Virtue ethics",
+    "Relativism",
+    "Deontology",
+    "Consequentialism"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-eth-1.q2",
+   "lessonId": "ph-eth-1",
+   "kind": "mcq",
+   "prompt": "Which question does virtue ethics ask instead of \"what should I do?\"",
+   "choices": [
+    "What does the rule say?",
+    "What is legal?",
+    "What kind of person should I be?",
+    "What will produce the best outcome?"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-eth-1.q3",
+   "lessonId": "ph-eth-1",
+   "kind": "mcq",
+   "prompt": "Which of Kant's formulations quoted in the lesson says people must never be treated merely as means?",
+   "choices": [
+    "Cultivate courage through practice",
+    "Treat people always as ends and never merely as means",
+    "Act on principles you could will everyone to follow",
+    "Maximise overall wellbeing"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-eth-1.q4",
+   "lessonId": "ph-eth-1",
+   "kind": "mcq",
+   "prompt": "According to the lesson, what is a notorious difficulty of consequentialism?",
+   "choices": [
+    "It can license terrible acts to individuals when the sums come out right",
+    "It gives no procedure at all",
+    "It is too rigid about duties",
+    "It ignores suffering"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-eth-2.q1",
+   "lessonId": "ph-eth-2",
+   "kind": "mcq",
+   "prompt": "How are teams judged in an ethics bowl, according to the lesson?",
+   "choices": [
+    "On the quality of their reasoning, including how they engage the other team",
+    "On the verdict they reach",
+    "On whether they win against the other side",
+    "On how loudly they speak"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-eth-2.q2",
+   "lessonId": "ph-eth-2",
+   "kind": "mcq",
+   "prompt": "How many moves are in the ethics bowl format the lesson describes?",
+   "choices": [
+    "Six",
+    "Four",
+    "Three",
+    "Two"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-eth-2.q3",
+   "lessonId": "ph-eth-2",
+   "kind": "mcq",
+   "prompt": "During the response move, which point of the other team should you engage with?",
+   "choices": [
+    "None of their points",
+    "Whatever is easiest",
+    "Their strongest point",
+    "Their weakest point"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-eth-2.q4",
+   "lessonId": "ph-eth-2",
+   "kind": "mcq",
+   "prompt": "Why does the lesson say conceding a good point improves your score in ethics bowl?",
+   "choices": [
+    "Conceding ends the round early",
+    "Teams are paired by agreement",
+    "Judges prefer shorter answers",
+    "The incentive is to understand rather than to score"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-hist-1.q1",
+   "lessonId": "ph-hist-1",
+   "kind": "mcq",
+   "prompt": "What single point of certainty does Descartes find after doubting everything doubtable?",
+   "choices": [
+    "Dreams are real",
+    "God has deceived him",
+    "He is thinking, and therefore exists",
+    "The senses are reliable"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-hist-1.q2",
+   "lessonId": "ph-hist-1",
+   "kind": "mcq",
+   "prompt": "Which problem does the lesson associate with Hume?",
+   "choices": [
+    "The trolley problem",
+    "The liar paradox",
+    "The problem of evil",
+    "The problem of induction"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-hist-1.q3",
+   "lessonId": "ph-hist-1",
+   "kind": "mcq",
+   "prompt": "We repeatedly see one event follow another. According to Hume as presented, what do we never observe?",
+   "choices": [
+    "The connection itself",
+    "The second event",
+    "The sequence",
+    "The first event"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-hist-1.q4",
+   "lessonId": "ph-hist-1",
+   "kind": "mcq",
+   "prompt": "What is the core of Kant's response, as described in the lesson?",
+   "choices": [
+    "Nothing can be known",
+    "Structure is perhaps contributed by the mind, which organises experience through categories such as causation",
+    "Hume is simply wrong about causation",
+    "Only the senses can be trusted"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-hist-2.q1",
+   "lessonId": "ph-hist-2",
+   "kind": "mcq",
+   "prompt": "According to Locke as presented, how does legitimate government arise?",
+   "choices": [
+    "By inheritance",
+    "By consent, holding power in trust for a purpose",
+    "By force",
+    "By natural authority"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-hist-2.q2",
+   "lessonId": "ph-hist-2",
+   "kind": "mcq",
+   "prompt": "What is Mill's harm principle, as stated in the lesson?",
+   "choices": [
+    "Power may be exercised over a person against their will only to prevent harm to others",
+    "Only physical harm is ever relevant",
+    "Government may interfere whenever it improves someone's own good",
+    "Individuals may never be restricted"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-hist-2.q3",
+   "lessonId": "ph-hist-2",
+   "kind": "mcq",
+   "prompt": "A regulation bans a product only because it might harm the person who chooses to use it, with no harm to others. What would the harm principle say about this ground for interference?",
+   "choices": [
+    "It is sufficient",
+    "It is required",
+    "It is irrelevant to Mill's view",
+    "It is not sufficient warrant by itself"
+   ]
+  },
+  {
+   "id": "philosophy-school.ph-hist-2.q4",
+   "lessonId": "ph-hist-2",
+   "kind": "mcq",
+   "prompt": "Which objection to the harm principle does the lesson raise?",
+   "choices": [
+    "It was never published",
+    "It has no application to government",
+    "What counts as harm is unclear: physical only, or also offence or economic damage",
+    "It agrees with Locke on every point"
+   ]
+  }
+ ]
+}

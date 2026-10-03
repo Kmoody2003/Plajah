@@ -1,18 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, Video, Radio, Cctv, Plus, Lock, Unlock, Save, Zap, Cpu, X,
-  MonitorPlay, Camera, Wifi, AlertTriangle,
+  MonitorPlay, Camera, Wifi, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import { MediaEngine, EngineState } from '../../services/mediaEngine/engine';
 import { WebcamSource } from '../../services/mediaEngine/browserSources';
 import { unavailableReason } from '../../services/mediaEngine/capabilities';
 import { SourceKind, KIND_LABEL, NATIVE_ONLY, TransitionType, MasterClock } from '../../services/mediaEngine/types';
+import { NativeSourceInfo } from '../../services/mediaEngine/bridge';
+import { SwitcherRouterReceiver } from './SwitcherRouterReceiver';
 
 interface Props { onBack: () => void }
 
 const KIND_COLOR: Record<SourceKind, string> = {
-  decklink: '#e8b84b', ndi: '#7c9ce8', srt: '#e88a4b', rtmp: '#e0685b',
+  decklink: '#e8b84b', ndi: '#7c9ce8', omt: '#06b6d4', srt: '#e88a4b', avb: '#a855f7', rtmp: '#e0685b',
   webrtc: '#c47ce0', uvc: '#3f9e74', file: '#8c7f6c', braw: '#d94b3f',
+  ambo: '#38bdf8', switcher: '#f43f5e',
 };
 const PGM = '#EF4444', PVW = '#10B981', GOLD = '#F59E0B';
 const TRANSITIONS: TransitionType[] = ['cut', 'mix', 'dip', 'wipe', 'dve'];
@@ -33,14 +36,31 @@ const VideoRouterConsole: React.FC<Props> = ({ onBack }) => {
 
   const [state, setState] = useState<EngineState>(engine.getState());
   const [addOpen, setAddOpen] = useState(false);
+  const [routerReceiverOpen, setRouterReceiverOpen] = useState(false);
+  const [routerReceiverTarget, setRouterReceiverTarget] = useState<string>('sw1');
   const [cameras, setCameras] = useState<{ deviceId: string; label: string }[]>([]);
   const [whepUrl, setWhepUrl] = useState('');
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
+  const [isScanningNdi, setIsScanningNdi] = useState(false);
+  const [discoveredNdi, setDiscoveredNdi] = useState<NativeSourceInfo[]>([]);
 
   useEffect(() => engine.subscribe(setState), [engine]);
   useEffect(() => { engine.refreshNativeSources(); }, [engine]); // native capture/NDI when in the desktop app
   useEffect(() => () => engine.dispose(), [engine]);
+
+  const handleScanNdi = async () => {
+    setIsScanningNdi(true);
+    setErr('');
+    try {
+      const list = await engine.scanNdi();
+      setDiscoveredNdi(list.filter(s => s.kind === 'ndi'));
+    } catch (e: any) {
+      setErr(e?.message || 'NDI discovery scan encountered an issue.');
+    } finally {
+      setIsScanningNdi(false);
+    }
+  };
 
   const { caps, router, switcher, sync } = state;
   const swInputs = router.destinations.filter(d => d.kind === 'switcherInput');
@@ -48,7 +68,12 @@ const VideoRouterConsole: React.FC<Props> = ({ onBack }) => {
   const pgmSrc = srcById(router.routes[switcher.program]);
   const pvwSrc = srcById(router.routes[switcher.preview]);
 
-  const openAdd = async () => { setErr(''); setAddOpen(true); setCameras(await WebcamSource.listCameras()); };
+  const openAdd = async () => {
+    setErr('');
+    setAddOpen(true);
+    setCameras(await WebcamSource.listCameras());
+    handleScanNdi();
+  };
 
   const addCam = async (deviceId?: string, label?: string) => {
     setBusy('cam'); setErr('');
@@ -113,7 +138,20 @@ const VideoRouterConsole: React.FC<Props> = ({ onBack }) => {
 
         {/* Switcher bus */}
         <div>
-          {sectionLabel('Switcher · Program / Preview')}
+          <div className="flex items-center justify-between mb-2">
+            {sectionLabel('Switcher · Program / Preview')}
+            <button
+              onClick={() => {
+                setRouterReceiverTarget('sw1');
+                setRouterReceiverOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F59E0B]/15 border border-[#F59E0B]/35 text-[#F59E0B] hover:bg-[#F59E0B]/25 text-[10px] font-black uppercase tracking-wider transition-all shadow-sm"
+              title="Open video router selection receiver to route NDI, DeckLink, and platform feeds"
+            >
+              <Radio size={13} />
+              <span>Router Selection Tool</span>
+            </button>
+          </div>
           <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 space-y-2.5">
             {(['program', 'preview'] as const).map(bus => {
               const isPgm = bus === 'program';
@@ -128,11 +166,26 @@ const VideoRouterConsole: React.FC<Props> = ({ onBack }) => {
                       const on = sel === d.id;
                       const src = srcById(router.routes[d.id]);
                       return (
-                        <button key={d.id} onClick={() => setSel(d.id)} className="flex-1 rounded-lg px-2 py-2 border-2 transition-all text-left"
-                          style={{ borderColor: on ? accent : 'rgba(255,255,255,0.1)', background: on ? accent : 'rgba(255,255,255,0.03)', color: on ? '#0a0a0c' : '#fff' }}>
-                          <div className="font-mono text-[8px] opacity-80">{d.label}</div>
-                          <div className="font-black text-[12px] truncate">{src?.label || '—'}</div>
-                        </button>
+                        <div key={d.id} className="flex-1 relative group">
+                          <button onClick={() => setSel(d.id)} className="w-full rounded-lg px-2 py-2 border-2 transition-all text-left"
+                            style={{ borderColor: on ? accent : 'rgba(255,255,255,0.1)', background: on ? accent : 'rgba(255,255,255,0.03)', color: on ? '#0a0a0c' : '#fff' }}>
+                            <div className="flex items-center justify-between">
+                              <div className="font-mono text-[8px] opacity-80">{d.label}</div>
+                              <span
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRouterReceiverTarget(d.id);
+                                  setRouterReceiverOpen(true);
+                                }}
+                                title={`Route video source into ${d.label}`}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-white/20 text-[9px] cursor-pointer"
+                              >
+                                <Radio size={10} />
+                              </span>
+                            </div>
+                            <div className="font-black text-[12px] truncate">{src?.label || '—'}</div>
+                          </button>
+                        </div>
                       );
                     })}
                   </div>
@@ -156,6 +209,26 @@ const VideoRouterConsole: React.FC<Props> = ({ onBack }) => {
           <div className="flex items-center justify-between mb-2">
             {sectionLabel('Router · Crosspoint Matrix', 'text-[#F59E0B]')}
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setRouterReceiverTarget('sw1');
+                  setRouterReceiverOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#F59E0B]/15 border border-[#F59E0B]/35 text-[#F59E0B] hover:bg-[#F59E0B]/25 text-[9px] font-black uppercase tracking-widest transition-all"
+                title="Open visual router receiver matrix"
+              >
+                <Radio size={11} />
+                Router Selection Tool
+              </button>
+              <button
+                onClick={handleScanNdi}
+                disabled={isScanningNdi}
+                title="Scan LAN for active NDI video feeds"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#7c9ce8]/15 border border-[#7c9ce8]/30 text-[#7c9ce8] hover:bg-[#7c9ce8]/25 text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+              >
+                <RefreshCw size={11} className={isScanningNdi ? "animate-spin" : ""} />
+                {isScanningNdi ? "Scanning NDI..." : "Scan NDI"}
+              </button>
               <button onClick={() => engine.saveSalvo(`Salvo ${router.salvos.length + 1}`)} className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white transition-colors"><Save size={11} /> Save salvo</button>
               <button onClick={openAdd} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-black text-[9px] font-black uppercase tracking-widest hover:bg-white/90 transition-all"><Plus size={12} /> Add source</button>
             </div>
@@ -293,22 +366,97 @@ const VideoRouterConsole: React.FC<Props> = ({ onBack }) => {
                 </div>
                 <p className="text-[9px] text-white/30 mt-1.5">A Blackmagic Camera / SRT feed via a MediaMTX WHEP endpoint.</p>
               </div>
-              {/* Native kinds — shown disabled with an honest reason */}
-              <div className="pt-1 border-t border-white/8">
-                <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Native inputs</span>
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {NATIVE_ONLY.map(k => (
-                    <span key={k} title={unavailableReason(k, caps) || ''} className="px-2.5 py-1.5 rounded-lg bg-white/[0.02] border border-dashed border-white/10 text-[9px] font-bold text-white/25 flex items-center gap-1">
-                      <AlertTriangle size={9} /> {KIND_LABEL[k]}
-                    </span>
-                  ))}
+              {/* NDI Streams (LAN Discovery) */}
+              <div className="pt-2 border-t border-white/8">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Radio size={13} className="text-[#7c9ce8]" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[#7c9ce8]">NDI Streams (LAN Discovery)</span>
+                  </div>
+                  <button
+                    onClick={handleScanNdi}
+                    disabled={isScanningNdi}
+                    className="flex items-center gap-1 text-[8.5px] font-mono px-2 py-0.5 rounded bg-white/10 text-white/80 hover:text-white transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw size={9} className={isScanningNdi ? "animate-spin" : ""} />
+                    <span>{isScanningNdi ? "Scanning..." : "Rescan LAN"}</span>
+                  </button>
                 </div>
+                {discoveredNdi.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                    {discoveredNdi.map(ndi => {
+                      const alreadyIn = router.sources.some(s => s.id === ndi.id);
+                      return (
+                        <div key={ndi.id} className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-[11px] truncate text-white">{ndi.streamName || ndi.label}</div>
+                            <div className="font-mono text-[9px] text-white/40 truncate">{ndi.machineName || ndi.url || 'LAN NDI Sender'} · {ndi.format || 'Auto'}</div>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              if (!alreadyIn) {
+                                await engine.scanNdi();
+                              }
+                              setAddOpen(false);
+                            }}
+                            className="ml-2 px-3 py-1 rounded-lg text-[9.5px] font-mono font-bold uppercase transition-all"
+                            style={{
+                              background: alreadyIn ? 'rgba(16,185,129,0.15)' : 'rgba(124,156,232,0.2)',
+                              color: alreadyIn ? '#10B981' : '#7c9ce8',
+                              border: `1px solid ${alreadyIn ? 'rgba(16,185,129,0.3)' : 'rgba(124,156,232,0.4)'}`,
+                            }}
+                          >
+                            {alreadyIn ? 'In Router' : '+ Add'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-white/[0.02] border border-white/8 text-center space-y-1">
+                    <p className="text-[10px] text-white/40">
+                      {isScanningNdi ? "Searching LAN for NDI senders via SDK & mDNS..." : "No active NDI streams detected on this subnet."}
+                    </p>
+                    <p className="text-[8.5px] text-white/30 font-mono">
+                      NDI cameras, OBS NDI, and TriCaster feeds appear automatically when online.
+                    </p>
+                  </div>
+                )}
               </div>
+
+              {/* Other Native kinds — shown disabled with an honest reason if not supported */}
+              {NATIVE_ONLY.filter(k => k !== 'ndi' && !caps.sources[k]).length > 0 && (
+                <div className="pt-1 border-t border-white/8">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Hardware inputs</span>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {NATIVE_ONLY.filter(k => k !== 'ndi' && !caps.sources[k]).map(k => (
+                      <span key={k} title={unavailableReason(k, caps) || ''} className="px-2.5 py-1.5 rounded-lg bg-white/[0.02] border border-dashed border-white/10 text-[9px] font-bold text-white/25 flex items-center gap-1">
+                        <AlertTriangle size={9} /> {KIND_LABEL[k]}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
               {err && <p className="text-[11px] text-[#EF4444] font-bold">{err}</p>}
             </div>
           </div>
         </div>
       )}
+
+      {/* Switcher Router Receiver Modal */}
+      <SwitcherRouterReceiver
+        isOpen={routerReceiverOpen}
+        onClose={() => setRouterReceiverOpen(false)}
+        engine={engine}
+        sources={router.sources}
+        destinations={router.destinations}
+        routes={router.routes}
+        programDestId={switcher.program}
+        previewDestId={switcher.preview}
+        onScanNdi={handleScanNdi}
+        isScanningNdi={isScanningNdi}
+        initialTargetDestId={routerReceiverTarget}
+      />
     </div>
   );
 };

@@ -28,6 +28,8 @@ const onSnapshot: typeof rawOnSnapshot = ((...args: any[]) => {
 }) as typeof rawOnSnapshot;
 import {
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signInWithCredential,
   linkWithPopup,
   getAdditionalUserInfo,
@@ -45,10 +47,23 @@ import {
   User
 } from 'firebase/auth';
 import { db, storage, auth as firebaseAuth } from './firebase';
+import { isWindowsApp } from './windowsBridgeService';
 import { saveResumable, updateResumableProgress, clearResumable } from './resumableUpload';
 import { registerTransfer, updateTransfer, removeTransfer } from './activeUpload';
 export const auth = firebaseAuth;
 export { db };
+
+// Catch any pending redirect credentials (fallback for redirect auth)
+if (typeof window !== 'undefined') {
+  getRedirectResult(auth).then(async (result) => {
+    if (result?.user) {
+      try { await result.user.getIdToken(true); } catch { /* non-fatal */ }
+      await syncUserProfile(result.user);
+    }
+  }).catch((err) => {
+    console.warn('[auth] getRedirectResult error:', err);
+  });
+}
 
 /**
  * Ensure we have *some* Firebase identity so spectator features (video-room
@@ -87,7 +102,7 @@ export const saveBibleNote = async (uid: string, ref: string, text: string): Pro
 };
 import { allTakenNumbers, canClaim, isAllocatableMajor, legacyMajors, numberFor, type NumberRegistry } from './fast/channelNumbers';
 import { guideAccounts, type GuideAccount } from './fast/guideLineup';
-import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannel, ChannelSource, ChannelSourceSet, SavedFeed, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode, AccountType, NotifyLevel } from '../types';
+import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannel, ChannelSource, ChannelSourceSet, SavedFeed, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode, AccountType, NotifyLevel, SecurityPlatformStats, SecurityThreatEvent, SecurityGeoPing, CsoAssessment, UserThreatWarning } from '../types';
 import { accountFlagUpdate } from './accountCapabilities';
 // Creator Passport provenance (blueprint 1C.5) — attribution record, not crypto proof.
 import { buildProvenance, stampVideo } from './creatorPassport';
@@ -1528,11 +1543,15 @@ export const createPost = async (post: Partial<Post>) => {
       likesCount: 0,
       commentsCount: 0,
       timestamp: Date.now(),
-      isPublic: true,
+      // Elevate DEPARTMENT-thread posts are private to that department (rules grant read via orgInDepartment).
+      isPublic: post.orgAudience === 'DEPARTMENT' ? false : true,
       targetUserId: post.targetUserId || null,
       targetUserName: post.targetUserName || null
     });
     const docRef = await addDoc(collection(db, path), postData);
+
+    // Department-private posts never mirror to the global feed or notify followers.
+    if (post.orgAudience === 'DEPARTMENT') return docRef.id;
 
     // Mirror to feed collection — fire-and-forget so a feed write failure can't kill the post
     addDoc(collection(db, feedPath), {
@@ -1857,17 +1876,45 @@ export const listenToChildrenPosts = (childUids: string[], callback: (posts: Pos
  * feed by filtering to its id. Client-side sort avoids a composite index.
  */
 export const listenToOrgPosts = (orgId: string, callback: (posts: Post[]) => void) => {
-  const q = query(collection(db, 'posts'), where('authorOrgId', '==', orgId), limit(50));
+  const q = query(collection(db, 'posts'), where('authorOrgId', '==', orgId), where('isPublic', '==', true), limit(50));
   return onSnapshot(q, snapshot => {
     const items = snapshot.docs
       .map(d => ({ id: d.id, ...d.data(), sourceCollection: 'posts', timestamp: safeToMillis(d.data().timestamp) } as Post))
-      .filter(p => p.timestamp > 0)
+      .filter(p => p.timestamp > 0 && !p.orgDepartmentId)
       .sort((a, b) => b.timestamp - a.timestamp);
     callback(items);
   }, (err) => handleFirestoreError(err, OperationType.LIST, 'posts'));
 };
 
-/** Post as a business/organization the caller runs (appears on the org's feed + globally). */
+/**
+ * Elevate threads: the org-wide thread (no departmentId) or one ministry/department thread.
+ * DEPARTMENT threads query orgAudience=='DEPARTMENT' so the rules can prove access per department.
+ */
+export const listenToOrgThread = (
+  orgId: string,
+  opts: { departmentId?: string; audience?: 'ORG' | 'PUBLIC' | 'DEPARTMENT' },
+  callback: (posts: Post[]) => void,
+  onError?: (e: any) => void,
+) => {
+  const q = opts.departmentId
+    ? (opts.audience === 'DEPARTMENT'
+      ? query(collection(db, 'posts'), where('authorOrgId', '==', orgId), where('orgAudience', '==', 'DEPARTMENT'), where('orgDepartmentId', '==', opts.departmentId), limit(50))
+      : query(collection(db, 'posts'), where('authorOrgId', '==', orgId), where('orgDepartmentId', '==', opts.departmentId), where('isPublic', '==', true), limit(50)))
+    : query(collection(db, 'posts'), where('authorOrgId', '==', orgId), where('isPublic', '==', true), limit(50));
+  return onSnapshot(q, snapshot => {
+    const items = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data(), sourceCollection: 'posts', timestamp: safeToMillis(d.data().timestamp) } as Post))
+      .filter(p => p.timestamp > 0 && (opts.departmentId ? true : !p.orgDepartmentId))
+      .sort((a, b) => b.timestamp - a.timestamp);
+    callback(items);
+  }, (err) => { onError?.(err); handleFirestoreError(err, OperationType.LIST, 'posts'); });
+};
+
+/**
+ * Post as a business/organization the caller runs (appears on the org's feed + globally).
+ * Elevate: `orgAudience` 'PUBLIC' (default) = public timeline, open comments; 'MEMBERS' = readable by all,
+ * members + followers may comment; 'DEPARTMENT' + orgDepartmentId = that department only.
+ */
 export const createOrgPost = async (
   orgId: string, orgName: string, orgPhoto: string, post: Partial<Post>,
 ): Promise<string | undefined> =>
@@ -4320,6 +4367,10 @@ export const loginWithTwitter = async (): Promise<string | null> => {
 
   const provider = new TwitterAuthProvider();
   try {
+    if (isWindowsApp()) {
+      await signInWithRedirect(auth, provider);
+      return null;
+    }
     const result = await signInWithPopup(auth, provider);
     if (result.user) {
       await syncUserProfile(result.user);
@@ -4390,6 +4441,10 @@ export const loginWithFacebook = async () => {
 
   const provider = new FacebookAuthProvider();
   try {
+    if (isWindowsApp()) {
+      await signInWithRedirect(auth, provider);
+      return;
+    }
     const result = await signInWithPopup(auth, provider);
     if (result.user) await syncUserProfile(result.user);
   } catch (error: any) {
@@ -4428,6 +4483,10 @@ export const loginWithMicrosoft = async () => {
   const provider = new OAuthProvider('microsoft.com');
   provider.setCustomParameters({ prompt: 'select_account' });
   try {
+    if (isWindowsApp()) {
+      await signInWithRedirect(auth, provider);
+      return;
+    }
     const result = await signInWithPopup(auth, provider);
     if (result.user) await syncUserProfile(result.user);
   } catch (error: any) {
@@ -7864,7 +7923,7 @@ export const getLikedVideos = async (uid?: string): Promise<Video[]> => {
   }
 };
 
-export const postVideoComment = async (videoId: string, text: string, parentId?: string) => {
+export const postVideoComment = async (videoId: string, text: string, parentId?: string, gifUrl?: string, mediaTimestamp?: number) => {
   if (!auth.currentUser) return;
   const id = `vcom_${Date.now()}`;
   const path = `videos/${videoId}/comments/${id}`;
@@ -7874,9 +7933,11 @@ export const postVideoComment = async (videoId: string, text: string, parentId?:
     userId: auth.currentUser.uid,
     userName: auth.currentUser.displayName || 'User',
     userPhoto: auth.currentUser.photoURL || '',
-    text,
+    text: text || '',
     timestamp: Date.now(),
-    parentId: parentId || undefined
+    parentId: parentId || undefined,
+    gifUrl: gifUrl || undefined,
+    mediaTimestamp: typeof mediaTimestamp === 'number' && !isNaN(mediaTimestamp) ? mediaTimestamp : undefined,
   });
   try {
     await setDoc(doc(db, 'videos', videoId, 'comments', id), comment);
@@ -11689,11 +11750,94 @@ export const fetchCreatorEvents = async (uid: string): Promise<any[]> => {
   return d.events ?? [];
 };
 
+export const DEFAULT_VENUE_PACKAGES: any[] = [
+  {
+    id: 'pkg_deluxe_bev',
+    name: 'Deluxe Open Bar Package',
+    category: 'ALCOHOL',
+    type: 'UNLIMITED',
+    description: 'Unlimited craft draft beers, premium wines by the glass, signature cocktails up to $16, zero-proof mocktails, fountain sodas, and energy drinks.',
+    priceCents: 6500,
+    totalUnits: -1,
+    unitName: 'Drinks',
+    eligibleItems: ['Craft Draft Beer', 'Wine by the Glass (up to $16)', 'Signature Craft Cocktails', 'Zero-Proof Mocktails', 'Fountain Soda', 'Red Bull & Energy Drinks', 'Still & Sparkling Water'],
+    eligibleItemsDescription: 'All drinks up to $16 included at all bars. 1 drink at a time per pass.',
+    stations: ['Main Stage Bar', 'Patio Lounge', 'VIP Mezzanine Bar'],
+    cooldownMinutes: 5,
+    souvenirCupIncluded: true,
+    badgeColor: '#ec4899',
+    isActive: true,
+  },
+  {
+    id: 'pkg_refreshment',
+    name: 'Refreshment Zero-Proof Package',
+    category: 'DRINK',
+    type: 'UNLIMITED',
+    description: 'All-inclusive non-alcoholic craft mocktails, Coca-Cola Freestyle fountain refills, cold brew, energy drinks, and bottled sparkling waters with souvenir cup.',
+    priceCents: 2800,
+    totalUnits: -1,
+    unitName: 'Drinks',
+    eligibleItems: ['Artisan Mocktails', 'Coca-Cola Freestyle Fountain Refills', 'Nitro Cold Brew Coffee', 'San Pellegrino & Fiji Water', 'Red Bull'],
+    eligibleItemsDescription: 'Unlimited non-alcoholic beverages at all venue stations.',
+    stations: ['Main Stage Bar', 'Patio Lounge', 'Food Court Stations'],
+    cooldownMinutes: 3,
+    souvenirCupIncluded: true,
+    badgeColor: '#06b6d4',
+    isActive: true,
+  },
+  {
+    id: 'pkg_food_tasting',
+    name: 'Taste of the Venue / VIP 3-Course Food Pass',
+    category: 'FOOD_AND_BEVERAGE',
+    type: 'QUANTITY_CREDITS',
+    description: '3 gourmet specialty food items or entrees across any participating festival food truck or venue culinary station.',
+    priceCents: 3500,
+    totalUnits: 3,
+    unitName: 'Entrees / Plates',
+    eligibleItems: ['Artisan Pizza Slices', 'Smoked BBQ Sliders', 'Gourmet Tacos', 'Truffle Fries & Loaded Nachos', 'Specialty Dessert'],
+    eligibleItemsDescription: 'Valid for any 3 entrees or dishes across all culinary stalls.',
+    stations: ['Food Truck Row', 'Main Concessions', 'VIP Chef Station'],
+    badgeColor: '#f59e0b',
+    isActive: true,
+  },
+  {
+    id: 'pkg_craft_flight',
+    name: 'Craft Brewery Tasting Flight (5 Pours)',
+    category: 'ALCOHOL',
+    type: 'QUANTITY_CREDITS',
+    description: '5 pours of local craft beers, microbrew ciders, or hard seltzers. Perfect for sampling.',
+    priceCents: 3000,
+    totalUnits: 5,
+    unitName: 'Pours / Cans',
+    eligibleItems: ['Local IPA Drafts', 'Sour & Saison Ales', 'Hard Ciders', 'Craft Seltzers', 'Stout Pours'],
+    eligibleItemsDescription: 'Redeemable for 5 distinct draft pours or 16oz craft cans.',
+    stations: ['Main Stage Bar', 'Craft Beer Garden'],
+    badgeColor: '#10b981',
+    isActive: true,
+  },
+  {
+    id: 'pkg_credit_50',
+    name: '$50 Venue Dining & Bar Allowance',
+    category: 'VALUE_ALLOWANCE',
+    type: 'VALUE_ALLOWANCE',
+    description: '$50.00 dollar-for-dollar credit balance redeemable for any food, drinks, or merch onsite at 10% discount.',
+    priceCents: 4500,
+    totalUnits: 5000,
+    unitName: 'Cents',
+    eligibleItems: ['All Bar Items', 'All Food Vendors', 'Non-Alcoholic Drinks'],
+    eligibleItemsDescription: 'Valid dollar-for-dollar on any food or drink transaction across the entire venue.',
+    stations: ['All Venue Bars', 'Food Truck Row', 'VIP Lounge'],
+    badgeColor: '#8b5cf6',
+    isActive: true,
+  },
+];
+
 export const purchaseTickets = async (params: {
   eventId: string; tierId: string; quantity: number;
   holderName: string; holderEmail: string;
   physicalRequested?: boolean; customPackagingRequested?: boolean;
   shippingAddress?: any; promoCode?: string;
+  selectedPackages?: any[];
 }): Promise<{ url: string }> => {
   const idToken = await getRequiredIdToken();
   const res = await fetch(`/api/events/${params.eventId}/tickets/purchase`, {
@@ -11702,6 +11846,43 @@ export const purchaseTickets = async (params: {
     body: JSON.stringify(params),
   });
   if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to initiate purchase'); }
+  return res.json();
+};
+
+export const redeemTicketPackage = async (params: {
+  ticketId: string;
+  packageId: string;
+  units?: number;
+  itemName: string;
+  stationName: string;
+  staffName?: string;
+  notes?: string;
+  overrideCooldown?: boolean;
+}): Promise<{ success: boolean; package?: any; redemption?: any; reason?: string; cooldownActive?: boolean; remainingSeconds?: number }> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/tickets/${params.ticketId}/redeem-package`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    return { success: false, reason: d.reason || 'Server error redeeming package' };
+  }
+  return res.json();
+};
+
+export const addPackageToTicket = async (ticketId: string, packageAddon: any): Promise<{ success: boolean; package?: any }> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/tickets/${ticketId}/add-package`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ packageAddon }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || 'Failed to add package');
+  }
   return res.json();
 };
 
@@ -11835,3 +12016,122 @@ export const fetchImportedEpisodes = async (uid: string): Promise<ImportedRssEpi
     return [];
   }
 };
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADVANCE THREAT PROTECTION & CHIEF SECURITY OFFICER (CSO) CLIENT HELPERS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+export const fetchThreatStats = async (): Promise<SecurityPlatformStats | null> => {
+  try {
+    const res = await fetch('/api/security/threat-protection/stats');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    // In-memory local fallback if offline or backend route initializing
+    const { CsoAgentService } = await import('./csoAgentService');
+    return CsoAgentService.getPlatformStats();
+  }
+};
+
+export const fetchThreatEvents = async (): Promise<SecurityThreatEvent[]> => {
+  try {
+    const res = await fetch('/api/security/threat-protection/events');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.events || [];
+  } catch (err) {
+    const { CsoAgentService } = await import('./csoAgentService');
+    return CsoAgentService.getThreatEvents();
+  }
+};
+
+export const fetchThreatMapData = async (): Promise<SecurityGeoPing[]> => {
+  try {
+    const res = await fetch('/api/security/threat-protection/map-data');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.pings || [];
+  } catch (err) {
+    const { CsoAgentService } = await import('./csoAgentService');
+    return CsoAgentService.getPlatformStats().recentPings;
+  }
+};
+
+export const fetchCsoAssessment = async (refresh: boolean = false): Promise<CsoAssessment | null> => {
+  try {
+    const res = await fetch(`/api/security/threat-protection/assessment?refresh=${refresh}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.assessment || null;
+  } catch (err) {
+    const { CsoAgentService } = await import('./csoAgentService');
+    return await CsoAgentService.generateSecurityAssessment();
+  }
+};
+
+export const simulateThreatAttack = async (isMalicious: boolean, targetUserUid?: string): Promise<SecurityThreatEvent | null> => {
+  try {
+    const res = await fetch('/api/security/threat-protection/simulate-attack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isMalicious, targetUserUid })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.event || null;
+  } catch (err) {
+    const { CsoAgentService } = await import('./csoAgentService');
+    return await CsoAgentService.simulateAttack(isMalicious, targetUserUid);
+  }
+};
+
+export const dispatchThreatAlert = async (eventId?: string, email?: string): Promise<{ ok: boolean; emailSent?: boolean; chatDelivered?: boolean }> => {
+  try {
+    const res = await fetch('/api/security/threat-protection/dispatch-alert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventId, email })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    const { CsoAgentService, ADMIN_PRIMARY_EMAIL } = await import('./csoAgentService');
+    const events = CsoAgentService.getThreatEvents();
+    const event = events.find(e => e.id === eventId) || events[0];
+    if (event) {
+      await CsoAgentService.sendRichAdminEmail({ to: email || ADMIN_PRIMARY_EMAIL, subject: `🚨 Incident Alert: ${event.vector}`, event });
+      await CsoAgentService.dispatchAssessmentToAdminChat(event);
+      return { ok: true, emailSent: true, chatDelivered: true };
+    }
+    return { ok: false };
+  }
+};
+
+export const warnUserThreat = async (uid: string, vector?: string, details?: string): Promise<UserThreatWarning | null> => {
+  try {
+    const res = await fetch('/api/security/threat-protection/warn-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, vector, details })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.warning || null;
+  } catch (err) {
+    const { CsoAgentService } = await import('./csoAgentService');
+    return await CsoAgentService.warnTargetUser(uid, {
+      id: 'evt-manual-' + Date.now(),
+      timestamp: Date.now(),
+      ip: '198.51.100.42',
+      geo: { lat: 37.7749, lng: -122.4194, country: 'United States', city: 'San Francisco' },
+      severity: 'MALICIOUS_RED',
+      vector: (vector as any) || 'CREDENTIAL_STUFFING',
+      targetEndpoint: '/api/auth/session',
+      targetUid: uid,
+      riskScore: 94,
+      mitigated: true,
+      details: details || 'Administrative security warning dispatched.'
+    });
+  }
+};
+

@@ -1,0 +1,22 @@
+# law-torts: claims less than fully certain
+
+- l01: Slander-per-se categories (including unchastity) vary by state; shopkeeper's privilege conditions vary.
+- l02: Snyder v. Phelps and Hustler v. Falwell holdings stated correctly as recalled. Electronic trespass to chattels cases not cited; treatment is jurisdiction-dependent.
+- l03: Katko v. Briney (Iowa 1971), Ploof v. Putnam (Vt. 1908), Vincent v. Lake Erie (Minn. 1910) holdings standard. Restatement section range 63-76 cited loosely. Retreat rule counts ("majority no-retreat") are approximate.
+- l04: Dillon v. Legg factors; Thing v. La Chusa elements (summary). Premises-liability abolition counts (minority) not quantified. Restatement (Second) 314 for no duty to rescue.
+- l05: Hand formula description; Carroll Towing facts (barge unattended). Brown v. Kendall (Mass. 1850) characterisation. Medical standard (national vs locality) varies.
+- l06: Restatement 285-288C range approximate. Res ipsa effect split (inference vs presumption) described qualitatively. Martin v. Herzog court and author (Cardozo, NY 1920) as recalled.
+- l07: Sindell v. Abbott (Cal. 1980) market-share details (substantial share) as recalled; loss-of-chance approach counts not stated. Restatement (Third) 26 cited from memory.
+- l08: Wagon Mound No. 1 outcome (fire not foreseeable) correct as recalled. Restatement (Third) 29 text paraphrased.
+- l09: Restatement 920A (collateral source) cited. State list for medical-monitoring is general. Statement that Thing limited Dillon is accurate as I recall.
+- l10: Contributory-negligence jurisdictions list (AL, MD, NC, VA, DC) may be outdated; verify as of 2026-10. Li v. Yellow Cab (Cal. 1975) pure comparative. Joint-and-several variations are general.
+- l11: Restatement (Third) section 20 two-part test paraphrased. Mink farm example (not a cited case). Fence-out jurisdictions statement is general.
+- l12: Restatement (Third) Products Liability: design defect needs reasonable alternative design (with exceptions not covered). Statutes of repose, preemption summaries are general.
+- l13: Gertz/Sullivan standards correct as recalled; statement that plaintiffs bear falsity burden on public-concern speech (Philadelphia Newspapers v. Hepps, not cited). Section 230 summary.
+- l14: Cox Broadcasting v. Cohn (US 1975) facts (name of rape victim from court records) as recalled. Count of states rejecting false light not stated.
+- l15: Boomer v. Atlantic Cement (NY 1970) figure of 45 million dollars investment as recalled; verify. Restatement 829A numbering.
+- l16: Ultramares facts and holding as recalled. Rule 9(b) particularity requirement correct. Approaches to accountant liability summarised, not by state.
+- l17: Restatement (Third) of Agency sections 7.03, 7.07 cited from memory. Going-and-coming rule exceptions general.
+- l18: Gore guideposts and State Farm ratio language paraphrased; "1 to 1 may be the limit" where compensatory damages are substantial is paraphrased from State Farm (verify wording).
+- Question l06 q4 includes an irrelevant sentence about a bookcase; reviewers may trim.
+- Validator warning: correct answer is the longest option in ~80% of MCQs; distractors need lengthening.

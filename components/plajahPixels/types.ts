@@ -36,6 +36,35 @@ export enum VisualizerMode {
   PorcelainTide = 'FLUX_PORCELAIN_TIDE',
   VelvetBloom = 'FLUX_VELVET_BLOOM',
   PrismArchive = 'FLUX_PRISM_ARCHIVE',
+  DecoMorph = 'FLUX_DECO_MORPH',
+  EgyptTemple = 'FLUX_EGYPT_TEMPLE',
+  VenetianMaiolica = 'FLUX_VENETIAN_MAIOLICA',
+  HellenicMarble = 'FLUX_HELLENIC_MARBLE',
+  JapaneseInk = 'FLUX_JAPANESE_INK',
+  AfricanBogolan = 'FLUX_AFRICAN_BOGOLAN',
+
+  // ─── Council Masterworks (Milkdrop-Grade Audio-Reactive Generative Shaders) ───
+  CouncilOceanLeviathan = 'COUNCIL_OCEAN_LEVIATHAN',
+  CouncilKineticChrome = 'COUNCIL_KINETIC_CHROME',
+  CouncilVolcanicFire = 'COUNCIL_VOLCANIC_FIRE',
+  CouncilAerodynamicWind = 'COUNCIL_AERODYNAMIC_WIND',
+  CouncilCrystallineCathedral = 'COUNCIL_CRYSTALLINE_CATHEDRAL',
+  CouncilChladniResonator = 'COUNCIL_CHLADNI_RESONATOR',
+  CouncilAstralAblation = 'COUNCIL_ASTRAL_ABLATION',
+  CouncilBioluminescentAbyss = 'COUNCIL_BIOLUMINESCENT_ABYSS',
+  CouncilSolarisOcean = 'COUNCIL_SOLARIS_OCEAN',
+  CouncilIonicThunder = 'COUNCIL_IONIC_THUNDER',
+  CouncilFrostFracture = 'COUNCIL_FROST_FRACTURE',
+  CouncilAuroraChronos = 'COUNCIL_AURORA_CHRONOS',
+  // ─── Image-Derived Masterworks (Calm vs Energetic) ───
+  CouncilRippleTranquil = 'COUNCIL_RIPPLE_TRANQUIL',
+  CouncilRippleEnergetic = 'COUNCIL_RIPPLE_ENERGETIC',
+  CouncilSlatTranquil = 'COUNCIL_SLAT_TRANQUIL',
+  CouncilSlatEnergetic = 'COUNCIL_SLAT_ENERGETIC',
+  CouncilMonolithTranquil = 'COUNCIL_MONOLITH_TRANQUIL',
+  CouncilMonolithEnergetic = 'COUNCIL_MONOLITH_ENERGETIC',
+  CouncilChevronTranquil = 'COUNCIL_CHEVRON_TRANQUIL',
+  CouncilChevronEnergetic = 'COUNCIL_CHEVRON_ENERGETIC',
 }
 
 /** Studio scene id (engine-side) ↔ VisualizerMode mapping. */
@@ -69,6 +98,12 @@ export const MODE_TO_FLUX_SCENE: Record<string, string> = {
   [VisualizerMode.PorcelainTide]: 'porcelain-tide',
   [VisualizerMode.VelvetBloom]: 'velvet-bloom',
   [VisualizerMode.PrismArchive]: 'prism-archive',
+  [VisualizerMode.DecoMorph]: 'deco-morph',
+  [VisualizerMode.EgyptTemple]: 'egypt-temple',
+  [VisualizerMode.VenetianMaiolica]: 'venetian-maiolica',
+  [VisualizerMode.HellenicMarble]: 'hellenic-marble',
+  [VisualizerMode.JapaneseInk]: 'japanese-ink',
+  [VisualizerMode.AfricanBogolan]: 'african-bogolan',
 };
 export const FLUX_SCENE_TO_MODE: Record<string, VisualizerMode> =
   Object.fromEntries(Object.entries(MODE_TO_FLUX_SCENE).map(([k, v]) => [v, k as VisualizerMode]));

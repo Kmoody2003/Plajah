@@ -1,0 +1,314 @@
+{
+  "id": "review-evite-wellness-copy-fbefa6fb-7fe9-4e0b-b968-ec30335c78d4",
+  "ownerId": "local-review",
+  "title": "Quiet Morning · review copy",
+  "createdAt": 1790719091303,
+  "updatedAt": 1790719091303,
+  "frames": [
+    {
+      "id": "review-evite-wellness-frame",
+      "kind": "BOARD",
+      "preset": "FREE",
+      "x": 0,
+      "y": 0,
+      "w": 600,
+      "h": 800,
+      "deviceIds": [
+        "review-evite-wellness-vector"
+      ],
+      "label": "Quiet Morning"
+    }
+  ],
+  "devices": {
+    "review-evite-wellness-vector": {
+      "id": "review-evite-wellness-vector",
+      "type": "VECTOR",
+      "name": "Quiet Morning",
+      "width": 600,
+      "height": 800,
+      "objects": [
+        {
+          "id": "review-evite-wellness-ground",
+          "kind": "RECT",
+          "x": 0,
+          "y": 0,
+          "w": 600,
+          "h": 800,
+          "fill": "#e8e3d8",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "templateRole": "GROUND"
+        },
+        {
+          "id": "review-evite-wellness-stone-low",
+          "kind": "ELLIPSE",
+          "x": 130,
+          "y": 273,
+          "w": 338,
+          "h": 66,
+          "fill": "#c5ab94",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-wellness-stone-mid",
+          "kind": "ELLIPSE",
+          "x": 205,
+          "y": 205,
+          "w": 216,
+          "h": 69,
+          "fill": "#aab7a1",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-wellness-stone-top",
+          "kind": "ELLIPSE",
+          "x": 236,
+          "y": 144,
+          "w": 136,
+          "h": 64,
+          "fill": "#3f5046",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-wellness-still-water",
+          "kind": "LINE",
+          "x": 81,
+          "y": 361,
+          "w": 438,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#aab7a1",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            81,
+            361,
+            519,
+            361
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-wellness-eyebrow",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 32,
+          "w": 496,
+          "h": 16.200000000000003,
+          "fill": "#3f5046",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "YOU ARE INVITED",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-wellness-divider",
+          "kind": "LINE",
+          "x": 52,
+          "y": 410,
+          "w": 496,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#c5ab94",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            52,
+            410,
+            548,
+            410
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-wellness-title",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 446,
+          "w": 496,
+          "h": 55.35,
+          "fill": "#3f5046",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "A quieter morning",
+          "fontSize": 41,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "HEADLINE"
+        },
+        {
+          "id": "review-evite-wellness-subtitle",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 511,
+          "w": 492,
+          "h": 21.6,
+          "fill": "#3f5046",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Breath, movement & good company",
+          "fontSize": 16,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-wellness-date",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 588,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#3f5046",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "SATURDAY, 18 OCTOBER",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-wellness-time",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 617,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#3f5046",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "7:30 PM · THE STUDIO",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-wellness-venue",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 646,
+          "w": 492,
+          "h": 16.200000000000003,
+          "fill": "#3f5046",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "24 GARDEN LANE · SAMPLE CITY",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-wellness-rsvp",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 704,
+          "w": 490,
+          "h": 24.3,
+          "fill": "#3f5046",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Kindly RSVP by 10 October",
+          "fontSize": 18,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-wellness-sample",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 765,
+          "w": 490,
+          "h": 13.5,
+          "fill": "#3f5046",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "FICTIONAL EVENT · DESIGN PREVIEW",
+          "fontSize": 10,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        }
+      ]
+    }
+  },
+  "bindings": [],
+  "templatePreset": {
+    "schemaVersion": 1,
+    "templateId": "review-evite-wellness",
+    "status": "review",
+    "motion": {
+      "duration": 6000,
+      "tracks": [
+        {
+          "objectId": "review-evite-wellness-stone-low",
+          "property": "y",
+          "from": 273,
+          "to": 268,
+          "delay": 0,
+          "duration": 2800
+        },
+        {
+          "objectId": "review-evite-wellness-stone-mid",
+          "property": "y",
+          "from": 205,
+          "to": 210,
+          "delay": 140,
+          "duration": 3060
+        },
+        {
+          "objectId": "review-evite-wellness-stone-top",
+          "property": "y",
+          "from": 144,
+          "to": 139,
+          "delay": 280,
+          "duration": 3320
+        }
+      ]
+    },
+    "audio": {
+      "notes": [
+        56,
+        63,
+        68,
+        70
+      ],
+      "tempo": 92
+    }
+  }
+}

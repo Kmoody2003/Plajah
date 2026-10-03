@@ -54,6 +54,11 @@ export const SpatialProvider: React.FC<{ children: React.ReactNode; initialValue
   );
 };
 
+/** Like useSpatial, but outside a SpatialProvider (e.g. the LocalMediaLaunch shell) it reports
+ *  spatial mode off instead of throwing. */
+export const useSpatialOptional = (): SpatialContextType =>
+  useContext(SpatialContext) ?? { isSpatialMode: false, toggleSpatialMode: () => {} };
+
 export const useSpatial = () => {
   const context = useContext(SpatialContext);
   if (!context) {

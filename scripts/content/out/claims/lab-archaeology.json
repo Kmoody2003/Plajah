@@ -1,0 +1,832 @@
+{
+ "courseId": "lab-archaeology",
+ "label": "Archaeology",
+ "lessons": [
+  {
+   "id": "lab-archaeology.l01",
+   "title": "Winckelmann, Schliemann and the Search for Troy",
+   "body": [
+    "Johann Joachim Winckelmann, who lived from 1717 to 1768, is called the father of art history and of scientific archaeology. In his History of the Art of Antiquity, published in 1764, he arranged ancient art into periods by style. He also studied finds from Pompeii and Herculaneum. His idea of a stylistic chronology meant that objects could be placed in order by comparing their style, even without written dates.",
+    "Heinrich Schliemann, who lived from 1822 to 1890, was a German businessman turned excavator who set out to find the Troy of Homer. He dug at Hisarlik in Turkey, and also at Mycenae and Tiryns, and he did much to make Bronze Age archaeology famous around the world. His account of the work appeared in Ilios in 1880.",
+    "Hisarlik turned out to hold nine stratified settlements, labelled Troy I to IX and spanning about three thousand years, with later periods built on top of earlier ones. Schliemann used large-scale trenching, and modern archaeologists note that his rapid digging damaged some layers.",
+    "Why it mattered: these two men showed that the ancient past could be studied systematically, while Schliemann's mistakes taught later generations to dig with more care."
+   ]
+  },
+  {
+   "id": "lab-archaeology.l02",
+   "title": "Pitt Rivers and Petrie: Recording Everything",
+   "body": [
+    "Augustus Pitt Rivers, who lived from 1827 to 1900, is called the father of scientific, recorded excavation. Digging at Cranborne Chase in England, he insisted on total recording of ordinary finds, not just spectacular ones, and produced meticulous plans and sections, which are scale drawings of the site from above and from the side. He also arranged objects in typological sequences, ordering them by form, and his collection forms the Pitt Rivers Museum in Oxford.",
+    "Flinders Petrie, who lived from 1853 to 1942, is called the father of modern Egyptian archaeology. He worked at Naqada and Amarna, and in 1896 he discovered the Merneptah Stele. He recorded every potsherd and measured precisely. Most importantly, he developed sequence dating, also called seriation, which orders groups of finds by the way styles rise and fall in popularity. His 1904 book Methods and Aims in Archaeology explains his principles.",
+    "The lesson is that common objects carry the most information. A single gold mask tells a story, but thousands of pottery fragments, each in a known place, can date a whole site.",
+    "Why it mattered: recording everything in context is the foundation of modern fieldwork."
+   ]
+  },
+  {
+   "id": "lab-archaeology.l03",
+   "title": "Tutankhamun and Knossos",
+   "body": [
+    "In 1922, Howard Carter, who lived from 1874 to 1939, discovered the tomb of Tutankhamun, known as KV62, in the Valley of the Kings. Carter had surveyed the valley for years. Rather than grab the treasures, his team cleared the tomb object by object, with detailed conservation recording, a process that took many seasons. Carter and A. C. Mace published a narrative of the discovery in 1923.",
+    "Arthur Evans, who lived from 1851 to 1941, uncovered the Palace of Knossos on Crete, the largest Bronze Age palace on the island and the heart of Minoan civilisation. He studied the Linear A and Linear B tablets and built a ceramic chronology for the Bronze Age. He also undertook large-scale reconstructions of the palace, which remain controversial. Critics argue that rebuilding parts in concrete mixed his own interpretation with the ancient remains, while supporters say it helps visitors imagine the palace.",
+    "Both stories raise a question that archaeologists still debate: how can discoveries be shared with the public while protecting the evidence?",
+    "Why it mattered: patient recording in a tomb and bold reconstruction in a palace show two very different ways to present the past."
+   ]
+  },
+  {
+   "id": "lab-archaeology.l04",
+   "title": "Stratigraphy and the Harris Matrix",
+   "body": [
+    "Stratigraphy is the study of the order of layers, or contexts, on a site. It rests on the law of superposition: in undisturbed ground, lower deposits are older than those above them. By working out the sequence of layers, archaeologists can build the order of events on a site, which is the backbone of relative dating.",
+    "Excavation is therefore a controlled removal of deposits in the reverse of the order in which they formed, with every context recorded. The most recent layer comes off first, and the oldest last.",
+    "Real sites are messy. Pits are dug through older layers, walls are built and demolished, and floors are repaired. To keep track, archaeologists use the Harris Matrix, a diagram that shows how every context relates to the others in time. Edward C. Harris defined the method in Principles of Archaeological Stratigraphy, whose second edition appeared in 1989.",
+    "Stratigraphy gives only a relative age. It can tell you that layer C is older than layer B, but not how many years ago either was formed. For a number of years you need another method, such as radiocarbon.",
+    "Why it mattered: stratigraphy turned digging from collecting into reasoning about time."
+   ]
+  },
+  {
+   "id": "lab-archaeology.l05",
+   "title": "Wheeler, Kenyon and the Grid",
+   "body": [
+    "Mortimer Wheeler, who lived from 1890 to 1976, is called the inventor of the modern grid excavation. He worked at Maiden Castle in England, at Arikamedu, and at the great Indus cities of Mohenjo-daro and Harappa, and his book Archaeology from the Earth, published in 1954, became the classic statement of stratigraphic method.",
+    "Wheeler's approach divided the site into squares separated by walls of unexcavated earth, called baulks. The baulks preserve vertical sections in which the layers can be read and recorded, while the squares allow precise control of where every find lies.",
+    "Kathleen Kenyon, who lived from 1906 to 1978, refined this system at Jericho, also called Tell es-Sultan, and in Jerusalem. Her fine section-based stratigraphy gave the combined technique its name, the Wheeler-Kenyon method. At Jericho she worked on dating the Neolithic tower.",
+    "The method has since been modified, and many modern teams prefer open-area excavation recorded digitally. But the idea of rigorous stratigraphic control is still central.",
+    "Why it mattered: the grid method made excavations comparable and checkable by other archaeologists, which is essential for any science."
+   ]
+  },
+  {
+   "id": "lab-archaeology.l06",
+   "title": "Survey and Remote Sensing",
+   "body": [
+    "Digging destroys what it studies, so archaeologists often try to learn first without breaking the ground. The simplest method is survey and fieldwalking: walking a landscape in a planned pattern, mapping and recording surface finds and features to locate sites.",
+    "Remote sensing goes further. LiDAR uses laser pulses from the air and can see through the canopy of a forest to reveal the shape of the ground. Ground-penetrating radar, or GPR, sends signals into the soil and records the echoes from buried walls and floors. Magnetometry and resistivity measure small differences in the ground's magnetism and electrical resistance, while satellite and aerial imagery show patterns from above.",
+    "A famous example is Angkor in Cambodia. LiDAR survey revealed that the temple city of Angkor Wat, the largest religious monument on Earth, sat inside a much wider urban sprawl.",
+    "The data from surveys are often combined in a geographic information system, or GIS, such as the open-source QGIS, so that locations and patterns can be analysed together.",
+    "Why it mattered: non-invasive methods protect sites, save money, and let teams target limited digging where it will teach the most."
+   ]
+  },
+  {
+   "id": "lab-archaeology.l07",
+   "title": "Science in the Lab",
+   "body": [
+    "Much of what archaeologists learn comes from small, easily missed things. In flotation, soil is washed through fine mesh so that charred seeds and plant remains float free. Archaeobotany studies these remains to reconstruct diet, farming and environment. Kent Flannery used such methods at Guila Naquitz in Mexico to study early maize.",
+    "Osteology and bioarchaeology study human and animal bone. They can reconstruct age, sex, health, diet, disease and even how far people moved during their lives.",
+    "Photogrammetry builds accurate three-dimensional models and orthophotos from overlapping photographs, using software such as the open-source Meshroom or the commercial Agisoft Metashape. Because excavation is destructive, such models preserve each phase of a dig after the soil has been removed.",
+    "Finally, GIS integrates survey and excavation data so that distributions, viewsheds and site catchments can be analysed.",
+    "None of these methods works alone. The charred seeds make sense only when the layer they came from is known, and the bones only when the burial context is recorded.",
+    "Why it mattered: the lab turns objects into evidence about ordinary lives, which a pile of treasure never could."
+   ]
+  },
+  {
+   "id": "lab-archaeology.l08",
+   "title": "Radiocarbon and Tree Rings",
+   "body": [
+    "Radiocarbon dating measures the decay of carbon-14 in once-living tissue. Carbon-14 has a half-life of about 5,730 years, and a laboratory technique called AMS measures the small amount of the isotope that remains. The method works on organic materials such as charcoal, wood, bone, shell, seeds and textiles, and it reaches from about 300 to about 55,000 years before the present.",
+    "Dendrochronology dates wood by matching the pattern of annual tree-ring widths to a dated master sequence. Where regional master chronologies exist, they reach back about 12,000 years. Because each ring is a single year, tree-ring dates can be extremely precise, and they are also used to calibrate radiocarbon dates.",
+    "Calibration matters because the amount of carbon-14 in the atmosphere has varied. Software such as OxCal and CALIB converts raw radiocarbon results into calendar ages using standard curves. Colin Renfrew, born in 1937, argued that radiocarbon with calibration reshaped European prehistory.",
+    "Results are given as a range, not a single year, because every measurement carries uncertainty.",
+    "Why it mattered: absolute dating allowed archaeologists to compare sites across continents on a single time scale."
+   ]
+  },
+  {
+   "id": "lab-archaeology.l09",
+   "title": "Beyond Radiocarbon",
+   "body": [
+    "Radiocarbon cannot date everything. Archaeologists therefore use a toolkit, choosing a method that suits the material and the age.",
+    "Thermoluminescence, or TL, dates fired ceramics, burnt flint and heated stones, from about 300 to 500,000 years, by measuring trapped electrons released as light when the sample is reheated. Optically stimulated luminescence, or OSL, uses light instead of heat and dates the time since sediment grains last saw sunlight, which makes it useful for buried sand and for the burial of tools and features.",
+    "Uranium-series dating, over about 1,000 to 500,000 years, uses decay in carbonate minerals, such as cave calcite, coral and teeth. It has been used to date cave art. Potassium-argon dating, effective from about 100,000 years to billions, measures decay in volcanic minerals and is used on volcanic ash and lava that bracket fossils, for example at Olduvai.",
+    "Other methods include obsidian hydration, which measures a water-diffusion rim on obsidian, and amino-acid racemization, which tracks the slow change in amino acids in shell, bone and teeth.",
+    "Why it mattered: using several independent methods on the same site makes dates far more trustworthy."
+   ]
+  },
+  {
+   "id": "lab-archaeology.l10",
+   "title": "Human Origins at Olduvai and Laetoli",
+   "body": [
+    "Olduvai Gorge in Tanzania is a ravine in the East African Rift whose exposed strata record nearly two million years of human evolution. It is the home of the earliest stone tools, the Oldowan industry, and of fossil remains including Zinjanthropus, now classified as Paranthropus, and Homo habilis.",
+    "Louis Leakey, who lived from 1903 to 1972, championed the idea that humankind began in Africa. His wife, Mary Leakey, who lived from 1913 to 1996, found the Zinjanthropus skull at Olduvai in 1959 and, in 1978, the hominin footprints at Laetoli, which show upright walking. She excavated fossil beds with great rigour and analysed the Oldowan stone tools in detail.",
+    "Dating played a key part. Layers of volcanic ash above and below the fossils could be dated with potassium-argon methods, so that the fossils were bracketed between known ages.",
+    "Dorothy Garrod, who lived from 1892 to 1968, did similar pioneering work on earlier prehistory at the Mount Carmel caves, where she defined the Natufian culture; she was also the first woman to hold a Cambridge professorship.",
+    "Why it mattered: these discoveries put the origins of our own lineage in Africa and showed how stone tools and fossils can be linked."
+   ]
+  },
+  {
+   "id": "lab-archaeology.l11",
+   "title": "The First Monuments and Towns",
+   "body": [
+    "Gobekli Tepe in Turkey, dated to about 9500 BC, is the oldest known monumental sanctuary. Its carved T-shaped pillars, decorated with animal reliefs and set in circular enclosures, were raised by hunter-gatherers, before farming or pottery. That finding challenged an older idea that monumental building could only follow agriculture, and it rewrote the timeline of monumental construction.",
+    "Catalhoyuk, also in Turkey, dates to about 7100 to 5700 BC. It was a large settlement of densely packed mudbrick houses with no streets; people entered their homes through the roof. Wall paintings and plastered skulls were found inside. Ian Hodder, born in 1948, directs the research project there and uses a reflexive method in which interpretation is discussed at the trowel's edge.",
+    "V. Gordon Childe, who lived from 1892 to 1957, offered a broader framework in works such as Man Makes Himself. He described the Neolithic Revolution and the Urban Revolution as turning points in human history, and he excavated the Neolithic village of Skara Brae.",
+    "Why it mattered: these sites show that ritual, community and settlement were tangled together long before cities."
+   ]
+  },
+  {
+   "id": "lab-archaeology.l12",
+   "title": "Ancient Cities: Giza to Pompeii",
+   "body": [
+    "The Giza Pyramid Complex in Egypt dates to the Old Kingdom, about 2560 BC. The Great Pyramid of Khufu is the only surviving wonder of the ancient world, and the complex also includes the Great Sphinx and the pyramids of Khafre and Menkaure.",
+    "Mohenjo-daro in Pakistan, about 2500 BC, was a major city of the Indus Valley Civilisation. It had a grid street plan, the Great Bath and sophisticated drainage, while its script remains undeciphered.",
+    "Petra in Jordan, the capital of the Nabataeans from about 300 BC to AD 100, is famous for temples and tombs carved into sandstone cliffs, such as Al-Khazneh, called the Treasury, and for its water-management channels.",
+    "At Xi'an in China, the Terracotta Army of about 210 BC consists of roughly 8,000 life-size clay figures guarding the tomb of Qin Shi Huang, and the emperor's burial mound itself remains unexcavated.",
+    "Pompeii in Italy was sealed by the eruption of Vesuvius in AD 79. Because the city was buried quickly, it preserved streets, houses, frescoes and body casts, giving the richest snapshot of everyday Roman life ever excavated.",
+    "Why it mattered: each site preserves a different kind of evidence, from monumental to domestic."
+   ]
+  },
+  {
+   "id": "lab-archaeology.l13",
+   "title": "Americas, Africa and Southeast Asia",
+   "body": [
+    "Machu Picchu in Peru is a fifteenth-century Inca royal estate, built around AD 1450 with ashlar dry-stone masonry and agricultural terraces. Hiram Bingham, who lived from 1875 to 1956, brought it to world attention through his expeditions beginning in 1911. The phrase deserves care, since local people already knew the place; his role was publicising it internationally.",
+    "Chichen Itza in Mexico, active about AD 600 to 1200, is dominated by El Castillo, the Temple of Kukulcan, whose stairways encode the solar year. Teotihuacan, near present-day Mexico City, flourished from about 100 BC to AD 550 and was the largest city of the pre-Columbian Americas, laid out around the Avenue of the Dead and the Pyramids of the Sun and Moon.",
+    "Great Zimbabwe, about AD 1100 to 1450, was the capital of a powerful Shona kingdom. Its mortarless granite walls are the largest ancient structures in sub-Saharan Africa, and the Zimbabwe Bird soapstone carvings were found there; Indian Ocean trade connected it to distant markets.",
+    "Angkor Wat in Cambodia, built in the early twelfth century by the Khmer, is a five-towered temple-mountain surrounded by a moat.",
+    "Why it mattered: these sites show that complex urban and monumental traditions arose on every inhabited continent."
+   ]
+  },
+  {
+   "id": "lab-archaeology.l14",
+   "title": "Theory, Ethics and Heritage",
+   "body": [
+    "Archaeology has changed as much in its ideas as in its tools. Lewis Binford, who lived from 1931 to 2011, founded processual, or New, archaeology. He argued for a scientific, hypothesis-driven approach, using ethnoarchaeology and middle-range theory to link what we find to the behaviour that produced it.",
+    "Ian Hodder, born in 1948, founded post-processual archaeology, which stresses that interpretation is always shaped by the interpreter and should be reflexive and contextual. Colin Renfrew combined radiocarbon chronology with cognitive and social archaeology. The two schools disagree, and many archaeologists draw on both.",
+    "Ethics is just as important. Peter Ucko, who lived from 1938 to 2007, helped found the World Archaeological Congress and pressed for ethical excavation, repatriation of remains and objects, and a global, decolonised archaeology. Gertrude Bell, who lived from 1868 to 1926, helped write antiquities law and was involved in founding the Baghdad museum in 1926.",
+    "Questions such as who owns a find, who may study it, and how descendant communities are consulted are central to modern practice.",
+    "Why it mattered: archaeology is both a science and a public trust, and its credibility depends on respecting both roles."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "lab-archaeology.l01.q1",
+   "lessonId": "lab-archaeology.l01",
+   "kind": "mcq",
+   "prompt": "In which year was Winckelmann's History of the Art of Antiquity published?",
+   "choices": [
+    "1822",
+    "1764",
+    "1880",
+    "1922"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l01.q2",
+   "lessonId": "lab-archaeology.l01",
+   "kind": "mcq",
+   "prompt": "At which site did Schliemann dig in his search for Homer's Troy?",
+   "choices": [
+    "Knossos",
+    "Giza",
+    "Hisarlik",
+    "Mohenjo-daro"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l01.q3",
+   "lessonId": "lab-archaeology.l01",
+   "kind": "mcq",
+   "prompt": "How can a stylistic chronology date a statue with no inscription?",
+   "choices": [
+    "By comparing its style with a sequence of known pieces",
+    "By reading its weight",
+    "By carbon-14 measurement of stone",
+    "By asking local residents"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l01.q4",
+   "lessonId": "lab-archaeology.l01",
+   "kind": "mcq",
+   "prompt": "What does it mean that Hisarlik has nine stratified settlements?",
+   "choices": [
+    "All nine were built at once",
+    "The mound was never lived in",
+    "Only the top layer matters",
+    "Cities were built one on top of another, so deeper layers are older"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l02.q1",
+   "lessonId": "lab-archaeology.l02",
+   "kind": "mcq",
+   "prompt": "What did Pitt Rivers insist on recording?",
+   "choices": [
+    "Only gold objects",
+    "Only inscriptions",
+    "Ordinary finds as well as spectacular ones",
+    "Only human remains"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l02.q2",
+   "lessonId": "lab-archaeology.l02",
+   "kind": "mcq",
+   "prompt": "What is Petrie's sequence dating also called?",
+   "choices": [
+    "Dendrochronology",
+    "Flotation",
+    "Photogrammetry",
+    "Seriation"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l02.q3",
+   "lessonId": "lab-archaeology.l02",
+   "kind": "mcq",
+   "prompt": "Why record ordinary pottery sherds?",
+   "choices": [
+    "They are always valuable",
+    "Their styles change over time, so they can order and date a site",
+    "They never change",
+    "They are easy to sell"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l02.q4",
+   "lessonId": "lab-archaeology.l02",
+   "kind": "mcq",
+   "prompt": "How did Pitt Rivers's approach differ from treasure-hunting?",
+   "choices": [
+    "It valued all finds recorded in context rather than just spectacular objects",
+    "It ignored where things were found",
+    "It sold finds to collectors",
+    "It avoided digging entirely"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l03.q1",
+   "lessonId": "lab-archaeology.l03",
+   "kind": "mcq",
+   "prompt": "In which year did Howard Carter discover Tutankhamun's tomb?",
+   "choices": [
+    "1896",
+    "1904",
+    "1959",
+    "1922"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l03.q2",
+   "lessonId": "lab-archaeology.l03",
+   "kind": "mcq",
+   "prompt": "Which civilisation did Arthur Evans uncover at Knossos?",
+   "choices": [
+    "The Mycenaean-only civilisation of the mainland",
+    "The Nabataean civilisation",
+    "The Minoan civilisation",
+    "The Khmer civilisation"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l03.q3",
+   "lessonId": "lab-archaeology.l03",
+   "kind": "mcq",
+   "prompt": "Why was Carter's clearance of the tomb so slow?",
+   "choices": [
+    "The tomb was far away",
+    "Each object was recorded and conserved in place",
+    "He lacked labourers",
+    "He wanted to hide the finds"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l03.q4",
+   "lessonId": "lab-archaeology.l03",
+   "kind": "mcq",
+   "prompt": "Why are Evans's reconstructions at Knossos controversial?",
+   "choices": [
+    "They were made of gold",
+    "They were never built",
+    "They show a different island",
+    "They mix modern interpretation with ancient remains"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l04.q1",
+   "lessonId": "lab-archaeology.l04",
+   "kind": "mcq",
+   "prompt": "What does the law of superposition say?",
+   "choices": [
+    "In undisturbed ground, lower deposits are older than those above",
+    "Upper deposits are always older",
+    "All layers are the same age",
+    "Deposits are older in the east"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l04.q2",
+   "lessonId": "lab-archaeology.l04",
+   "kind": "mcq",
+   "prompt": "What does a Harris Matrix show?",
+   "choices": [
+    "The weight of finds",
+    "The price of artefacts",
+    "The stratigraphic relationships between contexts",
+    "The route of the excavators"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l04.q3",
+   "lessonId": "lab-archaeology.l04",
+   "kind": "mcq",
+   "prompt": "In undisturbed ground, layers A (top), B (middle) and C (bottom). What is the order of deposition?",
+   "choices": [
+    "A, then B, then C",
+    "B, then C, then A",
+    "All at once",
+    "C, then B, then A"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l04.q4",
+   "lessonId": "lab-archaeology.l04",
+   "kind": "mcq",
+   "prompt": "Why does stratigraphy give only a relative age?",
+   "choices": [
+    "It cannot show sequence",
+    "It shows sequence but not the number of years",
+    "It measures carbon",
+    "It is always wrong"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l05.q1",
+   "lessonId": "lab-archaeology.l05",
+   "kind": "mcq",
+   "prompt": "Who is called the inventor of the modern grid excavation?",
+   "choices": [
+    "Mortimer Wheeler",
+    "Howard Carter",
+    "Arthur Evans",
+    "Louis Leakey"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l05.q2",
+   "lessonId": "lab-archaeology.l05",
+   "kind": "mcq",
+   "prompt": "At which site did Kathleen Kenyon refine stratigraphic excavation?",
+   "choices": [
+    "Mohenjo-daro",
+    "Pompeii",
+    "Olduvai",
+    "Jericho"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l05.q3",
+   "lessonId": "lab-archaeology.l05",
+   "kind": "mcq",
+   "prompt": "What are the walls of unexcavated earth between squares called?",
+   "choices": [
+    "Matrices",
+    "Sherds",
+    "Baulks",
+    "Cenotes"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l05.q4",
+   "lessonId": "lab-archaeology.l05",
+   "kind": "mcq",
+   "prompt": "Why is a grid more rigorous than a single large open trench?",
+   "choices": [
+    "It is cheaper in every case",
+    "It controls where finds lie and keeps sections to check layers",
+    "It avoids recording",
+    "It removes the need for layers"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l06.q1",
+   "lessonId": "lab-archaeology.l06",
+   "kind": "mcq",
+   "prompt": "What does LiDAR use to map the ground?",
+   "choices": [
+    "Magnets in the soil",
+    "Water flotation",
+    "Laser pulses that can see through forest canopy",
+    "Tree rings"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l06.q2",
+   "lessonId": "lab-archaeology.l06",
+   "kind": "mcq",
+   "prompt": "What is fieldwalking?",
+   "choices": [
+    "Digging a deep trench",
+    "Walking a landscape to map and record surface finds",
+    "Washing soil in mesh",
+    "Dating tree rings"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l06.q3",
+   "lessonId": "lab-archaeology.l06",
+   "kind": "mcq",
+   "prompt": "Which tool detects buried walls without digging?",
+   "choices": [
+    "Flotation",
+    "Seriation",
+    "Radiocarbon dating",
+    "Ground-penetrating radar"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l06.q4",
+   "lessonId": "lab-archaeology.l06",
+   "kind": "mcq",
+   "prompt": "Why do archaeologists often survey before excavating?",
+   "choices": [
+    "Digging destroys evidence, so non-invasive methods help target it",
+    "Surveys replace all excavation forever",
+    "Surveys find only gold",
+    "Excavation is illegal"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l07.q1",
+   "lessonId": "lab-archaeology.l07",
+   "kind": "mcq",
+   "prompt": "What does flotation recover?",
+   "choices": [
+    "Pottery decorations",
+    "Radio signals",
+    "Tree-ring patterns",
+    "Charred seeds and plant remains"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l07.q2",
+   "lessonId": "lab-archaeology.l07",
+   "kind": "mcq",
+   "prompt": "What does photogrammetry build from overlapping photographs?",
+   "choices": [
+    "Radiocarbon dates",
+    "Three-dimensional models",
+    "Bone chemistry",
+    "Soil layers"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l07.q3",
+   "lessonId": "lab-archaeology.l07",
+   "kind": "mcq",
+   "prompt": "Which method studies diet and health from skeletons?",
+   "choices": [
+    "Osteology and bioarchaeology",
+    "Flotation",
+    "Photogrammetry",
+    "Magnetometry"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l07.q4",
+   "lessonId": "lab-archaeology.l07",
+   "kind": "mcq",
+   "prompt": "Why make a 3D model of each phase of a dig?",
+   "choices": [
+    "Models replace all fieldwork",
+    "Models are cheaper than people",
+    "Excavation removes the layers, so models preserve a record of them",
+    "Layers do not matter"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l08.q1",
+   "lessonId": "lab-archaeology.l08",
+   "kind": "mcq",
+   "prompt": "About how long is the half-life of carbon-14?",
+   "choices": [
+    "About 57 years",
+    "About 5,730 years",
+    "About 500,000 years",
+    "About 5 days"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l08.q2",
+   "lessonId": "lab-archaeology.l08",
+   "kind": "mcq",
+   "prompt": "Radiocarbon dating works on which kind of material?",
+   "choices": [
+    "Any stone",
+    "Only metal",
+    "Only glass",
+    "Once-living organic material"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l08.q3",
+   "lessonId": "lab-archaeology.l08",
+   "kind": "mcq",
+   "prompt": "Which sample could be radiocarbon dated?",
+   "choices": [
+    "Charred seeds from a hearth",
+    "A flint blade",
+    "A granite wall block",
+    "A glass bead"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l08.q4",
+   "lessonId": "lab-archaeology.l08",
+   "kind": "mcq",
+   "prompt": "Why are tree-ring dates used to calibrate radiocarbon?",
+   "choices": [
+    "Trees are never alive",
+    "Rings are random",
+    "Each ring is a known calendar year, so radiocarbon ages can be checked against them",
+    "Radiocarbon cannot be calibrated"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l09.q1",
+   "lessonId": "lab-archaeology.l09",
+   "kind": "mcq",
+   "prompt": "Which method dates fired ceramics by trapped electrons released as light on heating?",
+   "choices": [
+    "Thermoluminescence",
+    "Dendrochronology",
+    "Obsidian hydration",
+    "Seriation"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l09.q2",
+   "lessonId": "lab-archaeology.l09",
+   "kind": "mcq",
+   "prompt": "Which method uses volcanic ash to bracket fossils, for instance at Olduvai?",
+   "choices": [
+    "Radiocarbon",
+    "Amino-acid racemization",
+    "Potassium-argon",
+    "Fieldwalking"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l09.q3",
+   "lessonId": "lab-archaeology.l09",
+   "kind": "mcq",
+   "prompt": "Which method dates when buried sand last saw sunlight?",
+   "choices": [
+    "Thermoluminescence",
+    "Optically stimulated luminescence",
+    "Uranium-series",
+    "Dendrochronology"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l09.q4",
+   "lessonId": "lab-archaeology.l09",
+   "kind": "mcq",
+   "prompt": "Why do archaeologists use several dating methods?",
+   "choices": [
+    "One method works for everything",
+    "Dates are never checked",
+    "Methods are interchangeable at no cost",
+    "Each works only for certain materials and ages, and agreement strengthens confidence"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l10.q1",
+   "lessonId": "lab-archaeology.l10",
+   "kind": "mcq",
+   "prompt": "Who found the Laetoli hominin footprints in 1978?",
+   "choices": [
+    "Mary Leakey",
+    "Dorothy Garrod",
+    "Gertrude Bell",
+    "Kathleen Kenyon"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l10.q2",
+   "lessonId": "lab-archaeology.l10",
+   "kind": "mcq",
+   "prompt": "In which country is Olduvai Gorge?",
+   "choices": [
+    "Kenya only",
+    "Tanzania",
+    "Egypt",
+    "Peru"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l10.q3",
+   "lessonId": "lab-archaeology.l10",
+   "kind": "mcq",
+   "prompt": "Why are volcanic ash layers helpful at Olduvai?",
+   "choices": [
+    "They contain the fossils themselves only",
+    "They cannot be dated",
+    "They can be dated with potassium-argon, so fossils between them are bracketed",
+    "They destroy fossils"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l10.q4",
+   "lessonId": "lab-archaeology.l10",
+   "kind": "mcq",
+   "prompt": "What does the association of stone tools with hominin fossils suggest?",
+   "choices": [
+    "Tools were invented in the Industrial Age",
+    "Fossils and tools are unrelated",
+    "Hominins used no technology",
+    "Toolmaking can be linked to early human ancestors"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l11.q1",
+   "lessonId": "lab-archaeology.l11",
+   "kind": "mcq",
+   "prompt": "Who built the monumental pillars of Gobekli Tepe?",
+   "choices": [
+    "Hunter-gatherers",
+    "Roman engineers",
+    "Maya priests",
+    "Khmer kings"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l11.q2",
+   "lessonId": "lab-archaeology.l11",
+   "kind": "mcq",
+   "prompt": "How did people enter houses at Catalhoyuk?",
+   "choices": [
+    "Through a street door",
+    "By boat",
+    "Through the roof",
+    "Through underground tunnels"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l11.q3",
+   "lessonId": "lab-archaeology.l11",
+   "kind": "mcq",
+   "prompt": "Which is older?",
+   "choices": [
+    "Catalhoyuk (about 7100-5700 BC)",
+    "Gobekli Tepe (about 9500 BC)",
+    "Stonehenge (about 3000 BC)",
+    "Great Zimbabwe (AD 1100)"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l11.q4",
+   "lessonId": "lab-archaeology.l11",
+   "kind": "mcq",
+   "prompt": "Why did Gobekli Tepe rewrite the timeline of monumental building?",
+   "choices": [
+    "It was built by farmers with pottery",
+    "It was built in the Bronze Age",
+    "It was never dated",
+    "Monumental building appeared before farming, not only after it"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l12.q1",
+   "lessonId": "lab-archaeology.l12",
+   "kind": "mcq",
+   "prompt": "In which year was Pompeii buried by Vesuvius?",
+   "choices": [
+    "AD 476",
+    "44 BC",
+    "AD 79",
+    "AD 1066"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l12.q2",
+   "lessonId": "lab-archaeology.l12",
+   "kind": "mcq",
+   "prompt": "Which feature is found at Mohenjo-daro?",
+   "choices": [
+    "The Great Bath",
+    "The Treasury carved in cliff",
+    "El Castillo",
+    "The Siq approach"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l12.q3",
+   "lessonId": "lab-archaeology.l12",
+   "kind": "mcq",
+   "prompt": "Which site is the oldest?",
+   "choices": [
+    "Pompeii (AD 79)",
+    "Petra (about 300 BC-AD 100)",
+    "The Terracotta Army (about 210 BC)",
+    "Giza (about 2560 BC)"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l12.q4",
+   "lessonId": "lab-archaeology.l12",
+   "kind": "mcq",
+   "prompt": "Why is Pompeii such a rich snapshot of daily life?",
+   "choices": [
+    "It was abandoned slowly and stripped",
+    "It was buried quickly, so houses, streets and frescoes were sealed in place",
+    "It was rebuilt in modern times",
+    "It had no buildings"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l13.q1",
+   "lessonId": "lab-archaeology.l13",
+   "kind": "mcq",
+   "prompt": "Who brought Machu Picchu to world attention through expeditions from 1911?",
+   "choices": [
+    "Hiram Bingham",
+    "Howard Carter",
+    "Arthur Evans",
+    "Mortimer Wheeler"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l13.q2",
+   "lessonId": "lab-archaeology.l13",
+   "kind": "mcq",
+   "prompt": "How were the walls of Great Zimbabwe built?",
+   "choices": [
+    "Of mudbrick with timber roofs",
+    "Of poured concrete",
+    "Of glass",
+    "Of granite without mortar"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l13.q3",
+   "lessonId": "lab-archaeology.l13",
+   "kind": "mcq",
+   "prompt": "Which site is dominated by El Castillo?",
+   "choices": [
+    "Teotihuacan",
+    "Angkor Wat",
+    "Chichen Itza",
+    "Machu Picchu"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l13.q4",
+   "lessonId": "lab-archaeology.l13",
+   "kind": "mcq",
+   "prompt": "Why is \"brought to world attention\" more careful than \"discovered\" for Machu Picchu?",
+   "choices": [
+    "It was never lived in",
+    "Local people already knew the site",
+    "It was found by satellites",
+    "Bingham built it"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l14.q1",
+   "lessonId": "lab-archaeology.l14",
+   "kind": "mcq",
+   "prompt": "Who founded processual, or New, archaeology?",
+   "choices": [
+    "Lewis Binford",
+    "Ian Hodder",
+    "Heinrich Schliemann",
+    "Gertrude Bell"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l14.q2",
+   "lessonId": "lab-archaeology.l14",
+   "kind": "mcq",
+   "prompt": "Which excavation project does Ian Hodder direct?",
+   "choices": [
+    "Troy",
+    "Giza",
+    "Catalhoyuk",
+    "Olduvai"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l14.q3",
+   "lessonId": "lab-archaeology.l14",
+   "kind": "mcq",
+   "prompt": "Which approach stresses reflexive, contextual interpretation?",
+   "choices": [
+    "Processual archaeology",
+    "Stylistic chronology",
+    "Dendrochronology",
+    "Post-processual archaeology"
+   ]
+  },
+  {
+   "id": "lab-archaeology.l14.q4",
+   "lessonId": "lab-archaeology.l14",
+   "kind": "mcq",
+   "prompt": "Why did Peter Ucko push for ethics and repatriation?",
+   "choices": [
+    "Finds have no meaning",
+    "Finds matter to living communities, so who owns and studies them is an ethical question",
+    "Only museums should hold finds",
+    "Ethics only matters for Egypt"
+   ]
+  }
+ ]
+}

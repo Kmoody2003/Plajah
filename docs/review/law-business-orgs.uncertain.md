@@ -1,0 +1,31 @@
+# law-business-orgs: items for expert review
+
+- l05: Delaware SB 21 (2025) amended DGCL 144 (safe harbours for controller/director/officer transactions) and 220 (narrower books and records); description of scope and the pending constitutional challenge is general and may be dated.
+- l05: S corporation limit of 100 shareholders and eligible-shareholder list stated in summary form.
+- l05: CTS Corp. v. Dynamics Corp. of America (1987) characterisation of the internal affairs doctrine (holding is upholding Indiana control-share statute).
+- l05: Statement that Nevada and Texas have courted incorporations via business courts is general.
+- l06: MBCA 2.04 liability text paraphrased; de facto and estoppel doctrines' current status varies by state.
+- l06: Statement that preemptive rights exist in Delaware only if the charter grants them.
+- l07: Walkovszky v. Carlton (N.Y. 1966) holding paraphrase (pleading insufficiency; enterprise-liability theory left open). Verify.
+- l07: Empirical claim that piercing succeeds more often in contract than tort cases.
+- l07: United States v. Bestfoods (1998) paraphrase.
+- l08: Dodge v. Ford (Mich. 1919) description of what was ordered; Delaware dividend source (surplus) rule summarised loosely, and DGCL 141(a) quote-free paraphrase.
+- l08: Delaware default vote for fundamental changes (majority of outstanding) and director removal defaults.
+- l09: Smith v. Van Gorkom facts and Disney (2006) result stated briefly.
+- l10: DGCL 144 pre-2025 three-part safe harbour description and its relation to standard of review; Benihana (2005) described only generally; Gantler v. Stephens (2009) holding that officers owe the same fiduciary duties.
+- l11: Broz v. Cellular Information Systems holding paraphrase; MBCA 2005 opportunity provisions (subchapter G, section 8.70); DGCL 122(17).
+- l11: Weinberger v. UOP remedy statement (appraisal as usual remedy) and MFW conditions.
+- l11/l10: Effect of 2025 DGCL amendments on controller transactions is described only in outline.
+- l12: Stone v. Ritter (2006); Marchand v. Barnhill (2019) paraphrase; later extension of oversight duties to officers (McDonald's, 2023) referred to without citation.
+- l12: 2022 amendment to 102(b)(7) officer exculpation and its derivative-claim carve-out.
+- l12: DGCL 145 details on indemnification of derivative settlements and advancement.
+- l13: Cumulative voting formula; Delaware plurality default; Schnell v. Chris-Craft (1971) paraphrase; 2025 amendment to 220 narrowing records.
+- l13 q5 and worked example arithmetic (167 shares; 101 shares) should be checked.
+- l14: Zuckerberg (2021) three-part test and "at least half" rule; MBCA 7.42 90-day wait; Zapata two-step; Auerbach v. Bennett (N.Y. 1979) characterisation.
+- l15: Donahue (Mass. 1975), Wilkes (Mass. 1976), Nixon v. Blackwell (Del. 1993), McQuade v. Stoneham (N.Y. 1934), Clark v. Dodge (N.Y. 1936) paraphrases; MBCA 14.30 wording; fair-value discount treatment.
+- l16: DGCL 262 market-out details and recent amendments; Farris v. Glen Alden (Pa. 1958) and Hariton v. Arco (Del. 1963) paraphrase; successor-liability exceptions and product-line exception states; the voting thresholds for the acquirer.
+- l17: Unocal, Unitrin, Moran, Revlon, QVC, Omnicare, Corwin paraphrases; DGCL 203 summary (15 percent, three years).
+- l18: Howey test phrase ("solely" versus "predominantly") ; accredited-investor income and net worth thresholds (approx. 200k/300k; 1M excl. residence); Rule 506(b) limit of 35 non-accredited; Gustafson v. Alloyd scope of 12(a)(2); status of digital assets.
+- l19: TSC Industries (1976), Blue Chip Stamps (1975), Dura (2005), Morrison (2010), Mills v. Electric Auto-Lite (1970) paraphrases; PSLRA safe harbour description; section 16(b) matching description.
+- l20: Texas Gulf Sulphur (2d Cir. 1968), Chiarella, Dirks, Salman (2016), O'Hagan descriptions; 2022 amendments to Rule 10b5-1 (cooling-off periods); section 20A and treble-penalty details.
+- General: Restatement (Third) of Agency stance on inherent agency power; RUPA exhaustion rule and charging-order details; ULPA 2001 abolition of control rule; Delaware LLC Act waiver of fiduciary duties (not the implied covenant).

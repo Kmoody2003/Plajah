@@ -8,7 +8,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Flame, Clock, Loader2, Play, Trash2 } from 'lucide-react';
+import { Flame, Clock, Loader2, Play, Trash2, Clapperboard, Radio, Calendar, Bell } from 'lucide-react';
 import { Video } from '../../types';
 import { computeTrending } from '../../services/relloFeedService';
 import {
@@ -209,3 +209,116 @@ export const WatchLaterSection: React.FC<{ onPlay: (v: Video) => void }> = ({ on
     </div>
   );
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Premieres — Live broadcasting now & scheduled upcoming premieres
+// ─────────────────────────────────────────────────────────────────────────────
+export const PremieresSection: React.FC<{
+  videos?: Video[];
+  onPlay: (v: Video) => void;
+}> = ({ videos, onPlay }) => {
+  const [fetched, setFetched] = useState<Video[] | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (videos?.length) return;
+    let alive = true;
+    setLoading(true);
+    fetchAllVideos()
+      .then(v => { if (alive) setFetched((v || []) as Video[]); })
+      .catch(() => { if (alive) setFetched([]); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [videos?.length]);
+
+  const pool = videos?.length ? videos : (fetched || []);
+
+  const premieres = useMemo(() => {
+    return pool.filter(v => v.isPremiere === true && !(v as any).isPrivate);
+  }, [pool]);
+
+  if (loading) return <div className="py-16 flex justify-center"><Loader2 size={22} className="animate-spin text-white/30" /></div>;
+  if (!premieres.length) return <Empty icon={<Clapperboard size={34} />} text="No live or upcoming premieres right now" />;
+
+  const now = Date.now();
+  const liveNow = premieres.filter(v => {
+    const start = v.premiereStartTime || v.premiereConfig?.premiereStartTime || 0;
+    const dur = (v.duration || 180) * 1000;
+    return start <= now && now < start + dur;
+  });
+  const upcoming = premieres.filter(v => {
+    const start = v.premiereStartTime || v.premiereConfig?.premiereStartTime || 0;
+    return start > now;
+  }).sort((a, b) => (a.premiereStartTime || 0) - (b.premiereStartTime || 0));
+
+  return (
+    <div className="pt-2 space-y-8">
+      {/* Live Now */}
+      {liveNow.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+            <h2 className="text-sm font-black uppercase tracking-widest text-red-400 flex items-center gap-2">
+              <Radio size={16} /> Live Premieres Right Now
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {liveNow.map(v => (
+              <div
+                key={v.id}
+                onClick={() => onPlay(v)}
+                className="group p-3 rounded-2xl bg-[#14121a] hover:bg-[#1a1724] border border-red-500/40 hover:border-red-500 cursor-pointer transition-all shadow-xl shadow-red-950/20"
+              >
+                <div className="relative aspect-video rounded-xl overflow-hidden bg-black/60 mb-2.5">
+                  <MediaThumb src={thumbFor(v)} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-red-600 text-[10px] font-black uppercase text-white flex items-center gap-1 shadow-md">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                    LIVE
+                  </div>
+                </div>
+                <h3 className="text-xs font-black text-white group-hover:text-red-400 transition-colors line-clamp-1">{v.title}</h3>
+                <p className="text-[10px] text-white/50 mt-0.5 truncate">{v.artist || (v as any).ownerName || 'Creator'}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming Premieres */}
+      {upcoming.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black uppercase tracking-widest text-white/80 flex items-center gap-2">
+              <Clapperboard size={16} className="text-orange-400" /> Upcoming Premieres
+            </h2>
+            <span className="text-[10px] text-white/40 font-mono">{upcoming.length} scheduled</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {upcoming.map(v => {
+              const start = v.premiereStartTime || v.premiereConfig?.premiereStartTime || 0;
+              const dateStr = new Date(start).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+              return (
+                <div
+                  key={v.id}
+                  onClick={() => onPlay(v)}
+                  className="group p-3 rounded-2xl bg-[#111116] hover:bg-[#181820] border border-white/10 hover:border-orange-500/50 cursor-pointer transition-all shadow-lg"
+                >
+                  <div className="relative aspect-video rounded-xl overflow-hidden bg-black/60 mb-2.5">
+                    <MediaThumb src={thumbFor(v)} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-md text-[10px] font-mono font-bold text-orange-400 flex items-center gap-1 border border-white/15">
+                      <Clock size={11} />
+                      {dateStr}
+                    </div>
+                  </div>
+                  <h3 className="text-xs font-black text-white group-hover:text-orange-400 transition-colors line-clamp-1">{v.title}</h3>
+                  <p className="text-[10px] text-white/50 mt-0.5 truncate">{v.artist || (v as any).ownerName || 'Creator'}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+

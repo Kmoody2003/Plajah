@@ -20,6 +20,7 @@ const FamilyAccountManager: React.FC<{ guardianUid: string }> = ({ guardianUid }
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [birthYear, setBirthYear] = useState('');
+  const [voice, setVoice] = useState<'yes' | 'no' | ''>('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [controlsFor, setControlsFor] = useState<UserProfile | null>(null);
@@ -41,8 +42,9 @@ const FamilyAccountManager: React.FC<{ guardianUid: string }> = ({ guardianUid }
         username: username.trim(),
         password,
         birthYear: birthYear ? parseInt(birthYear, 10) : undefined,
+        speechRecognition: voice === 'yes',
       });
-      setName(''); setUsername(''); setPassword(''); setBirthYear(''); setAdding(false);
+      setName(''); setUsername(''); setPassword(''); setBirthYear(''); setVoice(''); setAdding(false);
       load();
     } catch (e: any) {
       setError(e.message || 'Could not create the account.');
@@ -129,9 +131,17 @@ const FamilyAccountManager: React.FC<{ guardianUid: string }> = ({ guardianUid }
               <label className="block text-[9px] font-black uppercase tracking-widest text-white/40">Password you set for them</label>
               <input value={password} onChange={e => setPassword(e.target.value)} type="text" placeholder="at least 6 characters" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white font-bold outline-none placeholder:text-white/20" />
             </div>
-            <button onClick={addChild} disabled={busy || !name.trim() || !username.trim() || !password} className="px-5 py-2.5 rounded-xl bg-white text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-30">
+            <button onClick={addChild} disabled={busy || !name.trim() || !username.trim() || !password || !voice} className="px-5 py-2.5 rounded-xl bg-white text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-30">
               {busy ? <Loader2 size={14} className="animate-spin" /> : 'Create'}
             </button>
+          </div>
+          <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-2" role="radiogroup" aria-label="Reading voice">
+            <div className="text-[11px] font-black text-white">Let Chora listen while they read aloud? <span className="text-white/40 font-bold">(Voca reading game)</span></div>
+            <p className="text-[10px] text-white/45 leading-relaxed">Chora hears each word so she can cheer and help. On the Plajah Android app and Windows app the listening runs on the device where it can; in a web browser, the browser's speech service turns speech into words. Plajah keeps no recordings. Choose now so your child can practice even when you're not around. You can change this anytime in Parental controls.</p>
+            <div className="flex gap-2">
+              <button type="button" role="radio" aria-checked={voice === 'yes'} onClick={() => setVoice('yes')} className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border ${voice === 'yes' ? 'bg-white text-black border-white' : 'bg-white/5 text-white/70 border-white/10'}`}>Yes, let Chora listen</button>
+              <button type="button" role="radio" aria-checked={voice === 'no'} onClick={() => setVoice('no')} className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border ${voice === 'no' ? 'bg-white text-black border-white' : 'bg-white/5 text-white/70 border-white/10'}`}>Not now (a grown-up taps along)</button>
+            </div>
           </div>
           <p className="text-[10px] text-white/30 leading-relaxed">No email needed — your child signs in on the <b className="text-white/50">Student</b> tab with this username and password. You can change it anytime.</p>
           {error && <div className="flex items-center gap-2 text-[10px] text-red-400"><AlertCircle size={12} /> {error}</div>}

@@ -8,6 +8,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { fetchPublicEvents } from '../services/backendService';
 import {
   MapPin, Calendar, Clock, Users, Ticket, Star, Music2, Palette,
   Mic, Camera, Film, Gamepad2, Heart, Globe, Search, ChevronRight,
@@ -601,12 +602,22 @@ const EventModal: React.FC<{ event: LiveEvent; onClose: () => void }> = ({ event
 
           {/* CTA */}
           <div className="flex gap-2 pt-2">
-            <button className="flex-1 py-3 rounded-xl font-black text-sm uppercase tracking-widest transition-all hover:opacity-80"
+            <button 
+              onClick={() => {
+                onClose();
+                onSelectEvent?.(event.id);
+              }}
+              className="flex-1 py-3 rounded-xl font-black text-sm uppercase tracking-widest transition-all hover:opacity-80 cursor-pointer"
               style={{ background: event.accentColor, color: '#000' }}>
               {soldPct >= 100 ? 'Join Waitlist' : event.price === 0 ? 'RSVP Free' : `Get Tickets — ${event.priceLabel}`}
             </button>
             {event.isPPV && (
-              <button className="py-3 px-4 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-400 font-black text-xs uppercase tracking-widest">
+              <button 
+                onClick={() => {
+                  onClose();
+                  onSelectEvent?.(event.id);
+                }}
+                className="py-3 px-4 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-400 font-black text-xs uppercase tracking-widest hover:bg-purple-500/25">
                 <Radio size={14} />
               </button>
             )}
@@ -621,23 +632,63 @@ const EventModal: React.FC<{ event: LiveEvent; onClose: () => void }> = ({ event
 
 interface Props {
   onBack?: () => void;
+  onSelectEvent?: (eventId: string) => void;
+  onCreateEvent?: () => void;
 }
 
-const LiveEventsGallery: React.FC<Props> = ({ onBack }) => {
+const LiveEventsGallery: React.FC<Props> = ({ onBack, onSelectEvent, onCreateEvent }) => {
+  const [realEvents, setRealEvents] = useState<LiveEvent[]>([]);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<EventCategory>('ALL');
   const [formatFilter, setFormatFilter] = useState<EventFormat | 'ALL'>('ALL');
   const [selectedEvent, setSelectedEvent] = useState<LiveEvent | null>(null);
   const [priceFilter, setPriceFilter] = useState<'ALL' | 'FREE' | 'PAID'>('ALL');
 
-  const filtered = useMemo(() => DEMO_EVENTS.filter(ev => {
+  React.useEffect(() => {
+    fetchPublicEvents().then((items: any[]) => {
+      if (Array.isArray(items) && items.length > 0) {
+        const mapped: LiveEvent[] = items.map((e: any) => ({
+          id: e.id,
+          title: e.title || 'Untitled Event',
+          artist: e.creatorName || 'Plajah Artist',
+          artistVerified: true,
+          category: (e.tags?.[0]?.toUpperCase() as any) || 'MUSIC',
+          format: e.type || 'IN_PERSON',
+          date: e.startDate ? new Date(e.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Upcoming',
+          time: e.startDate ? new Date(e.startDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'TBA',
+          doorsTime: e.doorsOpenDate ? new Date(e.doorsOpenDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : undefined,
+          venue: e.venueName || 'Online Venue',
+          city: e.city || 'Detroit',
+          state: e.state || 'MI',
+          country: e.country || 'US',
+          price: e.tiers?.[0]?.priceCents ? e.tiers[0].priceCents / 100 : 0,
+          priceLabel: e.tiers?.[0]?.priceCents ? `$${(e.tiers[0].priceCents / 100).toFixed(0)}` : 'Free Entry',
+          capacity: e.totalCapacity || 500,
+          soldCount: e.totalSold || 0,
+          coverEmoji: '🎟️',
+          coverGradient: 'linear-gradient(135deg, #120826 0%, #290838 50%, #0d0d0d 100%)',
+          accentColor: '#D40055',
+          description: e.description || '',
+          tags: e.tags || ['Live'],
+          isFeatured: true,
+          isHot: (e.totalSold || 0) > 10,
+          isPPV: !!e.streamUrl,
+        }));
+        setRealEvents(mapped);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const allEvents = useMemo(() => [...realEvents, ...DEMO_EVENTS], [realEvents]);
+
+  const filtered = useMemo(() => allEvents.filter(ev => {
     if (activeCategory !== 'ALL' && ev.category !== activeCategory) return false;
     if (formatFilter !== 'ALL' && ev.format !== formatFilter) return false;
     if (priceFilter === 'FREE' && ev.price !== 0) return false;
     if (priceFilter === 'PAID' && ev.price === 0) return false;
     if (search && !`${ev.title} ${ev.artist} ${ev.city} ${ev.tags.join(' ')}`.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
-  }), [activeCategory, formatFilter, priceFilter, search]);
+  }), [allEvents, activeCategory, formatFilter, priceFilter, search]);
 
   const featured = filtered.filter(e => e.isFeatured);
   const rest = filtered.filter(e => !e.isFeatured);
@@ -652,8 +703,16 @@ const LiveEventsGallery: React.FC<Props> = ({ onBack }) => {
               <h1 className="text-lg font-black uppercase tracking-widest text-white flex items-center gap-2">
                 <span className="text-xl">🎟️</span> Live Events
               </h1>
-              <p className="text-xs text-white/35 mt-0.5">{DEMO_EVENTS.length} events happening locally & globally</p>
+              <p className="text-xs text-white/35 mt-0.5">{allEvents.length} events happening locally & globally</p>
             </div>
+            {onCreateEvent && (
+              <button
+                onClick={onCreateEvent}
+                className="px-4 py-2 bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white text-xs font-black uppercase tracking-wider rounded-xl hover:brightness-110 transition-all shadow-lg shadow-purple-900/20"
+              >
+                + Create Event
+              </button>
+            )}
           </div>
 
           {/* Search */}
@@ -745,7 +804,13 @@ const LiveEventsGallery: React.FC<Props> = ({ onBack }) => {
 
       {/* Event detail modal */}
       <AnimatePresence>
-        {selectedEvent && <EventModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
+        {selectedEvent && (
+          <EventModal
+            event={selectedEvent}
+            onClose={() => setSelectedEvent(null)}
+            onSelectEvent={onSelectEvent}
+          />
+        )}
       </AnimatePresence>
     </div>
   );

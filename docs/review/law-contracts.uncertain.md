@@ -1,0 +1,22 @@
+# law-contracts: claims less than fully certain
+
+- l01: Louisiana "adopted only parts" of UCC Art. 2 (true as I recall; verify). Lucy v. Zehmer details (drinking, napkin-style joke) simplified; confirm Va. 1954 facts.
+- l02: UCC 2-205 requires a separately signed assurance only when on a form supplied by the offeree (stated correctly, verify). Restatement 87(2) wording paraphrased.
+- l03: Restatement section numbers 32, 40, 45, 62, 63 cited from memory; verify. Dickinson v. Dodds characterised as revocation effective via reliable third-party knowledge (correct as I recall). Statement that a rejection-then-acceptance race is governed by section 40 should be checked.
+- l04: 2-207 minority treatments of "different" terms (offer controls / acceptance terms drop out) are summarised loosely; count of jurisdictions per rule not stated and not verified.
+- l05: Mills v. Wyman facts (father repaying care of adult son) stated from memory.
+- l06: Section 89 and 86 paraphrased; Webb v. McGowin court (Ala. App.) and facts; Hoffman v. Red Owl characterised as promissory estoppel without full agreement (correct as recalled). UCC 1-306 waiver cite.
+- l07: Statute of frauds mnemonic and 2-201 ten-day rule fine; one-year examples (lifetime contract) are textbook. Part performance as applied to oral land contracts varies by state.
+- l08: Restatement sections 14, 15, 175 cited from memory. Austin Instrument v. Loral (NY 1971) facts summarised.
+- l09: Restatement 152/164 cited; Sherwood v. Walker (cow Rose 2d of Aberlone) outcome correct; unilateral mistake elements paraphrased from section 153.
+- l10: Statement that FAA preempts arbitration-specific state rules (Supreme Court line of cases) is general; no case cited. UCC 2-719(3) personal-injury consumer-goods rule. California noncompete statute reference is general.
+- l11: Frigaliment burden/outcome stated generally; PG&E v. Thomas Drayage (Cal. 1968) correct as recalled.
+- l12: Restatement sections 224 and 229 cited; Jacob & Youngs facts (Reading pipe) fine; the text says Cardozo wrote it (correct).
+- l13: Britton v. Turner described as a minority-flavoured approach; Restatement 374 is the general-law counterpart (verify characterisation). UCC 2-609 thirty-day limit, 2-612, 2-608.
+- l14: Peevyhouse disposition and dissent noted; lost-volume seller cited to 2-708(2) (verify). 2-713/2-715 summaries.
+- l15: Section 356/2-718(1) correct as recalled. Statement of Hadley facts (crankshaft, mill) standard.
+- l16: Lawrence v. Fox (NY 1859) facts: loan from Holly to Fox in consideration of Fox paying Holly's debt to Lawrence (amount 300 dollars stated, verify). Section 311 vesting.
+- l17: First-assignee-wins as the American majority; the lesson text oddly labels English rule as minority in US (verify wording). UCC 9-406/9-408 mention is general.
+- l18: Restatement 261, 265; UCC 2-615/2-616 allocation. Krell v. Henry facts (coronation of Edward VII, two days) standard.
+- Several question explanations compress doctrine (e.g., t2 l09 q1 and l10 q3); reviewers should check for oversimplification.
+- Validator warning: correct answer is the longest option in ~73% of MCQs; distractors need lengthening in a revision pass.

@@ -1,0 +1,1210 @@
+{
+ "courseId": "law-evidence",
+ "verifier": "A",
+ "questions": [
+  {
+   "id": "law-evidence.l01.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l01.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l01.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l01.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l01.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l02.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l02.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l03.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l03.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l03.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l03.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l04.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l04.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l04.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l05.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l05.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l05.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l05.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l05.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l06.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l06.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l06.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l07.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l07.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l07.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l07.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l08.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l08.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l08.q4",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "804(b)(6) also needs unavailability and intent finding; still the best basis."
+  },
+  {
+   "id": "law-evidence.l08.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l09.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l09.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l09.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l09.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l09.q5",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Option 2 is awkwardly worded but the only defensible choice; Giles requires intent to prevent testimony."
+  },
+  {
+   "id": "law-evidence.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l10.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l10.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l10.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l10.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l11.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l11.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l11.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l11.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Option 3 mislabels 803(8) as the regularly-conducted-activity rule (that is 803(6)); distractor only."
+  },
+  {
+   "id": "law-evidence.l12.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l12.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l12.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l12.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l12.q5",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Option 2 is still the best fit, but it cites Rule 611(a) for illustrative aids; since Dec 2024 these are governed by Rule 107 (and Rule 1006(c)), so the option text is dated."
+  },
+  {
+   "id": "law-evidence.l13.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l13.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l13.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Prompt ends 'Under Rule 611(c)?' with oddly worded phrasing."
+  },
+  {
+   "id": "law-evidence.l13.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l13.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l14.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l14.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l14.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l14.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l15.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l15.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l15.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l15.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l16.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l16.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l16.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l16.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l17.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l17.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l17.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l17.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l17.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l18.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l18.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l18.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l18.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l19.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l19.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l19.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l19.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Civil case, so conclusive; in a criminal case the answer would be option 1."
+  },
+  {
+   "id": "law-evidence.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l20.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-evidence.l20.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-evidence.l01",
+   "claim": "Rule 104(a): judge decides admissibility questions, not bound by evidence rules except privilege; 104(b) conditional relevance",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_104"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l01",
+   "claim": "Bourjaily v. United States (1987): preponderance standard for preliminary facts",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened for the case."
+  },
+  {
+   "lessonId": "law-evidence.l01",
+   "claim": "Bruton v. United States (1968): limiting instruction inadequate for nontestifying codefendant confession",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-evidence.l02",
+   "claim": "Rule 403 text: substantially outweighed by danger of unfair prejudice, confusing, misleading, delay, waste, cumulative",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_403"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l02",
+   "claim": "Old Chief v. United States (1997): abuse of discretion to reject the felon-status stipulation",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Justia returned 403; not checked."
+  },
+  {
+   "lessonId": "law-evidence.l02",
+   "claim": "Old Chief limited holding: prosecution generally may prove case by evidence of its own choosing",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-evidence.l03",
+   "claim": "Rule 404(a)(2) accused-opens-door exceptions and prosecutor rebuttal",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Rule 404 page was opened only for (b)(3)."
+  },
+  {
+   "lessonId": "law-evidence.l03",
+   "claim": "Michelson v. United States (1948): have-you-heard cross of character witness allowed",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-evidence.l03",
+   "claim": "Rule 405 methods of proof (reputation/opinion; specific instances on cross; essential element)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-evidence.l04",
+   "claim": "Rule 404(b): prosecutor must give written notice before trial if the defendant asks for it",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_404"
+   ],
+   "note": "Since the Dec 1, 2020 amendment the defendant-request requirement is eliminated; notice (specific evidence, purpose, reasoning) is required in writing before trial unless the court excuses for good cause."
+  },
+  {
+   "lessonId": "law-evidence.l04",
+   "claim": "Rule 407: subsequent remedial measures barred to prove negligence, defect etc.; admissible for ownership, control, impeachment, feasibility if disputed",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_407"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l04",
+   "claim": "Huddleston v. United States (1988): 104(b) standard for other acts",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-evidence.l05",
+   "claim": "Rule 801(c) hearsay definition and Rule 802",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-evidence.l05",
+   "claim": "Mutual Life Ins. Co. v. Hillmon (1892) accepted declarant intent statement to prove later conduct",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-evidence.l05",
+   "claim": "Rule 801(a) nonassertive conduct; machines not declarants",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-evidence.l06",
+   "claim": "Rule 801(d)(1)(A): inconsistent statement given under penalty of perjury at a trial, hearing, other proceeding or deposition",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_801"
+   ],
+   "note": "Text matches current rule."
+  },
+  {
+   "lessonId": "law-evidence.l06",
+   "claim": "Rule 801(d)(1)(B): 2014 amendment added (ii) rehabilitation prong",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_801"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l06",
+   "claim": "Bourjaily (1987) preponderance for coconspirator preliminary facts; Tome (1995) premotive rule",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No case page opened."
+  },
+  {
+   "lessonId": "law-evidence.l07",
+   "claim": "Rule 803(8)(A)(ii): matter observed under legal duty to report; law-enforcement exclusion in criminal cases",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_803"
+   ],
+   "note": "Page extract shows (A)(ii) and (B); the law-enforcement carve-out was not displayed in the extract."
+  },
+  {
+   "lessonId": "law-evidence.l07",
+   "claim": "Rule 803(5): recorded recollection read into evidence but exhibit only if offered by adverse party",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_803"
+   ],
+   "note": "Opened page confirmed only the first element of 803(5)."
+  },
+  {
+   "lessonId": "law-evidence.l07",
+   "claim": "Rule 803(22): judgment of conviction for crimes punishable by death or over one year",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_803"
+   ],
+   "note": "Extract showed only the nolo contendere exclusion."
+  },
+  {
+   "lessonId": "law-evidence.l08",
+   "claim": "Rule 804(b)(2): dying declaration only in homicide prosecution or civil case",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_804"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l08",
+   "claim": "Rule 804(b)(6): forfeiture requires intent to make declarant unavailable",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_804"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l08",
+   "claim": "Rule 807: 2019 amendment requires pretrial notice",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_807"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l09",
+   "claim": "Crawford v. Washington (2004): testimonial statements need unavailability plus prior cross",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No case page opened."
+  },
+  {
+   "lessonId": "law-evidence.l09",
+   "claim": "Davis (2006) primary purpose test; Bryant (2011); Ohio v. Clark (2015)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-evidence.l09",
+   "claim": "Giles v. California (2008): forfeiture requires intent to prevent testimony",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened (consistent with Rule 804(b)(6) text opened)."
+  },
+  {
+   "lessonId": "law-evidence.l10",
+   "claim": "Smith v. Arizona (2024): expert conveying absent analyst statements for truth; remanded on testimonial question",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-899"
+   ],
+   "note": "Opened law.cornell.edu/supremecourt/text/22-899: decided June 21, 2024; vacated and remanded."
+  },
+  {
+   "lessonId": "law-evidence.l10",
+   "claim": "Melendez-Diaz (2009) and Bullcoming (2011) holdings",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-evidence.l10",
+   "claim": "Rule 703: disclosure of otherwise inadmissible basis only if probative value substantially outweighs prejudice",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_703"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l11",
+   "claim": "Rule 901(a) standard and 901(b) examples numbering as described",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_901"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l11",
+   "claim": "2017 amendments added Rule 902(13) and 902(14)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_902"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l11",
+   "claim": "Rule 902(11)/(12) certified domestic/foreign regularly conducted activity records",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_902"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l12",
+   "claim": "Rule 1004 grounds for other evidence of content",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_1004"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l12",
+   "claim": "Distinguish Rule 1006 summaries from Rule 611(a) pedagogical aids",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_107",
+    "https://www.law.cornell.edu/rules/fre/rule_1006",
+    "https://www.law.cornell.edu/rules/fre/rule_611"
+   ],
+   "note": "Outdated: effective Dec 1, 2024 Rule 107 governs illustrative aids (not evidence) and Rule 1006(c) points to it; Rule 611(a) does not address them. Question l12.q5 option 2 repeats the 611(a) cite."
+  },
+  {
+   "lessonId": "law-evidence.l12",
+   "claim": "Rule 1006: originals or duplicates must be made available to other parties",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_1006"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l13",
+   "claim": "Rule 606(b) bars juror testimony on deliberations with three exceptions",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_606"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l13",
+   "claim": "Pena-Rodriguez v. Colorado (2017): racial-animus exception to no-impeachment rule",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/15-606"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l13",
+   "claim": "Rule 611(b) cross scope and 611(c) leading questions for hostile/adverse witnesses",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_611"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l14",
+   "claim": "Rule 609(a)(1), (a)(2) and 609(b) ten-year rule with written notice",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_609"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l14",
+   "claim": "Rule 613(b): extrinsic evidence admissible only after opportunity to explain/deny and examine, or if justice so requires",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_613"
+   ],
+   "note": "Current text per Cornell: \"Unless the court orders otherwise, extrinsic evidence ... may not be admitted until after the witness is given an opportunity to explain or deny ... and an adverse party is given an opportunity to examine\"; page notes a 2024 amendment, so the \"justice so requires\" wording is stale."
+  },
+  {
+   "lessonId": "law-evidence.l14",
+   "claim": "Luce (1984), Ohler (2000), Abel (1984) holdings",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No case pages opened."
+  },
+  {
+   "lessonId": "law-evidence.l15",
+   "claim": "Rule 701(a)-(c) lay opinion limits",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_701"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l15",
+   "claim": "Rule 702 more-likely-than-not standard; Dec 2023 amendment",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_702"
+   ],
+   "note": "Text matches. Lesson does not mention proposed Rule 707 (machine-generated evidence); per WebSearch the Standing Committee in June 2026 declined to advance it and sent it back for study."
+  },
+  {
+   "lessonId": "law-evidence.l15",
+   "claim": "Rule 703 text",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_703"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l16",
+   "claim": "Rule 702 amended in 2000 and 2023",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_702"
+   ],
+   "note": "Cornell lists 2000 amendment effective Dec 1, 2000 and a 2023 amendment (day not shown)."
+  },
+  {
+   "lessonId": "law-evidence.l16",
+   "claim": "Daubert (1993), Joiner (1997), Kumho (1999) holdings",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No case pages opened."
+  },
+  {
+   "lessonId": "law-evidence.l16",
+   "claim": "States retaining Frye: California, Illinois, New York, Pennsylvania",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked; changes over time."
+  },
+  {
+   "lessonId": "law-evidence.l17",
+   "claim": "Rule 501: common law governs; state law in civil case where state law supplies rule of decision",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_501"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l17",
+   "claim": "Rule 502(a), (b), (d) content",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_502"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l17",
+   "claim": "Upjohn (1981) and Swidler & Berlin (1998)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-evidence.l18",
+   "claim": "Trammel v. United States (1980): privilege belongs to witness-spouse",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-evidence.l18",
+   "claim": "Jaffee v. Redmond (1996): psychotherapist privilege incl. licensed clinical social workers",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-evidence.l18",
+   "claim": "Griffin v. California (1965) bars comment on defendant silence",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-evidence.l19",
+   "claim": "Rule 301: burden of production only, persuasion not shifted",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_301"
+   ],
+   "note": "Rule text matches the lesson; Thayer/bursting-bubble labeling is commentary."
+  },
+  {
+   "lessonId": "law-evidence.l19",
+   "claim": "Rule 302: state law governs effect of presumptions where state law supplies rule of decision",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_301"
+   ],
+   "note": "Page only references 302 briefly."
+  },
+  {
+   "lessonId": "law-evidence.l19",
+   "claim": "Sandstrom (1979), Ulster County v. Allen (1979), Patterson (1977), Winship (1970)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-evidence.l20",
+   "claim": "Rule 201(b) text",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_201"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l20",
+   "claim": "Rule 201(c)-(e) procedure",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_201"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-evidence.l20",
+   "claim": "Rule 201(f) civil conclusive vs criminal may-or-may-not",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_201"
+   ],
+   "note": ""
+  }
+ ],
+ "fetched": 36,
+ "note": "WebFetch worked on law.cornell.edu; Justia returned 403. Case-law claims mostly unverifiable (no case page opened). Lesson body paragraph breaks split sentences mid-way in l08 (declarant's / unavailability) and l14 (prior / conviction); no question option was truncated. Proposed Rule 707 status from WebSearch only. Stale items: 404(b) notice (2020), 613(b) (2024), 611(a) aids -> Rule 107 (2024)."
+}

@@ -153,9 +153,11 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, e
     const onKey = (e: KeyboardEvent) => {
       if (shellFocusedRef.current) return;   // the tab bar has the remote
       const kc = e.keyCode || e.which;
-      const t = e.target as HTMLElement | null;
-      // Never fight a text field.
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      const target = e.target as HTMLElement | null;
+      const active = document.activeElement as HTMLElement | null;
+      const isField = (el: HTMLElement | null) =>
+        !!(el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable || el.closest?.('input, textarea, select, [contenteditable="true"]')));
+      if (isField(target) || isField(active)) return;
 
       const dir =
         (e.key === 'ArrowUp' || kc === 38 || kc === 19) ? 'up' :

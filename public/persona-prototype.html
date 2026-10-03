@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Plajah Mobile — Persona Switcher & Contextual Bottom Bar Prototype</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #060709;
+      color: #fff;
+      overflow-x: hidden;
+      touch-action: pan-y;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .font-display {
+      font-family: 'Outfit', sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Smooth glass styling */
+    .glass-bar {
+      background: rgba(13, 0, 21, 0.78);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+    }
+    .glass-sheet {
+      background: rgba(15, 6, 24, 0.94);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+    }
+    /* Persona Ambient Halos */
+    .halo-personal {
+      box-shadow: 0 -4px 30px rgba(107, 0, 153, 0.45), 0 -1px 0 rgba(212, 0, 85, 0.4);
+      border-top: 1px solid rgba(212, 0, 85, 0.35);
+    }
+    .halo-business {
+      box-shadow: 0 -4px 30px rgba(6, 214, 160, 0.45), 0 -1px 0 rgba(6, 214, 160, 0.5);
+      border-top: 1px solid rgba(6, 214, 160, 0.45);
+    }
+    .halo-academic {
+      box-shadow: 0 -4px 30px rgba(0, 218, 243, 0.45), 0 -1px 0 rgba(0, 218, 243, 0.5);
+      border-top: 1px solid rgba(0, 218, 243, 0.45);
+    }
+    .halo-elevate {
+      box-shadow: 0 -4px 30px rgba(255, 140, 0, 0.45), 0 -1px 0 rgba(255, 183, 3, 0.5);
+      border-top: 1px solid rgba(255, 140, 0, 0.45);
+    }
+    .halo-production {
+      box-shadow: 0 -4px 30px rgba(239, 71, 111, 0.45), 0 -1px 0 rgba(239, 71, 111, 0.5);
+      border-top: 1px solid rgba(239, 71, 111, 0.45);
+    }
+    /* Pulse ring animation */
+    @keyframes hold-charge {
+      0% { transform: scale(1); opacity: 0.6; }
+      100% { transform: scale(1.6); opacity: 1; filter: blur(2px); }
+    }
+    .charging {
+      animation: hold-charge 0.4s ease-out forwards;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-[#060709] text-white flex flex-col items-center justify-start p-2 sm:p-6">
+
+  <!-- Global Plajah Logo SVG Gradient Definition -->
+  <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="plajah-logo-grad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#6B0099" />
+        <stop offset="50%" stop-color="#D40055" />
+        <stop offset="100%" stop-color="#FF8C00" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <!-- Interactive Controls Header -->
+  <header class="w-full max-w-5xl mb-6 text-center sm:text-left flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
+    <div>
+      <div class="flex items-center gap-2.5 justify-center sm:justify-start">
+        <div class="w-7 h-7 rounded-lg flex items-center justify-center font-black text-white text-xs shadow-md" style="background: linear-gradient(135deg, #6B0099, #D40055, #FF8C00)">
+          P
+        </div>
+        <h1 class="text-xl sm:text-2xl font-extrabold font-display tracking-tight text-white">
+          Plajah Mobile Persona Switcher & Adaptive Nav
+        </h1>
+        <span class="px-2 py-0.5 rounded-full bg-[#00DAF3]/20 text-[#00DAF3] text-[10px] font-mono font-bold border border-[#00DAF3]/30">
+          PROTOTYPE v1
+        </span>
+      </div>
+      <p class="text-xs text-white/60 mt-1 max-w-2xl">
+        Hold down <strong>Home</strong> or <strong>Profile</strong> for 400ms to pop the Persona Switcher. Or <strong>swipe horizontally along the bottom bar</strong> to instantly carousel between roles!
+      </p>
+    </div>
+
+    <!-- Quick Mode Badges & Presets -->
+    <div class="flex items-center gap-2 mx-auto sm:mx-0">
+      <span class="text-xs text-white/50 font-mono hidden md:inline">Quick Jump:</span>
+      <button onclick="switchPersona('personal')" class="px-3 py-1 rounded-full text-xs font-bold bg-[#6B0099]/30 text-purple-300 border border-purple-500/40 hover:bg-[#6B0099]/50 transition-all">
+        Personal
+      </button>
+      <button onclick="switchPersona('business')" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 transition-all">
+        Business
+      </button>
+      <button onclick="switchPersona('academic')" class="px-3 py-1 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 transition-all">
+        Academia
+      </button>
+      <button onclick="switchPersona('elevate')" class="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-all">
+        Elevate
+      </button>
+    </div>
+  <!-- Global SVG Gradient Definition for Plajah Brand (Purple -> Magenta -> Amber) -->
+  <svg width="0" height="0" class="absolute pointer-events-none" style="position: absolute; width: 0; height: 0; overflow: hidden;">
+    <defs>
+      <linearGradient id="plajah-logo-grad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#6B0099" />
+        <stop offset="50%" stop-color="#D40055" />
+        <stop offset="100%" stop-color="#FF8C00" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <!-- Main Showcase Container -->
+  <main class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    
+    <!-- LEFT: High-Fidelity Mobile Device Canvas -->
+    <div class="lg:col-span-6 flex flex-col items-center justify-center">
+      
+      <!-- Phone Bezel Mockup (iPhone 16 Pro styling) -->
+      <div class="relative w-[360px] sm:w-[390px] h-[780px] bg-[#0c0014] rounded-[52px] border-[9px] border-[#222329] shadow-[0_25px_90px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.1)] overflow-hidden flex flex-col relative select-none">
+        
+        <!-- Status Bar & Dynamic Island -->
+        <div class="w-full h-11 px-7 flex items-center justify-between text-xs text-white/80 font-semibold z-40 bg-black/40 backdrop-blur-md flex-shrink-0">
+          <span class="text-[11px] font-mono" id="phone-clock">9:41</span>
+          <!-- Dynamic Island Pill -->
+          <div class="w-24 h-6 bg-black rounded-full flex items-center justify-center gap-1.5 px-2 border border-white/10 shadow-sm cursor-pointer" onclick="openPersonaSheet()">
+            <div id="island-dot" class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></div>
+            <span id="island-label" class="text-[9px] font-bold text-white/90 truncate max-w-[65px]">Personal</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-[10px]">
+            <i data-lucide="wifi" class="w-3.5 h-3.5"></i>
+            <i data-lucide="battery-medium" class="w-4 h-4"></i>
+          </div>
+        </div>
+
+        <!-- Phone Screen Content (Dynamic based on active Persona) -->
+        <div id="phone-screen" class="flex-1 overflow-y-auto pb-24 relative p-4 space-y-4">
+          <!-- Content rendered dynamically via JavaScript -->
+        </div>
+
+        <!-- ── ADAPTIVE CONTEXTUAL BOTTOM NAVIGATION BAR ── -->
+        <div id="nav-container" class="absolute bottom-0 left-0 right-0 z-40">
+          
+          <!-- Quick Swipe Instruction Pill (Slides out on first load) -->
+          <div id="swipe-hint" class="absolute -top-7 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-black/80 backdrop-blur-md border border-white/15 text-[9px] font-mono text-white/70 shadow-lg pointer-events-none transition-all duration-300">
+            Swipe bar ↔ to flip accounts
+          </div>
+
+          <!-- Bottom Tab Bar -->
+          <nav
+            id="bottom-bar"
+            class="glass-bar px-2 pt-1 pb-6 transition-all duration-300 halo-personal relative"
+          >
+            <!-- Hold Charging Feedback Ring -->
+            <div id="charge-indicator" class="absolute pointer-events-none w-14 h-14 rounded-full border-2 border-white/80 -translate-x-1/2 -translate-y-1/2 hidden z-50"></div>
+
+            <div id="tabs-row" class="flex items-center justify-around gap-1">
+              <!-- Tabs populated dynamically -->
+            </div>
+
+            <!-- Home Swipe Bar Pill Indicator -->
+            <div class="w-28 h-1 bg-white/35 rounded-full mx-auto mt-2 transition-all" id="home-indicator"></div>
+          </nav>
+        </div>
+
+        <!-- ── MORE / OVERFLOW APP DRAWER MODAL ── -->
+        <div
+          id="app-drawer"
+          class="absolute inset-0 z-45 bg-black/75 backdrop-blur-md flex flex-col justify-end transition-all duration-300 opacity-0 pointer-events-none"
+        >
+          <div class="flex-1" onclick="toggleAppDrawer(false)"></div>
+          <div
+            id="drawer-container"
+            class="glass-sheet rounded-t-[34px] border-t border-white/20 p-5 space-y-4 transform translate-y-full transition-transform duration-300 shadow-2xl max-h-[70vh] overflow-y-auto"
+          >
+            <div class="w-12 h-1.5 bg-white/25 rounded-full mx-auto mb-1"></div>
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-base font-extrabold font-display text-white">All Plajah Modules</h3>
+                <p class="text-[11px] text-white/60">More apps & creative suites for this workspace</p>
+              </div>
+              <button onclick="toggleAppDrawer(false)" class="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <div class="grid grid-cols-4 gap-3 pt-2 text-center" id="drawer-grid">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+        <!-- ── PERSONA & ORG ACCOUNT SWITCHER BOTTOM SHEET MODAL ── -->
+        <div
+          id="persona-sheet"
+          class="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col justify-end transition-all duration-300 opacity-0 pointer-events-none"
+        >
+          <!-- Backdrop click to dismiss -->
+          <div class="flex-1" onclick="closePersonaSheet()"></div>
+
+          <!-- Sheet Content -->
+          <div
+            id="sheet-container"
+            class="glass-sheet rounded-t-[34px] border-t border-white/20 p-5 space-y-4 transform translate-y-full transition-transform duration-300 shadow-2xl max-h-[82vh] overflow-y-auto"
+          >
+            <!-- Drag Handle -->
+            <div class="w-12 h-1.5 bg-white/25 rounded-full mx-auto mb-1"></div>
+
+            <!-- Sheet Header -->
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-base font-extrabold font-display text-white">Switch Context & Persona</h3>
+                <p class="text-[11px] text-white/60">Select an enrolled role, organization, or storefront</p>
+              </div>
+              <button onclick="closePersonaSheet()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <!-- Persona Accounts List -->
+            <div id="persona-list" class="space-y-2.5">
+              <!-- Injected via JavaScript -->
+            </div>
+
+            <!-- Actions Footer -->
+            <div class="pt-2 border-t border-white/10 flex items-center justify-between text-xs">
+              <button onclick="alert('Enrollment modal: Search & join registered Plajah businesses, campus organizations, churches, or production teams.')" class="flex items-center gap-1.5 text-purple-300 font-bold hover:underline">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                <span>Enroll in New Org / Role</span>
+              </button>
+
+              <button onclick="openCustomizeModal()" class="flex items-center gap-1.5 text-white/50 hover:text-white font-medium">
+                <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
+                <span>Customize Presets</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Quick helper under phone -->
+      <div class="mt-3 text-center">
+        <span class="text-xs text-white/40">
+          💡 Try <strong>holding Home or Profile</strong> for 400ms · Or <strong>swipe left/right</strong> on the bottom bar
+        </span>
+      </div>
+    </div>
+
+    <!-- RIGHT: Architecture Explainer & Live Customization Playground -->
+    <div class="lg:col-span-6 space-y-5">
+      
+      <!-- Panel 1: Active Persona Inspector -->
+      <div class="p-5 rounded-3xl bg-white/[0.03] border border-white/10 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-mono font-bold uppercase tracking-wider text-purple-400">Live Context State</span>
+          <span id="inspector-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+            Personal Mode
+          </span>
+        </div>
+
+        <h3 id="inspector-name" class="text-xl font-bold font-display text-white">Kenneth Moody</h3>
+        <p id="inspector-desc" class="text-xs text-white/70 leading-relaxed">
+          Standard personal/creator layout with Chora music, Reello creator videos, and personal Front Row marquee.
+        </p>
+
+        <!-- Current Tabs Pill Array -->
+        <div class="pt-2">
+          <span class="text-[10px] uppercase font-mono text-white/40 tracking-wider block mb-1.5">Bottom Row Tabs Layout:</span>
+          <div id="inspector-tabs" class="flex flex-wrap gap-1.5">
+            <!-- Badges -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 2: Why This Solves Context Pollution -->
+      <div class="p-5 rounded-3xl bg-white/[0.03] border border-white/10 space-y-3 text-xs">
+        <h4 class="font-bold text-sm text-white font-display flex items-center gap-2">
+          <i data-lucide="sparkles" class="w-4 h-4 text-[#FF8C00]"></i>
+          <span>The Ergonomic Super-Powers Built Here</span>
+        </h4>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div class="p-3 rounded-2xl bg-black/40 border border-white/5 space-y-1">
+            <span class="font-bold text-white flex items-center gap-1.5 text-[11px]">
+              <i data-lucide="radio" class="w-3.5 h-3.5 text-emerald-400"></i>
+              <span>Ambient "Persona Halo"</span>
+            </span>
+            <p class="text-white/60 text-[11px] leading-relaxed">
+              Bottom bar and indicators glow in the active role's authentic brand color, preventing embarrassing mis-posts.
+            </p>
+          </div>
+
+          <div class="p-3 rounded-2xl bg-black/40 border border-white/5 space-y-1">
+            <span class="font-bold text-white flex items-center gap-1.5 text-[11px]">
+              <i data-lucide="move-horizontal" class="w-3.5 h-3.5 text-cyan-400"></i>
+              <span>Bottom-Bar Quick Swipe</span>
+            </span>
+            <p class="text-white/60 text-[11px] leading-relaxed">
+              Flick left or right along the bar to immediately carousel to next persona without opening any popups.
+            </p>
+          </div>
+
+          <div class="p-3 rounded-2xl bg-black/40 border border-white/5 space-y-1">
+            <span class="font-bold text-white flex items-center gap-1.5 text-[11px]">
+              <i data-lucide="bell" class="w-3.5 h-3.5 text-[#FF8C00]"></i>
+              <span>Operational Triage Badges</span>
+            </span>
+            <p class="text-white/60 text-[11px] leading-relaxed">
+              Shows real-time pending counts (e.g. 3 mobile pickup orders, 1 lecture assignment due, church service deck).
+            </p>
+          </div>
+
+          <div class="p-3 rounded-2xl bg-black/40 border border-white/5 space-y-1">
+            <span class="font-bold text-white flex items-center gap-1.5 text-[11px]">
+              <i data-lucide="user-check" class="w-3.5 h-3.5 text-pink-400"></i>
+              <span>Isolated Profiles (1 Root Auth)</span>
+            </span>
+            <p class="text-white/60 text-[11px] leading-relaxed">
+              Separate display avatars, roles, and bio without logging out or juggling multiple passwords.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 3: Interactive Settings & Gesture Tuning -->
+      <div class="p-5 rounded-3xl bg-white/[0.03] border border-white/10 space-y-4 text-xs">
+        <h4 class="font-bold text-sm text-white font-display flex items-center gap-2">
+          <i data-lucide="settings" class="w-4 h-4 text-purple-400"></i>
+          <span>Prototype Tuning Controls</span>
+        </h4>
+
+        <div class="space-y-3">
+          <!-- Hold Duration Slider -->
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="font-semibold text-white">Long-Press Hold Duration</span>
+              <p class="text-[11px] text-white/50">Time holding Home or Profile before sheet pops</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="range" id="hold-slider" min="250" max="700" value="400" step="50" class="w-24 accent-[#FF8C00]" oninput="updateHoldTime(this.value)">
+              <span id="hold-label" class="font-mono text-[11px] text-[#FF8C00] font-bold">400ms</span>
+            </div>
+          </div>
+
+          <!-- Sound & Haptic Simulation -->
+          <div class="flex items-center justify-between pt-2 border-t border-white/10">
+            <div>
+              <span class="font-semibold text-white">Haptic Vibration Simulation</span>
+              <p class="text-[11px] text-white/50">Uses native Web Vibration API on mobile devices</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="haptic-toggle" checked class="sr-only peer">
+              <div class="w-9 h-5 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#06D6A0]"></div>
+            </label>
+          </div>
+
+          <!-- Bottom Swipe Trigger -->
+          <div class="flex items-center justify-between pt-2 border-t border-white/10">
+            <div>
+              <span class="font-semibold text-white">Enable Bottom-Bar Swipe Gesture</span>
+              <p class="text-[11px] text-white/50">Swipe along bottom navigation bar to switch personas</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="swipe-toggle" checked class="sr-only peer">
+              <div class="w-9 h-5 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#00DAF3]"></div>
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Application Logic & Interactive State Machine -->
+  <script>
+    // ── Enrolled Personas Configuration ──────────────────────────────────────────
+    const PERSONAS = {
+      personal: {
+        id: 'personal',
+        name: 'Kenneth Moody',
+        role: 'Creator & Artist',
+        orgName: 'Personal Workspace',
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
+        badge: 'Personal',
+        haloClass: 'halo-personal',
+        brandColor: '#6B0099',
+        accentColor: '#D40055',
+        gradient: 'linear-gradient(135deg, #6B0099, #D40055, #FF8C00)',
+        notificationCount: null,
+        tabs: [
+          { id: 'DASHBOARD', label: 'Front Row', icon: 'home' },
+          { id: 'MUSIC', label: 'Chora', icon: 'music-2' },
+          { id: 'VIDEOS', label: 'Reello', icon: 'video' },
+          { id: 'MOVIES_TV', label: 'Taleo', icon: 'tv' },
+          { id: 'USER_PROFILE', label: 'Profile', icon: 'user' }
+        ]
+      },
+      business: {
+        id: 'business',
+        name: 'Moody Artisan Roasters',
+        role: 'Owner & General Manager',
+        orgName: 'Plajah Business Store #104',
+        avatar: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=200&auto=format&fit=crop&q=80',
+        badge: 'Business',
+        haloClass: 'halo-business',
+        brandColor: '#06D6A0',
+        accentColor: '#118AB2',
+        gradient: 'linear-gradient(135deg, #06D6A0, #118AB2)',
+        notificationCount: '3 Orders',
+        tabs: [
+          { id: 'STORE_FRONT', label: 'Storefront', icon: 'store' },
+          { id: 'COUNTER_POS', label: 'Counter POS', icon: 'calculator' },
+          { id: 'ORDERS', label: 'Orders (3)', icon: 'shopping-bag' },
+          { id: 'MARKETING', label: 'Marketing', icon: 'megaphone' },
+          { id: 'BIZ_PROFILE', label: 'Business ID', icon: 'briefcase' }
+        ]
+      },
+      academic: {
+        id: 'academic',
+        name: 'Plajah Architecture Lab',
+        role: 'Faculty Lead / Instructor',
+        orgName: 'Plajah Academia Campus',
+        avatar: 'https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?w=200&auto=format&fit=crop&q=80',
+        badge: 'Academia',
+        haloClass: 'halo-academic',
+        brandColor: '#00DAF3',
+        accentColor: '#4361EE',
+        gradient: 'linear-gradient(135deg, #00DAF3, #4361EE)',
+        notificationCount: '1 Grade Due',
+        tabs: [
+          { id: 'CAMPUS', label: 'Campus', icon: 'graduation-cap' },
+          { id: 'CLASSROOMS', label: 'Classrooms', icon: 'book-open' },
+          { id: 'TELA_CANVAS', label: 'Tela Docs', icon: 'file-text' },
+          { id: 'LOREA', label: 'Lorea', icon: 'scroll-text' },
+          { id: 'FACULTY_ID', label: 'Faculty ID', icon: 'shield-check' }
+        ]
+      },
+      elevate: {
+        id: 'elevate',
+        name: 'Grace Sanctuary & Media',
+        role: 'Media Director',
+        orgName: 'Elevate Church Network',
+        avatar: 'https://images.unsplash.com/photo-1548625361-195fe578cb27?w=200&auto=format&fit=crop&q=80',
+        badge: 'Elevate',
+        haloClass: 'halo-elevate',
+        brandColor: '#FF8C00',
+        accentColor: '#FFB703',
+        gradient: 'linear-gradient(135deg, #FF8C00, #FFB703)',
+        notificationCount: 'Service Deck',
+        tabs: [
+          { id: 'SANCTUARY', label: 'Sanctuary', icon: 'landmark' },
+          { id: 'LECTIO', label: 'Lectio Bible', icon: 'book-marked' },
+          { id: 'AMBO_PRO', label: 'Ambo Deck', icon: 'presentation' },
+          { id: 'COMMUNITY_PRAYER', label: 'Prayers', icon: 'heart' },
+          { id: 'MINISTRY_ID', label: 'Ministry ID', icon: 'cross' }
+        ]
+      }
+    };
+
+    const PERSONA_KEYS = ['personal', 'business', 'academic', 'elevate'];
+    let currentPersonaKey = 'personal';
+    let activeTabId = 'DASHBOARD';
+    let holdDurationMs = 400;
+
+    // ── Switch Persona Logic ───────────────────────────────────────────────────
+    function switchPersona(key) {
+      if (!PERSONAS[key]) return;
+      currentPersonaKey = key;
+      const persona = PERSONAS[key];
+      activeTabId = persona.tabs[0].id;
+
+      // 1. Update Navigation Bar Halo
+      const bar = document.getElementById('bottom-bar');
+      bar.className = `glass-bar px-2 pt-1 pb-6 transition-all duration-300 relative ${persona.haloClass}`;
+
+      // 2. Update Home Indicator color
+      const indicator = document.getElementById('home-indicator');
+      indicator.style.background = persona.brandColor;
+
+      // 3. Update Island Pill in phone header
+      const islandDot = document.getElementById('island-dot');
+      const islandLabel = document.getElementById('island-label');
+      islandDot.style.background = persona.brandColor;
+      islandLabel.textContent = persona.badge;
+
+      // 4. Render Tabs Row
+      renderTabs();
+
+      // 5. Render Screen Content
+      renderScreenContent();
+
+      // 6. Update Inspector Panel
+      updateInspector();
+
+      // 7. Trigger Haptic Vibration if supported
+      triggerHaptic(20);
+
+      // Close sheet if open
+      closePersonaSheet();
+    }
+
+    let isAppDrawerOpen = false;
+
+    // ── Render Bottom Tabs ─────────────────────────────────────────────────────
+    function renderTabs() {
+      const persona = PERSONAS[currentPersonaKey];
+      const tabsRow = document.getElementById('tabs-row');
+      tabsRow.innerHTML = '';
+
+      persona.tabs.forEach((tab, index) => {
+        const isActive = tab.id === activeTabId;
+        const isHomeTab = index === 0;
+        const isProfileTab = index === persona.tabs.length - 1;
+        const canTriggerHold = isHomeTab || isProfileTab;
+
+        const button = document.createElement('button');
+        button.className = 'flex flex-col items-center gap-0.5 flex-1 py-1.5 relative group transition-transform active:scale-95';
+        button.setAttribute('data-tab-id', tab.id);
+
+        // Icon Pill Container - scaled down to w-9 h-7 rounded-2xl to give comfortable breathing room
+        const pill = document.createElement('div');
+        pill.className = `w-9 h-7 rounded-2xl flex items-center justify-center transition-all ${
+          isActive ? 'shadow-sm' : 'text-white/50 group-hover:text-white'
+        }`;
+        if (isActive) {
+          pill.style.background = `${persona.brandColor}33`;
+          pill.style.border = `1px solid ${persona.brandColor}66`;
+        }
+
+        // Icon or Avatar for Profile Tab
+        if (isProfileTab && persona.avatar) {
+          pill.innerHTML = `
+            <div class="w-5 h-5 rounded-full overflow-hidden border ${isActive ? 'border-white' : 'border-white/30'}">
+              <img src="${persona.avatar}" class="w-full h-full object-cover" />
+            </div>
+          `;
+        } else {
+          pill.innerHTML = `<i data-lucide="${tab.icon}" class="w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-white/60'}"></i>`;
+        }
+
+        // Label
+        const label = document.createElement('span');
+        label.className = `text-[8px] font-black uppercase tracking-wider ${isActive ? 'text-white' : 'text-white/40'}`;
+        label.textContent = tab.label;
+        if (isActive) {
+          label.style.color = persona.brandColor;
+        }
+
+        button.appendChild(pill);
+        button.appendChild(label);
+
+        // Attach Tap to Navigate
+        button.addEventListener('click', (e) => {
+          if (button.dataset.ignoreClick === 'true') {
+            button.dataset.ignoreClick = 'false';
+            return;
+          }
+          activeTabId = tab.id;
+          renderTabs();
+          renderScreenContent();
+          triggerHaptic(8);
+        });
+
+        // Attach Long-Press gesture for Home or Profile
+        if (canTriggerHold) {
+          attachHoldGesture(button);
+        }
+
+        tabsRow.appendChild(button);
+      });
+
+      // Overflow More button — distinct Plajah logo gradient & clear touch target
+      const moreBtn = document.createElement('button');
+      moreBtn.className = 'flex flex-col items-center justify-center py-1.5 transition-transform active:scale-95 shrink-0 px-1';
+      moreBtn.style.minHeight = '48px';
+      moreBtn.style.width = '42px';
+      moreBtn.title = isAppDrawerOpen ? 'Close menu' : 'More apps & sections';
+
+      moreBtn.innerHTML = `
+        <div class="w-8 h-7 rounded-xl flex items-center justify-center transition-all border ${
+          isAppDrawerOpen 
+            ? 'bg-gradient-to-r from-[#6B0099]/35 via-[#D40055]/30 to-[#FF8C00]/35 border-white/30 shadow-[0_0_12px_rgba(212,0,85,0.4)]' 
+            : 'bg-white/5 hover:bg-white/10 border-white/10'
+        }">
+          <i data-lucide="chevron-up" class="w-4 h-4 transition-transform duration-200 ${isAppDrawerOpen ? 'rotate-180' : ''}" style="stroke: url(#plajah-logo-grad);"></i>
+        </div>
+        <span class="text-[7.5px] font-black uppercase tracking-wider text-white/50 mt-0.5">More</span>
+      `;
+      moreBtn.onclick = () => toggleAppDrawer();
+      tabsRow.appendChild(moreBtn);
+
+      lucide.createIcons();
+    }
+
+    // ── App Drawer Modal (More Menu) ───────────────────────────────────────────
+    function toggleAppDrawer(force) {
+      if (typeof force === 'boolean') {
+        isAppDrawerOpen = force;
+      } else {
+        isAppDrawerOpen = !isAppDrawerOpen;
+      }
+
+      const drawer = document.getElementById('app-drawer');
+      const container = document.getElementById('drawer-container');
+      
+      if (isAppDrawerOpen) {
+        renderDrawerGrid();
+        drawer.classList.remove('opacity-0', 'pointer-events-none');
+        drawer.classList.add('opacity-100');
+        container.classList.remove('translate-y-full');
+        container.classList.add('translate-y-0');
+        triggerHaptic(20);
+      } else {
+        drawer.classList.add('opacity-0', 'pointer-events-none');
+        drawer.classList.remove('opacity-100');
+        container.classList.add('translate-y-full');
+        container.classList.remove('translate-y-0');
+      }
+
+      // Refresh More button chevron state
+      renderTabs();
+    }
+
+    function renderDrawerGrid() {
+      const grid = document.getElementById('drawer-grid');
+      const persona = PERSONAS[currentPersonaKey];
+      const modules = [
+        { label: 'Melos DAW', icon: 'music-2', desc: 'Audio Workstation', color: '#8b5cf6' },
+        { label: 'Chora Radio', icon: 'radio', desc: 'Lossless Stream', color: '#a855f7' },
+        { label: 'Cine Studio', icon: 'film', desc: 'Screen & Video', color: '#ec4899' },
+        { label: 'Tela Canvas', icon: 'file-text', desc: 'Docs & Board', color: '#3b82f6' },
+        { label: 'Horizon 3D', icon: 'box', desc: 'Spatial Engine', color: '#06b6d4' },
+        { label: 'Lectio Reader', icon: 'book-open', desc: 'Scripture Study', color: '#f59e0b' },
+        { label: 'POS Terminal', icon: 'store', desc: 'Store Register', color: '#10b981' },
+        { label: 'Lorea Research', icon: 'graduation-cap', desc: 'Academic Archive', color: '#6366f1' },
+        { label: 'Front Row', icon: 'sparkles', desc: 'Marquee Hub', color: '#FF8C00' },
+        { label: 'Metrics', icon: 'bar-chart-3', desc: 'Social & Sales', color: '#14b8a6' },
+        { label: 'Team Collab', icon: 'users', desc: 'Roles & Invites', color: '#8b5cf6' },
+        { label: 'Preferences', icon: 'settings', desc: 'System & Theme', color: '#94a3b8' }
+      ];
+
+      grid.innerHTML = modules.map(m => `
+        <div onclick="alert('Launching ${m.label} module for ${persona.name} (${persona.badge})'); toggleAppDrawer(false);" class="p-2.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.1] border border-white/10 flex flex-col items-center gap-1.5 cursor-pointer transition-all active:scale-95 group">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center border border-white/10 group-hover:border-white/30" style="background: ${m.color}22; color: ${m.color}">
+            <i data-lucide="${m.icon}" class="w-5 h-5"></i>
+          </div>
+          <span class="text-[10px] font-bold text-white truncate w-full">${m.label}</span>
+          <span class="text-[8px] text-white/40 truncate w-full -mt-1">${m.desc}</span>
+        </div>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    // ── Hold-Press Gesture Attachment ──────────────────────────────────────────
+    function attachHoldGesture(element) {
+      let holdTimer = null;
+      let startX = 0;
+      let startY = 0;
+
+      const onStart = (e) => {
+        const touch = e.touches ? e.touches[0] : e;
+        startX = touch.clientX;
+        startY = touch.clientY;
+
+        // Position charging indicator
+        const rect = element.getBoundingClientRect();
+        const indicator = document.getElementById('charge-indicator');
+        indicator.style.left = `${rect.left + rect.width / 2}px`;
+        indicator.style.top = `${rect.top + rect.height / 2}px`;
+        indicator.classList.remove('hidden');
+        indicator.classList.add('charging');
+
+        holdTimer = setTimeout(() => {
+          element.dataset.ignoreClick = 'true';
+          indicator.classList.add('hidden');
+          indicator.classList.remove('charging');
+          triggerHaptic(40);
+          openPersonaSheet();
+        }, holdDurationMs);
+      };
+
+      const onEnd = (e) => {
+        clearTimeout(holdTimer);
+        const indicator = document.getElementById('charge-indicator');
+        indicator.classList.add('hidden');
+        indicator.classList.remove('charging');
+      };
+
+      const onMove = (e) => {
+        const touch = e.touches ? e.touches[0] : e;
+        const diffX = Math.abs(touch.clientX - startX);
+        const diffY = Math.abs(touch.clientY - startY);
+        if (diffX > 10 || diffY > 10) {
+          clearTimeout(holdTimer);
+          const indicator = document.getElementById('charge-indicator');
+          indicator.classList.add('hidden');
+          indicator.classList.remove('charging');
+        }
+      };
+
+      element.addEventListener('mousedown', onStart);
+      element.addEventListener('mouseup', onEnd);
+      element.addEventListener('mouseleave', onEnd);
+
+      element.addEventListener('touchstart', onStart, { passive: true });
+      element.addEventListener('touchend', onEnd);
+      element.addEventListener('touchcancel', onEnd);
+      element.addEventListener('touchmove', onMove, { passive: true });
+    }
+
+    // ── Horizontal Bottom Bar Swipe ───────────────────────────────────────────
+    (function setupBottomSwipe() {
+      const bottomBar = document.getElementById('bottom-bar');
+      let swipeStartX = 0;
+      let swipeStartY = 0;
+
+      bottomBar.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        swipeStartX = touch.clientX;
+        swipeStartY = touch.clientY;
+      }, { passive: true });
+
+      bottomBar.addEventListener('touchend', (e) => {
+        const toggle = document.getElementById('swipe-toggle');
+        if (!toggle || !toggle.checked) return;
+
+        const touch = e.changedTouches[0];
+        const deltaX = touch.clientX - swipeStartX;
+        const deltaY = touch.clientY - swipeStartY;
+
+        // If swipe is horizontal and prominent enough (> 45px)
+        if (Math.abs(deltaX) > 45 && Math.abs(deltaY) < 40) {
+          const currentIdx = PERSONA_KEYS.indexOf(currentPersonaKey);
+          if (deltaX < 0) {
+            // Swipe Left -> Next Persona
+            const nextIdx = (currentIdx + 1) % PERSONA_KEYS.length;
+            switchPersona(PERSONA_KEYS[nextIdx]);
+          } else {
+            // Swipe Right -> Prev Persona
+            const prevIdx = (currentIdx - 1 + PERSONA_KEYS.length) % PERSONA_KEYS.length;
+            switchPersona(PERSONA_KEYS[prevIdx]);
+          }
+        }
+      });
+    })();
+
+    // ── Render Screen Content ──────────────────────────────────────────────────
+    function renderScreenContent() {
+      const screen = document.getElementById('phone-screen');
+      const persona = PERSONAS[currentPersonaKey];
+
+      let html = '';
+
+      if (currentPersonaKey === 'personal') {
+        html = `
+          <!-- Front Row Personal Screen -->
+          <div class="relative h-32 rounded-2xl overflow-hidden p-4 flex flex-col justify-end" style="background: linear-gradient(135deg, rgba(107,0,153,0.8), rgba(212,0,85,0.7)), url('https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800') center/cover">
+            <span class="text-[9px] font-mono font-bold text-[#FF8C00] uppercase tracking-wider">Front Row Marquee</span>
+            <h2 class="text-lg font-extrabold font-display leading-tight text-white">Chora Spatial Audio Master</h2>
+            <span class="text-[11px] text-white/80">Active listening session · Lossless FLAC</span>
+          </div>
+
+          <!-- Feed & Activity -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-white font-display">Personal Social Pulse</span>
+              <span class="text-[10px] text-purple-300 font-bold">142 Followers</span>
+            </div>
+
+            <div class="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 space-y-2">
+              <div class="flex items-center gap-2.5">
+                <img src="${persona.avatar}" class="w-8 h-8 rounded-full object-cover border border-purple-400" />
+                <div>
+                  <div class="text-xs font-bold text-white">Kenneth Moody</div>
+                  <div class="text-[10px] text-white/50">Shared a new stem snippet · 2h ago</div>
+                </div>
+              </div>
+              <p class="text-xs text-white/80 leading-relaxed">
+                Rendered the Dolby Atmos 7.1.4 stems in Melos. Pushed master mix to Chora radio.
+              </p>
+            </div>
+
+            <!-- Continue Watching -->
+            <div class="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center gap-3">
+              <div class="w-10 h-14 rounded-lg bg-purple-900/60 flex items-center justify-center text-lg flex-shrink-0">
+                🎬
+              </div>
+              <div class="min-w-0 flex-1">
+                <span class="text-[9px] uppercase font-bold text-cyan-400">Continue Watching</span>
+                <div class="text-xs font-bold text-white truncate">Neon District — Episode 3</div>
+                <div class="w-full bg-white/10 h-1 rounded-full mt-2 overflow-hidden">
+                  <div class="bg-gradient-to-r from-cyan-400 to-[#FF8C00] h-full w-[65%]"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (currentPersonaKey === 'business') {
+        html = `
+          <!-- Business & POS Screen -->
+          <div class="relative h-28 rounded-2xl overflow-hidden p-4 flex flex-col justify-end" style="background: linear-gradient(135deg, rgba(6,214,160,0.85), rgba(17,138,178,0.85))">
+            <span class="text-[9px] font-mono font-bold text-black uppercase tracking-wider">Plajah Business Store Terminal</span>
+            <h2 class="text-lg font-extrabold font-display leading-tight text-black">Moody Artisan Roasters</h2>
+            <span class="text-[11px] text-black/80 font-medium">Counter Register #1 · Shift Active</span>
+          </div>
+
+          <!-- Live Orders Ribbon -->
+          <div class="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-sm">
+                3
+              </div>
+              <div>
+                <div class="text-xs font-bold text-white">Mobile Pickup Orders</div>
+                <div class="text-[10px] text-emerald-300">Next ready: Table 4 (Latte + Croissant)</div>
+              </div>
+            </div>
+            <button class="px-3 py-1 rounded-full bg-emerald-500 text-black font-bold text-[11px] shadow">
+              Open POS
+            </button>
+          </div>
+
+          <!-- Sales Summary -->
+          <div class="grid grid-cols-2 gap-3">
+            <div class="p-3 rounded-2xl bg-white/[0.04] border border-white/10">
+              <span class="text-[10px] text-white/50 block font-mono">Today's Revenue</span>
+              <span class="text-base font-extrabold text-white font-display mt-0.5 block">$1,280.40</span>
+              <span class="text-[9px] text-emerald-400 font-bold">↑ 18% vs yesterday</span>
+            </div>
+            <div class="p-3 rounded-2xl bg-white/[0.04] border border-white/10">
+              <span class="text-[10px] text-white/50 block font-mono">Active Staff</span>
+              <span class="text-base font-extrabold text-white font-display mt-0.5 block">4 Clocked In</span>
+              <span class="text-[9px] text-white/50">Time clock live</span>
+            </div>
+          </div>
+        `;
+      } else if (currentPersonaKey === 'academic') {
+        html = `
+          <!-- Academia Screen -->
+          <div class="relative h-28 rounded-2xl overflow-hidden p-4 flex flex-col justify-end" style="background: linear-gradient(135deg, rgba(0,218,243,0.85), rgba(67,97,238,0.85))">
+            <span class="text-[9px] font-mono font-bold text-black uppercase tracking-wider">Campus Faculty Portal</span>
+            <h2 class="text-lg font-extrabold font-display leading-tight text-black">Stanford Architecture Lab</h2>
+            <span class="text-[11px] text-black/80 font-medium">Semester 2 · 34 Enrolled Students</span>
+          </div>
+
+          <!-- Active Grading Queue -->
+          <div class="p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-300 flex items-center justify-center font-bold text-sm">
+                1
+              </div>
+              <div>
+                <div class="text-xs font-bold text-white">Assignment Submissions</div>
+                <div class="text-[10px] text-cyan-300">Parametric Acoustics (Tela Canvas)</div>
+              </div>
+            </div>
+            <button class="px-3 py-1 rounded-full bg-[#00DAF3] text-black font-bold text-[11px] shadow">
+              Grade Now
+            </button>
+          </div>
+
+          <!-- Tela Canvas Modules -->
+          <div class="space-y-2">
+            <span class="text-xs font-bold text-white/60 font-display block">Syllabus & Lecture Modules</span>
+            <div class="p-3 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-between text-xs">
+              <div class="flex items-center gap-2">
+                <i data-lucide="file-text" class="w-4 h-4 text-cyan-400"></i>
+                <span class="font-bold text-white">Structural Geometries v3.tela</span>
+              </div>
+              <span class="text-[10px] text-white/40">Today</span>
+            </div>
+          </div>
+        `;
+      } else if (currentPersonaKey === 'elevate') {
+        html = `
+          <!-- Elevate Sanctuary Screen -->
+          <div class="relative h-28 rounded-2xl overflow-hidden p-4 flex flex-col justify-end" style="background: linear-gradient(135deg, rgba(255,140,0,0.85), rgba(255,183,3,0.85))">
+            <span class="text-[9px] font-mono font-bold text-black uppercase tracking-wider">Sanctuary Media Deck</span>
+            <h2 class="text-lg font-extrabold font-display leading-tight text-black">Grace Sanctuary & Media</h2>
+            <span class="text-[11px] text-black/80 font-medium">Sunday Morning Service · Run-of-Show Ready</span>
+          </div>
+
+          <!-- Ambo Presenter Quick Action -->
+          <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold text-sm">
+                ✝
+              </div>
+              <div>
+                <div class="text-xs font-bold text-white">Sunday Order of Worship</div>
+                <div class="text-[10px] text-amber-300">Ambo Pro Presenter · 24 Slides Linked</div>
+              </div>
+            </div>
+            <button class="px-3 py-1 rounded-full bg-[#FF8C00] text-black font-bold text-[11px] shadow">
+              Open Deck
+            </button>
+          </div>
+
+          <!-- Lectio Scripture Reading -->
+          <div class="p-3 rounded-2xl bg-white/[0.04] border border-white/10 space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-amber-300 font-display">Lectio Daily Devotional</span>
+              <span class="text-[10px] text-white/40">Romans 8:14</span>
+            </div>
+            <p class="text-xs text-white/70 italic leading-relaxed">
+              "For those who are led by the Spirit of God are the children of God."
+            </p>
+          </div>
+        `;
+      }
+
+      screen.innerHTML = html;
+      lucide.createIcons();
+    }
+
+    // ── Open / Close Persona Bottom Sheet ──────────────────────────────────────
+    function openPersonaSheet() {
+      const sheet = document.getElementById('persona-sheet');
+      const container = document.getElementById('sheet-container');
+      renderPersonaList();
+      
+      sheet.classList.remove('opacity-0', 'pointer-events-none');
+      sheet.classList.add('opacity-100');
+      container.classList.remove('translate-y-full');
+      container.classList.add('translate-y-0');
+    }
+
+    function closePersonaSheet() {
+      const sheet = document.getElementById('persona-sheet');
+      const container = document.getElementById('sheet-container');
+      
+      sheet.classList.add('opacity-0', 'pointer-events-none');
+      sheet.classList.remove('opacity-100');
+      container.classList.add('translate-y-full');
+      container.classList.remove('translate-y-0');
+    }
+
+    function renderPersonaList() {
+      const list = document.getElementById('persona-list');
+      list.innerHTML = '';
+
+      Object.values(PERSONAS).forEach(p => {
+        const isCurrent = p.id === currentPersonaKey;
+        const item = document.createElement('div');
+        item.className = `p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+          isCurrent 
+            ? 'bg-white/10 border-white/40 shadow-lg' 
+            : 'bg-black/40 border-white/10 hover:border-white/20'
+        }`;
+        
+        item.innerHTML = `
+          <div class="flex items-center gap-3">
+            <div class="relative w-11 h-11 rounded-xl p-[2px] flex-shrink-0" style="background: ${p.gradient}">
+              <img src="${p.avatar}" class="w-full h-full rounded-[10px] object-cover" />
+              ${isCurrent ? '<span class="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-black"></span>' : ''}
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-white font-display">${p.name}</span>
+                <span class="px-2 py-0.2 rounded-full text-[9px] font-bold border" style="background: ${p.brandColor}22; color: ${p.brandColor}; border-color: ${p.brandColor}44">
+                  ${p.badge}
+                </span>
+              </div>
+              <div class="text-[11px] text-white/50">${p.role} · ${p.orgName}</div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            ${p.notificationCount ? `<span class="px-2 py-0.5 rounded-full bg-[#FF8C00]/20 text-[#FF8C00] font-bold text-[9px] border border-[#FF8C00]/30">${p.notificationCount}</span>` : ''}
+            <i data-lucide="${isCurrent ? 'check' : 'chevron-right'}" class="w-4 h-4 ${isCurrent ? 'text-white font-bold' : 'text-white/30'}"></i>
+          </div>
+        `;
+
+        item.onclick = () => switchPersona(p.id);
+        list.appendChild(item);
+      });
+
+      lucide.createIcons();
+    }
+
+    // ── Update Inspector Panel ────────────────────────────────────────────────
+    function updateInspector() {
+      const p = PERSONAS[currentPersonaKey];
+      document.getElementById('inspector-badge').textContent = `${p.badge} Context`;
+      document.getElementById('inspector-badge').style.background = `${p.brandColor}33`;
+      document.getElementById('inspector-badge').style.color = p.brandColor;
+      document.getElementById('inspector-badge').style.borderColor = `${p.brandColor}66`;
+
+      document.getElementById('inspector-name').textContent = `${p.name} (${p.role})`;
+      document.getElementById('inspector-desc').textContent = `Enrolled as ${p.role} in ${p.orgName}. The bottom row dynamically presents ${p.tabs.map(t => t.label).join(', ')}.`;
+
+      const tabsContainer = document.getElementById('inspector-tabs');
+      tabsContainer.innerHTML = p.tabs.map(t => `
+        <span class="px-2.5 py-1 rounded-lg bg-white/10 text-white text-[11px] font-semibold border border-white/10 flex items-center gap-1">
+          <i data-lucide="${t.icon}" class="w-3 h-3"></i>
+          <span>${t.label}</span>
+        </span>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    // ── Haptic Vibration Helper ────────────────────────────────────────────────
+    function triggerHaptic(duration) {
+      const toggle = document.getElementById('haptic-toggle');
+      if (toggle && toggle.checked && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate(duration || 15);
+        } catch (e) { /* ignore */ }
+      }
+    }
+
+    function updateHoldTime(val) {
+      holdDurationMs = parseInt(val, 10);
+      document.getElementById('hold-label').textContent = `${val}ms`;
+    }
+
+    function openCustomizeModal() {
+      alert("Customizer: In this view, organizations set their mandatory/recommended bottom tab presets, and users can reorder or pin their favorite tools (e.g. swap Lectio for Scripture audio, or add POS inventory).");
+    }
+
+    // Update Phone Clock every 30s
+    function updateClock() {
+      const now = new Date();
+      const hrs = now.getHours();
+      const mins = now.getMinutes().toString().padStart(2, '0');
+      document.getElementById('phone-clock').textContent = `${hrs}:${mins}`;
+    }
+    updateClock();
+    setInterval(updateClock, 30000);
+
+    // Initial Render
+    switchPersona('personal');
+
+    // Auto-hide the swipe hint after 4s
+    setTimeout(() => {
+      const hint = document.getElementById('swipe-hint');
+      if (hint) {
+        hint.style.opacity = '0';
+        setTimeout(() => hint.remove(), 400);
+      }
+    }, 4500);
+  </script>
+</body>
+</html>

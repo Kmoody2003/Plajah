@@ -1,0 +1,1616 @@
+{
+ "courseId": "music-theory-college",
+ "verifier": "A",
+ "questions": [
+  {
+   "id": "music-theory-college.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l01.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l02.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l03.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l05.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l07.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l08.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l09.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l10.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l10.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l11.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l12.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l13.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l14.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l14.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l15.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l17.q4",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Analyses vary; E7 is the common reading.",
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l18.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l18.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l19.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l20.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l20.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l21.q1",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": true,
+   "note": "Forte prime form of the major/minor triad is (0,3,7); (0,4,7) is its inversion, not the prime form. Choice 0 is the standard answer but the lesson wording is confusing.",
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l21.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l21.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l21.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l21.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l22.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l22.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l22.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l22.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l22.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l23.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l23.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l23.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l23.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l23.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l24.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l24.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l24.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l24.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l24.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l25.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l25.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l25.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l25.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l25.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l26.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l26.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l26.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l26.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l26.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l27.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l27.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l27.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l27.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l27.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l28.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l28.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l28.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l28.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-college.l28.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "music-theory-college.l01",
+   "claim": "Fux Gradus ad Parnassum teaches five species",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Species_counterpoint"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-college.l01",
+   "claim": "Only consonances allowed in first species; perfect fourth treated as dissonance in strict two-voice",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard Fux pedagogy; not fetched."
+  },
+  {
+   "lessonId": "music-theory-college.l01",
+   "claim": "In D Dorian the penultimate note is C-sharp, a major sixth above E, stepping to D",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard cadence rule; not fetched."
+  },
+  {
+   "lessonId": "music-theory-college.l02",
+   "claim": "Fourth species suspensions: 7-6, 4-3, 9-8 above; 2-3 below",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Species_counterpoint"
+   ],
+   "note": "Source confirms syncopation/suspension; exact figures from standard texts."
+  },
+  {
+   "lessonId": "music-theory-college.l02",
+   "claim": "Third species is four notes against one; cambiata leaves dissonance by a leap of a third",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Species_counterpoint"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-college.l02",
+   "claim": "Second species weak beat dissonance only as passing tone",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l03",
+   "claim": "Dorian D, Phrygian E, Lydian F, Mixolydian G; plagal range a fourth lower",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l03",
+   "claim": "Glarean recognized Aeolian and Ionian giving twelve modes",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Dodecachordon (1547); not fetched."
+  },
+  {
+   "lessonId": "music-theory-college.l03",
+   "claim": "Palestrina Missa Papae Marcelli is a famous example",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Not fetched."
+  },
+  {
+   "lessonId": "music-theory-college.l04",
+   "claim": "Well-Tempered Clavier: two books, 24 prelude-fugue pairs each",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Well known; not fetched."
+  },
+  {
+   "lessonId": "music-theory-college.l04",
+   "claim": "Answer normally at the dominant; tonal answer adjusts when subject emphasizes dominant",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l04",
+   "claim": "Stretto = entries overlapping before the subject finishes",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l05",
+   "claim": "Figured bass: 6/5 first inversion seventh, 4/3 second, 4/2 third; no figure = 5/3",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l05",
+   "claim": "Continuo = chord instrument plus bass instrument from early 17th century",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l05",
+   "claim": "Bass C with 6/4 gives A and F, F major second inversion",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic checked."
+  },
+  {
+   "lessonId": "music-theory-college.l06",
+   "claim": "Leading tone not doubled; seventh not doubled; chordal seventh falls by step",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l06",
+   "claim": "Adjacent upper voices within an octave; tenor-bass may exceed",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l06",
+   "claim": "Complete V7 may resolve to incomplete I with tripled root",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l07",
+   "claim": "PAC: root-position V to I with tonic in soprano",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cadence_(music)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-college.l07",
+   "claim": "Phrygian half cadence iv6-V, bass falls a half step (Ab to G in C minor)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cadence_(music)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-college.l07",
+   "claim": "Deceptive cadence V to vi; plagal IV to I",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cadence_(music)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-college.l08",
+   "claim": "V7/V in C major is D F# A C; vii°7/V is F# A C Eb",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Spelling checked."
+  },
+  {
+   "lessonId": "music-theory-college.l08",
+   "claim": "Only major/minor triads can be tonicized, not vii°",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l08",
+   "claim": "V7/IV is C E G Bb; V/vi E G# B",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Spelling checked."
+  },
+  {
+   "lessonId": "music-theory-college.l09",
+   "claim": "Closely related keys of C major: G, F, Am, Em, Dm",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l09",
+   "claim": "Am is vi in C and ii in G (pivot)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked."
+  },
+  {
+   "lessonId": "music-theory-college.l09",
+   "claim": "Diminished seventh chord enharmonic modulation",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l10",
+   "claim": "bVI in C major is Ab C Eb; iv is F Ab C; ii° is D F Ab",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Spelling checked."
+  },
+  {
+   "lessonId": "music-theory-college.l10",
+   "claim": "Picardy third is a major tonic ending a minor piece",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l10",
+   "claim": "Mixture borrows from the parallel minor, not relative",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l11",
+   "claim": "Neapolitan is major triad on lowered 2nd, usually first inversion, diminished third to leading tone",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Neapolitan_chord"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-college.l11",
+   "claim": "Name from the 18th-century Neapolitan school; chord used earlier",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Neapolitan_chord"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-college.l11",
+   "claim": "Neapolitan in A minor is Bb D F",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked."
+  },
+  {
+   "lessonId": "music-theory-college.l12",
+   "claim": "Italian/French/German sixth spellings in C minor",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Augmented_sixth_chord"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-college.l12",
+   "claim": "German sixth to root-position V creates parallel fifths",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Augmented_sixth_chord"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-college.l12",
+   "claim": "Text says voices on E-flat and C move to D and G forming fifths with the bass",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Augmented_sixth_chord"
+   ],
+   "note": "Standard account: the Eb voice (Eb to D) forms the fifths with the bass (Ab to G); C does not move to G. Wording looks muddled; suggest revising."
+  },
+  {
+   "lessonId": "music-theory-college.l13",
+   "claim": "Chromatic mediants of C major: E, Ab, Eb, A (share one common tone)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l13",
+   "claim": "G9 is G B D F A; b9 adds Ab; #5 is D#",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked."
+  },
+  {
+   "lessonId": "music-theory-college.l13",
+   "claim": "Schubert, Liszt, Wagner used chromatic mediants",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l14",
+   "claim": "Secondary theme in dominant (major) or relative major (minor)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard (Hepokoski/Darcy)."
+  },
+  {
+   "lessonId": "music-theory-college.l14",
+   "claim": "Mozart K.545 in C major",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Not fetched."
+  },
+  {
+   "lessonId": "music-theory-college.l14",
+   "claim": "EEC term from Sonata Theory; medial caesura",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Not fetched."
+  },
+  {
+   "lessonId": "music-theory-college.l15",
+   "claim": "Recapitulation secondary theme returns in tonic (tonal resolution)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l15",
+   "claim": "Retransition on dominant of home key",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l15",
+   "claim": "Order: exposition, development, recapitulation, coda",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l16",
+   "claim": "Ursatz = Urlinie + Bassbrechung; Urlinie 3-2-1, 5-4-3-2-1, 8-...-1",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard; not fetched."
+  },
+  {
+   "lessonId": "music-theory-college.l16",
+   "claim": "Interruption: descent stops on 2 over V",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l16",
+   "claim": "Schenker levels foreground/middleground/background",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l17",
+   "claim": "Tristan chord spelled F B D# G#, enharmonic to half-diminished seventh",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Tristan_chord"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-college.l17",
+   "claim": "Chord moves to a dominant seventh on E (one functional reading)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Tristan_chord"
+   ],
+   "note": "Interpretations vary."
+  },
+  {
+   "lessonId": "music-theory-college.l17",
+   "claim": "Chord is in bar 2 of the prelude",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Commonly stated as bar 2; not confirmed by fetched page."
+  },
+  {
+   "lessonId": "music-theory-college.l18",
+   "claim": "Whole-tone scale: two collections, no half steps, no perfect fifths",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l18",
+   "claim": "Debussy Voiles built largely on whole-tone scale",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Not fetched."
+  },
+  {
+   "lessonId": "music-theory-college.l18",
+   "claim": "C major pentatonic C D E G A",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l19",
+   "claim": "Three distinct octatonic collections",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Octatonic_scale"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-college.l19",
+   "claim": "Messiaen mode 2; Rimsky-Korsakov associated",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Octatonic_scale"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-college.l19",
+   "claim": "Whole-half from C: C D Eb F Gb Ab A B; contains two dim7 chords",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Octatonic_scale"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-college.l20",
+   "claim": "P, L, R definitions on C major",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Neo-Riemannian_theory"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-college.l20",
+   "claim": "Each keeps two common tones",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Neo-Riemannian_theory"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-college.l20",
+   "claim": "P-L cycle from C major gives six triads (hexatonic)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked by hand: C, Cm, Ab, Abm, E, Em."
+  },
+  {
+   "lessonId": "music-theory-college.l21",
+   "claim": "Forte numbers 3-11, 3-10, 3-12",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Set_theory_(music)"
+   ],
+   "note": "Fetched page did not list these; from standard Forte tables."
+  },
+  {
+   "lessonId": "music-theory-college.l21",
+   "claim": "Prime form of D Eb G is (0,1,5)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Computed by hand."
+  },
+  {
+   "lessonId": "music-theory-college.l21",
+   "claim": "Prime form of major triad is (0,3,7)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Matches Forte convention."
+  },
+  {
+   "lessonId": "music-theory-college.l22",
+   "claim": "ICV of major triad <001110>, dim <002001>, aug <000300>",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Computed by hand."
+  },
+  {
+   "lessonId": "music-theory-college.l22",
+   "claim": "Whole-tone <060603> and diatonic <254361>",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard values; not fetched."
+  },
+  {
+   "lessonId": "music-theory-college.l22",
+   "claim": "Z-related pair (0,1,4,6)/(0,1,3,7) both <111111>",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Forte 4-Z15/4-Z29."
+  },
+  {
+   "lessonId": "music-theory-college.l23",
+   "claim": "Schoenberg, Webern, Berg; 48 row forms",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l23",
+   "claim": "I0 and P5 of given row",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Computed by hand."
+  },
+  {
+   "lessonId": "music-theory-college.l23",
+   "claim": "Matrix reading directions",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l24",
+   "claim": "Spectralism from 1970s France: Grisey, Murail",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l24",
+   "claim": "Minimalism: Reich, Glass, Riley, Young; phasing",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l24",
+   "claim": "Cage chance operations with I Ching; Lutoslawski controlled aleatory",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l25",
+   "claim": "ii-V-I in C: Dm7 G7 Cmaj7; guide-tone half-step resolutions",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked."
+  },
+  {
+   "lessonId": "music-theory-college.l25",
+   "claim": "Tritone substitution Db7 for G7 shares B/Cb and F",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked."
+  },
+  {
+   "lessonId": "music-theory-college.l25",
+   "claim": "Minor ii-V-i uses half-diminished ii",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l26",
+   "claim": "C9 = C E G Bb D; G13 = G B D F A E",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked."
+  },
+  {
+   "lessonId": "music-theory-college.l26",
+   "claim": "Natural 11th clashes with major third; #11 preferred",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l26",
+   "claim": "Em7 substitutes for Cmaj7 sharing E G B",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked."
+  },
+  {
+   "lessonId": "music-theory-college.l27",
+   "claim": "Modal jazz arose late 1950s after bebop",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l27",
+   "claim": "D Dorian white keys; G Mixolydian = C major notes",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked."
+  },
+  {
+   "lessonId": "music-theory-college.l27",
+   "claim": "Locrian has lowered 2nd and 5th",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l28",
+   "claim": "Uppercase major, lowercase minor, ° diminished, ø half-diminished",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "music-theory-college.l28",
+   "claim": "Cite measure numbers; thesis-driven writing",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Pedagogical, not a factual claim."
+  },
+  {
+   "lessonId": "music-theory-college.l28",
+   "claim": "Analysis steps listen/label/pattern/interpret",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Pedagogical convention."
+  }
+ ]
+}

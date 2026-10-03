@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MAI_VOICES, synthesizeNarration, getMicrosoftAIConfig } from "../../services/microsoftAIService";
+import { onDeviceVoiceEngine, KOKORO_VOICES } from "../../services/voice/onDeviceVoiceEngine";
 
 // AudioBuffer → 16-bit PCM WAV blob (for synthesized SFX; universally decodable).
 function bufferToWav(buf) {
@@ -47,7 +48,8 @@ export default function VoiceStudio({ audioTracks, playhead, setPlayhead, setPla
   const cfg = getMicrosoftAIConfig();
   // TTS
   const [text, setText] = useState("");
-  const [voiceId, setVoiceId] = useState(MAI_VOICES[0]?.id || "");
+  const [voiceSource, setVoiceSource] = useState("kokoro"); // "kokoro" | "azure"
+  const [voiceId, setVoiceId] = useState(KOKORO_VOICES[0]?.id || "af_heart");
   const [rate, setRate] = useState(1);
   const [busy, setBusy] = useState(false);
   const [track, setTrack] = useState(audioTracks[0]?.id || "a1");
@@ -55,13 +57,20 @@ export default function VoiceStudio({ audioTracks, playhead, setPlayhead, setPla
 
   const generateTTS = async () => {
     if (!text.trim() || busy) return;
-    if (!cfg.voiceReady) { window.speechSynthesis?.speak(new SpeechSynthesisUtterance(text)); ping?.("Spoke a preview — set VITE_AZURE_SPEECH_KEY to place TTS clips on the timeline."); return; }
     setBusy(true);
     try {
-      const { audioBlob } = await synthesizeNarration({ text: text.trim(), voiceId, rate });
-      onPlaceClip(audioBlob, (text.trim().slice(0, 28) || "VO"), { trackId: track, at: playhead });
-      ping?.("🎙 Voice clip placed at the playhead");
-    } catch (e) { ping?.("TTS failed — " + (e?.message || "check the speech key")); }
+      if (voiceSource === "kokoro" || !cfg.voiceReady) {
+        const res = await onDeviceVoiceEngine.synthesize({ text: text.trim(), voiceId, speed: rate });
+        onPlaceClip(res.audioBlob, (text.trim().slice(0, 28) || "Kokoro VO"), { trackId: track, at: playhead });
+        ping?.("🎙 On-device Kokoro voice clip placed at playhead");
+      } else {
+        const { audioBlob } = await synthesizeNarration({ text: text.trim(), voiceId, rate });
+        onPlaceClip(audioBlob, (text.trim().slice(0, 28) || "VO"), { trackId: track, at: playhead });
+        ping?.("🎙 Voice clip placed at the playhead");
+      }
+    } catch (e) {
+      ping?.("TTS failed — " + (e?.message || "check voice parameters"));
+    }
     setBusy(false);
   };
 
@@ -90,7 +99,14 @@ export default function VoiceStudio({ audioTracks, playhead, setPlayhead, setPla
         setRecording(false); setPlaying?.(false);
         try { mic.getTracks().forEach((t) => t.stop()); } catch { /* */ }
         const blob = new Blob(chunks, { type: "audio/webm" });
-        if (blob.size > 1000) { onPlaceClip(blob, adr ? "ADR take" : "VO take", { trackId: track, at: startAt }); ping?.(adr ? "🎬 ADR take placed" : "🎙 Voiceover placed"); }
+        if (blob.size > 1000) {
+          onPlaceClip(blob, adr ? "ADR take" : "VO take", { trackId: track, at: startAt });
+          ping?.(adr ? "🎬 ADR take placed" : "🎙 Voiceover placed");
+          // Background Whisper ASR subtitle recognition
+          onDeviceVoiceEngine.transcribe(blob).then((t) => {
+            if (t?.text) ping?.(`📝 Whisper Transcribed: "${t.text.slice(0, 36)}…"`);
+          }).catch(() => {});
+        }
       };
       mr.start(); recRef.current = mr; setRecording(true);
     } catch (e) { ping?.("Mic unavailable — " + (e?.message || "permission denied")); }
@@ -121,19 +137,47 @@ export default function VoiceStudio({ audioTracks, playhead, setPlayhead, setPla
 
       {tab === "tts" && (
         <>
+          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+            <button
+              className={`fxtab ${voiceSource === "kokoro" ? "on" : ""}`}
+              style={{ fontSize: 9.5, padding: "3px 8px" }}
+              onClick={() => { setVoiceSource("kokoro"); setVoiceId(KOKORO_VOICES[0]?.id || "af_heart"); }}
+            >
+              ⚡ KOKORO ON-DEVICE (ZERO-CLOUD)
+            </button>
+            <button
+              className={`fxtab ${voiceSource === "azure" ? "on" : ""}`}
+              style={{ fontSize: 9.5, padding: "3px 8px" }}
+              onClick={() => { setVoiceSource("azure"); setVoiceId(MAI_VOICES[0]?.id || ""); }}
+            >
+              ☁ AZURE NEURAL
+            </button>
+          </div>
           <textarea className="in" rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="Type the line to speak… (narration, character VO, temp dialogue)" />
           <div className="insp-row" style={{ marginTop: 6 }}>
             <span className="lbl">VOICE</span>
             <select className="sel grow" value={voiceId} onChange={(e) => setVoiceId(e.target.value)}>
-              {MAI_VOICES.map((v) => <option key={v.id} value={v.id}>{v.name || v.id}</option>)}
+              {voiceSource === "kokoro"
+                ? KOKORO_VOICES.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)
+                : MAI_VOICES.map((v) => <option key={v.id} value={v.id}>{v.name || v.id}</option>)}
             </select>
             <span className="lbl" style={{ marginLeft: 8 }}>RATE</span>
             <input type="range" min="0.6" max="1.6" step="0.05" value={rate} onChange={(e) => setRate(parseFloat(e.target.value))} />
           </div>
           <div className="btnrow" style={{ marginTop: 8 }}>
-            <button className="cta sm" disabled={busy || !text.trim()} onClick={generateTTS}>{busy ? "SYNTHESIZING…" : cfg.voiceReady ? "🎙 GENERATE + PLACE" : "🔈 SPEAK PREVIEW"}</button>
+            <button className="cta sm" disabled={busy || !text.trim()} onClick={generateTTS}>
+              {busy ? "SYNTHESIZING…" : "🎙 GENERATE + PLACE"}
+            </button>
           </div>
-          {!cfg.voiceReady && <div className="dim small" style={{ marginTop: 6 }}>Placeable TTS clips need a speech key (VITE_AZURE_SPEECH_KEY / MAI Voice 2). Without it, GENERATE previews aloud in your browser.</div>}
+          {voiceSource === "kokoro" ? (
+            <div className="dim small" style={{ marginTop: 6, color: "#00DAF3" }}>
+              ⚡ High-definition Kokoro 82M neural model running locally on-device. No cloud API keys required.
+            </div>
+          ) : !cfg.voiceReady && (
+            <div className="dim small" style={{ marginTop: 6 }}>
+              Placeable Azure TTS clips need a speech key (VITE_AZURE_SPEECH_KEY). Use Kokoro On-Device for instant local synthesis.
+            </div>
+          )}
         </>
       )}
 

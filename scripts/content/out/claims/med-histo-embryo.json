@@ -1,0 +1,1620 @@
+{
+ "courseId": "med-histo-embryo",
+ "label": "Histology and Embryology",
+ "lessons": [
+  {
+   "id": "med-histo-embryo.l01",
+   "title": "The Cell as Seen on a Slide",
+   "body": [
+    "Most histology slides are stained with hematoxylin and eosin (H&E). Hematoxylin is a basic dye that binds acidic, negatively charged structures, so the nucleus (DNA), ribosome-rich cytoplasm and rough endoplasmic reticulum look blue to purple; these are called basophilic. Eosin is an acidic dye that binds basic, positively charged proteins, so most cytoplasm, collagen and muscle look pink; these are acidophilic or eosinophilic. A cell packed with rough endoplasmic reticulum and free ribosomes, such as a plasma cell or a pancreatic acinar cell, has strongly basophilic cytoplasm. A cell full of mitochondria or secretory protein granules tends to look pink.",
+    "The appearance of a cell predicts its work. The nucleus tells you about activity: a large, pale, open nucleus with a prominent nucleolus (euchromatin, loosely packed DNA that is being transcribed) marks a busy cell, while a small dark nucleus (heterochromatin, tightly packed and silent) marks a resting or dying one. The nucleolus is where ribosomal RNA is made and subunits are assembled. Rough endoplasmic reticulum makes proteins destined for secretion, membranes or lysosomes. Smooth endoplasmic reticulum makes lipids and steroids and detoxifies drugs; it is abundant in steroid-secreting cells and hepatocytes, which therefore look foamy and pale pink. The Golgi apparatus modifies, sorts and packages proteins and sits beside the nucleus as a pale unstained area in plasma cells, called the perinuclear halo or Golgi hof.",
+    "Mitochondria make most of the cell's ATP by oxidative phosphorylation and have their own circular DNA, which is inherited from the mother. Lysosomes contain acid hydrolases at a low pH and digest material delivered by endocytosis and autophagy; failure of a single lysosomal enzyme causes a storage disease. Peroxisomes break down very-long-chain fatty acids and hydrogen peroxide. The cytoskeleton has three filament families: microfilaments (actin) that move the cell surface, intermediate filaments that give mechanical strength and mark the tissue of origin, and microtubules (tubulin) that carry vesicles and form the spindle.",
+    "Intermediate filaments are useful diagnostically because each cell type expresses its own kind. Keratins mark epithelia, vimentin marks mesenchymal cells, desmin marks muscle, glial fibrillary acidic protein marks astrocytes, and neurofilaments mark neurons. A worked example: a pathologist faced with an undifferentiated tumour stains for these proteins, and keratin positivity points to a carcinoma while vimentin positivity points to a sarcoma. Cells also connect to one another: tight junctions seal, adherens junctions and desmosomes anchor, and gap junctions allow small molecules to pass through connexon channels."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l02",
+   "title": "Epithelial Tissue",
+   "body": [
+    "Epithelia are sheets of closely packed cells with little extracellular matrix that line surfaces, cavities and ducts and form glands. They are avascular and are nourished by diffusion from underlying connective tissue. They sit on a basement membrane, which has a basal lamina secreted by the epithelium (laminin and type IV collagen) and a reticular lamina from the connective tissue below. Epithelial cells are polarised, with an apical surface facing the lumen and a basolateral surface facing the basement membrane.",
+    "Epithelia are named by the number of layers and the shape of the surface cells. Simple epithelium has one layer and favours absorption, secretion or exchange. Stratified epithelium has several layers and favours protection. Pseudostratified epithelium has one layer, but nuclei at different heights make it look layered; every cell touches the basement membrane. Cells may be squamous (flat), cuboidal or columnar. Simple squamous epithelium lines alveoli, the endothelium of vessels and serous cavities (mesothelium). Simple cuboidal epithelium lines many small ducts and the kidney tubules. Simple columnar epithelium lines the intestine and gallbladder. Pseudostratified ciliated columnar epithelium with goblet cells lines most of the airways. Stratified squamous epithelium lines the skin (keratinised) and the oesophagus, mouth and vagina (non-keratinised). Transitional epithelium (urothelium) lines the renal pelvis, ureters and bladder and its surface cells flatten as the organ fills.",
+    "Apical specialisations include microvilli, which increase absorptive area (the brush border of the small intestine and proximal tubule), stereocilia, which are long microvilli found in the epididymis and the inner ear, and motile cilia, which move mucus. Cilia have a 9+2 microtubular arrangement of the axoneme driven by dynein arms, and defective dynein causes primary ciliary dyskinesia, with sinusitis, bronchiectasis and in some patients situs inversus (Kartagener syndrome). Lateral junctions are arranged from apex to base: tight junction (zonula occludens), adherens junction, then desmosome (macula adherens), with gap junctions below. Hemidesmosomes anchor the base to the basal lamina.",
+    "Glands are classified as exocrine, which release products through a duct, or endocrine, which release hormones into blood. Exocrine glands may be simple or compound by duct branching, and acinar or tubular by secretory shape. Secretion may be merocrine (exocytosis, most glands), apocrine (part of the apical cytoplasm is lost, as in the lactating breast lipid droplets) or holocrine (the whole cell disintegrates, as in sebaceous glands). Worked example: a smoker's bronchial epithelium can change from pseudostratified ciliated columnar to stratified squamous, called squamous metaplasia, a reversible adaptation that loses ciliary clearance."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l03",
+   "title": "Connective Tissue Proper",
+   "body": [
+    "Connective tissue consists of cells scattered in an extracellular matrix made of fibres and ground substance. It supports, binds, stores energy and defends. Nearly all of it derives from embryonic mesenchyme. The ground substance is a hydrated gel of glycosaminoglycans, proteoglycans and adhesive glycoproteins such as fibronectin. Hyaluronic acid is the one glycosaminoglycan that is not attached to a protein core and is not sulfated.",
+    "Three fibre types matter. Collagen fibres are strong and pink on H&E. Type I collagen is the most abundant and is found in dermis, tendon, bone and fascia. Type II is in hyaline and elastic cartilage and the vitreous. Type III is reticular collagen, forming the fine meshwork of the spleen, liver, lymph nodes and bone marrow, and also found in granulation tissue and vessel walls. Type IV is in basal laminae. Collagen synthesis begins on rough endoplasmic reticulum with proline and lysine hydroxylation, which needs vitamin C; deficiency causes scurvy with fragile vessels and poor wound healing. Procollagen is secreted, its propeptides are cleaved extracellularly, and lysyl oxidase cross-links the fibrils. Mutations in type I collagen cause osteogenesis imperfecta, and defective type V or III collagen is a cause of some forms of Ehlers-Danlos syndrome. Elastic fibres, built from elastin on a fibrillin scaffold, allow stretch and recoil; fibrillin-1 mutation causes Marfan syndrome. Elastic fibres need special stains, such as orcein or Verhoeff, to be seen.",
+    "The cells are of two kinds. Resident cells include fibroblasts (which make fibres and matrix; mature quiescent ones are called fibrocytes), adipocytes, macrophages, mast cells and undifferentiated mesenchymal cells. Wandering cells arrive from blood and include lymphocytes, plasma cells (which make antibodies and have a clock-face nucleus), neutrophils and eosinophils. Mast cells contain granules rich in histamine and heparin and carry IgE on their surface receptors, so cross-linking of that IgE triggers degranulation in type I hypersensitivity.",
+    "Loose (areolar) connective tissue has abundant ground substance and sparse fibres and lies under epithelia and around vessels. Dense irregular connective tissue has thick interwoven collagen and forms the dermis and organ capsules. Dense regular connective tissue has parallel fibres and forms tendons and ligaments, with fibroblasts squeezed in rows between bundles. White adipose tissue has unilocular cells whose nucleus is pushed to the edge as a signet ring, while brown adipose tissue has multilocular cells with many mitochondria and uncoupling protein (thermogenin) that makes heat. Reticular tissue forms the supportive scaffold of lymphoid organs. Worked example: a tendon heals slowly because it is poorly vascularised and its collagen is dense and regular."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l04",
+   "title": "Cartilage and Bone",
+   "body": [
+    "Cartilage is an avascular, flexible connective tissue whose cells, chondrocytes, live in lacunae within a firm matrix. It is covered by perichondrium, a dense connective tissue, except at joint surfaces. Hyaline cartilage has type II collagen and a glassy matrix; it forms the articular surfaces, the costal cartilages, the trachea and the embryonic skeleton. Elastic cartilage adds elastic fibres and forms the external ear and the epiglottis. Fibrocartilage has thick type I collagen bundles and no perichondrium; it forms the intervertebral discs, the pubic symphysis and the menisci, and it is the cartilage that resists compression and shear. Cartilage grows by appositional growth from the perichondrium and by interstitial growth when chondrocytes divide inside their lacunae. Because it has no vessels, damaged cartilage heals poorly.",
+    "Bone has an organic matrix of mostly type I collagen, calcified with hydroxyapatite. Its cells are osteoprogenitor cells, osteoblasts, osteocytes and osteoclasts. Osteoblasts make osteoid and are rich in alkaline phosphatase. Osteocytes are trapped osteoblasts that sit in lacunae and communicate through canaliculi, and they sense mechanical load. Osteoclasts are multinucleated cells of the monocyte-macrophage lineage that resorb bone using acid and proteases from a ruffled border. Osteoblasts control them: they express RANKL, which binds RANK on osteoclast precursors, and osteoprotegerin is a decoy receptor that blocks this. Denosumab is an antibody against RANKL used in osteoporosis.",
+    "Compact bone is organised into osteons (Haversian systems), concentric lamellae around a central canal that carries vessels, joined by perforating (Volkmann) canals. Spongy bone is a lattice of trabeculae that houses marrow. Woven bone, with disorganised collagen, is laid down rapidly in the embryo and in fracture callus, and it is later replaced by lamellar bone.",
+    "Bone forms by two routes. In intramembranous ossification, mesenchyme condenses and turns directly into osteoblasts; this makes the flat bones of the skull and most of the clavicle. In endochondral ossification a hyaline cartilage model is replaced by bone, which makes the long bones and the base of the skull. A primary centre appears in the diaphysis, and secondary centres in the epiphyses. The growth plate (epiphyseal plate) is arranged in zones: resting, proliferative, hypertrophic, calcified cartilage and ossification. Longitudinal growth happens by proliferation of chondrocytes; fibroblast growth factor receptor 3 gain of function limits it and causes achondroplasia, the commonest form of dwarfism, a defect of endochondral but not intramembranous ossification. Worked example: a child with bowed legs, widened growth plates and unmineralised osteoid has rickets from vitamin D deficiency, because calcium and phosphate are too low to mineralise the matrix."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l05",
+   "title": "Muscle Tissue",
+   "body": [
+    "There are three muscle types. Skeletal muscle is voluntary and striated, its fibres are long multinucleated cells formed by fusion of myoblasts, and the nuclei lie at the periphery just beneath the sarcolemma. Cardiac muscle is involuntary and striated, with branching cells, one or two central nuclei and intercalated discs. Smooth muscle is involuntary and not striated, with spindle-shaped cells and one central nucleus. In cross section, a smooth muscle cell can show no nucleus at all if the section misses it, because the nucleus sits in the thick middle of a tapered cell.",
+    "Skeletal muscle is organised in layers of connective tissue: endomysium around each fibre, perimysium around a fascicle, and epimysium around the whole muscle. Inside a fibre, myofibrils are repeating sarcomeres, the contractile units that lie between Z discs. Thin filaments are actin with tropomyosin and troponin, and thick filaments are myosin. The I band contains only thin filaments and shortens in contraction; the A band is the full length of the thick filaments and does not change length; the H zone, the centre of the A band containing only thick filaments, also shortens. Sliding filament theory says contraction shortens the sarcomere without changing filament length. Titin anchors the thick filament to the Z disc and gives elasticity, while nebulin helps set thin filament length.",
+    "Excitation-contraction coupling in skeletal muscle goes as follows. The action potential spreads along the sarcolemma and into T tubules. Voltage-sensing dihydropyridine receptors in the T tubule are mechanically coupled to ryanodine receptors in the sarcoplasmic reticulum, which release calcium. Calcium binds troponin C, moves tropomyosin and exposes myosin-binding sites on actin; the cross-bridge cycle then uses ATP. Skeletal muscle forms triads, a T tubule flanked by two terminal cisternae, located at the A-I junction. Cardiac muscle forms diads, with T tubules at the Z disc, and relies on calcium-induced calcium release through extracellular calcium entry. Smooth muscle has no troponin; calcium binds calmodulin, which activates myosin light-chain kinase, and relaxation needs myosin phosphatase. Smooth muscle also has dense bodies instead of Z discs and caveolae instead of T tubules.",
+    "Intercalated discs of cardiac muscle combine fascia adherens and desmosomes that bear force with gap junctions that allow the heart to act as a syncytium. Skeletal muscle fibres are classified as type I (slow, oxidative, red, many mitochondria) and type II (fast, with type IIb glycolytic and pale). Worked example: skeletal muscle regenerates from satellite cells beneath the basal lamina, cardiac muscle has very limited regeneration, and smooth muscle can proliferate, which is why damage to the heart is repaired by scar."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l06",
+   "title": "Nervous Tissue",
+   "body": [
+    "Nervous tissue is made of neurons and glia. A neuron has a cell body (soma) with a large pale nucleus, a prominent nucleolus and basophilic clumps called Nissl substance (rough endoplasmic reticulum), plus dendrites and a single axon. The axon hillock, which lacks Nissl substance, is where action potentials start. Axons are carried by fast and slow axonal transport: kinesin moves cargo anterograde, towards the plus end of microtubules at the synapse, and dynein moves cargo retrograde, which is how rabies virus, tetanus toxin and herpes viruses travel to the cell body.",
+    "The central nervous system has four glial cell types. Astrocytes are the most numerous; their end-feet help form the blood-brain barrier, they buffer potassium and handle glutamate, and they form glial scars, and they stain for glial fibrillary acidic protein. Oligodendrocytes myelinate several axons each in the central nervous system. Microglia are derived from the yolk sac, not from neural ectoderm, and act as resident macrophages. Ependymal cells line the ventricles and the central canal and have cilia that move cerebrospinal fluid; specialised ependymal cells of the choroid plexus produce it. In the peripheral nervous system, Schwann cells myelinate one segment of one axon, and satellite cells surround neuronal cell bodies in ganglia.",
+    "Myelin is a lipid-rich insulating wrap that speeds conduction by saltatory conduction, with the action potential jumping between nodes of Ranvier where sodium channels cluster. In routine H&E sections the myelin lipid is dissolved during processing and appears as a pale halo. Peripheral nerves have three connective tissue layers: endoneurium around each axon, perineurium around a fascicle, which contributes to the blood-nerve barrier, and epineurium around the whole nerve. Schwann cells also support regeneration of a cut axon: after injury, Wallerian degeneration clears the distal segment, and Schwann cells form bands that guide regrowth, which central oligodendrocytes cannot do.",
+    "Ganglia are clusters of neuron cell bodies outside the central nervous system. Dorsal root ganglia are sensory and contain pseudounipolar neurons with no synapses and no dendrites; their cell bodies are surrounded by satellite cells. Autonomic ganglia are motor ganglia containing multipolar neurons, some of which have eccentric nuclei. Demyelinating diseases follow the cell lines: multiple sclerosis damages central oligodendrocytes and Guillain-Barre syndrome attacks peripheral myelin made by Schwann cells. Worked example: a patient with an ascending weakness after a diarrhoeal illness has an autoimmune attack on Schwann cell myelin, and the central nervous system is spared."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l07",
+   "title": "Blood and Haematopoiesis",
+   "body": [
+    "Blood is a fluid connective tissue made of plasma and formed elements: erythrocytes, leukocytes and platelets. Erythrocytes are anucleate biconcave discs about 7 micrometres wide, packed with haemoglobin, which gives them a pink colour and a pale centre. They lose their nucleus as they mature and last about 120 days. Reticulocytes are immature red cells that stain slightly blue because of residual ribosomal RNA, and an increased reticulocyte count shows the marrow is responding to anaemia. Platelets are small anucleate fragments of megakaryocytes with granules that support haemostasis.",
+    "Leukocytes are identified by nucleus and granules. Neutrophils are most numerous, with a nucleus of three to five lobes and fine pale granules; they are first responders to bacteria, and an increase in immature band forms is called a left shift. Eosinophils have a bilobed nucleus and large bright red granules containing major basic protein; they respond to parasites and allergic inflammation. Basophils have a bilobed nucleus hidden by large dark blue granules containing histamine and heparin. Lymphocytes have a round dark nucleus with a thin rim of cytoplasm, and they are T cells, B cells and natural killer cells, which cannot be distinguished by H&E. Monocytes are the largest, with a kidney-shaped nucleus, and become macrophages in tissue. A common mnemonic for abundance is neutrophils, lymphocytes, monocytes, eosinophils, basophils.",
+    "Haematopoiesis occurs in the yolk sac, liver and spleen in the foetus, and in the bone marrow after birth. In adults it is confined to the axial skeleton and proximal long bones; the red marrow elsewhere is replaced by yellow fatty marrow. A multipotent haematopoietic stem cell gives rise to common myeloid and lymphoid progenitors. Growth factors direct the lineages: erythropoietin, made by peritubular interstitial cells of the kidney in response to hypoxia, drives red cell production; thrombopoietin, made mainly by the liver, drives megakaryocytes; granulocyte colony-stimulating factor drives neutrophils; interleukin-5 supports eosinophils. Erythroid maturation goes proerythroblast, basophilic erythroblast, polychromatophilic erythroblast, orthochromatic erythroblast, reticulocyte, then erythrocyte, with the nucleus extruded at the orthochromatic stage.",
+    "Marrow sinusoids are fenestrated and lined by discontinuous endothelium, allowing mature cells to enter blood. Megakaryocytes are huge polyploid cells that shed platelets into the sinusoids. Worked example: in iron deficiency anaemia the red cells are small and pale with a wide central pallor (microcytic and hypochromic), because haemoglobin synthesis is limited while cell division continues, and in sickle cell disease the abnormal haemoglobin polymerises when deoxygenated, bending the red cell into a rigid sickle shape."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l08",
+   "title": "Blood Vessels, Heart Wall and Lymphoid Organs",
+   "body": [
+    "Most vessels have three tunics. The tunica intima is endothelium on a basement membrane with a thin subendothelial layer; the tunica media is circular smooth muscle with elastic fibres; the tunica adventitia is outer connective tissue that carries vasa vasorum in large vessels. Elastic arteries, such as the aorta, have many fenestrated elastic laminae in the media and recoil to keep blood flowing in diastole. Muscular arteries, such as the brachial, have mostly smooth muscle and control regional flow. Arterioles have one or two smooth muscle layers and are the main site of resistance. Veins have thinner walls, large lumens, relatively thick adventitia and valves, and they hold most of the blood volume.",
+    "There are three capillary types. Continuous capillaries, with tight junctions and a complete basement membrane, are found in muscle, skin and the brain, where astrocytes and tight junctions form the blood-brain barrier. Fenestrated capillaries have pores closed by diaphragms, and are found in the kidney glomerulus (without diaphragms), endocrine glands and the intestine. Sinusoidal, or discontinuous, capillaries have wide gaps and an incomplete basement membrane; they are found in the liver, spleen and marrow. Endothelial cells make nitric oxide, von Willebrand factor (stored in Weibel-Palade bodies) and adhesion molecules.",
+    "The heart wall has an endocardium, a thick myocardium and an epicardium. Purkinje fibres are specialised conducting cells, larger and paler than ordinary myocytes, found beneath the endocardium. Atrial myocytes have granules containing atrial natriuretic peptide.",
+    "Lymphoid organs are primary (bone marrow and thymus) or secondary (nodes, spleen, mucosal lymphoid tissue). The thymus is where T cells mature. It has an outer cortex with densely packed immature thymocytes and a paler medulla with thymic (Hassall) corpuscles; the cortex is where positive selection occurs, while negative selection occurs mainly at the corticomedullary junction and medulla. It involutes after puberty and is replaced by fat. Lymph nodes have a cortex with B cell follicles (germinal centres in active responses), a paracortex rich in T cells, and a medulla with plasma cells; lymph enters through afferent vessels at the convex side and leaves through one efferent vessel at the hilum. High endothelial venules in the paracortex let lymphocytes enter. The spleen has white pulp, with a periarteriolar lymphoid sheath of T cells and follicles of B cells, and red pulp with sinusoids and cords of Billroth that filter old red cells and remove encapsulated bacteria. Worked example: a child lacking a thymus and with a 22q11 deletion has poor T cell function because there is nowhere for thymocytes to mature, and a patient after splenectomy is at risk from encapsulated organisms such as Streptococcus pneumoniae."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l09",
+   "title": "Respiratory System",
+   "body": [
+    "The respiratory tract has a conducting portion, which warms, moistens and cleans air, and a respiratory portion, where gas exchange occurs. The conducting portion runs from the nasal cavity through the pharynx, larynx, trachea, bronchi and bronchioles to the terminal bronchioles. The respiratory portion begins with respiratory bronchioles, which have a few alveoli in their walls, then alveolar ducts and alveolar sacs. The nasal vestibule is lined by keratinised stratified squamous epithelium with hairs, the olfactory region by specialised olfactory epithelium, and the rest of the nasal cavity and most of the conducting airway by pseudostratified ciliated columnar epithelium with goblet cells, called respiratory epithelium.",
+    "The trachea has C-shaped rings of hyaline cartilage, open posteriorly where the trachealis muscle lies. Its mucosa has respiratory epithelium with ciliated cells, goblet cells, basal stem cells, brush cells and neuroendocrine (Kulchitsky) cells, which are the likely origin of small cell lung carcinoma. The mucociliary escalator moves mucus up and out. Primary bronchi have hyaline cartilage plates that are irregular rather than rings; as the airway branches the cartilage and glands diminish. Bronchioles, under about 1 mm in diameter, have no cartilage and no glands; they depend on the elastic tissue and smooth muscle in their walls to stay open. Their epithelium changes from ciliated columnar to simple cuboidal and includes club (Clara) cells, which secrete a surfactant-like and protective protein, detoxify via cytochrome P450 and act as progenitors for the epithelium. Because bronchioles have a smooth muscle layer and no cartilage, bronchoconstriction in asthma is clinically important there.",
+    "The alveolus is the exchange unit. Its wall is lined by type I pneumocytes, thin squamous cells that cover about 95 percent of the surface and form the thin part of the blood-air barrier, and type II pneumocytes, cuboidal cells that make pulmonary surfactant and divide to repair injury, regenerating both types. Surfactant, mainly dipalmitoylphosphatidylcholine, reduces surface tension and prevents alveolar collapse, and it is synthesised in lamellar bodies. Alveolar macrophages (dust cells) engulf particles; when they ingest red cells in heart failure they become haemosiderin-laden heart failure cells. Adjacent alveoli communicate through pores of Kohn.",
+    "The blood-air barrier, about 0.5 micrometres thick, is made of type I pneumocyte cytoplasm, the fused basal laminae of the epithelium and the capillary, and the capillary endothelium. Thickening of this barrier by oedema or fibrosis slows diffusion of oxygen. Premature infants, below about 34 weeks of gestation, may have too little surfactant and develop neonatal respiratory distress syndrome, with collapsed alveoli and hyaline membranes; an antenatal glucocorticoid dose speeds type II cell maturation. A lecithin-to-sphingomyelin ratio above about 2 in amniotic fluid suggests foetal lung maturity."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l10",
+   "title": "The Gastrointestinal Tract",
+   "body": [
+    "The wall of the gut from oesophagus to anal canal has four concentric layers: mucosa, submucosa, muscularis externa and serosa or adventitia. The mucosa has an epithelium, a connective tissue lamina propria and a thin muscularis mucosae. The submucosa has larger vessels and the submucosal (Meissner) plexus, which controls secretion and local blood flow. The muscularis externa has inner circular and outer longitudinal smooth muscle with the myenteric (Auerbach) plexus between them, which controls motility. The outer layer is serosa, a mesothelium, where the organ is intraperitoneal, and adventitia where it is retroperitoneal or fixed. The oesophagus is unusual because it is lined by non-keratinised stratified squamous epithelium, and its muscularis externa is skeletal in the upper third, mixed in the middle and smooth in the lower third.",
+    "The stomach has a simple columnar surface epithelium secreting mucus and bicarbonate, with gastric pits leading to glands. Glands of the body and fundus contain mucous neck cells, parietal cells that make hydrochloric acid and intrinsic factor and have an eosinophilic cytoplasm with many mitochondria, and chief cells that make pepsinogen and have basophilic cytoplasm. Enteroendocrine cells include G cells (gastrin) in the antrum. Gastric mucosal folds are called rugae. Autoimmune destruction of parietal cells leads to loss of intrinsic factor and pernicious anaemia, because vitamin B12 absorption in the terminal ileum requires it.",
+    "The small intestine increases its surface by plicae circulares, villi and microvilli. Villi are mucosal projections with an absorptive core including a lacteal for fat. The crypts of Lieberkuhn between villi hold stem cells and Paneth cells, which sit at the base, contain eosinophilic granules with lysozyme and defensins, and have an antimicrobial role. Goblet cells increase in number from duodenum to ileum. The duodenum has submucosal Brunner glands that secrete alkaline mucus. The jejunum has the tallest villi and the most prominent folds. The ileum has Peyer patches, aggregated lymphoid follicles in the lamina propria and submucosa that are covered by M cells that sample antigens, and the terminal ileum absorbs bile salts and vitamin B12.",
+    "The large intestine has no villi and no plicae, with straight crypts full of goblet cells. Its function is water absorption and mucus production. The longitudinal muscle is gathered into three taeniae coli. The anal canal changes from simple columnar to non-keratinised and then keratinised stratified squamous epithelium at the pectinate line, where venous drainage and nerve supply also change. Worked example: in coeliac disease, an immune reaction to gluten flattens villi and elongates crypts (villous atrophy with crypt hyperplasia), and the loss of absorptive surface causes malabsorption."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l11",
+   "title": "Liver, Gallbladder and Pancreas",
+   "body": [
+    "The liver is organised into hexagonal lobules with a central vein at the middle and portal triads at the corners. Each portal triad contains a branch of the hepatic artery, a branch of the portal vein and a bile duct (plus lymphatics). Blood from the portal vein and hepatic artery mixes in sinusoids, which are lined by fenestrated endothelium with no basement membrane, and flows toward the central vein. Between the sinusoid and the hepatocyte lies the perisinusoidal space of Disse, where plasma contacts hepatocyte microvilli, vitamin A is stored in stellate (Ito) cells, and Kupffer cells, resident macrophages, sit in the sinusoid lumen. Stellate cells turn into collagen-producing myofibroblasts in cirrhosis.",
+    "Bile flows opposite to blood. Hepatocytes secrete bile into canaliculi, small channels between adjacent hepatocytes sealed by tight junctions, which drain to the canals of Hering and then bile ducts in the portal triad. The Rappaport acinus is a functional model that is centred on the portal triad and divides the tissue into three zones: zone 1 nearest the triad gets the most oxygen and is most resistant to ischaemia, but is most exposed to toxins, whereas zone 3, nearest the central vein, gets the least oxygen, is most vulnerable to ischaemia and has most cytochrome P450 activity; this explains centrilobular necrosis in ischaemia and with acetaminophen toxicity. Hepatocytes have abundant smooth endoplasmic reticulum, glycogen granules and many mitochondria.",
+    "The gallbladder stores and concentrates bile. It has a simple columnar epithelium with microvilli, absorbs water and electrolytes, no muscularis mucosae and no submucosa, and it is stimulated to contract by cholecystokinin, which is released from I cells of the duodenum in response to fat and protein. Mucosal folds and Rokitansky-Aschoff sinuses, which are outpouchings of the mucosa, are features of this organ.",
+    "The pancreas is two glands in one. The exocrine part, about 98 percent of the organ, is made of serous acini with pyramidal cells that have basal basophilia and apical zymogen granules containing digestive enzymes such as trypsinogen, amylase and lipase. Centroacinar cells at the start of the duct system secrete bicarbonate. The endocrine part is the islets of Langerhans, pale clusters in a sea of dark acini. Beta cells (about 70 percent, central) make insulin, alpha cells (about 20 percent, peripheral) make glucagon, delta cells make somatostatin and PP cells make pancreatic polypeptide. Secretin from S cells stimulates ductal bicarbonate and cholecystokinin stimulates enzyme release. Worked example: a patient with an obstructing stone in the common bile duct has conjugated hyperbilirubinaemia, pale stools and dark urine because bile cannot reach the gut."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l12",
+   "title": "The Urinary System",
+   "body": [
+    "The kidney has an outer cortex and an inner medulla organised into pyramids that drain into minor and major calyces. The nephron is the functional unit and has a renal corpuscle (the glomerulus inside Bowman capsule), a proximal tubule, a loop of Henle, a distal tubule and a collecting duct. About 80 percent of nephrons are cortical, with short loops; juxtamedullary nephrons have long loops that reach deep into the medulla and produce the concentration gradient. Cortical sections show many renal corpuscles and convoluted tubules; medullary sections show straight tubules and collecting ducts.",
+    "The filtration barrier has three layers: fenestrated glomerular endothelium without diaphragms, a thick glomerular basement membrane rich in type IV collagen and heparan sulfate that provides charge selectivity, and the filtration slits between the pedicels of podocytes, the visceral epithelial cells of Bowman capsule, which are bridged by slit diaphragms containing nephrin. Mesangial cells provide support and clear debris. Loss of the negative charge or foot process effacement lets albumin leak, causing nephrotic syndrome. In minimal change disease, electron microscopy shows diffuse effacement of foot processes while light microscopy looks normal; in Alport syndrome a type IV collagen defect leads to haematuria, sensorineural deafness and eye findings.",
+    "The proximal convoluted tubule has a tall cuboidal epithelium with a dense brush border and many mitochondria, which gives it a bright pink cytoplasm and a poorly defined lumen; it reabsorbs about two thirds of the filtrate, including all glucose and amino acids under normal conditions. The thin descending and ascending limbs of the loop of Henle are lined by simple squamous epithelium. The thick ascending limb and distal tubule are cuboidal with no brush border and clearer lumens. The collecting duct has pale principal cells, which respond to antidiuretic hormone (insertion of aquaporin-2) and aldosterone, and dark intercalated cells, which secrete acid or bicarbonate.",
+    "The juxtaglomerular apparatus lies at the vascular pole. It has juxtaglomerular cells, modified smooth muscle in the afferent arteriole that secrete renin and sense stretch; macula densa cells of the distal tubule, which sense sodium chloride delivery; and extraglomerular mesangial cells. Low perfusion or low distal chloride triggers renin release, activating the renin-angiotensin-aldosterone system. Erythropoietin comes from peritubular interstitial fibroblasts.",
+    "The ureter, bladder and proximal urethra are lined by transitional epithelium, with a muscularis of smooth muscle layers and an adventitia. Worked example: a patient with nephrotic-range proteinuria whose biopsy looks normal by light microscopy but shows effaced podocyte foot processes on electron microscopy has minimal change disease, which usually responds to corticosteroids."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l13",
+   "title": "Endocrine Glands",
+   "body": [
+    "Endocrine glands lack ducts, secrete hormones into rich fenestrated capillary networks and are made of cords or follicles of epithelial cells. The pituitary has two lobes with different origins. The anterior lobe (adenohypophysis) develops from Rathke pouch, an upgrowth of oral ectoderm, and is stained by acidophils (growth hormone and prolactin), basophils (ACTH, TSH, FSH, LH) and pale chromophobes. A useful mnemonic is B-FLAT: the basophils make FSH, LH, ACTH and TSH. The posterior lobe (neurohypophysis) is a downgrowth of the diencephalon, made of axons of hypothalamic neurons and supporting pituicytes; it stores and releases oxytocin and antidiuretic hormone, which are made in the supraoptic and paraventricular nuclei, and its characteristic findings are Herring bodies, swollen axon terminals.",
+    "The thyroid is made of follicles lined by simple cuboidal epithelium and filled with colloid, which stores thyroglobulin. When stimulated by TSH the follicular cells become taller, and the colloid is resorbed and looks scalloped. Follicular cells take up iodide, which is oxidised by thyroid peroxidase and attached to tyrosine residues of thyroglobulin to make T3 and T4. Parafollicular (C) cells in between secrete calcitonin, and they give rise to medullary thyroid carcinoma. The parathyroid glands have chief cells that secrete parathyroid hormone and larger oxyphil cells with many mitochondria. Parathyroid hormone is released when calcium is low and raises serum calcium by acting on bone, kidney and, via vitamin D activation, the gut. Dense fat in the gland increases with age.",
+    "The adrenal gland has a cortex of mesodermal origin and a medulla of neural crest origin. The cortex is arranged in three zones, and the mnemonic GFR describes the outer to inner order: zona glomerulosa makes mineralocorticoids (aldosterone, under angiotensin II control), zona fasciculata makes glucocorticoids (cortisol, under ACTH, with foamy lipid-rich cells), and zona reticularis makes androgens (dehydroepiandrosterone). The medulla is composed of chromaffin cells, modified postganglionic sympathetic neurons that secrete epinephrine and norepinephrine in response to preganglionic cholinergic input. Pheochromocytoma is a tumour of chromaffin cells that causes episodic hypertension, headache and sweating.",
+    "The pancreatic islets were described in the previous module, and the pineal gland makes melatonin and calcifies with age, creating brain sand. Worked example: chronic ACTH stimulation, as in a pituitary adenoma, produces bilateral adrenal hyperplasia mainly of the zona fasciculata and reticularis, while the zona glomerulosa is less affected because aldosterone depends chiefly on angiotensin II and potassium, so the clinical picture is cortisol excess with relatively preserved electrolytes."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l14",
+   "title": "Male Reproductive System",
+   "body": [
+    "The testis is enclosed by a thick capsule, the tunica albuginea, that sends septa inward and divides it into lobules, each containing one to four coiled seminiferous tubules. The tubules are lined by a stratified germinal epithelium containing developing sperm cells and Sertoli cells, while the interstitium between tubules contains Leydig cells, which make testosterone under the influence of luteinising hormone. Sertoli cells are large columnar supporting cells with a pale, triangular nucleus that reaches from the basement membrane to the lumen. They respond to follicle-stimulating hormone and testosterone, nourish developing germ cells, secrete androgen-binding protein, which keeps testosterone high locally, make inhibin that suppresses FSH, and secrete anti-Mullerian hormone in the foetus. Tight junctions between adjacent Sertoli cells form the blood-testis barrier, which separates the basal compartment, containing spermatogonia, from the adluminal compartment, and protects haploid cells from the immune system. Disruption of this barrier can cause autoantibodies and infertility.",
+    "Spermatogenesis takes roughly 64 to 74 days and moves cells from the base to the lumen. Spermatogonia divide by mitosis; type A cells renew the stem pool and type B cells become primary spermatocytes, which are diploid with duplicated DNA and begin meiosis. The first meiotic division produces haploid secondary spermatocytes, which are short-lived and divide again rapidly to produce round spermatids. Spermiogenesis then transforms spermatids into spermatozoa without further division: the nucleus condenses, the Golgi forms the acrosome (a cap of hydrolytic enzymes), mitochondria wrap the midpiece, a flagellum develops, and excess cytoplasm is shed as residual bodies, which Sertoli cells phagocytose.",
+    "Sperm leave the seminiferous tubules through the straight tubules, rete testis and efferent ductules into the epididymis, which is lined by pseudostratified columnar epithelium with long stereocilia, where they mature and gain motility over about two weeks and are stored. The ductus deferens has a thick three-layered muscular wall that propels sperm during emission; it joins the duct of the seminal vesicle to form the ejaculatory duct. The seminal vesicles contribute fructose, prostaglandins and most of the semen volume, the prostate contributes acid phosphatase, citrate, zinc and prostate-specific antigen that liquefies semen, and the bulbourethral glands contribute a clear lubricating mucus.",
+    "The prostate has central periurethral, transition and peripheral zones; benign hyperplasia affects the transition zone, whereas most carcinomas arise in the peripheral zone and can be felt on rectal examination. Corpora amylacea are laminated secretions in prostatic glands. Spermatogenesis requires a temperature slightly below core, hence the scrotal position and the pampiniform plexus and dartos muscle cooling mechanism. Worked example: in cryptorchidism, an undescended testis has impaired spermatogenesis and raised risk of germ cell tumour, which is why orchiopexy is done in infancy."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l15",
+   "title": "Female Reproductive System and Breast",
+   "body": [
+    "The ovary has an outer cortex with follicles and an inner medulla with vessels. A primordial follicle contains a primary oocyte, arrested in prophase of meiosis I since foetal life, surrounded by flat follicular cells. Under FSH, follicles grow: a primary follicle has cuboidal granulosa cells and a zona pellucida; a secondary (antral) follicle develops a fluid-filled antrum, and its surrounding stroma forms the theca interna, which makes androgens under LH, and the theca externa. Granulosa cells convert these androgens into oestrogen using aromatase under FSH, a two-cell, two-gonadotropin mechanism. One dominant follicle reaches the mature (Graafian) stage. A surge of LH ovulates the oocyte, which completes meiosis I and arrests in metaphase of meiosis II; it completes meiosis II only if fertilised. After ovulation the follicle collapses into the corpus luteum, whose granulosa lutein and theca lutein cells make progesterone, and if there is no pregnancy it degenerates in about 14 days into a scar, the corpus albicans. In pregnancy, human chorionic gonadotropin from the trophoblast rescues it.",
+    "The uterine tube has a mucosa with ciliated cells that sweep the oocyte and peg cells that secrete nutritive fluid; the ampulla is the usual site of fertilisation, and the isthmus is narrow. Scarring that holds an embryo in the tube leads to ectopic pregnancy, most often in the ampulla. The uterus has an endometrium, a thick myometrium of smooth muscle and a perimetrium. The endometrium has a functional layer that is shed each month and a basal layer that regenerates it. In the proliferative phase, oestrogen from growing follicles builds glands and stroma, which are straight. After ovulation, progesterone from the corpus luteum causes the secretory phase: glands become tortuous and sawtooth, with secretions, and the stroma becomes oedematous and decidualised. When the corpus luteum degenerates and hormones fall, spiral arteries constrict and the functional layer is shed in menstruation.",
+    "The cervix links the uterus to the vagina. The endocervix is lined by mucus-secreting simple columnar epithelium and the ectocervix by non-keratinised stratified squamous epithelium; the squamocolumnar junction, where the transformation zone sits, is the site where most cervical dysplasia and carcinoma arise, caused by high-risk human papillomavirus. The vagina is lined by non-keratinised stratified squamous epithelium that is rich in glycogen, which lactobacilli convert to lactic acid for a low pH.",
+    "The resting breast has branching ducts in dense stroma. During pregnancy, oestrogen, progesterone and prolactin develop lobules with secretory alveoli, and the lactating gland has dilated alveoli with milk. Oxytocin triggers myoepithelial contraction for milk ejection, and prolactin stimulates synthesis. Worked example: a woman in her late 40s has irregular cycles because few follicles remain, estrogen production falls and the pituitary raises FSH, which marks the menopausal transition."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l16",
+   "title": "Skin and Its Appendages",
+   "body": [
+    "Skin has an epidermis of keratinised stratified squamous epithelium, a dermis of connective tissue and, beneath it, a hypodermis of fat. The epidermis is renewed roughly every 28 to 40 days. Its layers from deep to superficial are stratum basale, with mitotically active stem cells; stratum spinosum, where keratinocytes are linked by desmosomes that give the cells a spiny look in sections; stratum granulosum, with keratohyalin granules and lamellar bodies that release lipid to seal the barrier; stratum lucidum, a clear layer seen only in thick skin of palms and soles; and stratum corneum, anucleate flattened squames filled with keratin. A mnemonic for the order is: Basale, Spinosum, Granulosum, Lucidum, Corneum.",
+    "Three other cell types live in the epidermis. Melanocytes, derived from neural crest, sit in the basal layer and make melanin in melanosomes that they pass to surrounding keratinocytes, forming a cap above the nucleus to protect DNA from ultraviolet damage. Skin colour differences reflect the amount and type of melanin and melanosome size, not the number of melanocytes. Langerhans cells are antigen-presenting dendritic cells containing Birbeck granules, tennis-racket-shaped organelles. Merkel cells are touch receptors associated with nerve endings, and they are the proposed cell of origin of Merkel cell carcinoma. Desmosomes in the spinous layer are attacked in pemphigus vulgaris, where autoantibodies to desmoglein cause intraepidermal blisters, and hemidesmosomes at the basement membrane are attacked in bullous pemphigoid, where blisters form below the epidermis.",
+    "The dermis has a superficial papillary layer of loose connective tissue with capillary loops and Meissner corpuscles for light touch, and a deeper reticular layer of dense irregular connective tissue with Pacinian corpuscles for vibration and pressure. Eccrine sweat glands are coiled tubular glands with a merocrine secretion that control temperature and open directly onto the surface; apocrine glands in the axilla and groin open into hair follicles and are stimulated at puberty. Sebaceous glands open into hair follicles and secrete sebum by holocrine secretion; excess sebum and follicular blockage lead to acne. The hair follicle has a bulb with a dermal papilla and matrix cells, and the arrector pili muscle, a smooth muscle under sympathetic control, attaches to it and causes goosebumps. The hair cycle has anagen (growth), catagen (regression) and telogen (rest) phases.",
+    "Skin repairs by regeneration of the epidermis from basal cells and from hair follicle stem cells in the bulge. Worked example: a partial-thickness burn that spares hair follicles and sweat gland ducts heals by re-epithelialisation from those appendages, whereas a full-thickness burn destroys them and needs a graft because epithelial cells can only come from the wound edge."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l17",
+   "title": "Gametogenesis and Fertilisation",
+   "body": [
+    "Gametes are made by meiosis, two successive divisions that halve the chromosome number from 46 to 23 and shuffle genes. In meiosis I, homologous chromosomes pair and exchange segments by crossing over in prophase, then separate; in meiosis II, sister chromatids separate, as in mitosis. Independent assortment and crossing over give genetic variety. Primordial germ cells arise in the epiblast, migrate from the yolk sac wall through the hindgut to the gonadal ridges in the fifth week, and differentiate according to the sex of the gonad.",
+    "Oogenesis is unusual because it is paused. Oogonia multiply in foetal life and enter meiosis I as primary oocytes, which arrest in prophase (the dictyotene stage) and stay there until after puberty; about 1 to 2 million are present at birth and a few hundred thousand remain at puberty. Each cycle, FSH recruits a cohort, and just before ovulation the LH surge lets the dominant primary oocyte finish meiosis I, producing a large secondary oocyte and a small first polar body. The secondary oocyte immediately begins meiosis II and arrests in metaphase; it finishes only if a sperm penetrates, releasing a second polar body. Because oocytes wait for decades, the chance of nondisjunction rises with maternal age; trisomy 21 (Down syndrome) is most commonly caused by maternal meiosis I nondisjunction. Spermatogenesis, by contrast, starts at puberty and continues throughout life, yielding four functional sperm from each spermatogonium that enters meiosis.",
+    "Fertilisation usually occurs in the ampulla of the uterine tube within about a day of ovulation. Sperm need capacitation in the female tract, a final maturation that removes protective coat proteins and increases motility. The sperm passes through the cumulus cells, binds to ZP3 of the zona pellucida, undergoes the acrosome reaction, releasing enzymes such as hyaluronidase and acrosin, and penetrates the zona. Fusion with the oocyte membrane triggers the cortical reaction, in which cortical granules release enzymes that modify zona proteins (including ZP2) and block entry of more sperm, preventing polyspermy. The oocyte completes meiosis II, the male and female pronuclei form and fuse, and the diploid zygote is restored, with sex determined by the sperm: an X-bearing sperm gives a female and a Y-bearing sperm gives a male. The mitochondria of the embryo are maternal in origin.",
+    "In the following days, the zygote cleaves, producing blastomeres that do not grow, so cells get smaller. At the 8-cell stage compaction occurs, and by about day 3 to 4 a solid ball of 16 or more cells, the morula, forms. A fluid-filled cavity then opens to form the blastocyst, with an inner cell mass (embryoblast) that makes the embryo proper, and an outer cell layer, the trophoblast, which makes the placenta. The blastocyst hatches from the zona pellucida and begins implantation at about day 6 to 7. Worked example: a woman of 42 has a higher rate of chromosomally abnormal pregnancy because her oocytes have been arrested in meiosis I for over four decades, and aneuploidy is the commonest cause of early spontaneous miscarriage."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l18",
+   "title": "The First Three Weeks",
+   "body": [
+    "During week 1, the blastocyst implants in the posterior wall of the uterus, typically in the upper body. The trophoblast differentiates into an inner cytotrophoblast, a mitotically active layer of cells, and an outer syncytiotrophoblast, a multinucleated invasive layer that erodes maternal tissue and secretes human chorionic gonadotropin (hCG). hCG keeps the corpus luteum making progesterone and is detectable in maternal blood around day 8 to 10 after fertilisation, and it is the basis of pregnancy tests. Implantation near the cervical os produces placenta praevia, which can cause painless bleeding in the third trimester.",
+    "Week 2 is the week of twos. The inner cell mass splits into a bilaminar disc, with epiblast (dorsal, columnar cells) and hypoblast (ventral, cuboidal cells). The epiblast forms the amniotic cavity, and the hypoblast forms the primary and then definitive yolk sac, which is a site of early haematopoiesis. Trophoblast becomes cytotrophoblast and syncytiotrophoblast, and extraembryonic mesoderm, derived from the epiblast, splits to form the chorionic cavity and the connecting stalk, the future umbilical cord. Primary villi appear at the end of week 2.",
+    "Week 3 is the week of threes, when gastrulation converts the bilaminar disc into the trilaminar disc with the three germ layers. Gastrulation begins with the primitive streak appearing on the epiblast at the caudal end, marking the body axis. Epiblast cells move through the streak: some displace the hypoblast to form definitive endoderm, others lie between to form intraembryonic mesoderm, and the remaining epiblast becomes ectoderm. Cells at the cranial end of the streak form the node, from which the notochord arises. The notochord defines the axis, signals the overlying ectoderm to become neural plate, and persists as the nucleus pulposus of the intervertebral discs. The prechordal plate marks the future mouth, and the cloacal membrane marks the future anus. Remnants of the primitive streak may form a sacrococcygeal teratoma, a tumour with tissue from all three layers, and caudal dysgenesis (sirenomelia) is a failure of mesoderm formation in the caudal region. Gastrulation is also the period in which an embryo is most vulnerable to teratogens that cause major malformations in the weeks after, such as alcohol, which at this stage can cause holoprosencephaly and face anomalies.",
+    "Neurulation is the folding of the neural plate. Under notochord induction the ectoderm thickens into the neural plate, whose edges rise as neural folds, and these fuse in the midline to form the neural tube beginning at the cervical region and zipping both ways. The cranial neuropore closes around day 25 and the caudal neuropore around day 27. Neural crest cells delaminate from the folds and migrate to form many structures, including sensory and autonomic ganglia, melanocytes, adrenal medulla, Schwann cells, and the face skeleton and aorticopulmonary septum. Mesoderm beside the neural tube forms paraxial mesoderm (somites, which make the axial skeleton, skeletal muscle and dermis), intermediate mesoderm (urogenital system) and lateral plate mesoderm (body wall and heart). Failure of neural tube closure causes spina bifida and anencephaly, and periconceptional folate lowers risk. Worked example: an elevated maternal serum and amniotic alpha-fetoprotein suggests an open neural tube defect."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l19",
+   "title": "Germ Layers and Their Derivatives",
+   "body": [
+    "In weeks 3 to 8, each germ layer forms specific tissues, and the embryo, previously a flat disc, folds into a cylinder. Cephalocaudal folding brings the heart tube and the future mouth ventral and creates the foregut, midgut and hindgut; lateral folding closes the ventral body wall, leaving the connecting stalk and yolk stalk as the umbilical cord. Failure of lateral folding leaves the body wall open, producing defects such as gastroschisis or ectopia cordis, and failure of the gut to return from the umbilical cord leaves an omphalocele.",
+    "Ectoderm divides into surface ectoderm, neuroectoderm and neural crest. Surface ectoderm gives the epidermis, hair, nails, glands of the skin, the lens of the eye, the inner ear, the anterior pituitary (from Rathke pouch of oral ectoderm), the enamel of teeth and the epithelium of the anal canal below the pectinate line. Neuroectoderm forms the central nervous system, including the neurohypophysis, retina and pineal gland, and the neurons and glia of the brain and cord. Neural crest cells form the peripheral nervous system ganglia, Schwann cells, melanocytes, the adrenal medulla, the parafollicular C cells, the odontoblasts, the facial skeleton and the aorticopulmonary septum of the heart. Because neural crest is so widely distributed, neurocristopathies affect many organs at once: Hirschsprung disease, where enteric ganglion cells fail to colonise the distal colon, is one.",
+    "Mesoderm gives rise to most connective tissues. Paraxial mesoderm becomes somites, which form the axial skeleton, skeletal muscle and dermis. Intermediate mesoderm forms the kidneys and gonads and the genital ducts. Lateral plate mesoderm splits into the somatic layer, which forms the body wall, limb bones and serous membrane parietal layers, and the splanchnic layer, which forms the heart, vessels, blood cells and the smooth muscle and connective tissue of the gut. The notochord is also mesodermal. The adrenal cortex, spleen, and the muscle and connective tissue of the head from pharyngeal arches are mesoderm too.",
+    "Endoderm forms the lining epithelium of the gut tube and the organs that bud from it. The foregut gives the pharynx, oesophagus, stomach, upper duodenum, liver, gallbladder and pancreas, and the respiratory tract buds from the foregut. The pharyngeal pouches give the middle ear, tonsils, thymus and parathyroids, and the thyroid arises from the floor of the pharynx at the foramen caecum of the tongue. The midgut gives the lower duodenum to the proximal two thirds of the transverse colon, and the hindgut gives the rest to the upper anal canal, and the urogenital sinus gives the bladder and urethra. Endoderm gives epithelium and glands, not the muscle or connective tissue of these organs, which come from mesoderm.",
+    "A way to recall them is to ask what the tissue is. Epithelial linings of the gut and its glands are endodermal, nervous tissue and skin epidermis are ectodermal, and everything that is a blood vessel, bone, muscle, kidney or blood cell is mesodermal. Worked example: a child with absent ganglion cells in the rectosigmoid has Hirschsprung disease from failure of neural crest migration, and the RET gene is implicated."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l20",
+   "title": "Development of the Heart",
+   "body": [
+    "The heart is the first functioning organ, beating by about the fourth week. It develops from splanchnic lateral plate mesoderm in the cardiogenic area cranial to the neural plate. Paired endocardial tubes fuse to form a single heart tube during lateral folding. The tube has dilations that become, from the venous to the arterial end, the sinus venosus, primitive atrium, primitive ventricle, bulbus cordis and truncus arteriosus. Sinus venosus gives the smooth part of the right atrium (sinus venarum) and the coronary sinus; the primitive atria give the trabeculated parts of the atria; the primitive ventricle gives the trabeculated left ventricle; and the bulbus cordis gives the smooth parts of the outflow tracts and the trabeculated right ventricle; the truncus arteriosus gives the ascending aorta and pulmonary trunk.",
+    "The tube loops to the right during week 4, a process called cardiac looping, bringing the chambers into their relative positions. Abnormal looping contributes to dextrocardia. Septation occurs in weeks 4 to 8. Atrial septation uses two septa. The septum primum grows down from the roof toward the endocardial cushions, leaving the ostium primum, and before it closes, perforations make the ostium secundum. The septum secundum then grows beside it, leaving the foramen ovale, an opening that lets blood pass from the right atrium to the left in the foetus. After birth, rising left atrial pressure presses the septum primum against the septum secundum, closing the foramen ovale; if it stays open, a patent foramen ovale results, and it can allow paradoxical embolism. The ventricular septum has a muscular part and a membranous part, which is the most frequent site of ventricular septal defects, the commonest congenital heart anomaly. The aorticopulmonary septum, formed by neural crest cells, spirals as it divides the truncus arteriosus into aorta and pulmonary trunk, and abnormal neural crest migration produces conotruncal defects such as persistent truncus arteriosus, transposition of the great arteries and tetralogy of Fallot, which has pulmonary stenosis, an overriding aorta, a ventricular septal defect and right ventricular hypertrophy; 22q11 deletion is a classic association.",
+    "The foetal circulation bypasses the lungs and liver. The umbilical vein carries well-oxygenated blood from the placenta; most of it bypasses the liver through the ductus venosus into the inferior vena cava, enters the right atrium, and is streamed through the foramen ovale to the left atrium and the brain and heart. Blood returning from the head via the superior vena cava goes mainly through the right ventricle to the pulmonary trunk and, because the high pulmonary resistance of the unexpanded lungs diverts it, through the ductus arteriosus to the descending aorta. Two umbilical arteries, from the internal iliac arteries, return blood to the placenta. At birth, lung expansion drops pulmonary resistance, and the ductus arteriosus constricts in response to higher oxygen tension and lower prostaglandin E2. The ductus venosus becomes the ligamentum venosum, the umbilical vein the ligamentum teres, the umbilical arteries the medial umbilical ligaments and the ductus arteriosus the ligamentum arteriosum.",
+    "Drugs act on this switch: indomethacin, a prostaglandin synthesis inhibitor, promotes closure of a patent ductus arteriosus, and prostaglandin E1 keeps it open in ductal-dependent lesions. Worked example: a newborn with cyanosis that does not improve with oxygen and a narrow mediastinum on radiograph (the egg-on-a-string sign) has transposition of the great arteries, which survives only if a shunt such as a ductus or foramen ovale permits mixing."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l21",
+   "title": "Pharyngeal Apparatus, Face and Limbs",
+   "body": [
+    "The pharyngeal apparatus has arches, pouches, clefts and membranes. Each of the pharyngeal arches has a core of mesoderm and neural crest, a nerve, an artery and a cartilage. Arch 1 (mandibular) is supplied by the trigeminal nerve (maxillary and mandibular divisions), forms the mandible, the muscles of mastication and the malleus and incus, and its first aortic arch artery gives the maxillary artery. Arch 2 (hyoid) is supplied by the facial nerve and forms the muscles of facial expression, the stapes, styloid process and lesser horn of the hyoid, and its artery gives the stapedial artery. Arch 3 is supplied by the glossopharyngeal nerve and gives the stylopharyngeus muscle, the greater horn of the hyoid and the common carotid and the proximal internal carotid arteries. Arches 4 and 6 are supplied by the vagus (superior laryngeal and recurrent laryngeal nerves respectively) and give the pharyngeal constrictors and laryngeal cartilages, with the fourth arch artery forming the arch of the aorta on the left and the right subclavian artery proximally, and the sixth forming the pulmonary arteries and ductus arteriosus. This explains why the right recurrent laryngeal nerve loops under the right subclavian and the left loops under the ductus or aortic arch.",
+    "Pouches are lined with endoderm: pouch 1 forms the middle ear cavity and auditory tube; pouch 2 the palatine tonsil; pouch 3 the inferior parathyroids and the thymus; pouch 4 the superior parathyroids. Clefts are lined with ectoderm: cleft 1 forms the external auditory meatus, and the others are overgrown by the second arch in a cervical sinus that normally disappears. Persistence leaves a branchial cleft cyst along the anterior border of the sternocleidomastoid. Failure of pouches 3 and 4 to develop gives DiGeorge syndrome, with thymic and parathyroid hypoplasia and heart defects.",
+    "The face forms in weeks 4 to 10 from five facial prominences: the frontonasal prominence, paired maxillary prominences and paired mandibular prominences. The medial nasal prominences fuse with each other to form the intermaxillary segment (the philtrum and the primary palate) and with the maxillary prominences to form the upper lip. Failure of the maxillary and medial nasal prominences to fuse causes cleft lip. The secondary palate forms from palatine shelves of the maxillary prominences that rise and fuse with each other, the nasal septum and the primary palate at the incisive foramen at about weeks 8 to 12. Failure to fuse results in cleft palate, which is aetiologically distinct from cleft lip and can occur in either alone or together. Cleft lip and palate are multifactorial, with associations with anticonvulsants and smoking.",
+    "Limb buds appear in week 4 and are patterned by signalling centres. The apical ectodermal ridge secretes fibroblast growth factors, which sustain proximal-distal outgrowth; the zone of polarising activity at the posterior margin secretes sonic hedgehog and specifies the anterior-posterior (thumb to little finger) axis; Wnt-7 from dorsal ectoderm controls dorsal-ventral patterning; and Hox genes pattern the segments. Digits separate by apoptosis of interdigital tissue, and failure leads to syndactyly. The arm buds appear slightly before the legs. Thalidomide, taken in the sensitive period of about days 24 to 36 after fertilisation, caused limb reduction defects (phocomelia, with the hands and feet attached close to the trunk). Worked example: a child with a unilateral cleft lip and palate should be repaired in stages by a multidisciplinary team, because feeding, speech, hearing (eustachian tube dysfunction) and dental development are all affected."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l22",
+   "title": "Teratogens and Congenital Malformations",
+   "body": [
+    "A teratogen is an agent that causes a structural or functional birth defect after exposure during development. Roughly 3 percent of births have a major malformation, and the cause is unknown in around half of cases, with chromosomal, single-gene, multifactorial and environmental causes making up the remainder. Several principles govern teratogenesis. The effect depends on the timing of exposure: in the first two weeks after fertilisation (the all-or-none period), injury usually either kills the embryo or is repaired without a defect; weeks 3 to 8, the embryonic period of organogenesis, is the time of maximum susceptibility for structural malformations; and the foetal period brings growth restriction and functional or minor changes, though the brain and genitalia remain vulnerable. Each organ has its own critical period, so the heart is most vulnerable in weeks 3 to 6 and the neural tube closes in weeks 3 and 4. The effect also depends on dose, the genotype of mother and embryo, and the specificity of the agent for particular tissues.",
+    "Some well-established teratogens and their effects are as follows. Alcohol causes foetal alcohol spectrum disorders: growth restriction, microcephaly, a smooth philtrum, thin upper lip and short palpebral fissures, and neurobehavioural impairment, and no safe level is established. Isotretinoin and other retinoids cause craniofacial, cardiac, thymic and central nervous system defects. Thalidomide causes limb reduction defects. Warfarin in early pregnancy causes nasal hypoplasia and chondrodysplasia punctata, and may cause central nervous system damage later. ACE inhibitors and angiotensin receptor blockers in the second and third trimesters cause foetal renal failure, oligohydramnios and pulmonary hypoplasia. Valproate and other antiepileptic drugs raise neural tube defect risk, and valproate is associated with a spectrum of anomalies and neurodevelopmental effects. Tetracyclines stain developing teeth. Methimazole is linked to aplasia cutis and choanal atresia. Lithium has been linked to a small increase in cardiac anomalies including Ebstein anomaly, though the risk is modest. Diethylstilbestrol exposure in utero is linked to clear cell adenocarcinoma of the vagina. Maternal diabetes gives sacral agenesis, neural tube defects and cardiac anomalies, and so does poor glycaemic control before conception.",
+    "Infections include rubella, which causes cataracts, sensorineural deafness and patent ductus arteriosus; cytomegalovirus, with intracranial calcifications and hearing loss; Toxoplasma gondii, with chorioretinitis, hydrocephalus and intracranial calcifications; Zika virus, with microcephaly; and Treponema pallidum, with the signs of congenital syphilis. Ionising radiation at high doses is teratogenic, particularly to the brain. Maternal hyperthermia and smoking raise the risk of defects and growth restriction. Periconceptional folate lowers neural tube defect risk, and folate supplementation is recommended before conception.",
+    "The vocabulary matters. A malformation is a primary structural defect of morphogenesis (a cleft lip). A disruption is destruction of a normally formed structure, as with amniotic bands. A deformation is an abnormal mechanical force on a normal tissue, such as clubfoot with oligohydramnios. A sequence is a cascade starting from one defect: Potter sequence starts with renal agenesis, leading to oligohydramnios, pulmonary hypoplasia and limb deformities. A syndrome is a pattern of anomalies with one cause. Worked example: an infant whose mother used an angiotensin receptor blocker through pregnancy and who has anuria, a flattened face and pulmonary hypoplasia shows the effect of a drug that lowers foetal renal perfusion, giving the Potter sequence."
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l23",
+   "title": "Fetal Membranes and the Placenta",
+   "body": [
+    "The placenta is a joint organ with a foetal part, the chorion frondosum, and a maternal part, the decidua basalis. After implantation, the endometrium becomes the decidua, which has three regions: decidua basalis beneath the embryo, decidua capsularis over it and decidua parietalis lining the rest of the uterus. The chorion develops from trophoblast plus extraembryonic mesoderm. Chorionic villi progress from primary (trophoblast only) to secondary (with a mesenchymal core) to tertiary villi, in which foetal capillaries have formed in the core, by the end of week 3. Villi covering the part of the chorion near the decidua basalis grow into the chorion frondosum, while those over the decidua capsularis degenerate to leave the smooth chorion (chorion laeve). Maternal blood from spiral arteries fills the intervillous space and bathes the villi, so the foetal and maternal circulations never mix directly.",
+    "The placental barrier initially has four layers: syncytiotrophoblast, cytotrophoblast, villous connective tissue and foetal capillary endothelium. Later in pregnancy the cytotrophoblast largely disappears and the barrier thins, improving exchange. The placenta provides gas exchange by diffusion (oxygen, carbon dioxide), nutrients, waste removal, passive transfer of maternal IgG antibodies (which gives the newborn passive immunity), and hormone production. The syncytiotrophoblast makes hCG, human placental lactogen, progesterone and oestrogens; from about week 8 to 10 the placenta takes over progesterone production from the corpus luteum. Many drugs and some infections cross, which is why teratogens matter. Placental abnormalities include placenta praevia (covering the internal os, with painless bleeding), placental abruption (premature separation, with painful bleeding), placenta accreta (abnormal adherence because the decidua basalis is deficient; accreta, increta and percreta describe depth, and risk rises with prior uterine scar), and vasa praevia.",
+    "The amnion is a thin membrane that secretes amniotic fluid, which cushions the foetus, allows movement and enables lung and gut development. As the amnion expands it fuses with the chorion and obliterates the chorionic cavity, and the foetus swallows and urinates the fluid, so it is continuously recycled. Oligohydramnios (too little) suggests renal agenesis or leaking membranes, with a risk of pulmonary hypoplasia; polyhydramnios (too much) is associated with oesophageal atresia, anencephaly and maternal diabetes, because the foetus cannot swallow properly or produces excess urine. The yolk sac makes early blood cells and gives rise to primordial germ cells and the gut lining; its remnant may persist as Meckel diverticulum, which arises from the vitelline duct and follows the rule of twos. The allantois forms the urachus, which becomes the median umbilical ligament, and a patent urachus leaks urine from the umbilicus.",
+    "The umbilical cord has two arteries and one vein embedded in Wharton jelly, a mucoid connective tissue. A single umbilical artery is associated with other anomalies and is looked for on ultrasound. Twins may be dizygotic, from two oocytes, which always have two chorions and two amnions (dichorionic diamniotic); monozygotic twins depend on when the embryo splits, with division before day 4 giving dichorionic diamniotic twins, days 4 to 8 monochorionic diamniotic, days 8 to 12 monochorionic monoamniotic, and later conjoined twins. Monochorionic twins share placental vessels and risk twin-to-twin transfusion syndrome. Worked example: a woman with a prior caesarean delivery who has a placenta praevia over the scar and heavy bleeding at delivery has the classic setting for placenta accreta."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-histo-embryo.l01.q1",
+   "lessonId": "med-histo-embryo.l01",
+   "kind": "mcq",
+   "prompt": "Which feature gives a cell rich in rough endoplasmic reticulum and free ribosomes a blue-purple cytoplasm on an H&E slide?",
+   "choices": [
+    "Eosin, an acidic dye, binds the positively charged lipid droplets in the cytoplasm",
+    "Hematoxylin, a basic dye, binds the negatively charged ribosomal RNA in the cytoplasm",
+    "Eosin, an acidic dye, binds the negatively charged ribosomal RNA in the cytoplasm",
+    "Hematoxylin, a basic dye, binds the positively charged structural proteins in the cytoplasm"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l01.q2",
+   "lessonId": "med-histo-embryo.l01",
+   "kind": "mcq",
+   "prompt": "A biopsy shows hepatocytes with abundant foamy, pale cytoplasm after chronic drug exposure. Which organelle is most likely expanded to explain this?",
+   "choices": [
+    "Smooth endoplasmic reticulum, which hypertrophies to metabolise lipids and detoxify drugs in these cells",
+    "Lysosomes, which would instead produce dense granular staining around the nucleus of the cell",
+    "Peroxisomes, which would instead cause nuclear enlargement and a clock-face chromatin pattern",
+    "Rough endoplasmic reticulum, which would instead produce intense basophilic staining of the cytoplasm"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l01.q3",
+   "lessonId": "med-histo-embryo.l01",
+   "kind": "mcq",
+   "prompt": "Which pairing of intermediate filament and cell lineage is correct?",
+   "choices": [
+    "Glial fibrillary acidic protein in myocytes and desmin in astrocytes",
+    "Desmin in neurons and neurofilament in skeletal muscle fibres",
+    "Vimentin in epithelial cells and keratin in connective tissue fibroblasts",
+    "Keratin in epithelial cells and vimentin in mesenchymal-derived cells"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l01.q4",
+   "lessonId": "med-histo-embryo.l01",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man has a lung mass that on biopsy shows sheets of undifferentiated cells. Immunostaining is strongly positive for keratin and negative for vimentin. This result best supports which interpretation?",
+   "choices": [
+    "A tumour of muscle origin, a rhabdomyosarcoma, because keratin intermediate filaments mark myocytes strongly",
+    "A tumour of glial origin, an astrocytoma, because keratin intermediate filaments mark supporting cells of nerve",
+    "A tumour of epithelial origin, a carcinoma, because keratin intermediate filaments mark epithelial cells",
+    "A tumour of mesenchymal origin, a sarcoma, because keratin intermediate filaments mark connective tissue cells"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l01.q5",
+   "lessonId": "med-histo-embryo.l01",
+   "kind": "mcq",
+   "prompt": "A child has progressive coarse features and cognitive decline. Biopsy shows cells swollen with undigested material inside membrane-bound acidic vesicles. Deficiency of which organelle function is most likely?",
+   "choices": [
+    "Failure of peroxisomal hydrogen peroxide breakdown, causing a storage disease from impaired oxidative defence",
+    "Failure of lysosomal acid hydrolase activity, causing a storage disease from impaired breakdown of material",
+    "Failure of mitochondrial oxidative phosphorylation, causing a storage disease from impaired energy production",
+    "Failure of Golgi-based sorting of secretory proteins, causing a storage disease from impaired exocytosis"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l02.q1",
+   "lessonId": "med-histo-embryo.l02",
+   "kind": "mcq",
+   "prompt": "Which epithelium lines the urinary bladder and changes its surface cell shape as the organ fills?",
+   "choices": [
+    "Stratified squamous epithelium with a keratinised surface layer",
+    "Simple cuboidal epithelium with a prominent brush border",
+    "Transitional epithelium, also called urothelium",
+    "Pseudostratified columnar epithelium with surface cilia"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l02.q2",
+   "lessonId": "med-histo-embryo.l02",
+   "kind": "mcq",
+   "prompt": "Sections of the trachea show one layer of cells whose nuclei lie at different heights, with cilia and goblet cells, all touching the basement membrane. This is best classified as which type?",
+   "choices": [
+    "Simple columnar epithelium, because the nuclei lie at a single uniform height",
+    "Stratified cuboidal epithelium, because goblet cells occupy a separate upper layer",
+    "Stratified columnar epithelium, because the nuclei occupy several tiers of the tissue",
+    "Pseudostratified ciliated columnar epithelium, a single layer despite its layered appearance"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l02.q3",
+   "lessonId": "med-histo-embryo.l02",
+   "kind": "mcq",
+   "prompt": "Sebaceous glands release their oily product by which mode of secretion?",
+   "choices": [
+    "Holocrine, in which the whole cell disintegrates and becomes the secretion",
+    "Merocrine, in which vesicles release contents by exocytosis without damage to the cell",
+    "Apocrine, in which a portion of the apical cytoplasm is pinched off along with the product",
+    "Endocrine, in which the product passes through a duct onto the skin surface"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l02.q4",
+   "lessonId": "med-histo-embryo.l02",
+   "kind": "mcq",
+   "prompt": "A 9-year-old with recurrent sinusitis, bronchiectasis and a heart located on the right side has infertility concerns raised in the family history. Which cellular defect best explains the full picture?",
+   "choices": [
+    "Faulty gap junction connexons, which impair spread of ionic signals between airway epithelial cells",
+    "Faulty dynein arms in the axoneme, which impairs ciliary motion and the embryonic left-right determination",
+    "Faulty desmosome proteins, which impair adhesion between epithelial cells of the airway lining",
+    "Faulty basal lamina laminin, which impairs attachment of airway epithelium to the connective tissue"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l02.q5",
+   "lessonId": "med-histo-embryo.l02",
+   "kind": "mcq",
+   "prompt": "A long-term smoker has bronchoscopy showing a patch of stratified squamous epithelium where ciliated pseudostratified epithelium would normally be. What is the best description?",
+   "choices": [
+    "Anaplasia, a loss of differentiation seen in cells of an established invasive carcinoma",
+    "Dysplasia, a neoplastic change that has already breached the basement membrane",
+    "Metaplasia, a reversible replacement of one mature epithelium by another that tolerates the injury",
+    "Hyperplasia, an increase in the number of the same ciliated cells in the epithelium"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l03.q1",
+   "lessonId": "med-histo-embryo.l03",
+   "kind": "mcq",
+   "prompt": "Which collagen type forms the fine reticular meshwork supporting the spleen and lymph nodes?",
+   "choices": [
+    "Type IV collagen",
+    "Type I collagen",
+    "Type II collagen",
+    "Type III collagen"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l03.q2",
+   "lessonId": "med-histo-embryo.l03",
+   "kind": "mcq",
+   "prompt": "Which cell found in connective tissue releases histamine upon cross-linking of surface-bound IgE?",
+   "choices": [
+    "The fibroblast, with abundant rough ER and collagen secretion",
+    "The macrophage, with abundant lysosomes and phagocytic capacity",
+    "The mast cell, with granules containing histamine and heparin",
+    "The plasma cell, with a clock-face nucleus and abundant rough ER"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l03.q3",
+   "lessonId": "med-histo-embryo.l03",
+   "kind": "mcq",
+   "prompt": "Which tissue has parallel bundles of type I collagen with rows of compressed fibroblasts between them?",
+   "choices": [
+    "Loose areolar connective tissue under epithelia",
+    "Dense regular connective tissue of tendons",
+    "Reticular connective tissue of lymphoid organs",
+    "Dense irregular connective tissue of the dermis"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l03.q4",
+   "lessonId": "med-histo-embryo.l03",
+   "kind": "mcq",
+   "prompt": "A sailor on a long voyage with little fresh food develops bleeding gums, perifollicular haemorrhages and poor wound healing. Which step of collagen synthesis is most directly impaired?",
+   "choices": [
+    "Hydroxylation of proline and lysine residues, which requires ascorbic acid as a cofactor",
+    "Cleavage of the procollagen propeptides, which requires a calcium-dependent extracellular enzyme",
+    "Cross-linking of collagen fibrils, which requires copper-dependent lysyl oxidase activity here",
+    "Assembly of the triple helix, which requires a chaperone protein found in the Golgi network"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l03.q5",
+   "lessonId": "med-histo-embryo.l03",
+   "kind": "mcq",
+   "prompt": "A tall, thin 22-year-old has lens subluxation and aortic root dilation. Which extracellular matrix component is most likely defective?",
+   "choices": [
+    "Type V collagen, a minor fibrillar collagen that regulates fibril diameter in the matrix",
+    "Type IV collagen, a network-forming collagen found within the basal lamina of vessels",
+    "Hyaluronic acid, an unsulfated glycosaminoglycan that hydrates the ground substance of tissue",
+    "Fibrillin-1, a scaffold on which elastic fibres are assembled in the matrix"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l04.q1",
+   "lessonId": "med-histo-embryo.l04",
+   "kind": "mcq",
+   "prompt": "Which cell type resorbs bone using a ruffled border?",
+   "choices": [
+    "Osteoclast",
+    "Osteocyte",
+    "Chondrocyte",
+    "Osteoblast"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l04.q2",
+   "lessonId": "med-histo-embryo.l04",
+   "kind": "mcq",
+   "prompt": "Which cartilage resists compression and shear in the intervertebral disc and has no perichondrium?",
+   "choices": [
+    "Elastic cartilage, containing elastic fibres",
+    "Fibrocartilage, containing thick type I collagen",
+    "Articular cartilage, containing aggrecan only",
+    "Hyaline cartilage, containing type II collagen"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l04.q3",
+   "lessonId": "med-histo-embryo.l04",
+   "kind": "mcq",
+   "prompt": "The flat bones of the skull form mainly by which process?",
+   "choices": [
+    "Appositional growth of fibrocartilage from a perichondrium",
+    "Interstitial growth of elastic cartilage within lacunae",
+    "Intramembranous ossification directly from condensed mesenchyme",
+    "Endochondral ossification from a hyaline cartilage model"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l04.q4",
+   "lessonId": "med-histo-embryo.l04",
+   "kind": "mcq",
+   "prompt": "A 4-year-old has short limbs, a large head and normal trunk length with normal intelligence; both parents are of average height. Which process is primarily affected?",
+   "choices": [
+    "Mineralisation of osteoid in the metaphysis, because of a lack of vitamin D in the child",
+    "Osteoclast resorption of bone in the medullary cavity, because of a defect in the RANK ligand",
+    "Intramembranous ossification of the skull, because the head is enlarged in the child",
+    "Proliferation of chondrocytes in the growth plate, because of a gain-of-function receptor mutation"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l04.q5",
+   "lessonId": "med-histo-embryo.l04",
+   "kind": "mcq",
+   "prompt": "A 3-year-old with bowed legs has widened, cupped growth plates and a low serum phosphate. Biopsy would most likely show which finding in bone?",
+   "choices": [
+    "Abundant unmineralised osteoid because calcium and phosphate are insufficient to mineralise matrix",
+    "Disorganised woven bone because of a mutation affecting the synthesis of type I collagen",
+    "Premature closure of growth plates because of an excess of activated growth factor receptors",
+    "Excess osteoclasts with a failure of the ruffled border to form at the resorptive surface"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l05.q1",
+   "lessonId": "med-histo-embryo.l05",
+   "kind": "mcq",
+   "prompt": "Where are the nuclei of a skeletal muscle fibre found?",
+   "choices": [
+    "Clustered at the intercalated discs between adjoining fibres, close to the gap junctions",
+    "Scattered peripherally just beneath the sarcolemma, as the fibre is multinucleated",
+    "Absent altogether because the sarcomeres fill the full cytoplasm of the mature fibre",
+    "In a single central position within each fibre, as in the cells of cardiac and smooth muscle"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l05.q2",
+   "lessonId": "med-histo-embryo.l05",
+   "kind": "mcq",
+   "prompt": "During contraction of a sarcomere, which band does NOT change in length?",
+   "choices": [
+    "The A band, which spans the full length of the thick filaments",
+    "The H zone, which contains only the thick filaments at the centre",
+    "The distance between adjacent Z discs along the sarcomere",
+    "The I band, which contains only the thin filaments of the sarcomere"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l05.q3",
+   "lessonId": "med-histo-embryo.l05",
+   "kind": "mcq",
+   "prompt": "Which mechanism distinguishes smooth muscle activation from skeletal muscle activation?",
+   "choices": [
+    "Calcium binds troponin C, which moves tropomyosin and uncovers myosin-binding sites on actin",
+    "Calcium is released from terminal cisternae by direct coupling to dihydropyridine receptors",
+    "Calcium is supplied only from the extracellular space, with no sarcoplasmic reticulum involved",
+    "Calcium binds calmodulin, which activates myosin light-chain kinase, and troponin is absent"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l05.q4",
+   "lessonId": "med-histo-embryo.l05",
+   "kind": "mcq",
+   "prompt": "A 6-year-old boy has progressive proximal weakness, calf enlargement and a Gowers sign. A biopsy would most likely show muscle fibres of variable size with necrosis and replacement by fat and fibrosis. Which regenerative cell population normally repairs injured fibres and becomes exhausted in this disease?",
+   "choices": [
+    "Fibroblasts located within the endomysium around individual fibres",
+    "Myeloid precursor cells recruited from the marrow into the injured muscle",
+    "Satellite cells located beneath the basal lamina of each fibre",
+    "Pericytes surrounding the capillaries that supply the muscle fascicle"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l05.q5",
+   "lessonId": "med-histo-embryo.l05",
+   "kind": "mcq",
+   "prompt": "A section of heart muscle shows branched cells, single central nuclei and dark-staining transverse lines crossing between adjacent cells. These lines contain structures that allow which two functions?",
+   "choices": [
+    "Chemical neurotransmission through synaptic clefts and electrical spread through tight junctions",
+    "Mechanical coupling through desmosomes and rapid electrical spread through gap junctions",
+    "Calcium storage through terminal cisternae and rapid electrical spread through T tubules",
+    "Mechanical coupling through hemidesmosomes and filtration through fenestrated diaphragms"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l06.q1",
+   "lessonId": "med-histo-embryo.l06",
+   "kind": "mcq",
+   "prompt": "Which glial cell myelinates axons of the central nervous system?",
+   "choices": [
+    "Schwann cell",
+    "Astrocyte",
+    "Oligodendrocyte",
+    "Microglial cell"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l06.q2",
+   "lessonId": "med-histo-embryo.l06",
+   "kind": "mcq",
+   "prompt": "Which connective tissue layer surrounds a single fascicle of a peripheral nerve and contributes to the blood-nerve barrier?",
+   "choices": [
+    "Endoneurium",
+    "Perimysium",
+    "Epineurium",
+    "Perineurium"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l06.q3",
+   "lessonId": "med-histo-embryo.l06",
+   "kind": "mcq",
+   "prompt": "Which cell derives from yolk sac precursors rather than neural ectoderm?",
+   "choices": [
+    "Microglial cell, which acts as the resident macrophage of the brain",
+    "Astrocyte, which supports the blood-brain barrier at its end-feet",
+    "Oligodendrocyte, which forms central myelin around several axons",
+    "Ependymal cell, which lines the ventricles and bears motile cilia"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l06.q4",
+   "lessonId": "med-histo-embryo.l06",
+   "kind": "mcq",
+   "prompt": "A 30-year-old develops ascending symmetric weakness and absent reflexes two weeks after a diarrhoeal illness. Nerve conduction shows slowed velocities. Which cell is the target of the autoimmune attack, and why is the central nervous system spared?",
+   "choices": [
+    "Oligodendrocytes, because each of them myelinates only a single peripheral axon segment",
+    "Schwann cells, because peripheral myelin is a distinct antigenic target from central myelin",
+    "Astrocytes, because their end-feet form the barrier surrounding peripheral nerves in the limbs",
+    "Satellite cells, because they surround the cell bodies of the motor neurons in the cord"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l06.q5",
+   "lessonId": "med-histo-embryo.l06",
+   "kind": "mcq",
+   "prompt": "A farmer bitten by a rabid animal on the hand develops encephalitis weeks later, although the bite was far from the brain. Which cellular process best explains the delay?",
+   "choices": [
+    "Saltatory conduction between nodes of Ranvier along each myelinated peripheral axon",
+    "Diffusion of the virus through the cerebrospinal fluid after crossing the choroid plexus",
+    "Retrograde axonal transport along microtubules powered by the motor protein dynein",
+    "Anterograde axonal transport along microtubules powered by the motor protein kinesin"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l07.q1",
+   "lessonId": "med-histo-embryo.l07",
+   "kind": "mcq",
+   "prompt": "Which white cell has a bilobed nucleus and large bright red granules?",
+   "choices": [
+    "Neutrophil",
+    "Basophil",
+    "Monocyte",
+    "Eosinophil"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l07.q2",
+   "lessonId": "med-histo-embryo.l07",
+   "kind": "mcq",
+   "prompt": "Which hormone, made mainly by peritubular interstitial cells of the kidney in response to hypoxia, drives red blood cell production?",
+   "choices": [
+    "Interleukin-5",
+    "Thrombopoietin",
+    "Erythropoietin",
+    "Granulocyte colony-stimulating factor"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l07.q3",
+   "lessonId": "med-histo-embryo.l07",
+   "kind": "mcq",
+   "prompt": "Reticulocytes appear bluish on a special stain because they retain which component?",
+   "choices": [
+    "A residual nucleus that is yet to be extruded from the cell",
+    "Residual ribosomal RNA in the cytoplasm of the young red cell",
+    "Excess haemoglobin that is denatured within the red cell",
+    "Granules of histamine and heparin from the myeloid lineage"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l07.q4",
+   "lessonId": "med-histo-embryo.l07",
+   "kind": "mcq",
+   "prompt": "A 25-year-old woman with heavy periods has fatigue and pallor. A smear shows small red cells with wide central pallor, and the reticulocyte count is low for the degree of anaemia. Which interpretation of the cell appearance is most accurate?",
+   "choices": [
+    "Haemoglobin synthesis is limited while cell division continues, giving small hypochromic cells",
+    "Nuclear maturation is delayed while haemoglobin synthesis continues, giving large macrocytic cells",
+    "Red cells are destroyed in the spleen after sickling, giving dense irregular cells with no pallor",
+    "Marrow megakaryocytes fail to shed fragments into the sinusoids, giving few platelets of large size"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l07.q5",
+   "lessonId": "med-histo-embryo.l07",
+   "kind": "mcq",
+   "prompt": "A 62-year-old man has an elevated white cell count with many band neutrophils and a few metamyelocytes after pneumonia. Which description fits this finding?",
+   "choices": [
+    "A right shift, reflecting release of hypersegmented neutrophils in response to a vitamin deficiency state",
+    "Leukaemoid eosinophilia, reflecting parasitic infection that stimulates interleukin-5 release in tissues",
+    "Reactive lymphocytosis, reflecting viral infection that stimulates clonal expansion of T cells in the blood",
+    "A left shift, reflecting release of immature neutrophil forms from the marrow in response to infection"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l08.q1",
+   "lessonId": "med-histo-embryo.l08",
+   "kind": "mcq",
+   "prompt": "Which capillary type has wide gaps and an incomplete basement membrane and is found in the liver and spleen?",
+   "choices": [
+    "Sinusoidal (discontinuous) capillary",
+    "Continuous capillary",
+    "Fenestrated capillary with diaphragms",
+    "Lymphatic capillary"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l08.q2",
+   "lessonId": "med-histo-embryo.l08",
+   "kind": "mcq",
+   "prompt": "Which feature best identifies the thymic medulla on a slide?",
+   "choices": [
+    "Densely packed immature thymocytes",
+    "Hassall corpuscles within a paler region",
+    "Periarteriolar lymphoid sheaths around vessels",
+    "Germinal centres in B cell follicles"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l08.q3",
+   "lessonId": "med-histo-embryo.l08",
+   "kind": "mcq",
+   "prompt": "In which region of a lymph node do T cells chiefly reside?",
+   "choices": [
+    "The medullary cords, where plasma cells secrete antibody into the efferent lymph",
+    "The subcapsular sinus, where afferent lymph first enters the node from tissues",
+    "The paracortex, where high endothelial venules admit lymphocytes from blood",
+    "The outer cortex follicles, where germinal centres form in active responses"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l08.q4",
+   "lessonId": "med-histo-embryo.l08",
+   "kind": "mcq",
+   "prompt": "A 5-year-old with a 22q11 deletion has tetany from hypocalcaemia and recurrent viral and fungal infections. Which histologic finding would be expected in the thymus?",
+   "choices": [
+    "Expanded germinal centres within an enlarged cortex, from chronic B cell stimulation by antigen",
+    "Hassall corpuscles in the cortex and thymocytes in the medulla, from inverted architecture",
+    "Normal thymus with absent plasma cells in the medulla, from a defect in antibody class switching",
+    "Absent or hypoplastic thymic tissue, so thymocytes cannot mature into functioning T cells"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l08.q5",
+   "lessonId": "med-histo-embryo.l08",
+   "kind": "mcq",
+   "prompt": "A 19-year-old has a splenectomy after a motorcycle crash. Which long-term risk is explained by loss of a specific splenic function?",
+   "choices": [
+    "Overwhelming infection with encapsulated bacteria such as Streptococcus pneumoniae, because red pulp macrophages no longer clear opsonised organisms",
+    "Impaired T cell maturation with recurrent viral infection, because the white pulp is the site of thymocyte development",
+    "Failure to make red cells with severe anaemia, because the spleen is the main adult site of erythropoiesis",
+    "Defective platelet production with bleeding, because splenic megakaryocytes are the main source of platelets"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l09.q1",
+   "lessonId": "med-histo-embryo.l09",
+   "kind": "mcq",
+   "prompt": "Which cell of the alveolar wall secretes pulmonary surfactant?",
+   "choices": [
+    "Club cell",
+    "Type II pneumocyte",
+    "Type I pneumocyte",
+    "Alveolar macrophage"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l09.q2",
+   "lessonId": "med-histo-embryo.l09",
+   "kind": "mcq",
+   "prompt": "Which feature identifies a bronchiole as opposed to a bronchus on a slide?",
+   "choices": [
+    "Absence of cartilage and glands, with club cells in the epithelium",
+    "Simple squamous lining and an extremely thin alveolar wall",
+    "C-shaped cartilage rings and a prominent trachealis muscle",
+    "Hyaline cartilage plates and submucosal glands in the wall"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l09.q3",
+   "lessonId": "med-histo-embryo.l09",
+   "kind": "mcq",
+   "prompt": "Which structure forms part of the blood-air barrier?",
+   "choices": [
+    "The thick perisinusoidal space between capillaries and the surrounding hepatocytes",
+    "The submucosal layer containing glands of the bronchial wall of the lung",
+    "The alveolar macrophage layer that lines the surface of all alveoli",
+    "The fused basal laminae of type I pneumocytes and capillary endothelium"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l09.q4",
+   "lessonId": "med-histo-embryo.l09",
+   "kind": "mcq",
+   "prompt": "A baby born at 28 weeks develops grunting and cyanosis within hours, and chest radiography shows a ground-glass pattern. Which histologic picture would be expected?",
+   "choices": [
+    "Dilated bronchioles with excess goblet cells and thick mucus plugs throughout the airway",
+    "Alveoli filled with neutrophils and fibrin that form lobar consolidation of the lung",
+    "Collapsed alveoli lined by eosinophilic hyaline membranes from too little surfactant",
+    "Thickened alveolar septa containing numerous haemosiderin-laden macrophages and pigment"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l09.q5",
+   "lessonId": "med-histo-embryo.l09",
+   "kind": "mcq",
+   "prompt": "A 65-year-old long-term smoker has a central lung mass with ectopic ACTH secretion. Biopsy shows small blue cells with scant cytoplasm and neuroendocrine granules. Which normal tracheobronchial cell is the likely origin?",
+   "choices": [
+    "Club cells that detoxify chemicals and divide to repair small airways",
+    "Neuroendocrine (Kulchitsky) cells of the respiratory epithelium of the airway",
+    "Type II pneumocytes that make surfactant in lamellar bodies in the alveolus",
+    "Basal stem cells that generate squamous metaplasia in the airway lining"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l10.q1",
+   "lessonId": "med-histo-embryo.l10",
+   "kind": "mcq",
+   "prompt": "Which gastric cell secretes hydrochloric acid and intrinsic factor?",
+   "choices": [
+    "Mucous neck cell",
+    "G cell",
+    "Chief cell",
+    "Parietal cell"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l10.q2",
+   "lessonId": "med-histo-embryo.l10",
+   "kind": "mcq",
+   "prompt": "Which small intestinal cell, found at the base of the crypts, secretes lysozyme and defensins?",
+   "choices": [
+    "M cell, which overlies lymphoid follicles",
+    "Enterocyte, with a prominent brush border",
+    "Paneth cell, with eosinophilic apical granules",
+    "Goblet cell, with mucin-filled apical vacuoles"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l10.q3",
+   "lessonId": "med-histo-embryo.l10",
+   "kind": "mcq",
+   "prompt": "Which layer contains the myenteric (Auerbach) plexus?",
+   "choices": [
+    "Within the serosa, immediately beneath the mesothelium of the gut wall",
+    "Between the circular and longitudinal muscle layers of the muscularis externa",
+    "Within the submucosa, beneath the muscularis mucosae of the intestine",
+    "Within the lamina propria, adjacent to the epithelium of the mucosa"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l10.q4",
+   "lessonId": "med-histo-embryo.l10",
+   "kind": "mcq",
+   "prompt": "A 28-year-old has chronic diarrhoea, weight loss and iron deficiency. Duodenal biopsy shows blunted villi, elongated crypts and increased intraepithelial lymphocytes. Which function is primarily lost?",
+   "choices": [
+    "Absorption through the reduced surface area provided by villi and microvilli",
+    "Bile acid recycling through the loss of ileal receptors in the terminal ileum",
+    "Gastric acid secretion from loss of the parietal cell mass in the stomach",
+    "Bicarbonate secretion from the loss of the Brunner glands in the duodenum"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l10.q5",
+   "lessonId": "med-histo-embryo.l10",
+   "kind": "mcq",
+   "prompt": "A 55-year-old woman has fatigue, glossitis and paraesthesias with a macrocytic anaemia. Gastric biopsy shows atrophy of body glands with loss of parietal cells. Which mechanism explains the anaemia?",
+   "choices": [
+    "Loss of G cells with reduced gastrin and consequently poor absorption of folate in the jejunum",
+    "Loss of mucous neck cells with reduced mucus and so chronic blood loss from the gastric mucosa",
+    "Loss of chief cells with failure to activate pepsinogen and so poor absorption of dietary iron",
+    "Loss of intrinsic factor so vitamin B12 cannot be absorbed in the terminal ileum"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l11.q1",
+   "lessonId": "med-histo-embryo.l11",
+   "kind": "mcq",
+   "prompt": "Which cells of the liver sinusoid store vitamin A and become collagen-producing in cirrhosis?",
+   "choices": [
+    "Kupffer cells",
+    "Hepatocytes",
+    "Stellate (Ito) cells",
+    "Cholangiocytes"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l11.q2",
+   "lessonId": "med-histo-embryo.l11",
+   "kind": "mcq",
+   "prompt": "What is contained in each portal triad of the liver?",
+   "choices": [
+    "A hepatic vein branch, a portal vein branch and a lymphatic",
+    "A central vein, a hepatic artery branch and a bile canaliculus",
+    "A bile duct, a hepatic vein branch and a sinusoidal capillary",
+    "A hepatic artery branch, a portal vein branch and a bile duct"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l11.q3",
+   "lessonId": "med-histo-embryo.l11",
+   "kind": "mcq",
+   "prompt": "Which hormone from duodenal I cells causes gallbladder contraction and pancreatic enzyme secretion?",
+   "choices": [
+    "Cholecystokinin",
+    "Somatostatin",
+    "Secretin",
+    "Gastrin"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l11.q4",
+   "lessonId": "med-histo-embryo.l11",
+   "kind": "mcq",
+   "prompt": "A 30-year-old takes an overdose of acetaminophen and develops liver failure. Which pattern of necrosis is expected, and why?",
+   "choices": [
+    "Periportal necrosis in zone 1, because that region has the highest exposure to oxygenated blood",
+    "Centrilobular necrosis in zone 3, because that region has most cytochrome P450 and least oxygen",
+    "Diffuse necrosis in all zones, because the toxic metabolite is delivered through the hepatic vein",
+    "Biliary necrosis around the portal triads, because the toxic metabolite is excreted in bile"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l11.q5",
+   "lessonId": "med-histo-embryo.l11",
+   "kind": "mcq",
+   "prompt": "A 60-year-old with severe epigastric pain radiating to the back has markedly elevated serum lipase after heavy alcohol use. Premature activation of which acinar product is central to the pathology?",
+   "choices": [
+    "Pepsinogen, which is activated by gastric acid and causes digestion of the pancreatic duct",
+    "Secretin, which is released by the duodenum and causes duct dilatation and acinar rupture",
+    "Trypsinogen, which is activated within the gland and activates other zymogens and causes autodigestion",
+    "Insulin, which is released prematurely from the beta cells and causes local fat necrosis"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l12.q1",
+   "lessonId": "med-histo-embryo.l12",
+   "kind": "mcq",
+   "prompt": "Which cells of the glomerulus form the slit diaphragm with nephrin?",
+   "choices": [
+    "Macula densa cells",
+    "Podocytes",
+    "Mesangial cells",
+    "Juxtaglomerular cells"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l12.q2",
+   "lessonId": "med-histo-embryo.l12",
+   "kind": "mcq",
+   "prompt": "Which nephron segment has a dense brush border and bright pink cytoplasm and reabsorbs about two thirds of filtrate?",
+   "choices": [
+    "Proximal convoluted tubule",
+    "Distal convoluted tubule",
+    "Thin descending limb",
+    "Collecting duct"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l12.q3",
+   "lessonId": "med-histo-embryo.l12",
+   "kind": "mcq",
+   "prompt": "Which cells of the juxtaglomerular apparatus secrete renin?",
+   "choices": [
+    "Macula densa cells of the distal convoluted tubule",
+    "Extraglomerular mesangial cells at the vascular pole",
+    "Intercalated cells of the collecting duct in the cortex",
+    "Modified smooth muscle cells in the afferent arteriole"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l12.q4",
+   "lessonId": "med-histo-embryo.l12",
+   "kind": "mcq",
+   "prompt": "A 6-year-old has periorbital oedema and heavy proteinuria with a normal light microscopic biopsy. Which electron microscopic finding is expected, and what is the likely response to treatment?",
+   "choices": [
+    "Mesangial expansion with sclerosis of tufts, with usually poor response to corticosteroids",
+    "Subepithelial humps with immune complex deposits, with usually poor response to corticosteroids",
+    "Diffuse effacement of podocyte foot processes, with usually good response to corticosteroids",
+    "Thinning and splitting of the basement membrane, with usually good response to corticosteroids"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l12.q5",
+   "lessonId": "med-histo-embryo.l12",
+   "kind": "mcq",
+   "prompt": "A 70-year-old has severe hypotension from haemorrhage. Which sequence best describes the juxtaglomerular response that protects glomerular filtration?",
+   "choices": [
+    "Podocytes contract and so narrow the filtration slits to preserve the hydrostatic pressure",
+    "Juxtaglomerular cells release renin, which leads to angiotensin II and aldosterone effects",
+    "Intercalated cells secrete bicarbonate and so raise the pH of the tubular fluid in the nephron",
+    "Macula densa cells release erythropoietin and so increase the haematocrit within the filtrate"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l13.q1",
+   "lessonId": "med-histo-embryo.l13",
+   "kind": "mcq",
+   "prompt": "Which adrenal zone makes aldosterone?",
+   "choices": [
+    "Zona glomerulosa",
+    "Zona fasciculata",
+    "Zona reticularis",
+    "Adrenal medulla"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l13.q2",
+   "lessonId": "med-histo-embryo.l13",
+   "kind": "mcq",
+   "prompt": "Which pituitary lobe derives from a downgrowth of the diencephalon and stores oxytocin and ADH?",
+   "choices": [
+    "Anterior lobe, derived from Rathke pouch of oral ectoderm",
+    "Posterior lobe, derived from neuroectoderm of the forebrain",
+    "Anterior lobe, derived from neural crest of the forebrain",
+    "Posterior lobe, derived from endoderm of the foregut pouch"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l13.q3",
+   "lessonId": "med-histo-embryo.l13",
+   "kind": "mcq",
+   "prompt": "Which thyroid cell type secretes calcitonin?",
+   "choices": [
+    "Follicular cells lining the colloid-filled spaces",
+    "Chief cells that are located in the parathyroid tissue",
+    "Parafollicular C cells between the follicles",
+    "Oxyphil cells with abundant mitochondria and eosinophilia"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l13.q4",
+   "lessonId": "med-histo-embryo.l13",
+   "kind": "mcq",
+   "prompt": "A 35-year-old has episodic headaches, palpitations and sweating with sustained hypertension. A 4-cm adrenal mass shows nests of cells with granular cytoplasm. Which normal cell is the mass derived from, and what is its embryonic origin?",
+   "choices": [
+    "Ganglion cells of the cortex, which are derived from the neural tube neuroectoderm",
+    "Zona fasciculata cells, which are derived from the mesoderm of the urogenital ridge",
+    "Zona glomerulosa cells, which are derived from the mesoderm of the urogenital ridge",
+    "Chromaffin cells of the medulla, which are derived from the neural crest"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l13.q5",
+   "lessonId": "med-histo-embryo.l13",
+   "kind": "mcq",
+   "prompt": "A 28-year-old woman with a neck mass has a thyroid biopsy that shows sheets of cells staining positive for calcitonin with amyloid deposits in the stroma. Which cell of origin is most likely?",
+   "choices": [
+    "Parafollicular cells, which are neuroendocrine cells of neural crest origin",
+    "Parathyroid chief cells that sense the calcium concentration of blood in the gland",
+    "Lymphocytes that infiltrate the gland and form germinal centres in autoimmune disease",
+    "Follicular epithelial cells that take up iodide to synthesise thyroglobulin"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l14.q1",
+   "lessonId": "med-histo-embryo.l14",
+   "kind": "mcq",
+   "prompt": "Which testicular cell makes testosterone under LH stimulation?",
+   "choices": [
+    "Spermatogonium",
+    "Myoid cell",
+    "Sertoli cell",
+    "Leydig cell"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l14.q2",
+   "lessonId": "med-histo-embryo.l14",
+   "kind": "mcq",
+   "prompt": "Which cells of the testis form the blood-testis barrier?",
+   "choices": [
+    "Spermatogonia with desmosomes between them",
+    "Peritubular myoid cells with a basal lamina",
+    "Sertoli cells with tight junctions between them",
+    "Leydig cells with gap junctions between them"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l14.q3",
+   "lessonId": "med-histo-embryo.l14",
+   "kind": "mcq",
+   "prompt": "Which event happens during spermiogenesis?",
+   "choices": [
+    "A diploid primary spermatocyte divides by meiosis I to create two haploid cells",
+    "A round spermatid transforms into a spermatozoon without further cell division",
+    "A spermatogonium divides by mitosis to renew the pool of stem cells in the tubule",
+    "A secondary spermatocyte divides by meiosis II to create two round spermatids"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l14.q4",
+   "lessonId": "med-histo-embryo.l14",
+   "kind": "mcq",
+   "prompt": "A 1-year-old boy has an empty right scrotum and a non-palpable testis on that side. If uncorrected, which long-term risks are most characteristic?",
+   "choices": [
+    "Impaired spermatogenesis and an increased risk of germ cell tumour",
+    "Impaired testosterone synthesis and an increased risk of prostate carcinoma",
+    "Impaired Sertoli cell function and an increased risk of epididymitis",
+    "Impaired seminal vesicle function and an increased risk of testicular torsion"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l14.q5",
+   "lessonId": "med-histo-embryo.l14",
+   "kind": "mcq",
+   "prompt": "A 68-year-old man has urinary hesitancy and a smooth, symmetric, enlarged prostate on rectal examination. Which zone is primarily involved, and why is it different from where most carcinoma arises?",
+   "choices": [
+    "Anterior fibromuscular stroma, which is the commonest site of hyperplasia and of carcinoma",
+    "Peripheral zone, which is the commonest site of hyperplasia as well as carcinoma",
+    "Central zone, which is the site of hyperplasia that compresses the ejaculatory duct only",
+    "Transition zone, which surrounds the urethra, while carcinoma usually arises peripherally"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l15.q1",
+   "lessonId": "med-histo-embryo.l15",
+   "kind": "mcq",
+   "prompt": "Which ovarian cells make androgens under LH that granulosa cells convert to oestrogen?",
+   "choices": [
+    "Stromal fibroblasts",
+    "Oogonia",
+    "Theca interna cells",
+    "Corpus luteum cells"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l15.q2",
+   "lessonId": "med-histo-embryo.l15",
+   "kind": "mcq",
+   "prompt": "At the time of ovulation, the oocyte is arrested in which stage?",
+   "choices": [
+    "Anaphase of meiosis I",
+    "Telophase of meiosis II",
+    "Prophase of meiosis I",
+    "Metaphase of meiosis II"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l15.q3",
+   "lessonId": "med-histo-embryo.l15",
+   "kind": "mcq",
+   "prompt": "Which endometrial feature marks the secretory phase of the cycle?",
+   "choices": [
+    "Tortuous sawtooth glands with secretions under the influence of progesterone",
+    "Loss of the basal layer, which will be regenerated from the myometrium after the cycle",
+    "Straight narrow glands with a thin stroma that is under oestrogen influence",
+    "Sloughing of the functional layer with constricted spiral arteries after hormone fall"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l15.q4",
+   "lessonId": "med-histo-embryo.l15",
+   "kind": "mcq",
+   "prompt": "A 27-year-old has sudden lower abdominal pain, a positive pregnancy test and a mass in the adnexa with no intrauterine gestational sac. Which feature explains the usual site of this problem?",
+   "choices": [
+    "The interstitial portion is the usual site of fertilisation because it is nearest to the uterine cavity",
+    "The ampulla is the usual site of fertilisation, and impaired ciliary transport leaves the embryo there",
+    "The isthmus is the usual site of fertilisation, and rapid ciliary transport leaves the embryo there",
+    "The infundibulum is the usual site of implantation because it contains the endometrial glands"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l15.q5",
+   "lessonId": "med-histo-embryo.l15",
+   "kind": "mcq",
+   "prompt": "A 32-year-old has an abnormal Pap smear. Colposcopy shows an acetowhite lesion at the cervical transformation zone. Which histologic fact best explains why this region is vulnerable?",
+   "choices": [
+    "The endocervix has a thick keratinised lining that traps carcinogens and prevents their removal by mucus",
+    "The transformation zone has a rich plexus of ciliated cells that carry viral particles into the basal layer",
+    "The endocervical columnar epithelium meets ectocervical squamous epithelium, where metaplastic cells are exposed to human papillomavirus",
+    "The ectocervix is lined by simple columnar epithelium that is easily penetrated by infectious agents of many types"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l16.q1",
+   "lessonId": "med-histo-embryo.l16",
+   "kind": "mcq",
+   "prompt": "Which epidermal layer contains keratohyalin granules?",
+   "choices": [
+    "Stratum basale",
+    "Stratum granulosum",
+    "Stratum spinosum",
+    "Stratum corneum"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l16.q2",
+   "lessonId": "med-histo-embryo.l16",
+   "kind": "mcq",
+   "prompt": "Which epidermal cell type presents antigen and contains Birbeck granules?",
+   "choices": [
+    "Langerhans cell",
+    "Merkel cell",
+    "Melanocyte",
+    "Keratinocyte"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l16.q3",
+   "lessonId": "med-histo-embryo.l16",
+   "kind": "mcq",
+   "prompt": "Which cell type determines most of the difference in skin colour between individuals?",
+   "choices": [
+    "The number of melanocytes present in the basal layer of the epidermis",
+    "The thickness of the stratum corneum covering the surface of the skin",
+    "The density of the Langerhans cells found in the stratum spinosum",
+    "The amount and type of melanin produced by the melanocytes, not their number"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l16.q4",
+   "lessonId": "med-histo-embryo.l16",
+   "kind": "mcq",
+   "prompt": "A 55-year-old has flaccid, easily ruptured blisters in the mouth and skin. Immunofluorescence shows a net-like pattern of IgG between keratinocytes. Which structure is attacked?",
+   "choices": [
+    "Tight junctions in the stratum granulosum, which causes a loss of the water barrier",
+    "Gap junctions in the stratum basale, which causes a loss of electrical coupling",
+    "Desmosomes in the stratum spinosum, which causes intraepidermal blisters",
+    "Hemidesmosomes at the basement membrane, which causes subepidermal blisters"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l16.q5",
+   "lessonId": "med-histo-embryo.l16",
+   "kind": "mcq",
+   "prompt": "A child suffers a superficial partial-thickness scald that spares the deep dermis. Which statement best explains why it will likely heal without grafting?",
+   "choices": [
+    "The hypodermis supplies keratinocytes that repopulate the epidermis from the fat below",
+    "Retained hair follicles and sweat gland ducts supply epithelial cells that re-epithelialise the wound",
+    "The stratum corneum can regenerate directly from the dermal fibroblasts that remain beneath",
+    "Langerhans cells divide and migrate to cover the wound surface within several days"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l17.q1",
+   "lessonId": "med-histo-embryo.l17",
+   "kind": "mcq",
+   "prompt": "At which stage is a primary oocyte arrested from foetal life until just before ovulation?",
+   "choices": [
+    "Prophase of meiosis I",
+    "Anaphase of meiosis I",
+    "Telophase of meiosis II",
+    "Metaphase of meiosis II"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l17.q2",
+   "lessonId": "med-histo-embryo.l17",
+   "kind": "mcq",
+   "prompt": "Which event prevents polyspermy after the first sperm fuses with the oocyte?",
+   "choices": [
+    "Capacitation of sperm in the female tract, which removes coat proteins from the head",
+    "The cortical reaction, which modifies the zona pellucida so it blocks further sperm",
+    "The acrosome reaction, which releases hyaluronidase and acrosin around the oocyte",
+    "Formation of the morula, which compacts cells to seal the surface of the embryo"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l17.q3",
+   "lessonId": "med-histo-embryo.l17",
+   "kind": "mcq",
+   "prompt": "Which structure of the blastocyst gives rise to the embryo proper?",
+   "choices": [
+    "The blastocoel, which is the fluid-filled cavity of the blastocyst",
+    "The trophoblast, which is the outer cell layer of the blastocyst",
+    "The inner cell mass, also called the embryoblast",
+    "The zona pellucida, which surrounds the blastocyst as a shell"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l17.q4",
+   "lessonId": "med-histo-embryo.l17",
+   "kind": "mcq",
+   "prompt": "A 41-year-old woman has a pregnancy with trisomy 21 confirmed by karyotype. Studies show the extra chromosome is of maternal origin. Which error is the most common cause?",
+   "choices": [
+    "Nondisjunction in paternal meiosis II after rapid continuous production of sperm cells",
+    "Mitotic nondisjunction in the early cleavage divisions leading to a mosaic embryo of cells",
+    "A Robertsonian translocation inherited from a parent who carries a balanced chromosome",
+    "Nondisjunction in maternal meiosis I after prolonged arrest of the oocyte in prophase"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l17.q5",
+   "lessonId": "med-histo-embryo.l17",
+   "kind": "mcq",
+   "prompt": "A couple has infertility. The man has sperm with absent dynein arms and immotile flagella, and normal sperm count. Which step of fertilisation is most directly prevented?",
+   "choices": [
+    "Transport to and penetration of the zona pellucida, because sperm cannot swim to the oocyte",
+    "Pronuclear fusion, because it requires a flagellar mitochondrial sheath to enter the oocyte",
+    "Cortical reaction, because the oocyte cannot release cortical granules without sperm motility",
+    "Meiosis II of the oocyte, because it requires a motile sperm to begin the division"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l18.q1",
+   "lessonId": "med-histo-embryo.l18",
+   "kind": "mcq",
+   "prompt": "Which hormone from the syncytiotrophoblast maintains the corpus luteum in early pregnancy?",
+   "choices": [
+    "Follicle-stimulating hormone",
+    "Human placental lactogen",
+    "Oestriol",
+    "Human chorionic gonadotropin"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l18.q2",
+   "lessonId": "med-histo-embryo.l18",
+   "kind": "mcq",
+   "prompt": "During gastrulation, which structure induces the overlying ectoderm to become neural plate?",
+   "choices": [
+    "The yolk sac",
+    "The primitive streak",
+    "The notochord",
+    "The hypoblast"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l18.q3",
+   "lessonId": "med-histo-embryo.l18",
+   "kind": "mcq",
+   "prompt": "Which layer is the source of the definitive germ layers in gastrulation?",
+   "choices": [
+    "The syncytiotrophoblast, whose cells become the surface ectoderm layer",
+    "The epiblast, whose cells move through the primitive streak",
+    "The hypoblast, whose cells become the definitive endoderm layer",
+    "The cytotrophoblast, whose cells become the intraembryonic mesoderm"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l18.q4",
+   "lessonId": "med-histo-embryo.l18",
+   "kind": "mcq",
+   "prompt": "A newborn has a large mass at the base of the spine containing hair, cartilage and glandular tissue. Which embryologic origin best explains this finding?",
+   "choices": [
+    "Persistent remnants of the primitive streak whose pluripotent cells form all three germ layers",
+    "Failed closure of the caudal neuropore at the end of the fourth week of development",
+    "Incomplete regression of the notochord remnants and subsequent proliferation of nuclei",
+    "Retained yolk sac remnants that have proliferated and form tissue of the gut lining only"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l18.q5",
+   "lessonId": "med-histo-embryo.l18",
+   "kind": "mcq",
+   "prompt": "A pregnant woman has a mid-trimester screen with high maternal serum alpha-fetoprotein and a follow-up scan showing a lumbosacral defect. Which developmental event failed, and which measure reduces risk?",
+   "choices": [
+    "Formation of the notochord at the primitive node; calcium supplementation before conception",
+    "Migration of neural crest cells to the gut wall; iron supplementation before conception",
+    "Fusion of the somites to form the vertebral column; vitamin A supplementation before conception",
+    "Closure of the neural tube at the caudal neuropore; folate supplementation before conception"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l19.q1",
+   "lessonId": "med-histo-embryo.l19",
+   "kind": "mcq",
+   "prompt": "Which structure is derived from neural crest?",
+   "choices": [
+    "The anterior pituitary gland",
+    "The liver parenchyma",
+    "Melanocytes of the skin",
+    "The lens of the eye"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l19.q2",
+   "lessonId": "med-histo-embryo.l19",
+   "kind": "mcq",
+   "prompt": "Which structure is of endodermal origin?",
+   "choices": [
+    "The skeletal muscle of the limbs",
+    "The adrenal medulla",
+    "The adrenal cortex",
+    "The lining of the thymus and parathyroids"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l19.q3",
+   "lessonId": "med-histo-embryo.l19",
+   "kind": "mcq",
+   "prompt": "Which tissue arises from intermediate mesoderm?",
+   "choices": [
+    "The kidneys and gonads",
+    "The heart and blood vessels",
+    "The vertebral column",
+    "The epidermis of the skin"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l19.q4",
+   "lessonId": "med-histo-embryo.l19",
+   "kind": "mcq",
+   "prompt": "A newborn has abdominal contents herniated through a defect lateral to the umbilicus, with no covering membrane. Which developmental failure is most likely?",
+   "choices": [
+    "Failure of the midgut to return to the abdomen after physiologic herniation, giving a covered sac",
+    "Failure of closure of the body wall by lateral folding, giving exposed bowel without a sac",
+    "Failure of the cranial neuropore to close, which leaves the brain exposed on the surface",
+    "Failure of neural crest cells to colonise the colon, which causes dilated bowel loops"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l19.q5",
+   "lessonId": "med-histo-embryo.l19",
+   "kind": "mcq",
+   "prompt": "A newborn has not passed meconium for 48 hours, and has a distended abdomen. Rectal biopsy shows no ganglion cells in the submucosa and myenteric layer. Which statement about embryology is correct?",
+   "choices": [
+    "The enteric ganglia arise from endoderm that forms the epithelial lining of the gut",
+    "The enteric ganglia arise from somites that are adjacent to the neural tube at the level",
+    "The enteric ganglia arise from neural crest cells that migrate caudally along the gut",
+    "The enteric ganglia arise from lateral plate mesoderm that surrounds the gut tube"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l20.q1",
+   "lessonId": "med-histo-embryo.l20",
+   "kind": "mcq",
+   "prompt": "Which foetal structure carries well-oxygenated blood from the placenta to the foetus?",
+   "choices": [
+    "Umbilical artery",
+    "Ductus arteriosus",
+    "Umbilical vein",
+    "Ductus venosus"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l20.q2",
+   "lessonId": "med-histo-embryo.l20",
+   "kind": "mcq",
+   "prompt": "The aorticopulmonary septum is formed by which cells?",
+   "choices": [
+    "Endodermal cells",
+    "Somatic mesoderm cells",
+    "Surface ectoderm cells",
+    "Neural crest cells"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l20.q3",
+   "lessonId": "med-histo-embryo.l20",
+   "kind": "mcq",
+   "prompt": "Which adult structure is the remnant of the foetal ductus arteriosus?",
+   "choices": [
+    "Ligamentum arteriosum",
+    "Ligamentum teres hepatis",
+    "Ligamentum venosum",
+    "Medial umbilical ligament"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l20.q4",
+   "lessonId": "med-histo-embryo.l20",
+   "kind": "mcq",
+   "prompt": "A newborn has cyanosis not relieved by oxygen and a narrow mediastinum with an egg-shaped heart. Which intervention keeps the baby alive until definitive surgery?",
+   "choices": [
+    "Indomethacin to close the ductus arteriosus and thereby reduce flow through the lungs",
+    "Prostaglandin E1 to maintain ductal patency so mixing of the two circulations can occur",
+    "Oxygen at high concentration to dilate pulmonary arteries and improve systemic saturation",
+    "Diuretics to reduce preload and thereby lower the pressure inside the right ventricle"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l20.q5",
+   "lessonId": "med-histo-embryo.l20",
+   "kind": "mcq",
+   "prompt": "A 4-month-old with a 22q11 deletion has cyanotic spells. Echocardiography shows pulmonary stenosis, overriding aorta, a ventricular septal defect and right ventricular hypertrophy. Which developmental error is most likely?",
+   "choices": [
+    "Abnormal right cardiac looping that causes dextrocardia with mirror-image chambers",
+    "Failure of the septum primum to fuse with the endocardial cushions in the atrium",
+    "Abnormal neural crest migration that causes anterior displacement of the aorticopulmonary septum",
+    "Failure of the ductus arteriosus to close because of excess prostaglandin E2 production"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l21.q1",
+   "lessonId": "med-histo-embryo.l21",
+   "kind": "mcq",
+   "prompt": "Which cranial nerve supplies derivatives of the first pharyngeal arch?",
+   "choices": [
+    "Glossopharyngeal nerve",
+    "Vagus nerve",
+    "Facial nerve",
+    "Trigeminal nerve"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l21.q2",
+   "lessonId": "med-histo-embryo.l21",
+   "kind": "mcq",
+   "prompt": "Which pouch gives rise to the inferior parathyroid glands and the thymus?",
+   "choices": [
+    "Pharyngeal pouch 4",
+    "Pharyngeal pouch 2",
+    "Pharyngeal pouch 3",
+    "Pharyngeal pouch 1"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l21.q3",
+   "lessonId": "med-histo-embryo.l21",
+   "kind": "mcq",
+   "prompt": "Which signalling centre in the limb bud specifies the anterior-posterior axis with sonic hedgehog?",
+   "choices": [
+    "The apical ectodermal ridge",
+    "The zone of polarising activity",
+    "The dorsal ectoderm",
+    "The interdigital mesoderm"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l21.q4",
+   "lessonId": "med-histo-embryo.l21",
+   "kind": "mcq",
+   "prompt": "A newborn has a lateral neck cyst along the anterior border of the sternocleidomastoid. Which developmental failure explains this?",
+   "choices": [
+    "Persistence of a pharyngeal cleft that was not obliterated by the overgrowth of the second arch",
+    "Failure of pharyngeal pouch 3 to separate from the pharyngeal wall and migrate with the thymus",
+    "Failure of neural crest migration into the fourth arch that forms the laryngeal cartilages",
+    "Persistence of the thyroglossal duct after descent of the thyroid from the tongue base"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l21.q5",
+   "lessonId": "med-histo-embryo.l21",
+   "kind": "mcq",
+   "prompt": "A newborn has a cleft of the secondary palate only, and a normal lip and philtrum. Which statement correctly describes the underlying failure?",
+   "choices": [
+    "The intermaxillary segment failed to form from the fusion of the medial nasal prominences",
+    "The frontonasal prominence failed to separate from the first pharyngeal arch mesenchyme",
+    "The medial nasal prominences failed to fuse with the maxillary prominences at the lip",
+    "The palatine shelves of the maxillary prominences failed to rise and fuse in the midline"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l22.q1",
+   "lessonId": "med-histo-embryo.l22",
+   "kind": "mcq",
+   "prompt": "Which period is the time of greatest susceptibility to structural malformation?",
+   "choices": [
+    "Weeks 3 to 8 of development",
+    "Weeks 1 to 2 after fertilisation",
+    "The third trimester of gestation",
+    "The week immediately preceding birth"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l22.q2",
+   "lessonId": "med-histo-embryo.l22",
+   "kind": "mcq",
+   "prompt": "Which drug exposure in the second and third trimesters is linked to foetal renal failure and oligohydramnios?",
+   "choices": [
+    "Diethylstilbestrol hormone",
+    "Angiotensin-converting enzyme inhibitors",
+    "Tetracycline antibiotics",
+    "Valproate anticonvulsants"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l22.q3",
+   "lessonId": "med-histo-embryo.l22",
+   "kind": "mcq",
+   "prompt": "A structural defect resulting from abnormal mechanical forces on an originally normal tissue, such as clubfoot with oligohydramnios, is called what?",
+   "choices": [
+    "A disruption",
+    "A sequence",
+    "A deformation",
+    "A malformation"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l22.q4",
+   "lessonId": "med-histo-embryo.l22",
+   "kind": "mcq",
+   "prompt": "A newborn has microcephaly, a smooth philtrum, thin upper lip, short palpebral fissures and a small ventricular septal defect. Which maternal exposure is most likely?",
+   "choices": [
+    "Warfarin used during the first trimester for a mechanical valve in the mother",
+    "Phenytoin used throughout pregnancy for an epilepsy diagnosis in the mother",
+    "Isotretinoin used in the first trimester for severe acne in the mother",
+    "Alcohol consumed during pregnancy, causing a foetal alcohol spectrum disorder"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l22.q5",
+   "lessonId": "med-histo-embryo.l22",
+   "kind": "mcq",
+   "prompt": "A newborn has cataracts, sensorineural deafness and a continuous machine-like murmur from a patent ductus arteriosus. Which maternal infection in early pregnancy is most likely?",
+   "choices": [
+    "Rubella, which causes a classic triad of ocular, auditory and cardiac anomalies",
+    "Cytomegalovirus, which causes periventricular calcification with prominent hearing loss",
+    "Toxoplasma gondii, which causes chorioretinitis and hydrocephalus with calcifications",
+    "Zika virus, which causes microcephaly with brain calcifications and ocular findings"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l23.q1",
+   "lessonId": "med-histo-embryo.l23",
+   "kind": "mcq",
+   "prompt": "How many arteries and veins are in a normal umbilical cord?",
+   "choices": [
+    "One artery and two veins",
+    "Two arteries and one vein",
+    "Two arteries and two veins",
+    "One artery and one vein"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l23.q2",
+   "lessonId": "med-histo-embryo.l23",
+   "kind": "mcq",
+   "prompt": "Which condition is associated with polyhydramnios?",
+   "choices": [
+    "Oesophageal atresia",
+    "Pulmonary hypoplasia",
+    "Premature rupture of membranes",
+    "Bilateral renal agenesis"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l23.q3",
+   "lessonId": "med-histo-embryo.l23",
+   "kind": "mcq",
+   "prompt": "Which maternal immunoglobulin class crosses the placenta to give the newborn passive immunity?",
+   "choices": [
+    "IgM",
+    "IgA",
+    "IgE",
+    "IgG"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l23.q4",
+   "lessonId": "med-histo-embryo.l23",
+   "kind": "mcq",
+   "prompt": "A 33-year-old at 34 weeks with a prior caesarean has painless vaginal bleeding. Ultrasound shows the placenta covering the internal os. Which statement best explains the risk of adherent placenta at delivery?",
+   "choices": [
+    "Placenta accreta arises where the chorion laeve is thickened, so the cord inserts abnormally at the margin of the placenta",
+    "Placenta accreta arises where the amnion is deficient, so the fluid leaks and the placenta collapses against the wall",
+    "Placenta accreta arises where the decidua basalis is deficient, as over a uterine scar, so villi invade the myometrium",
+    "Placenta accreta arises where the decidua capsularis is excessive, so the villi are separated from the uterine wall"
+   ]
+  },
+  {
+   "id": "med-histo-embryo.l23.q5",
+   "lessonId": "med-histo-embryo.l23",
+   "kind": "mcq",
+   "prompt": "Ultrasound of a twin pregnancy shows one placenta, a thin membrane between the twins and two amniotic sacs. At which time did the embryo most likely divide, and which complication is most characteristic?",
+   "choices": [
+    "Before day 4, with the risk of twin-to-twin transfusion owing to separate placentas",
+    "Between days 4 and 8, with a risk of twin-to-twin transfusion owing to shared vessels",
+    "Between days 8 and 12, with a risk of cord entanglement owing to a single amniotic sac",
+    "After day 13, with a risk of conjoined twins owing to incomplete separation of the disc"
+   ]
+  }
+ ]
+}

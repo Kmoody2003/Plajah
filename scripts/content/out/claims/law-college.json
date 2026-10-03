@@ -1,0 +1,1517 @@
+{
+ "courseId": "law-college",
+ "label": "Legal Studies and Legal Reasoning",
+ "lessons": [
+  {
+   "id": "law-college.l01",
+   "title": "Early Written Law: Hammurabi and the Twelve Tables",
+   "body": [
+    "Before law was written, rules lived in custom and in the memory of elders, kings or priests. That gave whoever remembered the rule great power to shape it. Writing a rule down and displaying it publicly changes the relationship between ruler and ruled: the rule becomes something anyone literate can point to, and a decision-maker can be measured against it.",
+    "The Code of Hammurabi is among the best known early written collections. It is associated with Hammurabi, king of Babylon in the eighteenth century BCE, and survives most famously on a carved stone stele now in the Louvre. It is not a modern code that states general principles. It is a long list of case-shaped provisions in an \"if a man does X, then Y follows\" pattern, covering property, family, debt, trade, injury and the professional liability of builders and physicians. Many provisions scale the outcome to the social rank of the people involved, which is very unlike modern equality before the law. The phrase \"an eye for an eye\" is often attached to it; scholars read talionic provisions as a limit on punishment as well as a source of it, because the penalty is capped at matching the injury, though the code also contains ranks and substitutes such as fines.",
+    "Rome's Twelve Tables, traditionally dated to about 451 to 450 BCE, came out of a long struggle between the patricians and plebeians. The plebeians complained that magistrates drawn from the patrician class applied unwritten rules at will, so a commission drafted rules that were then displayed in public. The text survives only in later quotations, but its subjects are clear: procedure for bringing a lawsuit, debt, family authority, property, and wrongs. Later Romans treated it as the foundation of their law and children reportedly memorised it.",
+    "A worked contrast: suppose a builder's house collapses and kills the owner. Under a purely customary system the outcome depends on what the elders recall and on who is powerful. Under a code like Hammurabi's, the builder's liability is stated in advance, harsh as it may be. The value of the code is predictability and publicity, which are features lawyers later call the rule of law, even where the content is unequal by modern standards.",
+    "A common trap is to call these \"the first laws.\" Societies had binding rules long before writing, and earlier Mesopotamian collections predate Hammurabi's. The accurate claim is that these are influential and well-preserved early written examples."
+   ]
+  },
+  {
+   "id": "law-college.l02",
+   "title": "Roman Law and the Civil Law Tradition",
+   "body": [
+    "Roman law developed over about a thousand years, and its distinctive feature was the jurist. Jurists were learned individuals who gave opinions on legal questions, and praetors, the magistrates who supervised civil litigation, adapted the rules by announcing in an edict how they would grant remedies. Law grew by reasoned answers to concrete problems, yet Roman writers also sorted those answers into categories: persons, things and actions are the framework used in the Institutes of Gaius and later in Justinian's textbook.",
+    "In the sixth century CE the Eastern Roman emperor Justinian ordered his officials, working under the lawyer Tribonian, to gather and organise the law. The result, known since the Middle Ages as the Corpus Juris Civilis, has four parts. The Code collects imperial constitutions. The Digest (or Pandects) excerpts the writings of the classical jurists. The Institutes is an introductory textbook for students. The Novels are later laws issued by Justinian himself. Justinian's aim was to end the confusion of conflicting authorities by making a single authoritative text.",
+    "Western Europe had lost direct use of this body of law. In the late eleventh century and after, scholars at Bologna studied the Digest, and the study of Roman law spread through the new universities. Over the following centuries, Roman concepts of contract, property, obligations and legal personality were taken up, combined with local custom and church law, and eventually reshaped into national codes. This is called the reception of Roman law. It is the intellectual ancestor of the civil law systems of continental Europe, including the French Civil Code of 1804 and the German Civil Code that took effect in 1900.",
+    "Why this matters to an American student: English common law grew from royal courts and custom, not from the Digest, but Roman terms and ideas still entered it through canon law, admiralty and equity, and Louisiana's private law remains partly civil law in origin. Even the Latin vocabulary of law, such as habeas corpus, res ipsa loquitur and mens rea, is a reminder that many legal ideas travelled through Latin.",
+    "A frequent mistake is to say that the Roman Empire fell in 476 and Roman law disappeared. In the Eastern Empire it continued, and in the West it persisted in local practice and, later, in revived learning."
+   ]
+  },
+  {
+   "id": "law-college.l03",
+   "title": "The Making of English Common Law",
+   "body": [
+    "After the Norman Conquest of 1066, English kings gradually built a central system of royal courts. Under Henry II, in the second half of the twelfth century, royal justice expanded: itinerant judges travelled the country and applied the same principles everywhere, and the law they applied became known as the common law because it was common to the whole kingdom, in contrast to the varying local and feudal customs that had come before.",
+    "Three features defined the early system. First, the writ: to begin an action in a royal court a person normally had to obtain a formal order fitting a recognised category, so the \"forms of action\" shaped what claims could be heard. Second, the jury, in which local people informed the court of facts, an ancestor of the modern trial jury. Third, the habit of reasoning from decided cases, which developed into the doctrine of precedent.",
+    "Magna Carta, sealed in 1215 under pressure from rebellious barons, was a settlement between King John and his barons rather than a modern constitution. Its lasting symbolic importance is that it asserted the king was subject to law, and later generations drew from it ideas of due process and trial by peers. It was reissued several times in the thirteenth century in revised form, and only a few clauses remain in force in England today.",
+    "Because the common law courts were bound by the forms of action, a litigant could sometimes suffer a wrong the writs did not fit, or where the available remedy, usually money damages, was inadequate. Such petitioners appealed to the king, and the matter passed to the Lord Chancellor and the Court of Chancery. Chancery developed equity, which offers flexible remedies such as the injunction and specific performance, and which acts on the conscience of the defendant. For centuries England had two parallel systems, law and equity, and the Judicature Acts of the 1870s merged their administration. In most American states and in federal courts today the same court can offer both legal and equitable remedies, but the distinction still matters, for instance to the right to a jury trial.",
+    "A worked example: a seller contracts to deliver a one-of-a-kind painting and then refuses. Damages at law pay money, but a buyer who wants the painting may ask in equity for specific performance, an order to deliver."
+   ]
+  },
+  {
+   "id": "law-college.l04",
+   "title": "From the Crown to the Constitution: Common Law in America",
+   "body": [
+    "English colonists carried the common law with them, adapting it to local conditions. William Blackstone's Commentaries on the Laws of England, published from 1765, gave lawyers on both sides of the Atlantic an orderly account of the law and became the standard text for early American lawyers. After independence, most states adopted the common law of England as it stood at some date by constitution or reception statute, except where it conflicted with local conditions or later statutes. This is why each state has its own body of common law and why states may differ.",
+    "The American revolution added something England did not have in the same form: a written constitution that is supreme law. Under it, legislatures and executives can be held to the constitution by courts. In Marbury v. Madison, decided by the Supreme Court in 1803, Chief Justice John Marshall reasoned that the Constitution is superior to ordinary legislation, that it is the duty of courts to say what the law is, and so a federal statute conflicting with the Constitution cannot be applied. That decision is the classic source of judicial review in the United States.",
+    "Over the nineteenth and twentieth centuries, legislatures took over much of the field once governed by case law. Today a modern American lawyer works with a layered mix: constitutions, statutes, administrative regulations and common law, and the common law governs mainly areas like torts, contracts and property that legislatures have not fully codified, and it is also the method courts use to interpret and fill gaps in statutes. The Uniform Commercial Code, a model statute developed for adoption by the states, codified much of commercial contract law for sales of goods, showing how statute and common law interact.",
+    "A worked example: a state has no statute on whether a landowner owes a duty of care to a trespasser. A court faced with the question will look to earlier cases in its own state, then to persuasive decisions elsewhere, and reason by analogy.",
+    "A common trap is to think common law means \"old law.\" It means judge-made law developed case by case, and it is still being made today."
+   ]
+  },
+  {
+   "id": "law-college.l05",
+   "title": "The Major Legal Systems of the World",
+   "body": [
+    "Comparative lawyers sort the world's legal systems into families, remembering that every real country mixes elements. The sorting helps a learner see what is distinctive about each approach.",
+    "Common law systems, found in England, the United States (outside Louisiana in private law), Canada outside Quebec, Australia, India and many former British territories, treat judicial decisions as a source of law. A court is expected to follow earlier decisions on similar facts, and trials are typically adversarial: the parties present evidence and argument, and the judge acts largely as umpire.",
+    "Civil law systems, found across continental Europe, Latin America and many other places, take as their primary source of law a comprehensive code or statute, organised by subject and descended from Roman law. Judges are expected to apply the code to the facts, and earlier decisions are persuasive and influential without being formally binding in the way a common law court is bound. Proceedings are often described as inquisitorial, meaning the judge takes a more active role in investigating the facts, though modern systems vary a great deal and the contrast is easy to overstate.",
+    "Religious legal systems take sacred texts and their interpretation as authoritative. Examples include Islamic law, or sharia, interpreted through the work of jurists and schools of jurisprudence (fiqh), Jewish law (halakha), and the canon law of the Catholic Church. Some states apply religious law to personal status matters such as marriage and inheritance while using secular law for the rest, and a few apply it more broadly. Religious law can also function within communities in a country whose general law is secular.",
+    "Customary law rests on long-standing practice that a community regards as binding. It is important in many African and Pacific states, in parts of Asia, and in the way many Indigenous communities manage land, family and dispute resolution. Customary law is often unwritten, and many states recognise it alongside statutory law.",
+    "Mixed systems combine elements: Scotland, Louisiana, Quebec, South Africa and Israel are commonly cited examples. A worked illustration: South Africa's private law draws on Roman-Dutch law, a form of civil law, while its courts also follow common law style precedent and its constitution recognises customary law.",
+    "The main trap is stereotyping. Common law jurisdictions have enormous statutory codes, and civil law judges do cite and follow prior cases. The families differ in emphasis and method, not in a clean either-or."
+   ]
+  },
+  {
+   "id": "law-college.l06",
+   "title": "Sources of American Law and the Hierarchy of Authority",
+   "body": [
+    "American law has several sources, and a lawyer's first job is often to work out which one controls. They are ranked. At the top is the United States Constitution; the Supremacy Clause of Article VI makes the Constitution, federal statutes made in pursuance of it, and treaties the supreme law of the land, binding on state judges notwithstanding contrary state law. Below the federal Constitution but above ordinary state law sit federal statutes. Each state has its own constitution, which is supreme within the state subject to federal law, then state statutes, then regulations and the state's common law.",
+    "Statutes are enacted by legislatures. Administrative regulations are rules made by executive agencies under authority a legislature has delegated, for example by the Environmental Protection Agency under the Clean Air Act. A regulation must be within the authority the statute gives, and it may not conflict with the statute or the Constitution. Case law, the decisions of courts, both interprets those texts and creates common law where there is no controlling text.",
+    "Two other categories matter. Primary authority is law itself, meaning constitutions, statutes, regulations and cases. Secondary authority, such as treatises, law review articles and the Restatements of the Law, explains or summarises the law and is persuasive only. The Restatements, published by the American Law Institute, restate common law fields like torts and contracts, and courts often cite them without being bound by them.",
+    "Authority also differs in whether it is mandatory or persuasive for a given court. A court is bound by mandatory authority from higher courts in its own jurisdiction and treats decisions from other jurisdictions as persuasive. In Erie Railroad Co. v. Tompkins, decided in 1938, the Supreme Court held that a federal court sitting in diversity jurisdiction must apply state substantive law, including state common law, rather than a general federal common law. That case is a standard illustration of how federal courts must identify the right source of law.",
+    "A worked example: a state statute says speed limits on a road are 40 mph, a city ordinance says 30 mph, and a federal regulation does not address it. A driver is cited at 35. The state statute may preempt a conflicting ordinance, depending on whether the state has delegated or reserved power over local roads, so the first question is which source controls, not just what each says.",
+    "A common mistake is to treat the most recent source as controlling. Hierarchy comes first; recency matters mostly among sources of the same rank."
+   ]
+  },
+  {
+   "id": "law-college.l07",
+   "title": "Federalism and the Three Branches",
+   "body": [
+    "The Constitution divides power in two directions. Vertically, federalism splits authority between the national government and the states. Horizontally, separation of powers splits the national government into Congress, the President and the courts, with checks and balances so that each can restrain the others.",
+    "Congress holds the legislative power under Article I: it makes statutes, levies taxes, regulates interstate commerce and declares war. The President holds the executive power under Article II and executes the laws, commands the armed forces, and may veto bills, subject to override by two thirds of each house. The federal courts hold the judicial power under Article III, which extends to defined categories of cases and controversies. Federal judges are appointed by the President with the advice and consent of the Senate and hold office during good behaviour.",
+    "The federal government is one of enumerated powers: it can act only where the Constitution grants authority. In McCulloch v. Maryland, decided in 1819, the Supreme Court held that Congress had implied power, through the Necessary and Proper Clause, to create a national bank, and that a state could not tax the bank. States, by contrast, hold general police power, which is the broad authority to regulate for health, safety, welfare and morals. The Tenth Amendment says that powers not delegated to the United States nor prohibited to the states are reserved to the states or the people.",
+    "Both levels can regulate the same subject, and where they conflict, preemption applies under the Supremacy Clause: valid federal law overrides contrary state law. Preemption may be express in the statute, or implied if Congress has occupied the field or if compliance with both laws is impossible or state law stands as an obstacle to the federal purpose.",
+    "A worked example: Congress passes a statute setting a national labelling standard for a food product and states \"no state may impose any different labelling requirement.\" A state enacts a stricter label. The statute's express preemption language, not the Tenth Amendment, decides the outcome, so the state label is likely invalid to the extent it differs.",
+    "A common trap is to think the Tenth Amendment protects states against any federal action. It does not override powers the Constitution actually grants, so the first question is always whether a federal power exists."
+   ]
+  },
+  {
+   "id": "law-college.l08",
+   "title": "Anatomy of a Judicial Opinion and How to Brief a Case",
+   "body": [
+    "A judicial opinion is a court's written explanation of a decision. Learning to read one is the central skill of legal study, because opinions are both the source of common law and the way courts apply statutes. Opinions are not novels: they are written to justify a result, and you read them with a purpose, to extract what the court decided and why.",
+    "Most opinions share a rough anatomy. The caption names the parties and court. Then come the facts, the procedural posture (how the case reached this court: for instance, an appeal from summary judgment for the defendant), the issue or question the court must answer, the holding that answers it, and the reasoning that links the holding to the rule. The disposition states what happens to the case: affirmed, reversed, remanded. Opinions can include a concurrence, written by a judge who agrees with the result but on different grounds, and a dissent, written by a judge who disagrees. A majority opinion carries the force of the court; concurrences and dissents do not bind but can shape later law.",
+    "A case brief is a short summary you write for yourself. A common structure includes the facts that matter, the procedural history, the issue, the holding, the rule, the reasoning and the disposition. Many students organise the analysis as IRAC: issue, rule, application, conclusion. The brief is an analytical tool, so it must be selective. The test for a fact is whether changing it would plausibly change the outcome.",
+    "A worked example is Palsgraf v. Long Island Railroad Co., decided by the New York Court of Appeals in 1928. Two railroad guards helped a passenger, who was running to catch a moving train, board it; the passenger dropped a package containing fireworks, which exploded and the shock toppled scales on the platform far away, injuring Mrs. Palsgraf. The majority, written by Judge Cardozo, held that the railroad owed no duty to a plaintiff who was outside the zone of foreseeable danger from the guard's act, so there was no negligence toward her. Judge Andrews dissented, reasoning that a duty is owed to the world at large and the limit should come through proximate cause. The judgment for the plaintiff was reversed.",
+    "A common trap is to copy facts instead of selecting them, or to state the holding too broadly. A holding states the rule applied to the material facts, not a sweeping principle on the whole subject. Another trap is mixing up the outcome with the reasoning: you can win under a rule that a later court rejects."
+   ]
+  },
+  {
+   "id": "law-college.l09",
+   "title": "Holding, Dicta and the Level of Generality",
+   "body": [
+    "Only part of an opinion has binding force. The holding, sometimes called the ratio decidendi in English usage, is the rule of law that the court relied on to decide the specific dispute, applied to the material facts. Obiter dictum, or dicta, are statements that are not necessary to the result: a hypothetical, a broad aside, a comment on an issue the court need not reach. Dicta can be persuasive, especially from a respected court, but they do not bind later courts.",
+    "Telling them apart is a skill that requires judgment, and the test is necessity. Ask whether the result would have been the same had the court not said it. If the statement was needed to reach the outcome, it is part of the holding. If the court gave two independent grounds for the decision, many authorities treat both as holdings, though some argue each is weaker.",
+    "The level of generality matters. Take a case in which a customer slips on a wet floor in a grocery store and the court rules for the store because it had no notice of the spill. One could state the holding narrowly: a grocery store is not liable for a spill of which it had neither actual nor constructive notice. Or broadly: a business owner is liable only with notice of a hazard. A later court that wants to extend the case will pick the broad version, and a court that wants to avoid it will use the narrow version. Lawyers therefore argue over how to state a holding, which is not a dishonest game but a central part of legal craft.",
+    "Two other terms help. A court's reasoning on the facts is distinct from its choice of a rule. And a plurality opinion arises when no single rationale commands a majority of the justices, and later courts try to identify the narrowest ground on which a majority agreed.",
+    "A worked example: in a contract case a court holds a promise unenforceable for lack of consideration, and adds that a written promise would be binding \"under any circumstance.\" If the written-promise point did not affect the result, it is dicta. A later court faced with a written promise would be free to examine it afresh, though it may find the comment persuasive.",
+    "A common mistake is to treat everything in the opinion as binding, or to treat only the exact facts as binding. Neither is right: the holding is the rule necessary to the decision, applied to the material facts."
+   ]
+  },
+  {
+   "id": "law-college.l10",
+   "title": "Stare Decisis: Following, Distinguishing and Overruling",
+   "body": [
+    "Stare decisis is Latin for \"to stand by things decided.\" It is the principle that courts should follow earlier decisions on similar issues, which promotes consistency, predictability, equal treatment of like cases and efficiency. It works vertically and horizontally. A lower court is bound by the decisions of higher courts in its own hierarchy: a federal district court is bound by its circuit court of appeals and by the Supreme Court. Decisions from other circuits or other states are persuasive only. Horizontally, a court usually follows its own earlier decisions, though it is not as strictly bound by them as by those of a higher court.",
+    "The system has built-in flexibility. A court can distinguish a prior case by identifying a material difference in facts that justifies a different rule or result. A court can also narrow or limit a precedent. A court with the authority to do so may overrule a precedent, declaring it no longer good law. The Supreme Court can overrule its own constitutional decisions, which are hard to fix by legislation, though it generally requires a special justification. Factors courts weigh include whether the old rule has proved unworkable, whether it is badly reasoned, whether later developments have undermined its basis, and how much people have relied on it.",
+    "A classic illustration is the move from Plessy v. Ferguson, decided in 1896, which upheld state-mandated racial segregation under the \"separate but equal\" doctrine, to Brown v. Board of Education, decided in 1954, which held that segregation in public schools violates the Equal Protection Clause of the Fourteenth Amendment. Brown is understood as a repudiation of the Plessy doctrine in the field of public education, and later decisions extended it to other public facilities.",
+    "Precedent is not only a matter of outcome. Courts distinguish between binding authority and persuasive authority, between a published opinion and one designated not for publication, and between a decision on the merits and a summary disposition.",
+    "A worked example: suppose a state supreme court has held that an employer is liable for an employee's collision during a delivery. A later case involves an employee driving home for lunch, a trip the employer did not control. A lawyer for the employer will distinguish the earlier case because the trip served no business purpose, while the plaintiff will argue the principle covers any foreseeable risk of the job.",
+    "A common trap is to think precedent means courts can never change course. The doctrine is a strong presumption, not an absolute bar."
+   ]
+  },
+  {
+   "id": "law-college.l11",
+   "title": "Reasoning by Analogy and the Hierarchy of Courts",
+   "body": [
+    "Common law reasoning moves from case to case. When a new dispute arrives, a lawyer asks which earlier cases are most like it and whether they share the features the earlier court thought important. Reasoning by analogy has a recognisable structure: identify a precedent, extract the rule and the reasons behind it, then argue that the new facts are alike in the way that matters (so the same result follows) or unlike in a way that matters (so a different result is justified). The skill is not matching surface similarity but identifying the reason the earlier court decided as it did.",
+    "A useful test is purpose. If a precedent held that a landlord is liable for a rotten staircase because a landlord controls the common areas and tenants cannot repair them, then a new case about a broken common hallway light is analogous because the same reason applies. A case about a hazard inside a tenant's own apartment may be distinguishable because the control rationale does not apply. Counsel for each side picks the feature of the earlier case that favors the client, and the court decides which feature carries the weight.",
+    "Court structure influences which analogies are mandatory. The federal system has ninety-four district courts at the trial level, thirteen courts of appeals (twelve regional circuits and the Federal Circuit), and the Supreme Court. A court of appeals decision binds the district courts within that circuit but is only persuasive elsewhere. When circuits disagree, a circuit split arises, and the Supreme Court often grants review to resolve it, though it is not required to do so. State systems usually have trial courts, an intermediate appellate court and a highest court, though names and structure vary by state.",
+    "A worked example: a lawyer in the Seventh Circuit finds a Ninth Circuit decision exactly on point and a Fourth Circuit decision to the contrary. Neither binds the Seventh Circuit district court. The lawyer argues which has the better reasoning, and checks whether the Seventh Circuit has decided the issue, because its own decisions would control.",
+    "A common mistake is to cite a binding case from the wrong hierarchy. A decision of a state court of another state, or of a federal court of a different circuit, is persuasive only, however famous the court or judge."
+   ]
+  },
+  {
+   "id": "law-college.l12",
+   "title": "Textualism, Purposivism and Intentionalism",
+   "body": [
+    "A statute is a text enacted by a legislature, but words rarely apply themselves. A court asked to apply a statute to facts the drafters did not foresee must decide what the statute means, and that decision depends on a theory of interpretation. Three families of approaches dominate American discussion.",
+    "Textualism holds that the meaning of a statute is the meaning of its words as an ordinary reader, aware of the context and legal conventions, would understand them when enacted. Its defenders argue that only the text went through the process of bicameralism and presentment (passage by both houses and signature or veto override by the executive), that legislative history can be selectively quoted, and that fixed text constrains judges. Critics respond that language is often ambiguous and that strict adherence can produce results nobody intended.",
+    "Purposivism holds that a statute should be read to advance its purpose, so ambiguous text should be read in the way that best fits the problem the legislature was trying to solve. Purposivists consider the statute as a whole, its structure, its title and its legislative history to find that purpose. Critics say purpose can be stated at many levels of generality and that judges may substitute their own policy preferences.",
+    "Intentionalism asks what the enacting legislators actually intended on the specific question. It is less common today, partly because a body of hundreds of people has no single intent and partly because the legislators likely had no view on the question at issue.",
+    "A well-known example is Church of the Holy Trinity v. United States, decided by the Supreme Court in 1892. Congress had barred paying the passage of foreign workers under contract to perform \"labor or service of any kind.\" A church had hired an English clergyman as pastor. The Court held that the statute did not apply, reasoning that Congress aimed at manual labor and that applying the statute to a minister would be contrary to its spirit. The case is cited as a classic of purposive reasoning, and textualists criticise it for departing from the plain words.",
+    "A practical point: most courts today start with the text and use it first, then turn to structure, canons and perhaps history only if ambiguity remains. The theories differ in how readily they leave the text, not in whether the text matters.",
+    "A common trap is to say a judge using legislative history is \"making law.\" Whether and when history may be used is the very point of disagreement among the theories."
+   ]
+  },
+  {
+   "id": "law-college.l13",
+   "title": "The Canons of Construction",
+   "body": [
+    "Canons of construction are rules of thumb that courts use to resolve doubt about the meaning of a text. They are not binding rules of law and they can conflict with each other, so they are tools of argument, and a court picks the ones that fit.",
+    "Linguistic canons reflect how people ordinarily use language. Noscitur a sociis (a word is known by the company it keeps) says that an unclear word takes colour from its neighbours in a list. Ejusdem generis (of the same kind) says that when a list of specific items ends in a general phrase, the general phrase covers things like the specific ones. A statute banning \"cars, trucks, motorcycles and other vehicles\" is likely about motor vehicles, so a court might doubt that it covers a bicycle or a rowboat. Expressio unius est exclusio alterius (the expression of one thing excludes others) says that listing particular items implies that omitted items are excluded, though it is weak where the list was plainly not meant to be complete. The whole act rule reads each provision in light of the entire statute, and a presumption of consistent usage reads the same term the same way within an act.",
+    "Substantive canons reflect policy values. The rule of lenity resolves genuine ambiguity in a criminal statute in favour of the defendant, based on fair notice and the legislature's role in defining crimes. The constitutional avoidance canon reads a statute, where fairly possible, to avoid serious doubt about its constitutionality. Other canons presume against retroactive application of new laws, presume that Congress does not intend to displace state power without clear statement, and read remedial statutes broadly.",
+    "A related idea is the absurdity doctrine, under which a court may depart from the literal meaning only when it produces a result so absurd that no legislature could have intended it, and where the intended fix is obvious.",
+    "A worked example: a statute makes it a crime to \"carry a firearm\" in connection with a drug offence, and a defendant argues that the word \"carry\" covers only carrying on one's person. The prosecution points to ordinary usage that includes transporting in a vehicle. A court would first look at ordinary meaning in context, and the rule of lenity would come in only if real ambiguity remained after the other tools were used.",
+    "A common mistake is to treat a canon as a rule that must be followed. A canon yields to clear text or to a more persuasive reading of the whole statute."
+   ]
+  },
+  {
+   "id": "law-college.l14",
+   "title": "Agencies, Deference and the Limits of Interpretation",
+   "body": [
+    "Many federal statutes are administered by agencies, which interpret them in rules and decisions. A recurring question is how much weight a court should give to the agency's reading when the statute is ambiguous. This area has changed recently, so this lesson states the law as of this writing and a reader should check for later developments.",
+    "In Chevron U.S.A. Inc. v. Natural Resources Defense Council, Inc., decided by the Supreme Court in 1984, the Court set out a two-step approach. First, a court asked whether Congress had directly spoken to the precise question, in which case the clear meaning controlled. If the statute was silent or ambiguous, the court asked whether the agency's interpretation was a permissible construction, and if so it deferred. The rationale was that ambiguity in a statute an agency administers is a delegation of policy-making authority to the agency, and that agencies have expertise and political accountability.",
+    "In Loper Bright Enterprises v. Raimondo, decided in 2024, the Supreme Court overruled Chevron. It held that the Administrative Procedure Act requires courts to exercise independent judgment about whether an agency has acted within its statutory authority, and that courts may not defer to an agency's interpretation merely because a statute is ambiguous. The Court said that an agency's views can still receive respect, as persuasive sources whose weight depends on their thoroughness and consistency, which is the older approach associated with Skidmore v. Swift & Co. (1944). The Court also noted that Congress may sometimes expressly delegate discretionary authority to an agency, and courts must police the boundaries of that delegation. The Court said it did not intend to disturb prior cases that had been decided under Chevron.",
+    "So today the starting point is a court's own best reading of the statute, using the traditional tools of interpretation. If a statute expressly grants an agency discretion, for example to determine what is \"appropriate,\" then the court asks whether the agency acted within that grant and used reasoned decision-making.",
+    "A worked example: a statute authorises an agency to regulate \"air pollutants,\" and the agency claims the term covers a substance Congress never mentioned. After Loper Bright, the court decides for itself what the statute's words mean, giving the agency's view only the weight its reasoning earns, unless the statute itself delegates authority to define the term.",
+    "A common trap is to say agency views no longer matter. They remain relevant, though not controlling, and agencies still have broad authority where Congress has delegated it."
+   ]
+  },
+  {
+   "id": "law-college.l15",
+   "title": "Argument Structure, Validity and Conditional Logic",
+   "body": [
+    "An argument is a set of statements in which some, the premises, are offered to support another, the conclusion. Legal writing is full of arguments: a brief argues a rule applies, a judge argues a result follows. The first skill is to find the conclusion, which is the point being defended, and the premises that support it. Words such as \"therefore,\" \"thus\" and \"it follows that\" often mark conclusions, and \"because\" and \"since\" often mark premises, but the structure matters more than the signal words.",
+    "A deductive argument aims to guarantee its conclusion. It is valid if it is impossible for all the premises to be true and the conclusion false; validity concerns form, not truth. It is sound if it is valid and its premises are in fact true. An inductive argument aims only to make the conclusion probable, as when a lawyer argues from several similar cases that a court will probably rule a certain way. Strength, not validity, is the standard for induction.",
+    "Conditional reasoning is central to law, because legal rules are conditionals: if the elements are met, then the consequence follows. In \"if P then Q,\" P is the sufficient condition (P guarantees Q) and Q is the necessary condition (without Q, P cannot be true). Four inferences follow. From P, you may conclude Q (affirming the antecedent, valid). From not-Q, you may conclude not-P (the contrapositive, valid). From Q, you may not conclude P (affirming the consequent, invalid). From not-P, you may not conclude not-Q (denying the antecedent, invalid).",
+    "A worked example: a statute says \"a contract is enforceable only if it is supported by consideration.\" This is \"if enforceable, then consideration.\" If there is no consideration, the contract is not enforceable (contrapositive). But finding consideration does not prove enforceability, since other requirements may also be needed, such as capacity or legality.",
+    "Words like \"only if,\" \"unless,\" \"must\" and \"requires\" signal a necessary condition, and \"if,\" \"whenever\" and \"sufficient\" signal a sufficient one. \"Unless\" can be translated as \"if not\": \"Q unless P\" is \"if not P, then Q.\"",
+    "A common trap is to read \"only if\" as \"if and only if.\" A necessary condition alone does not guarantee the result. Another is to assume that a valid argument has a true conclusion: a valid argument with a false premise may have a false conclusion."
+   ]
+  },
+  {
+   "id": "law-college.l16",
+   "title": "Fallacies and Flaws in Legal and Everyday Argument",
+   "body": [
+    "A fallacy is a pattern of reasoning that looks persuasive but does not support its conclusion. Spotting them helps a lawyer attack an opponent's argument and avoid weaknesses in their own. A fallacious argument may still have a true conclusion; the point is that the reasons offered do not establish it.",
+    "Several families are worth knowing. Ad hominem attacks the person making a claim instead of the claim. In law this is distinct from legitimate impeachment: showing that a witness has been convicted of fraud or has a financial stake bears on credibility, which is relevant, while insulting a witness's appearance is not. Straw man misstates an opponent's position in a weaker form and then refutes the distorted version. False dilemma presents two options as the only ones when others exist. Slippery slope claims a small step will inevitably lead to a drastic result without showing the chain of causation; note that in law, a slippery-slope worry can be legitimate when a rule's rationale really would extend, so the question is whether the steps are actually supported.",
+    "Begging the question (circular reasoning) assumes the conclusion in a premise, as in \"the defendant is guilty because he committed the crime.\" Equivocation uses a word in two senses, for instance \"the contract was void\" meaning unenforceable in one step and meaning never formed in another. Appeal to authority is not always fallacious, because an expert witness is permitted, but it is weak when the authority has no expertise on the subject or when the claim is widely disputed among experts.",
+    "Causal fallacies include post hoc ergo propter hoc (after this, therefore because of this) and confusing correlation with causation. In tort law, causation requires more than sequence in time, namely evidence that the defendant's act was a cause in fact and that the harm was within the scope of the risk.",
+    "Flaws of generalisation include hasty generalisation from a small or biased sample, and the fallacy of composition or division, which assumes what is true of the whole is true of its parts or the reverse.",
+    "A worked example: a plaintiff argues, \"Since the store had three accidents last year, and my fall was an accident, the store must have been negligent.\" This is a hasty inference from the number of accidents; accidents may occur without negligence, so the argument needs evidence of what the store did or failed to do.",
+    "A common trap is to label every argument you dislike a fallacy. A fallacy must be shown to follow from the structure of the argument."
+   ]
+  },
+  {
+   "id": "law-college.l17",
+   "title": "LSAT-Style Reasoning: Question Types and Strategy",
+   "body": [
+    "The Law School Admission Test is a standardised exam offered by the Law School Admission Council and used by most American law schools in admissions. As of this writing, its scored sections are two sections of logical reasoning and one of reading comprehension; the analytical reasoning section, often called logic games, was removed beginning with the August 2024 administration. There is also an unscored writing sample taken separately. Check the current format with the Council before preparing, because formats change.",
+    "Logical reasoning questions present a short passage, and a question stem tells you what to do with it. Common tasks are to identify the conclusion, to find an assumption the argument needs, to strengthen or weaken the argument, to find a flaw, to draw a valid inference from given statements, to resolve an apparent paradox, and to match the reasoning of the argument to another with the same structure. Before choosing, find the conclusion and the support, and ask what link between them is unstated.",
+    "A necessary assumption is something the argument cannot do without; a sufficient assumption is something that would guarantee the conclusion if added. To test a necessary assumption, negate it and see whether the argument collapses. To weaken, attack the link or offer an alternative explanation; to strengthen, support the link or rule out alternatives.",
+    "A worked example in original form: \"Studies show that employees in offices with plants report higher job satisfaction. Therefore, adding plants to an office will raise satisfaction.\" The conclusion is causal. The argument assumes that the plants, not some other factor, explain the reported satisfaction, and that the relationship is not reversed (satisfied employees may bring in plants). A weakening choice might state that offices with plants are also those with generous leave policies. A strengthening choice might report an experiment in which offices were randomly assigned plants.",
+    "Reading comprehension tests the structure of dense passages: main point, author's attitude, how paragraphs relate, and what can be inferred. Strategy is to note the structure and the author's stance as you read, and to prefer answers that stay close to the passage over those that go beyond it.",
+    "A common trap is to bring outside knowledge. The correct answer comes from what the stimulus says and the logic of the argument, and attractive wrong answers often use extreme words such as \"always\" or \"never\" or introduce a new topic."
+   ]
+  },
+  {
+   "id": "law-college.l18",
+   "title": "The Path to Practice: Law School, the Bar and Professional Duties",
+   "body": [
+    "In most American states, becoming a lawyer follows a typical sequence. A person completes a bachelor's degree in any major; there is no required pre-law major. The person takes the LSAT (or, at some schools, an alternative test the school accepts), applies to law schools, and, if admitted, earns a Juris Doctor (J.D.), usually in three years of full-time study. Most states require graduation from a law school accredited by the American Bar Association for bar admission, with some exceptions and alternative routes in a small number of states.",
+    "The first year of law school typically covers core subjects such as civil procedure, contracts, criminal law, property and torts, plus legal research and writing, often with constitutional law. Teaching traditionally uses the case method, in which students read opinions and are questioned in class, and the Socratic method. Later years allow electives, clinics where students represent real clients under supervision, journals, moot court and externships. Law school grading is often on a curve and based heavily on a final exam, which tests the application of rules to fact patterns.",
+    "After graduation comes the bar examination, administered by each state or jurisdiction. Many states use the Uniform Bar Examination, which combines the Multistate Essay Examination, the Multistate Performance Test and the Multistate Bar Examination, and produces a portable score accepted by participating jurisdictions. A new exam format, the NextGen bar exam, is being introduced in stages by participating jurisdictions beginning in 2026, so candidates should check which test their jurisdiction uses. Most states also require the Multistate Professional Responsibility Examination and a character and fitness review.",
+    "Admitted lawyers are bound by rules of professional conduct. Most states have adopted versions of the American Bar Association's Model Rules of Professional Conduct, which address competence, confidentiality, conflicts of interest, candour to the tribunal and fees. The duty of confidentiality is broad, while the attorney-client privilege is an evidentiary rule that protects certain confidential communications for the purpose of obtaining legal advice.",
+    "A worked example: a lawyer learns confidential information from a client about a past transaction. A rule of professional conduct generally bars disclosure without informed consent, subject to narrow exceptions set by each state's rules, such as preventing certain serious harms.",
+    "A common trap is to assume the path is identical everywhere. A few states permit \"reading the law\" through apprenticeship, and requirements differ for foreign-trained lawyers. Check the rules of the specific jurisdiction."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "law-college.l01.q1",
+   "lessonId": "law-college.l01",
+   "kind": "mcq",
+   "prompt": "What best describes the structure of most provisions in the Code of Hammurabi?",
+   "choices": [
+    "Narrative accounts of earlier court decisions that bind later judges as precedent",
+    "General moral commandments with no stated consequences for people who break them",
+    "Case-shaped statements in an \"if someone does X, then Y follows\" pattern covering many everyday disputes",
+    "Abstract constitutional principles that guarantee equal rights to every person in the kingdom regardless of rank"
+   ]
+  },
+  {
+   "id": "law-college.l01.q2",
+   "lessonId": "law-college.l01",
+   "kind": "mcq",
+   "prompt": "What was the main reason the Twelve Tables were displayed publicly in Rome?",
+   "choices": [
+    "Rome wanted to replace its courts with a single foreign legal code taken from Babylon",
+    "Priests wanted to restrict knowledge of the law to a small group of trained officials",
+    "The Senate wanted to abolish the legal distinction between plebeians and patricians in a single stroke",
+    "Plebeians wanted the rules fixed and known so magistrates could not apply unwritten law at will"
+   ]
+  },
+  {
+   "id": "law-college.l01.q3",
+   "lessonId": "law-college.l01",
+   "kind": "mcq",
+   "prompt": "A scholar says the \"eye for an eye\" principle in ancient codes can be read as a limit on punishment. Which reasoning supports that reading?",
+   "choices": [
+    "The penalty is capped at matching the injury rather than being left to the victim's anger",
+    "The penalty is always paid in money, so no bodily punishment was ever imposed",
+    "The penalty is set by the wealth of the offender and by his standing, not by the injury that was done",
+    "The penalty is decided by a jury of neighbours rather than by a king or judge"
+   ]
+  },
+  {
+   "id": "law-college.l01.q4",
+   "lessonId": "law-college.l01",
+   "kind": "mcq",
+   "prompt": "A student writes that Hammurabi's Code was \"the first law ever.\" Which correction is most accurate?",
+   "choices": [
+    "It is not real law at all because it was never enforced by any court in Babylon",
+    "Societies had binding custom long before writing, and earlier Mesopotamian collections exist; it is a famous, well-preserved early example",
+    "The code was actually written after Roman law and borrowed heavily from the Twelve Tables",
+    "It was the first law but only because it was the first to be enforced by a professional police force operating under a standing royal court system"
+   ]
+  },
+  {
+   "id": "law-college.l01.q5",
+   "lessonId": "law-college.l01",
+   "kind": "mcq",
+   "prompt": "A builder in an unwritten, customary society and a builder under a code with stated liability each have a house collapse on an owner. Which feature of the written code most improves the position of the builder's neighbours and clients over time?",
+   "choices": [
+    "Secrecy: only officials know the rules, so that private bargaining between builders and clients is not distorted by public knowledge",
+    "Uniformity: the same penalty applies regardless of rank so no distinctions remain at all",
+    "Predictability: everyone can learn in advance what liability follows, and decision-makers can be measured against it",
+    "Harshness: a severe penalty guarantees that no builder will ever again make a mistake"
+   ]
+  },
+  {
+   "id": "law-college.l01.q6",
+   "lessonId": "law-college.l01",
+   "kind": "mcq",
+   "prompt": "Which inference about the Twelve Tables is best supported by the fact that the text survives only through later quotations?",
+   "choices": [
+    "The tables were never actually enacted, and the whole story of a plebeian commission is a later invention by lawyers",
+    "The rules must have been identical to Hammurabi's, since both appear only in fragments",
+    "Roman law before Justinian had no written sources at all and relied entirely on memory",
+    "Historians must reconstruct the original wording cautiously, so claims about exact content should be hedged"
+   ]
+  },
+  {
+   "id": "law-college.l02.q1",
+   "lessonId": "law-college.l02",
+   "kind": "mcq",
+   "prompt": "Which part of Justinian's Corpus Juris Civilis collects excerpts from the writings of the classical jurists?",
+   "choices": [
+    "The Novels, later laws of Justinian",
+    "The Digest, also called the Pandects",
+    "The Institutes, an elementary textbook",
+    "The Code, a collection of imperial constitutions"
+   ]
+  },
+  {
+   "id": "law-college.l02.q2",
+   "lessonId": "law-college.l02",
+   "kind": "mcq",
+   "prompt": "Where was Roman law notably revived as an object of university study in the late eleventh century and after?",
+   "choices": [
+    "Bologna, in Italy",
+    "Oxford, in England",
+    "Salamanca, in Castile",
+    "Uppsala, in Sweden"
+   ]
+  },
+  {
+   "id": "law-college.l02.q3",
+   "lessonId": "law-college.l02",
+   "kind": "mcq",
+   "prompt": "A civil law jurist describes a national code that arranges rules by persons, things and obligations. Which historical source most directly inspired this framework?",
+   "choices": [
+    "The forms of action used by the English royal courts after 1066",
+    "The Code of Hammurabi's stele displayed in Babylon",
+    "Medieval feudal custom recorded by local manorial courts",
+    "Roman law as organised in Gaius and Justinian's Institutes"
+   ]
+  },
+  {
+   "id": "law-college.l02.q4",
+   "lessonId": "law-college.l02",
+   "kind": "mcq",
+   "prompt": "A student claims that Roman law vanished when the Western Empire ended in 476. Which statement best corrects the claim?",
+   "choices": [
+    "Roman law was abolished by Justinian in favor of a new body of Germanic tribal custom",
+    "Roman law survived only in England, where it was preserved by the royal courts",
+    "Roman law continued in the East, survived in local practice in the West, and was later revived by scholars",
+    "Roman law continued unchanged in every European court until the French Revolution, with no interruption or revival"
+   ]
+  },
+  {
+   "id": "law-college.l02.q5",
+   "lessonId": "law-college.l02",
+   "kind": "mcq",
+   "prompt": "An American law student notices that Louisiana's private law is organised in a civil code, while neighbouring states rely on common law. What is the best historical explanation?",
+   "choices": [
+    "Louisiana's courts were created by Congress as a condition of admission to statehood to apply the Digest directly to all private disputes",
+    "Louisiana's legal heritage runs through French and Spanish rule, which brought civil law traditions descended from Roman law",
+    "Louisiana is the only state that ever repealed English common law by constitutional amendment in the nineteenth century",
+    "Louisiana adopted the Uniform Commercial Code earlier than any other state, which replaced the common law entirely"
+   ]
+  },
+  {
+   "id": "law-college.l02.q6",
+   "lessonId": "law-college.l02",
+   "kind": "mcq",
+   "prompt": "Why did Justinian commission the compilation, according to the usual account of its purpose?",
+   "choices": [
+    "To replace a mass of conflicting authorities with a single authoritative, organised body of law",
+    "To abolish the work of the jurists and replace it with rules drawn only from the emperor's orders",
+    "To create a body of law for provinces outside the empire that wanted to adopt it",
+    "To translate the Twelve Tables into Greek so that eastern students could read them"
+   ]
+  },
+  {
+   "id": "law-college.l03.q1",
+   "lessonId": "law-college.l03",
+   "kind": "mcq",
+   "prompt": "What does the term \"common law\" originally signify in the English context?",
+   "choices": [
+    "Law common to the whole realm, applied by royal courts in place of varying local custom",
+    "Law that applies only to the ordinary people and merchants, and not to the nobility or the Church",
+    "Law created solely by Parliament in statutes that all subjects must obey",
+    "Law borrowed from continental Europe and applied equally in every court"
+   ]
+  },
+  {
+   "id": "law-college.l03.q2",
+   "lessonId": "law-college.l03",
+   "kind": "mcq",
+   "prompt": "Which body developed the remedies of equity, such as the injunction and specific performance?",
+   "choices": [
+    "The Court of Chancery under the Lord Chancellor",
+    "The Court of Common Pleas",
+    "The Jury of local residents",
+    "The House of Commons"
+   ]
+  },
+  {
+   "id": "law-college.l03.q3",
+   "lessonId": "law-college.l03",
+   "kind": "mcq",
+   "prompt": "A buyer contracted for a unique antique clock; the seller now refuses to deliver. Which remedy would historically have required a petition in equity rather than an action at law?",
+   "choices": [
+    "A jury verdict about whether a contract existed",
+    "A declaration that the writ had been correctly issued",
+    "An order requiring the seller to deliver the clock itself",
+    "An award of money damages to compensate the buyer for the loss of the clock"
+   ]
+  },
+  {
+   "id": "law-college.l03.q4",
+   "lessonId": "law-college.l03",
+   "kind": "mcq",
+   "prompt": "A student says Magna Carta of 1215 was England's first modern written constitution that is still fully in force. What is the best response?",
+   "choices": [
+    "It is correct, because every clause remains in force today and is enforced by the Supreme Court as a founding constitution",
+    "It was a treaty with France and never applied to the English king",
+    "It was an Act of Parliament passed in 1215 that created the jury",
+    "It was a settlement between King John and barons, it was reissued in revised forms, and few clauses remain in force"
+   ]
+  },
+  {
+   "id": "law-college.l03.q5",
+   "lessonId": "law-college.l03",
+   "kind": "mcq",
+   "prompt": "A claimant in thirteenth-century England has a real grievance, but no writ fits his facts, so the common law court will not hear it. What is the most likely route to relief?",
+   "choices": [
+    "A petition to the king that is passed to the Chancellor, who may grant relief by conscience",
+    "A new trial before the same court with a larger jury drawn from several distant counties of the realm",
+    "A request that the barons enforce Magna Carta directly through private warfare",
+    "A transfer of the dispute to the Roman law courts for decision under the Digest"
+   ]
+  },
+  {
+   "id": "law-college.l03.q6",
+   "lessonId": "law-college.l03",
+   "kind": "mcq",
+   "prompt": "In a modern American federal court a plaintiff seeks both damages and an injunction. Which consequence is most closely tied to the historical law-equity divide?",
+   "choices": [
+    "Equitable claims are decided by the Chancellor, an official in each state capital",
+    "The right to a jury may attach to the legal claim but not to the equitable claim",
+    "The court must apply Roman law to the injunction because equity is Roman in origin",
+    "The legal and equitable claims must be heard in two separate courts with separate judges"
+   ]
+  },
+  {
+   "id": "law-college.l04.q1",
+   "lessonId": "law-college.l04",
+   "kind": "mcq",
+   "prompt": "What did Marbury v. Madison (1803) establish?",
+   "choices": [
+    "Congress may overrule any Supreme Court decision on constitutional questions by a simple majority vote",
+    "States may nullify federal statutes they consider unconstitutional",
+    "The President may remove federal judges who disagree with executive policy",
+    "Federal courts may decide that a statute conflicts with the Constitution and decline to apply it"
+   ]
+  },
+  {
+   "id": "law-college.l04.q2",
+   "lessonId": "law-college.l04",
+   "kind": "mcq",
+   "prompt": "Which work gave early American lawyers an orderly account of English law?",
+   "choices": [
+    "The Institutes of Justinian",
+    "The Code Napoleon of 1804",
+    "Blackstone's Commentaries on the Laws of England",
+    "The Federalist Papers by Hamilton, Madison and Jay"
+   ]
+  },
+  {
+   "id": "law-college.l04.q3",
+   "lessonId": "law-college.l04",
+   "kind": "mcq",
+   "prompt": "A state has no statute about whether a landowner owes a duty to trespassers. How will a court most likely decide the issue?",
+   "choices": [
+    "By asking the federal government for a rule that applies in every state",
+    "By reasoning from earlier decisions in its own state and persuasive authority elsewhere",
+    "By waiting until the legislature enacts a statute on point, and refusing to rule in the meantime",
+    "By applying the Digest of Justinian directly as binding law in that state"
+   ]
+  },
+  {
+   "id": "law-college.l04.q4",
+   "lessonId": "law-college.l04",
+   "kind": "mcq",
+   "prompt": "Which statement about the common law in America today is most accurate?",
+   "choices": [
+    "It is judge-made law still developed case by case, mainly in areas like torts, contracts and property",
+    "It is an ancient set of rules fixed in the eighteenth century, which courts may no longer extend or modify",
+    "It has been fully replaced by federal statutes in every area of private law",
+    "It exists only in England and has no application in the United States at all"
+   ]
+  },
+  {
+   "id": "law-college.l04.q5",
+   "lessonId": "law-college.l04",
+   "kind": "mcq",
+   "prompt": "Parliament in England can repeal a statute by ordinary legislation, but in the United States a court may strike down a statute. Which feature of the American system best explains the difference?",
+   "choices": [
+    "The absence of any common law, which forces courts to apply only statutes",
+    "The adoption of Roman law by Congress, which allows judges to set aside legislation",
+    "The authority of the Lord Chancellor, which the Supreme Court inherited at independence",
+    "A written constitution that is supreme over ordinary statutes and enforced by courts"
+   ]
+  },
+  {
+   "id": "law-college.l04.q6",
+   "lessonId": "law-college.l04",
+   "kind": "mcq",
+   "prompt": "A merchant argues that a state's common law of sales should apply to a contract for the sale of goods. The state has adopted the Uniform Commercial Code, Article 2. What is the best analysis?",
+   "choices": [
+    "Federal law applies and both the UCC and the state's common law are displaced entirely",
+    "The UCC applies only if the merchant first asks a court to treat it as equitable",
+    "The statute governs sales of goods, and common law fills gaps unless the statute displaces it",
+    "The common law applies and the UCC is irrelevant because it is only a model with no legal force"
+   ]
+  },
+  {
+   "id": "law-college.l05.q1",
+   "lessonId": "law-college.l05",
+   "kind": "mcq",
+   "prompt": "Which feature most clearly distinguishes a typical civil law system from a typical common law system?",
+   "choices": [
+    "The legal system does not use written statutes and relies entirely on unwritten tradition",
+    "The legal system draws its authority only from sacred texts interpreted by religious scholars",
+    "A comprehensive code is the primary source of law, and prior decisions are persuasive rather than formally binding",
+    "Judges have no role in applying the law, because lay juries decide every question of law and fact in civil and criminal cases"
+   ]
+  },
+  {
+   "id": "law-college.l05.q2",
+   "lessonId": "law-college.l05",
+   "kind": "mcq",
+   "prompt": "What does the term \"fiqh\" refer to in Islamic legal tradition?",
+   "choices": [
+    "A written criminal code enacted by a modern parliament in a Muslim-majority state",
+    "A court of appeal that hears commercial disputes between merchants in the region",
+    "A body of purely customary rules with no connection to religious texts",
+    "The human jurisprudence by which jurists derive rules from the sources of sharia"
+   ]
+  },
+  {
+   "id": "law-college.l05.q3",
+   "lessonId": "law-college.l05",
+   "kind": "mcq",
+   "prompt": "A country's family law is governed by religious communities' own rules, while its contracts and criminal law are enacted by statute. What is the best description of this arrangement?",
+   "choices": [
+    "A mixed system in which religious law governs personal status and secular statutes govern other areas",
+    "A pure civil law system, because all of its rules appear in a single comprehensive code drafted by the state",
+    "A pure common law system because the courts decide family matters by precedent alone",
+    "A customary system because no law in the country has ever been written down"
+   ]
+  },
+  {
+   "id": "law-college.l05.q4",
+   "lessonId": "law-college.l05",
+   "kind": "mcq",
+   "prompt": "A student says civil law judges never look at prior cases and common law systems never use codes. What is the best correction?",
+   "choices": [
+    "The second claim is right, but the first is wrong because civil law judges treat each earlier precedent as strictly binding on them",
+    "Both claims overstate: civil law judges cite and follow case law, and common law jurisdictions have extensive statutory codes",
+    "The first claim is right, but the second is wrong because common law countries have no legislatures at all",
+    "Both claims are right, which is why the two families cannot be compared at all"
+   ]
+  },
+  {
+   "id": "law-college.l05.q5",
+   "lessonId": "law-college.l05",
+   "kind": "mcq",
+   "prompt": "South Africa's private law draws on Roman-Dutch law, its courts follow precedent, and its constitution recognises customary law. Which description best fits?",
+   "choices": [
+    "A purely religious system because customary law is recognised in its constitution",
+    "A purely civil law system because its courts have no power to decide constitutional questions",
+    "A mixed system combining civil law roots, common law method and recognised customary law",
+    "A purely common law system because its courts follow precedent"
+   ]
+  },
+  {
+   "id": "law-college.l05.q6",
+   "lessonId": "law-college.l05",
+   "kind": "mcq",
+   "prompt": "In a dispute over a village's use of communal land, a national court is asked to apply long-standing community practice that was never written down. Under which condition would the court most plausibly apply it as law?",
+   "choices": [
+    "The practice appears in a treatise written by a respected foreign professor, regardless of whether local law recognises it",
+    "The practice is more recent than the most recent national statute on the topic",
+    "The village agrees in writing to waive any claim that the practice is inconsistent with the constitution",
+    "The national legal system recognises customary law and the practice is shown to be settled and regarded as binding"
+   ]
+  },
+  {
+   "id": "law-college.l06.q1",
+   "lessonId": "law-college.l06",
+   "kind": "mcq",
+   "prompt": "Which provision makes the Constitution, federal statutes and treaties the supreme law of the land?",
+   "choices": [
+    "The Establishment Clause in the First Amendment",
+    "The Supremacy Clause in Article VI",
+    "The Necessary and Proper Clause in Article I",
+    "The Commerce Clause in Article I"
+   ]
+  },
+  {
+   "id": "law-college.l06.q2",
+   "lessonId": "law-college.l06",
+   "kind": "mcq",
+   "prompt": "What is a secondary authority?",
+   "choices": [
+    "A source such as a treatise or Restatement that explains the law but is not itself law",
+    "A statute passed by a state legislature at a later date than a federal statute on the same subject",
+    "A decision of a trial court that a higher court has not yet reviewed",
+    "A regulation issued by an agency to implement a statute"
+   ]
+  },
+  {
+   "id": "law-college.l06.q3",
+   "lessonId": "law-college.l06",
+   "kind": "mcq",
+   "prompt": "A federal court hearing a state-law claim in diversity jurisdiction must decide a question of state tort law. According to Erie Railroad Co. v. Tompkins (1938), which law does it apply?",
+   "choices": [
+    "A general federal common law of torts that overrides state decisions",
+    "The law of whichever state the federal court sits in, regardless of where the injury occurred",
+    "The Restatement of Torts, because it is superior to any state court decision",
+    "The substantive law of the relevant state, including its common law"
+   ]
+  },
+  {
+   "id": "law-college.l06.q4",
+   "lessonId": "law-college.l06",
+   "kind": "mcq",
+   "prompt": "A federal agency issues a regulation that conflicts with the plain terms of the statute that authorised it. How is this conflict generally resolved?",
+   "choices": [
+    "The conflict is resolved by whichever party first files suit in federal court",
+    "Both apply equally, and the regulated party may choose which to follow",
+    "The statute prevails because the agency's authority comes from the statute and cannot exceed it",
+    "The regulation prevails because it is more recent and more detailed than the statute that authorised it"
+   ]
+  },
+  {
+   "id": "law-college.l06.q5",
+   "lessonId": "law-college.l06",
+   "kind": "mcq",
+   "prompt": "A state's highest court has decided that a landlord owes tenants a duty to take reasonable steps against foreseeable criminal attacks. A federal trial court sitting in that state, hearing a diversity case between a tenant and a landlord, finds the Restatement suggests a narrower duty. What should the federal court most likely do?",
+   "choices": [
+    "Decline to hear the case, because diversity jurisdiction does not cover tort claims",
+    "Follow the state's highest court, because it is mandatory authority on state law and the Restatement is only persuasive",
+    "Follow the Restatement, because it is more recent and more scholarly than a court decision",
+    "Create a federal common law rule for the dispute, because federal courts have an independent power to make general tort law"
+   ]
+  },
+  {
+   "id": "law-college.l06.q6",
+   "lessonId": "law-college.l06",
+   "kind": "mcq",
+   "prompt": "A city ordinance caps rents at a level below what a state statute permits. The state constitution gives cities home rule powers only in matters of local concern, and the statute says it occupies the whole field of rent regulation. Which analysis is most likely correct?",
+   "choices": [
+    "The ordinance is likely invalid because the state statute occupies the field and ranks above a city ordinance",
+    "The ordinance is valid because it is more specific to the city and more recent than the statute",
+    "The ordinance is valid because cities hold sovereign power equal to the state",
+    "The statute is invalid, because states may not regulate matters that cities have already regulated by local ordinance"
+   ]
+  },
+  {
+   "id": "law-college.l07.q1",
+   "lessonId": "law-college.l07",
+   "kind": "mcq",
+   "prompt": "Which branch is vested with the power to make federal statutes?",
+   "choices": [
+    "Congress, under Article I",
+    "The President, under Article II",
+    "The federal courts, under Article III",
+    "The Cabinet, under the Twenty-fifth Amendment"
+   ]
+  },
+  {
+   "id": "law-college.l07.q2",
+   "lessonId": "law-college.l07",
+   "kind": "mcq",
+   "prompt": "What did McCulloch v. Maryland (1819) hold?",
+   "choices": [
+    "Congress has no power over interstate commerce beyond the regulation of shipping and navigation",
+    "Congress had implied power to create a national bank, and a state could not tax it",
+    "States may nullify federal laws they believe are unconstitutional",
+    "Federal courts may not review actions of the President in foreign affairs"
+   ]
+  },
+  {
+   "id": "law-college.l07.q3",
+   "lessonId": "law-college.l07",
+   "kind": "mcq",
+   "prompt": "A state enacts a law requiring a licence to practise hairdressing. Under federalism, what is the most likely source of the state's authority?",
+   "choices": [
+    "The Supremacy Clause, which authorises states to regulate any trade",
+    "The Commerce Clause, which grants states power over local trades",
+    "Its general police power to regulate for health, safety and welfare",
+    "A specific list of enumerated powers in Article I given to states"
+   ]
+  },
+  {
+   "id": "law-college.l07.q4",
+   "lessonId": "law-college.l07",
+   "kind": "mcq",
+   "prompt": "Congress passes a statute with an express clause stating that no state may impose a labelling requirement different from the federal one. A state enacts a stricter label. What is the most likely result?",
+   "choices": [
+    "The state label stands because the Tenth Amendment forbids federal limits on state regulation",
+    "The state label stands because all states retain the power to regulate food and drugs within their borders regardless of federal law",
+    "The federal statute is invalid because it intrudes on state police power",
+    "The state label is preempted to the extent it differs, because of the statute's express language and the Supremacy Clause"
+   ]
+  },
+  {
+   "id": "law-college.l07.q5",
+   "lessonId": "law-college.l07",
+   "kind": "mcq",
+   "prompt": "A statute exempts a company from a federal labelling rule, but a state law imposes a different labelling rule and the federal statute contains no preemption clause. Compliance with both is possible. Which argument would be strongest for the company that the state rule is invalid?",
+   "choices": [
+    "That the state rule stands as an obstacle to the purposes of Congress, an implied preemption argument",
+    "That the Tenth Amendment forbids states from regulating labels in any case",
+    "That Article III gives federal courts the power to strike any state labelling law",
+    "That the President's executive power over federal agencies prevents states from enacting any laws on food labelling"
+   ]
+  },
+  {
+   "id": "law-college.l07.q6",
+   "lessonId": "law-college.l07",
+   "kind": "mcq",
+   "prompt": "Congress delegates to an agency the power to set safety standards, and a company argues the delegation is invalid because only Congress may make laws. A court considers the argument. Which reasoning best reflects the usual approach?",
+   "choices": [
+    "Delegation is permitted only if the President personally approves each rule",
+    "Congress may delegate rulemaking if it supplies an intelligible principle to guide the agency",
+    "Congress may never delegate any rulemaking power because Article I vests all legislative power in itself",
+    "Delegation is permitted only if the agency is part of the judicial branch"
+   ]
+  },
+  {
+   "id": "law-college.l08.q1",
+   "lessonId": "law-college.l08",
+   "kind": "mcq",
+   "prompt": "In a judicial opinion, what is \"procedural posture\"?",
+   "choices": [
+    "The list of facts that the court regards as most unfair to the losing party and that explain its sympathy",
+    "The legal rule that the court announces to decide the dispute before it",
+    "The order in which the judges at the court speak during oral argument",
+    "How the case came to the court at its current stage, such as an appeal from a grant of summary judgment"
+   ]
+  },
+  {
+   "id": "law-college.l08.q2",
+   "lessonId": "law-college.l08",
+   "kind": "mcq",
+   "prompt": "What is a concurring opinion?",
+   "choices": [
+    "An opinion by the court that overrules an earlier decision of a higher court",
+    "An opinion by a trial judge explaining a jury verdict to the parties",
+    "An opinion by a judge who agrees with the result but for different reasons",
+    "An opinion by a judge who disagrees with the result of the case"
+   ]
+  },
+  {
+   "id": "law-college.l08.q3",
+   "lessonId": "law-college.l08",
+   "kind": "mcq",
+   "prompt": "Which fact would be most important to include in a brief of Palsgraf v. Long Island Railroad Co.?",
+   "choices": [
+    "The train was running slightly later than the posted timetable",
+    "The package carried by the passenger was not visibly dangerous to the guard",
+    "The railroad's employees were wearing uniforms of a particular colour on the day of the accident",
+    "The platform scales were manufactured in a particular year"
+   ]
+  },
+  {
+   "id": "law-college.l08.q4",
+   "lessonId": "law-college.l08",
+   "kind": "mcq",
+   "prompt": "A student's brief states the holding in Palsgraf as \"railroads are never liable for injuries on their platforms.\" What is wrong with this statement?",
+   "choices": [
+    "It states the holding far more broadly than the court's reasoning about duty to a plaintiff outside the zone of foreseeable danger",
+    "It states the holding too narrowly, because the case was meant to apply to all negligence cases of every kind against every type of defendant",
+    "It confuses the dissent with the majority, because the dissent held that railroads are never liable",
+    "It is correct because the court held that platform injuries are not covered by negligence law"
+   ]
+  },
+  {
+   "id": "law-college.l08.q5",
+   "lessonId": "law-college.l08",
+   "kind": "mcq",
+   "prompt": "A trial court grants summary judgment for a store after a customer slips on spilled juice, finding the customer had no evidence the store knew of the spill. The appellate court reverses, holding that a jury could infer constructive notice because the spill had lain on a busy aisle for at least an hour without inspection. Which is the best statement of the issue on appeal?",
+   "choices": [
+    "Whether the customer was careless in walking through the aisle where the spill occurred and failed to look down",
+    "Whether the store is liable for all injuries that happen on its premises",
+    "Whether a trial court may ever grant summary judgment in a negligence case",
+    "Whether the evidence could permit a jury to find the store had constructive notice of the spill"
+   ]
+  },
+  {
+   "id": "law-college.l08.q6",
+   "lessonId": "law-college.l08",
+   "kind": "mcq",
+   "prompt": "A brief of a case includes the following: \"The defendant wore a blue coat. The court of appeals reversed because the trial judge gave a faulty jury instruction on self-defense.\" Which revision best improves the brief?",
+   "choices": [
+    "Delete the reversal, since a brief should record only the facts and never the court's action on appeal or its reasons",
+    "Keep the coat colour and delete the jury instruction, because facts matter more than law",
+    "Delete the coat colour, since it would not change the outcome, and state the instruction error as the basis for reversal",
+    "Add the colour of the plaintiff's coat so that the facts are balanced between the parties"
+   ]
+  },
+  {
+   "id": "law-college.l09.q1",
+   "lessonId": "law-college.l09",
+   "kind": "mcq",
+   "prompt": "What is obiter dictum?",
+   "choices": [
+    "The vote count by which the judges decided the case",
+    "The title the court gives to its own decision",
+    "A statement in an opinion that is not necessary to the decision and does not bind later courts",
+    "The binding rule that a court applies to decide the dispute before it, as distinct from its dicta"
+   ]
+  },
+  {
+   "id": "law-college.l09.q2",
+   "lessonId": "law-college.l09",
+   "kind": "mcq",
+   "prompt": "Which test is most useful for separating holding from dicta?",
+   "choices": [
+    "Whether the statement appears in the first paragraph of the opinion",
+    "Whether the statement was made by the chief judge rather than another judge",
+    "Whether the statement is longer than a single sentence in the opinion",
+    "Whether the result would have been the same without the statement"
+   ]
+  },
+  {
+   "id": "law-college.l09.q3",
+   "lessonId": "law-college.l09",
+   "kind": "mcq",
+   "prompt": "A court holds a promise unenforceable for lack of consideration and adds that a written promise would be enforceable regardless. In a later case about a written promise, how should the statement be treated?",
+   "choices": [
+    "As dicta, which is persuasive but not binding because it was not needed for the result",
+    "As a holding, because anything the court writes in an opinion is binding on later courts",
+    "As a nullity, because a court may not comment on anything other than the facts",
+    "As a statute, because courts make law when they speak in general terms"
+   ]
+  },
+  {
+   "id": "law-college.l09.q4",
+   "lessonId": "law-college.l09",
+   "kind": "mcq",
+   "prompt": "Why do lawyers sometimes argue over how broadly to state a holding?",
+   "choices": [
+    "Because the court's clerk decides the wording of the holding after the decision",
+    "A broad statement lets a later court extend the case, and a narrow statement lets it be avoided",
+    "Because the Constitution requires all holdings to be stated at the same level of generality by every court",
+    "Because a holding stated narrowly loses all binding force on later courts"
+   ]
+  },
+  {
+   "id": "law-college.l09.q5",
+   "lessonId": "law-college.l09",
+   "kind": "mcq",
+   "prompt": "In a negligence case, a court affirms for a defendant on two independent grounds: first, no duty existed, and second, even if a duty existed there was no breach. A later court considers the first ground. Which treatment is most defensible?",
+   "choices": [
+    "Only the second ground binds, because courts must always prefer the narrower of two reasons and treat the broader one as obiter dictum",
+    "Only the first ground binds, because the order of reasons decides which is the holding",
+    "Many authorities treat both grounds as holdings, though a later court may regard each as weaker because neither was necessary alone",
+    "Neither ground has any force, because a decision with two grounds has no holding"
+   ]
+  },
+  {
+   "id": "law-college.l09.q6",
+   "lessonId": "law-college.l09",
+   "kind": "mcq",
+   "prompt": "Four of seven justices agree on the result, but only two agree on one rationale and two others on a different one, with the rest dissenting. A lower court asks what rule it must follow. Which approach is most commonly recommended?",
+   "choices": [
+    "Treat the broadest rationale as binding because it commands the most votes among the four justices who agreed on the result, whatever the others held",
+    "Treat the opinion as having no force at all because it did not command a majority",
+    "Treat the dissent as binding because it has the largest number of justices on one view",
+    "Look for the narrowest ground on which a majority would have agreed, treating the case as limited to its result if none can be found"
+   ]
+  },
+  {
+   "id": "law-college.l10.q1",
+   "lessonId": "law-college.l10",
+   "kind": "mcq",
+   "prompt": "What does stare decisis mean?",
+   "choices": [
+    "The principle that courts should follow earlier decisions on similar issues",
+    "The rule that only the legislature may overrule a decision of a court of last resort",
+    "The rule that a judge must announce the vote before writing an opinion",
+    "The principle that facts are decided by the jury and law by the judge"
+   ]
+  },
+  {
+   "id": "law-college.l10.q2",
+   "lessonId": "law-college.l10",
+   "kind": "mcq",
+   "prompt": "Which court decision is binding on a federal district court in Ohio?",
+   "choices": [
+    "A decision of the House of Lords in England",
+    "A decision of the Sixth Circuit Court of Appeals",
+    "A decision of the Ninth Circuit Court of Appeals",
+    "A decision of the California Supreme Court"
+   ]
+  },
+  {
+   "id": "law-college.l10.q3",
+   "lessonId": "law-college.l10",
+   "kind": "mcq",
+   "prompt": "A court wants to avoid following an earlier case that appears similar. What technique does it use to do so without overruling the earlier case?",
+   "choices": [
+    "It asks the jury to decide the question of law instead of the judge",
+    "It transfers the dispute to a court in another state with more favourable precedent",
+    "It distinguishes the earlier case on a material difference in the facts",
+    "It declares the earlier case dicta even though the case turned on that point"
+   ]
+  },
+  {
+   "id": "law-college.l10.q4",
+   "lessonId": "law-college.l10",
+   "kind": "mcq",
+   "prompt": "Which statement about Brown v. Board of Education (1954) and Plessy v. Ferguson (1896) is correct?",
+   "choices": [
+    "Brown affirmed Plessy and held that separate but equal facilities are valid in public education so long as the facilities are substantially equal in quality",
+    "Brown was decided under the Commerce Clause and left Plessy untouched in education",
+    "Plessy was decided after Brown and was the later case that overruled it",
+    "Brown held that segregation in public schools violates the Equal Protection Clause, repudiating the separate-but-equal doctrine in that field"
+   ]
+  },
+  {
+   "id": "law-college.l10.q5",
+   "lessonId": "law-college.l10",
+   "kind": "mcq",
+   "prompt": "A state high court held years ago that employers are liable for employees' collisions during deliveries. Now an employee, driving home for lunch on a personal errand, causes a collision. The employer wants to avoid the old case. Which argument is strongest?",
+   "choices": [
+    "The earlier rule rested on the employer's control and benefit from the delivery, which are absent on a personal lunch trip",
+    "The earlier case was decided long ago, so it has automatically lost its authority as precedent for every later case in the state",
+    "The earlier case involved a different employee, so it cannot apply to anyone else",
+    "The earlier case was a state decision, so it cannot bind the same state's courts"
+   ]
+  },
+  {
+   "id": "law-college.l10.q6",
+   "lessonId": "law-college.l10",
+   "kind": "mcq",
+   "prompt": "A court is asked to overrule one of its own precedents. The old rule has proved unworkable, later cases have eroded its premise, but many parties have organised their affairs around it. Which statement best captures how the court should reason?",
+   "choices": [
+    "It should ignore reliance and consider only whether the original judges were persuasive in their reasoning",
+    "It weighs the unworkability and eroded basis against the reliance interests, with a strong presumption in favor of keeping the precedent",
+    "It must overrule the precedent immediately, because any rule that proves unworkable is void and cannot support reliance by anyone who followed it",
+    "It may never overrule the precedent because reliance interests always control"
+   ]
+  },
+  {
+   "id": "law-college.l11.q1",
+   "lessonId": "law-college.l11",
+   "kind": "mcq",
+   "prompt": "What is a circuit split?",
+   "choices": [
+    "A rule that divides a case between two circuits of the same district",
+    "A disagreement between federal courts of appeals on the same legal question",
+    "A division of a state into judicial districts for the election of judges",
+    "A vote of the Supreme Court that divides the justices into two equal groups"
+   ]
+  },
+  {
+   "id": "law-college.l11.q2",
+   "lessonId": "law-college.l11",
+   "kind": "mcq",
+   "prompt": "In reasoning by analogy, what matters most when comparing a new case to a precedent?",
+   "choices": [
+    "Whether the new facts share the features that mattered to the reasons for the earlier decision",
+    "Whether the parties in both cases are in the same line of business and of similar financial size",
+    "Whether the new case occurred in the same city as the earlier case",
+    "Whether the same lawyers argued both cases before the court"
+   ]
+  },
+  {
+   "id": "law-college.l11.q3",
+   "lessonId": "law-college.l11",
+   "kind": "mcq",
+   "prompt": "A lawyer in a Seventh Circuit district court finds a Ninth Circuit case directly on point. How should the lawyer use it?",
+   "choices": [
+    "As mandatory authority, since federal law is uniform across circuits",
+    "As irrelevant, since courts may never cite decisions from other circuits",
+    "As a statute, since federal appellate decisions are enacted into law",
+    "As persuasive authority, since it is from another circuit"
+   ]
+  },
+  {
+   "id": "law-college.l11.q4",
+   "lessonId": "law-college.l11",
+   "kind": "mcq",
+   "prompt": "A precedent held a landlord liable for a collapsed common staircase because the landlord controls common areas. A tenant sues for a hazard inside another tenant's apartment. What is the best analogical argument for the landlord?",
+   "choices": [
+    "The earlier case was decided against a landlord, so it cannot help any landlord",
+    "The earlier case is invalid because landlords are never liable for building defects",
+    "The control rationale does not apply because the landlord did not control the interior of a tenant's own unit",
+    "The earlier case involved a staircase, so it can apply only to stairs and other parts of a building used for walking"
+   ]
+  },
+  {
+   "id": "law-college.l11.q5",
+   "lessonId": "law-college.l11",
+   "kind": "mcq",
+   "prompt": "A trial lawyer in a state court finds that the state's intermediate appellate court has decided the issue one way, and another intermediate appellate court in the same state has decided it the other way. The state supreme court has not ruled. Which approach is most sound?",
+   "choices": [
+    "Choose the more recent decision, since recency always decides conflicts between courts of the same level",
+    "Argue which decision is better reasoned and note the split, and check whether the lawyer's own appellate district has ruled, as its decision would likely control",
+    "Treat both decisions as binding and ask the court to apply both at the same time",
+    "Treat neither decision as relevant because only the supreme court may issue precedent"
+   ]
+  },
+  {
+   "id": "law-college.l11.q6",
+   "lessonId": "law-college.l11",
+   "kind": "mcq",
+   "prompt": "A client asks whether a Fourth Circuit holding can be relied on in a district court case in the Fourth Circuit when the Supreme Court has granted review of a conflicting Eleventh Circuit decision on the same issue. What is the best advice?",
+   "choices": [
+    "The Fourth Circuit decision is binding on the district court for now, but the Supreme Court's eventual decision could change the law",
+    "The Fourth Circuit decision has no force now that the Supreme Court has agreed to hear the issue, so the district court is free to disregard it",
+    "The Eleventh Circuit decision controls because it was the one chosen for review",
+    "The district court must stay all proceedings in every case until the Supreme Court rules"
+   ]
+  },
+  {
+   "id": "law-college.l12.q1",
+   "lessonId": "law-college.l12",
+   "kind": "mcq",
+   "prompt": "Which approach to interpretation focuses on the ordinary meaning of the words as an informed reader would understand them at enactment?",
+   "choices": [
+    "Intentionalism",
+    "Legal realism",
+    "Textualism",
+    "Purposivism"
+   ]
+  },
+  {
+   "id": "law-college.l12.q2",
+   "lessonId": "law-college.l12",
+   "kind": "mcq",
+   "prompt": "What did the Supreme Court hold in Church of the Holy Trinity v. United States (1892)?",
+   "choices": [
+    "A statute barring contract labour applied to all workers, including clergy, under its plain terms and ordinary meaning",
+    "A court may never consider the purpose of a statute when the words seem clear",
+    "A church may not employ any person who is a citizen of another country",
+    "A statute barring contract labour of \"any kind\" did not reach a church's hiring of a pastor from abroad"
+   ]
+  },
+  {
+   "id": "law-college.l12.q3",
+   "lessonId": "law-college.l12",
+   "kind": "mcq",
+   "prompt": "A textualist and a purposivist disagree about whether a statute banning \"vehicles in the park\" covers an ambulance responding to an emergency. Which pairing best describes their likely reasoning?",
+   "choices": [
+    "The textualist looks to the ordinary meaning of \"vehicle\" in context; the purposivist asks what safety purpose the ban serves",
+    "The textualist asks what each legislator privately intended when voting; the purposivist looks to the dictionary and to nothing else in the statute",
+    "The textualist rejects the statute as invalid; the purposivist upholds it on constitutional grounds",
+    "The textualist relies exclusively on committee reports; the purposivist relies exclusively on the title"
+   ]
+  },
+  {
+   "id": "law-college.l12.q4",
+   "lessonId": "law-college.l12",
+   "kind": "mcq",
+   "prompt": "A critic says purposivism lets judges replace the legislature's policy with their own. What is the strongest point behind that criticism?",
+   "choices": [
+    "A purposivist can never consider the text of a statute and so cannot decide any case",
+    "A statute's purpose can be described at many levels of generality, and the choice may reflect the judge's views",
+    "A statute's purpose is always stated in a preamble that judges cannot read",
+    "A purposivist must always follow the most recent committee report or floor statement on any question of meaning"
+   ]
+  },
+  {
+   "id": "law-college.l12.q5",
+   "lessonId": "law-college.l12",
+   "kind": "mcq",
+   "prompt": "A statute prohibits \"any person\" from \"using\" a fire pit in a public campground during a burn ban. A park ranger who lights one to burn off a dangerous brush hazard is charged. A court holds the statute does not apply, reasoning that the statute exists to prevent fires and that punishing fire-prevention work would defeat that goal. Which theory is the court most clearly using, and what is the best criticism?",
+   "choices": [
+    "Intentionalism, with the criticism that a collective body like a legislature cannot be said to hold any single intent",
+    "Textualism, with the criticism that it relies on legislative history",
+    "Purposivism, with the criticism that it may depart from clear text on the strength of a perceived purpose",
+    "Textualism, with the criticism that it ignores the plain words of the statute"
+   ]
+  },
+  {
+   "id": "law-college.l12.q6",
+   "lessonId": "law-college.l12",
+   "kind": "mcq",
+   "prompt": "Which argument most directly supports textualism on constitutional grounds?",
+   "choices": [
+    "Legislative history reveals the true intent of every member of the legislature, so only it can bind a court",
+    "Judges are better than legislators at deciding what policy a statute should serve",
+    "Statutory words have no stable meaning, so courts must always look elsewhere",
+    "Only the enacted text passed both houses and was presented to the executive, so only it is law"
+   ]
+  },
+  {
+   "id": "law-college.l13.q1",
+   "lessonId": "law-college.l13",
+   "kind": "mcq",
+   "prompt": "What does ejusdem generis suggest about a general phrase at the end of a list of specific items?",
+   "choices": [
+    "It covers every possible thing without any limit",
+    "It has no meaning and should be ignored",
+    "It covers only the first item in the list",
+    "It covers things of the same kind as the listed items"
+   ]
+  },
+  {
+   "id": "law-college.l13.q2",
+   "lessonId": "law-college.l13",
+   "kind": "mcq",
+   "prompt": "What does the rule of lenity provide?",
+   "choices": [
+    "Genuine ambiguity is resolved by the most recent legislative history",
+    "Genuine ambiguity is resolved in favour of the party who filed suit first in the proper court",
+    "Genuine ambiguity in a criminal statute is resolved in the defendant's favour",
+    "Genuine ambiguity in a civil statute is resolved against the government"
+   ]
+  },
+  {
+   "id": "law-college.l13.q3",
+   "lessonId": "law-college.l13",
+   "kind": "mcq",
+   "prompt": "A statute bans \"cars, trucks, motorcycles and other vehicles\" from a plaza. A cyclist is cited for riding a bicycle there. Applying ejusdem generis, which argument is strongest for the cyclist?",
+   "choices": [
+    "A bicycle is a car under the whole act rule because both have wheels",
+    "The listed items are motor vehicles, so \"other vehicles\" likely means motor vehicles and not bicycles",
+    "The word \"other\" shows the legislature intended to cover every form of transport, including those that are human powered",
+    "The list is incomplete, so the statute is void for vagueness in every application"
+   ]
+  },
+  {
+   "id": "law-college.l13.q4",
+   "lessonId": "law-college.l13",
+   "kind": "mcq",
+   "prompt": "Two readings of a federal statute are plausible. One would raise a serious constitutional doubt and the other would not. Under the constitutional avoidance canon, what should a court do?",
+   "choices": [
+    "Adopt the fairly possible reading that avoids the constitutional doubt",
+    "Strike the statute down immediately without deciding which reading is better",
+    "Adopt whichever reading the party with more resources proposes",
+    "Adopt the reading that gives the legislature the broadest power"
+   ]
+  },
+  {
+   "id": "law-college.l13.q5",
+   "lessonId": "law-college.l13",
+   "kind": "mcq",
+   "prompt": "A statute criminalises \"knowingly altering, destroying or concealing any record, document, or tangible object\" to obstruct an investigation. A defendant who threw a fish overboard to avoid an inspection is charged. Defence counsel argues that \"tangible object\" is limited by its neighbours. Which canon and reasoning match that argument?",
+   "choices": [
+    "Expressio unius, since a list of named items implies that every item not named in it is excluded, and so a fish falls outside the statute",
+    "The absurdity doctrine, since any literal reading of the list is always absurd",
+    "The whole act rule, since the title of any statute is controlling on its meaning",
+    "Noscitur a sociis, since \"tangible object\" should take meaning from \"record\" and \"document\" and so concern items that record information"
+   ]
+  },
+  {
+   "id": "law-college.l13.q6",
+   "lessonId": "law-college.l13",
+   "kind": "mcq",
+   "prompt": "A court says that two canons point in opposite directions in a case, one favouring a broad reading of a remedial statute and one favouring a narrow reading of a criminal statute. What is the most sound approach?",
+   "choices": [
+    "Decline to decide the case, because conflicting canons make any principled interpretation of the statute impossible for the court",
+    "Apply both canons at the same time and split the difference in the outcome",
+    "Treat the canons as tools, look first to text and context, and use whichever canon fits the type of statute at issue",
+    "Apply whichever canon was invented first, because older canons outrank newer ones"
+   ]
+  },
+  {
+   "id": "law-college.l14.q1",
+   "lessonId": "law-college.l14",
+   "kind": "mcq",
+   "prompt": "What did the Supreme Court decide about Chevron deference in Loper Bright Enterprises v. Raimondo (2024)?",
+   "choices": [
+    "It overruled Chevron and held courts must use independent judgment on what a statute means",
+    "It extended Chevron to all state agencies and local governments",
+    "It reaffirmed Chevron and held that courts must always defer to agencies on ambiguous statutes",
+    "It held that agencies may no longer issue any regulations at all"
+   ]
+  },
+  {
+   "id": "law-college.l14.q2",
+   "lessonId": "law-college.l14",
+   "kind": "mcq",
+   "prompt": "Under the original Chevron framework, what was the first question a court asked?",
+   "choices": [
+    "Whether the President had approved the agency's interpretation",
+    "Whether Congress had directly spoken to the precise question at issue",
+    "Whether the agency's view was the single best reading of the statute in the court's own judgment",
+    "Whether the agency had held a public hearing on the issue"
+   ]
+  },
+  {
+   "id": "law-college.l14.q3",
+   "lessonId": "law-college.l14",
+   "kind": "mcq",
+   "prompt": "After Loper Bright, how should a court treat an agency's long-standing, well-reasoned interpretation of an ambiguous statute?",
+   "choices": [
+    "As irrelevant to the court's reading of the statute in any form",
+    "As equal in force to a decision of the Supreme Court on the issue",
+    "As a persuasive source whose weight depends on its thoroughness and consistency",
+    "As binding unless the legislature has repealed the statute"
+   ]
+  },
+  {
+   "id": "law-college.l14.q4",
+   "lessonId": "law-college.l14",
+   "kind": "mcq",
+   "prompt": "Which situation most clearly leaves an agency with discretion after Loper Bright?",
+   "choices": [
+    "The statute is silent about a question that the agency finds important",
+    "The statute contains a term that the agency has defined consistently for decades",
+    "The statute was enacted before the agency existed",
+    "The statute expressly authorises the agency to determine what is \"appropriate\""
+   ]
+  },
+  {
+   "id": "law-college.l14.q5",
+   "lessonId": "law-college.l14",
+   "kind": "mcq",
+   "prompt": "An agency announces that a statute's term \"air pollutant\" includes a substance never mentioned in the statute, relying on a long-standing interpretation. A regulated company sues. Applying the post-Loper Bright approach, what will a court most likely do?",
+   "choices": [
+    "Decide for itself the best reading of the statute, giving the agency's view only the weight its reasoning earns",
+    "Defer to the agency because the statute is ambiguous and the agency has expertise",
+    "Dismiss the case because only Congress may resolve questions about the meaning of statutes",
+    "Defer to the agency but only if the President signs a directive endorsing it"
+   ]
+  },
+  {
+   "id": "law-college.l14.q6",
+   "lessonId": "law-college.l14",
+   "kind": "mcq",
+   "prompt": "A lawyer argues that because Chevron was overruled, every past decision that relied on it is automatically invalid. Which response best matches the Court's own statement in Loper Bright?",
+   "choices": [
+    "The Court said that every agency rule written under Chevron must be re-issued within a year",
+    "The Court said it did not intend to call into question prior cases that relied on Chevron, so statutory stare decisis still applies",
+    "The argument is correct, and all such decisions are void from the date they were decided",
+    "The argument is correct only for decisions of the lower federal courts and not the Supreme Court"
+   ]
+  },
+  {
+   "id": "law-college.l15.q1",
+   "lessonId": "law-college.l15",
+   "kind": "mcq",
+   "prompt": "In the conditional statement \"if P, then Q,\" which is the sufficient condition?",
+   "choices": [
+    "Not-P",
+    "P",
+    "Q",
+    "Not-Q"
+   ]
+  },
+  {
+   "id": "law-college.l15.q2",
+   "lessonId": "law-college.l15",
+   "kind": "mcq",
+   "prompt": "What does it mean for a deductive argument to be sound?",
+   "choices": [
+    "It is valid and all its premises are actually true",
+    "It has a conclusion that most people believe to be true",
+    "It has premises that were agreed by both sides of a dispute",
+    "It has a conclusion that is probable given the premises"
+   ]
+  },
+  {
+   "id": "law-college.l15.q3",
+   "lessonId": "law-college.l15",
+   "kind": "mcq",
+   "prompt": "A statute says a will is valid only if it is signed by the testator. A will is signed by the testator. What can be concluded about its validity from this statute alone?",
+   "choices": [
+    "It is valid, because signing satisfies the statute's requirement",
+    "It is invalid, because the statute does not state what else is required",
+    "It is valid unless a witness objects to the signature",
+    "Nothing definite, because signing is necessary but may not be sufficient"
+   ]
+  },
+  {
+   "id": "law-college.l15.q4",
+   "lessonId": "law-college.l15",
+   "kind": "mcq",
+   "prompt": "A rule states: \"Liability attaches unless the defendant had a valid defence.\" The defendant had no valid defence. Which conclusion follows?",
+   "choices": [
+    "The defendant is guilty of a crime",
+    "Nothing follows without more facts",
+    "Liability attaches",
+    "Liability does not attach"
+   ]
+  },
+  {
+   "id": "law-college.l15.q5",
+   "lessonId": "law-college.l15",
+   "kind": "mcq",
+   "prompt": "Argument: \"If the defendant was at the scene, then his phone would have connected to the nearby tower. The phone did not connect to the nearby tower. So the defendant was not at the scene.\" Which statement is accurate?",
+   "choices": [
+    "The argument is sound whatever the truth of its premises, because it is valid",
+    "The argument is valid because it uses the contrapositive, though its soundness depends on whether the first premise is true",
+    "The argument is invalid because it denies the antecedent",
+    "The argument is invalid because it affirms the consequent"
+   ]
+  },
+  {
+   "id": "law-college.l15.q6",
+   "lessonId": "law-college.l15",
+   "kind": "mcq",
+   "prompt": "A lawyer argues: \"Only licensed drivers may rent this car. Dana rented this car. So Dana is a licensed driver.\" Another lawyer says: \"Dana is a licensed driver. So Dana may rent this car.\" Which evaluation is correct?",
+   "choices": [
+    "The first argument is valid; the second is invalid because licensing is necessary but may not be sufficient",
+    "Both arguments are valid because each uses the same rule",
+    "The first argument is invalid; the second is valid because it begins from a true fact",
+    "Both arguments are invalid because the rule uses the word \"only\""
+   ]
+  },
+  {
+   "id": "law-college.l16.q1",
+   "lessonId": "law-college.l16",
+   "kind": "mcq",
+   "prompt": "What is a straw man fallacy?",
+   "choices": [
+    "Assuming the conclusion in one of the premises",
+    "Presenting two options as the only ones when others exist",
+    "Misstating an opponent's position in a weaker form and then refuting that version",
+    "Attacking a speaker's character in place of answering the claim"
+   ]
+  },
+  {
+   "id": "law-college.l16.q2",
+   "lessonId": "law-college.l16",
+   "kind": "mcq",
+   "prompt": "What is post hoc ergo propter hoc?",
+   "choices": [
+    "Appealing to the authority of someone with no relevant expertise",
+    "Using one word in two different senses within a single argument",
+    "Generalising from a very small or unrepresentative sample",
+    "Assuming that because one event followed another, the first caused the second"
+   ]
+  },
+  {
+   "id": "law-college.l16.q3",
+   "lessonId": "law-college.l16",
+   "kind": "mcq",
+   "prompt": "A cross-examiner shows that a witness was paid by the plaintiff to testify. Is this an ad hominem fallacy?",
+   "choices": [
+    "No, because financial interest bears on credibility, which is relevant to weighing testimony",
+    "Yes, because any attack on a witness is an ad hominem fallacy",
+    "Yes, because a paid witness cannot give evidence at all",
+    "No, because the fallacy applies only to arguments made outside court"
+   ]
+  },
+  {
+   "id": "law-college.l16.q4",
+   "lessonId": "law-college.l16",
+   "kind": "mcq",
+   "prompt": "A lawyer argues: \"The contract was void, so no one could enforce it; therefore my client, who never signed it, cannot be sued for breaching it.\" The first \"void\" means unenforceable and the second use means never formed. What is the flaw?",
+   "choices": [
+    "Hasty generalisation",
+    "Equivocation on the word \"void\"",
+    "Begging the question",
+    "Slippery slope"
+   ]
+  },
+  {
+   "id": "law-college.l16.q5",
+   "lessonId": "law-college.l16",
+   "kind": "mcq",
+   "prompt": "A plaintiff argues: \"Three accidents occurred at the store last year. My fall was an accident. Therefore the store was negligent.\" Which is the best critique?",
+   "choices": [
+    "It commits the straw man fallacy by misstating the store's position",
+    "It commits the fallacy of begging the question by assuming a duty of care",
+    "It infers negligence from the number of accidents without evidence that the store failed to act reasonably",
+    "It is a valid argument because the premises make negligence certain"
+   ]
+  },
+  {
+   "id": "law-college.l16.q6",
+   "lessonId": "law-college.l16",
+   "kind": "mcq",
+   "prompt": "A legislator argues: \"If we allow this small exemption, soon every industry will be exempt and the law will collapse.\" Which response best separates a fallacious slippery slope from a legitimate concern?",
+   "choices": [
+    "Reject the argument automatically because slippery slope arguments are always fallacies",
+    "Accept the argument automatically because predictions of consequences are always reliable",
+    "Treat it as an ad hominem fallacy since it attacks the exemption's supporters",
+    "Ask whether the rationale for the exemption would in fact apply to the other industries and what evidence supports each step"
+   ]
+  },
+  {
+   "id": "law-college.l17.q1",
+   "lessonId": "law-college.l17",
+   "kind": "mcq",
+   "prompt": "As of this writing, which section of the LSAT was removed beginning with the August 2024 administration?",
+   "choices": [
+    "Logical reasoning",
+    "Reading comprehension",
+    "The unscored writing sample",
+    "Analytical reasoning, often called logic games"
+   ]
+  },
+  {
+   "id": "law-college.l17.q2",
+   "lessonId": "law-college.l17",
+   "kind": "mcq",
+   "prompt": "In a logical reasoning question, what is the first step in most argument tasks?",
+   "choices": [
+    "Compare the answer choices with each other before reading the argument",
+    "Recall relevant outside facts about the subject of the argument",
+    "Identify the conclusion and the premises that support it",
+    "Choose the answer that sounds most sensible to a general reader"
+   ]
+  },
+  {
+   "id": "law-college.l17.q3",
+   "lessonId": "law-college.l17",
+   "kind": "mcq",
+   "prompt": "Argument: \"City A banned plastic bags, and litter in City A fell the next year. So a ban on plastic bags reduces litter.\" Which new fact most weakens it?",
+   "choices": [
+    "City A's plastic bag ban took effect on the first of January",
+    "City A also launched a large street-cleaning programme the same year",
+    "City A has a larger population than most cities of its type",
+    "City A's mayor strongly supports environmental policies"
+   ]
+  },
+  {
+   "id": "law-college.l17.q4",
+   "lessonId": "law-college.l17",
+   "kind": "mcq",
+   "prompt": "How can you test whether a statement is a necessary assumption of an argument?",
+   "choices": [
+    "Negate it and see whether the argument is destroyed",
+    "Add it and see whether the conclusion becomes more popular",
+    "Check whether it repeats the conclusion in different words",
+    "Check whether it is the most surprising claim among the options"
+   ]
+  },
+  {
+   "id": "law-college.l17.q5",
+   "lessonId": "law-college.l17",
+   "kind": "mcq",
+   "prompt": "Argument: \"Students who attend the tutoring centre earn higher grades. So the centre improves grades.\" Which assumption is necessary?",
+   "choices": [
+    "That every student at the school attends the tutoring centre regularly",
+    "That the centre's tutors have all received awards for teaching",
+    "That higher grades are the only purpose of tutoring",
+    "That the higher grades are not explained by an underlying difference such as motivation that drives both attendance and grades"
+   ]
+  },
+  {
+   "id": "law-college.l17.q6",
+   "lessonId": "law-college.l17",
+   "kind": "mcq",
+   "prompt": "A critic of an argument says: \"The author treats the fact that most successful firms have a mission statement as showing that mission statements cause success.\" Which flaw is the critic identifying?",
+   "choices": [
+    "Using a term in two different senses",
+    "Presenting two choices as the only possible ones",
+    "Treating a correlation as proof of causation",
+    "Attacking the author of an opposing view instead of the view itself"
+   ]
+  },
+  {
+   "id": "law-college.l18.q1",
+   "lessonId": "law-college.l18",
+   "kind": "mcq",
+   "prompt": "Which degree do most American law schools award upon completion of the standard programme?",
+   "choices": [
+    "Juris Doctor (J.D.)",
+    "Master of Laws (LL.M.)",
+    "Bachelor of Laws (LL.B.)",
+    "Doctor of Juridical Science (S.J.D.)"
+   ]
+  },
+  {
+   "id": "law-college.l18.q2",
+   "lessonId": "law-college.l18",
+   "kind": "mcq",
+   "prompt": "What does the Multistate Professional Responsibility Examination test?",
+   "choices": [
+    "Knowledge of the rules of evidence only",
+    "Knowledge of rules of professional conduct for lawyers",
+    "Knowledge of the law of contracts and torts",
+    "Ability to draft a legal memorandum from a case file"
+   ]
+  },
+  {
+   "id": "law-college.l18.q3",
+   "lessonId": "law-college.l18",
+   "kind": "mcq",
+   "prompt": "A lawyer learns confidential information from a client. Which statement best distinguishes the duty of confidentiality from the attorney-client privilege?",
+   "choices": [
+    "The privilege is an ethical duty, and confidentiality is only an evidentiary rule",
+    "The privilege applies to all information a lawyer ever learns about the client",
+    "Confidentiality is a broad ethical duty, and the privilege is an evidentiary rule for certain communications made to get legal advice",
+    "They are identical rules with identical exceptions in every state"
+   ]
+  },
+  {
+   "id": "law-college.l18.q4",
+   "lessonId": "law-college.l18",
+   "kind": "mcq",
+   "prompt": "A graduate of an accredited law school moves from one Uniform Bar Examination jurisdiction to another. What is true about the score?",
+   "choices": [
+    "The score is invalid in any jurisdiction other than where the exam was taken",
+    "The score is automatically accepted everywhere in the country with no further requirements",
+    "The score is portable only if the lawyer has practised for at least twenty years",
+    "The score is portable and may be transferred, though each jurisdiction sets its own passing score and other requirements"
+   ]
+  },
+  {
+   "id": "law-college.l18.q5",
+   "lessonId": "law-college.l18",
+   "kind": "mcq",
+   "prompt": "A college senior asks whether she must major in political science to enter law school. Which answer is most accurate?",
+   "choices": [
+    "No, law schools accept applicants from any major, and admission turns on grades, test scores and other factors",
+    "Yes, because the ABA requires a pre-law major for accreditation",
+    "Yes, because the bar exam covers political science",
+    "No, because law school admission does not consider undergraduate grades at all"
+   ]
+  },
+  {
+   "id": "law-college.l18.q6",
+   "lessonId": "law-college.l18",
+   "kind": "mcq",
+   "prompt": "A newly admitted lawyer is told by a client that she plans to file a false affidavit tomorrow. The lawyer believes that confidentiality bars any action. Which analysis is most sound?",
+   "choices": [
+    "The lawyer may assist, because duties to clients override all duties to the tribunal",
+    "Professional conduct rules generally forbid assisting a fraud on the court, and each state's rules set narrow exceptions to confidentiality, so the lawyer must consult those rules",
+    "Confidentiality is absolute and in no jurisdiction may a lawyer refuse to assist a client",
+    "The lawyer must report every client communication to the court, since lawyers are officers of the court"
+   ]
+  }
+ ]
+}

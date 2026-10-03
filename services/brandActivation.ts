@@ -9,6 +9,9 @@
 
 import { createOrganization, updateOrganization } from './organizationService';
 import { createClub, updateStoreSettings, updateAccountType } from './backendService';
+import { linkAccountToOrg } from './elevateService';
+import { auth, db } from './firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { getTemplate } from './businessTemplates';
 import type { Organization, Club, OrgType, AccountType } from '../types';
 
@@ -58,6 +61,14 @@ export async function activateBrand(opts: BrandActivationOptions): Promise<Brand
     return { ...result, error: e?.message || 'Could not create the organization page' };
   }
   if (!result.organization) return { ...result, error: 'Sign in to activate a brand' };
+
+  // 1b. Brand accounts: link account <-> org (org.accountUid + users/{uid}.linkedOrgId) unless already linked.
+  if (accountTypeForOrg(orgType) === 'BRAND' && auth.currentUser) {
+    try {
+      const snap = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      if (!(snap.data() as any)?.linkedOrgId) await linkAccountToOrg(result.organization.id);
+    } catch { /* non-fatal */ }
+  }
 
   // 2. Optional community club (carries a merch store flag).
   if (opts.createClub) {

@@ -36,9 +36,94 @@ export interface ChangelogEntry {
  * entriesSince), so it can only ever fire when a genuinely new entry is prepended —
  * never on a redeploy that shipped no user-facing changelog line.
  */
-export const APP_BUILD = '2026.08.26-01';
+export const APP_VERSION = '1.0.40';
+export const APP_BUILD = '2026.09.27-01';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    id: 'ambo-master-broadcast', date: '2026-09-27', time: '10:00', level: 'major', area: 'Ambo',
+    title: 'Master live broadcast engine with LED Wall and auto-save',
+    technical: 'Resolved ReferenceError initialization ordering for nextSlide in master broadcast; implemented background auto-save loop, persistent workspace storage, File and Output menus, dedicated LED Wall modal entry point, and multi-display presentation rasterizer with NDI video routing support.',
+    plain: 'Ambo now features a bulletproof live presentation and broadcast command center: your presentations auto-save in the background, multi-screen LED walls can be targeted directly from the Output menu, and broadcast slides advance seamlessly without presentation freezes.',
+  },
+  {
+    id: 'academia-museion-overhaul', date: '2026-09-25', time: '14:30', level: 'major', area: 'Academia',
+    title: 'Rebranded Plajah Museion with school portals and interactive worksheets',
+    technical: 'Overhauled school landing pages with role-specific views (Teacher, Parent, Student) and true back navigation; rebranded scientific research and curriculum layer to Plajah Museion; integrated rich lesson worksheet digitization pipeline (digitize, assign, fill, and AI-tutor), CLASSROOM rooms with strict DM policies, and multi-language cartridges.',
+    plain: 'Plajah Academia and Museion are now fully integrated: schools get custom portal landing pages for students, parents, and teachers, alongside smart interactive worksheets that can be filled out and tutored right in the browser.',
+  },
+  {
+    id: 'vault-soundscape-radio', date: '2026-09-22', time: '16:15', level: 'minor', area: 'Archive Vault',
+    title: 'Vocal soundscape visualizer engine and radio presets',
+    technical: 'Repaired soundscape visualizer rendering crash, added quick-tune radio presets, automated stream recovery for FAST channels, and connected public domain archival films directly to streaming media pipelines.',
+    plain: 'The Archive Vault now sports an ambient vocal soundscape visualizer and fast one-tap radio presets, keeping archival video and music playback uninterrupted.',
+  },
+  {
+    id: 'sports-firstlight-3d', date: '2026-09-20', time: '12:00', level: 'major', area: 'Sports',
+    title: 'Project Firstlight 3D Passing Lab and personalized game days',
+    technical: 'Integrated full 3D football passing simulation engine with real-time animated aurora shaders and Stitch design menu; added Project Firstlight memory archive, admin app launcher card, personalized game day schedules, and Pew Pew phone motion-sensor aiming engine.',
+    plain: 'Sports in Plajah enters 3D with Project Firstlight: an interactive passing lab with realistic physics and stadium shaders, paired with personalized game day dashboards and motion-controlled mobile games.',
+  },
+  {
+    id: 'lighting-designer-lan', date: '2026-09-18', time: '18:45', level: 'major', area: 'Lighting',
+    title: 'Zero-friction smart lighting: Govee, Nanoleaf & Razer Chroma',
+    technical: 'Introduced Lighting Designer (LD) top-level experience; implemented zero-friction LAN auto-discovery via local UDP broadcast and HTTP APIs for Govee and Nanoleaf fixtures; integrated ldBridge creative mode and synchronized Razer Chroma hardware + on-screen visualizer pulses with LD lighting DMX output.',
+    plain: 'Lighting Designer turns your room into an intelligent stage: it automatically discovers your Govee and Nanoleaf smart lights over Wi-Fi with zero setup, and syncs your smart bulbs, light strips, and Razer Chroma gear to the music and visualizers playing on screen.',
+  },
+  {
+    id: 'chora-artist-glass', date: '2026-09-16', time: '15:20', level: 'major', area: 'Chora',
+    title: 'Personal Artist Pages with glass canvas and FLUX particle visualizers',
+    technical: 'Redesigned ArtistModeLanding into an A1 Glass Canvas zero-scroll layout; deployed PersonalArtistPage for music locker artists with vibrant cyan color treatments, complete discography, events, and videos; rebuilt Gatefold album view with point-cloud particle visualizers (Porcelain Tile, Velvet Bloom, Prism Archive) powered by the 60fps FLUX visual engine.',
+    plain: 'Every creator in Chora now gets a dedicated Personal Artist Page with a frosted glass layout, complete music locker catalog, and a 3D Gatefold album view featuring luminous particle cloud visualizers that react to every note.',
+  },
+  {
+    id: 'melos-music-lab-onda-kera', date: '2026-09-14', time: '09:00', level: 'major', area: 'Melos',
+    title: 'Melos DAW: ONDA synth, KERA multisampler, Spectra EQ & VST3 hosting',
+    technical: 'Shipped full private generative music production workspace: ONDA wavetable synthesizer (Rust/WASM), KERA multisampler with deep zone map and SF2/SFZ soundfont parsers, Spectra mix-bus EQ and dynamics, Motion modulators with 7 shapes, hardware MIDI learn for Maschine/Kontrol, Windows VST3 plugin bridge, sample rights licensing model, and one-tap "→ Fabula" groove transfer.',
+    plain: 'Melos is Plajah\'s full-featured music production studio in your browser or desktop app: play expressive wavetable synths, load realistic instrument sample libraries, sculpt audio with mastering-grade EQs, plug in your MIDI keyboard, and send your completed beats straight to video projects in Fabula.',
+  },
+  {
+    id: 'ora-wellbeing-suite', date: '2026-09-12', time: '11:10', level: 'major', area: 'Wellbeing',
+    title: 'Ora Wellbeing Suite: Rest, daily rhythms, and mindful journals',
+    technical: 'Integrated the complete Ora wellbeing platform: persistent daily rhythms, guided breathwork, voice-driven journal nudges, expanded interactive orb interface, mindful notes, and ambient soundscapes seamlessly accessible from the primary sidebar.',
+    plain: 'Ora brings intentional wellness and focus directly into Plajah: track daily rhythms, log private voice journals with gentle AI nudges, practice breathwork with the glowing Ora orb, and tune in to calming soundscapes while you work.',
+  },
+  {
+    id: 'fabula-forge-fx-sam', date: '2026-09-10', time: '17:30', level: 'major', area: 'Fabula',
+    title: 'Forge FX Suite: 175 GPU effects, Beat Reactor, SAM mattes & Runway AI',
+    technical: 'Architected the Forge FX real-time GPU suite with 175 effects and 49 transitions; built Beat Reactor audio-reactive visual parameters, VectorTrack planar tracker, PowerMesh warp, Depth Anything V2 depth mattes, client-side SAM (Segment Anything Model) object segmentation, OpenFX plugin generator, and direct Runway Gen AI plugin panel integration.',
+    plain: 'Fabula now rivals Hollywood editing suites: apply over 175 real-time effects, track objects across moving video shots, isolate subjects with AI rotoscoping without uploading to servers, pulse visuals in sync with your soundtrack, and generate AI footage via Runway right from your timeline.',
+  },
+  {
+    id: 'terra-civic-place-layer', date: '2026-08-30', time: '14:00', level: 'major', area: 'Terra',
+    title: 'Terra: Detroit real-estate, civic places, and automated listing films',
+    technical: 'Launched Terra civic and real estate platform: parcel studio, zoning envelope generator, property passports, Open Listing Record (OLR) integration, compliance checks, and automated AI Listing Film generation from speech-transcribed property walkthroughs with room detection.',
+    plain: 'Terra connects physical places and real estate to Plajah: explore Detroit parcel zoning in 3D, inspect verified property passports, and turn a smartphone video walkthrough into an edited, room-by-room listing film automatically.',
+  },
+  {
+    id: 'business-pos-in-store-live', date: '2026-08-25', time: '13:00', level: 'major', area: 'Business',
+    title: 'Plajah Business: POS Register, staff time-clock & In-Store Live broadcast',
+    technical: 'Built full in-person retail suite: POS Register with cash and card sales on the direct Stripe Connect order spine, receipt printer hardware support (QZ Tray / ESC-POS), cash drawer kicks, customer loyalty auto-recognition via QR/phone, Staff/HR module with PIN time-clocks and payroll export, and In-Store Live broadcasting the store\'s current music pulse and tip/buy actions.',
+    plain: 'Plajah for Business powers physical shops and venues: run a fast touchscreen POS register with receipt printing, manage employee shifts with PIN punch-in, and broadcast what\'s currently playing in-store so shoppers can tip creators, discover tracks, and order from their phones.',
+  },
+  {
+    id: 'fast-wallclock-epg', date: '2026-08-20', time: '16:00', level: 'major', area: 'Live TV',
+    title: 'Live TV+ Wall-Clock Playout, rolling channel dial & EPG guide',
+    technical: 'Re-engineered FAST playout engine to be strictly wall-clock epoch-anchored: eliminated ad-break looping, added rolling channel dial surface (Samsung TV Plus style), per-program time-block EPG guide, terrestrial join-in-progress, and automatic branded bumper/ident insertion.',
+    plain: 'Live TV+ now behaves like true broadcast cable television: channels stay on real-time wall-clock time, flipping channels feels instant with a rolling channel dial, and a live TV guide shows what\'s airing now and up next 24 hours a day.',
+  },
+  {
+    id: 'audius-native-parity', date: '2026-08-15', time: '10:30', level: 'minor', area: 'Music',
+    title: 'Audius library import, native album view & algorithmic up-next radio',
+    technical: 'Completed Audius Phases 2 through 4: single tracks open the native Plajah album view unlocking Pixels visualizers and DJ mode, full OML attribution, Audius OAuth login with one-click library import, and native-first algorithmic up-next radio queue.',
+    plain: 'Log in with your Audius account to import your favorite music into Plajah, experience Audius tracks in full 3D Gatefold album view with audio visualizers, and let smart up-next radio keep the music playing automatically.',
+  },
+  {
+    id: 'windows-native-pro-stack', date: '2026-08-12', time: '11:00', level: 'major', area: 'Windows',
+    title: 'Windows Native Pro Studio: WinUI 3 shell, Hello biometrics & NDI video',
+    technical: 'Engineered native Windows acceleration layer: WinUI 3 desktop shell (Plajah.WinUI), Windows Hello biometric authentication service, Windows Ink pen support, native VST3 audio plugin hosting, and pro-grade NDI video input/output routing for live multi-camera switchers.',
+    plain: 'Plajah on Windows is now an ultra-fast native desktop application: unlock instantly with Windows Hello facial recognition or fingerprint, draw with stylus ink, load native VST3 instrument plugins, and broadcast multi-camera video feeds using broadcast-standard NDI.',
+  },
   {
     id: 'fabula-local-first', date: '2026-09-07', time: '06:00', level: 'major', area: 'Fabula',
     title: 'Fabula plays your media straight off your drive',

@@ -1,7 +1,7 @@
 {
   "interactionModel": {
     "languageModel": {
-      "invocationName": "chora",
+      "invocationName": "plajah",
       "intents": [
         { "name": "AMAZON.PauseIntent", "samples": [] },
         { "name": "AMAZON.ResumeIntent", "samples": [] },
@@ -10,6 +10,10 @@
         { "name": "AMAZON.StopIntent", "samples": [] },
         { "name": "AMAZON.CancelIntent", "samples": [] },
         { "name": "AMAZON.HelpIntent", "samples": [] },
+        { "name": "AMAZON.RepeatIntent", "samples": [] },
+        { "name": "AMAZON.ShuffleOnIntent", "samples": [] },
+        { "name": "AMAZON.ShuffleOffIntent", "samples": [] },
+        { "name": "AMAZON.StartOverIntent", "samples": [] },
         {
           "name": "PlaySongIntent",
           "slots": [
@@ -18,15 +22,77 @@
           ],
           "samples": [
             "play {song}",
+            "play {song} on chora",
             "play {song} by {artist}",
             "play {song} from {artist}",
+            "play {song} by {artist} on chora",
             "play the song {song}",
             "play the track {song}",
             "start {song}",
             "put on {song}",
             "play me {song}",
-            "I want to hear {song}",
-            "play {song} on chora"
+            "I want to hear {song}"
+          ]
+        },
+        {
+          "name": "PlayArtistIntent",
+          "slots": [
+            { "name": "artist", "type": "AMAZON.MusicGroup" }
+          ],
+          "samples": [
+            "play {artist}",
+            "play artist {artist}",
+            "play songs by {artist}",
+            "play music by {artist}",
+            "play some {artist}",
+            "put on {artist}",
+            "shuffle {artist}",
+            "play {artist} on chora"
+          ]
+        },
+        {
+          "name": "PlayAlbumIntent",
+          "slots": [
+            { "name": "album", "type": "AMAZON.MusicAlbum" },
+            { "name": "artist", "type": "AMAZON.MusicGroup" }
+          ],
+          "samples": [
+            "play the album {album}",
+            "play album {album}",
+            "play album {album} by {artist}",
+            "play the album {album} by {artist}",
+            "put on the album {album}",
+            "play {album} on chora"
+          ]
+        },
+        {
+          "name": "PlayMixIntent",
+          "slots": [
+            { "name": "genre", "type": "AMAZON.Genre" }
+          ],
+          "samples": [
+            "play a mix",
+            "play a dj mix",
+            "play chora mix",
+            "play chora mixes",
+            "play mix",
+            "play {genre} mix",
+            "play some mixes",
+            "put on a mix",
+            "play dance mix",
+            "start a mix"
+          ]
+        },
+        {
+          "name": "WhatsPlayingIntent",
+          "slots": [],
+          "samples": [
+            "what song is this",
+            "what is playing",
+            "what is this track",
+            "who sings this",
+            "what are we listening to",
+            "current track"
           ]
         }
       ],

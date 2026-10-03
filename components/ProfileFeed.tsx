@@ -1189,6 +1189,8 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                 isPublic: true,
                 ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
                 ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
+                ...(data.poll ? { poll: data.poll } : {}),
+                ...(data.dataViz ? { dataViz: data.dataViz } : {}),
                 ...embedFields,
                 targetUserId: isOwnProfile ? undefined : uid,
                 targetUserName: isOwnProfile ? undefined : profileName

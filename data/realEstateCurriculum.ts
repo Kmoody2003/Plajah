@@ -139,7 +139,10 @@ The practical rule for a first-time buyer or seller is short: before you discuss
           standardIds: ['PJRE.HOME.HS'],
           body: `After the 2008 crisis, US regulators standardised mortgage disclosure into two forms — the Loan Estimate given after application and the Closing Disclosure given before closing — precisely because borrowers could not previously compare offers. Both are public-domain documents with published guides, and learning to read them is worth more than any amount of general advice about shopping around.
 
-Page one gives loan terms, projected payments and estimated closing costs. Read three things first: whether the rate can change and on what schedule; whether there is a prepayment penalty or a balloon payment; and the total monthly obligation including escrowed taxes and insurance, which is often materially higher than the quoted principal-and-interest figure.
+Page one gives loan terms, projected payments and estimated closing costs. Read three things first:
+- whether the rate can change and on what schedule
+- whether there is a prepayment penalty or a balloon payment
+- and the total monthly obligation including escrowed taxes and insurance, which is often materially higher than the quoted principal-and-interest figure.
 
 Page two itemises closing costs, split between services you cannot shop for and services you can — a distinction that exists to tell you exactly where negotiation is possible.
 

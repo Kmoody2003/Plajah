@@ -1,0 +1,17 @@
+[package]
+name = "plajah-core"
+version = "0.1.0"
+edition = "2024"
+description = "Umbrella native crate unifying all Plajah core engines: audio, math, color, and VFX"
+license = "UNLICENSED"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+plajah-audio = { path = "../plajah-audio" }
+plajah-math = { path = "../plajah-math" }
+plajah-color = { path = "../plajah-color" }
+
+[features]
+default = []

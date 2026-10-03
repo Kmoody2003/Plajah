@@ -1,0 +1,21 @@
+# law-g912 uncertain claims (for expert review)
+
+- l01: Description of persuasive vs binding precedent and preemption of state law by federal regulations is simplified.
+- l02: Youngstown (1952) summary and Justice Jackson's three-category framework (concurring opinion) are standard but described briefly; confirm "Truman ordered seizure during a threatened steel strike."
+- l03: Gitlow v. New York (1925) described as "assumed" free speech applies to states (standard characterization). Heller (2008) described as protecting a handgun at home for self-defense; the lesson says the extent of regulation "continues to be litigated" and does not discuss McDonald v. Chicago (2010) or NYSRPA v. Bruen (2022), which a reviewer may want added. The Second Amendment paragraph tries to be balanced; check tone.
+- l04: Lopez (1995) and Murphy v. NCAA (2018) holdings summarized; McCulloch (1819) both holdings. Confirm "anti-commandeering" label for Murphy.
+- l05: Diversity jurisdiction threshold "exceeds $75,000" and complete diversity (28 U.S.C. 1332); the rule of four for certiorari is a tradition, not a statute.
+- l06: Rule 12(b)(6) / Rule 56 / discovery summaries; "proportional to the needs of the case" reflects current Rule 26(b)(1). Seventh Amendment phrase "common law" simplified.
+- l07: "Large majority of cases end in plea bargain" stated without a percentage. Miranda summary: statements obtained in violation generally inadmissible in the prosecution's case in chief (exceptions like impeachment not discussed).
+- l08: Santosky v. Kramer (1982) clear-and-convincing standard for termination of parental rights; claim that clear and convincing is used "in many states" for fraud claims is general and varies by state. Burden on affirmative defenses such as self-defense varies by state (Patterson v. New York not cited).
+- l09: Rules 401, 402, 403, 404(a), 404(b), 602, 701, 702, 901 summarized; Rule 404 has exceptions (e.g., 404(a)(2)) not detailed.
+- l10: Rules 801(c), 801(d)(2), 802, 803, 804 summarized loosely; list of 803 exceptions is partial. Crawford (2004) holding summarized, later cases (Davis, Bryant, Melendez-Diaz, Smith v. Arizona) not covered.
+- l11: Palsgraf (N.Y. 1928) facts and Cardozo majority/Andrews dissent summarized; "small minority of states and D.C." for contributory negligence (commonly cited as Alabama, Maryland, North Carolina, Virginia, and D.C.) and modified comparative thresholds vary. Strict liability for defective products "in most states."
+- l12: Lucy v. Zehmer (Va. 1954) facts (restaurant check, farm sale) and Hadley v. Baxendale (Exch. 1854) facts summarized; statute of frauds categories simplified; UCC adoption description general.
+- l13: Barnette (1943), Fraser (1986), Hazelwood (1988), Morse (2007), Mahanoy (2021) summaries; Morse facts ("banner at a parade across from a school") simplified.
+- l14: T.L.O. (1985) facts and test; Safford (2009) facts ("prescription-strength ibuprofen," thirteen-year-old); Vernonia (1995) and Earls (2002); Goss v. Lopez (1975) ten-day figure.
+- l15: Gault facts (age fifteen, Arizona, commitment until twenty-one noted as "up to six years" in the lesson; verify), Winship, McKeiver, J.D.B., Roper, Graham, Miller summarized. Montgomery v. Louisiana (2016) and Jones v. Mississippi (2021) not covered.
+- l16-l20: Mock trial format details (order of closings, rebuttal, rules adapted from FRE) vary by competition and are described generally. Rule 611, 613, 608, 609 summaries; ABA Model Rule numbers 1.6 (confidentiality) and 3.3 (candor to the tribunal).
+- l21: Legal education path (J.D., ABA approval, bar exam, character and fitness) and "a few states allow other routes" are general; paralegal role limits vary by state; admissions test details change.
+- l22: Article 38 of the ICJ Statute, VCLT (1969) pacta sunt servanda and jus cogens, UN Charter Articles 2(4) and 51. Claim that the US has signed but not ratified the VCLT and treats parts as customary. Rome Statute (1998) US non-party status. Scope of anticipatory self-defense is described as debated.
+- l23: UDHR 1948 customary-law claim ("many scholars argue"), ICCPR US ratification in 1992 with reservations, ICESCR US signed but not ratified, CRC "nearly every state" ratified and US signed but not ratified, ECHR (1950), Geneva Conventions (1949), Medellin v. Texas (2008) summary.

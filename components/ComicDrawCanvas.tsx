@@ -3,6 +3,7 @@ import {
   Brush, Eraser, Undo2, Trash2, Plus, Eye, EyeOff, X, Check, Loader2, Layers as LayersIcon, Droplet, Pencil, Highlighter, SprayCan,
 } from 'lucide-react';
 import { TELA_BRUSH_PRESETS } from '../services/telaCreativeEngine';
+import { useWindowsInk, type InkPoint } from '../hooks/useWindowsInk';
 
 // A real layered paint canvas — the drawing-engine foundation. Pressure-aware brush
 // (PointerEvent.pressure), eraser, per-layer opacity/visibility/blend mode, undo, and
@@ -71,46 +72,68 @@ const ComicDrawCanvas: React.FC<{
 
   const activeLayer = () => layersRef.current.find(l => l.id === activeRef.current) || layersRef.current[layersRef.current.length - 1];
 
-  const pos = (e: React.PointerEvent) => {
-    const r = dispRef.current!.getBoundingClientRect();
-    return { x: (e.clientX - r.left) / r.width * width, y: (e.clientY - r.top) / r.height * height, p: e.pressure && e.pressure > 0 ? e.pressure : 0.5 };
-  };
-
-  const onDown = (e: React.PointerEvent) => {
-    e.preventDefault();
-    const l = activeLayer(); if (!l) return;
-    // snapshot for undo (cap 24)
-    const ctx = l.canvas.getContext('2d')!;
-    undoStack.current.push({ id: l.id, data: ctx.getImageData(0, 0, width, height) });
-    if (undoStack.current.length > 24) undoStack.current.shift();
-    drawing.current = true;
-    const { x, y } = pos(e); last.current = { x, y };
-    stroke(e); // dot on tap
-  };
-
-  const stroke = (e: React.PointerEvent) => {
-    if (!drawing.current) return;
+  const drawInkPoint = (pt: InkPoint) => {
     const l = activeLayer(); if (!l) return;
     const ctx = l.canvas.getContext('2d')!;
-    const { x, y, p } = pos(e);
+    const isErase = tool === 'eraser' || pt.isEraser;
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
+    ctx.globalCompositeOperation = isErase ? 'destination-out' : 'source-over';
+
+    const p = pt.pressure;
+    // Stylus tilt shading: when pen is tilted significantly, broaden stroke
+    const maxTilt = Math.max(Math.abs(pt.tiltX), Math.abs(pt.tiltY));
+    const tiltScale = maxTilt > 20 ? 1 + (maxTilt / 90) * 1.5 : 1;
+
     const pressureOpacity = preset.pressureOpacity ? (1 - preset.pressureOpacity + preset.pressureOpacity * p) : 1;
-    ctx.globalAlpha = tool === 'eraser' ? Math.max(.25, opacity) : opacity * preset.opacity * pressureOpacity;
+    ctx.globalAlpha = isErase ? Math.max(.25, opacity) : opacity * preset.opacity * pressureOpacity;
     ctx.strokeStyle = color;
-    ctx.lineWidth = Math.max(0.5, size * (1 - preset.pressureSize + preset.pressureSize * p));
-    const lp = last.current || { x, y };
-    const mx = (lp.x + x) / 2, my = (lp.y + y) / 2;
-    if (tool === 'airbrush') {
-      const distance = Math.max(1, Math.hypot(x - lp.x, y - lp.y)), steps = Math.max(1, Math.ceil(distance / Math.max(2, size * .12)));
-      for (let i = 0; i <= steps; i++) { const t = i / steps, px = lp.x + (x - lp.x) * t, py = lp.y + (y - lp.y) * t; const gradient = ctx.createRadialGradient(px, py, 0, px, py, ctx.lineWidth / 2); gradient.addColorStop(0, color); gradient.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(px, py, ctx.lineWidth / 2, 0, Math.PI * 2); ctx.fill(); }
-    } else { ctx.beginPath(); ctx.moveTo(lp.x, lp.y); ctx.quadraticCurveTo(lp.x, lp.y, mx, my); ctx.stroke(); }
-    last.current = { x, y };
+    ctx.lineWidth = Math.max(0.5, size * (1 - preset.pressureSize + preset.pressureSize * p) * tiltScale);
+
+    const lp = last.current || { x: pt.x, y: pt.y };
+    const mx = (lp.x + pt.x) / 2, my = (lp.y + pt.y) / 2;
+    if (tool === 'airbrush' && !isErase) {
+      const distance = Math.max(1, Math.hypot(pt.x - lp.x, pt.y - lp.y)), steps = Math.max(1, Math.ceil(distance / Math.max(2, size * .12)));
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps, px = lp.x + (pt.x - lp.x) * t, py = lp.y + (pt.y - lp.y) * t;
+        const gradient = ctx.createRadialGradient(px, py, 0, px, py, ctx.lineWidth / 2);
+        gradient.addColorStop(0, color); gradient.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(px, py, ctx.lineWidth / 2, 0, Math.PI * 2); ctx.fill();
+      }
+    } else {
+      ctx.beginPath(); ctx.moveTo(lp.x, lp.y); ctx.quadraticCurveTo(lp.x, lp.y, mx, my); ctx.stroke();
+    }
+    last.current = { x: pt.x, y: pt.y };
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-    composite();
   };
 
-  const onUp = () => { drawing.current = false; last.current = null; };
+  const { pointerEvents } = useWindowsInk({
+    enablePalmRejection: true,
+    transformPoint: ({ x, y }) => {
+      const r = dispRef.current?.getBoundingClientRect() || { width: 1, height: 1 };
+      return { x: (x / r.width) * width, y: (y / r.height) * height };
+    },
+    onStrokeStart: (point) => {
+      const l = activeLayer(); if (!l) return;
+      const ctx = l.canvas.getContext('2d')!;
+      undoStack.current.push({ id: l.id, data: ctx.getImageData(0, 0, width, height) });
+      if (undoStack.current.length > 24) undoStack.current.shift();
+      drawing.current = true;
+      last.current = { x: point.x, y: point.y };
+      drawInkPoint(point);
+      composite();
+    },
+    onStrokeMove: (points) => {
+      if (!drawing.current) return;
+      for (const pt of points) {
+        drawInkPoint(pt);
+      }
+      composite();
+    },
+    onStrokeEnd: () => {
+      drawing.current = false;
+      last.current = null;
+    },
+  });
 
   const undo = () => {
     const snap = undoStack.current.pop(); if (!snap) return;
@@ -177,7 +200,7 @@ const ComicDrawCanvas: React.FC<{
           <div className="flex-1 min-h-0 overflow-auto grid place-items-center p-6" style={{ background: '#0d0d0f' }}>
             <canvas
               ref={dispRef} width={width} height={height}
-              onPointerDown={onDown} onPointerMove={stroke} onPointerUp={onUp} onPointerLeave={onUp}
+              {...pointerEvents}
               className="rounded-lg shadow-2xl ring-1 ring-white/10 touch-none"
               style={{ width: 'auto', height: '78vh', maxWidth: '100%', background: '#fff', cursor: 'crosshair' }}
             />

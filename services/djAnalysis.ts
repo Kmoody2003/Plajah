@@ -105,8 +105,9 @@ export async function persistAnalysis(trackId: string, analysis: AudioAnalysis):
  * Resolve a track's analysis from the fastest available source, computing + persisting if needed.
  * Safe: returns null instead of throwing. De-duped so concurrent callers share one computation.
  */
-export async function getOrComputeAnalysis(track: Pick<Track, 'id' | 'url' | 'audioAnalysis'>, opts?: { persist?: boolean; signal?: AbortSignal }): Promise<AudioAnalysis | null> {
+export async function getOrComputeAnalysis(track: Pick<Track, 'id' | 'url' | 'audioAnalysis'>, opts?: { persist?: boolean; signal?: AbortSignal; computeIfMissing?: boolean }): Promise<AudioAnalysis | null> {
   const persist = opts?.persist !== false;
+  const computeIfMissing = opts?.computeIfMissing !== false;
   if (isFresh(track.audioAnalysis)) return track.audioAnalysis!;
   const cached = memCache.get(track.id);
   if (isFresh(cached)) return cached;
@@ -128,7 +129,7 @@ export async function getOrComputeAnalysis(track: Pick<Track, 'id' | 'url' | 'au
       }
     } catch { /* fall through to compute */ }
 
-    if (!track.url) return null;
+    if (!computeIfMissing || !track.url) return null;
     try {
       const analysis = await computeAudioAnalysis(track.url, opts?.signal);
       memCache.set(track.id, analysis);

@@ -19,6 +19,8 @@
  * Install (already a dependency): @huggingface/transformers
  */
 
+import { isWindowsApp, invokeNativeLlm } from '../windowsBridgeService';
+
 // Picked to balance quality vs. download/VRAM. WebGPU gets the 1.5B; wasm-only
 // devices fall back to the tiny 0.5B so it still runs (slowly) anywhere.
 const MODEL_WEBGPU = 'onnx-community/Qwen2.5-1.5B-Instruct';
@@ -36,17 +38,16 @@ class AriaLocalModel {
   private loading: Promise<boolean> | null = null;
   status: LocalModelStatus = 'idle';
   modelId = '';
-  backend: 'webgpu' | 'wasm' | '' = '';
+  backend: 'nvidia-rtx' | 'webgpu' | 'wasm' | '' = '';
   lastError = '';
 
-  /** Is on-device inference even plausible here? (WebGPU strongly preferred.) */
+  /** Is on-device inference even plausible here? (WebGPU or Windows native preferred.) */
   static isSupported(): boolean {
-    // wasm works but a 0.5–1.5B model on wasm is painfully slow; we still allow
-    // it, but callers can use this to decide whether to *offer* the toggle.
+    if (isWindowsApp()) return true;
     return typeof WebAssembly !== 'undefined';
   }
 
-  static prefersWebGPU(): boolean { return hasWebGPU(); }
+  static prefersWebGPU(): boolean { return hasWebGPU() || isWindowsApp(); }
 
   /** Download + compile the model. Safe to call repeatedly; returns readiness. */
   async warm(onStatus?: (s: string) => void): Promise<boolean> {
@@ -57,6 +58,15 @@ class AriaLocalModel {
     this.status = 'loading';
     this.loading = (async () => {
       try {
+        if (isWindowsApp()) {
+          onStatus?.('Connecting Aria to NVIDIA RTX local engine…');
+          this.backend = 'nvidia-rtx';
+          this.modelId = 'Nemotron-Mini-4B-Instruct-INT4';
+          this.status = 'ready';
+          onStatus?.('Aria on-device ready (NVIDIA RTX / Nemotron).');
+          return true;
+        }
+
         onStatus?.('Loading Aria on-device…');
         const webgpu = hasWebGPU();
         this.backend = webgpu ? 'webgpu' : 'wasm';
@@ -96,7 +106,16 @@ class AriaLocalModel {
     messages: LocalChatMessage[],
     opts: { maxNewTokens?: number; temperature?: number } = {},
   ): Promise<string> {
-    if (!this.ready || !this.gen) throw new Error('local model not ready');
+    if (!this.ready) throw new Error('local model not ready');
+
+    if (this.backend === 'nvidia-rtx') {
+      const userMsg = messages.filter(m => m.role === 'user').pop()?.content || '';
+      const sysMsg = messages.find(m => m.role === 'system')?.content;
+      const res = await invokeNativeLlm(userMsg, sysMsg);
+      if (res.success && res.text) return res.text;
+    }
+
+    if (!this.gen) throw new Error('local model not ready');
     const out = await this.gen(messages, {
       max_new_tokens: opts.maxNewTokens ?? 512,
       temperature: opts.temperature ?? 0.7,

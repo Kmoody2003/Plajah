@@ -1,0 +1,1286 @@
+{
+ "courseId": "law-intl-human-rights",
+ "label": "International Human Rights Law",
+ "lessons": [
+  {
+   "id": "law-intl-human-rights.l01",
+   "title": "Origins and the Universal Declaration",
+   "body": [
+    "Before 1945 the treatment of a state's own nationals was mostly a matter of domestic jurisdiction. International law protected foreigners through diplomatic protection, regulated war through humanitarian law, and in a few areas, such as the abolition of slavery and minority protection treaties after the First World War, touched individuals directly. But a government that persecuted its own citizens could generally say that this was nobody else's business. The Second World War, the Holocaust and the Nuremberg trials changed the political climate. The idea took hold that how a state treats people within its borders is a legitimate concern of the whole international community.",
+    "The Charter of the United Nations 1945 is the first step. Its preamble reaffirms faith in fundamental human rights, and Articles 1(3) and 55 make the promotion of respect for human rights and fundamental freedoms, without distinction as to race, sex, language or religion, one of the purposes of the organisation. In Article 56 members pledge to take joint and separate action to achieve those purposes. These provisions are general and do not list any rights. The Charter does not say what the rights are, so the first task of the new Commission on Human Rights, chaired by Eleanor Roosevelt, was to write a catalogue.",
+    "The result was the Universal Declaration of Human Rights, adopted by the UN General Assembly on 10 December 1948 as resolution 217A (III). It was approved by 48 votes with no votes against and eight abstentions, among them the Soviet bloc states, South Africa and Saudi Arabia. The drafters came from many traditions, including Peng Chun Chang of China, Charles Malik of Lebanon, Hansa Mehta of India, Rene Cassin of France and John Humphrey of Canada. The text lists civil and political rights such as life, liberty, fair trial and freedom of expression, and economic, social and cultural rights such as social security, work and education. Article 1 states that all human beings are born free and equal in dignity and rights.",
+    "The legal status of the Declaration is the classic trap. A General Assembly resolution is not a treaty, and the Assembly cannot legislate for states, so the Declaration was not binding when adopted. Its importance is that it became the common reference point. It inspired the two 1966 Covenants and many national constitutions, and courts have cited it. Many scholars argue that parts of it, such as the prohibition of torture and of slavery, have become binding customary international law, and that the whole instrument forms an authoritative interpretation of the human rights obligations in the Charter. Whether every provision has customary status is disputed, so the careful answer is that the Declaration is non-binding in form while some of its content is binding through other sources.",
+    "Consider a worked example. A state that has ratified no human rights treaty arrests and tortures a dissident. An argument based solely on the Declaration as a treaty would fail, because there is none. But the prohibition of torture is also customary law and a peremptory norm, so the conduct is still unlawful. The route to the conclusion matters: it runs through custom, not through the Declaration's own legal force."
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l02",
+   "title": "The Two Covenants and the International Bill of Rights",
+   "body": [
+    "The Universal Declaration was meant to be followed by a binding treaty. Cold War politics produced two instead of one. Western states stressed civil and political rights as immediate limits on government, and they tended to treat economic and social claims as policy goals. Socialist and many developing states emphasised economic and social rights. The result was the International Covenant on Civil and Political Rights (ICCPR) and the International Covenant on Economic, Social and Cultural Rights (ICESCR), both adopted by the General Assembly on 16 December 1966 and in force in 1976. Together with the Declaration, and by common usage the two Optional Protocols to the ICCPR, they are called the International Bill of Human Rights.",
+    "The ICCPR protects, among others, the right to life (Article 6), freedom from torture (Article 7), liberty and security of person (Article 9), fair trial (Article 14), privacy (Article 17), freedom of thought, conscience and religion (Article 18), expression (Article 19), assembly and association (Articles 21 and 22), political participation (Article 25), equality before the law (Article 26) and minority rights (Article 27). Article 2(1) obliges each state party to respect and ensure these rights to all individuals within its territory and subject to its jurisdiction, without discrimination. Article 2(3) requires an effective remedy. The obligation is of immediate effect, which is the key contrast with the ICESCR.",
+    "The ICESCR protects the rights to work and just conditions (Articles 6 and 7), trade unions (Article 8), social security (Article 9), an adequate standard of living including food, clothing and housing (Article 11), the highest attainable standard of physical and mental health (Article 12) and education (Article 13). Under Article 2(1) each state undertakes to take steps, to the maximum of its available resources, to achieve progressively the full realisation of these rights. Progressive realisation does not make the rights empty, and a later lesson explains the minimum core, non-discrimination and the ban on deliberately retrogressive measures.",
+    "Both covenants open with the same Article 1, which recognises the right of all peoples to self-determination. Two Optional Protocols to the ICCPR add a procedure for individual communications to the Human Rights Committee (First Optional Protocol, 1966) and the aim of abolishing the death penalty (Second Optional Protocol, 1989). The Optional Protocol to the ICESCR, adopted in 2008 and in force since 2013, created a comparable communications procedure for economic, social and cultural rights.",
+    "Two points are common exam traps. First, the division into two treaties is historical and political, not conceptual. The 1993 Vienna Declaration states that all human rights are universal, indivisible, interdependent and interrelated. Second, ratification status matters. The United States ratified the ICCPR in 1992 with reservations, understandings and declarations, including a declaration that the provisions are not self-executing, and has signed the ICESCR but never ratified it. China signed the ICCPR in 1998 and has not ratified it, but has ratified the ICESCR. A learner should never assume that a state bound by one covenant is bound by the other."
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l03",
+   "title": "Treaty Bodies, the Human Rights Council and Supervision",
+   "body": [
+    "International human rights law has no world court with compulsory jurisdiction over states, so most supervision is done by committees. Each core UN human rights treaty creates a treaty body of independent experts elected by the states parties. Examples are the Human Rights Committee (ICCPR, 18 members), the Committee on Economic, Social and Cultural Rights (established by ECOSOC in 1985 rather than by the Covenant itself), the Committee on the Elimination of Racial Discrimination, the Committee against Torture, the CEDAW Committee and the Committee on the Rights of the Child. The experts sit in their personal capacity and not as government representatives, which is meant to protect independence.",
+    "These bodies use four main tools. The first is periodic state reporting. A state submits a report on how it implements the treaty, civil society and national institutions may submit parallel reports, and the committee holds a dialogue and issues concluding observations with recommendations. The second is general comments, also called general recommendations. These are the committee's detailed interpretations of treaty provisions, such as General Comment 31 of the Human Rights Committee on the nature of the general legal obligation, or General Comment 29 on derogation. The third is individual communications, available only when the state has accepted the procedure, for example by ratifying the First Optional Protocol to the ICCPR. The fourth is inquiries and, under some treaties, inter-state complaints, which are rarely used.",
+    "The legal weight of committee output is a favourite examination subject. Concluding observations, general comments and the committee's final views on individual communications are not judgments of a court. They are not formally binding. States often argue that they are mere recommendations. The committees, and the International Court of Justice in Diallo (Guinea v Democratic Republic of the Congo, 2010), treat them as authoritative interpretation to which great weight should be given, because the committee is the body set up to interpret the treaty. Compliance is nonetheless uneven, and there is no enforcement mechanism beyond follow-up procedures and public pressure.",
+    "Outside the treaty system sits the Charter-based machinery. The Human Rights Council, created in 2006 by General Assembly resolution 60/251 to replace the Commission on Human Rights, consists of 47 member states elected by the Assembly. It runs the Universal Periodic Review, in which every UN member has its human rights record reviewed in turn by other states, and it appoints special procedures, such as special rapporteurs and working groups, who report on themes or countries. The UPR is peer review among governments, so it is more political than the expert dialogue in the treaty bodies, but it covers states that have ratified few treaties. Participation is expected rather than enforceable: the United States chose not to take part in its scheduled review in November 2025, and the Council regretted this non-cooperation and rescheduled the review for 2026.",
+    "Consider a worked example. A state party to the ICCPR has not ratified the First Optional Protocol. An individual from that state cannot bring a communication to the Human Rights Committee, although the state must still report periodically and is reviewed under the UPR. The substantive duty and the available forum are separate questions."
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l04",
+   "title": "Sources, Reservations, Jus Cogens and Erga Omnes",
+   "body": [
+    "Human rights duties reach a state through the ordinary sources of international law. The main route is treaty: a state that ratifies the ICCPR, the Convention against Torture or a regional convention is bound as a matter of consent. The second route is customary international law, which requires general state practice and opinio juris, the belief that the practice is legally required. A state that never ratified a treaty can be bound by a customary rule that the treaty reflects. The third is general principles of law. Declarations and committee outputs are not themselves sources, but they are evidence of what the rules are.",
+    "Treaties allow reservations, which are unilateral statements purporting to exclude or modify the legal effect of a provision for the reserving state. The Vienna Convention on the Law of Treaties 1969 (VCLT) Article 19 allows a reservation unless the treaty prohibits it or it is incompatible with the object and purpose of the treaty. In the 1951 advisory opinion on Reservations to the Genocide Convention, the ICJ moved away from the old rule of unanimous acceptance and adopted the object-and-purpose test for a convention of this humanitarian character. Human rights treaties raise a special difficulty, because they are not a bargain of reciprocal interests between states but a set of obligations owed for the protection of individuals. If another state objects to a reservation, the state objecting gains nothing from the exchange. For this reason the Human Rights Committee in General Comment 24 (1994) said that it, and not the other states parties, is the proper body to assess whether a reservation is compatible with the object and purpose of the ICCPR, and that an incompatible reservation is severable, so that the reserving state remains bound without the benefit of the reservation. Some states, including some that made reservations, dispute this approach.",
+    "Two doctrines identify the most important norms. A peremptory norm of general international law, or jus cogens, is accepted by the international community of states as a norm from which no derogation is permitted and which can be modified only by a later norm of the same character (VCLT Article 53). A treaty that conflicts with a peremptory norm at the time of its conclusion is void. Commonly cited examples are the prohibitions of genocide, slavery, torture and racial discrimination, and the right to self-determination. Lists are contested, and no treaty contains a complete one. Erga omnes obligations are owed to the international community as a whole, so every state has a legal interest in their protection. In the Barcelona Traction case (ICJ, 1970) the Court gave as examples the outlawing of aggression and genocide and the basic rights of the human person, including protection from slavery and racial discrimination. In Belgium v Senegal (ICJ, 2012) the Court accepted that Belgium could invoke Senegal's obligations under the Convention against Torture because they are obligations erga omnes partes, owed to all parties.",
+    "Jus cogens and erga omnes are different ideas. The first concerns the hierarchy and strength of a norm. The second concerns who can enforce it. Not every erga omnes obligation is peremptory, and standing to complain is not the same as jurisdiction. In Armed Activities (DRC v Rwanda, ICJ, 2006) the Court held that the peremptory status of the genocide prohibition did not by itself give it jurisdiction over a dispute where Rwanda's reservation to the treaty's jurisdictional clause stood.",
+    "Consider a worked example. State A ratifies a human rights treaty with a reservation excluding the prohibition of all forms of ill-treatment of detainees. Under the Committee's approach the reservation is incompatible with the object and purpose, and A remains bound. A state taking the traditional view might treat A as simply not a party to that provision, but the torture prohibition is also peremptory custom, so A is bound either way."
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l05",
+   "title": "Economic, Social and Cultural Rights in Practice",
+   "body": [
+    "A common objection is that economic and social rights are different in kind from civil rights because they cost money. The objection is weaker than it sounds. Civil rights also cost money, since fair trials need courts and elections need administration, and economic rights also impose duties of restraint, such as not evicting people arbitrarily. Human rights scholars describe a three-part typology of obligations to respect, protect and fulfil, which applies to every right. To respect means not interfering with enjoyment of the right. To protect means preventing third parties, including companies, from interfering. To fulfil means taking positive measures, legislative, budgetary and administrative, to realise the right.",
+    "The distinctive wording of the ICESCR is in Article 2(1). A state undertakes to take steps, individually and through international assistance and cooperation, to the maximum of its available resources, with a view to achieving progressively the full realisation of the rights by all appropriate means, including particularly the adoption of legislative measures. The Committee on Economic, Social and Cultural Rights has interpreted this in General Comment 3 (1990). The word progressive recognises that full realisation may take time, but the duty to take steps is immediate and the steps must be deliberate, concrete and targeted. Some obligations are of immediate effect regardless of resources, in particular non-discrimination and equal enjoyment of the rights between men and women. The Committee also derives a minimum core obligation, a minimum essential level of each right, such as essential foodstuffs, basic shelter and essential primary health care, and says a state in which a significant number of people are deprived of such basics is prima facie failing, unless it demonstrates that it has used every resource available to it. Finally, there is a strong presumption against deliberately retrogressive measures, and a state that adopts them must show that it considered all alternatives and that the measures were justified in light of the totality of the rights and the full use of its maximum available resources.",
+    "Courts take different approaches to enforcing these rights. In Government of the Republic of South Africa v Grootboom (Constitutional Court, 2000), the court considered the constitutional right of access to adequate housing. It did not adopt a minimum core standard as an individual entitlement, but held that the state's housing programme was unreasonable because it made no provision for people in desperate need, and ordered the state to devise a reasonable programme. In an earlier case, Soobramoney v Minister of Health (1997), the court declined to order dialysis for a patient who did not qualify under rationing guidelines. Reasonableness review gives the court a role while leaving the choice of policy to government. The ECtHR, which supervises a convention mainly about civil and political rights, has also protected socio-economic interests indirectly. In Airey v Ireland (1979) it held that effective access to a court for a woman seeking judicial separation required legal aid, remarking that there is no water-tight division between civil and social rights.",
+    "Consider a worked example. A state facing a budget crisis closes all rural clinics and raises no other revenue. Under the ICESCR framework, the state would need to show that the cut was temporary, necessary and proportionate, that it considered alternatives, that it protected the most disadvantaged, and that it did not discriminate. Citing scarce resources alone does not discharge this burden."
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l06",
+   "title": "Limitations, Derogations and Proportionality",
+   "body": [
+    "Few rights are unlimited. Human rights law handles limits in three different ways, and keeping them apart is the heart of this subject. First, some rights are absolute in definition, such as the prohibition of torture, and are never balanced against competing interests. Second, many rights are qualified, with the treaty itself stating the permissible limitations. Third, in a grave emergency states may derogate, meaning temporarily suspend some obligations.",
+    "Qualified rights, such as privacy, expression, religion and assembly, usually follow a structured test. The restriction must be provided by law, meaning accessible and sufficiently precise. It must pursue a legitimate aim listed in the treaty, such as national security, public order, public health or the rights of others. And it must be necessary in a democratic society, which the courts interpret as requiring a pressing social need and a proportionate response, one that is the least intrusive means of achieving the aim. The Siracusa Principles (1984), drafted by experts, spell out these requirements for the ICCPR, and the Human Rights Committee's General Comment 34 (2011) applies them to freedom of expression. In Handyside v United Kingdom (ECtHR, 1976) the Court accepted the conviction of a publisher for an obscene schoolbook as within the state's margin of appreciation, while stating that freedom of expression covers ideas that offend, shock or disturb.",
+    "Derogation is different. Article 4 of the ICCPR allows derogation in time of public emergency which threatens the life of the nation and the existence of which is officially proclaimed, and only to the extent strictly required by the exigencies of the situation. Measures must not be inconsistent with the state's other international obligations and must not discriminate solely on grounds such as race, colour, sex, language, religion or social origin. The state must inform other parties, through the UN Secretary-General, of the provisions derogated from and the reasons. Article 4(2) lists provisions that admit no derogation: the right to life (Article 6), the prohibition of torture and cruel treatment (Article 7), slavery (Article 8, paragraphs 1 and 2), imprisonment for inability to fulfil a contract (Article 11), the principle of legality in criminal law (Article 15), recognition as a person before the law (Article 16) and freedom of thought, conscience and religion (Article 18). The Human Rights Committee's General Comment 29 adds that other safeguards cannot be derogated from if they are needed to protect a non-derogable right, for example the fundamental guarantees of fair trial.",
+    "The European Convention's Article 15 is similar: war or other public emergency threatening the life of the nation, measures strictly required, and a list of non-derogable provisions, namely Article 2 except for deaths from lawful acts of war, Article 3, Article 4(1) and Article 7. In A and Others v United Kingdom (ECtHR, Grand Chamber, 2009), the Court dealt with the indefinite detention without trial of foreign terrorist suspects. It accepted that a public emergency existed, but held that the measure was disproportionate and discriminatory because it applied only to non-nationals, though British nationals posed similar risks. The UK House of Lords had reached a similar conclusion in 2004.",
+    "Consider a worked example. A state proclaims an emergency and derogates from the right to peaceful assembly, and also suspends the prohibition of torture to interrogate suspects. The first measure may be lawful if strictly necessary. The second is invalid, because the prohibition is non-derogable under both instruments."
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l07",
+   "title": "The European Convention and the Strasbourg Court",
+   "body": [
+    "The European Convention on Human Rights, signed in 1950 under the Council of Europe and in force from 1953, is the most effective regional human rights treaty. It protects mainly civil and political rights, including life (Article 2), freedom from torture (Article 3), liberty (Article 5), fair trial (Article 6), private and family life (Article 8), expression (Article 10) and an effective remedy (Article 13), with further rights added by protocols. The Convention is not an organ of the European Union. The Council of Europe is a separate organisation, and the Strasbourg Court is not the Court of Justice of the European Union in Luxembourg, a confusion that examiners exploit.",
+    "Since Protocol 11, in force in 1998, the European Court of Human Rights sits as a permanent full-time court. Any person, group of individuals or non-governmental organisation claiming to be a victim of a violation by a state party may apply directly, and states may bring inter-state cases. Admissibility under Article 35 requires that domestic remedies have been exhausted and that the application is made within a time limit. That limit was six months and was reduced to four months from February 2022 by Protocol 15. Applications that are manifestly ill-founded or in which the applicant has suffered no significant disadvantage are rejected. Judgments of the Court are binding on the respondent state under Article 46, and the Committee of Ministers supervises their execution. Article 41 permits just satisfaction, a monetary award, where national law allows only partial reparation. The Court can identify structural problems in a pilot judgment, which requires the state to take general measures.",
+    "Interpretation follows several principles. The Convention is a living instrument, to be read in light of present-day conditions, as the Court held in Tyrer v United Kingdom (1978), where birching of a juvenile in the Isle of Man, though accepted locally, was held to be degrading punishment. Rights must be practical and effective, not theoretical or illusory. States have positive obligations as well as duties of restraint, for example to investigate deaths. The margin of appreciation is a doctrine by which the Court allows national authorities some room in assessing necessity, particularly in matters of morals, where there is no European consensus, since national authorities are in principle better placed than an international court. In Handyside v United Kingdom (1976) it was used to uphold an obscenity conviction. The margin is not unlimited. It is narrow where the right is central to identity or where there is a strong European consensus, and it is subject to European supervision. Protocol 15, in force in 2021, added references to subsidiarity and the margin of appreciation to the Convention's preamble. The Convention is also read to cover new problems. In Verein KlimaSeniorinnen Schweiz and Others v Switzerland (Grand Chamber, 9 April 2024), the Court held that Switzerland violated Article 8 by failing to act in good time and in an appropriate and consistent manner to set a",
+    "framework limiting greenhouse gas emissions. The association had standing to bring the claim, but the four individual applicants did not meet the victim-status threshold. Debate over how the Court treats migration cases led the Committee of Ministers to adopt the non-binding Chișinău Declaration on 15 May 2026. It does not amend the Convention.",
+    "The Convention applies to everyone within the jurisdiction of a state party (Article 1), which is mainly territorial but can extend extraterritorially when the state exercises effective control, a topic covered later. Russia ceased to be a party after being expelled from the Council of Europe in March 2022 over its invasion of Ukraine, with cessation of membership effective on 16 September 2022. The Court remained competent to deal with complaints about acts before that date.",
+    "Consider a worked example. A national court finds that an applicant was held in a prison cell with less than three square metres of personal space and no remedy. The applicant must first use available domestic complaint procedures, then apply within the time limit. If the Court finds a violation of Article 3, the judgment binds the state, the Committee of Ministers supervises, and the state may have to reform prison capacity."
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l08",
+   "title": "The Inter-American System",
+   "body": [
+    "The Inter-American system is part of the Organization of American States (OAS). It has two layers. The first is the OAS Charter system, where the American Declaration of the Rights and Duties of Man, adopted in Bogota in 1948 before the Universal Declaration, is the source of obligations for OAS members that are not parties to the American Convention, among them the United States and Canada. The second is the American Convention on Human Rights, adopted in 1969 (the Pact of San Jose) and in force from 1978. It protects mainly civil and political rights, with Article 26 on progressive development of economic, social and cultural rights and a separate Protocol of San Salvador (1988) on those rights.",
+    "There are two organs. The Inter-American Commission on Human Rights, based in Washington, receives petitions from individuals, groups and organisations, may conduct country visits and issues reports and precautionary measures. The Inter-American Court of Human Rights, based in San Jose, Costa Rica, issues binding judgments in contentious cases against states that have accepted its jurisdiction, and advisory opinions on interpretation. A key difference from Strasbourg is that individuals cannot bring a case directly to the Court. A petition goes to the Commission, which decides on admissibility and merits, and only the Commission or a state party may refer the case to the Court. Typical remedies are broad: the Court orders investigation and punishment, public apologies, memorials, changes in law and compensation. Trinidad and Tobago denounced the Convention in 1998, and Venezuela's denunciation took effect in 2013.",
+    "The first contentious case, Velasquez Rodriguez v Honduras (1988), concerned a student who disappeared in the early 1980s during a campaign of enforced disappearances. The Court developed the duty of due diligence. Article 1(1) of the Convention obliges states to respect and ensure the rights, which means a state may be responsible for private acts or acts it cannot attribute directly, if it fails to prevent, investigate and punish them. The Court held Honduras responsible even though the perpetrators' identities were not conclusively proved, because a practice of disappearances existed and the state had failed to investigate. The case shaped the global law on disappearance and led to the Inter-American Convention on Forced Disappearance of Persons (1994) and the UN Convention for the Protection of All Persons from Enforced Disappearance (2006).",
+    "Two further doctrines are distinctive. Conventionality control, developed in cases such as Almonacid Arellano v Chile (2006), requires national judges to check domestic laws against the American Convention as interpreted by the Court, in addition to constitutional control, so that amnesty laws for serious crimes can be set aside. Second, the Court has protected the collective rights of indigenous peoples. In Mayagna (Sumo) Awas Tingni Community v Nicaragua (2001) it held that the right to property under Article 21 protects communal property in land held by customary tenure, even without a formal title, and ordered the state to demarcate it.",
+    "Consider a worked example. A national of a state party alleges that police made a person disappear and no investigation followed. She files a petition with the Commission after exhausting domestic remedies. If the state has accepted the Court's jurisdiction and the Commission refers the case after a merits report is ignored, the Court can order investigation, reparation and legal reform."
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l09",
+   "title": "The African System and Other Regional Instruments",
+   "body": [
+    "The African Charter on Human and Peoples' Rights, also called the Banjul Charter, was adopted in 1981 within the Organisation of African Unity and entered into force in 1986. It is now supervised within the African Union. The Charter has several features that set it apart. It protects civil and political rights and economic, social and cultural rights in one instrument, including the rights to work, health and education. It also recognises peoples' rights, such as the right of peoples to self-determination, to freely dispose of their wealth and natural resources, to development and to a satisfactory environment. And it imposes duties on individuals toward family, society and the state. Its drafters argued that this reflected African traditions in which the individual is embedded in a community. Critics note that some provisions contain claw-back clauses, which allow rights to be limited as provided by law, which can weaken protection if domestic law is repressive.",
+    "Two bodies supervise it. The African Commission on Human and Peoples' Rights, based in Banjul, The Gambia, receives communications from states, individuals and non-governmental organisations, hears state reports, and issues resolutions. Its decisions are recommendations. In Social and Economic Rights Action Center (SERAC) v Nigeria (2001), concerning oil operations in Ogoniland, the Commission held that Nigeria violated rights including health, a satisfactory environment and, by the Charter's reading, food and housing, because it failed to protect the community from pollution caused by a state-linked consortium. In Centre for Minority Rights Development (Kenya) and Minority Rights Group International on behalf of Endorois Welfare Council v Kenya (2009), the Commission found that evicting the Endorois from ancestral land around Lake Bogoria violated their rights to property and development, and recognised the community as a people with collective rights.",
+    "The African Court on Human and Peoples' Rights was created by a protocol adopted in 1998 that entered into force in 2004, and sits in Arusha, Tanzania. Its judgments are binding. States and the Commission may bring cases, but individuals and NGOs can reach the Court directly only against states that have made a declaration under Article 34(6) of the Protocol accepting this, and only a minority of states parties have done so. A few that did have since withdrawn their declarations. The Court has applied not only the Charter but also other human rights instruments that the state has ratified. In African Commission v Kenya (the Ogiek case, 2017) it found violations of the rights of the Ogiek community in the Mau Forest. There is an additional Protocol to the African Charter on the Rights of Women in Africa (the Maputo Protocol, 2003), which among other things addresses harmful practices and reproductive health.",
+    "Other regions have weaker machinery. The League of Arab States adopted a revised Arab Charter on Human Rights in 2004, which entered into force in 2008 and is supervised by a committee of experts without a court. ASEAN adopted a Human Rights Declaration in 2012, which is non-binding, and there is no regional court. The Asia-Pacific region as a whole has no regional treaty system.",
+    "Consider a worked example. A community in a state that has not made an Article 34(6) declaration is evicted from ancestral land. It cannot bring the case directly to the African Court but can file a communication with the Commission, which may later refer the matter to the Court if the state is a party to the protocol."
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l10",
+   "title": "The Prohibition of Torture and Ill-Treatment",
+   "body": [
+    "The prohibition of torture is the clearest example of an absolute human right. It appears in Article 5 of the Universal Declaration, Article 7 of the ICCPR, Article 3 of the European Convention, Article 5 of the American Convention and Article 5 of the African Charter. It is non-derogable in emergencies and is accepted as a peremptory norm. The International Criminal Tribunal for the former Yugoslavia in Prosecutor v Furundzija (1998) described the prohibition as jus cogens and explained that this status is why states may exercise jurisdiction over torturers wherever they are.",
+    "The UN Convention against Torture (CAT), adopted in 1984 and in force from 1987, gives the most detailed definition in Article 1. Torture is any act by which severe pain or suffering, physical or mental, is intentionally inflicted on a person for a purpose such as obtaining information or a confession, punishment, intimidation or coercion, or for any reason based on discrimination, when inflicted by or at the instigation of or with the consent or acquiescence of a public official or other person acting in an official capacity. The definition excludes pain arising only from lawful sanctions. Each element matters: severity, intention, purpose and official involvement. Cruel, inhuman or degrading treatment or punishment, which Article 16 requires states to prevent, does not require the same purpose or the same severity.",
+    "The core obligations are strict. Article 2(2) provides that no exceptional circumstances whatsoever, whether a state of war, internal political instability or any other public emergency, may be invoked to justify torture. Article 2(3) denies the defence of superior orders. Article 4 requires criminalisation, Article 15 excludes evidence obtained by torture from proceedings (except against the torturer), and Articles 5 to 7 oblige a state in whose territory an alleged torturer is found to extradite or submit the case for prosecution, a duty summarised as aut dedere aut judicare. In Belgium v Senegal (ICJ, 2012), concerning the former Chadian president Hissene Habre living in Senegal, the Court held that Senegal had breached its duty to submit the case to its prosecuting authorities. Article 3 prohibits expelling, returning or extraditing a person to a state where there are substantial grounds for believing that he would be in danger of being subjected to torture. The Optional Protocol (2002) created the Subcommittee on Prevention of Torture and a system of national preventive visits to places of detention.",
+    "The European Court of Human Rights has built a rich case law on Article 3. In Ireland v United Kingdom (1978) the Court found that the five techniques used in interrogation in Northern Ireland, including wall-standing, hooding and deprivation of sleep, food and drink, were inhuman and degrading treatment but did not amount to torture, since the term carries a special stigma. Later, in Selmouni v France (1999), the Court observed that treatment once classified as inhuman might in future be classed as torture, as standards rise. In Soering v United Kingdom (1989) the Court held that extradition to the United States of a man facing a capital charge in Virginia would breach Article 3 because of the real risk of the death row phenomenon, meaning prolonged delay under sentence in harsh conditions. In Chahal v United Kingdom (1996) it held that the prohibition is absolute, so that the danger a person poses to national security cannot be weighed against the risk of ill-treatment in the receiving country, and in Saadi v Italy (2008) it reaffirmed this against a request to adopt a balancing test.",
+    "A worked example. A state wishes to deport a suspected extremist to a country where torture of such suspects is widely documented, and relies on diplomatic assurances that he will not be mistreated. Under Article 3 and the case law, the question is whether the assurances, in light of the receiving state's practice and their verifiability, eliminate the real risk. The state cannot argue that his dangerousness outweighs the risk."
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l11",
+   "title": "Refugee Law and Non-Refoulement",
+   "body": [
+    "Refugee law is a specialised branch of human rights law. Its core is the Convention relating to the Status of Refugees, adopted in 1951, and the 1967 Protocol, which removed the original limits in time and geography. Article 1A(2) defines a refugee as a person who, owing to a well-founded fear of being persecuted for reasons of race, religion, nationality, membership of a particular social group or political opinion, is outside the country of his nationality and is unable or, owing to such fear, unwilling to avail himself of its protection. The elements are cumulative. The person must be outside the country of origin, the fear must be well founded, the harm must amount to persecution, and there must be a link to one of the five Convention grounds. Persecution is not defined, but is understood as serious harm, such as a threat to life or freedom, or a pattern of lesser harms that together amount to a denial of basic rights, together with a failure of state protection. In INS v Cardoza-Fonseca (US Supreme Court, 1987), the Court held that a well-founded fear is a lower standard than a clear probability, so that a substantial though less-than-even chance of persecution can suffice.",
+    "Some trap points follow from the text. Generalised violence and war, natural disaster and poverty are not themselves Convention grounds, so a person fleeing only these may fall outside the definition, though regional instruments, such as the Organisation of African Unity Convention of 1969 and the Cartagena Declaration of 1984, extend refugee status in Africa and Latin America, and human rights law provides complementary protection. Gender is not one of the five grounds, but gender-based claims are commonly analysed under membership of a particular social group. Refugee status is declaratory: a person is a refugee as soon as he meets the criteria, not when a state recognises him. Article 1F excludes persons for whom there are serious reasons for considering that they committed a crime against peace, a war crime or crime against humanity, a serious non-political crime outside the country of refuge, or acts contrary to the purposes and principles of the United Nations. The Convention does not give a right to be granted asylum. It creates duties once the person is within the state's jurisdiction.",
+    "The central protection is Article 33, non-refoulement: no state may expel or return a refugee in any manner whatsoever to the frontiers of territories where his life or freedom would be threatened on account of a Convention ground. Article 33(2) provides an exception for a refugee reasonably regarded as a danger to national security or who, having been convicted of a particularly serious crime, is a danger to the community. Under human rights law the protection is wider and sometimes absolute. Article 3 CAT and Article 3 ECHR (read with the ICCPR and Article 7) bar return to a real risk of torture or inhuman treatment, whatever the person's conduct, as Chahal showed. Article 31 of the Refugee Convention also bars penalties for illegal entry for refugees coming directly from a territory of danger who present themselves without delay.",
+    "Extraterritoriality produces a sharp conflict. In Sale v Haitian Centers Council (US Supreme Court, 1993) the Court held that Article 33 did not restrict the US from returning interdicted Haitians on the high seas. The ECtHR took a different approach in Hirsi Jamaa v Italy (2012), where Italy intercepted migrants on the high seas and returned them to Libya on military vessels. The Court held that the migrants came under Italian jurisdiction because Italy had effective control over them, that returning them exposed them to a risk of ill-treatment in Libya and of onward removal, and that this was also a prohibited collective expulsion under Protocol 4. The UNHCR supervises the Convention.",
+    "A worked example. A person flees a civil war but is not targeted for a Convention reason. She may not qualify as a refugee under the 1951 Convention, but may be protected against return by human rights law if she faces a real risk of ill-treatment, or by complementary protection."
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l12",
+   "title": "Jurisdiction Beyond Borders and State Responsibility",
+   "body": [
+    "Human rights treaties were written with a state's own territory in mind, but states act abroad through armies, embassies, intelligence services, prisons and border patrols. Whether the treaty applies to such acts turns on the wording of its jurisdiction clause. Article 2(1) of the ICCPR refers to individuals within its territory and subject to its jurisdiction. Read literally this is cumulative, but the Human Rights Committee in General Comment 31 (2004) interprets it disjunctively: a state must respect and ensure rights of anyone within its power or effective control, even outside its territory. The ICJ endorsed extraterritorial application of the ICCPR and the ICESCR in its advisory opinion on the Wall (2004) and applied human rights law to an occupying power in Armed Activities (DRC v Uganda, 2005). The United States has historically argued that the ICCPR does not apply outside US territory, and that position is contested.",
+    "Article 1 of the European Convention secures the rights to everyone within the jurisdiction of the parties. In Bankovic v Belgium and Others (ECtHR, Grand Chamber, 2001), the Court held inadmissible a complaint about the NATO bombing of the Serbian radio and television building in Belgrade, reasoning that jurisdiction is primarily territorial and that the applicants were not within the respondent states' jurisdiction. The Court later developed two models for extraterritorial jurisdiction. The first is effective control over an area, through military occupation, which brings the whole range of Convention rights into play. The second is state agent authority and control over individuals, when agents of the state exercise physical power over a person. In Al-Skeini v United Kingdom (2011), the Grand Chamber held that the UK exercised authority and control through its soldiers in Basra, Iraq, in 2003 to 2004, where it had assumed public powers as an occupying power, and that Article 2 required an effective investigation into deaths caused by its forces. A related ruling, Al-Jedda v United Kingdom (2011), held the detention of a man in Iraq attributable to the UK despite a UN Security Council mandate, because the UK retained effective control over the detention. The Hirsi case, discussed earlier, applies agent authority at sea.",
+    "The question of who is responsible is the province of state responsibility. The International Law Commission's Articles on Responsibility of States for Internationally Wrongful Acts (2001), widely regarded as reflecting custom in many respects, say that a state is responsible for conduct that is attributable to it and that breaches an international obligation. Conduct of state organs is attributable even if they exceed authority (Article 4 and Article 7). Private conduct is generally not attributable, but a state may be responsible for its own failure to prevent or punish private abuses, a due-diligence duty that the Inter-American Court emphasised in Velasquez Rodriguez. A state is also responsible for aiding or assisting another state's wrongful act with knowledge of the circumstances (Article 16). The consequences include cessation, assurances of non-repetition and full reparation.",
+    "A worked example. A state's soldiers detain a civilian at a checkpoint in a foreign country they occupy, and he is abused. The state's treaty obligations may apply by effective control of territory or by authority over the individual, the soldiers' conduct is attributable as organ conduct, and, if the treaty allows, the victim may complain to the relevant forum."
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l13",
+   "title": "The Rights of the Child",
+   "body": [
+    "The Convention on the Rights of the Child (CRC), adopted by the General Assembly on 20 November 1989 and in force from 2 September 1990, is the most widely ratified human rights treaty in the world. The United States signed it in 1995 but has not ratified it, and it is the only UN member state in that position. The Convention treats the child as a rights-holder rather than as an object of protection. A child, defined in Article 1 as every human being below the age of eighteen unless majority is attained earlier under the applicable law, enjoys civil and political rights, such as expression, thought and association, and also economic, social and cultural rights, such as health and education, in a single instrument.",
+    "Four provisions are known as general principles, and the Committee on the Rights of the Child uses them to interpret everything else. Article 2 is non-discrimination. Article 3(1) makes the best interests of the child a primary consideration in all actions concerning children, whether by courts, administrative authorities or legislatures. Article 6 recognises the inherent right to life and requires states to ensure to the maximum extent possible the survival and development of the child. Article 12 gives a child who is capable of forming his or her own views the right to express them freely in all matters affecting the child, with the views given due weight in accordance with age and maturity. Article 5 balances these provisions by respecting the responsibilities of parents and the child's evolving capacities, which means that parental direction should diminish as the child's ability to decide grows. Best interests is a primary and not the sole or paramount consideration, so it can be outweighed by other considerations, though it must be assessed and weighed explicitly.",
+    "Several articles matter in practice. Article 19 protects children from all forms of violence, and the Committee, in General Comment 8, takes the view that corporal punishment in all settings, including the home, is incompatible with the Convention, a position that has led many states to prohibit it by law though others disagree. Article 37 prohibits torture and cruel treatment of children, requires that detention be a measure of last resort and for the shortest appropriate time, and prohibits capital punishment and life imprisonment without possibility of release for offences committed under the age of eighteen. In Roper v Simmons (US Supreme Court, 2005), the Court held that the Eighth Amendment bars the death penalty for offenders who were under eighteen when they committed their crimes, citing among other things the international consensus. Article 38 requires states to respect humanitarian law and sets fifteen as the age below which children shall not take a direct part in hostilities. The Optional Protocol on children in armed conflict (2000) raises the age for direct participation and compulsory recruitment to eighteen. A second Optional Protocol (2000) deals with the sale of children, child prostitution and child pornography, and a third, adopted in 2011 and in force from 2014, creates a communications procedure for individual complaints.",
+    "Consider a worked example. A school board in a state party must decide whether to expel a pupil who has made threatening statements. Under Article 3 the pupil's best interests must be assessed and be a primary consideration, and under Article 12 the pupil should be heard. These requirements do not require that the pupil's wishes prevail, and the board may still conclude that the safety of other pupils justifies a measure, if it has given reasons that weigh the child's interests properly."
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l14",
+   "title": "Women's Rights and CEDAW",
+   "body": [
+    "The Convention on the Elimination of All Forms of Discrimination against Women (CEDAW) was adopted by the General Assembly on 18 December 1979 and entered into force on 3 September 1981. Article 1 defines discrimination against women as any distinction, exclusion or restriction made on the basis of sex which has the effect or purpose of impairing or nullifying the recognition, enjoyment or exercise by women, on a basis of equality of men and women, of human rights and fundamental freedoms in the political, economic, social, cultural, civil or any other field. The definition covers discrimination by effect as well as by purpose, so a rule that is neutral on its face but disadvantages women can fall within it. This is the idea of indirect discrimination.",
+    "The Convention aims at substantive equality rather than only formal equality. Formal equality means treating women and men identically. Substantive equality asks whether the law actually produces equal opportunities and equal results, which may mean treating women differently when this is needed to address disadvantage. Several articles reflect this. Article 4 allows temporary special measures, such as quotas, aimed at accelerating de facto equality, which are not discrimination and must end when the objectives of equality have been achieved. Article 5 requires states to modify social and cultural patterns of conduct to eliminate prejudices and stereotypes based on the idea of the inferiority or superiority of either sex. Article 2 obliges states to pursue a policy of eliminating discrimination by all appropriate means without delay, including against discrimination by private persons, enterprises and organisations. Articles 7 and 8 concern political and public life, Article 10 education, Article 11 employment, Article 12 health and Article 16 marriage and family relations, including equal rights to choose a spouse, to enter marriage only with free and full consent, and to equality within marriage and at its dissolution.",
+    "The text of CEDAW does not mention violence against women. The Committee filled this gap in General Recommendation 19 (1992) and General Recommendation 35 (2017), which treat gender-based violence as a form of discrimination and say that states have a due diligence duty to prevent, investigate and punish it, including violence by private actors. The Optional Protocol, adopted in 1999 and in force from 2000, allows individual communications and inquiries, and the Committee has 23 independent experts. In Opuz v Turkey (ECtHR, 2009) the European Court found that Turkey's failure to protect a woman and her mother from repeated violence by her husband violated the right to life and the prohibition of ill-treatment, and also that it amounted to gender discrimination, because the passivity of the authorities was a pattern affecting women. Regional treaties add to this framework, among them the Inter-American Convention of Belem do Para (1994), the Maputo Protocol (2003) and the Council of Europe's Istanbul Convention (2011).",
+    "CEDAW attracted many reservations, particularly to Article 2 and Article 16, on the grounds of religious law, custom or national law. Article 28(2) forbids reservations incompatible with the object and purpose of the Convention, and the Committee has said that Articles 2 and 16 are central, so that reservations to them are problematic. The United States signed in 1980 and has not ratified it. The debate over such reservations is a case of the broader question of whether human rights treaties should be applied universally.",
+    "Consider a worked example. A state sets a rule that a pension is paid only to a worker whose job is full-time, and most part-time workers are women. The rule is neutral in form, but under CEDAW's effects-based definition it may be indirect discrimination, unless the state shows a legitimate reason and that the rule is proportionate."
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l15",
+   "title": "Minorities and Indigenous Peoples",
+   "body": [
+    "Minority protection is older than universal human rights law, since the treaties after the First World War protected minorities in several European states, and a weaker legacy of that system persists. Today the core provision is Article 27 of the ICCPR: in those states in which ethnic, religious or linguistic minorities exist, persons belonging to such minorities shall not be denied the right, in community with the other members of their group, to enjoy their own culture, to profess and practise their own religion, or to use their own language. Two points deserve attention. First, the right is framed as an individual right, exercised in community with others, rather than as a right of the group as such. Second, it is a duty not to deny, and the Human Rights Committee in General Comment 23 (1994) said that it also requires positive measures of protection against acts by the state itself and by others.",
+    "There is no universally agreed definition of a minority. A common working description, from the work of the UN special rapporteur Francesco Capotorti, speaks of a group numerically inferior to the rest of the population, in a non-dominant position, whose members possess ethnic, religious or linguistic characteristics differing from the rest and show a sense of solidarity directed towards preserving their culture, traditions, religion or language. The Human Rights Committee has held that Article 27 can protect persons who are not citizens, and that it applies to minorities within a state and not only to those in a country as a whole. The 1992 UN Declaration on the Rights of Persons Belonging to National or Ethnic, Religious and Linguistic Minorities is non-binding. The Council of Europe's Framework Convention for the Protection of National Minorities (1995) is a binding European treaty, but it is supervised by an advisory committee, not a court.",
+    "In Lovelace v Canada (Human Rights Committee, 1981), Sandra Lovelace, a Maliseet woman, lost her Indian status under the Indian Act when she married a non-Indian man, though an Indian man marrying a non-Indian woman would have retained it. The Committee found that denying her the right to live on the reserve and be part of her community was an unreasonable interference with her Article 27 rights, since the status rule did not serve a legitimate purpose of preserving group identity. In Ilmari Lansman v Finland (1994), by contrast, the Committee accepted that a limited quarrying operation did not deny Sami herders their Article 27 right to engage in reindeer husbandry, but warned that cumulative impact could eventually do so.",
+    "Indigenous peoples are treated as a distinct category. ILO Convention 169 on Indigenous and Tribal Peoples (1989) is a binding treaty with relatively few ratifications, and it requires consultation and participation. The UN Declaration on the Rights of Indigenous Peoples (UNDRIP) was adopted by the General Assembly in 2007 by 144 votes to four, with eleven abstentions. The four against were Australia, Canada, New Zealand and the United States, all of which later endorsed it. It is not a treaty, but it is influential. It recognises self-determination (Article 3), understood as chiefly internal, through autonomy and self-government, rather than as a right of secession, and a right to lands, territories and resources traditionally owned. Article 19 and Article 32 refer to free, prior and informed consent (FPIC) before the adoption of measures that may affect them, and before the approval of projects affecting their lands. The precise legal force of FPIC is disputed, and states commonly argue that the duty is to consult in good faith, without a veto.",
+    "Regional courts have developed these rights. In Saramaka People v Suriname (Inter-American Court, 2007), the Court held that large-scale development projects in tribal territory require the effective participation of the community, and, for major projects, their free, prior and informed consent. A worked example: a state grants a mining licence over customary land of an indigenous people without consulting them. The state would be in breach of UNDRIP, and in a state bound by the American Convention, of Article 21 as interpreted in Awas Tingni and Saramaka."
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l16",
+   "title": "Business and Human Rights",
+   "body": [
+    "Traditional human rights law binds states, not companies. Yet multinational enterprises can harm people through pollution, forced labour, land seizure or complicity in abuse by security forces, and in some places a company's resources exceed those of the government that is supposed to regulate it. The field of business and human rights asks how law can reach corporate conduct without abandoning the state-centred structure of international law.",
+    "The leading framework is the UN Guiding Principles on Business and Human Rights, endorsed unanimously by the Human Rights Council in 2011 after the work of the Special Representative John Ruggie, who had proposed a Protect, Respect and Remedy framework in 2008. They rest on three pillars. The first is the state duty to protect against human rights abuses by third parties, including business, through regulation, policy and adjudication. The second is the corporate responsibility to respect human rights, which means avoiding infringing on the rights of others and addressing adverse impacts with which the company is involved. This responsibility applies to all companies regardless of size, and it exists independently of state ability or willingness to fulfil its own duties. It is carried out through human rights due diligence, in which a company identifies and assesses actual and potential impacts, integrates and acts on findings, tracks the effectiveness of its response, and communicates how it addresses impacts. The third pillar is access to remedy for victims, through judicial, administrative and non-judicial mechanisms, including grievance mechanisms run by companies. The Principles are not a treaty. They are soft law, and they use the word responsibility, not obligation, for companies, a distinction examiners like to test. The OECD Guidelines for Multinational Enterprises,",
+    "revised in 2011 and again in 2023, contain similar standards and a complaint mechanism through National Contact Points.",
+    "Litigation has been difficult. In the United States, the Alien Tort Statute allows federal courts to hear tort claims by aliens for violations of the law of nations. After Filartiga v Pena-Irala (2d Cir., 1980) allowed a claim against an individual torturer, plaintiffs used it against corporations. The Supreme Court narrowed it in Sosa v Alvarez-Machain (2004), in Kiobel v Royal Dutch Petroleum (2013), which applied a presumption against extraterritorial application so that claims must touch and concern US territory with sufficient force, in Jesner v Arab Bank (2018), which held that foreign corporations cannot be defendants, and in Nestle v Doe (2021), where general corporate activity in the United States was not enough. Courts elsewhere have been more open to claims at home against parent companies. In Vedanta Resources v Lungowe (UK Supreme Court, 2019) the court allowed claims by Zambian villagers alleging pollution from a mine to proceed against the English parent company, accepting that a parent may in some circumstances owe a duty of care to those affected by a subsidiary's operations. In Nevsun Resources v Araya (Supreme Court of Canada, 2020), the court allowed claims based on customary international law prohibitions, such as forced labour, to be heard in Canadian courts against a Canadian company.",
+    "The legal trend is towards binding due diligence. France adopted a duty of vigilance law in 2017, and Germany a Supply Chain Due Diligence Act that came into force in 2023. The European Union adopted a Corporate Sustainability Due Diligence Directive in 2024. The Omnibus I amending directive, published in the Official Journal on 26 February 2026 and in force from 18 March 2026, narrowed it to EU companies with more than 5,000 employees and a net worldwide turnover above EUR 1.5 billion (and non-EU companies with more than EUR 1.5 billion of turnover in the EU), removed the duty to adopt a climate transition plan, set the maximum fine cap at 3% of turnover and left civil liability to national law. Member states must transpose it by 26 July 2028, and compliance is required from 26 July 2029. At the UN, an open-ended intergovernmental working group, set up by Human Rights Council resolution 26/9 in 2014, has been negotiating a legally binding instrument on transnational corporations, without agreement among states. The Rana Plaza factory collapse in Bangladesh in 2013, which killed more than one thousand garment workers, led to the Accord on Fire and Building Safety, an example of legally binding private agreements between brands and unions.",
+    "A worked example. A mining subsidiary abroad contaminates a river. Under the Guiding Principles the parent company should have conducted due diligence, and the host state should regulate. The victims' practical route may be a claim against the parent in its home court, which depends on the jurisdiction's doctrines of parent liability."
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l17",
+   "title": "Universal Jurisdiction, Immunity and the International Criminal Court",
+   "body": [
+    "Normally a state prosecutes crimes with a link to it: they occurred on its territory, the accused or victim is a national, or its security is threatened. Universal jurisdiction is the power of a state to prosecute certain crimes even without any such link, because the crimes are so grave that they concern all states. Piracy is the oldest example. Today it is accepted for genocide, crimes against humanity, war crimes and torture, though the details of which crimes and under what conditions are contested. Universal jurisdiction in the strict sense is permissive and based on custom. Treaties such as the Geneva Conventions of 1949 and the Convention against Torture impose a related duty to prosecute or extradite alleged offenders found in the territory, aut dedere aut judicare. Some states require the presence of the accused on their territory before they act, and some of them apply the doctrine through their courts only in a limited way. African Union states have criticised what they see as selective use against African officials.",
+    "Eichmann's trial in Jerusalem in 1961, in which Israel prosecuted a Nazi official for crimes committed in Europe before the state existed, is a classic example, in which the court relied on the universal character of crimes against humanity as well as a link to the Jewish people. In Pinochet (No 3) (UK House of Lords, 1999), where Spain sought extradition of the former Chilean head of state, the Lords held that a former head of state has no immunity from prosecution for torture committed in an official capacity, but only for acts after the date at which the Convention against Torture bound all three states concerned, so that the case was limited to a small number of offences after 8 December 1988. The reasoning was that torture, as an international crime, cannot be an official function covered by immunity once the treaty has taken effect.",
+    "Immunity is a main limit on prosecution. Immunity ratione personae belongs to serving heads of state, heads of government and foreign ministers, and bars criminal proceedings in foreign national courts while they are in office, whatever the charge. Immunity ratione materiae covers official acts and continues after leaving office, but is generally held not to cover international crimes, as Pinochet shows. In Arrest Warrant (Democratic Republic of the Congo v Belgium, ICJ, 2002) the Court held that Belgium violated the immunity of the sitting Congolese foreign minister by issuing and circulating an arrest warrant for war crimes and crimes against humanity. The judgment stressed that immunity is procedural and is not impunity. Such an official may be tried in his own state, by a foreign state after leaving office for acts in a private capacity, or before an international criminal court where the rules permit.",
+    "The International Criminal Court was created by the Rome Statute of 1998, which entered into force in 2002 and has its seat at The Hague. It has jurisdiction over genocide, crimes against humanity, war crimes and, since 2018, the crime of aggression within defined limits. Jurisdiction can be triggered by a state party referral, by the Prosecutor acting on his or her own initiative with the approval of a pre-trial chamber, or by a UN Security Council referral under Chapter VII. Under Article 12, the Court may act when the crime took place on the territory of a state party or when the accused is a national of one, unless the Security Council refers the situation. The Court is complementary to national courts under Article 17: a case is inadmissible if a state with jurisdiction is genuinely investigating or prosecuting it, and the Court intervenes only where the state is unwilling or unable. Article 27 provides that official capacity is irrelevant. The Court has no police force and relies on state cooperation. The United States, China, Russia and India are not parties. Membership can also shrink: Niger notified its withdrawal on 18 June 2026, and Burkina Faso and Mali on 24 June 2026, each taking effect one year after notification under Article 127. Hungary notified its withdrawal in June 2025 but withdrew that notification on 29 May 2026, before it took effect, so it remains a",
+    "party. In 2019, the Appeals Chamber held that Jordan had failed to arrest the Sudanese president Omar al-Bashir, given a Security Council referral.",
+    "A worked example. A former official accused of torture is visiting a state party to the Convention against Torture. That state may arrest and prosecute or extradite him, and because he is out of office, immunity ratione personae does not bar the case, and immunity ratione materiae is unlikely to be accepted for torture."
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l18",
+   "title": "Universalism, Relativism and the Legitimacy Debate",
+   "body": [
+    "Whether human rights are truly universal is one of the oldest debates in the field. The aim of this lesson is to state the major positions fairly and to separate what the law currently says from what thinkers argue it should say. As a matter of law, the position is clear: states have accepted universal treaties, and the Vienna Declaration and Programme of Action, adopted by the 1993 World Conference on Human Rights by consensus, states that all human rights are universal, indivisible, interdependent and interrelated, and that the significance of national and regional particularities and various historical, cultural and religious backgrounds must be borne in mind, but that it is the duty of states, regardless of their political, economic and cultural systems, to promote and protect all human rights.",
+    "Universalists argue as follows. Human rights rest on features that all human beings share, such as vulnerability to pain, need for security and capacity for agency, so rights belong to a person as a human being and do not depend on culture. The treaties were agreed by states from every region, the Universal Declaration was drafted with contributions from China, Lebanon, India and others, and the major treaties have near-universal ratification, which is evidence of consent. They also point out that cultural claims are often made by governments, not by the people affected, and that cultures are internally diverse and change over time, so that dissenting members, such as women or religious minorities, may be the ones whom a relativist argument silences. Their strongest point is that a right that yields to every local practice would give no protection exactly where it is needed.",
+    "Relativists, and the more moderate position often called cultural particularism, raise several arguments. In 1947 the American Anthropological Association warned the drafters against a declaration expressing only one cultural tradition. Critics say the rights tradition grew from Western Enlightenment thought and an individualist picture of the person, and may underrate community, duties and family. Some say human rights have been used selectively by powerful states to justify intervention, a concern expressed in postcolonial scholarship. Several regional documents reflect these concerns. The Bangkok Declaration of Asian governments in 1993 emphasised the need for balance between rights and sovereignty, and was associated with the asserted importance of Asian values. The Cairo Declaration on Human Rights in Islam of 1990, adopted by the Organisation of the Islamic Conference, makes rights subject to the Islamic Shariah, a position critics say conflicts with equality and freedom of religion, while others note that Islamic scholars hold a range of views on the compatibility of Islam and human rights. The African Charter's emphasis on peoples and duties is another example, though it is a binding rights treaty.",
+    "The law manages diversity in several ways, and none is a pure relativism. Many treaty rights are qualified, so states may limit them for public morals or public order, subject to proportionality. The European Court's margin of appreciation gives national authorities room, particularly where Europe has no consensus, and is sometimes described as institutional relativism within a universal framework. Reservations allow states to adjust their commitments, up to the limit of object and purpose. And treaty bodies interpret rights in context. But some rights are non-derogable and peremptory, and there is no margin for torture or slavery. Critics of the margin of appreciation argue that it can dilute rights for minorities.",
+    "A good analytical step is to separate three questions: whether a right exists, how broadly it is defined, and who decides how it is applied locally. A debate about the application of a right in a particular country, such as how to balance expression and religious sensitivity, is not necessarily a challenge to universality."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "law-intl-human-rights.l01.q1",
+   "lessonId": "law-intl-human-rights.l01",
+   "kind": "mcq",
+   "prompt": "On which date, and by which organ, was the Universal Declaration of Human Rights adopted?",
+   "choices": [
+    "On 16 December 1966, by the UN Economic and Social Council",
+    "On 4 November 1950, by the Council of Europe's Committee of Ministers",
+    "On 10 December 1948, by the UN General Assembly",
+    "On 26 June 1945, by the San Francisco conference of founding states"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l01.q2",
+   "lessonId": "law-intl-human-rights.l01",
+   "kind": "mcq",
+   "prompt": "A lawyer argues that the Universal Declaration binds every state because it was adopted by the General Assembly with no votes against. Which response is most accurate?",
+   "choices": [
+    "The vote made it a binding treaty at once for the 48 states that voted in favour of it in the Assembly",
+    "The Declaration binds only those states that went on to ratify the two Covenants of 1966 as treaties",
+    "It is binding as a formal amendment of the Charter, which was adopted by majority vote of the members",
+    "Assembly resolutions are not treaties, but some of its content may bind as customary law"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l01.q3",
+   "lessonId": "law-intl-human-rights.l01",
+   "kind": "mcq",
+   "prompt": "State X has ratified no human rights treaty. Its police torture a detainee. State Y protests, citing only the Universal Declaration as a treaty obligation. What is the strongest legal position?",
+   "choices": [
+    "Y is wrong about the Declaration, but the prohibition of torture is binding on X as custom",
+    "Y is right, because the Declaration binds all UN members through Articles 55 and 56",
+    "Y is wrong, because treaty ratification is the only possible source of such duties",
+    "Y is right, because a vote with no objections converts a resolution into a treaty"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l01.q4",
+   "lessonId": "law-intl-human-rights.l01",
+   "kind": "mcq",
+   "prompt": "A court is asked whether the right to paid holidays in the Declaration binds a state that has ratified nothing. Which analysis best fits the doctrine in the lesson?",
+   "choices": [
+    "The right does not bind, because social and economic rights can never become part of customary law",
+    "The Declaration is non-binding, and customary status would have to be proved for that particular right",
+    "The right binds, since every provision of the Declaration is by now generally accepted as customary law",
+    "The right binds, because the Charter itself lists all of the rights that the Declaration later repeated"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l01.q5",
+   "lessonId": "law-intl-human-rights.l01",
+   "kind": "mcq",
+   "prompt": "Which statement correctly describes what the UN Charter itself does on human rights?",
+   "choices": [
+    "It lists economic and social rights only, and it leaves civil and political rights to be set out in later treaties",
+    "It leaves human rights outside the Organization's purposes, which the text limits to international peace and security",
+    "It makes promoting respect for rights a UN purpose and obliges members to cooperate, without listing the rights",
+    "It lists civil and political rights in detail and creates a standing court to hear individual complaints"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l02.q1",
+   "lessonId": "law-intl-human-rights.l02",
+   "kind": "mcq",
+   "prompt": "What does Article 2(1) of the ICCPR require of a state party?",
+   "choices": [
+    "To grant the Covenant rights only to its own citizens who are habitually residing within its national territory",
+    "To respect and ensure the Covenant rights of all individuals within its territory and subject to its jurisdiction",
+    "To realise the Covenant rights progressively and gradually, to the maximum extent of the resources that the state has available",
+    "To incorporate the Covenant rights into its written constitution within a fixed number of years after it has ratified the treaty"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l02.q2",
+   "lessonId": "law-intl-human-rights.l02",
+   "kind": "mcq",
+   "prompt": "Which treaty text contains the obligation to take steps, to the maximum of available resources, towards progressive realisation?",
+   "choices": [
+    "Article 2(1) of the International Covenant on Economic, Social and Cultural Rights",
+    "Article 2(1) of the International Covenant on Civil and Political Rights",
+    "Article 1 common to both Covenants, on the self-determination of peoples",
+    "Article 4 of the International Covenant on Civil and Political Rights"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l02.q3",
+   "lessonId": "law-intl-human-rights.l02",
+   "kind": "mcq",
+   "prompt": "State A has signed the ICESCR but not ratified it, and has ratified the ICCPR without the First Optional Protocol. A trade unionist alleges a violation of the right to strike. Which is correct?",
+   "choices": [
+    "She can petition the Human Rights Committee, because every ICCPR party accepts complaints",
+    "She can petition the CESCR, because signature alone makes the ICESCR fully binding",
+    "She has no claim anywhere, since a signature has no legal effect in any circumstance",
+    "She has no Committee complaint under either Covenant, and the ICESCR does not bind A as treaty law"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l02.q4",
+   "lessonId": "law-intl-human-rights.l02",
+   "kind": "mcq",
+   "prompt": "A government argues that because the ICCPR and ICESCR are separate treaties, economic and social rights are merely aspirational and civil rights are the only real law. Which reply is strongest?",
+   "choices": [
+    "The government is right, as the two Covenants were adopted by different principal bodies of the United Nations system",
+    "The government is wrong only because the ICCPR also lists a right to work and a right to education for everyone",
+    "The ICESCR is a binding treaty, and the 1993 Vienna Declaration treats all rights as indivisible and interdependent",
+    "The government is right, since the ICESCR's progressive wording means that it creates no legal obligations for states at all"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l02.q5",
+   "lessonId": "law-intl-human-rights.l02",
+   "kind": "mcq",
+   "prompt": "Which pair correctly matches the status of the United States toward the Covenants?",
+   "choices": [
+    "Never signed either Covenant, because it rejects the Declaration on which they rest",
+    "Ratified the ICCPR in 1992 with reservations, and signed but did not ratify the ICESCR",
+    "Ratified the ICESCR in 1992 with reservations, and signed but did not ratify the ICCPR",
+    "Ratified both Covenants in 1976 without reservations, and accepted both complaint procedures"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l03.q1",
+   "lessonId": "law-intl-human-rights.l03",
+   "kind": "mcq",
+   "prompt": "Who sits on a UN human rights treaty body such as the Human Rights Committee?",
+   "choices": [
+    "Independent experts elected by states parties, serving in their personal capacity",
+    "Government delegates who are instructed on every vote by their home ministries",
+    "Judges appointed by the International Court of Justice and the Security Council",
+    "Representatives of non-governmental organisations accredited to the Human Rights Council"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l03.q2",
+   "lessonId": "law-intl-human-rights.l03",
+   "kind": "mcq",
+   "prompt": "A committee publishes its interpretation of the right to life in the ICCPR, covering every state party. What is this document called?",
+   "choices": [
+    "A special procedures report, issued by a rapporteur who is appointed by states parties",
+    "A general comment, which is an authoritative interpretation rather than a binding judgment",
+    "A concluding observation, which is a binding judgment about a single state's compliance",
+    "An advisory opinion of the International Court, requested by the General Assembly"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l03.q3",
+   "lessonId": "law-intl-human-rights.l03",
+   "kind": "mcq",
+   "prompt": "State B is party to the ICCPR but not its First Optional Protocol. A prisoner, after exhausting local remedies, writes to the Human Rights Committee about ill-treatment. What follows?",
+   "choices": [
+    "The International Court of Justice takes jurisdiction, because the prisoner's remedies have been exhausted",
+    "The Human Rights Council must refer the case, since the UPR already covers every UN member",
+    "The communication is inadmissible against B, though B still owes periodic reports and may face the UPR",
+    "The Committee must decide it, because all ICCPR parties accept individual complaints automatically"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l03.q4",
+   "lessonId": "law-intl-human-rights.l03",
+   "kind": "mcq",
+   "prompt": "State C rejects a committee's finding, saying the final views are not binding like a court judgment. Which analysis is most accurate?",
+   "choices": [
+    "The views are fully binding as a judgment, because the committee is a judicial organ established under Article 92 of the Charter",
+    "The views are legally irrelevant, because a committee's reading of a treaty has no more value than any single state's own reading",
+    "The views bind the state only if the Security Council has first adopted them in a resolution under Chapter VII of the Charter",
+    "The views are not formally binding, yet they carry great weight as the interpretation of the body set up to supervise the treaty"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l03.q5",
+   "lessonId": "law-intl-human-rights.l03",
+   "kind": "mcq",
+   "prompt": "How is the Universal Periodic Review different from treaty body reporting?",
+   "choices": [
+    "States review other states' records, so it covers every UN member and is more political",
+    "Independent experts review each state, and only states that ratified the treaty participate",
+    "A court reviews each state, and its decisions are enforceable in domestic courts",
+    "Special rapporteurs conduct it, and each state may choose whether it is reviewed"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l04.q1",
+   "lessonId": "law-intl-human-rights.l04",
+   "kind": "mcq",
+   "prompt": "Under VCLT Article 19, when is a reservation impermissible even if the treaty does not prohibit reservations?",
+   "choices": [
+    "When at least one other state party has formally objected to its terms",
+    "When the reserving state was not among the original signatories",
+    "When it relates to a provision that creates only obligations for states",
+    "When it is incompatible with the object and purpose of the treaty"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l04.q2",
+   "lessonId": "law-intl-human-rights.l04",
+   "kind": "mcq",
+   "prompt": "What is the difference between jus cogens and erga omnes?",
+   "choices": [
+    "They are synonyms describing any rule that has been accepted by a clear majority of the members of the General Assembly",
+    "Jus cogens applies only to written treaties, while erga omnes applies only to unwritten customary rules of international law",
+    "Jus cogens concerns a norm's non-derogable rank; erga omnes concerns whether all states may invoke its breach",
+    "Jus cogens concerns who may bring a claim; erga omnes concerns whether a treaty may validly conflict with the norm"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l04.q3",
+   "lessonId": "law-intl-human-rights.l04",
+   "kind": "mcq",
+   "prompt": "State F ratifies a human rights treaty with a reservation excluding its detainee-protection article. State G objects, saying the reservation defeats the treaty's object. Following General Comment 24 of the Human Rights Committee, what is the likely result?",
+   "choices": [
+    "The reservation stands, because only G has the power to decide on its validity",
+    "The reservation is severed as incompatible, and F remains bound by the provision",
+    "The treaty never enters into force between F and G, as G's objection is final",
+    "F is released from the whole treaty, as ratification rested on a defective reservation"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l04.q4",
+   "lessonId": "law-intl-human-rights.l04",
+   "kind": "mcq",
+   "prompt": "State H, a party to the Convention against Torture, allegedly allows torture. State J, which has no victims of its own, brings a claim before the ICJ. Which doctrine most directly supports J's standing?",
+   "choices": [
+    "Obligations erga omnes partes, owed to every party to the treaty, as in Belgium v Senegal",
+    "The rule of exhaustion of local remedies, which every injured private person must satisfy",
+    "The doctrine of diplomatic protection, which requires J to espouse its own national's claim",
+    "Reciprocity, under which J may sue only if H has first breached a duty owed to J itself"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l04.q5",
+   "lessonId": "law-intl-human-rights.l04",
+   "kind": "mcq",
+   "prompt": "In Armed Activities (DRC v Rwanda, ICJ, 2006), what did the Court hold about the peremptory status of the prohibition of genocide?",
+   "choices": [
+    "It overrode every reservation to the treaty and gave the Court automatic jurisdiction over every genocide dispute between states",
+    "It meant that the Genocide Convention could not be made the subject of any reservation at all by a state party",
+    "It made the rule binding only on those states that had accepted the Court's compulsory jurisdiction under the Statute",
+    "It did not by itself create jurisdiction where the state's reservation excluded the treaty's jurisdictional clause"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l05.q1",
+   "lessonId": "law-intl-human-rights.l05",
+   "kind": "mcq",
+   "prompt": "Which three-part typology describes the duties that apply to every human right?",
+   "choices": [
+    "To legislate, to litigate and to compensate the victim",
+    "To reserve, to derogate and to withdraw from the treaty",
+    "To respect, to protect and to fulfil the right",
+    "To promise, to publish and to prosecute the offender"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l05.q2",
+   "lessonId": "law-intl-human-rights.l05",
+   "kind": "mcq",
+   "prompt": "According to General Comment 3 of the CESCR, which obligation under the ICESCR is of immediate effect regardless of available resources?",
+   "choices": [
+    "Providing every person with free universal health care at the highest attainable standard",
+    "Spending a fixed minimum percentage of national income on the realisation of rights",
+    "Building housing for every family that lacks adequate shelter within five years",
+    "Guaranteeing that the rights are exercised without discrimination of any prohibited kind"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l05.q3",
+   "lessonId": "law-intl-human-rights.l05",
+   "kind": "mcq",
+   "prompt": "A cash-strapped state cuts primary health clinics in poor regions while keeping spending on a new stadium. Which analysis best fits the ICESCR framework?",
+   "choices": [
+    "The cut is presumptively retrogressive, and the state must show that it used maximum available resources and weighed alternatives",
+    "The cut is lawful, because the Covenant requires only some progress over time and never restricts a government's budgetary choices at all",
+    "The cut is lawful, because the right to health is merely programmatic in nature and never creates binding duties for the state",
+    "The cut is unlawful in every possible case, because retrogressive measures of any kind are absolutely prohibited under Article 2"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l05.q4",
+   "lessonId": "law-intl-human-rights.l05",
+   "kind": "mcq",
+   "prompt": "A court reviewing a housing programme finds it makes no provision for people in desperate need, but declines to set an individual minimum-core entitlement. It orders the government to devise a reasonable programme. This most closely matches which decision?",
+   "choices": [
+    "Handyside v United Kingdom, decided by the European Court of Human Rights in 1976",
+    "Government of the Republic of South Africa v Grootboom, decided by the Constitutional Court in 2000",
+    "Airey v Ireland, decided by the European Court of Human Rights in 1979",
+    "Barcelona Traction, decided by the International Court of Justice in 1970"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l05.q5",
+   "lessonId": "law-intl-human-rights.l05",
+   "kind": "mcq",
+   "prompt": "What did the ECtHR decide in Airey v Ireland (1979) that is relevant to the divide between civil and social rights?",
+   "choices": [
+    "Economic and social rights are the only rights which the Convention protects in the context of civil proceedings before courts",
+    "A state must supply free legal aid to every person in every type of civil dispute, without exception or any means test",
+    "Effective access to court for a litigant may require legal aid, and no water-tight division exists between the two groups",
+    "The Convention contains no right of access to a court at all, so a state may charge whatever court fees it wishes to charge"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l06.q1",
+   "lessonId": "law-intl-human-rights.l06",
+   "kind": "mcq",
+   "prompt": "Which right can never be suspended by derogation under both ICCPR Article 4 and ECHR Article 15?",
+   "choices": [
+    "The right to respect for private and family life and correspondence",
+    "The prohibition of torture and inhuman or degrading treatment",
+    "The right to peaceful assembly with other persons in public places",
+    "The right to liberty and security of the person against arbitrary arrest"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l06.q2",
+   "lessonId": "law-intl-human-rights.l06",
+   "kind": "mcq",
+   "prompt": "A state restricts a newspaper under a vague, unpublished decree to protect an unspecified public interest. Which element of the limitation test most clearly fails?",
+   "choices": [
+    "The requirement that the restriction be provided by law that is accessible and precise",
+    "The requirement that the rights of the claimant be absolute under the treaty text",
+    "The requirement that the state first proclaim an official public emergency",
+    "The requirement that the state notify the UN Secretary-General of its measure"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l06.q3",
+   "lessonId": "law-intl-human-rights.l06",
+   "kind": "mcq",
+   "prompt": "After a major attack, State K proclaims an emergency, suspends the right of assembly and authorises coercive interrogation of detainees. Which statement is correct?",
+   "choices": [
+    "Both measures are valid, because a properly proclaimed emergency suspends every single right that the treaty protects",
+    "Both measures are invalid, because no right of peaceful assembly may ever be restricted by a state under any treaty",
+    "The interrogation measure is valid, but the assembly measure is invalid because assembly is a qualified and not an absolute right",
+    "The assembly measure may be valid if strictly required, but the interrogation measure breaches a non-derogable prohibition"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l06.q4",
+   "lessonId": "law-intl-human-rights.l06",
+   "kind": "mcq",
+   "prompt": "A state indefinitely detains foreign terror suspects without trial but not its own nationals who pose a comparable risk. In A and Others v United Kingdom (2009), what did the Grand Chamber hold about the derogation?",
+   "choices": [
+    "The derogation was valid, since states have an unlimited discretion to decide how to counter terrorism",
+    "The measure was valid, since non-nationals have no rights under the Convention in an emergency",
+    "A public emergency existed, but the measure was disproportionate and discriminatory in applying only to non-nationals",
+    "No public emergency existed, so the state had no power to derogate from the Convention at all"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l06.q5",
+   "lessonId": "law-intl-human-rights.l06",
+   "kind": "mcq",
+   "prompt": "Which statement about Article 4 of the ICCPR is accurate?",
+   "choices": [
+    "A derogation has no time limit, because the emergency itself alone defines what is required of the state at any moment",
+    "A derogation requires an officially proclaimed emergency, and the state must notify other parties through the UN Secretary-General",
+    "A derogation may be made in secret, as long as the domestic legislature has approved the measure after a debate in session",
+    "A derogation may extend to any right in the Covenant at all, provided that the government of the state believes it to be wise"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l07.q1",
+   "lessonId": "law-intl-human-rights.l07",
+   "kind": "mcq",
+   "prompt": "Which institution supervises the European Convention on Human Rights?",
+   "choices": [
+    "The European Court of Human Rights in Strasbourg, a Council of Europe body",
+    "The Court of Justice of the European Union in Luxembourg, an organ of the Union",
+    "The International Court of Justice at The Hague, which is the principal UN organ",
+    "The Committee of Ministers of the OSCE, which is a regional security organisation"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l07.q2",
+   "lessonId": "law-intl-human-rights.l07",
+   "kind": "mcq",
+   "prompt": "In Tyrer v United Kingdom (1978), the Court treated birching of a juvenile as degrading punishment despite local acceptance on the Isle of Man. Which principle did it apply?",
+   "choices": [
+    "The rule that applicants must exhaust remedies before the Court examines the merits",
+    "The Convention is a living instrument, read in light of present-day conditions",
+    "The margin of appreciation always leaves local punishment practices entirely to the state",
+    "The Convention is limited to meanings that its 1950 drafters had expressly intended"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l07.q3",
+   "lessonId": "law-intl-human-rights.l07",
+   "kind": "mcq",
+   "prompt": "A national court rejects an applicant's complaint about prison conditions. Without using any remaining domestic appeal, she goes straight to the Strasbourg Court. What is the most likely result?",
+   "choices": [
+    "The Committee of Ministers takes the case directly, since the national court has already ruled",
+    "The case is referred to the Court of Justice of the European Union for a preliminary ruling",
+    "The application is inadmissible for failure to exhaust available domestic remedies under Article 35",
+    "The Court decides it, because applicants may skip national courts when the complaint is about Article 3"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l07.q4",
+   "lessonId": "law-intl-human-rights.l07",
+   "kind": "mcq",
+   "prompt": "A state restricts a publication on grounds of public morals, and there is no consensus among European states on the question. Which statement best predicts the Court's approach?",
+   "choices": [
+    "It will give no margin at all, because the Court always substitutes its own view for a national view",
+    "It will treat the state's decision as final and unreviewable because morals are not a legitimate aim",
+    "It will decline jurisdiction because moral questions are reserved to the Committee of Ministers",
+    "It will give the state a relatively wide margin of appreciation, while still supervising proportionality"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l07.q5",
+   "lessonId": "law-intl-human-rights.l07",
+   "kind": "mcq",
+   "prompt": "Under Article 46, what is the legal effect of a Strasbourg judgment finding a violation?",
+   "choices": [
+    "It binds the respondent state, with the Committee of Ministers supervising its execution",
+    "It is advisory only, and the state may disregard it if its parliament disagrees",
+    "It annuls the national judgment directly and takes effect as domestic law at once",
+    "It binds every Council of Europe state equally as though they were all parties to the case"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l08.q1",
+   "lessonId": "law-intl-human-rights.l08",
+   "kind": "mcq",
+   "prompt": "In the Inter-American system, who may refer a contentious case to the Inter-American Court of Human Rights?",
+   "choices": [
+    "Any individual or NGO, directly and without any preliminary stage at the Commission",
+    "Only the Secretary General of the OAS, acting on a resolution of the General Assembly",
+    "Only the national courts of the state concerned, by a formal request for an opinion",
+    "The Inter-American Commission or a state party, and not the individual petitioner directly"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l08.q2",
+   "lessonId": "law-intl-human-rights.l08",
+   "kind": "mcq",
+   "prompt": "Which legal basis do OAS members that are not parties to the American Convention, such as the United States, face in the Commission's work?",
+   "choices": [
+    "The Protocol of San Salvador, which applies to every state that is located anywhere within the Americas as a region",
+    "The Universal Declaration of Human Rights, which the Commission enforces directly against states as though it were a treaty",
+    "The American Declaration of the Rights and Duties of Man, as a source of OAS Charter obligations",
+    "The American Convention itself, which applies automatically to every member of the OAS from the moment of its joining"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l08.q3",
+   "lessonId": "law-intl-human-rights.l08",
+   "kind": "mcq",
+   "prompt": "A student disappears after being seized by unidentified men. No one proves state agents did it, but a pattern of disappearances exists and the state never investigated. Under Velasquez Rodriguez v Honduras, what follows?",
+   "choices": [
+    "The state is responsible only after a domestic court has convicted a named public official of the crime of disappearance",
+    "The state can be responsible for failing to prevent, investigate and punish, despite no direct proof of attribution",
+    "The state is not responsible at all, since the act is attributed to private persons whose identity is wholly unknown to anyone",
+    "The state is responsible only if it had also signed and ratified the later Inter-American Convention on Forced Disappearance of Persons"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l08.q4",
+   "lessonId": "law-intl-human-rights.l08",
+   "kind": "mcq",
+   "prompt": "A national judge is asked to apply an amnesty law shielding officials who committed enforced disappearances. Under conventionality control as developed by the Inter-American Court, what should the judge do?",
+   "choices": [
+    "Compare the amnesty with the American Convention as interpreted by the Court, and decline to apply it if incompatible",
+    "Apply the amnesty as written, since national legislation always prevails over a regional human rights treaty in domestic courts",
+    "Refer the question to the OAS General Assembly, which alone has the power to declare that a national law is invalid",
+    "Apply the amnesty unless the Commission has already issued a precautionary measure on the very same question beforehand"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l08.q5",
+   "lessonId": "law-intl-human-rights.l08",
+   "kind": "mcq",
+   "prompt": "What did the Court decide in Mayagna (Sumo) Awas Tingni Community v Nicaragua (2001)?",
+   "choices": [
+    "Indigenous peoples have a legal right to independent statehood that is based on their long customary occupation of land",
+    "Property rights under the Convention cover only that land which has been formally registered in the name of a person with the state",
+    "The state may grant logging concessions on indigenous lands and territories without any participation by the community concerned",
+    "Article 21 protects indigenous communal property in land held by customary tenure, even without formal title"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l09.q1",
+   "lessonId": "law-intl-human-rights.l09",
+   "kind": "mcq",
+   "prompt": "Which is a distinctive feature of the African Charter on Human and Peoples' Rights compared with the European Convention?",
+   "choices": [
+    "It binds only the states that happen to be members of both the European Union and the African Union jointly",
+    "It protects the rights of individuals alone, with no reference whatever to peoples or to the control of their natural wealth",
+    "It recognises peoples' rights and imposes duties on individuals, alongside economic and social rights",
+    "It protects civil and political rights only, and it leaves economic and social rights to be covered by other treaties"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l09.q2",
+   "lessonId": "law-intl-human-rights.l09",
+   "kind": "mcq",
+   "prompt": "Where does the African Court on Human and Peoples' Rights sit, and what effect do its judgments have?",
+   "choices": [
+    "In Banjul, The Gambia, and its judgments are recommendations to the states concerned",
+    "In Addis Ababa, Ethiopia, and its judgments bind every African Union member state",
+    "In San Jose, Costa Rica, and its judgments bind only the states in the Americas",
+    "In Arusha, Tanzania, and its judgments are binding on the states concerned"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l09.q3",
+   "lessonId": "law-intl-human-rights.l09",
+   "kind": "mcq",
+   "prompt": "An NGO wants to bring a case directly before the African Court against State M. State M ratified the Court's protocol but made no Article 34(6) declaration. Which course is correct?",
+   "choices": [
+    "The NGO cannot sue directly, but may use the Commission, which may refer the case if the state is a party to the protocol",
+    "The NGO may sue directly, because ratifying the protocol itself automatically grants every NGO in the world direct access to the Court",
+    "The NGO may sue directly, but only if it first obtains the prior written approval of the African Union Assembly of Heads of State",
+    "The NGO has no avenue anywhere in the system, because only states themselves may submit any complaint of any kind at all"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l09.q4",
+   "lessonId": "law-intl-human-rights.l09",
+   "kind": "mcq",
+   "prompt": "A community is evicted from ancestral lands for a nature reserve and a tourism project. Which Commission decision most closely parallels this situation?",
+   "choices": [
+    "The Handyside judgment against the United Kingdom (1976), about a publication seized as obscene",
+    "The Endorois decision against Kenya (2009), which found violations of property and development rights",
+    "The SERAC decision against Nigeria (2001), which concerned pollution of Ogoniland by oil operations",
+    "The Velasquez Rodriguez judgment against Honduras (1988), about disappearance in the Americas"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l09.q5",
+   "lessonId": "law-intl-human-rights.l09",
+   "kind": "mcq",
+   "prompt": "Which statement about other regional human rights arrangements is accurate?",
+   "choices": [
+    "Asia has a regional court with compulsory jurisdiction to hear individual petitions",
+    "The Arab Charter of 2004 created a court that sits in Cairo to hear individual complaints",
+    "The Arab Charter on Human Rights of 2004 is supervised by a committee, with no regional court",
+    "The ASEAN Human Rights Declaration of 2012 is a binding treaty enforced by a regional court"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l10.q1",
+   "lessonId": "law-intl-human-rights.l10",
+   "kind": "mcq",
+   "prompt": "Which element is part of the definition of torture in Article 1 of the Convention against Torture?",
+   "choices": [
+    "Severe pain or suffering inflicted for a purpose, by or with the acquiescence of a public official",
+    "Physical pain inflicted by any private person for any personal reason, even when the pain is of only slight intensity",
+    "Any treatment that the victim finds humiliating or insulting, whether or not any public official was involved in it",
+    "Pain and suffering arising from lawful sanctions imposed by a court after a fair trial under the national law of the state"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l10.q2",
+   "lessonId": "law-intl-human-rights.l10",
+   "kind": "mcq",
+   "prompt": "A state argues that, during an armed insurgency, coercive interrogation of detainees is permitted because the nation's survival is at stake. Which treaty text most directly answers this argument?",
+   "choices": [
+    "Article 4 of the ICCPR, which lets states derogate from any right in the Covenant during a public emergency",
+    "Article 2(2) CAT, which says no exceptional circumstances, including war or emergency, justify torture",
+    "Article 33(2) of the Refugee Convention, which permits exceptions to non-refoulement for refugees who threaten national security",
+    "Article 41 of the European Convention, which allows an award of just satisfaction to victims of proven violations of rights"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l10.q3",
+   "lessonId": "law-intl-human-rights.l10",
+   "kind": "mcq",
+   "prompt": "State P wants to extradite a murder suspect to a state where he faces capital punishment under conditions of extreme delay and harsh confinement on death row. Which ECtHR case provides the strongest authority against extradition?",
+   "choices": [
+    "Tyrer v United Kingdom (1978), where birching of a juvenile was held degrading",
+    "Airey v Ireland (1979), where the Court required legal aid for access to a court",
+    "Soering v United Kingdom (1989), where the death-row phenomenon risk breached Article 3",
+    "Handyside v United Kingdom (1976), where the margin of appreciation upheld the state"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l10.q4",
+   "lessonId": "law-intl-human-rights.l10",
+   "kind": "mcq",
+   "prompt": "State Q argues that a deportee's threat to national security outweighs the risk that he will be tortured abroad, so the balance favours deportation. Under Chahal and Saadi, how should the Strasbourg Court respond?",
+   "choices": [
+    "Accept the balancing, provided that the state shows that the threat to national security is both serious and imminent in character",
+    "Accept the balancing, because Article 3 permits proportionate exceptions in matters of terrorism as a general rule of the case law",
+    "Defer to the state's assessment, since the margin of appreciation is at its widest in questions of national security policy",
+    "Reject the balancing, because the Article 3 prohibition is absolute and the danger posed cannot be weighed against it"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l10.q5",
+   "lessonId": "law-intl-human-rights.l10",
+   "kind": "mcq",
+   "prompt": "What did the ICJ decide in Belgium v Senegal (2012) about the alleged torturer Hissene Habre?",
+   "choices": [
+    "Senegal breached its duty under the Convention to submit the case to prosecuting authorities",
+    "Senegal had to try him, but only if Belgium paid the cost of the trial in full",
+    "Senegal was entitled to refuse any action, because the crimes occurred outside its territory",
+    "Belgium had exclusive jurisdiction, because its nationals alone were among the victims"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l11.q1",
+   "lessonId": "law-intl-human-rights.l11",
+   "kind": "mcq",
+   "prompt": "Which list correctly states the grounds of persecution in the 1951 Convention definition of a refugee?",
+   "choices": [
+    "Nationality, language, wealth, occupation, and long residence within a particular region or province of the country of origin",
+    "Race, religion, nationality, membership of a particular social group, and political opinion",
+    "Race, religion, nationality, gender, and membership of a political party that is registered with the authorities of the state",
+    "Poverty, civil war, natural disaster, famine, and a denial of access to education or to basic medical care in the country"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l11.q2",
+   "lessonId": "law-intl-human-rights.l11",
+   "kind": "mcq",
+   "prompt": "What does Article 33(1) of the Refugee Convention prohibit?",
+   "choices": [
+    "Expelling or returning a refugee to territories where life or freedom would be threatened for a Convention reason",
+    "Admitting any refugees without a prior grant of a visa from the state in which they had their last place of residence",
+    "Granting refugees any social benefits that are not also provided in equal measure to the state's own nationals and residents",
+    "Detaining refugees under any circumstances at all, including for the purpose of the checking of their identity on arrival"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l11.q3",
+   "lessonId": "law-intl-human-rights.l11",
+   "kind": "mcq",
+   "prompt": "A man fleeing a civil war is targeted only as part of general violence, with no Convention ground. In his host state, the ECtHR would find a real risk of inhuman treatment if he is returned. Which analysis is correct?",
+   "choices": [
+    "He is a refugee under the 1951 Convention, because war and generalised violence are among the five listed grounds of persecution",
+    "He has no protection of any kind, because only the 1951 Convention bars a state from returning a person to danger abroad",
+    "He is protected only if the host state has first formally recognised him as a refugee through a domestic determination procedure",
+    "He may fall outside the 1951 definition, but human rights law and complementary protection can still bar his return"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l11.q4",
+   "lessonId": "law-intl-human-rights.l11",
+   "kind": "mcq",
+   "prompt": "Italian vessels intercept migrants on the high seas and return them to Libya without screening for protection needs. Which decision most closely supports a challenge under the European Convention?",
+   "choices": [
+    "INS v Cardoza-Fonseca (1987), which discussed the standard of a well-founded fear of persecution in the context of United States law",
+    "Chahal v United Kingdom (1996), which concerned the deportation from British territory of a man held to be a danger to security",
+    "Hirsi Jamaa v Italy (2012), which found Italian jurisdiction, an Article 3 breach and a collective expulsion",
+    "Sale v Haitian Centers Council (1993), which held that Article 33 did not restrict the interdiction and return of persons on the high seas"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l11.q5",
+   "lessonId": "law-intl-human-rights.l11",
+   "kind": "mcq",
+   "prompt": "Which statement about refugee status is correct?",
+   "choices": [
+    "It protects even persons who committed war crimes, provided that they hold a well-founded fear of persecution if they return",
+    "It is declaratory, so a person is a refugee as soon as the definition is met, even before recognition",
+    "It is constitutive, so a person becomes a refugee only on the date of a formal grant of status by a host state authority",
+    "It requires that the person has crossed the border lawfully and has lodged an application for status within one year of arrival"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l12.q1",
+   "lessonId": "law-intl-human-rights.l12",
+   "kind": "mcq",
+   "prompt": "How does the Human Rights Committee read the phrase within its territory and subject to its jurisdiction in ICCPR Article 2(1)?",
+   "choices": [
+    "As limited to citizens of the state who happen to be abroad at the time of the violation",
+    "As excluding military operations, since the Covenant never applies during armed conflict",
+    "As disjunctive: a state owes duties to anyone within its power or effective control, wherever located",
+    "As cumulative: a state owes duties only to persons who are both on its territory and under its authority"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l12.q2",
+   "lessonId": "law-intl-human-rights.l12",
+   "kind": "mcq",
+   "prompt": "What did the ECtHR decide in Bankovic v Belgium and Others (2001)?",
+   "choices": [
+    "The NATO states were fully responsible for all civilians that their air operations killed anywhere",
+    "The Convention applies to all conduct of NATO states anywhere in the world, without any limit",
+    "The complaint succeeded because the applicants had been within an area under effective control",
+    "The complaint about the NATO bombing of Belgrade's broadcaster was inadmissible for lack of jurisdiction"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l12.q3",
+   "lessonId": "law-intl-human-rights.l12",
+   "kind": "mcq",
+   "prompt": "A State R patrol shoots a civilian in a district of a foreign country where R, as occupying power, has assumed policing powers. R refuses to investigate, citing the foreign location. Which authority best supports an obligation to investigate under Article 2 of the European Convention?",
+   "choices": [
+    "Al-Skeini v United Kingdom (2011), based on the state's authority and control through its soldiers",
+    "Bankovic v Belgium and Others (2001), based on the principle that jurisdiction is wholly territorial",
+    "Handyside v United Kingdom (1976), based on the margin of appreciation in matters of morals",
+    "Airey v Ireland (1979), based on the right of effective access to a court for civil claims"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l12.q4",
+   "lessonId": "law-intl-human-rights.l12",
+   "kind": "mcq",
+   "prompt": "A State S gives intelligence and logistical help to State T, knowing that T will use it to commit unlawful detention. Under the ILC Articles on State Responsibility, what is S's position?",
+   "choices": [
+    "S is responsible only if the aid was given by a private company and not by its own state organs",
+    "S may be responsible for aiding or assisting T, given its knowledge of the circumstances (Article 16)",
+    "S bears no responsibility, since only the state that committed the act directly can be responsible",
+    "S is responsible for T's conduct as though S itself had committed it, without further conditions"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l12.q5",
+   "lessonId": "law-intl-human-rights.l12",
+   "kind": "mcq",
+   "prompt": "Which principle of attribution is stated in the ILC Articles for acts of state officials?",
+   "choices": [
+    "Conduct of officials is attributable only if the government of the state has approved the specific act in advance of its being done",
+    "Conduct of officials is never attributable to the state when the conduct itself takes place outside the state's own territory",
+    "Conduct of state organs is attributable to the state, even when the officials exceed their authority",
+    "Conduct is attributable only when the officials act strictly within the written limits of the powers that the law gives them"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l13.q1",
+   "lessonId": "law-intl-human-rights.l13",
+   "kind": "mcq",
+   "prompt": "How does Article 1 of the Convention on the Rights of the Child define a child?",
+   "choices": [
+    "Every human being below fifteen, because that is the age of leaving compulsory education in most states",
+    "Every human being below twenty-one, except where the national law fixes an earlier age for marriage",
+    "Every human being below twelve, which is the age of criminal responsibility in the Convention text",
+    "Every human being below eighteen, unless majority is reached earlier under the applicable law"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l13.q2",
+   "lessonId": "law-intl-human-rights.l13",
+   "kind": "mcq",
+   "prompt": "A court is told that, under Article 3, the child's best interests must always override every other consideration. Which response is accurate?",
+   "choices": [
+    "Best interests apply only to custody decisions between separated parents and not to any action by the state or legislature",
+    "Best interests create only a moral duty with no legal effect on any administrative or judicial decision-maker at all",
+    "Best interests are a primary consideration, which must be assessed and weighed but not always decisive",
+    "Best interests are the only consideration that a court is permitted to weigh in any decision that concerns a child"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l13.q3",
+   "lessonId": "law-intl-human-rights.l13",
+   "kind": "mcq",
+   "prompt": "A 15-year-old is convicted of murder in State V, a party to the CRC. The court proposes life imprisonment without any possibility of release. Which statement best reflects the Convention and the cited US ruling?",
+   "choices": [
+    "The sentence breaches Article 12, because the child must consent to every sentence imposed on him",
+    "The sentence breaches Article 37(a) of the CRC, and Roper v Simmons shows the same trend on capital punishment",
+    "The sentence is lawful, since Article 37 prohibits only the death penalty for children and no other penalty",
+    "The sentence is lawful, because Roper v Simmons held that juveniles may be sentenced like adults"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l13.q4",
+   "lessonId": "law-intl-human-rights.l13",
+   "kind": "mcq",
+   "prompt": "A 16-year-old wishes to attend a political rally against her parents' wishes. Which reading best fits Articles 5 and 12 of the CRC?",
+   "choices": [
+    "Her views must be given weight according to her maturity, as her evolving capacities reduce parental direction",
+    "Her parents' views prevail in every case until she turns eighteen, because the Convention is designed to shield family authority",
+    "Her views are decisive in every case, because Article 12 gives a child the final choice on all matters that affect her",
+    "Her views are legally irrelevant, because assembly rights under the Convention belong only to adult persons and not to children"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l13.q5",
+   "lessonId": "law-intl-human-rights.l13",
+   "kind": "mcq",
+   "prompt": "What age does the CRC's Optional Protocol on children in armed conflict set for compulsory recruitment and direct participation in hostilities?",
+   "choices": [
+    "Fifteen, which is the same as the age that was set in Article 38 of the Convention",
+    "Sixteen, which is a compromise between the age of fifteen and the age of majority",
+    "Twelve, which is the age at which criminal responsibility begins in most legal systems",
+    "Eighteen, which is higher than the age of fifteen set in Article 38 of the Convention"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l14.q1",
+   "lessonId": "law-intl-human-rights.l14",
+   "kind": "mcq",
+   "prompt": "Which concept does Article 1 of CEDAW's definition of discrimination include that goes beyond intentional unequal treatment?",
+   "choices": [
+    "Distinctions with the effect of impairing women's enjoyment of rights, even without any discriminatory purpose",
+    "Only distinctions that a state adopted with a specific discriminatory purpose and recorded in a written legal instrument",
+    "Only distinctions made by public officials acting for the state, and not those made by private persons or enterprises",
+    "Only distinctions that deny women the right to vote or to stand for public office in national and local elections"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l14.q2",
+   "lessonId": "law-intl-human-rights.l14",
+   "kind": "mcq",
+   "prompt": "A state reserves seats in parliament for women until the proportion of women reaches a defined level. Under CEDAW, how is this measure classified?",
+   "choices": [
+    "A reservation to the Convention, which the state must notify to the Secretary-General for approval by the other states parties",
+    "A temporary special measure under Article 4, which is not discrimination and must end once equality is reached",
+    "A violation of Article 1, because every distinction that is made on the basis of sex is prohibited discrimination under the text",
+    "A permanent entitlement under Article 4, which stays in place after substantive equality of women and men has been achieved"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l14.q3",
+   "lessonId": "law-intl-human-rights.l14",
+   "kind": "mcq",
+   "prompt": "A state grants pensions only to full-time workers, and most part-time workers are women. A woman complains of discrimination. Which analysis best fits CEDAW?",
+   "choices": [
+    "The rule is lawful, because pensions are an economic matter that falls entirely outside the scope of the Convention's coverage",
+    "The rule is unlawful in every case, because no distinction that affects women disproportionately can ever be justified at all",
+    "The rule may be indirect discrimination under Article 1, unless the state shows a legitimate and proportionate justification",
+    "The rule is lawful, because it is neutral in its form and CEDAW prohibits only discrimination that is intentional in nature"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l14.q4",
+   "lessonId": "law-intl-human-rights.l14",
+   "kind": "mcq",
+   "prompt": "A woman suffers repeated domestic violence. Police know of the danger and take no steps, and she is eventually killed. Which authority most directly suggests state responsibility for gender discrimination?",
+   "choices": [
+    "Lovelace v Canada (1981), which concerned the loss of Indian status by marriage",
+    "Roper v Simmons (2005), which concerned the juvenile death penalty in the United States",
+    "Saramaka People v Suriname (2007), which concerned development projects on tribal lands",
+    "Opuz v Turkey (ECtHR, 2009), which found violations of the right to life and discrimination"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l14.q5",
+   "lessonId": "law-intl-human-rights.l14",
+   "kind": "mcq",
+   "prompt": "Why are reservations to Articles 2 and 16 of CEDAW so controversial?",
+   "choices": [
+    "They go to the core of the Convention and may be incompatible with its object and purpose under Article 28(2)",
+    "They are prohibited in the text of the Convention, which forbids every reservation of any kind that a state might make",
+    "They affect only technical provisions on reporting and so have no real importance for the achievement of women's equality",
+    "They can be made only by states which have previously ratified the Optional Protocol to the Convention on communications"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l15.q1",
+   "lessonId": "law-intl-human-rights.l15",
+   "kind": "mcq",
+   "prompt": "Article 27 of the ICCPR protects the right of persons belonging to minorities to do which of the following, in community with others?",
+   "choices": [
+    "Receive land titles to all the territory in which the minority lives",
+    "Enjoy their culture, practise their religion and use their language",
+    "Secede from the state to create an independent state of their own",
+    "Hold a veto over all legislation that affects their group's customs"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l15.q2",
+   "lessonId": "law-intl-human-rights.l15",
+   "kind": "mcq",
+   "prompt": "What was the outcome in Lovelace v Canada (Human Rights Committee, 1981)?",
+   "choices": [
+    "Loss of Indian status through marriage, with exclusion from the reserve, violated Article 27",
+    "The Committee held that Canada had acted lawfully because the Indian Act reflected tribal custom",
+    "The Committee held that Article 27 applies only to groups and gives no right to a single person",
+    "The Committee held that the case was inadmissible because Canada was not a party to the ICCPR"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l15.q3",
+   "lessonId": "law-intl-human-rights.l15",
+   "kind": "mcq",
+   "prompt": "A state grants a mining concession over the customary land of an indigenous people, after only a brief notice in a newspaper. The people had no say in the decision. Which statement best reflects current international standards?",
+   "choices": [
+    "The state acted lawfully, because UNDRIP is a binding treaty that grants states full ownership of all land within their borders",
+    "The state acted lawfully, because no international instrument or decision of any court mentions indigenous consultation at all",
+    "The people may lawfully secede, because Article 3 of UNDRIP creates a general right of secession for every indigenous people",
+    "UNDRIP calls for free, prior and informed consent, and the Inter-American Court requires it for major projects"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l15.q4",
+   "lessonId": "law-intl-human-rights.l15",
+   "kind": "mcq",
+   "prompt": "A state quarries a small area of land used for reindeer herding by a minority, with limited effect on herding. Which approach does the Human Rights Committee's Lansman v Finland (1994) reflect?",
+   "choices": [
+    "Article 27 protects only the minority's religion and never its economic activities on land",
+    "Article 27 can never apply to a minority living in the territory of a state as a citizen",
+    "Limited interference may be compatible with Article 27, but cumulative impact may eventually deny the right",
+    "Any change to land used by a minority is a violation of Article 27, however small its effect"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l15.q5",
+   "lessonId": "law-intl-human-rights.l15",
+   "kind": "mcq",
+   "prompt": "How many states voted against the UN Declaration on the Rights of Indigenous Peoples in 2007, and what happened afterwards?",
+   "choices": [
+    "None voted against, and it was adopted by consensus without a vote of the Assembly",
+    "Four voted against, and all four later endorsed it",
+    "One voted against, and it has never since endorsed the Declaration",
+    "Twenty voted against, and the Declaration therefore failed to be adopted by the Assembly"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l16.q1",
+   "lessonId": "law-intl-human-rights.l16",
+   "kind": "mcq",
+   "prompt": "What are the three pillars of the UN Guiding Principles on Business and Human Rights?",
+   "choices": [
+    "The corporate duty to protect, the state responsibility to respect, and access to remedy for governments",
+    "The state duty to privatise, the corporate right to respect, and access to the courts for shareholders",
+    "The state duty to protect, the corporate responsibility to respect, and access to remedy for victims",
+    "The state duty to compensate, the corporate obligation to report profits, and access to arbitration for investors"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l16.q2",
+   "lessonId": "law-intl-human-rights.l16",
+   "kind": "mcq",
+   "prompt": "Which description of the legal status of the Guiding Principles is accurate?",
+   "choices": [
+    "They are a binding treaty that imposes direct criminal liability on every company that has signed it",
+    "They are a judgment of the International Court of Justice that is addressed to multinational companies",
+    "They are a Security Council resolution that is binding on all companies registered in UN member states",
+    "They are soft law, setting out a corporate responsibility to respect and not a binding treaty obligation"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l16.q3",
+   "lessonId": "law-intl-human-rights.l16",
+   "kind": "mcq",
+   "prompt": "Foreign villagers sue the English parent of a mining group over pollution caused by its Zambian subsidiary. The parent argues that England is the wrong forum and that it owes no duty. Which decision most supports letting the claim go forward?",
+   "choices": [
+    "Vedanta Resources v Lungowe (UK Supreme Court, 2019), which accepted a possible parent-company duty of care",
+    "Kiobel v Royal Dutch Petroleum (US Supreme Court, 2013), which applied a presumption against extraterritoriality",
+    "Jesner v Arab Bank (US Supreme Court, 2018), which held that foreign corporations cannot be sued under the Alien Tort Statute",
+    "Arrest Warrant (ICJ, 2002), which dealt with the immunity of a sitting foreign minister"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l16.q4",
+   "lessonId": "law-intl-human-rights.l16",
+   "kind": "mcq",
+   "prompt": "A foreign national sues a foreign corporation in a US federal court under the Alien Tort Statute for abuses that all occurred abroad, with only general corporate activity in the United States. What result does the Supreme Court case law make most likely?",
+   "choices": [
+    "Dismissal, because only states and not individuals can ever be sued under the Alien Tort Statute",
+    "Dismissal, because the claim does not touch and concern US territory with sufficient force",
+    "Success, because the Statute applies to all violations of the law of nations anywhere in the world",
+    "Success, because Filartiga v Pena-Irala held that every corporation is liable for international crimes"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l16.q5",
+   "lessonId": "law-intl-human-rights.l16",
+   "kind": "mcq",
+   "prompt": "What did the 2013 Rana Plaza collapse in Bangladesh lead to?",
+   "choices": [
+    "A judgment of the International Court of Justice against the state of Bangladesh for failing to inspect",
+    "A repeal of the OECD Guidelines for Multinational Enterprises because they had proved ineffective",
+    "A legally binding agreement between global brands and trade unions on factory fire and building safety",
+    "A binding UN treaty on business and human rights that was adopted and ratified by the General Assembly"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l17.q1",
+   "lessonId": "law-intl-human-rights.l17",
+   "kind": "mcq",
+   "prompt": "What is universal jurisdiction?",
+   "choices": [
+    "A state's power to prosecute any crime committed anywhere by any person, however minor the offence",
+    "A court's power to hear cases against all states, whether or not they have consented to jurisdiction",
+    "A treaty rule that obliges the Security Council to prosecute every violation of human rights law",
+    "A state's power to prosecute certain grave crimes without any territorial or nationality link to the case"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l17.q2",
+   "lessonId": "law-intl-human-rights.l17",
+   "kind": "mcq",
+   "prompt": "In Arrest Warrant (DRC v Belgium, ICJ, 2002), what did the Court decide?",
+   "choices": [
+    "The DRC had no standing, because its foreign minister was not an official in a position to claim immunity",
+    "The case was inadmissible, because war crimes can only be tried by an international tribunal",
+    "Belgium violated the immunity of the sitting foreign minister by issuing and circulating the warrant",
+    "Belgium acted lawfully, because universal jurisdiction overrides any immunity of an official in office"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l17.q3",
+   "lessonId": "law-intl-human-rights.l17",
+   "kind": "mcq",
+   "prompt": "A former head of state, now out of office, is arrested abroad for torture ordered while in office, after the date on which the forum state and his own state were both bound by the Convention against Torture. Which authority best supports denying him immunity?",
+   "choices": [
+    "Lovelace v Canada (1981), where the Human Rights Committee held that loss of Indian status breached Article 27 of the ICCPR",
+    "Pinochet (No 3), where the Lords held that torture cannot be an official function protected by immunity",
+    "Arrest Warrant (ICJ, 2002), where the Court upheld the immunity of a sitting foreign minister from arrest abroad",
+    "Roper v Simmons (2005), where the US Supreme Court held that persons who were juveniles at the time cannot be executed"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l17.q4",
+   "lessonId": "law-intl-human-rights.l17",
+   "kind": "mcq",
+   "prompt": "A national court in State W is genuinely investigating a case of alleged war crimes by one of its own officers. The ICC Prosecutor wants to take the case. What is the likely result under the Rome Statute?",
+   "choices": [
+    "The case is inadmissible under Article 17, because the state is genuinely investigating and is willing and able",
+    "The case is admissible, because the Court has primacy over every national court under the Statute",
+    "The case is admissible, because Article 27 makes the official capacity of the officer a ground of jurisdiction",
+    "The case is inadmissible, because the Court may act only on a Security Council referral of a situation"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l17.q5",
+   "lessonId": "law-intl-human-rights.l17",
+   "kind": "mcq",
+   "prompt": "Which of these states is correct about the Court's jurisdiction under Article 12 of the Rome Statute?",
+   "choices": [
+    "It may act against any person of any nationality for crimes anywhere, without any condition on jurisdiction",
+    "It may act only against nationals of states that have ratified the Statute and the Convention against Torture",
+    "It may act only if the Security Council has first adopted a resolution authorising each prosecution",
+    "It may act where the crime occurred on a state party's territory or the accused is a state party's national"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l18.q1",
+   "lessonId": "law-intl-human-rights.l18",
+   "kind": "mcq",
+   "prompt": "What does the 1993 Vienna Declaration say about the universality of human rights?",
+   "choices": [
+    "All human rights are universal, indivisible, interdependent and interrelated, and states must protect them whatever their systems",
+    "Human rights are universal only for civil and political matters, while all economic matters depend on the culture of each state",
+    "Human rights are universal only for those states that were present at the adoption of the Universal Declaration in 1948",
+    "Human rights vary by region, and no regional or cultural particularity may be taken into account when they are applied"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l18.q2",
+   "lessonId": "law-intl-human-rights.l18",
+   "kind": "mcq",
+   "prompt": "Which argument is typical of a universalist reply to a state that says its culture justifies a restriction on women's rights?",
+   "choices": [
+    "Women's rights are an invention of Western states, so non-Western states should decide them for themselves without any treaty",
+    "Cultures are internally diverse and change, so the claim may silence the very persons whose rights are at stake",
+    "Culture is legally irrelevant, so no court should ever consider the traditions or practices of any state or community at all",
+    "The state is correct, because relativism is the legal rule that is stated in the text of the Universal Declaration of 1948"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l18.q3",
+   "lessonId": "law-intl-human-rights.l18",
+   "kind": "mcq",
+   "prompt": "A regional court gives a government room to decide how to balance freedom of expression against religious sensitivities because European states disagree on the question, while insisting that torture admits no such room. How is this best analysed?",
+   "choices": [
+    "As a rejection of universality, because the court has held that the Convention is not binding on the state at all in practice",
+    "As a derogation under Article 15 of the Convention, because freedom of expression is a non-derogable right in the text",
+    "As a margin of appreciation for qualified rights within a universal framework, which does not extend to absolute rights",
+    "As pure relativism, since the court has accepted that every right may differ according to each country's own culture and traditions"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l18.q4",
+   "lessonId": "law-intl-human-rights.l18",
+   "kind": "mcq",
+   "prompt": "A government cites the Cairo Declaration on Human Rights in Islam (1990), which makes rights subject to Shariah, to justify limits on freedom of religion. Which analysis is most accurate?",
+   "choices": [
+    "The Declaration overrides the ICCPR for every state that is a member of the Organisation of the Islamic Conference by its own terms",
+    "The Declaration is a binding treaty that amended the ICCPR for all Muslim-majority states by a consensus of its members",
+    "The Declaration is part of jus cogens, so that the ICCPR must yield wherever there is any conflict between the two texts",
+    "The Declaration is a non-binding regional document, so it cannot displace treaty obligations that the state has accepted"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l18.q5",
+   "lessonId": "law-intl-human-rights.l18",
+   "kind": "mcq",
+   "prompt": "Which statement best separates questions that the universalism debate should not confuse?",
+   "choices": [
+    "Whether a right exists, how broadly it is defined, and who decides how it applies locally are different questions",
+    "Whether a right exists and who decides its local application are the same question under Vienna 1993",
+    "Whether a right exists is decided only by each state, and its definition is decided only by regional courts",
+    "Whether a right exists depends only on how many states have ratified the treaty that contains it"
+   ]
+  }
+ ]
+}

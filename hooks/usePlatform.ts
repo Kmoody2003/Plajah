@@ -11,6 +11,10 @@ export interface PlatformInfo {
   hasTouch: boolean;
   hasDpad: boolean;
   hasVoice: boolean;
+  isFireTV: boolean;
+  isFireTablet: boolean;
+  isHorizonOS: boolean;
+  isSilk: boolean;
   screenClass: ScreenClass;
   /** Apply this as a body className to activate the correct CSS theme */
   themeClass: 'theme-phone' | 'theme-big-screen' | '';
@@ -36,13 +40,26 @@ function detect(): PlatformInfo {
   const isAndroid = ua.includes('android');
   const isIOS = /iphone|ipad|ipod/.test(ua);
 
-  // FireTV user-agents include 'silk', 'aftt' (Fire TV Stick 4K), or 'kfapwi'
+  // Amazon Silk browser
+  const isSilk = ua.includes('silk');
+  const hasTouchPoints = typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 0;
+  const isAftDevice = /\baft[a-z0-9]+\b/i.test(ua);
+  const isKfDevice = /\bkf[a-z0-9]+\b/i.test(ua);
+
+  // Amazon Fire TV (Stick, Cube, Edition TVs): aft device codes or Silk without touch
   const isFireTV =
-    ua.includes('silk') ||
+    isAftDevice ||
     ua.includes('aftt') ||
-    ua.includes('kfapwi') ||
     ua.includes('aftmm') ||
-    document.getElementById('__firetv__') !== null;
+    document.getElementById('__firetv__') !== null ||
+    (isSilk && !hasTouchPoints && !isKfDevice);
+
+  // Amazon Fire OS tablets (Kindle Fire touch devices): kf device codes or Silk with touch
+  const isFireTablet =
+    !isFireTV && (isKfDevice || (isSilk && hasTouchPoints));
+
+  // Meta Horizon OS (Quest 2/3/Pro spatial window)
+  const isHorizonOS = ua.includes('oculusbrowser') || ua.includes('quest') || ua.includes('pacific');
 
   // Samsung Tizen (Smart TV)
   const isTizen = ua.includes('tizen') || !!(window as any).tizen;
@@ -82,28 +99,26 @@ function detect(): PlatformInfo {
 
   const isForced = forcedTV();
   const isTV =
-    isForced ||                                     // explicit override (TV-sim / testing)
-    isNativeTV ||                                   // tier 1 — trusted outright
-    isFireTV || isTizen || isRoku ||                // dedicated TV platforms
-    (isAndroid && hasTvToken) ||                    // tier 2
-    looksLeanback;                                  // tier 3
+    isForced ||                                          // explicit override (TV-sim / testing)
+    isNativeTV ||                                        // tier 1 — trusted outright
+    (isFireTV && !isFireTablet) || isTizen || isRoku ||  // dedicated TV platforms
+    (isAndroid && hasTvToken && !isFireTablet) ||        // tier 2
+    (looksLeanback && !isFireTablet);                    // tier 3
 
   // Kept so a real device can be debugged from the console (`getPlatformInfo().tvSignals`)
   // instead of guessing which tier fired — the previous detection was opaque when it failed.
-  const tvSignals = { forced: isForced, native: isNativeTV, firetv: isFireTV, tizen: isTizen, roku: isRoku, uaToken: isAndroid && hasTvToken, leanbackShape: looksLeanback, noTouch, noHover };
+  const tvSignals = { forced: isForced, native: isNativeTV, firetv: isFireTV, firetablet: isFireTablet, tizen: isTizen, roku: isRoku, uaToken: isAndroid && hasTvToken, leanbackShape: looksLeanback, noTouch, noHover };
 
   let type: PlatformType = 'web';
-  if (isFireTV) type = 'firetv';
+  if (isFireTV && !isFireTablet) type = 'firetv';
   else if (isTizen) type = 'tizen';
   else if (isRoku) type = 'roku';
   else if (isAlexa) type = 'alexa';
-  else if (isCapacitor && isAndroid) type = 'android';
+  else if ((isCapacitor || isFireTablet) && isAndroid) type = 'android';
   else if (isCapacitor && isIOS) type = 'ios';
 
-  // TV always wins. This ordering is the whole bug that shipped: App.tsx tested "is mobile"
-  // first, that test matched /Android/i, and every Android TV took the phone branch before the
-  // TV check was ever reached.
-  const isMobile = !isTV && (isCapacitor || /mobi|android|tablet|ipad|iphone/.test(ua));
+  // TV always wins.
+  const isMobile = !isTV && (isCapacitor || isFireTablet || /mobi|android|tablet|ipad|iphone/.test(ua));
   const hasTouch = !isTV && navigator.maxTouchPoints > 0;
   const hasDpad = isTV;
   const hasVoice = isAlexa || isTV; // TV remotes have voice buttons too
@@ -111,13 +126,18 @@ function detect(): PlatformInfo {
   const w = window.screen.width;
   let screenClass: ScreenClass = 'desktop';
   if (isTV) screenClass = 'tv';
+  else if (isFireTablet || (w >= 768 && w < 1200)) screenClass = 'tablet';
   else if (w < 768) screenClass = 'phone';
-  else if (w < 1200) screenClass = 'tablet';
 
   const themeClass =
     screenClass === 'tv' ? 'theme-big-screen' :
     screenClass === 'phone' ? 'theme-phone' :
     '';
+
+  // Silk hardware acceleration hint
+  if (typeof document !== 'undefined' && isSilk) {
+    document.documentElement.classList.add('platform-silk');
+  }
 
   return {
     type,
@@ -127,6 +147,10 @@ function detect(): PlatformInfo {
     hasTouch,
     hasDpad,
     hasVoice,
+    isFireTV,
+    isFireTablet,
+    isHorizonOS,
+    isSilk,
     screenClass,
     themeClass,
     tvSignals,

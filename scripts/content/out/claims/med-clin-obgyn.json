@@ -1,0 +1,1304 @@
+{
+ "courseId": "med-clin-obgyn",
+ "label": "Obstetrics and Gynecology",
+ "lessons": [
+  {
+   "id": "med-clin-obgyn.l01",
+   "title": "Maternal Physiology and Prenatal Care",
+   "body": [
+    "Pregnancy is a physiologic stress test, and its changes are adaptive. Blood volume rises by about 40 to 50 percent, and red cell mass rises less, so a physiologic dilutional anaemia appears. Cardiac output increases by 30 to 50 percent through heart rate and stroke volume while systemic vascular resistance falls, so blood pressure dips in the second trimester. Tidal volume and minute ventilation rise under the influence of progesterone, producing a mild respiratory alkalosis, with a compensatory fall in serum bicarbonate. The glomerular filtration rate rises by about 50 percent, so normal creatinine in pregnancy is lower than usual, and glycosuria can occur. The gastrointestinal tract slows under progesterone, causing reflux and constipation, and the coagulation system shifts toward a hypercoagulable state with raised fibrinogen and factors VII, VIII and X, protecting against haemorrhage but increasing venous thromboembolism risk. Insulin resistance rises in the second half through placental human placental lactogen and other hormones, which is the basis of gestational diabetes.",
+    "Gestational age is counted from the first day of the last menstrual period, and is confirmed or corrected by first-trimester ultrasound crown-rump length, the most accurate dating tool. Naegele rule estimates the due date as 280 days (40 weeks) from the last menstrual period. Quantitative serum hCG doubles roughly every 48 hours early on and peaks near 10 weeks, and a gestational sac is seen on transvaginal ultrasound when hCG is above the discriminatory zone, around 1,500 to 3,500 mIU/mL, which varies by centre.",
+    "Prenatal care follows a schedule of visits (monthly to 28 weeks, every 2 weeks to 36 weeks, then weekly), though ACOG has described flexible schedules. At the first visit the clinician takes a history, assesses risk, and orders routine tests: blood type, Rh and antibody screen, complete blood count, rubella and varicella immunity, hepatitis B surface antigen, HIV, syphilis, urine culture for asymptomatic bacteriuria (which must be treated because it can progress to pyelonephritis), and screening for chlamydia and gonorrhoea, with cervical cancer screening if due. Between 24 and 28 weeks, universal screening for gestational diabetes is done and repeat antibody testing performed for Rh-negative women, who receive anti-D immune globulin at about 28 weeks. Group B Streptococcus screening by vaginal and rectal culture is done at 36 to 37 weeks, with intrapartum antibiotic prophylaxis for carriers. Low-dose aspirin starting between 12 and 28 weeks (ideally before 16) is recommended for those at high risk of preeclampsia (USPSTF 2021), including prior preeclampsia, multifetal gestation, chronic hypertension, diabetes, renal disease and autoimmune disease.",
+    "Vaccination in pregnancy uses inactivated vaccines. Influenza vaccine is recommended in any trimester during the season, and Tdap at each pregnancy between 27 and 36 weeks to transfer pertussis antibody to the newborn. RSV vaccination at 32 to 36 weeks in season is an option to protect the infant, and COVID-19 vaccination is recommended by ACOG; consult current guidance for details. Live vaccines (MMR, varicella) are contraindicated in pregnancy and are given postpartum if the woman is not immune.",
+    "Counselling covers nutrition, folic acid supplementation before and during early pregnancy, weight gain targets tied to prepregnancy BMI (Institute of Medicine 2009), exercise, avoidance of alcohol, tobacco and drugs, and foods that carry Listeria or toxoplasma. Teratogens to know: ACE inhibitors and angiotensin receptor blockers (fetal renal injury), warfarin (embryopathy), isotretinoin (craniofacial and cardiac defects), valproate (neural tube defects), lithium, methotrexate, misoprostol and thalidomide, and tetracyclines (tooth discolouration). A common safe analgesic is acetaminophen, and NSAIDs are avoided in the third trimester because they close the ductus arteriosus.",
+    "A worked example: a 28-year-old at 8 weeks has nausea and a creatinine of 0.5 mg/dL. The creatinine is normal for pregnancy because of increased filtration, whereas a value of 1.0 would be abnormal."
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l02",
+   "title": "Prenatal Genetic Screening and Fetal Assessment",
+   "body": [
+    "Prenatal genetic testing separates screening, which estimates risk and does not give a diagnosis, from diagnostic testing, which determines whether a condition is present. All patients should be offered aneuploidy screening regardless of age (ACOG 2020), and the choice is theirs after counselling. Declining screening or testing, or choosing diagnosis directly, are all acceptable options, and counselling is nondirective.",
+    "Screening options. First-trimester combined screening uses nuchal translucency on ultrasound at 11 to 14 weeks with serum pregnancy-associated plasma protein A and free or total beta-hCG. Second-trimester quadruple screen (15 to 22 weeks) measures alpha-fetoprotein, hCG, unconjugated oestriol and inhibin A. In Down syndrome the pattern is low AFP and oestriol with high hCG and inhibin A; trisomy 18 shows low levels of all analytes. Cell-free DNA screening from maternal blood, as early as 9 to 10 weeks, has the highest sensitivity and specificity for trisomy 21 (above 99 percent detection in most studies), 18 and 13, but remains a screening test, and its positive predictive value depends on prevalence, so it is lower in younger women. A positive result is confirmed with diagnostic testing before any irreversible decision. Elevated maternal serum AFP indicates open neural tube defects or abdominal wall defects, wrong dates, multiple gestation or fetal demise, and a detailed ultrasound is the next step. Low AFP suggests aneuploidy or overestimated gestational age.",
+    "Diagnostic procedures: chorionic villus sampling at 10 to 13 weeks (a small procedure-related loss risk, and a risk of limb defects if done too early) and amniocentesis after about 15 weeks (ACOG estimates the added loss risk from invasive testing at roughly 0.1 to 0.3 percent above the background miscarriage rate, and recent estimates are at the low end). Both give a karyotype or microarray. Microarray detects smaller deletions and duplications. CVS may show confined placental mosaicism, and amniocentesis can measure amniotic fluid AFP and acetylcholinesterase. The detailed anatomy ultrasound at 18 to 22 weeks screens for structural malformations.",
+    "Carrier screening for cystic fibrosis, spinal muscular atrophy, haemoglobinopathies and fragile X, or expanded panels, is offered according to ancestry and personal choice. Tay-Sachs and others are offered based on ancestry. If both partners are carriers of an autosomal recessive condition, the risk is one in four per pregnancy.",
+    "Rh alloimmunisation: when an Rh-negative woman carries an Rh-positive fetus, fetomaternal haemorrhage sensitises her, and in later pregnancies maternal IgG anti-D crosses the placenta and causes haemolytic disease of the fetus and newborn, with fetal anaemia, hydrops and neonatal jaundice. Prevention is anti-D immune globulin at about 28 weeks, within 72 hours after delivery of an Rh-positive infant, and after sensitising events such as bleeding, miscarriage, ectopic pregnancy, amniocentesis and abdominal trauma. The Kleihauer-Betke test quantifies fetal cells in the maternal circulation to adjust the dose after large bleeds. In an already sensitised woman, immune globulin is useless and the fetus is monitored with middle cerebral artery Doppler velocimetry for anaemia, and intrauterine transfusion is used when severe.",
+    "Antenatal surveillance for pregnancies at risk of stillbirth includes the nonstress test (reactive means two accelerations in 20 minutes), biophysical profile (fetal breathing, movement, tone, amniotic fluid and the nonstress test) and umbilical artery Doppler in growth restriction. Fetal movement counting is a simple patient-led measure.",
+    "A worked example: a 36-year-old at 12 weeks has a positive cell-free DNA screen for trisomy 21. The next step is genetic counselling and diagnostic testing with CVS or amniocentesis, not a termination decision on the screening result alone."
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l03",
+   "title": "Normal Labor, Delivery and Fetal Monitoring",
+   "body": [
+    "Labor is the process by which uterine contractions cause cervical effacement and dilation and descent of the fetus. It depends on the three Ps: the powers (contractions), the passenger (size, position and presentation of the fetus) and the passage (the maternal pelvis and soft tissues). Prostaglandin-driven cervical ripening precedes labour, and oxytocin and positive feedback through stretch (the Ferguson reflex) drive contractions.",
+    "The first stage runs from onset of regular contractions to full dilation (10 cm). It has a latent phase, a slow change, and an active phase, which ACOG and the Society for Maternal-Fetal Medicine (2014) say begins at about 6 cm, because earlier standards (Friedman curve, 4 cm) overdiagnosed arrest. The second stage runs from full dilation to delivery of the baby, and the third stage from delivery of the baby to delivery of the placenta, expected within about 30 minutes, with signs of separation including a gush of blood, lengthening of the cord and a globular uterus. The fourth stage is the immediate postpartum hour, monitored for bleeding. Vaginal examination assesses dilation, effacement, station (relation to the ischial spines, from -3 to +3) and position. The Bishop score (dilation, effacement, station, consistency and position) predicts the success of induction, and a score of 8 or higher indicates a favourable cervix.",
+    "Cardinal movements: engagement, descent, flexion, internal rotation, extension, restitution (external rotation), and expulsion. The occiput anterior position is the most favourable. A normal pelvis is gynecoid, and the diagonal conjugate is clinically assessed.",
+    "Fetal heart rate monitoring seeks signs of fetal hypoxia. The baseline is normally 110 to 160 beats per minute with moderate variability (6 to 25 bpm), which reflects an intact, oxygenated central nervous system and is the most reassuring feature. Accelerations are reassuring. Early decelerations mirror contractions and arise from head compression with vagal stimulation, and are benign. Variable decelerations are abrupt drops with variable timing from umbilical cord compression, treated first by changing maternal position, and amnioinfusion may help. Late decelerations begin after the contraction peak and reflect uteroplacental insufficiency, so the response includes repositioning on the left side, stopping oxytocin, fluids and oxygen as needed, and delivery if persistent. The three-tier system classifies tracings: Category I is normal, Category III (absent variability with recurrent late or variable decelerations or bradycardia, or a sinusoidal pattern) is abnormal and requires prompt action, and Category II is indeterminate and requires evaluation and continued surveillance.",
+    "Pain relief: epidural analgesia gives the most effective relief and does not increase the cesarean rate, though it can lengthen the second stage and cause maternal hypotension, so fluids and positioning are used. Spinal anaesthesia is used for cesarean delivery. Systemic opioids, nitrous oxide and nonpharmacologic support are alternatives. Continuous labour support is associated with better outcomes. Episiotomy is not routine. Perineal lacerations are graded first to fourth degree, and third and fourth degrees involve the anal sphincter complex, and need repair and counselling.",
+    "A worked example: a G1P0 at 39 weeks, 7 cm dilated with moderate variability and repetitive late decelerations. The sequence is to reposition, give oxygen and fluids, stop any oxytocin and check for hypotension, and if the pattern persists or variability is lost, plan expedited delivery. Late decelerations with preserved variability are a signal, but not an automatic indication for cesarean."
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l04",
+   "title": "Abnormal Labor, Malpresentation and Cesarean Delivery",
+   "body": [
+    "Labor dystocia is abnormal progress, and it is analysed by the three Ps. Inadequate powers (hypotonic contractions) are treated with oxytocin augmentation. An abnormal passenger includes macrosomia, malposition (occiput posterior) and malpresentation. A contracted or abnormally shaped passage is the third cause. Under ACOG and SMFM guidance (2014), arrest of dilation in the active phase is diagnosed in a woman at 6 cm or more with ruptured membranes who has no cervical change for 4 hours despite adequate contractions or 6 hours with inadequate contractions despite oxytocin, and arrest of descent in the second stage is diagnosed after at least 3 hours of pushing in nulliparas and 2 hours in multiparas (longer with an epidural). Cesarean is for arrest despite adequate trials, not for a slow latent phase.",
+    "Shoulder dystocia is impaction of the anterior shoulder behind the pubic symphysis after delivery of the head, signalled by the turtle sign. It is more likely with macrosomia, maternal diabetes, prior shoulder dystocia and prolonged second stage, though most cases occur without risk factors. It is an obstetric emergency, with risk of brachial plexus injury (Erb palsy), clavicle or humerus fracture and hypoxic injury. Management is stepwise: call for help, the McRoberts manoeuvre (hyperflexion of the thighs onto the abdomen) with suprapubic pressure, then delivery of the posterior arm, internal rotational manoeuvres (Rubin, Woods screw), and the Zavanelli manoeuvre as a last resort. Fundal pressure worsens impaction and is avoided, and excessive traction on the head is avoided. Elective cesarean is considered for estimated fetal weight of 5,000 g or more in women without diabetes and 4,500 g or more with diabetes, though weight estimates are imprecise.",
+    "Malpresentation. Breech presentation occurs in 3 to 4 percent of term pregnancies and is more common with prematurity, uterine anomalies, fibroids, placenta previa, polyhydramnios and fetal anomalies. At 36 to 37 weeks, external cephalic version, performed with tocolysis and fetal monitoring, succeeds in about half of attempts. Contraindications include placenta previa, oligohydramnios, ruptured membranes, fetal compromise and a nonreassuring tracing. Planned cesarean delivery is recommended for persistent breech at term in most settings, although planned vaginal breech delivery can be considered by experienced clinicians in carefully selected women after counselling. Transverse lie at term requires cesarean delivery. Face presentation can be delivered vaginally if the chin is anterior (mentum anterior), whereas a mentum posterior face cannot deliver. Brow presentation generally needs cesarean unless it converts. Persistent occiput posterior position usually rotates spontaneously and may be assisted.",
+    "Induction of labour is indicated for medical or obstetric reasons such as hypertensive disorders, post-term pregnancy (induction recommended between 41 0/7 and 42 0/7 weeks and no later than 42 6/7), prelabour rupture of membranes at term, and diabetes. The ARRIVE trial (2018) found that elective induction at 39 weeks in low-risk nulliparous women did not increase the cesarean rate, and slightly lowered it, so ACOG (2018) states it is reasonable to offer. Cervical ripening agents are prostaglandins (misoprostol, dinoprostone) or mechanical balloons, and oxytocin follows. Complications include uterine tachysystole with fetal heart rate changes, which responds to stopping or lowering the agent. Prostaglandins are avoided in women with a prior uterine scar.",
+    "Trial of labour after cesarean (TOLAC): ACOG (2019) supports offering TOLAC to women with one or two prior low-transverse cesarean incisions, with success in roughly 60 to 80 percent. The main risk is uterine rupture, around 0.5 to 1 percent, presenting with fetal heart rate abnormalities (most often prolonged deceleration), loss of station, abdominal pain and bleeding, and requiring emergency laparotomy. Classical (vertical fundal) incisions and prior rupture are contraindications, as rupture risk is higher. TOLAC requires a facility able to perform emergency cesarean. Cesarean delivery itself carries risks of haemorrhage, infection, thromboembolism, injury to bowel and bladder, and, in later pregnancies, placenta previa and accreta."
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l05",
+   "title": "Preterm Labor and Ruptured Membranes",
+   "body": [
+    "Preterm birth is delivery before 37 weeks of gestation. It is the leading cause of neonatal death worldwide in children without congenital anomalies, and it drives the long-term morbidity described in the neonatal lesson. Roughly a third are indicated deliveries for maternal or fetal disease, and the remainder spontaneous preterm labour or preterm prelabour rupture of membranes. Risk factors include a prior spontaneous preterm birth (the strongest), short cervical length, multiple gestation, infection (including bacteriuria, periodontal disease and genital tract infection), uterine anomalies, smoking, drug use, short interpregnancy interval, polyhydramnios, and maternal stress and racial disparities with complex social causes. The diagnosis of preterm labour needs regular contractions with cervical change (dilation of 3 cm or more, or progressive effacement), as contractions without change are common and do not predict delivery. A short cervix on transvaginal ultrasound or a positive fetal fibronectin test has a high negative predictive value when negative.",
+    "Prevention. Women with a prior spontaneous preterm birth are offered serial transvaginal cervical length measurement. In a singleton pregnancy with no prior preterm birth, vaginal progesterone is recommended when the cervix measures 20 mm or less before 24 weeks, and may be considered at 21 to 25 mm by shared decision-making (SMFM Consult Series #70, 2024). Cervical cerclage is for a prior second-trimester loss from painless dilation (cervical insufficiency), a short cervix (under 25 mm before 24 weeks) with a prior spontaneous preterm birth, or a physical examination showing advanced dilation; vaginal progesterone is an alternative or addition with less supporting evidence in that group, and cerclage is not recommended for a short cervix without a prior preterm birth. The 17-hydroxyprogesterone caproate injection was withdrawn from the US market in 2023 after confirmatory trial results did not show benefit.",
+    "Management of preterm labour at a viable gestation includes transfer to a centre with a neonatal intensive care unit if needed. Antenatal corticosteroids (betamethasone) for fetal lung maturation are given between 24 and 34 weeks to women at risk of delivery within 7 days, and a single repeat course is considered in selected cases. A single course may also be offered at 34 0/7 to 36 6/7 weeks to women at risk of delivery within 7 days who have not had a previous course (ACOG and SMFM). Magnesium sulfate before anticipated delivery before 32 weeks provides fetal neuroprotection, reducing cerebral palsy; its maternal toxicity is monitored with deep tendon reflexes, respiratory rate and urine output, and calcium gluconate is the antidote. Group B Streptococcus prophylaxis is started until the culture is known to be negative. Tocolytics, such as nifedipine, a calcium channel blocker, or indomethacin before 32 weeks, are used only for up to 48 hours to allow steroids and transfer, and do not improve neonatal outcomes by themselves. They are contraindicated in chorioamnionitis, abruption, severe preeclampsia and fetal compromise. Indomethacin risks premature closure of the ductus arteriosus and oligohydramnios, and beta-agonists risk maternal pulmonary oedema and arrhythmia.",
+    "Premature rupture of membranes (PROM) before labour at term is managed by induction. Preterm PROM (PPROM) occurs before 37 weeks and is diagnosed with sterile speculum examination showing pooling of fluid, nitrazine-positive (alkaline) fluid and ferning, or tests for placental alpha microglobulin-1, with ultrasound to assess amniotic fluid volume. Digital examination is avoided because it raises infection risk. Management of PPROM at 24 to 34 weeks is expectant, with hospital monitoring, antenatal steroids and latency antibiotics (commonly ampicillin and amoxicillin with a macrolide) to prolong pregnancy, and delivery at about 34 weeks. Delivery earlier is needed for infection, abruption or nonreassuring status. Complications are chorioamnionitis, abruption, cord prolapse, pulmonary hypoplasia and limb deformities from prolonged oligohydramnios.",
+    "Chorioamnionitis (intraamniotic infection) presents with maternal fever, maternal and fetal tachycardia, uterine tenderness, foul amniotic fluid and leukocytosis. Treatment is broad-spectrum antibiotics (typically ampicillin plus gentamicin) and delivery, with cesarean reserved for obstetric indications, since the infection itself does not require a cesarean. Neonatal evaluation and treatment for sepsis follow."
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l06",
+   "title": "Obstetric Hemorrhage",
+   "body": [
+    "Haemorrhage is one of the leading causes of maternal death worldwide, and many deaths are preventable with early recognition. In obstetrics, vaginal bleeding is classified by timing: early pregnancy (covered elsewhere), antepartum after 20 weeks, and postpartum.",
+    "Third-trimester bleeding has four main causes. Placenta previa is a placenta covering or near the internal cervical os. It presents as painless bright red vaginal bleeding, often after 28 weeks, with a soft nontender uterus and a normal fetal heart rate. Risk factors are prior cesarean, prior previa, multiparity, advanced maternal age and smoking. Ultrasound diagnoses it, and digital cervical examination must be avoided until previa is excluded because it can provoke severe haemorrhage. A previa seen in the second trimester often resolves by migration as the lower segment grows. Management is pelvic rest, steroids if preterm, and cesarean delivery at 36 to 37 weeks, earlier for bleeding. Placental abruption is premature separation of a normally implanted placenta, presenting with painful dark vaginal bleeding (sometimes concealed), a hypertonic and tender uterus, and a nonreassuring fetal tracing. Risk factors include hypertension and preeclampsia, trauma, cocaine, smoking, prior abruption and rapid decompression of the uterus. It may cause disseminated intravascular coagulation, haemorrhagic shock, and fetal death. Diagnosis is clinical, because ultrasound misses many cases. Delivery is urgent, and the route depends on stability. Vasa previa is fetal vessels crossing the membranes over the os, and rupture of membranes causes painless bleeding with rapid fetal bradycardia from",
+    "fetal exsanguination, and is prevented by prenatal ultrasound diagnosis and cesarean before labour. Uterine rupture, discussed earlier, is the fourth.",
+    "Placenta accreta spectrum is abnormal trophoblast invasion of the myometrium (accreta), into it (increta) or through it (percreta), from deficient decidua at a prior uterine scar. The risk rises with previa and number of prior cesareans. Antenatal diagnosis by ultrasound and MRI allows planned preterm cesarean hysterectomy at a centre with multidisciplinary expertise, usually at 34 to 36 weeks, as attempting to remove the placenta causes catastrophic bleeding.",
+    "Postpartum haemorrhage (PPH) is defined by ACOG (2017) as cumulative blood loss of 1,000 mL or more, or any loss with signs of hypovolaemia, within 24 hours of birth. The causes are remembered by the four Ts: tone (uterine atony, by far the most common), trauma (lacerations, hematomas, uterine rupture or inversion), tissue (retained placenta or products), and thrombin (coagulopathy, including DIC from abruption or amniotic fluid embolism). Risk factors for atony include overdistension (multiple gestation, polyhydramnios, macrosomia), prolonged or rapid labour, prolonged oxytocin use, chorioamnionitis and the use of tocolytic and magnesium.",
+    "Management is simultaneous resuscitation and treatment of the cause. Call for help, obtain access and fluid or blood, examine for lacerations and retained tissue, and start with uterine massage and uterotonics. Oxytocin is first-line. If bleeding continues, methylergonovine is added unless there is hypertension, since it constricts vessels, carboprost (prostaglandin F2-alpha) is avoided in asthma, and misoprostol is another option. Tranexamic acid given early reduces death from bleeding, according to the WOMAN trial (2017). If uterotonics fail, a balloon tamponade device, uterine compression sutures, uterine artery embolisation, or hysterectomy are considered. A massive transfusion protocol with balanced blood products is activated for severe bleeding. Uterine inversion presents with shock disproportionate to bleeding and a mass in the vagina, treated by replacing the fundus and then withdrawing uterotonics to allow relaxation, with tocolytic or anaesthesia agents if needed. Prevention is active management of the third stage with oxytocin after delivery.",
+    "A worked example: a 30-year-old who delivered twins with oxytocin augmentation has heavy bleeding and a boggy, soft uterus. Atony is the cause, and the sequence is fundal massage, oxytocin, then second-line uterotonics, with tranexamic acid, and attention to resuscitation."
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l07",
+   "title": "Hypertensive Disorders of Pregnancy",
+   "body": [
+    "Hypertensive disorders complicate roughly one in ten pregnancies and are a leading cause of maternal and perinatal morbidity. The categories matter because management differs. Chronic hypertension is blood pressure of 140/90 mm Hg or higher before pregnancy or before 20 weeks. Gestational hypertension is new hypertension at or after 20 weeks without proteinuria or severe features. Preeclampsia is new hypertension after 20 weeks together with proteinuria (300 mg or more in 24 hours or a protein-creatinine ratio of 0.3 or more) or, in the absence of proteinuria, evidence of end-organ dysfunction. Preeclampsia superimposed on chronic hypertension is diagnosed when a woman with hypertension develops new proteinuria or worsening features.",
+    "The leading hypothesis is abnormal placentation: inadequate remodelling of spiral arteries leads to placental ischaemia, and release of antiangiogenic factors (soluble fms-like tyrosine kinase 1) causes widespread maternal endothelial dysfunction. Risk factors include nulliparity, prior preeclampsia, multifetal gestation, chronic hypertension, diabetes, renal disease, autoimmune disease, obesity and advanced maternal age. Delivery of the placenta is the only cure.",
+    "Severe features mark a more dangerous disease: systolic pressure of 160 or diastolic of 110 on two occasions 4 hours apart, thrombocytopenia (platelets below 100,000), impaired liver function (transaminases twice normal or severe right upper quadrant or epigastric pain), renal insufficiency (creatinine above 1.1 mg/dL or doubled), pulmonary oedema, and new-onset headache or visual disturbance. Eclampsia is seizures in a woman with preeclampsia, not attributable to other causes, and can occur before, during or after labour, and up to weeks postpartum. HELLP syndrome (haemolysis, elevated liver enzymes, low platelets) is a severe variant, and presents with epigastric pain, a microangiopathic haemolytic smear and raised LDH. It needs to be distinguished from acute fatty liver of pregnancy (hypoglycaemia, coagulopathy, hyperammonaemia), TTP and HUS.",
+    "Management. Mild disease without severe features is monitored (blood pressure, laboratory tests, fetal growth and testing) with delivery at 37 weeks. Severe features require maternal stabilisation and delivery after 34 weeks, or at 34 weeks if stable and earlier if unstable, with antenatal steroids if before 34 weeks and the maternal condition allows. Magnesium sulfate is the drug of choice for seizure prophylaxis and treatment of eclampsia, superior to phenytoin and diazepam. Toxicity is signalled by loss of deep tendon reflexes first, then respiratory depression, and cardiac arrest; renal clearance means oliguria and kidney injury raise risk, and calcium gluconate is the antidote. Severe-range blood pressure is treated promptly (within 30 to 60 minutes) with intravenous labetalol, intravenous hydralazine or oral immediate-release nifedipine, to prevent stroke, the leading cause of death from hypertension. Pulmonary oedema is treated with diuretics. ACE inhibitors and ARBs are avoided in pregnancy, and methyldopa, labetalol and nifedipine are the usual agents for chronic hypertension. The CHAP trial (2022) showed that treating mild chronic hypertension to a target below 140/90 improved pregnancy outcomes without harming fetal growth.",
+    "After delivery, blood pressure often peaks at 3 to 6 days, and postpartum preeclampsia occurs up to 6 weeks, so postpartum follow-up and counselling about warning symptoms is important. Women who have had preeclampsia carry an increased lifetime risk of hypertension, ischaemic heart disease and stroke, so long-term cardiovascular risk assessment is advised. Low-dose aspirin lowers the risk of recurrence.",
+    "A worked example: a 24-year-old at 36 weeks has headache, a blood pressure of 168/112 on repeat measurements and a platelet count of 80,000. She has preeclampsia with severe features. The plan is magnesium sulfate, urgent antihypertensive treatment and delivery."
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l08",
+   "title": "Diabetes in Pregnancy",
+   "body": [
+    "Diabetes in pregnancy falls into two groups with different risks: pregestational (type 1 or type 2) and gestational diabetes mellitus (GDM), glucose intolerance first recognised during pregnancy. Placental hormones, notably human placental lactogen, raise insulin resistance, so GDM appears when the pancreas cannot compensate in the second half of pregnancy.",
+    "Pregestational diabetes carries fetal risk in the first trimester, from hyperglycaemia during organogenesis: congenital anomalies including neural tube defects, cardiac defects (transposition of the great arteries, ventricular septal defect) and caudal regression syndrome, and miscarriage. The risk is related to periconceptional glycaemic control, so preconception counselling targets a haemoglobin A1c as close to normal as is safe, usually under about 6.5 percent, with folic acid, and changes to medication: ACE inhibitors and statins are stopped, and insulin is the preferred agent. Later complications include macrosomia, shoulder dystocia, polyhydramnios, preeclampsia, stillbirth, preterm birth and neonatal hypoglycaemia, respiratory distress, polycythaemia and hypocalcaemia. Maternal complications include worsening retinopathy and nephropathy, so baseline eye and renal evaluation is done. In type 1 diabetes, insulin requirements fall in the first trimester and rise in the second and third, and the risk of diabetic ketoacidosis is higher at lower glucose levels in pregnancy. Fetal echocardiography and anatomy scans screen for anomalies, and growth is monitored.",
+    "GDM screening occurs at 24 to 28 weeks, with earlier testing in high-risk women (obesity, prior GDM, family history, polycystic ovary syndrome, prior macrosomia). Two approaches exist. The two-step approach starts with a nonfasting 50 g glucose challenge, and a result above a threshold of 130 to 140 mg/dL leads to a fasting 100 g 3-hour glucose tolerance test, where two or more abnormal values (Carpenter-Coustan: fasting 95, 1 hour 180, 2 hour 155, 3 hour 140 mg/dL) confirm GDM. The one-step approach uses a fasting 75 g 2-hour test, with a single abnormal value (fasting 92, 1 hour 180, 2 hour 153) diagnostic. ACOG supports the two-step approach, the one-step approach is used by other bodies including the IADPSG, and it diagnoses more women.",
+    "Management begins with medical nutrition therapy and exercise with self-monitoring of blood glucose. Typical targets are a fasting level of 95 mg/dL or less, 1 hour after meals 140 or less, and 2 hours 120 or less. If targets are not met, insulin is the first-line pharmacologic therapy. Metformin crosses the placenta and is a reasonable alternative when insulin is declined or not affordable; glyburide is discouraged because outcomes are worse than with insulin (ACOG Practice Bulletin 190 and ADA Standards of Care). Women with well-controlled GDM on diet alone (A1GDM) can await spontaneous labour until 40 weeks 6 days, whereas those needing medication (A2GDM) are delivered between 39 0/7 and 39 6/7 weeks, and those with pregestational diabetes and good control at 39 0/7 to 39 6/7. Cesarean delivery is offered if the estimated fetal weight is 4,500 g or more. During labour, glucose is monitored and insulin infusion given as needed.",
+    "After delivery, insulin resistance falls promptly, and requirements drop. Women with GDM are screened with a 75 g oral glucose tolerance test at 4 to 12 weeks postpartum and have lifelong screening every 1 to 3 years since the lifetime risk of type 2 diabetes is high, about 50 percent or more. Breastfeeding is encouraged for metabolic benefit.",
+    "A worked example: a 31-year-old at 26 weeks with a body mass index of 34 has a 1-hour glucose challenge of 160 mg/dL. The next step is the 100 g 3-hour test (or a 75 g test if the one-step approach is being used), not treatment based on the screening value."
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l09",
+   "title": "Early Pregnancy Loss, Ectopic Pregnancy and Pregnancy-Specific Disorders",
+   "body": [
+    "Vaginal bleeding in the first trimester has a differential that includes miscarriage, ectopic pregnancy, molar pregnancy, and non-pregnancy sources such as cervicitis or polyps. The pregnancy test and ultrasound, with a quantitative serum hCG, sort most cases. An ectopic pregnancy must be excluded in any woman of reproductive age with pain or bleeding.",
+    "Early pregnancy loss is common, occurring in about 10 percent of clinically recognised pregnancies (ACOG Practice Bulletin 200), and most commonly results from chromosomal abnormalities (especially trisomies). The terminology is clinical. A threatened loss has bleeding with a closed os and a viable fetus. An inevitable loss has an open os. An incomplete loss has passage of some tissue with retained products. A complete loss has expelled all tissue, with an empty uterus and a closed os. A missed loss, or failed pregnancy, is a nonviable fetus without symptoms or expulsion. Management of confirmed nonviable early pregnancy is expectant, medical (misoprostol, with or without mifepristone, which improves success) or surgical (uterine aspiration), and all are reasonable choices, which are offered according to patient preference and stability. Septic abortion requires uterine evacuation and antibiotics. Recurrent pregnancy loss, defined as two or more losses, prompts evaluation for parental karyotypes, uterine anomalies, antiphospholipid syndrome and endocrine disorders. Rh immune globulin is given when an Rh-negative woman bleeds.",
+    "Ectopic pregnancy is implantation outside the uterine cavity, most commonly (more than 95 percent) the fallopian tube, in the ampulla. Risk factors include prior ectopic pregnancy, tubal surgery, pelvic inflammatory disease or chlamydial infection, assisted reproduction and an intrauterine device in place if pregnancy occurs, but half of cases have no risk factors. The classic triad is amenorrhoea, abdominal pain and vaginal bleeding. A ruptured ectopic causes haemoperitoneum with hypotension, peritoneal signs and shoulder pain, a surgical emergency. In a stable patient, transvaginal ultrasound looks for an intrauterine gestational sac. When the hCG is above the discriminatory zone and the uterus is empty, an ectopic pregnancy is likely. When hCG is below it, serial measurements are followed: a rise of less than about 35 to 53 percent in 48 hours (depending on the starting level) or a plateau suggests an abnormal pregnancy, and a normal intrauterine pregnancy typically rises faster. Methotrexate, a folate antagonist that inhibits cell division, treats unruptured ectopic pregnancies in haemodynamically stable women with modest hCG levels and no fetal cardiac activity (ACOG 2018); contraindications include haemodynamic instability, rupture, breastfeeding, immunodeficiency and significant hepatic or renal disease, so baseline blood count, liver and renal tests are required.",
+    "Hormone levels are followed until negative. Salpingostomy or salpingectomy is used for instability or contraindications.",
+    "Gestational trophoblastic disease. A complete hydatidiform mole results from fertilisation of an empty egg by one or two sperm (usually 46,XX of entirely paternal origin) and has no fetal tissue, with very high hCG, uterine size greater than dates, vaginal bleeding, hyperemesis, early preeclampsia, theca lutein cysts and sometimes hyperthyroidism (hCG shares an alpha-subunit with TSH). Ultrasound shows a snowstorm pattern or cluster of grapes. A partial mole is triploid (69,XXY) with a fetus and focal changes. Treatment is suction curettage, with serial hCG until normal, and reliable contraception during follow-up so that rising hCG is not confused with pregnancy. Persistent disease is treated as gestational trophoblastic neoplasia, with methotrexate or other chemotherapy and excellent cure rates. Choriocarcinoma may metastasise to the lung.",
+    "Hyperemesis gravidarum is severe nausea and vomiting with weight loss of more than 5 percent, ketonuria and electrolyte disturbance, and peaks at 9 weeks. First-line treatment is pyridoxine with doxylamine, then other antiemetics, and fluids and thiamine to prevent Wernicke encephalopathy. Intrahepatic cholestasis of pregnancy presents in the third trimester with severe itching of the palms and soles without rash, with raised serum bile acids, and is treated with ursodeoxycholic acid. It raises the risk of stillbirth, so delivery is planned at 36 to 39 weeks depending on bile acid levels."
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l10",
+   "title": "Postpartum Care, Lactation and Postpartum Complications",
+   "body": [
+    "The puerperium, the 6 weeks after delivery, is when the uterus involutes, the cardiovascular and hormonal changes of pregnancy reverse, and lactation is established. ACOG (2018) reframed postpartum care as an ongoing process and not a single visit at 6 weeks: contact within the first 3 weeks, followed by individualised care and a comprehensive visit no later than 12 weeks, with blood pressure monitored for the first 72 hours after birth and again at 7 to 10 days for those with hypertensive disease.",
+    "Normal course: the uterus involutes to the pelvis by about 2 weeks. Lochia (bloody then serosanguinous then white discharge) lasts up to 4 to 6 weeks. After delivery, oestrogen and progesterone fall abruptly, and prolactin stimulates milk production while oxytocin causes milk letdown. Diuresis, tachycardia and a mild temperature elevation from breast engorgement in the first days are normal. Postpartum women are at high risk of venous thromboembolism for weeks, and hypercoagulability persists. Return of ovulation can occur as early as 3 to 4 weeks in women who do not breastfeed, so contraception must be addressed early.",
+    "Postpartum fever is classically worked through the \"W\" mnemonic, with the proportion by timing: wind (atelectasis, in the first day), water (urinary tract infection), wound (infection), walking (venous thrombosis and pulmonary embolism), and wonder drugs (drug fever), though this is a teaching device, not a rule. Endometritis is the most common cause of postpartum fever, presenting with fever, uterine tenderness and foul lochia, 2 to 3 days after delivery. It is polymicrobial, and cesarean delivery, prolonged rupture of membranes, chorioamnionitis and multiple examinations are risk factors. Treatment is intravenous clindamycin and gentamicin until the patient is afebrile for 24 to 48 hours; failure to respond raises concern for abscess, retained products or septic pelvic thrombophlebitis. Mastitis, usually Staphylococcus aureus in a breastfeeding woman, produces a painful, erythematous, wedge-shaped area of the breast with fever and flu-like symptoms. Treatment is continued milk removal with frequent feeding or expression, analgesia and an antibiotic active against staphylococci. An abscess needs drainage.",
+    "Breastfeeding is recommended by the AAP and ACOG as the preferred feeding method, exclusive for about 6 months, with continued breastfeeding alongside solids, with many benefits to infants (fewer infections, lower SIDS risk) and mothers (lower breast and ovarian cancer risk). Contraindications are few: in the United States HIV infection, galactosemia in the infant, active untreated tuberculosis, and a small number of drugs. Most medications are compatible with breastfeeding. Early skin-to-skin contact and good latch support are the main supports. The lactational amenorrhoea method is effective only when exclusive, with amenorrhoea and the infant under 6 months, so many women need other contraception.",
+    "Postpartum mood disorders form a spectrum. The baby blues affect most mothers, with tearfulness and mood lability in the first two weeks, and need reassurance only. Postpartum depression is a major depressive episode that begins in or after pregnancy, affecting roughly one in eight women with a recent live birth by CDC survey estimates (ACOG cites about one in seven). It is screened for with the Edinburgh Postnatal Depression Scale, and the USPSTF (2019) recommends counselling interventions for those at increased risk. Treatment is psychotherapy and an SSRI such as sertraline, which has low breast-milk transfer, with zuranolone, a neuroactive steroid, now approved for postpartum depression; consult current labelling. Postpartum psychosis is a psychiatric emergency, occurring in about 1 in 1,000 women, with onset in the first 2 weeks, with delusions, hallucinations, confusion and risk of infanticide or suicide, linked to bipolar disorder. It needs hospitalisation, antipsychotics and mood stabilisers.",
+    "Other late complications: Sheehan syndrome (pituitary necrosis after postpartum haemorrhage with failure of lactation, fatigue and amenorrhoea), postpartum thyroiditis (a transient thyrotoxic then hypothyroid phase, usually painless) and peripartum cardiomyopathy (heart failure in the last month of pregnancy or within 5 months after delivery). A worked example: a woman 5 days after cesarean has fever, uterine tenderness and a clear chest, with normal legs and a normal wound. She has endometritis and is treated with clindamycin and gentamicin."
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l11",
+   "title": "Contraception",
+   "body": [
+    "Contraceptive counselling is patient-centred: the best method is the one a person will use consistently and that fits her health, preferences and values. The clinician explains effectiveness, benefits, risks and side effects, screens for contraindications using the CDC US Medical Eligibility Criteria (2024 update), and respects the person's choice, avoiding coercive or directive practices, particularly with long-acting methods, because history shows harm from such practices in marginalised groups.",
+    "Efficacy is described in tiers by typical-use failure within one year. The most effective are long-acting reversible contraceptives (LARC) and sterilisation, where typical use failure is below 1 percent: the etonogestrel implant, the levonorgestrel and copper intrauterine devices (IUDs), and tubal sterilisation or vasectomy. The injectable depot medroxyprogesterone acetate is next, with about 4 percent failure, then the pill, patch and ring (about 7 percent), and condoms (about 13 percent) in the widely used CDC and Contraceptive Technology chart (survey-based estimates run somewhat higher), and withdrawal and fertility awareness methods (roughly 20 percent or more). Condoms alone reduce the risk of sexually transmitted infections, so dual protection is advised when relevant.",
+    "Combined hormonal contraceptives (oestrogen plus progestin: pill, patch, ring) suppress ovulation by inhibiting gonadotropin release, and also thicken cervical mucus and thin the endometrium. Benefits include regular, lighter periods, less dysmenorrhoea, and lower risks of ovarian and endometrial cancer. Oestrogen increases hepatic clotting factor synthesis, so venous thromboembolism risk is raised. The US MEC places combined methods in category 4 (unacceptable risk) for: less than 21 days postpartum, history of venous thromboembolism or known thrombogenic mutations, ischaemic heart disease or stroke, migraine with aura, hypertension at 160/100 or higher or with vascular disease, smoking at age 35 or older with substantial use, systemic lupus erythematosus with antiphospholipid antibodies, current breast cancer, severe cirrhosis and some liver tumours, and complicated valvular heart disease. Progestin-only pills, the implant, DMPA and the levonorgestrel IUD are alternatives for women who cannot take oestrogen. Enzyme-inducing drugs such as rifampin and some anticonvulsants (carbamazepine, phenytoin, topiramate at higher doses) reduce efficacy of hormonal methods, while most antibiotics do not.",
+    "Progestin methods: DMPA suppresses ovulation, causes irregular bleeding or amenorrhoea, a reversible loss of bone mineral density, and a delay in return to fertility of several months. The implant is highly effective and often causes irregular bleeding. Its US label allowed 3 years of use until January 2026, when the FDA extended the etonogestrel implant (Nexplanon) to up to 5 years (with a new REMS on insertion and removal training); check the current label for any other implant. The levonorgestrel IUD thickens cervical mucus and thins the endometrium, reduces menstrual bleeding and treats heavy menstrual bleeding. The copper IUD is hormone-free and acts by a toxic effect on sperm and an inflammatory response, working up to 10 years, with potential for heavier, more painful periods. IUD insertion risks are expulsion and, rarely, perforation, and any pregnancy with an IUD in place has an increased ectopic risk. IUDs are safe in nulliparous women and, contrary to old teaching, do not increase pelvic inflammatory disease beyond a small risk in the first weeks.",
+    "Emergency contraception reduces pregnancy risk after unprotected sex. The copper IUD is the most effective, within 5 days, and also provides ongoing contraception. Ulipristal, a selective progesterone receptor modulator, is effective up to 5 days and is more effective than levonorgestrel, which should ideally be taken within 72 hours and is less effective in women with a high body mass index. Emergency contraception delays or inhibits ovulation, and does not end an established pregnancy.",
+    "Sterilisation: tubal procedures (increasingly salpingectomy for added ovarian cancer risk reduction) and vasectomy are intended to be permanent, and the latter is simpler, safer and cheaper. Counselling stresses permanence, and regret is more common in younger women. Fertility awareness and lactational amenorrhoea are options without drugs.",
+    "A worked example: a 37-year-old smoker (20 cigarettes a day) with migraine with aura asks for the pill. Combined hormonal contraception is contraindicated for both reasons, and the better options are the levonorgestrel IUD, copper IUD or the implant."
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l12",
+   "title": "Abortion and Contested Reproductive-Health Topics",
+   "body": [
+    "Abortion is among the most contested topics in modern society, and it is also a common medical service, so a clinician has to understand the clinical facts, the current law, and the competing views patients and colleagues hold. This lesson keeps these three separate.",
+    "The medicine. Abortion is the termination of a pregnancy. Most abortions in the United States take place in the first trimester. Methods depend on gestational age. Medication abortion uses mifepristone, a progesterone receptor antagonist that stops the pregnancy from continuing, followed by misoprostol, a prostaglandin analogue that causes uterine contraction and expulsion. The FDA approved mifepristone in September 2000 for use through 7 weeks of pregnancy, extended the label to 10 weeks (70 days) in 2016, and in January 2023 removed the requirement that it be dispensed in person, so certified pharmacies may dispense it by mail. Evidence supports effectiveness at around 95 to 98 percent when used with misoprostol; it can cause cramping and heavy bleeding, and rare complications include incomplete abortion needing aspiration, infection and haemorrhage. Procedural abortion uses vacuum aspiration in the first trimester and dilation and evacuation later. Serious complications are uncommon, and in the first trimester abortion has a lower risk of death than carrying a pregnancy to term, according to the National Academies of Sciences, Engineering, and Medicine (2018). Abortion does not cause breast cancer or infertility, and the same report found no increased risk of later mental health disorders. Rh immune globulin is given where indicated. Treatment of a miscarriage uses the same",
+    "medicines and procedures, and the clinical overlap is why some state laws have caused confusion about care for pregnancy loss and ectopic pregnancy; removing an ectopic pregnancy to save a woman's life is not considered abortion in law.",
+    "The law. In Roe v. Wade (1973) and Planned Parenthood v. Casey (1992), the Supreme Court recognised a constitutional right to abortion before viability. In Dobbs v. Jackson Women's Health Organization (2022), the Court held that the Constitution does not confer a right to abortion, overruled Roe and Casey, and returned the authority to regulate abortion to states and Congress. As a result, the law now varies widely by state. Some states ban abortion at nearly all stages with narrow exceptions, some restrict it after a certain gestational age such as 6, 12 or 15 weeks, and others protect access through statute or state constitutional provisions. Exceptions (life or health of the mother, rape, incest, lethal fetal anomaly) differ. In FDA v. Alliance for Hippocratic Medicine (2024), the Court held that the physician plaintiffs lacked standing to challenge the FDA's mifepristone approval and rules, leaving them in place without ruling on the merits. In Louisiana v. FDA, a Fifth Circuit panel ruled on May 1, 2026 to roll back the 2023 rules allowing telehealth prescribing and mailing of mifepristone, and on May 14, 2026 the Supreme Court blocked that ruling, so the current FDA rules stay in effect while the case continues (as of October 2026). Litigation continues over the federal Emergency Medical Treatment and Labor Act, interstate travel, telehealth prescribing and shield laws,",
+    "so clinicians must check the current law in their jurisdiction. Federal funding is restricted by the Hyde Amendment, and many clinicians have conscience protections that allow them to decline to participate, with duties to refer or to treat emergencies varying by law and institution.",
+    "Professional consensus. ACOG, the American Medical Association and the World Health Organization regard abortion as a part of comprehensive health care that is safe when provided legally, and professional societies support patient access and oppose laws that restrict clinical judgement. Other medical and religious bodies, and many individual clinicians, disagree on moral grounds, and professional ethics generally protect the right of conscientious refusal while requiring that patients not be abandoned and that emergencies be treated.",
+    "The debate. The strongest versions of the main positions are as follows. A view often called pro-life holds that a human being with moral status begins at conception or early in development, so that abortion ends a human life and should be prohibited or sharply restricted, with the state having a duty to protect the vulnerable, and that society should support pregnant women and mothers. A view often called pro-choice holds that a woman has the right to bodily autonomy and to decide whether to continue a pregnancy, that the moral status of an early embryo or fetus differs from that of a person, that restrictions harm health and disproportionately burden the poor, and that decisions belong to the woman with her clinician. Many people hold intermediate positions, such as moral weight that increases with development, with limits tied to viability or to circumstances like rape or fetal anomaly, and views vary across religious and secular traditions. A clinician's task is to give accurate information, support an informed decision, and not impose personal views, and disagreement itself should be treated respectfully.",
+    "A worked example: a patient at 7 weeks in a state with a six-week ban who is considering her options asks what she can do. The clinician states the law accurately without speculating, offers prenatal care and options counselling, discusses the medical facts about each choice, and refers within the law."
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l13",
+   "title": "Menstrual Disorders, PCOS and Endometriosis",
+   "body": [
+    "A normal menstrual cycle is the output of a coordinated hypothalamic-pituitary-ovarian-uterine axis, with a cycle length of 21 to 35 days in adults and bleeding for up to about 7 days. Pulsatile gonadotropin-releasing hormone drives FSH and LH, follicular oestrogen causes proliferation of the endometrium, an LH surge triggers ovulation, and progesterone from the corpus luteum prepares a secretory endometrium. Disorders are logically classified by which level fails.",
+    "Amenorrhoea is primary (no menses by age 15 with normal secondary sexual characteristics, or by 13 without breast development) or secondary (absence for 3 months in a woman with prior regular cycles, or 6 months if irregular). In primary amenorrhoea, the combination of breast development and uterus guides the diagnosis. With breasts and no uterus, consider Mullerian agenesis (Mayer-Rokitansky-Kuster-Hauser, 46,XX with normal ovaries and pubic hair) or androgen insensitivity (46,XY, sparse pubic hair, testes, female phenotype). Without breasts and with a uterus, consider hypergonadotropic hypogonadism such as Turner syndrome, or hypogonadotropic causes including constitutional delay, Kallmann syndrome and low body weight. Cyclic pain with absent menses and a bulging membrane suggests an outflow obstruction (imperforate hymen, transverse vaginal septum). In secondary amenorrhoea, always begin with a pregnancy test, then TSH, prolactin and FSH. The main causes are pregnancy, polycystic ovary syndrome, hypothalamic amenorrhoea (stress, low weight, athletic training), hyperprolactinaemia, premature ovarian insufficiency (high FSH before 40), and Asherman syndrome (intrauterine adhesions after curettage or infection), with Sheehan syndrome in the setting of postpartum haemorrhage.",
+    "Abnormal uterine bleeding is classified by FIGO as PALM-COEIN: structural causes (polyp, adenomyosis, leiomyoma, malignancy and hyperplasia) and nonstructural causes (coagulopathy, ovulatory dysfunction, endometrial, iatrogenic, not otherwise classified). In a reproductive-age woman the first test is a pregnancy test, and then evaluation for structural disease by ultrasound and for endometrial hyperplasia or cancer by endometrial sampling, indicated at age 45 or older, or younger with risk factors such as obesity, unopposed oestrogen exposure, or persistent bleeding despite treatment. In adolescents with heavy bleeding, think of a bleeding disorder such as von Willebrand disease. Treatment depends on the cause and desire for fertility: the levonorgestrel IUD, combined hormonal contraception, tranexamic acid and NSAIDs for ovulatory heavy bleeding, and progestins for anovulatory bleeding, with surgery in selected cases.",
+    "Polycystic ovary syndrome is the commonest endocrine disorder in reproductive-age women. Diagnosis traditionally used the Rotterdam criteria (two of three: oligo-ovulation or anovulation, clinical or biochemical hyperandrogenism, polycystic ovarian morphology), after exclusion of mimics such as thyroid disease, hyperprolactinaemia and nonclassic congenital adrenal hyperplasia, and the 2023 international guideline allows anti-Mullerian hormone as an alternative to ultrasound in adults. The pathophysiology involves insulin resistance, raised LH relative to FSH and increased ovarian androgen. Women develop hirsutism, acne, irregular cycles, infertility, obesity and metabolic syndrome, and have increased risk of type 2 diabetes, gestational diabetes, sleep apnoea and endometrial hyperplasia and cancer from chronic unopposed oestrogen. Management is lifestyle change, combined oral contraceptives for cycle regulation and hyperandrogenism (with an antiandrogen such as spironolactone if needed) and metformin as an adjunct, and for infertility, letrozole is first-line ovulation induction.",
+    "Primary dysmenorrhoea is cramping pain from prostaglandin-mediated uterine contractions, treated with NSAIDs and hormonal contraception. Pain that is secondary, progressive or with dyspareunia suggests endometriosis or adenomyosis. Endometriosis is endometrial-like tissue outside the uterus, affecting about 10 percent of women, causing dysmenorrhoea, dyspareunia, dyschezia, chronic pelvic pain and infertility, with endometriomas (\"chocolate cysts\") on the ovary. Examination may show nodularity of the uterosacral ligaments and a fixed retroverted uterus; diagnosis is by laparoscopy with histology, though empiric treatment is reasonable. Management is NSAIDs and hormonal suppression (continuous combined contraceptives, progestins, GnRH agonists or antagonists with add-back therapy) and surgery for refractory disease or infertility. Adenomyosis (endometrial glands within the myometrium) gives a diffusely enlarged, boggy, tender uterus with heavy bleeding in multiparous women in their 40s."
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l14",
+   "title": "Infertility and Menopause",
+   "body": [
+    "Infertility is the inability to achieve pregnancy after 12 months of regular unprotected intercourse in a woman younger than 35, or 6 months in a woman 35 or older (ASRM), with earlier evaluation for known risk, such as amenorrhoea or tubal disease. Fertility declines with maternal age as oocyte number and quality fall, accelerating after about 35. Causes are divided roughly into male factor (about a third), ovulatory disorders (about a quarter), tubal disease, uterine and cervical factors, and unexplained infertility. Both partners are always evaluated.",
+    "The workup is organised by function. A semen analysis assesses count, motility and morphology (lower reference limits from the WHO: about 16 million per mL and 42 percent motility in the 2021 edition), and is the first and simplest test. Ovulation is confirmed by regular cycles and a mid-luteal serum progesterone, and ovarian reserve is estimated with anti-Mullerian hormone, early follicular FSH and antral follicle count, which predict response to stimulation but not the chance of natural conception. Tubal patency and the uterine cavity are assessed by hysterosalpingography, which uses contrast radiograph to outline the cavity and tubes, with saline sonography or hysteroscopy for polyps and fibroids. Chlamydial infection and endometriosis may damage the tubes. TSH and prolactin are checked in the setting of ovulatory dysfunction.",
+    "Treatment follows the cause. Lifestyle changes (weight optimisation, stopping smoking) help. In anovulation, letrozole, an aromatase inhibitor, is first-line for polycystic ovary syndrome, while clomiphene, a selective oestrogen receptor modulator, blocks hypothalamic feedback and raises FSH, with risks of multiple pregnancy and visual symptoms. Gonadotropins have a higher risk of multiple gestation and ovarian hyperstimulation syndrome (OHSS), marked by ascites, haemoconcentration and thrombosis. Intrauterine insemination places washed sperm in the uterus. In vitro fertilisation involves ovarian stimulation, egg retrieval, fertilisation (with intracytoplasmic sperm injection for severe male factor), embryo culture and transfer, and is indicated for tubal disease, severe male factor, diminished reserve and failure of simpler treatments. Single-embryo transfer reduces multiple pregnancies. Donor gametes, gestational carriers and fertility preservation (egg or embryo freezing, before gonadotoxic cancer therapy) are further options, and these raise legal and ethical questions that vary by jurisdiction.",
+    "Menopause is defined retrospectively as 12 months without menses, from loss of ovarian follicular function, at a median age of about 51. The preceding perimenopausal transition features irregular cycles. Falling oestrogen causes vasomotor symptoms (hot flushes and night sweats), sleep disturbance, mood changes, the genitourinary syndrome of menopause (vaginal dryness, dyspareunia, urinary urgency and recurrent infection) and accelerated bone loss, and over time the risk of cardiovascular disease rises. Premature ovarian insufficiency is loss of ovarian function before 40, with raised FSH, and warrants evaluation (karyotype, FMR1 premutation, autoimmune disease) and hormone replacement until the usual age of menopause. Pregnancy remains possible in perimenopause, and contraception is advised until menopause is established.",
+    "Hormone therapy. The Women's Health Initiative (2002) reported increased risk of breast cancer, stroke, coronary events and venous thromboembolism with combined oestrogen-progestin in older women, and led to a steep decline in use. Later analyses showed that risks depend on age and time since menopause: for healthy women younger than 60 or within 10 years of menopause with bothersome symptoms, the benefit-risk balance is favourable (NAMS 2022). Systemic hormone therapy is the most effective treatment for vasomotor symptoms and prevents bone loss. A woman with a uterus needs a progestogen with oestrogen to prevent endometrial hyperplasia, but one without a uterus may use oestrogen alone. Contraindications include breast cancer, coronary disease, stroke, venous thromboembolism, undiagnosed vaginal bleeding and active liver disease. Nonhormonal options for vasomotor symptoms include paroxetine, venlafaxine, gabapentin, and fezolinetant, a neurokinin 3 receptor antagonist approved in 2023 that carries a boxed warning (added December 2024) for rare but serious liver injury, with liver blood tests required during treatment. Low-dose vaginal oestrogen treats the genitourinary syndrome with minimal systemic absorption. Bone density screening with DXA begins at 65 or earlier with risk factors."
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l15",
+   "title": "Pelvic Infections, Vaginitis and Benign Pelvic Masses",
+   "body": [
+    "Vaginitis is the commonest reason for gynaecologic visits, and the three main causes can be separated with pH, microscopy and the character of the discharge. Bacterial vaginosis results from loss of lactobacilli and overgrowth of anaerobes (Gardnerella), giving a thin grey-white discharge with a fishy odour, a pH above 4.5, a positive whiff test and clue cells (epithelial cells coated with bacteria) on saline microscopy; it is not strictly sexually transmitted, and treatment is metronidazole or clindamycin, with an increased risk of preterm birth and postprocedure infection when untreated in pregnancy. Trichomonas vaginalis is a sexually transmitted protozoan that causes a frothy yellow-green discharge, itching and a \"strawberry cervix,\" with motile flagellated organisms on wet mount, and is treated with oral metronidazole for the patient and her partner. Vulvovaginal candidiasis gives a thick white curdy discharge and itching with a normal pH (4.0 to 4.5) and hyphae or budding yeast with potassium hydroxide, treated with an azole such as fluconazole; risks include diabetes, antibiotic use and immunosuppression.",
+    "The common cervicitis and urethritis pathogens, Chlamydia trachomatis and Neisseria gonorrhoeae, are often asymptomatic in women, so the USPSTF recommends annual screening for sexually active women younger than 25 and older women at increased risk, using nucleic acid amplification testing. CDC (2021) recommends doxycycline for chlamydia, with azithromycin as an alternative and the preferred option in pregnancy, and ceftriaxone as single intramuscular therapy for gonorrhoea; partners are treated and test of cure applies to pregnancy. Syphilis (Treponema pallidum) produces a painless chancre, then secondary rash with condylomata lata, and is treated with benzathine penicillin G; pregnant women with syphilis must receive penicillin, desensitised if allergic. Genital herpes causes painful vesicles and ulcers, and primary episodes may be treated with antivirals; suppression reduces recurrences and transmission. HPV causes genital warts and cervical cancer, and vaccination prevents both.",
+    "Pelvic inflammatory disease (PID) is ascending infection of the upper genital tract, usually from chlamydia or gonorrhoea along with vaginal anaerobes. The CDC 2021 clinical diagnosis in a sexually active woman with pelvic or lower abdominal pain is made when uterine, adnexal or cervical motion tenderness is present with no other cause, since delayed treatment risks sequelae, and fever, mucopurulent discharge and raised inflammatory markers support it. Complications include tubo-ovarian abscess, perihepatitis (Fitz-Hugh-Curtis syndrome, right upper quadrant pain with violin-string adhesions), chronic pelvic pain, infertility and ectopic pregnancy. Outpatient treatment is intramuscular ceftriaxone with doxycycline and metronidazole; hospitalisation is for pregnancy, abscess, inability to take oral medication, severe illness or surgical emergency. An IUD need not be removed in most cases.",
+    "Uterine leiomyomas (fibroids) are benign smooth muscle tumours, oestrogen- and progesterone-responsive, and are most common in the late reproductive years and in Black women. Many are asymptomatic, but they can cause heavy menstrual bleeding (submucosal), bulk symptoms such as pelvic pressure and urinary frequency, and infertility or pregnancy loss. Examination shows an irregular enlarged uterus. They shrink after menopause. Treatment options include tranexamic acid and the levonorgestrel IUD, GnRH antagonists with add-back therapy, myomectomy to preserve fertility, uterine artery embolisation and hysterectomy. Rapid growth in a postmenopausal woman raises concern for leiomyosarcoma.",
+    "Adnexal masses in premenopausal women are most often functional cysts (follicular or corpus luteum), which resolve in a few cycles, and benign tumours such as mature cystic teratomas (dermoids), endometriomas and cystadenomas. Ultrasound characteristics (solid components, septations, vascularity, ascites) suggest malignancy, and in postmenopausal women with complex masses, CA-125 and referral to a gynaecologic oncologist are advised. Ovarian torsion presents with sudden severe unilateral pelvic pain with nausea and vomiting, and a mass is a risk factor. Doppler flow may be normal, so a normal Doppler does not exclude it, and treatment is urgent laparoscopy to untwist and preserve the ovary."
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l16",
+   "title": "Cervical Cancer, HPV and Screening",
+   "body": [
+    "Cervical cancer is almost entirely caused by persistent infection with high-risk human papillomavirus (HPV), above all types 16 and 18, which account for roughly 70 percent of cases. HPV is extremely common, and most infections clear in one to two years through immune control. Persistence allows viral oncoproteins E6 and E7 to inactivate p53 and the retinoblastoma protein respectively, driving dysplasia at the transformation zone, where columnar epithelium undergoes squamous metaplasia. Precancer is described as cervical intraepithelial neoplasia (CIN) grades 1 to 3, and CIN 2 and 3 are the targets of treatment. Squamous cell carcinoma is the most common histology, with adenocarcinoma next. Risk factors are early intercourse, many partners, smoking, immunosuppression (HIV, transplant) and lack of screening.",
+    "Screening aims to detect and treat precancers. The USPSTF (2018) recommends: for ages 21 to 29, cytology (Pap test) every 3 years; for ages 30 to 65, cytology every 3 years, high-risk HPV testing alone every 5 years, or cotesting every 5 years. Screening stops after 65 in women with adequate prior negative screening and no history of CIN 2 or worse, and is not needed after hysterectomy with removal of the cervix for benign disease. Screening is not recommended before age 21, even in sexually active adolescents, because the lesions regress and treatment risks outweigh the benefit. The American Cancer Society recommends beginning at 25 with primary HPV testing every 5 years. Self-collection is the fastest-moving part of screening, so dates matter. The FDA approved at-home self-collection in 2025. The American Cancer Society updated its guideline in December 2025 to accept self-collected samples (in clinic or at home), repeated every 3 years if negative. HRSA's Women's Preventive Services Guidelines, finalised on January 5, 2026, added patient-collected primary HPV testing at ages 30 to 65 (with required no-cost coverage in non-grandfathered plans starting January 1, 2027). ACOG added self-collection in April 2026 as an option every 3 years, only where there is a system for notification, documentation and follow-up. A positive self-collected result needs clinician-collected",
+    "follow-up. The USPSTF update that would include patient-collected HPV testing (draft, December 2024) was still a draft when this lesson was last checked, so the 2018 recommendation above remains the final one. Women with HIV or immunosuppression, or prior in utero diethylstilbestrol exposure, need more intensive screening.",
+    "Abnormal results are managed with the ASCCP risk-based approach (2019), where the combination of current and past results estimates the immediate risk of CIN 3 or worse and determines surveillance, colposcopy or treatment. Colposcopy examines the cervix under magnification after application of acetic acid, where abnormal epithelium turns white, with directed biopsy. CIN 2 or 3 is treated with excision (loop electrosurgical excision procedure or cold-knife conization) or ablation, and these procedures are associated with an increased risk of preterm birth in later pregnancies. In women younger than 25, observation is preferred for CIN 2 because of high regression and fertility considerations. Cytology showing atypical squamous cells of undetermined significance leads to reflex HPV testing; the ASCCP guideline replaced algorithm-based rules with risk-based thresholds.",
+    "Invasive cervical cancer presents with postcoital or intermenstrual bleeding and discharge, and is staged clinically and with imaging (FIGO 2018 allows imaging and pathology). Early disease is treated with surgery (radical hysterectomy), and locally advanced disease with chemoradiation. It spreads by direct extension, and ureteral obstruction with hydronephrosis and renal failure is a common cause of death in advanced disease.",
+    "HPV vaccination is the primary prevention. The 9-valent vaccine is recommended routinely at ages 11 to 12 (it can start at 9) in a two-dose series if started before age 15 and three doses afterwards or for immunocompromised persons, with catch-up through age 26 and shared clinical decision-making for adults 27 to 45 (the ACIP schedule as published by the CDC in 2024). This area is moving fast. On January 5, 2026 HHS and the CDC changed the childhood schedule to a single HPV dose without an ACIP vote; a federal district court stayed that change on March 16, 2026, the government appealed, and an appeals court was set to hear arguments on October 6, 2026. As of this lesson, check the current CDC schedule and your professional society's guidance, and expect the dose recommendation to change. The vaccine prevents infection and disease and does not treat existing infection, and screening remains necessary because it does not protect against all oncogenic types. Males are vaccinated to prevent genital warts and anal, penile and oropharyngeal cancers.",
+    "A worked example: a 34-year-old has a normal Pap and a positive high-risk HPV test, genotyped as HPV 16. Under the ASCCP guideline, HPV 16 carries a high immediate risk, so she is referred for colposcopy, not routine rescreening in 5 years."
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l17",
+   "title": "Endometrial, Ovarian and Other Gynecologic Cancers",
+   "body": [
+    "Endometrial cancer is the commonest gynaecologic cancer in the United States, and most cases present early because postmenopausal bleeding prompts evaluation. Type I tumours (endometrioid adenocarcinoma, about 80 percent) arise from endometrial hyperplasia in a state of unopposed oestrogen: obesity (peripheral conversion of androgens to oestrone), polycystic ovary syndrome, nulliparity, early menarche and late menopause, oestrogen-only therapy, oestrogen-secreting tumours such as granulosa cell tumours, and tamoxifen, which acts as an oestrogen agonist in the uterus. Combined oral contraceptives and tobacco use are associated with lower risk, and the levonorgestrel IUD and pregnancy are protective. Type II tumours (serous, clear cell) are less hormone-dependent, arise in atrophic endometrium in older women, and are more aggressive. Lynch syndrome (germline mismatch repair gene mutation, such as MLH1 and MSH2) raises the lifetime risk of endometrial and colorectal cancer, and also ovarian cancer.",
+    "Evaluation of postmenopausal bleeding starts with either transvaginal ultrasound, where an endometrial thickness of 4 mm or less is reassuring (ACOG 2018), or direct endometrial biopsy, which is preferred when ultrasound is inadequate or when the thickness is more than 4 mm or bleeding persists. Hysteroscopy with biopsy is for focal lesions. Hyperplasia without atypia is managed with progestin therapy, and atypical hyperplasia carries a risk of coexisting or subsequent carcinoma and is treated with hysterectomy or high-dose progestin when fertility is desired. Endometrial cancer is staged surgically, and treatment is total hysterectomy with bilateral salpingo-oophorectomy with staging, and adjuvant treatment based on risk. Molecular classification (POLE mutation, mismatch repair deficiency, p53 abnormality) is now incorporated into the staging and treatment.",
+    "Ovarian cancer is the deadliest gynaecologic cancer because it is usually diagnosed at an advanced stage, with vague symptoms: bloating, early satiety, pelvic or abdominal pain and urinary urgency. About 90 percent are epithelial, and high-grade serous carcinoma is the most common type, and many arise from the fimbriated end of the fallopian tube. Risk factors are age, nulliparity, infertility, endometriosis (for clear cell and endometrioid), and above all family history and germline BRCA1 and BRCA2 mutations (lifetime risk of roughly 40 percent for BRCA1 and about 10 to 25 percent for BRCA2) and Lynch syndrome. Protective factors are combined oral contraceptive use, pregnancy, breastfeeding and tubal ligation or salpingectomy. The USPSTF (2018) recommends against screening asymptomatic average-risk women, since CA-125 and ultrasound did not reduce mortality and lead to unnecessary surgery. A pelvic mass with ascites and an elevated CA-125 in a postmenopausal woman is suspicious. Management is surgical staging and cytoreduction followed by platinum-based chemotherapy, with PARP inhibitors as maintenance in BRCA-mutated and homologous recombination-deficient tumours. Women with BRCA1 or BRCA2 mutations are offered risk-reducing salpingo-oophorectomy, usually between 35 and 40 for BRCA1 and 40 to 45 for BRCA2 after childbearing.",
+    "Germ cell tumours occur in adolescents and young women and have characteristic markers: dysgerminoma (elevated LDH, the counterpart of seminoma, radiosensitive), endodermal sinus (yolk sac) tumour (AFP, with Schiller-Duval bodies), choriocarcinoma (hCG), and mature teratoma (benign, with struma ovarii causing hyperthyroidism in some cases). Sex cord-stromal tumours produce hormones: granulosa cell tumours (inhibin, oestrogen, Call-Exner bodies, with precocious puberty or endometrial hyperplasia), Sertoli-Leydig tumours (androgens, with virilisation), and fibromas (Meigs syndrome of fibroma with ascites and pleural effusion that resolves with removal). Krukenberg tumours are metastases of mucinous signet-ring cell carcinoma, usually from the stomach, to both ovaries.",
+    "Vulvar cancer is mostly squamous cell carcinoma, in two forms: HPV-related vulvar intraepithelial neoplasia in younger women, and differentiated lesions arising in chronic lichen sclerosus in older women, with persistent pruritus and a white atrophic appearance. Any persistent vulvar lesion should be biopsied. Vaginal clear cell adenocarcinoma is associated with in utero diethylstilbestrol exposure, while sarcoma botryoides, an embryonal rhabdomyosarcoma, occurs in girls as a grape-like mass."
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l18",
+   "title": "Breast Screening, Sexual Health and Violence",
+   "body": [
+    "Breast cancer is the most common cancer among women in the United States, and screening mammography reduces mortality. The USPSTF (2024) recommends biennial screening mammography for women aged 40 to 74, a change from the 2016 recommendation to begin at 50 and treat 40 to 49 as an individual decision. Other bodies differ in details: the American Cancer Society (2023) advises that women may start at 40, and recommends annual screening from 45 to 54, with biennial or continued annual screening afterwards, and ACOG (updated in 2024) recommends that average-risk patients begin mammography at 40, annually or every 2 years chosen by shared decision-making. The remaining disagreement concerns interval and the balance of false positives, overdiagnosis and absolute benefit; all agree on regular screening from age 50. Women at high risk (BRCA mutation, chest radiation in youth, or lifetime risk of 20 percent or more) add annual breast MRI, and women with dense breasts may need supplemental imaging, though the evidence is evolving. Clinical breast examination and self-examination have little evidence of mortality benefit.",
+    "Evaluation of a palpable breast mass depends on age. In women younger than 30, ultrasound is the first test, because dense tissue limits mammography, and a simple cyst needs no further action, with a fibroadenoma (a firm, mobile, well-circumscribed mass) showing a solid mass that can be observed or biopsied. In women 30 and older, diagnostic mammography and ultrasound are used, followed by core needle biopsy of suspicious lesions, and fine needle aspiration clarifies cysts. The BI-RADS system categorises imaging: category 3 is probably benign (short-interval follow-up), 4 is suspicious and 5 is highly suggestive of malignancy, both requiring biopsy. A bloody nipple discharge from a single duct suggests intraductal papilloma, and a unilateral, spontaneous, bloody discharge needs evaluation. Mastitis in a nonlactating woman and persistent erythema may be inflammatory breast cancer, with peau d'orange skin changes, and Paget disease of the nipple is an eczematous nipple lesion with underlying carcinoma.",
+    "Sexual health is part of routine care, and a respectful, inclusive history asks about partners, practices, protection, function and satisfaction without assuming orientation or gender. Sexual dysfunction in women includes disorders of desire and arousal, orgasm, and genito-pelvic pain or penetration disorder, such as vaginismus and vulvodynia. Contributors include menopause and the genitourinary syndrome, medications (SSRIs are an important cause), depression, relationship problems, trauma, pain conditions and chronic illness, and management addresses causes through counselling, pelvic floor therapy, vaginal oestrogen, lubricants, and medication changes.",
+    "Sexual assault care requires trauma-informed practice. The patient is offered care in a setting with trained examiners such as sexual assault nurse examiners (SANEs), with informed consent for each step and for forensic evidence collection, which is generally optimal within 72 to 120 hours, and the patient may choose to have evidence collected without reporting to police in many jurisdictions. Clinicians treat injuries, offer emergency contraception and pregnancy testing, assess and offer STI prophylaxis (per CDC 2021: ceftriaxone, doxycycline and metronidazole), hepatitis B vaccination if not immune, HPV vaccination as appropriate, and HIV postexposure prophylaxis started within 72 hours when risk justifies. Mental health support and safety planning are key, and mandatory reporting rules differ by state for minors and for some adults. Medicolegal documentation records the patient's own words.",
+    "Intimate partner violence is common, and the USPSTF (2018, reaffirmed June 2025) recommends screening women of reproductive age, including those who are pregnant or postpartum, and providing or referring those who screen positive to support services. Pregnancy can be a period of increased risk. Screening is done privately, with safety assessment, documentation, and a referral to advocacy and shelter services, while clinicians avoid pressuring the patient to leave and respect her autonomy and risk assessment. Clinicians must know reporting laws, which vary.",
+    "A worked example: a 23-year-old arrives 36 hours after an assault. After consent, the team offers evidence collection (which she may decline or defer), emergency contraception, STI prophylaxis, hepatitis B and HIV prophylaxis evaluation, and referrals, while letting her decide on police involvement."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-clin-obgyn.l01.q1",
+   "lessonId": "med-clin-obgyn.l01",
+   "kind": "mcq",
+   "prompt": "Which change in renal physiology is expected in normal pregnancy?",
+   "choices": [
+    "Decreased glomerular filtration rate with a higher serum creatinine",
+    "Unchanged filtration with increased tubular reabsorption of glucose",
+    "Increased filtration with a higher serum creatinine from dilution",
+    "Increased glomerular filtration rate with a lower serum creatinine"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l01.q2",
+   "lessonId": "med-clin-obgyn.l01",
+   "kind": "mcq",
+   "prompt": "A 29-year-old at 27 weeks is Rh-negative with a negative antibody screen and an Rh-positive partner. Which management is correct?",
+   "choices": [
+    "Repeat antibody screens monthly with intrauterine transfusion planned from 32 weeks",
+    "Immune globulin only if the woman develops bleeding during the pregnancy",
+    "Anti-D immune globulin at 28 weeks and after delivery",
+    "No treatment until delivery, when cord blood determines whether immune globulin is needed"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l01.q3",
+   "lessonId": "med-clin-obgyn.l01",
+   "kind": "mcq",
+   "prompt": "A 32-year-old woman at 10 weeks has chronic hypertension and type 2 diabetes. Which intervention reduces her risk of preeclampsia?",
+   "choices": [
+    "Prophylactic labetalol started once blood pressure exceeds 120/80",
+    "Low-dose aspirin started before 16 weeks",
+    "Calcium and vitamin D supplements taken in the first trimester",
+    "Bed rest at home from the beginning of the second trimester"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l01.q4",
+   "lessonId": "med-clin-obgyn.l01",
+   "kind": "mcq",
+   "prompt": "A pregnant woman at 30 weeks has not received Tdap. Which statement is most accurate?",
+   "choices": [
+    "Tdap at 27 to 36 weeks in every pregnancy",
+    "Tdap is contraindicated in pregnancy and should be given immediately after delivery",
+    "Tdap is given only in the first pregnancy because the antibody persists for life",
+    "Tdap is given only if the household contains an unvaccinated adult"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l01.q5",
+   "lessonId": "med-clin-obgyn.l01",
+   "kind": "mcq",
+   "prompt": "A woman with hypertension has just discovered she is 7 weeks pregnant while taking lisinopril. Which fetal effect is the greatest concern if exposure continues into the second and third trimesters?",
+   "choices": [
+    "Neural tube defects with anencephaly",
+    "Ebstein anomaly with tricuspid regurgitation",
+    "Phocomelia with limb shortening",
+    "Renal dysgenesis with oligohydramnios"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l02.q1",
+   "lessonId": "med-clin-obgyn.l02",
+   "kind": "mcq",
+   "prompt": "Which statement describes cell-free DNA screening?",
+   "choices": [
+    "A sensitive screen whose positives need confirmation",
+    "It is a diagnostic test equivalent to amniocentesis and can be used alone",
+    "It is only available to women older than 35 who have an abnormal ultrasound",
+    "It detects neural tube defects with high sensitivity from maternal blood"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l02.q2",
+   "lessonId": "med-clin-obgyn.l02",
+   "kind": "mcq",
+   "prompt": "A quadruple screen at 17 weeks shows low AFP, low oestriol, high hCG and high inhibin A. Which condition does this pattern suggest?",
+   "choices": [
+    "Turner syndrome with cystic hygroma",
+    "Down syndrome",
+    "Edwards syndrome",
+    "Open neural tube defect"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l02.q3",
+   "lessonId": "med-clin-obgyn.l02",
+   "kind": "mcq",
+   "prompt": "A 25-year-old at 12 weeks receives a positive cell-free DNA screen for trisomy 18, with no ultrasound abnormalities. Which statement best describes the next step?",
+   "choices": [
+    "Repeat the same screen in four weeks and act only if it remains positive",
+    "Reassure the patient that a normal ultrasound excludes the diagnosis",
+    "Genetic counselling and diagnostic CVS or amniocentesis",
+    "Recommend immediate termination, since the screen has more than 99 percent specificity"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l02.q4",
+   "lessonId": "med-clin-obgyn.l02",
+   "kind": "mcq",
+   "prompt": "An Rh-negative woman at 20 weeks has a positive indirect Coombs test with high titre anti-D. What is the best method for assessing fetal anaemia?",
+   "choices": [
+    "Administration of anti-D immune globulin to halt the sensitisation",
+    "Serial maternal haemoglobin measurement to follow fetal haemoglobin",
+    "Biophysical profile each week",
+    "Middle cerebral artery Doppler velocimetry"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l02.q5",
+   "lessonId": "med-clin-obgyn.l02",
+   "kind": "mcq",
+   "prompt": "A pregnant woman at 18 weeks has an elevated maternal serum AFP. Ultrasound shows normal anatomy and a gestational age by crown-rump length 3 weeks less than by menstrual dates. What is the most likely explanation?",
+   "choices": [
+    "Dating error from inaccurate menstrual dates",
+    "A fetal open neural tube defect missed by ultrasound",
+    "Fetal abdominal wall defect with normal ultrasound findings",
+    "Placental mosaicism for trisomy 18"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l03.q1",
+   "lessonId": "med-clin-obgyn.l03",
+   "kind": "mcq",
+   "prompt": "According to ACOG and SMFM (2014), at what cervical dilation does the active phase of labour generally begin?",
+   "choices": [
+    "8 cm",
+    "6 cm",
+    "3 cm",
+    "4 cm"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l03.q2",
+   "lessonId": "med-clin-obgyn.l03",
+   "kind": "mcq",
+   "prompt": "A fetal heart tracing shows decelerations that begin after the peak of each contraction and return to baseline after it ends, with moderate variability. What is the most likely mechanism?",
+   "choices": [
+    "Uteroplacental insufficiency",
+    "Fetal head compression",
+    "Umbilical cord compression",
+    "Fetal sleep cycle"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l03.q3",
+   "lessonId": "med-clin-obgyn.l03",
+   "kind": "mcq",
+   "prompt": "A woman at 8 cm dilation has a tracing with absent variability and recurrent late decelerations. Intrauterine resuscitation measures are tried for 20 minutes without change. What is the most appropriate next step?",
+   "choices": [
+    "Continue oxytocin to complete labour and delivery",
+    "Fetal scalp stimulation and repeat monitoring in an hour",
+    "Amnioinfusion to correct the late decelerations",
+    "Expedited delivery, by cesarean if not imminent"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l03.q4",
+   "lessonId": "med-clin-obgyn.l03",
+   "kind": "mcq",
+   "prompt": "Which fetal heart rate feature best reflects an intact, well-oxygenated fetal central nervous system?",
+   "choices": [
+    "Early decelerations",
+    "Absence of any accelerations",
+    "Moderate baseline variability",
+    "A baseline rate of 160 beats per minute"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l03.q5",
+   "lessonId": "med-clin-obgyn.l03",
+   "kind": "mcq",
+   "prompt": "A primigravid woman at 39 weeks has a Bishop score of 3 and requires labour induction for a medical indication. Which option is the best initial step?",
+   "choices": [
+    "Membrane stripping alone, repeated each day",
+    "Cervical ripening with prostaglandin or a balloon",
+    "Intravenous oxytocin started without any cervical preparation",
+    "Immediate cesarean delivery, because the cervix is unfavourable"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l04.q1",
+   "lessonId": "med-clin-obgyn.l04",
+   "kind": "mcq",
+   "prompt": "What is the first manoeuvre in the management of shoulder dystocia after calling for help?",
+   "choices": [
+    "Strong downward traction on the fetal head",
+    "Immediate Zavanelli manoeuvre followed by cesarean delivery",
+    "The McRoberts manoeuvre with suprapubic pressure",
+    "Fundal pressure to push the shoulder under the symphysis"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l04.q2",
+   "lessonId": "med-clin-obgyn.l04",
+   "kind": "mcq",
+   "prompt": "A primigravid woman at 40 weeks is 7 cm dilated with ruptured membranes. After 4 hours with adequate contractions, there is no cervical change. What is the best interpretation and plan?",
+   "choices": [
+    "Normal latent phase, so continue waiting for several more hours",
+    "Failed induction, so restart the oxytocin infusion at a higher rate",
+    "Second-stage arrest, so apply forceps for delivery",
+    "Active-phase arrest, for which cesarean delivery is indicated"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l04.q3",
+   "lessonId": "med-clin-obgyn.l04",
+   "kind": "mcq",
+   "prompt": "A 28-year-old woman with a prior single low-transverse cesarean at 39 weeks wishes to labour. Her previous cesarean was for breech presentation. Which statement is most accurate?",
+   "choices": [
+    "She is a candidate for TOLAC, with a uterine rupture risk of roughly 0.5 to 1 percent",
+    "TOLAC is contraindicated because any prior cesarean carries a high rupture risk",
+    "She may labour only if she accepts prostaglandin ripening to speed delivery",
+    "TOLAC is appropriate only at a home birth where intervention is minimal"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l04.q4",
+   "lessonId": "med-clin-obgyn.l04",
+   "kind": "mcq",
+   "prompt": "A 37-week primigravida has a frank breech fetus. Which statement about external cephalic version is correct?",
+   "choices": [
+    "It is recommended in all women with a transverse lie once labour has begun",
+    "It succeeds in about half of attempts and is contraindicated in placenta previa",
+    "It is performed only after the onset of labour with ruptured membranes",
+    "It is contraindicated after 34 weeks because of the risk of cord prolapse"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l04.q5",
+   "lessonId": "med-clin-obgyn.l04",
+   "kind": "mcq",
+   "prompt": "A nulliparous woman at 39 weeks with a healthy pregnancy asks whether induction without a medical reason is safe. Her cervix is favourable. What can be said based on the ARRIVE trial?",
+   "choices": [
+    "Induction should be refused because it raises perinatal mortality",
+    "Induction is appropriate only after 41 weeks for any indication",
+    "Induction did not raise cesarean rates and is reasonable to offer",
+    "Induction at 39 weeks doubled the cesarean rate compared with expectant care"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l05.q1",
+   "lessonId": "med-clin-obgyn.l05",
+   "kind": "mcq",
+   "prompt": "Which drug is given to women at risk of delivery before 32 weeks to reduce the risk of cerebral palsy in the infant?",
+   "choices": [
+    "Terbutaline",
+    "Indomethacin",
+    "Methyldopa",
+    "Magnesium sulfate"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l05.q2",
+   "lessonId": "med-clin-obgyn.l05",
+   "kind": "mcq",
+   "prompt": "A woman at 31 weeks has leakage of fluid. A sterile speculum examination shows pooling, and the fluid is alkaline and ferns. There is no fever and the tracing is reactive. What is the best management?",
+   "choices": [
+    "Digital cervical examination to assess dilation",
+    "Outpatient observation with weekly visits until 37 weeks",
+    "Admit, give steroids and latency antibiotics, deliver near 34 weeks",
+    "Immediate induction of labour with oxytocin"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l05.q3",
+   "lessonId": "med-clin-obgyn.l05",
+   "kind": "mcq",
+   "prompt": "A woman at 30 weeks has fever of 38.6 C, a heart rate of 120, fetal tachycardia, a tender uterus and ruptured membranes. Which is the best management?",
+   "choices": [
+    "Cesarean delivery for all cases of intraamniotic infection",
+    "Broad antibiotics and delivery, cesarean only if indicated",
+    "Indomethacin tocolysis and expectant management for steroid administration",
+    "Antibiotics alone with delivery delayed until 34 weeks"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l05.q4",
+   "lessonId": "med-clin-obgyn.l05",
+   "kind": "mcq",
+   "prompt": "A woman at 28 weeks is given nifedipine for preterm contractions with cervical change. What is its purpose?",
+   "choices": [
+    "To delay delivery about 48 hours for steroids",
+    "To prevent preterm birth until term",
+    "To provide fetal neuroprotection",
+    "To mature the fetal lungs"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l05.q5",
+   "lessonId": "med-clin-obgyn.l05",
+   "kind": "mcq",
+   "prompt": "A 26-year-old woman who delivered at 32 weeks in her last pregnancy is now at 17 weeks with a cervical length of 18 mm on transvaginal ultrasound. Which intervention is supported by ACOG guidance?",
+   "choices": [
+    "Bed rest at home until 34 weeks",
+    "Prophylactic tocolysis with nifedipine from 20 weeks",
+    "Antenatal betamethasone started at 20 weeks",
+    "Ultrasound-indicated cervical cerclage placement"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l06.q1",
+   "lessonId": "med-clin-obgyn.l06",
+   "kind": "mcq",
+   "prompt": "What is the most common cause of postpartum haemorrhage?",
+   "choices": [
+    "Uterine atony",
+    "Retained placental tissue",
+    "Genital tract lacerations",
+    "Coagulopathy"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l06.q2",
+   "lessonId": "med-clin-obgyn.l06",
+   "kind": "mcq",
+   "prompt": "A woman at 34 weeks has a sudden painless gush of bright red blood and no contractions. The fetal heart tracing is normal and her uterus is soft. What is the most appropriate next step?",
+   "choices": [
+    "Amniotomy to check for meconium",
+    "Ultrasound to locate the placenta first",
+    "Digital cervical examination to assess dilation",
+    "Immediate induction with oxytocin"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l06.q3",
+   "lessonId": "med-clin-obgyn.l06",
+   "kind": "mcq",
+   "prompt": "A 35-year-old cocaine user at 36 weeks presents with severe abdominal pain, dark vaginal bleeding and a rigid, tender uterus. The fetal heart rate shows late decelerations. Which complication is she most at risk for?",
+   "choices": [
+    "Fetal exsanguination from a ruptured vasa previa",
+    "Amniotic band syndrome",
+    "Disseminated intravascular coagulation",
+    "Cord prolapse from rupture of membranes"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l06.q4",
+   "lessonId": "med-clin-obgyn.l06",
+   "kind": "mcq",
+   "prompt": "A woman with postpartum haemorrhage from atony has failed oxytocin. She has chronic hypertension. Which second-line agent should be avoided?",
+   "choices": [
+    "Misoprostol",
+    "Carboprost in a woman without asthma",
+    "Tranexamic acid",
+    "Methylergonovine"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l06.q5",
+   "lessonId": "med-clin-obgyn.l06",
+   "kind": "mcq",
+   "prompt": "A 38-year-old with three prior cesareans has a complete placenta previa, and ultrasound and MRI show loss of the retroplacental clear zone and myometrial thinning. What is the best plan?",
+   "choices": [
+    "Planned preterm cesarean hysterectomy at a specialist centre",
+    "Vaginal delivery after induction, with manual removal of the placenta",
+    "Cesarean delivery at 39 weeks, with manual placental removal as usual",
+    "Expectant management until spontaneous labour at term"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l07.q1",
+   "lessonId": "med-clin-obgyn.l07",
+   "kind": "mcq",
+   "prompt": "Which drug is the first choice for preventing and treating seizures in eclampsia?",
+   "choices": [
+    "Levetiracetam",
+    "Magnesium sulfate",
+    "Phenytoin",
+    "Diazepam"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l07.q2",
+   "lessonId": "med-clin-obgyn.l07",
+   "kind": "mcq",
+   "prompt": "A woman receiving magnesium sulfate for preeclampsia has a respiratory rate of 8 breaths per minute, absent patellar reflexes and a urine output of 10 mL in the last hour. What is the most appropriate immediate action?",
+   "choices": [
+    "Stop the magnesium and give intravenous calcium gluconate",
+    "Increase the infusion rate to control further seizures",
+    "Administer naloxone for opioid-induced respiratory depression",
+    "Give a bolus of normal saline and continue the infusion"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l07.q3",
+   "lessonId": "med-clin-obgyn.l07",
+   "kind": "mcq",
+   "prompt": "A 27-year-old at 35 weeks has right upper quadrant pain and a blood pressure of 150/95. Laboratory results show haemoglobin 9.8 g/dL with schistocytes, AST 190 U/L, platelets 70,000/microlitre and elevated LDH. What is the most appropriate management?",
+   "choices": [
+    "Expectant management with antihypertensives until 37 weeks",
+    "Plasma exchange for presumed thrombotic thrombocytopenic purpura",
+    "Intravenous ursodeoxycholic acid with induction at 37 weeks",
+    "Magnesium sulfate and delivery after maternal stabilisation"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l07.q4",
+   "lessonId": "med-clin-obgyn.l07",
+   "kind": "mcq",
+   "prompt": "Which medication is contraindicated in pregnancy for chronic hypertension?",
+   "choices": [
+    "Nifedipine",
+    "Methyldopa",
+    "Lisinopril",
+    "Labetalol"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l07.q5",
+   "lessonId": "med-clin-obgyn.l07",
+   "kind": "mcq",
+   "prompt": "A 29-year-old at 37 weeks has a blood pressure of 148/92 twice and a protein-creatinine ratio of 0.4. She has no headache, and platelets and liver enzymes are normal. What is the best plan?",
+   "choices": [
+    "Start oral methyldopa and discharge without any further testing",
+    "Delivery at 37 weeks, since she has preeclampsia without severe features",
+    "Immediate cesarean delivery for suspected eclampsia",
+    "Continue expectant management until 41 weeks for a vaginal birth"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l08.q1",
+   "lessonId": "med-clin-obgyn.l08",
+   "kind": "mcq",
+   "prompt": "Which anomaly is characteristic of poorly controlled pregestational diabetes in the first trimester?",
+   "choices": [
+    "Neonatal thyrotoxicosis",
+    "Limb reduction defects",
+    "Caudal regression syndrome",
+    "Fetal alcohol spectrum"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l08.q2",
+   "lessonId": "med-clin-obgyn.l08",
+   "kind": "mcq",
+   "prompt": "A 30-year-old with gestational diabetes cannot reach glucose targets with diet and exercise after two weeks. What is the usual next step?",
+   "choices": [
+    "Bed rest and calorie restriction",
+    "Immediate delivery at 37 weeks",
+    "Oral sulfonylurea as first-line agent",
+    "Insulin therapy"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l08.q3",
+   "lessonId": "med-clin-obgyn.l08",
+   "kind": "mcq",
+   "prompt": "A 33-year-old woman with type 2 diabetes plans pregnancy. Her HbA1c is 8.9 percent, and she takes metformin, lisinopril and atorvastatin. Which counselling is most appropriate?",
+   "choices": [
+    "Improve control, start folic acid, stop lisinopril and statin",
+    "Continue all medications through pregnancy, since stopping them risks worse control",
+    "Stop metformin and insulin to avoid fetal exposure to antidiabetic agents",
+    "Delay folic acid until the first prenatal visit"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l08.q4",
+   "lessonId": "med-clin-obgyn.l08",
+   "kind": "mcq",
+   "prompt": "A woman with GDM controlled on diet alone and good fetal growth reaches 39 weeks. What is the usual recommendation about timing of delivery?",
+   "choices": [
+    "Deliver at 39 weeks only if medication was needed",
+    "Await spontaneous labour up to 40 weeks 6 days",
+    "Deliver by cesarean at 37 weeks",
+    "Induce labour at 36 weeks"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l08.q5",
+   "lessonId": "med-clin-obgyn.l08",
+   "kind": "mcq",
+   "prompt": "A woman who had GDM delivers a healthy infant. Which follow-up is the most appropriate?",
+   "choices": [
+    "Fasting glucose in 5 years only if she gains weight",
+    "HbA1c at 1 week postpartum, which is the preferred test at that time",
+    "75 g oral glucose tolerance test at 4 to 12 weeks, then lifelong periodic screening",
+    "No further testing, because GDM resolves at delivery"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l09.q1",
+   "lessonId": "med-clin-obgyn.l09",
+   "kind": "mcq",
+   "prompt": "Which finding is characteristic of a complete hydatidiform mole?",
+   "choices": [
+    "A viable fetus with a triploid karyotype",
+    "A normal-sized uterus and low hCG",
+    "Elevated AFP with a fetal neural tube defect",
+    "Snowstorm pattern on ultrasound and very high hCG"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l09.q2",
+   "lessonId": "med-clin-obgyn.l09",
+   "kind": "mcq",
+   "prompt": "A 24-year-old with 6 weeks of amenorrhoea has a positive pregnancy test, unilateral pelvic pain and light bleeding. She is stable. Her hCG is 2,100 mIU/mL and ultrasound shows an empty uterus and a 2 cm adnexal mass without cardiac activity. Which management is appropriate?",
+   "choices": [
+    "Reassurance and a repeat visit in 4 weeks",
+    "Misoprostol for presumed incomplete miscarriage",
+    "Methotrexate, after baseline laboratory tests",
+    "Immediate hysterectomy"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l09.q3",
+   "lessonId": "med-clin-obgyn.l09",
+   "kind": "mcq",
+   "prompt": "A 19-year-old at 10 weeks has vaginal bleeding, severe vomiting, a uterus larger than dates, and an hCG of 380,000 mIU/mL. TSH is suppressed with a high free T4. What is the most likely explanation of the thyroid findings?",
+   "choices": [
+    "Subacute thyroiditis following a viral illness",
+    "hCG stimulating the TSH receptor via a shared alpha subunit",
+    "Graves disease developing for the first time in pregnancy",
+    "Autonomous thyroid adenoma stimulated by oestrogen"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l09.q4",
+   "lessonId": "med-clin-obgyn.l09",
+   "kind": "mcq",
+   "prompt": "A woman has been bleeding for two days. The cervical os is open and tissue has been passed, and ultrasound shows retained products in the uterus. Which term applies?",
+   "choices": [
+    "Incomplete abortion",
+    "Threatened abortion",
+    "Missed abortion",
+    "Complete abortion"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l09.q5",
+   "lessonId": "med-clin-obgyn.l09",
+   "kind": "mcq",
+   "prompt": "A woman at 34 weeks has intense itching of the palms and soles, worse at night, with no rash. Bile acids are 60 micromol/L and transaminases are mildly raised. What is the most appropriate management?",
+   "choices": [
+    "Topical corticosteroids and induction at 41 weeks",
+    "Cholecystectomy during pregnancy",
+    "Oral antihistamines alone without any fetal surveillance",
+    "Ursodeoxycholic acid with planned early-term delivery"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l10.q1",
+   "lessonId": "med-clin-obgyn.l10",
+   "kind": "mcq",
+   "prompt": "What is the most common cause of postpartum fever in the first several days after cesarean delivery?",
+   "choices": [
+    "Septic pelvic thrombophlebitis",
+    "Endometritis",
+    "Atelectasis",
+    "Mastitis"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l10.q2",
+   "lessonId": "med-clin-obgyn.l10",
+   "kind": "mcq",
+   "prompt": "A breastfeeding woman 3 weeks after delivery has a painful, red, wedge-shaped area on her left breast, fever and malaise. Which advice is best?",
+   "choices": [
+    "Keep emptying the breast and give an antistaphylococcal antibiotic",
+    "Stop breastfeeding from that breast until the infection resolves",
+    "Apply continuous heat and avoid emptying the breast",
+    "Wean the infant completely and give a laxative to dry the milk"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l10.q3",
+   "lessonId": "med-clin-obgyn.l10",
+   "kind": "mcq",
+   "prompt": "A 29-year-old woman 10 days after delivery has not slept, believes her baby has been replaced by an impostor, and hears voices telling her to harm the child. She had a manic episode at age 22. What is the best management?",
+   "choices": [
+    "Outpatient cognitive behavioural therapy and reassurance about baby blues",
+    "Sertraline monotherapy with review in four weeks",
+    "Discharge to her family with sleeping tablets only",
+    "Emergency psychiatric admission with antipsychotic treatment and supervision"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l10.q4",
+   "lessonId": "med-clin-obgyn.l10",
+   "kind": "mcq",
+   "prompt": "A woman has failure to lactate, fatigue, hypotension and amenorrhoea after a delivery complicated by severe postpartum haemorrhage. Which diagnosis is the most likely?",
+   "choices": [
+    "Asherman syndrome from uterine adhesions",
+    "Peripartum cardiomyopathy",
+    "Sheehan syndrome of the pituitary",
+    "Postpartum thyroiditis in its hypothyroid phase"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l10.q5",
+   "lessonId": "med-clin-obgyn.l10",
+   "kind": "mcq",
+   "prompt": "A woman who is exclusively breastfeeding her 4-month-old and has had no periods says she does not need contraception. Which statement is most accurate?",
+   "choices": [
+    "She is protected provided that she feeds fewer than four times per day",
+    "It works only if she is exclusively breastfeeding, amenorrhoeic and under 6 months",
+    "Breastfeeding provides complete protection for the first year regardless of other factors",
+    "Breastfeeding provides no contraceptive effect at all"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l11.q1",
+   "lessonId": "med-clin-obgyn.l11",
+   "kind": "mcq",
+   "prompt": "Which contraceptive methods have typical-use failure rates below 1 percent?",
+   "choices": [
+    "Implant, intrauterine devices and sterilisation",
+    "Pill, patch and ring",
+    "Depot injection and condoms",
+    "Fertility awareness and withdrawal"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l11.q2",
+   "lessonId": "med-clin-obgyn.l11",
+   "kind": "mcq",
+   "prompt": "A woman had unprotected sex 4 days ago and has a BMI of 36. Which emergency contraception is likely to be the most effective choice?",
+   "choices": [
+    "Misoprostol taken orally in a single dose",
+    "A copper IUD inserted within 5 days",
+    "Levonorgestrel 1.5 mg, which is as effective at all body weights",
+    "A double dose of the combined oral contraceptive pill"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l11.q3",
+   "lessonId": "med-clin-obgyn.l11",
+   "kind": "mcq",
+   "prompt": "A 33-year-old woman with systemic lupus erythematosus and positive antiphospholipid antibodies wants a reliable method that does not involve surgery. Which option is contraindicated under the US MEC?",
+   "choices": [
+    "Copper intrauterine device",
+    "Etonogestrel implant",
+    "Combined oral contraceptive pill",
+    "Levonorgestrel intrauterine device"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l11.q4",
+   "lessonId": "med-clin-obgyn.l11",
+   "kind": "mcq",
+   "prompt": "A woman using depot medroxyprogesterone acetate asks about long-term effects. Which statement is accurate?",
+   "choices": [
+    "Fertility returns within a week of the last injection",
+    "It causes permanent infertility in most users",
+    "It increases the risk of ovarian cancer",
+    "Reversible loss of bone density"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l11.q5",
+   "lessonId": "med-clin-obgyn.l11",
+   "kind": "mcq",
+   "prompt": "A woman using combined pills begins rifampin for tuberculosis. Which counselling is correct?",
+   "choices": [
+    "Hormonal contraceptive efficacy is reduced, so use an alternative such as an IUD",
+    "No interaction is expected, since all antibiotics are neutral to contraceptives",
+    "Increase pill doses to compensate and continue as before",
+    "Stop pills only for the first week of rifampin"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l12.q1",
+   "lessonId": "med-clin-obgyn.l12",
+   "kind": "mcq",
+   "prompt": "Which two drugs make up the standard regimen for medication abortion in early pregnancy?",
+   "choices": [
+    "Methotrexate followed by oxytocin",
+    "Ulipristal followed by carboprost",
+    "Letrozole followed by methylergonovine",
+    "Mifepristone followed by misoprostol"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l12.q2",
+   "lessonId": "med-clin-obgyn.l12",
+   "kind": "mcq",
+   "prompt": "Which statement correctly describes the legal effect of Dobbs v. Jackson Women's Health Organization (2022)?",
+   "choices": [
+    "The Court upheld Roe v. Wade but allowed new restrictions on clinics",
+    "The Court held that abortion is protected under the Equal Protection Clause",
+    "There is no constitutional right to abortion, so states may regulate",
+    "The Court established a national ban after 15 weeks of pregnancy"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l12.q3",
+   "lessonId": "med-clin-obgyn.l12",
+   "kind": "mcq",
+   "prompt": "A patient asks a physician who personally opposes abortion about her options at 8 weeks. Which response best fits professional ethics and law as generally described?",
+   "choices": [
+    "Treat the question as outside the clinical role and end the visit",
+    "Inform accurately, refer within the law, and do not abandon her",
+    "Withhold information about the option to avoid giving moral approval to it",
+    "Provide only the physician's personal view and decline to discuss alternatives"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l12.q4",
+   "lessonId": "med-clin-obgyn.l12",
+   "kind": "mcq",
+   "prompt": "Which statement about the 2024 decision in FDA v. Alliance for Hippocratic Medicine is accurate?",
+   "choices": [
+    "The Court held the plaintiffs lacked standing, leaving the FDA's mifepristone rules in place",
+    "The Court held that mifepristone approval violated federal law and removed the drug",
+    "The Court ruled that the drug may be prescribed only in person after any gestational age",
+    "The Court held that states may not restrict mifepristone in any circumstance"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l12.q5",
+   "lessonId": "med-clin-obgyn.l12",
+   "kind": "mcq",
+   "prompt": "A student summarises the debate as follows: one side prioritises protection of fetal life from conception and the other prioritises bodily autonomy, and many people hold intermediate positions linked to development. Which assessment is the best?",
+   "choices": [
+    "It is inaccurate because most people hold only one of the two extreme positions",
+    "It is inappropriate because medical education should state only one position",
+    "It is incomplete because the law, not the debate, should be omitted from teaching",
+    "It fairly represents the major positions without endorsing any"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l13.q1",
+   "lessonId": "med-clin-obgyn.l13",
+   "kind": "mcq",
+   "prompt": "What is the first test to order in a woman of reproductive age with secondary amenorrhoea?",
+   "choices": [
+    "Pelvic MRI",
+    "Karyotype",
+    "Pregnancy test",
+    "Serum prolactin"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l13.q2",
+   "lessonId": "med-clin-obgyn.l13",
+   "kind": "mcq",
+   "prompt": "A 17-year-old has primary amenorrhoea, normal breast development, scant pubic and axillary hair, and a blind-ending vagina. The karyotype is 46,XY. What is the diagnosis?",
+   "choices": [
+    "Mullerian agenesis",
+    "Turner syndrome",
+    "Kallmann syndrome",
+    "Androgen insensitivity syndrome"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l13.q3",
+   "lessonId": "med-clin-obgyn.l13",
+   "kind": "mcq",
+   "prompt": "A 26-year-old has 4 menses a year, hirsutism, acne and a BMI of 33. TSH and prolactin are normal, and she wants to conceive. Which treatment is first-line for ovulation induction?",
+   "choices": [
+    "Letrozole",
+    "Metformin alone",
+    "Oral contraceptive pills",
+    "Clomiphene with spironolactone"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l13.q4",
+   "lessonId": "med-clin-obgyn.l13",
+   "kind": "mcq",
+   "prompt": "A 48-year-old woman has heavy irregular bleeding for 8 months. The pregnancy test is negative and she has obesity. Which investigation is most important to exclude malignancy?",
+   "choices": [
+    "Hysterosalpingography",
+    "Endometrial biopsy",
+    "Serum CA-125",
+    "Cervical cytology only"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l13.q5",
+   "lessonId": "med-clin-obgyn.l13",
+   "kind": "mcq",
+   "prompt": "A 34-year-old has severe dysmenorrhoea, deep dyspareunia and infertility. Examination shows a fixed retroverted uterus and nodularity of the uterosacral ligaments. Ultrasound shows a 4 cm ovarian cyst with homogeneous low-level echoes. What is the most likely diagnosis?",
+   "choices": [
+    "Polycystic ovary syndrome",
+    "Mature cystic teratoma",
+    "Endometriosis with an endometrioma",
+    "Pelvic inflammatory disease with a tubo-ovarian abscess"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l14.q1",
+   "lessonId": "med-clin-obgyn.l14",
+   "kind": "mcq",
+   "prompt": "After how many months of unprotected intercourse should a woman aged 36 be evaluated for infertility?",
+   "choices": [
+    "24 months",
+    "6 months",
+    "12 months",
+    "18 months"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l14.q2",
+   "lessonId": "med-clin-obgyn.l14",
+   "kind": "mcq",
+   "prompt": "A couple has been trying to conceive for 14 months. The woman is 29 with regular cycles. Which initial test should be performed for the partner?",
+   "choices": [
+    "Semen analysis",
+    "Testicular biopsy",
+    "Serum testosterone and FSH only",
+    "Karyotype only"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l14.q3",
+   "lessonId": "med-clin-obgyn.l14",
+   "kind": "mcq",
+   "prompt": "A 52-year-old with a uterus has had no menses for 14 months and severe hot flushes and night sweats. She has no history of cancer, clots or heart disease. Which statement is most appropriate?",
+   "choices": [
+    "Hormone therapy is contraindicated for all women over 50 because of the Women's Health Initiative",
+    "Unopposed oestrogen is the preferred regimen since she has a uterus",
+    "Vaginal oestrogen alone is effective for vasomotor symptoms",
+    "Combined hormone therapy is effective with a favourable balance"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l14.q4",
+   "lessonId": "med-clin-obgyn.l14",
+   "kind": "mcq",
+   "prompt": "A woman undergoing ovarian stimulation develops abdominal distension, ascites, haemoconcentration and dyspnoea. Which condition does she have?",
+   "choices": [
+    "Pelvic inflammatory disease",
+    "Ectopic pregnancy",
+    "Ovarian hyperstimulation syndrome",
+    "Ovarian torsion"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l14.q5",
+   "lessonId": "med-clin-obgyn.l14",
+   "kind": "mcq",
+   "prompt": "A 33-year-old has had amenorrhoea for 6 months with hot flushes. FSH is elevated on two occasions a month apart, and the pregnancy test is negative. Which statement is correct?",
+   "choices": [
+    "Hormone replacement is contraindicated because of her age",
+    "Premature ovarian insufficiency, treated with replacement until about 51",
+    "She is perimenopausal and needs no evaluation",
+    "She should be treated with clomiphene to restart ovulation"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l15.q1",
+   "lessonId": "med-clin-obgyn.l15",
+   "kind": "mcq",
+   "prompt": "Which finding is characteristic of bacterial vaginosis?",
+   "choices": [
+    "Clue cells and a pH above 4.5",
+    "Motile flagellated organisms on wet mount",
+    "Pseudohyphae with a normal pH",
+    "A strawberry cervix with frothy discharge"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l15.q2",
+   "lessonId": "med-clin-obgyn.l15",
+   "kind": "mcq",
+   "prompt": "A 21-year-old has lower abdominal pain and fever, with cervical motion tenderness and mucopurulent cervical discharge. She is stable and the pregnancy test is negative. Which outpatient regimen follows the CDC 2021 guideline?",
+   "choices": [
+    "Fluconazole as a single dose",
+    "Ceftriaxone, doxycycline and metronidazole",
+    "Azithromycin as a single dose",
+    "Oral metronidazole alone"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l15.q3",
+   "lessonId": "med-clin-obgyn.l15",
+   "kind": "mcq",
+   "prompt": "A 25-year-old has sudden severe right pelvic pain with vomiting. Ultrasound shows a 6 cm ovarian mass with an enlarged ovary, and Doppler flow is present. What is the most appropriate next step?",
+   "choices": [
+    "Repeat ultrasound in 6 weeks",
+    "Methotrexate for suspected ectopic pregnancy",
+    "Urgent laparoscopy, since normal Doppler flow does not exclude torsion",
+    "Discharge with analgesia because flow is normal"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l15.q4",
+   "lessonId": "med-clin-obgyn.l15",
+   "kind": "mcq",
+   "prompt": "A 38-year-old woman has heavy menstrual bleeding, an irregularly enlarged firm uterus and a haemoglobin of 9 g/dL. Pregnancy test and endometrial biopsy are negative. She wants to preserve fertility. Which is the most appropriate surgical treatment if medical therapy fails?",
+   "choices": [
+    "Hysterectomy",
+    "Endometrial ablation",
+    "Bilateral salpingo-oophorectomy",
+    "Myomectomy"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l15.q5",
+   "lessonId": "med-clin-obgyn.l15",
+   "kind": "mcq",
+   "prompt": "A pregnant woman at 10 weeks has a painless genital ulcer, and the rapid plasma reagin and treponemal tests are positive. She has a penicillin allergy. What is the recommended management?",
+   "choices": [
+    "Desensitise, then give penicillin G",
+    "Doxycycline for two weeks, since it is safe in pregnancy",
+    "Azithromycin as a single dose",
+    "Defer treatment until after delivery to protect the fetus"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l16.q1",
+   "lessonId": "med-clin-obgyn.l16",
+   "kind": "mcq",
+   "prompt": "Which viral proteins inactivate p53 and the retinoblastoma protein in HPV-related carcinogenesis?",
+   "choices": [
+    "E7 inactivates p53 and E6 inactivates Rb",
+    "L1 and L2 inactivate p53 and Rb",
+    "E1 and E2 inactivate p53 and Rb",
+    "E6 inactivates p53 and E7 inactivates Rb"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l16.q2",
+   "lessonId": "med-clin-obgyn.l16",
+   "kind": "mcq",
+   "prompt": "A 34-year-old with no prior abnormal screening has a Pap test showing ASC-US, and her HPV test is positive. What is the most appropriate management?",
+   "choices": [
+    "Hysterectomy for presumed carcinoma in situ",
+    "Reassurance, because this finding always regresses",
+    "Referral for colposcopy under ASCCP risk-based guidelines",
+    "Repeat cytology in 3 years"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l16.q3",
+   "lessonId": "med-clin-obgyn.l16",
+   "kind": "mcq",
+   "prompt": "A 66-year-old woman has had normal screening, with three consecutive negative Pap tests and no history of CIN 2 or worse. She has an intact cervix. What is the most appropriate recommendation?",
+   "choices": [
+    "Switch to HPV testing every year",
+    "Discontinue cervical screening",
+    "Continue Pap tests every year for life",
+    "Perform colposcopy every 5 years"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l16.q4",
+   "lessonId": "med-clin-obgyn.l16",
+   "kind": "mcq",
+   "prompt": "A healthy 19-year-old woman asks when she should begin cervical screening. She has been sexually active for two years. What is the recommendation?",
+   "choices": [
+    "Begin at age 21 with cytology",
+    "Begin now with HPV cotesting",
+    "Begin now with colposcopy for baseline",
+    "Begin only when she has had three partners"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l16.q5",
+   "lessonId": "med-clin-obgyn.l16",
+   "kind": "mcq",
+   "prompt": "A woman has a LEEP for CIN 3. Which future pregnancy-related outcome is a known risk of the procedure?",
+   "choices": [
+    "Neural tube defects in the fetus",
+    "Placenta accreta from endometrial damage",
+    "Hyperemesis gravidarum",
+    "Preterm birth from cervical shortening"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l17.q1",
+   "lessonId": "med-clin-obgyn.l17",
+   "kind": "mcq",
+   "prompt": "Which tumour marker is elevated in a yolk sac (endodermal sinus) tumour?",
+   "choices": [
+    "Inhibin",
+    "LDH alone",
+    "Alpha-fetoprotein",
+    "hCG"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l17.q2",
+   "lessonId": "med-clin-obgyn.l17",
+   "kind": "mcq",
+   "prompt": "A 58-year-old woman with obesity and type 2 diabetes has postmenopausal bleeding. Transvaginal ultrasound shows an endometrial thickness of 12 mm. What is the next step?",
+   "choices": [
+    "Reassurance and repeat ultrasound in a year",
+    "Serum CA-125",
+    "Initiation of oral oestrogen",
+    "Endometrial biopsy"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l17.q3",
+   "lessonId": "med-clin-obgyn.l17",
+   "kind": "mcq",
+   "prompt": "A 65-year-old has early satiety, abdominal bloating, ascites and a 9 cm complex pelvic mass. CA-125 is elevated. Which statement about screening and risk is correct?",
+   "choices": [
+    "Screening average-risk women is not recommended",
+    "Annual CA-125 screening reduces mortality and is recommended in all women over 50",
+    "Combined oral contraceptive use increases the risk of this tumour",
+    "BRCA mutations increase risk only of breast cancer"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l17.q4",
+   "lessonId": "med-clin-obgyn.l17",
+   "kind": "mcq",
+   "prompt": "A 28-year-old with a family history of ovarian and breast cancer is found to carry a BRCA1 mutation. Which risk-reducing measure is recommended after childbearing is complete?",
+   "choices": [
+    "Tamoxifen for ovarian cancer prevention",
+    "Risk-reducing salpingo-oophorectomy at 35 to 40",
+    "Annual CA-125 screening alone for life",
+    "Hysterectomy alone with ovarian conservation"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l17.q5",
+   "lessonId": "med-clin-obgyn.l17",
+   "kind": "mcq",
+   "prompt": "A 14-year-old girl has a rapidly enlarging pelvic mass. Laboratory results show a normal AFP and hCG but a markedly raised LDH. The pathology shows large cells with clear cytoplasm in nests separated by fibrous septa with lymphocytes. What is the most likely tumour?",
+   "choices": [
+    "Granulosa cell tumour",
+    "Mature cystic teratoma",
+    "Dysgerminoma",
+    "Yolk sac tumour"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l18.q1",
+   "lessonId": "med-clin-obgyn.l18",
+   "kind": "mcq",
+   "prompt": "Which screening mammography schedule did the USPSTF recommend in 2024 for average-risk women?",
+   "choices": [
+    "Every 2 years from age 50 to 80",
+    "Every 2 years from age 40 to 74",
+    "Every year from age 50 to 74",
+    "Every 3 years from age 30 to 70"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l18.q2",
+   "lessonId": "med-clin-obgyn.l18",
+   "kind": "mcq",
+   "prompt": "A 24-year-old has a 2 cm, firm, smooth, mobile, painless breast lump. Which is the best first imaging test?",
+   "choices": [
+    "Breast ultrasound",
+    "Screening mammography",
+    "Breast MRI",
+    "PET scan"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l18.q3",
+   "lessonId": "med-clin-obgyn.l18",
+   "kind": "mcq",
+   "prompt": "A 22-year-old presents 40 hours after a sexual assault. She is not pregnant and has no injuries. She is unsure about contacting police. Which approach is most appropriate?",
+   "choices": [
+    "Postpone treatment until she decides whether to report",
+    "Perform evidence collection without her consent to preserve options",
+    "Provide only counselling since forensic evidence is lost after 24 hours",
+    "Offer evidence collection, prophylaxis and support; she decides on police"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l18.q4",
+   "lessonId": "med-clin-obgyn.l18",
+   "kind": "mcq",
+   "prompt": "Which USPSTF recommendation (2018, reaffirmed in 2025) applies to intimate partner violence?",
+   "choices": [
+    "Screen only pregnant women in the third trimester",
+    "Do not screen because no interventions are effective",
+    "Screen reproductive-age women and refer positives for support",
+    "Screen only women who report injuries at a visit"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l18.q5",
+   "lessonId": "med-clin-obgyn.l18",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman taking sertraline for depression reports loss of sexual desire and difficulty with orgasm. Which approach is the most appropriate?",
+   "choices": [
+    "Attribute the symptoms to depression only and avoid changing treatment",
+    "Recognise SSRI sexual side effects and consider adjusting treatment",
+    "Stop all antidepressants immediately",
+    "Prescribe testosterone as the first step"
+   ]
+  }
+ ]
+}

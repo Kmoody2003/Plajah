@@ -86,6 +86,12 @@ export const useDpadNavigation = (handlers: DpadHandlers) => {
     if (handlers.enabled === false) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const active = document.activeElement as HTMLElement | null;
+      const isField = (el: HTMLElement | null) =>
+        !!(el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable || el.closest?.('input, textarea, select, [contenteditable="true"]')));
+      if (isField(target) || isField(active)) return;
+
       const action = resolveDpadAction(e);
       if (!action) return;
       const fn = ref.current[action] as (() => void) | undefined;

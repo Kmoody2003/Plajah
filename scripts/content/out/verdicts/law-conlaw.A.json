@@ -1,0 +1,980 @@
+{
+ "courseId": "law-conlaw",
+ "verifier": "A",
+ "questions": [
+  {
+   "id": "law-conlaw.l01.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l01.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l01.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l01.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l01.q5",
+   "answer": 1,
+   "confidence": "medium",
+   "sources": [],
+   "note": "Exceptions Clause question; best answer is hedged but defensible"
+  },
+  {
+   "id": "law-conlaw.l02.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l02.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l02.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l02.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l02.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l03.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l03.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l03.q3",
+   "answer": 1,
+   "confidence": "medium",
+   "sources": [],
+   "note": "Darby-style channels reasoning; stem loosely framed"
+  },
+  {
+   "id": "law-conlaw.l03.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l03.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l04.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l04.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l04.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l04.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l04.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l05.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l05.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l05.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l05.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l05.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l06.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l06.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l06.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l06.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l06.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l07.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l07.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l07.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l07.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l07.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l08.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l08.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l08.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l08.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l08.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l09.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l09.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l09.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l09.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l10.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l10.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l10.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l12.q4",
+   "answer": 2,
+   "confidence": "medium",
+   "sources": [],
+   "note": "Candidate had doubt but did not check; failure to investigate alone is not actual malice (Harte-Hanks) but facts are borderline"
+  },
+  {
+   "id": "law-conlaw.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l14.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l14.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l16.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l17.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-conlaw.l01",
+   "claim": "Marbury v. Madison (1803): statute giving original mandamus jurisdiction conflicted with Article III",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/5/137/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l01",
+   "claim": "Martin v. Hunter's Lessee (1816) upheld SCOTUS review of state court federal-question decisions",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/14/304/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l01",
+   "claim": "Cooper v. Aaron (1958): Brown binding on states",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/358/1/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l02",
+   "claim": "FCC v. Consumers' Research (2025) upheld delegation under intelligible principle",
+   "verdict": "supported",
+   "sources": [
+    "https://www.congress.gov/crs-product/LSB11301"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l02",
+   "claim": "Seila Law (2020): single director removable only for cause unconstitutional",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/591/19-7/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l02",
+   "claim": "Trump v. United States (2024) three-tier immunity",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/603/23-939/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l03",
+   "claim": "Wickard v. Filburn (1942) upheld limits on home-consumed wheat",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/317/111/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l03",
+   "claim": "Lopez (1995) struck Gun-Free School Zones Act; Morrison (2000) struck VAWA civil remedy",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/514/549/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l03",
+   "claim": "NFIB v. Sebelius (2012): mandate not Commerce Clause but upheld as tax",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/567/519/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l04",
+   "claim": "NFIB: seven justices found Medicaid expansion coercive",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/567/519/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l04",
+   "claim": "Murphy v. NCAA (2018) anticommandeering; Printz (1997); New York (1992)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/584/16-476/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l04",
+   "claim": "Reno v. Condon (2000) upheld DPPA; Garcia overruled National League of Cities (1985)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/528/141/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l05",
+   "claim": "National Pork Producers v. Ross (2023) rejected Prop 12 challenge, did not overrule Pike",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/598/21-468/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l05",
+   "claim": "City of Philadelphia v. New Jersey (1978) waste import ban struck",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/437/617/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l05",
+   "claim": "Arizona v. United States (2012) partly preempted SB1070",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/567/387/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l06",
+   "claim": "Ramos v. Louisiana (2020) unanimity; Edwards v. Vannoy (2021) not retroactive",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/593/18-5924/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l06",
+   "claim": "McDonald (2010) incorporated Second Amendment; Timbs (2019) Excessive Fines",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/561/742/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l06",
+   "claim": "Barron (1833); Slaughter-House (1873); Gitlow (1925); Duncan (1968)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/391/145/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l07",
+   "claim": "Halleck (2019): private operator of public access channels not state actor",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/587/17-1702/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l07",
+   "claim": "Burton (1961) state action; Blum and Rendell-Baker (1982) none; Brentwood (2001) yes",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/531/288/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l07",
+   "claim": "Shelley v. Kraemer (1948); Civil Rights Cases (1883); Marsh (1946)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/334/1/"
+   ],
+   "note": "Lesson says Thirteenth is the one provision not limited by state action; slight overstatement, core holdings correct"
+  },
+  {
+   "lessonId": "law-conlaw.l08",
+   "claim": "Dobbs (2022) overruled Roe and Casey; Glucksberg test",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/597/19-1392/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l08",
+   "claim": "Casey (1992) replaced trimester framework with undue burden; Griswold, Eisenstadt, Loving",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/505/833/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l08",
+   "claim": "Obergefell (2015) not overruled; Respect for Marriage Act 2022",
+   "verdict": "supported",
+   "sources": [
+    "https://www.congress.gov/bill/117th-congress/house-bill/8404"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l09",
+   "claim": "Goldberg (1970), Loudermill (1985), Mathews (1976), Roth (1972)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/470/532/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l09",
+   "claim": "Paul v. Davis (1976) stigma-plus; Sandin v. Conner (1995)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/515/472/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l09",
+   "claim": "Daniels v. Williams (1986) negligence is no deprivation; BMW v. Gore (1996); State Farm v. Campbell (2003)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/474/327/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l10",
+   "claim": "Skrmetti (2025): Tennessee law upheld under rational basis, transgender status class not decided",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/605/23-477/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l10",
+   "claim": "SFFA v. Harvard (2023) held Harvard and UNC programs violate equal protection",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/600/20-1199/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l10",
+   "claim": "Craig v. Boren (1976); Washington v. Davis (1976); Trump v. Hawaii (2018) disavowed Korematsu",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/429/190/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l11",
+   "claim": "Reed v. Town of Gilbert (2015) content-based sign code strict scrutiny",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/576/155/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l11",
+   "claim": "303 Creative v. Elenis (2023)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/600/21-476/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l11",
+   "claim": "Brandenburg (1969); NYT v. US (1971); Garcetti (2006); Summum (2009)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/395/444/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l12",
+   "claim": "Counterman v. Colorado (2023): recklessness minimum",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/600/22-138/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l12",
+   "claim": "TikTok v. Garland (2025) upheld divestiture law assuming intermediate scrutiny",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/604/24-656/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l12",
+   "claim": "Moody v. NetChoice (2024) vacated and remanded",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/603/22-277/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l13",
+   "claim": "Kennedy v. Bremerton (2022): Lemon abandoned, history and tradition",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/597/21-418/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l13",
+   "claim": "Carson v. Makin (2022); Espinoza (2020); Trinity Lutheran (2017)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/596/20-1088/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l13",
+   "claim": "Town of Greece (2014); American Legion (2019); Lee v. Weisman (1992); Engel (1962); Zelman (2002)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/572/565/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l14",
+   "claim": "Mahmoud v. Taylor (2025): parents entitled to opt-out, preliminary injunction posture",
+   "verdict": "supported",
+   "sources": [
+    "https://www.scotusblog.com/cases/mahmoud-v-taylor/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l14",
+   "claim": "Fulton v. Philadelphia (2021) not generally applicable, Smith not overruled",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/593/19-123/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l14",
+   "claim": "Smith (1990); Boerne (1997); Hobby Lobby (2014); Tandon (2021); Hosanna-Tabor (2012); OLG (2020)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/494/872/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l15",
+   "claim": "Trump v. CASA (2025): universal injunctions likely exceed equitable authority, complete relief",
+   "verdict": "supported",
+   "sources": [
+    "https://www.scotusblog.com/cases/trump-v-casa-inc/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l15",
+   "claim": "TransUnion v. Ramirez (2021); Spokeo (2016); Lujan (1992)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/594/413/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l15",
+   "claim": "Murthy v. Missouri (2024); FDA v. AHM (2024); US v. Texas (2023); Rucho (2019)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/602/23-411/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l16",
+   "claim": "Shelby County v. Holder (2013) struck coverage formula",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/570/529/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l16",
+   "claim": "Allen v. Milligan (2023) applied Section 2 to Alabama map",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/599/1/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l16",
+   "claim": "Seminole Tribe (1996); Alden (1999); Boerne (1997); Hibbs (2003); Lane (2004); Jones v. Mayer (1968)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/517/44/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l17",
+   "claim": "Bruen (2022) text-and-history test; Rahimi (2024) upheld 922(g)(8)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/597/1/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l17",
+   "claim": "Janus v. AFSCME (2018) overruled Abood; Heller (2008)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/585/878/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l17",
+   "claim": "Casey reaffirmed Roe; Dobbs overruled both; Loper Bright (2024) overruled Chevron",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/603/22-451/"
+   ],
+   "note": ""
+  }
+ ]
+}

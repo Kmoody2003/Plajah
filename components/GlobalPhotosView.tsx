@@ -1,5 +1,5 @@
-﻿import { createPortal } from 'react-dom';
-import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { gridSrc } from '../services/imageDerivatives';
 import { Photo, UserProfile, PhotoGallery } from '../types';
 import { useContextMenu, type MenuNode } from './ui/ContextMenu';
@@ -34,7 +34,11 @@ import {
   Pencil,
   Trash2,
   Loader2,
-  X
+  X,
+  Monitor,
+  FolderOpen,
+  Film,
+  Music
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchGlobalPhotos, favoritePhoto, followUser, auth, fetchThemePresets, updateUserProfile, fetchUserProfile, fetchUserProfiles, fetchUserPhotos } from '../services/backendService';
@@ -51,25 +55,43 @@ import SchoolView from './school/SchoolView';
 import PortfolioRoom from './photo/PortfolioRoom';
 import WeeklySalon from './photo/WeeklySalon';
 import PhotoCatalogWorkspace from './photo/PhotoCatalogWorkspace';
+import NativePhotoViewer from './photo/NativePhotoViewer';
+import {
+  scanWindowsLibrary,
+  pickWindowsFolder,
+  isWindowsApp,
+  type WindowsPickedFile
+} from '../services/windowsBridgeService';
 import { PHOTO_ART_SCHOOL } from '../data/photoArtCurriculum';
 import { PHOTO_IMPORT_SOURCES, PHOTOGRAPHER_PRO_FEATURES } from '../services/photoEditingService';
 import ChipRail from './ui/ChipRail';
 
+export type GlobalPhotosMode = 'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL' | 'SCHOOL' | 'SALON' | 'SYNTHETIC' | 'HYBRID' | 'CATALOG' | 'SPATIAL' | 'WINDOWS_PHOTOS';
+
 interface GlobalPhotosViewProps {
   onVisitUser: (uid: string) => void;
-  initialMode?: 'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL' | 'SCHOOL' | 'SALON' | 'SYNTHETIC' | 'HYBRID' | 'CATALOG' | 'SPATIAL';
+  initialMode?: GlobalPhotosMode;
   /** Opens the classical Art Museum (ArtGalleryView) — masters + open-access collections. */
   onOpenArtMuseum?: () => void;
+  initialActiveFile?: WindowsPickedFile | null;
+  initialFolderFiles?: WindowsPickedFile[];
 }
 
-const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initialMode = 'WATERFALL', onOpenArtMuseum }) => {
+const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
+  onVisitUser,
+  initialMode = 'WATERFALL',
+  onOpenArtMuseum,
+  initialActiveFile,
+  initialFolderFiles,
+}) => {
   const { isSpatialMode } = useSpatial();
   const { enabled: shellNext } = useShellNext();
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [mode, setMode] = useState<'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL' | 'SCHOOL' | 'SALON' | 'SYNTHETIC' | 'HYBRID' | 'CATALOG' | 'SPATIAL'>(initialMode);
+  const [mode, setMode] = useState<GlobalPhotosMode>(initialMode);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
+  const [showDepthAnalyzer, setShowDepthAnalyzer] = useState<boolean>(false);
   
   // Theme gallery state
   const [themes, setThemes] = useState<any[]>([]);
@@ -174,8 +196,100 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
     }
   };
 
+  // ── Windows Native Media Library State ──────────────────────────────────────
+  const [nativeViewerFile, setNativeViewerFile] = useState<WindowsPickedFile | null>(initialActiveFile || null);
+  const [nativeViewerList, setNativeViewerList] = useState<WindowsPickedFile[]>(
+    initialFolderFiles && initialFolderFiles.length ? initialFolderFiles : (initialActiveFile ? [initialActiveFile] : [])
+  );
+  const [windowsLibraryFiles, setWindowsLibraryFiles] = useState<WindowsPickedFile[]>(initialFolderFiles || []);
+  const [windowsLibrarySubfolders, setWindowsLibrarySubfolders] = useState<string[]>([]);
+  const [windowsLibraryFolder, setWindowsLibraryFolder] = useState<string>(() => {
+    if (initialFolderFiles?.[0]?.folderPath) return initialFolderFiles[0].folderPath;
+    if (initialActiveFile?.folderPath) return initialActiveFile.folderPath;
+    return '';
+  });
+  const [windowsLibraryType, setWindowsLibraryType] = useState<'pictures' | 'videos' | 'music'>('pictures');
+  const [windowsLibraryLoading, setWindowsLibraryLoading] = useState(false);
+  const [windowsFilterQuery, setWindowsFilterQuery] = useState('');
+  const [windowsActiveSubfolder, setWindowsActiveSubfolder] = useState<string | null>(null);
+
+  // Sync props if external file activation arrives
+  useEffect(() => {
+    if (initialFolderFiles && initialFolderFiles.length > 0) {
+      setWindowsLibraryFiles(initialFolderFiles);
+      if (initialFolderFiles[0]?.folderPath) {
+        setWindowsLibraryFolder(initialFolderFiles[0].folderPath);
+      }
+    }
+    if (initialActiveFile) {
+      setNativeViewerFile(initialActiveFile);
+      setNativeViewerList(initialFolderFiles && initialFolderFiles.length ? initialFolderFiles : [initialActiveFile]);
+    }
+  }, [initialFolderFiles, initialActiveFile]);
+
+  const loadWindowsLibrary = React.useCallback(async (type: 'pictures' | 'videos' | 'music' = 'pictures') => {
+    setWindowsLibraryLoading(true);
+    try {
+      const res = await scanWindowsLibrary(type);
+      if (res.success) {
+        setWindowsLibraryFiles(res.files || []);
+        setWindowsLibraryFolder(res.folderPath || '');
+        setWindowsLibrarySubfolders(res.subfolders || []);
+      }
+    } catch (e) {
+      console.warn('[GlobalPhotosView] scanWindowsLibrary failed:', e);
+    } finally {
+      setWindowsLibraryLoading(false);
+    }
+  }, []);
+
+  const handlePickCustomFolder = async () => {
+    const res = await pickWindowsFolder();
+    if (res && !res.cancelled && res.files) {
+      setWindowsLibraryFiles(res.files);
+      setWindowsLibraryFolder(res.folderPath || '');
+      setWindowsLibrarySubfolders([]);
+      setWindowsActiveSubfolder(null);
+    }
+  };
+
+  useEffect(() => {
+    if (mode === 'WINDOWS_PHOTOS') {
+      if (windowsLibraryFiles.length === 0) {
+        loadWindowsLibrary(windowsLibraryType);
+      }
+    }
+  }, [mode, windowsLibraryType, loadWindowsLibrary, windowsLibraryFiles.length]);
+
+  const filteredWindowsFiles = React.useMemo(() => {
+    let list = windowsLibraryFiles;
+    if (windowsActiveSubfolder) {
+      list = list.filter(f => (f.relativePath || f.fullPath).toLowerCase().includes(windowsActiveSubfolder.toLowerCase()));
+    }
+    if (windowsFilterQuery.trim()) {
+      const q = windowsFilterQuery.toLowerCase();
+      list = list.filter(f => f.name.toLowerCase().includes(q));
+    }
+    return list;
+  }, [windowsLibraryFiles, windowsActiveSubfolder, windowsFilterQuery]);
+
+  // Convert Windows native media files to Photo objects for the catalog workspace
+  const localPhotos = React.useMemo<Photo[]>(() => {
+    return filteredWindowsFiles.map((file, idx) => ({
+      id: file.fullPath || file.url || `local_media_${idx}`,
+      url: file.url,
+      title: file.name,
+      description: `${file.fullPath || file.name} · ${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+      ownerId: 'local',
+      timestamp: file.lastModified || Date.now(),
+      mediaType: file.name.match(/\.(mp4|mov|webm|mkv|m4v|avi)$/i) ? 'VIDEO' : 'IMAGE',
+      tags: ['local', 'windows', file.name.split('.').pop()?.toLowerCase() || 'media'],
+    }));
+  }, [filteredWindowsFiles]);
+
   useEffect(() => {
     const loadData = async () => {
+      if (mode === 'WINDOWS_PHOTOS') { setIsLoading(false); return; }
       if (mode === 'SOCIAL') { setIsLoading(false); return; } // FromSocialGallery loads its own data
       if (mode === 'SCHOOL') { setIsLoading(false); return; } // SchoolView loads its own progress
       if (mode === 'SALON') { setIsLoading(false); return; }  // WeeklySalon loads its own entries
@@ -294,10 +408,20 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
           >
             {badge && badge(photo)}
             {photo.mediaType === 'VIDEO' ? (
-              <SpatialMedia url={photo.url} type="VIDEO" className="w-full aspect-video" forceDepth={isSpatialMode} autoPlay muted loop />
-            ) : (
+              <video src={photo.url} className="w-full aspect-video object-cover" muted loop autoPlay playsInline />
+            ) : isSpatialMode ? (
               <div className="aspect-auto">
-                <SpatialImage url={photo.url} is3D={isSpatialMode} />
+                <SpatialImage url={photo.url} is3D={true} />
+              </div>
+            ) : (
+              <div className="aspect-auto overflow-hidden bg-white/5">
+                <img
+                  src={photo.url}
+                  alt={photo.title || ''}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500"
+                />
               </div>
             )}
 
@@ -356,13 +480,105 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
     </span>
   );
 
+  // ── Windows Photos Native Gallery Renderer ──────────────────────────────────
+  const renderWindowsPhotosView = () => (
+    <div className="space-y-4">
+      {windowsLibraryLoading ? (
+        <div className="py-32 flex flex-col items-center justify-center gap-4 text-white/40">
+          <Loader2 size={32} className="animate-spin text-[#FF8C00]" />
+          <p className="text-xs font-mono uppercase tracking-widest">Scanning Windows Library…</p>
+        </div>
+      ) : filteredWindowsFiles.length === 0 && windowsLibraryFiles.length === 0 ? (
+        <div className="py-28 text-center bg-white/[0.02] border border-dashed border-white/10 rounded-2xl p-8">
+          <Monitor size={48} className="mx-auto text-white/20 mb-4" />
+          <h4 className="text-base font-bold">No media found in this gallery</h4>
+          <p className="text-xs text-white/40 mt-1 max-w-sm mx-auto">
+            Choose a custom folder on your PC to browse your photos, videos, or audio files natively.
+          </p>
+          <button
+            onClick={handlePickCustomFolder}
+            className="mt-4 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D40055] to-[#FF8C00] text-white text-xs font-bold hover:scale-105 transition-transform"
+          >
+            Browse Folder on PC
+          </button>
+        </div>
+      ) : (
+        <PhotoCatalogWorkspace
+          photos={localPhotos}
+          initialView="catalog"
+          onEdit={(photo) => {
+            const found = windowsLibraryFiles.find(f => (f.fullPath || f.url) === photo.id || f.url === photo.url);
+            if (found) {
+              setNativeViewerFile(found);
+              setNativeViewerList(windowsLibraryFiles);
+            } else {
+              setEditingPhoto(photo);
+            }
+          }}
+          folderPath={windowsLibraryFolder}
+          folderName={windowsLibraryFolder ? windowsLibraryFolder.split(/[\\/]/).filter(Boolean).pop() : 'Pictures Library'}
+          subfolders={windowsLibrarySubfolders}
+          activeSubfolder={windowsActiveSubfolder}
+          onSelectSubfolder={setWindowsActiveSubfolder}
+          onPickFolder={handlePickCustomFolder}
+          onOpenViewer={(photo) => {
+            const found = windowsLibraryFiles.find(f => (f.fullPath || f.url) === photo.id || f.url === photo.url);
+            if (found) {
+              setNativeViewerFile(found);
+              setNativeViewerList(windowsLibraryFiles);
+            } else {
+              const synth: WindowsPickedFile = {
+                name: photo.title || 'Photo',
+                fullPath: photo.id.includes(':\\') ? photo.id : '',
+                url: photo.url,
+                size: 0,
+                lastModified: photo.timestamp,
+              };
+              setNativeViewerFile(synth);
+              setNativeViewerList(windowsLibraryFiles.length ? windowsLibraryFiles : [synth]);
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+
   // ── Shared mode body ────────────────────────────────────────────────────────
-  // The nine classic mode branches, rendered identically for flag-OFF and reused
+  // The classic mode branches, rendered identically for flag-OFF and reused
   // (for the non-Explore lenses) inside the Wall shell.
   const renderModeBody = () => (
     <>
-        {mode === 'CATALOG' || mode === 'SPATIAL' ? (
-          <PhotoCatalogWorkspace photos={photos} initialView={mode === 'SPATIAL' ? 'spatial' : 'catalog'} onEdit={setEditingPhoto} />
+        {mode === 'WINDOWS_PHOTOS' ? (
+          renderWindowsPhotosView()
+        ) : mode === 'CATALOG' || mode === 'SPATIAL' ? (
+          <PhotoCatalogWorkspace
+            photos={localPhotos.length > 0 && mode === 'CATALOG' ? localPhotos : photos}
+            initialView={mode === 'SPATIAL' ? 'spatial' : 'catalog'}
+            onEdit={setEditingPhoto}
+            folderPath={windowsLibraryFolder}
+            folderName={windowsLibraryFolder ? windowsLibraryFolder.split(/[\\/]/).filter(Boolean).pop() : undefined}
+            subfolders={windowsLibrarySubfolders}
+            activeSubfolder={windowsActiveSubfolder}
+            onSelectSubfolder={setWindowsActiveSubfolder}
+            onPickFolder={handlePickCustomFolder}
+            onOpenViewer={(photo) => {
+              const found = windowsLibraryFiles.find(f => (f.fullPath || f.url) === photo.id || f.url === photo.url);
+              if (found) {
+                setNativeViewerFile(found);
+                setNativeViewerList(windowsLibraryFiles);
+              } else {
+                const synth: WindowsPickedFile = {
+                  name: photo.title || 'Photo',
+                  fullPath: photo.id.includes(':\\') ? photo.id : '',
+                  url: photo.url,
+                  size: 0,
+                  lastModified: photo.timestamp,
+                };
+                setNativeViewerFile(synth);
+                setNativeViewerList([synth]);
+              }
+            }}
+          />
         ) : mode === 'SALON' ? (
           <WeeklySalon />
         ) : mode === 'SCHOOL' ? (
@@ -671,13 +887,19 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
               className="relative max-w-6xl w-full max-h-full flex flex-col lg:flex-row bg-white/5 rounded-[3rem] overflow-hidden border border-white/10 shadow-3xl"
               onClick={e => e.stopPropagation()}
             >
-              <div className="flex-1 bg-theme border-r border-theme flex items-center justify-center overflow-hidden">
+              <div className="flex-1 bg-theme border-r border-theme flex items-center justify-center overflow-hidden p-4">
                 {selectedPhoto.mediaType === 'VIDEO' ? (
-                  <SpatialMedia url={selectedPhoto.url} type="VIDEO" className="w-full h-full min-h-[50vh]" forceDepth={isSpatialMode} controls autoPlay muted={false} loop />
-                ) : (
+                  <video src={selectedPhoto.url} controls autoPlay loop className="max-w-full max-h-[75vh] object-contain rounded-2xl" />
+                ) : isSpatialMode ? (
                   <div className="w-full h-full p-4 lg:p-10">
-                    <SpatialImage url={selectedPhoto.url} is3D={isSpatialMode} />
+                    <SpatialImage url={selectedPhoto.url} is3D={true} />
                   </div>
+                ) : (
+                  <img
+                    src={selectedPhoto.url}
+                    alt={selectedPhoto.title || ''}
+                    className="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl transition-all"
+                  />
                 )}
               </div>
 
@@ -707,10 +929,26 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
 
                 <div>
                   <h2 className="text-2xl font-black uppercase tracking-tightest mb-4">{selectedPhoto.title || 'Untitled Signal'}</h2>
-                  <p className="text-sm font-medium text-white/60 leading-relaxed italic mb-8">
+                  <p className="text-sm font-medium text-white/60 leading-relaxed italic mb-4">
                     {selectedPhoto.description || 'No data transmitted with this signal.'}
                   </p>
-                  <DepthAnalyzer imageUrl={selectedPhoto.url} mediaType={selectedPhoto.mediaType === 'VIDEO' ? 'VIDEO' : 'IMAGE'} />
+                  
+                  {/* On-demand Spatial Depth Analyzer */}
+                  <div className="pt-2 border-t border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => setShowDepthAnalyzer(v => !v)}
+                      className="flex items-center gap-2 text-xs font-bold text-white/80 hover:text-white px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
+                    >
+                      <Sparkles size={14} className="text-[#FF8C00]" />
+                      <span>{showDepthAnalyzer ? 'Hide 3D Spatial Analysis' : 'Analyze 3D Spatial Depth'}</span>
+                    </button>
+                    {showDepthAnalyzer && (
+                      <div className="mt-3">
+                        <DepthAnalyzer imageUrl={selectedPhoto.url} mediaType={selectedPhoto.mediaType === 'VIDEO' ? 'VIDEO' : 'IMAGE'} />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-6 pt-6 border-t border-white/10">
@@ -788,7 +1026,8 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
   // ── THE WALL (flag-ON shell) ────────────────────────────────────────────────
   if (shellNext) {
     const lensActive =
-      (mode === 'WATERFALL' || mode === 'GALLERY') ? 'Explore'
+      mode === 'WINDOWS_PHOTOS' ? 'Windows'
+      : (mode === 'WATERFALL' || mode === 'GALLERY') ? 'Explore'
       : mode === 'PRO' ? 'Rooms'
       : mode === 'SOCIAL' ? 'Feed'
       : mode === 'SYNTHETIC' ? 'Synthetic'
@@ -799,6 +1038,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
 
     const lenses: { id: string; label: string; icon: React.ReactNode }[] = [
       { id: 'Explore', label: 'Explore', icon: <Compass size={14} /> },
+      { id: 'Windows', label: 'Windows Library', icon: <Monitor size={14} /> },
       { id: 'Rooms', label: 'Rooms', icon: <Frame size={14} /> },
       { id: 'Feed', label: 'Feed', icon: <Share2 size={14} /> },
       { id: 'Synthetic', label: 'Synthetic', icon: <Bot size={14} /> },
@@ -810,6 +1050,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
     const selectLens = (id: string) => {
       setMoreOpen(false);
       if (id === 'Explore') setMode('WATERFALL');
+      else if (id === 'Windows') setMode('WINDOWS_PHOTOS');
       else if (id === 'Rooms') setMode('PRO');
       else if (id === 'Feed') setMode('SOCIAL');
       else if (id === 'Synthetic') setMode('SYNTHETIC');
@@ -1058,6 +1299,30 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
 
         {renderOverlays()}
         {renderGalleriesModal()}
+        {nativeViewerFile && (
+          <NativePhotoViewer
+            initialFile={nativeViewerFile}
+            files={nativeViewerList.length ? nativeViewerList : [nativeViewerFile]}
+            onClose={() => setNativeViewerFile(null)}
+            onBackToCatalog={() => setNativeViewerFile(null)}
+            onSendToFabula={(f) => {
+              setNativeViewerFile(null);
+              window.dispatchEvent(new CustomEvent('OPEN_FABULA_MEDIA', { detail: { file: f } }));
+            }}
+            onSendToPixels={(f) => {
+              setNativeViewerFile(null);
+              window.dispatchEvent(new CustomEvent('OPEN_PIXELS_MEDIA', { detail: { file: f } }));
+            }}
+            onSendToCrossover={(f) => {
+              setNativeViewerFile(null);
+              window.dispatchEvent(new CustomEvent('OPEN_CROSSOVER_MEDIA', { detail: { file: f } }));
+            }}
+            onSendToTela={(f) => {
+              setNativeViewerFile(null);
+              window.dispatchEvent(new CustomEvent('OPEN_TELA_MEDIA', { detail: { file: f } }));
+            }}
+          />
+        )}
         </>}
       </div>
     );
@@ -1132,6 +1397,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
             className="self-start"
             items={[
               { id: 'WATERFALL', label: 'Waterfall', icon: <Camera size={13} /> },
+              { id: 'WINDOWS_PHOTOS', label: 'Windows Library', icon: <Monitor size={13} />, color: '#00DAF3' },
               { id: 'GALLERY', label: 'Art Gallery', icon: <Sparkles size={13} /> },
               { id: 'EVENTS', label: 'Events', icon: <QrCode size={13} /> },
               { id: 'IMPORTS', label: 'Import', icon: <Cloud size={13} /> },
@@ -1152,8 +1418,37 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
 
       {/* Main Mode Rendering */}
       <main className="px-6 lg:px-12">
-        {mode === 'CATALOG' || mode === 'SPATIAL' ? (
-          <PhotoCatalogWorkspace photos={photos} initialView={mode === 'SPATIAL' ? 'spatial' : 'catalog'} onEdit={setEditingPhoto} />
+        {mode === 'WINDOWS_PHOTOS' ? (
+          renderWindowsPhotosView()
+        ) : mode === 'CATALOG' || mode === 'SPATIAL' ? (
+          <PhotoCatalogWorkspace
+            photos={localPhotos.length > 0 && mode === 'CATALOG' ? localPhotos : photos}
+            initialView={mode === 'SPATIAL' ? 'spatial' : 'catalog'}
+            onEdit={setEditingPhoto}
+            folderPath={windowsLibraryFolder}
+            folderName={windowsLibraryFolder ? windowsLibraryFolder.split(/[\\/]/).filter(Boolean).pop() : undefined}
+            subfolders={windowsLibrarySubfolders}
+            activeSubfolder={windowsActiveSubfolder}
+            onSelectSubfolder={setWindowsActiveSubfolder}
+            onPickFolder={handlePickCustomFolder}
+            onOpenViewer={(photo) => {
+              const found = windowsLibraryFiles.find(f => (f.fullPath || f.url) === photo.id || f.url === photo.url);
+              if (found) {
+                setNativeViewerFile(found);
+                setNativeViewerList(windowsLibraryFiles);
+              } else {
+                const synth: WindowsPickedFile = {
+                  name: photo.title || 'Photo',
+                  fullPath: photo.id.includes(':\\') ? photo.id : '',
+                  url: photo.url,
+                  size: 0,
+                  lastModified: photo.timestamp,
+                };
+                setNativeViewerFile(synth);
+                setNativeViewerList([synth]);
+              }
+            }}
+          />
         ) : mode === 'SALON' ? (
           <WeeklySalon />
         ) : mode === 'SCHOOL' ? (
@@ -1301,10 +1596,20 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
                 onClick={() => setSelectedPhoto(photo)}
               >
                 {photo.mediaType === 'VIDEO' ? (
-                  <SpatialMedia url={photo.url} type="VIDEO" className="w-full aspect-video" forceDepth={isSpatialMode} autoPlay muted loop />
-                ) : (
+                  <video src={photo.url} className="w-full aspect-video object-cover" muted loop autoPlay playsInline />
+                ) : isSpatialMode ? (
                   <div className="aspect-auto">
-                    <SpatialImage url={photo.url} is3D={isSpatialMode} />
+                    <SpatialImage url={photo.url} is3D={true} />
+                  </div>
+                ) : (
+                  <div className="aspect-auto overflow-hidden bg-white/5">
+                    <img
+                      src={photo.url}
+                      alt={photo.title || ''}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
                   </div>
                 )}
                 
@@ -1432,13 +1737,19 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
               className="relative max-w-6xl w-full max-h-full flex flex-col lg:flex-row bg-white/5 rounded-[3rem] overflow-hidden border border-white/10 shadow-3xl"
               onClick={e => e.stopPropagation()}
             >
-              <div className="flex-1 bg-theme border-r border-theme flex items-center justify-center overflow-hidden">
+              <div className="flex-1 bg-theme border-r border-theme flex items-center justify-center overflow-hidden p-4">
                 {selectedPhoto.mediaType === 'VIDEO' ? (
-                  <SpatialMedia url={selectedPhoto.url} type="VIDEO" className="w-full h-full min-h-[50vh]" forceDepth={isSpatialMode} controls autoPlay muted={false} loop />
-                ) : (
+                  <video src={selectedPhoto.url} controls autoPlay loop className="max-w-full max-h-[75vh] object-contain rounded-2xl" />
+                ) : isSpatialMode ? (
                   <div className="w-full h-full p-4 lg:p-10">
-                    <SpatialImage url={selectedPhoto.url} is3D={isSpatialMode} />
+                    <SpatialImage url={selectedPhoto.url} is3D={true} />
                   </div>
+                ) : (
+                  <img
+                    src={selectedPhoto.url}
+                    alt={selectedPhoto.title || ''}
+                    className="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl transition-all"
+                  />
                 )}
               </div>
               
@@ -1468,10 +1779,26 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
 
                 <div>
                   <h2 className="text-2xl font-black uppercase tracking-tightest mb-4">{selectedPhoto.title || 'Untitled Signal'}</h2>
-                  <p className="text-sm font-medium text-white/60 leading-relaxed italic mb-8">
+                  <p className="text-sm font-medium text-white/60 leading-relaxed italic mb-4">
                     {selectedPhoto.description || 'No data transmitted with this signal.'}
                   </p>
-                  <DepthAnalyzer imageUrl={selectedPhoto.url} mediaType={selectedPhoto.mediaType === 'VIDEO' ? 'VIDEO' : 'IMAGE'} />
+                  
+                  {/* On-demand Spatial Depth Analyzer */}
+                  <div className="pt-2 border-t border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => setShowDepthAnalyzer(v => !v)}
+                      className="flex items-center gap-2 text-xs font-bold text-white/80 hover:text-white px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
+                    >
+                      <Sparkles size={14} className="text-[#FF8C00]" />
+                      <span>{showDepthAnalyzer ? 'Hide 3D Spatial Analysis' : 'Analyze 3D Spatial Depth'}</span>
+                    </button>
+                    {showDepthAnalyzer && (
+                      <div className="mt-3">
+                        <DepthAnalyzer imageUrl={selectedPhoto.url} mediaType={selectedPhoto.mediaType === 'VIDEO' ? 'VIDEO' : 'IMAGE'} />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-6 pt-6 border-t border-white/10">
@@ -1539,6 +1866,31 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({ onVisitUser, initia
           statement={room.statement}
           initialIndex={room.index}
           onClose={() => setRoom(null)}
+        />
+      )}
+
+      {nativeViewerFile && (
+        <NativePhotoViewer
+          initialFile={nativeViewerFile}
+          files={nativeViewerList.length ? nativeViewerList : [nativeViewerFile]}
+          onClose={() => setNativeViewerFile(null)}
+          onBackToCatalog={() => setNativeViewerFile(null)}
+          onSendToFabula={(f) => {
+            setNativeViewerFile(null);
+            window.dispatchEvent(new CustomEvent('OPEN_FABULA_MEDIA', { detail: { file: f } }));
+          }}
+          onSendToPixels={(f) => {
+            setNativeViewerFile(null);
+            window.dispatchEvent(new CustomEvent('OPEN_PIXELS_MEDIA', { detail: { file: f } }));
+          }}
+          onSendToCrossover={(f) => {
+            setNativeViewerFile(null);
+            window.dispatchEvent(new CustomEvent('OPEN_CROSSOVER_MEDIA', { detail: { file: f } }));
+          }}
+          onSendToTela={(f) => {
+            setNativeViewerFile(null);
+            window.dispatchEvent(new CustomEvent('OPEN_TELA_MEDIA', { detail: { file: f } }));
+          }}
         />
       )}
 

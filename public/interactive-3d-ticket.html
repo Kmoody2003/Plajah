@@ -1,0 +1,1294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Plajah · Realtime 3D Interactive E-Tickets & Evites</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&family=Georgia&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void: #05060a;
+    --panel-bg: rgba(14, 18, 28, 0.88);
+    --panel-border: rgba(0, 255, 170, 0.28);
+    --accent: #00ffaa;
+    --accent-glow: rgba(0, 255, 170, 0.4);
+    --gold: #d4af37;
+    --crimson: #ff2255;
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
+    --font-ui: 'Outfit', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--void);
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    user-select: none;
+  }
+  #webgl-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    cursor: grab;
+  }
+  #webgl-canvas:active { cursor: grabbing; }
+
+  /* Top Navigation Bar */
+  .top-bar {
+    position: absolute;
+    top: 20px;
+    left: 24px;
+    right: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .brand-group {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--panel-bg);
+    padding: 10px 18px;
+    border-radius: 40px;
+    border: 1px solid var(--panel-border);
+    backdrop-filter: blur(16px);
+  }
+  .brand-logo {
+    width: 28px;
+    height: 28px;
+    background: linear-gradient(135deg, var(--accent), #00aaff);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    color: #000;
+    font-size: 14px;
+  }
+  .brand-title {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .brand-badge {
+    background: rgba(0, 255, 170, 0.15);
+    color: var(--accent);
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+  }
+
+  .top-actions {
+    pointer-events: auto;
+    display: flex;
+    gap: 10px;
+  }
+  .btn-pill {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text-primary);
+    padding: 10px 18px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    backdrop-filter: blur(16px);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-pill:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 16px var(--accent-glow);
+    transform: translateY(-1px);
+  }
+  .btn-pill.primary {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+    font-weight: 700;
+  }
+  .btn-pill.primary:hover {
+    box-shadow: 0 0 24px var(--accent-glow);
+  }
+
+  /* Floating 3D Interaction Hints */
+  .center-hint {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10, 14, 22, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--text-muted);
+    backdrop-filter: blur(10px);
+    z-index: 10;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .center-hint kbd {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    color: #fff;
+    font-size: 11px;
+  }
+
+  /* Right-Hand Live Event & Project Inspector */
+  .inspector-panel {
+    position: absolute;
+    top: 90px;
+    right: 24px;
+    width: 360px;
+    max-height: calc(100vh - 120px);
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 20px;
+    backdrop-filter: blur(24px);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  }
+  .inspector-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .inspector-header h2 {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .status-tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 10px;
+    background: rgba(0, 255, 170, 0.15);
+    color: var(--accent);
+  }
+  .status-tag.checked-in {
+    background: rgba(0, 255, 170, 0.3);
+    color: #00ff88;
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+  }
+
+  .inspector-content {
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .form-group label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+  }
+  .form-group input, .form-group select {
+    background: rgba(5, 8, 14, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-group input:focus, .form-group select:focus {
+    border-color: var(--accent);
+  }
+
+  /* Project Link Box */
+  .project-bridge-box {
+    background: rgba(0, 255, 170, 0.04);
+    border: 1px solid rgba(0, 255, 170, 0.18);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .bridge-topline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--accent);
+    font-family: var(--font-mono);
+  }
+  .bridge-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .bridge-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* Perks Counter */
+  .perks-deck {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .perk-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+  }
+  .perk-badge {
+    background: rgba(0, 212, 255, 0.15);
+    color: #00d4ff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+
+  /* Left Floating Concept Quick-Bar */
+  .concept-rail {
+    position: absolute;
+    top: 90px;
+    left: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 10;
+  }
+  .concept-btn {
+    background: var(--panel-bg);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    backdrop-filter: blur(16px);
+    transition: all 0.2s ease;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 220px;
+  }
+  .concept-btn:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+  }
+  .concept-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0, 255, 170, 0.08);
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  /* Mobile Adjustments */
+  @media (max-width: 900px) {
+    .concept-rail { display: none; }
+    .inspector-panel { width: calc(100vw - 48px); top: auto; bottom: 80px; max-height: 45vh; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="webgl-canvas"></canvas>
+
+<!-- Top Navigation -->
+<header class="top-bar">
+  <div class="brand-group">
+    <div class="brand-logo">P</div>
+    <div class="brand-title">Tela 3D Pass</div>
+    <span class="brand-badge">REALTIME PBR</span>
+  </div>
+  <div class="top-actions">
+    <button class="btn-pill" id="btn-gyro"><span>📱 Tilt Gyro</span></button>
+    <button class="btn-pill" id="btn-export"><span>⬇ Export .html</span></button>
+    <button class="btn-pill" id="btn-share"><span>🔗 Share Link</span></button>
+    <button class="btn-pill" id="btn-audio"><span>▶ Audition Audio</span></button>
+    <button class="btn-pill" id="btn-orbit"><span>⟳ Auto-Rotate</span></button>
+    <button class="btn-pill primary" id="btn-flip"><span>⇄ Flip 3D (Back/Front)</span></button>
+  </div>
+</header>
+
+<!-- Concept Switcher Rail -->
+<nav class="concept-rail">
+  <button class="concept-btn active" data-concept="signal">
+    <span class="dot" style="background:#00ff66;"></span>
+    <div>
+      <div>Futura Fest 2077</div>
+      <small style="opacity:0.6;font-size:10px;">Neon Holographic Ticket</small>
+    </div>
+  </button>
+  <button class="concept-btn" data-concept="nocturne">
+    <span class="dot" style="background:#ffb834;"></span>
+    <div>
+      <div>Cosmic Nocturne</div>
+      <small style="opacity:0.6;font-size:10px;">Gold Celestial Astrolabe</small>
+    </div>
+  </button>
+  <button class="concept-btn" data-concept="tidal">
+    <span class="dot" style="background:#00f7d2;"></span>
+    <div>
+      <div>Bioluminescent Abyss</div>
+      <small style="opacity:0.6;font-size:10px;">Submerged Coral Hall</small>
+    </div>
+  </button>
+  <button class="concept-btn" data-concept="prism">
+    <span class="dot" style="background:#ff4400;"></span>
+    <div>
+      <div>Obsidian Prism</div>
+      <small style="opacity:0.6;font-size:10px;">Volcanic Laser Caldera</small>
+    </div>
+  </button>
+  <button class="concept-btn" data-concept="masque">
+    <span class="dot" style="background:#d4af37;"></span>
+    <div>
+      <div>Venetian Masquerade</div>
+      <small style="opacity:0.6;font-size:10px;">Ruby & Gold Velvet Evite</small>
+    </div>
+  </button>
+  <button class="concept-btn" data-concept="vow">
+    <span class="dot" style="background:#ff8ea8;"></span>
+    <div>
+      <div>Astral Union</div>
+      <small style="opacity:0.6;font-size:10px;">Rose-Gold Lake Evite</small>
+    </div>
+  </button>
+  <button class="concept-btn" data-concept="supper">
+    <span class="dot" style="background:#e8dccb;"></span>
+    <div>
+      <div>The Sensory Banquet</div>
+      <small style="opacity:0.6;font-size:10px;">Michelin Candlelight Evite</small>
+    </div>
+  </button>
+  <button class="concept-btn" data-concept="observatory">
+    <span class="dot" style="background:#38d9d8;"></span>
+    <div>
+      <div>Night Observatory</div>
+      <small style="opacity:0.6;font-size:10px;">Brass Galaxy Gala Evite</small>
+    </div>
+  </button>
+</nav>
+
+<!-- Live Event & Project Inspector -->
+<aside class="inspector-panel">
+  <div class="inspector-header">
+    <h2>Pass Ledger & Project Bridge</h2>
+    <span class="status-tag" id="status-badge">ACTIVE</span>
+  </div>
+  <div class="inspector-content">
+    
+    <!-- Bi-directional Project Link -->
+    <div class="project-bridge-box">
+      <div class="bridge-topline">
+        <span>LINKED CHORA PROJECT</span>
+        <span>PLJ-NODE://2077</span>
+      </div>
+      <div class="bridge-title" id="bridge-proj-title">Voltage Rising Master Suite</div>
+      <div class="bridge-meta">Created in Plajah Chora · Tied to 24-Track Stem Deck</div>
+      <button class="btn-pill" style="margin-top:6px;padding:6px 12px;font-size:11px;" onclick="alert('Bi-directional bridge: Opening linked stem project in Plajah Studio!')">
+        ↗ Open Project in Studio
+      </button>
+    </div>
+
+    <!-- Live Data Form -->
+    <div class="form-group">
+      <label>Attendee Name</label>
+      <input type="text" id="input-holder" value="Alex Mercer" />
+    </div>
+
+    <div class="form-group">
+      <label>Access Tier</label>
+      <select id="select-tier">
+        <option value="VIP KINETIC PASS">VIP Kinetic Pass (All-Stage)</option>
+        <option value="GENERAL ADMISSION">General Admission</option>
+        <option value="ARTIST ALL-ACCESS">Artist Backstage All-Access</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Holographic Iridescence</label>
+      <input type="range" id="slider-holo" min="0" max="1" step="0.05" value="0.85" />
+    </div>
+
+    <!-- Package Perks Tracker -->
+    <div class="perks-deck">
+      <label style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-muted);">Package Perks Tracker</label>
+      <div class="perk-row">
+        <span>VIP Soundcheck Entry</span>
+        <span class="perk-badge">1 / 1 Pass</span>
+      </div>
+      <div class="perk-row">
+        <span>Master Stem Pack Download</span>
+        <span class="perk-badge">1 / 1 Token</span>
+      </div>
+      <div class="perk-row">
+        <span>Craft Beverage Credits</span>
+        <span class="perk-badge" id="perk-drink">2 / 2 Drinks</span>
+      </div>
+    </div>
+
+    <!-- Simulate Check-In -->
+    <button class="btn-pill primary" id="btn-checkin" style="justify-content:center;margin-top:8px;">
+      ✓ Simulate Live Check-In
+    </button>
+  </div>
+</aside>
+
+<!-- Center Hint -->
+<div class="center-hint">
+  <span><kbd>Drag</kbd> to Rotate 3D</span>
+  <span><kbd>Spacebar</kbd> to Flip Pass</span>
+  <span><kbd>Hover</kbd> Gyroscope Tilt</span>
+</div>
+
+<!-- Three.js Standalone Global Bundle -->
+<script src="./three.global.js"></script>
+<script>
+(function() {
+  const THREE = window.THREE;
+
+  // ── 1. Data Store & Configuration ──
+  const THEMES = {
+    signal: {
+      title: 'FUTURA FEST 2077',
+      artist: 'MIRA SOL × CHORA',
+      venue: 'Neo-Kyoto Amphitheatre',
+      city: 'Neo-Kyoto',
+      date: 'FRI 08 – SUN 10 NOV 2077',
+      seat: 'VIP TIER A · SEAT 09',
+      project: 'Voltage Rising Master Suite',
+      palette: ['#040a0e', '#00ff66', '#ff2255', '#00d4ff'],
+      aspect: 900 / 420,
+      mode: 'ticket',
+      audioNotes: [36, 48, 51, 55, 60],
+      tempo: 130,
+      artworkSrc: 'template-review-assets/bold/bold_signal_ticket_1790723946899.jpg'
+    },
+    nocturne: {
+      title: 'COSMIC NOCTURNE',
+      artist: 'CHAMBER SYMPHONIC ASSEMBLY',
+      venue: 'The Celestial Observatory',
+      city: 'Equinox Sector',
+      date: 'SAT 24 OCT · 20:00 CET',
+      seat: 'ORBITAL TIER A-01',
+      project: 'Celestial Atlas Series VII',
+      palette: ['#060a18', '#ffb834', '#2858ff', '#f6eedb'],
+      aspect: 900 / 420,
+      mode: 'ticket',
+      audioNotes: [48, 55, 60, 64, 67, 72],
+      tempo: 68,
+      artworkSrc: 'template-review-assets/bold/bold_nocturne_ticket_1790723956271.jpg'
+    },
+    tidal: {
+      title: 'TIDAL ABYSS',
+      artist: 'PELAGIC SYMPHONIC SUITE',
+      venue: 'Mariana Trench Lab 04',
+      city: 'Sub-Pacific',
+      date: 'DEPTH: 3,200 METERS',
+      seat: 'BENTHIC SEAT A-22',
+      project: 'Bioluminescent Abyss Oceanics',
+      palette: ['#04101d', '#00f7d2', '#ff4998', '#ffffff'],
+      aspect: 900 / 420,
+      mode: 'ticket',
+      audioNotes: [41, 48, 53, 58, 65],
+      tempo: 74,
+      artworkSrc: 'template-review-assets/bold/bold_tidal_ticket_1790723971217.jpg'
+    },
+    prism: {
+      title: 'PRISM CINEMA',
+      artist: 'EXPANDED 70MM MONOLITH',
+      venue: 'Volcanic Caldera Dome',
+      city: 'Caldera 01',
+      date: 'PREMIERE SCREENING 2026',
+      seat: 'SPECTRAL PR-1',
+      project: 'Volcanic Plasma Soundstage',
+      palette: ['#0a0a0d', '#ffd700', '#00f2ff', '#ff2255'],
+      aspect: 900 / 420,
+      mode: 'ticket',
+      audioNotes: [45, 52, 57, 60, 69],
+      tempo: 84,
+      artworkSrc: 'template-review-assets/bold/bold_prism_ticket_1790723980351.jpg'
+    },
+    masque: {
+      title: 'Venetian Masquerade',
+      artist: 'PALAZZO SERENISSIMA',
+      venue: 'Grand Canal Ballroom',
+      city: 'Venice, Italy',
+      date: 'SAT 26 OCT · DOORS 20:00',
+      seat: 'RESERVED PRIVÉ',
+      project: 'Velvet Hour Theatrical Suite',
+      palette: ['#14061f', '#d4af37', '#800020', '#f6e2b8'],
+      aspect: 600 / 800,
+      mode: 'evite',
+      audioNotes: [45, 52, 57, 60, 64, 69],
+      tempo: 64,
+      artworkSrc: 'template-review-assets/bold/bold_masque_evite_1790723999431.jpg'
+    },
+    vow: {
+      title: 'Together, Always',
+      artist: 'MIRA & ELLIS',
+      venue: 'Lake Te Anau Sanctuary',
+      city: 'New Zealand',
+      date: 'SAT 18 OCT · 17:00',
+      seat: 'HONORED GUEST',
+      project: 'Modern Vow Ceremony Archive',
+      palette: ['#1f0d1b', '#ff8ea8', '#ffb066', '#fdf5eb'],
+      aspect: 600 / 800,
+      mode: 'evite',
+      audioNotes: [48, 55, 60, 64, 67],
+      tempo: 60,
+      artworkSrc: 'template-review-assets/bold/bold_vow_evite_1790724009106.jpg'
+    },
+    supper: {
+      title: 'The Sensory Banquet',
+      artist: 'CHEF ALEXANDRE VALOIS',
+      venue: 'La Réserve Obsidienne',
+      city: 'Paris, France',
+      date: 'THU 19 OCT · 19:30',
+      seat: 'TABLE RESERVED · SEAT 04',
+      project: 'Sensory Alchemy Culinary Lab',
+      palette: ['#0e0b12', '#d4af37', '#8b1e2a', '#eedbc2'],
+      aspect: 600 / 800,
+      mode: 'evite',
+      audioNotes: [48, 52, 55, 60, 67],
+      tempo: 72,
+      artworkSrc: 'template-review-assets/bold/bold_supper_evite_1790724069863.jpg'
+    },
+    observatory: {
+      title: 'Night Observatory',
+      artist: 'CELESTIAL SOCIETY',
+      venue: 'Mount Wilson Dome',
+      city: 'California',
+      date: 'FRI 21 NOV · 20:00',
+      seat: 'OBSERVATORY PASS',
+      project: 'Stargaze Astrolabe Research',
+      palette: ['#070912', '#e5b869', '#38d9d8', '#f6eedb'],
+      aspect: 600 / 800,
+      mode: 'evite',
+      audioNotes: [48, 55, 60, 67, 72],
+      tempo: 66,
+      artworkSrc: 'template-review-assets/bold/bold_observatory_evite_1790724105534.jpg'
+    }
+  };
+
+  // Image preloading cache
+  const loadedArtworks = {};
+  Object.keys(THEMES).forEach(k => {
+    const img = new Image();
+    img.src = THEMES[k].artworkSrc;
+    img.onload = () => {
+      loadedArtworks[k] = img;
+      if (k === activeThemeKey) updateTextures();
+    };
+  });
+
+  let activeThemeKey = 'signal';
+  let activeTheme = THEMES[activeThemeKey];
+  let isFlipped = false;
+  let isAutoRotate = true;
+  let isCheckedIn = false;
+  let holderName = 'Alex Mercer';
+  let tierName = 'VIP KINETIC PASS';
+  let holoIntensity = 0.85;
+
+  // ── 2. Canvas & Three.js Renderer Setup ──
+  const canvas = document.getElementById('webgl-canvas');
+  const renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: true,
+    powerPreference: 'high-performance'
+  });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.35;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x05060a);
+  scene.fog = new THREE.FogExp2(0x05060a, 0.055);
+
+  const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(0, 0.4, 5.2);
+
+  // ── 3. Lighting: 3-Point Studio + Dynamic Mouse Spotlight ──
+  const ambientLight = new THREE.AmbientLight(0x0f1522, 1.8);
+  scene.add(ambientLight);
+
+  const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
+  keyLight.position.set(3, 5, 4);
+  keyLight.castShadow = true;
+  keyLight.shadow.mapSize.width = 1024;
+  keyLight.shadow.mapSize.height = 1024;
+  keyLight.shadow.bias = -0.0001;
+  scene.add(keyLight);
+
+  const rimLight1 = new THREE.DirectionalLight(0x00ffaa, 3.0);
+  rimLight1.position.set(-4, -2, -3);
+  scene.add(rimLight1);
+
+  const rimLight2 = new THREE.DirectionalLight(0xff0066, 2.0);
+  rimLight2.position.set(4, 2, -3);
+  scene.add(rimLight2);
+
+  const pointerLight = new THREE.PointLight(0xffffff, 2.0, 8);
+  pointerLight.position.set(0, 0, 3);
+  scene.add(pointerLight);
+
+  // ── 4. Ground: Polished Dark Obsidian Reflective Floor ──
+  const floorGeo = new THREE.PlaneGeometry(30, 30);
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: 0x07090e,
+    roughness: 0.15,
+    metalness: 0.8
+  });
+  const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+  floorMesh.rotation.x = -Math.PI / 2;
+  floorMesh.position.y = -1.6;
+  floorMesh.receiveShadow = true;
+  scene.add(floorMesh);
+
+  // Background laser sweeps / particle dust
+  const particleCount = 200;
+  const particleGeo = new THREE.BufferGeometry();
+  const particlePositions = new Float32Array(particleCount * 3);
+  for (let i = 0; i < particleCount * 3; i += 3) {
+    particlePositions[i] = (Math.random() - 0.5) * 14;
+    particlePositions[i + 1] = Math.random() * 8 - 1.5;
+    particlePositions[i + 2] = (Math.random() - 0.5) * 10;
+  }
+  particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+  const particleMat = new THREE.PointsMaterial({
+    color: 0x00ffaa,
+    size: 0.04,
+    transparent: true,
+    opacity: 0.5
+  });
+  const particlePoints = new THREE.Points(particleGeo, particleMat);
+  scene.add(particlePoints);
+
+  // ── 5. Offscreen Canvas Texture Generators ──
+  const frontCanvas = document.createElement('canvas');
+  frontCanvas.width = 1024;
+  frontCanvas.height = 512;
+  const frontCtx = frontCanvas.getContext('2d');
+  const frontTexture = new THREE.CanvasTexture(frontCanvas);
+  frontTexture.anisotropy = 8;
+
+  const backCanvas = document.createElement('canvas');
+  backCanvas.width = 1024;
+  backCanvas.height = 512;
+  const backCtx = backCanvas.getContext('2d');
+  const backTexture = new THREE.CanvasTexture(backCanvas);
+  backTexture.anisotropy = 8;
+
+  function updateTextures() {
+    const t = activeTheme;
+    const [bgDark, accent1, accent2, textLight] = t.palette;
+
+    // --- FRONT TEXTURE ---
+    frontCtx.fillStyle = bgDark;
+    frontCtx.fillRect(0, 0, 1024, 512);
+
+    // If preloaded artwork is available, composite it
+    const art = loadedArtworks[activeThemeKey];
+    if (art && art.complete && art.naturalWidth > 0) {
+      frontCtx.save();
+      frontCtx.drawImage(art, 0, 0, 1024, 512);
+      // Darkened overlay for pristine vector text contrast
+      frontCtx.fillStyle = 'rgba(5, 8, 14, 0.45)';
+      frontCtx.fillRect(0, 0, 1024, 512);
+      frontCtx.restore();
+    } else {
+      // Vignette & glow fallback
+      const grad = frontCtx.createRadialGradient(512, 256, 40, 512, 256, 500);
+      grad.addColorStop(0, accent1 + '22');
+      grad.addColorStop(1, '#000000aa');
+      frontCtx.fillStyle = grad;
+      frontCtx.fillRect(0, 0, 1024, 512);
+    }
+
+    // Border
+    frontCtx.strokeStyle = accent1;
+    frontCtx.lineWidth = 8;
+    frontCtx.strokeRect(20, 20, 984, 472);
+
+    // Corner cutouts
+    frontCtx.fillStyle = '#05060a';
+    frontCtx.beginPath();
+    frontCtx.arc(20, 256, 30, -Math.PI / 2, Math.PI / 2);
+    frontCtx.fill();
+    frontCtx.stroke();
+
+    frontCtx.beginPath();
+    frontCtx.arc(1004, 256, 30, Math.PI / 2, -Math.PI / 2);
+    frontCtx.fill();
+    frontCtx.stroke();
+
+    // Pass Brand Header
+    frontCtx.fillStyle = accent1;
+    frontCtx.font = 'bold 22px monospace';
+    frontCtx.fillText('PLAJAH CHORA // VERIFIED E-PASS', 60, 75);
+
+    frontCtx.fillStyle = '#ffffff';
+    frontCtx.font = 'bold 15px monospace';
+    frontCtx.textAlign = 'right';
+    frontCtx.fillText(`NONCE: ${Math.floor(Date.now() / 10000).toString(16).toUpperCase()}`, 960, 75);
+    frontCtx.textAlign = 'left';
+
+    // Title
+    frontCtx.fillStyle = '#ffffff';
+    frontCtx.font = '900 48px Outfit, sans-serif';
+    frontCtx.fillText(t.title, 60, 155);
+
+    // Artist & Venue
+    frontCtx.fillStyle = accent2;
+    frontCtx.font = 'bold 22px Outfit, sans-serif';
+    frontCtx.fillText(`${t.artist} · ${t.venue}`, 60, 205);
+
+    // Divider
+    frontCtx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    frontCtx.lineWidth = 2;
+    frontCtx.beginPath();
+    frontCtx.moveTo(60, 245);
+    frontCtx.lineTo(964, 245);
+    frontCtx.stroke();
+
+    // Data Columns
+    frontCtx.fillStyle = '#94a3b8';
+    frontCtx.font = '13px monospace';
+    frontCtx.fillText('DATE & TIME', 60, 290);
+    frontCtx.fillText('ACCESS TIER', 380, 290);
+    frontCtx.fillText('ATTENDEE', 700, 290);
+
+    frontCtx.fillStyle = '#ffffff';
+    frontCtx.font = 'bold 20px Outfit, sans-serif';
+    frontCtx.fillText(t.date, 60, 325);
+    frontCtx.fillText(tierName, 380, 325);
+    frontCtx.fillText(holderName, 700, 325);
+
+    // Stub Separator
+    frontCtx.strokeStyle = accent1;
+    frontCtx.lineWidth = 3;
+    frontCtx.setLineDash([8, 8]);
+    frontCtx.beginPath();
+    frontCtx.moveTo(760, 30);
+    frontCtx.lineTo(760, 482);
+    frontCtx.stroke();
+    frontCtx.setLineDash([]);
+
+    // Stub Admit Content
+    frontCtx.fillStyle = accent1;
+    frontCtx.font = 'bold 18px monospace';
+    frontCtx.fillText('ADMIT', 790, 80);
+
+    frontCtx.fillStyle = '#ffffff';
+    frontCtx.font = '900 68px Outfit, sans-serif';
+    frontCtx.fillText('01', 785, 160);
+
+    frontCtx.fillStyle = isCheckedIn ? '#00ff66' : accent2;
+    frontCtx.font = 'bold 14px monospace';
+    frontCtx.fillText(isCheckedIn ? '✓ CHECKED IN' : '• ACTIVE', 790, 215);
+
+    frontCtx.fillStyle = '#94a3b8';
+    frontCtx.font = '13px monospace';
+    frontCtx.fillText(t.seat, 790, 325);
+
+    frontTexture.needsUpdate = true;
+
+    // --- BACK TEXTURE ---
+    backCtx.fillStyle = '#08090f';
+    backCtx.fillRect(0, 0, 1024, 512);
+
+    // Grid lines
+    backCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    backCtx.lineWidth = 1;
+    for (let x = 0; x < 1024; x += 40) {
+      backCtx.beginPath(); backCtx.moveTo(x, 0); backCtx.lineTo(x, 512); backCtx.stroke();
+    }
+    for (let y = 0; y < 512; y += 40) {
+      backCtx.beginPath(); backCtx.moveTo(0, y); backCtx.lineTo(1024, y); backCtx.stroke();
+    }
+
+    // Border
+    backCtx.strokeStyle = accent2;
+    backCtx.lineWidth = 6;
+    backCtx.strokeRect(20, 20, 984, 472);
+
+    // Header
+    backCtx.fillStyle = accent2;
+    backCtx.font = 'bold 20px monospace';
+    backCtx.fillText('SECURITY LEDGER // CRYPTOGRAPHIC ADMISSION PROOF', 60, 70);
+
+    backCtx.fillStyle = '#94a3b8';
+    backCtx.font = '13px monospace';
+    backCtx.fillText(`PROJECT ID: ${t.project}`, 60, 105);
+    backCtx.fillText(`CONTRACT HASH: SHA256:0x7F9B4D2A...E901`, 60, 130);
+
+    // QR Code Simulation
+    const qx = 760, qy = 70;
+    backCtx.fillStyle = '#ffffff';
+    backCtx.fillRect(qx, qy, 190, 190);
+
+    backCtx.fillStyle = '#000000';
+    backCtx.fillRect(qx + 12, qy + 12, 50, 50);
+    backCtx.fillRect(qx + 128, qy + 12, 50, 50);
+    backCtx.fillRect(qx + 12, qy + 128, 50, 50);
+
+    backCtx.fillStyle = '#ffffff';
+    backCtx.fillRect(qx + 22, qy + 22, 30, 30);
+    backCtx.fillRect(qx + 138, qy + 22, 30, 30);
+    backCtx.fillRect(qx + 22, qy + 138, 30, 30);
+
+    backCtx.fillStyle = '#000000';
+    for (let i = 0; i < 48; i++) {
+      const rx = qx + 70 + ((i * 19) % 100);
+      const ry = qy + 25 + ((i * 29) % 145);
+      backCtx.fillRect(rx, ry, 7, 7);
+    }
+
+    backCtx.fillStyle = '#ffffff';
+    backCtx.font = 'bold 12px monospace';
+    backCtx.textAlign = 'center';
+    backCtx.fillText('SCAN TO VERIFY', qx + 95, qy + 215);
+    backCtx.textAlign = 'left';
+
+    // Perks Section
+    backCtx.fillStyle = '#ffffff';
+    backCtx.font = 'bold 18px Outfit, sans-serif';
+    backCtx.fillText('PROJECT ADD-ON PRIVILEGES:', 60, 185);
+
+    const perks = [
+      '• VIP Stage Soundcheck & Artist Reception  [ 1 / 1 PASS ]',
+      '• 24-Track Uncompressed Stem Master Token  [ 1 / 1 TOKEN ]',
+      '• Complimentary Craft Cocktail Credits  [ 2 / 2 DRINKS ]'
+    ];
+    perks.forEach((p, idx) => {
+      backCtx.fillStyle = accent1;
+      backCtx.font = 'bold 14px monospace';
+      backCtx.fillText(p, 60, 225 + idx * 36);
+    });
+
+    // Security Footer
+    backCtx.fillStyle = '#64748b';
+    backCtx.font = '12px Outfit, sans-serif';
+    backCtx.fillText('Cryptographic dynamic e-ticket. Rotates verification heartbeat every 10 seconds.', 60, 430);
+    backCtx.fillText('Screenshot attempts void admittance. Powered by Plajah Chora Event Engine.', 60, 452);
+
+    backTexture.needsUpdate = true;
+  }
+
+  // ── 6. 3D Physical Ticket Mesh Construction ──
+  // Rounded Box with front/back distinct materials
+  const ticketWidth = 3.6;
+  const ticketHeight = ticketWidth / activeTheme.aspect;
+  const ticketDepth = 0.06;
+
+  const ticketGeo = new THREE.BoxGeometry(ticketWidth, ticketHeight, ticketDepth, 4, 4, 1);
+
+  // Materials: Front, Back, Edges
+  const edgeMat = new THREE.MeshPhysicalMaterial({
+    color: 0x00ffaa,
+    emissive: 0x002211,
+    metalness: 0.95,
+    roughness: 0.1,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.05
+  });
+
+  const frontMat = new THREE.MeshPhysicalMaterial({
+    map: frontTexture,
+    metalness: 0.4,
+    roughness: 0.15,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.08,
+    reflectivity: 0.9
+  });
+
+  const backMat = new THREE.MeshPhysicalMaterial({
+    map: backTexture,
+    metalness: 0.7,
+    roughness: 0.2,
+    clearcoat: 0.8,
+    clearcoatRoughness: 0.15
+  });
+
+  // BoxGeometry order: [+X, -X, +Y, -Y, +Z (Front), -Z (Back)]
+  const ticketMaterials = [
+    edgeMat, edgeMat, edgeMat, edgeMat,
+    frontMat, backMat
+  ];
+
+  const ticketGroup = new THREE.Group();
+  const ticketMesh = new THREE.Mesh(ticketGeo, ticketMaterials);
+  ticketMesh.castShadow = true;
+  ticketMesh.receiveShadow = true;
+  ticketGroup.add(ticketMesh);
+  scene.add(ticketGroup);
+
+  // Initial Texture Render
+  updateTextures();
+
+  // ── 7. Interactive Physics & Inertial Controls ──
+  let targetRotY = 0;
+  let targetRotX = 0;
+  let currentRotY = 0;
+  let currentRotX = 0;
+  let isDragging = false;
+  let prevMouseX = 0;
+  let prevMouseY = 0;
+
+  window.addEventListener('mousedown', (e) => {
+    if (e.target.id === 'webgl-canvas') {
+      isDragging = true;
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
+    }
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    // Dynamic pointer spotlight
+    const ndcX = (e.clientX / window.innerWidth) * 2 - 1;
+    const ndcY = -(e.clientY / window.innerHeight) * 2 + 1;
+    pointerLight.position.x = ndcX * 3.5;
+    pointerLight.position.y = ndcY * 2.5;
+
+    if (isDragging) {
+      const deltaX = e.clientX - prevMouseX;
+      const deltaY = e.clientY - prevMouseY;
+      targetRotY += deltaX * 0.008;
+      targetRotX += deltaY * 0.008;
+      targetRotX = Math.max(-0.6, Math.min(0.6, targetRotX));
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
+    } else {
+      // Subtle hovering gyroscope tilt
+      if (!isFlipped) {
+        targetRotX = -ndcY * 0.22;
+        targetRotY = ndcX * 0.35;
+      }
+    }
+  });
+
+  window.addEventListener('mouseup', () => { isDragging = false; });
+
+  // Touch Support
+  window.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      isDragging = true;
+      prevMouseX = e.touches[0].clientX;
+      prevMouseY = e.touches[0].clientY;
+    }
+  });
+  window.addEventListener('touchmove', (e) => {
+    if (isDragging && e.touches.length === 1) {
+      const deltaX = e.touches[0].clientX - prevMouseX;
+      const deltaY = e.touches[0].clientY - prevMouseY;
+      targetRotY += deltaX * 0.01;
+      targetRotX += deltaY * 0.01;
+      prevMouseX = e.touches[0].clientX;
+      prevMouseY = e.touches[0].clientY;
+    }
+  });
+  window.addEventListener('touchend', () => { isDragging = false; });
+
+  // ── 8. UI Buttons & Event Handlers ──
+  const btnFlip = document.getElementById('btn-flip');
+  function toggleFlip() {
+    isFlipped = !isFlipped;
+    targetRotY = isFlipped ? Math.PI : 0;
+    targetRotX = 0;
+  }
+  btnFlip.addEventListener('click', toggleFlip);
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      toggleFlip();
+    }
+  });
+
+  const btnOrbit = document.getElementById('btn-orbit');
+  btnOrbit.addEventListener('click', () => {
+    isAutoRotate = !isAutoRotate;
+    btnOrbit.style.borderColor = isAutoRotate ? 'var(--accent)' : 'rgba(255,255,255,0.2)';
+  });
+
+  // Mobile Gyroscope Listener
+  let isGyroActive = false;
+  const btnGyro = document.getElementById('btn-gyro');
+  btnGyro.addEventListener('click', () => {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission().then(state => {
+        if (state === 'granted') activateGyro();
+      });
+    } else {
+      activateGyro();
+    }
+  });
+
+  function activateGyro() {
+    isGyroActive = true;
+    isAutoRotate = false;
+    btnGyro.style.borderColor = 'var(--accent)';
+    btnGyro.style.color = 'var(--accent)';
+    window.addEventListener('deviceorientation', (e) => {
+      if (e.gamma !== null && e.beta !== null && !isDragging) {
+        const tiltX = (e.gamma / 45); // Left/Right
+        const tiltY = ((e.beta - 45) / 45); // Front/Back
+        targetRotY = (isFlipped ? Math.PI : 0) + tiltX * 0.6;
+        targetRotX = Math.max(-0.6, Math.min(0.6, tiltY * 0.4));
+      }
+    });
+  }
+
+  // Standalone HTML Pass Exporter
+  const btnExport = document.getElementById('btn-export');
+  btnExport.addEventListener('click', () => {
+    const config = {
+      eventId: 'evt-2077',
+      projectId: 'proj-voltage-rising',
+      projectTitle: activeTheme.project,
+      eventTitle: activeTheme.title,
+      artistName: activeTheme.artist,
+      venueName: activeTheme.venue,
+      city: activeTheme.city,
+      dateTime: activeTheme.date,
+      tierName,
+      ticketNumber: 'PLJ-770349-X',
+      holderName,
+      seatInfo: activeTheme.seat,
+      status: isCheckedIn ? 'CHECKED_IN' : 'ACTIVE',
+      palette: activeTheme.palette,
+      hologramIntensity: holoIntensity,
+      themeId: activeThemeKey,
+      mode: activeTheme.mode,
+      packages: []
+    };
+    const htmlContent = document.documentElement.outerHTML;
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${config.ticketNumber}-${activeThemeKey}-interactive-pass.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // Shareable Link Copier
+  const btnShare = document.getElementById('btn-share');
+  btnShare.addEventListener('click', () => {
+    const shareUrl = `${window.location.origin}${window.location.pathname}#theme=${activeThemeKey}&tier=${encodeURIComponent(tierName)}&name=${encodeURIComponent(holderName)}`;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      const orig = btnShare.innerHTML;
+      btnShare.innerHTML = '<span>✓ Copied 3D Link!</span>';
+      setTimeout(() => { btnShare.innerHTML = orig; }, 2000);
+    });
+  });
+
+  // Check-In Simulation
+  const btnCheckin = document.getElementById('btn-checkin');
+  const statusBadge = document.getElementById('status-badge');
+  btnCheckin.addEventListener('click', () => {
+    isCheckedIn = true;
+    statusBadge.textContent = 'CHECKED IN';
+    statusBadge.classList.add('checked-in');
+    btnCheckin.textContent = '✓ Admitted to Venue';
+    btnCheckin.disabled = true;
+    btnCheckin.style.opacity = '0.7';
+
+    // Celebration light burst
+    pointerLight.intensity = 8.0;
+    setTimeout(() => { pointerLight.intensity = 2.0; }, 600);
+
+    // Audio confirmation chime
+    playTone(523.25, 0.15, 'sine');
+    setTimeout(() => playTone(659.25, 0.15, 'sine'), 100);
+    setTimeout(() => playTone(783.99, 0.35, 'sine'), 200);
+
+    updateTextures();
+  });
+
+  // Inputs
+  const inputHolder = document.getElementById('input-holder');
+  inputHolder.addEventListener('input', (e) => {
+    holderName = e.target.value || 'Verified Guest';
+    updateTextures();
+  });
+
+  const selectTier = document.getElementById('select-tier');
+  selectTier.addEventListener('change', (e) => {
+    tierName = e.target.value;
+    updateTextures();
+  });
+
+  const sliderHolo = document.getElementById('slider-holo');
+  sliderHolo.addEventListener('input', (e) => {
+    holoIntensity = parseFloat(e.target.value);
+    frontMat.reflectivity = holoIntensity;
+    frontMat.roughness = 0.25 - holoIntensity * 0.15;
+  });
+
+  // Concept Quick Switcher
+  const conceptBtns = document.querySelectorAll('.concept-btn');
+  conceptBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      conceptBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const conceptKey = btn.dataset.concept;
+      activeThemeKey = conceptKey;
+      activeTheme = THEMES[conceptKey];
+
+      // Update Project Box Info
+      document.getElementById('bridge-proj-title').textContent = activeTheme.project;
+
+      // Update Geometry Dimensions if Aspect Ratio Changes
+      const newHeight = ticketWidth / activeTheme.aspect;
+      ticketMesh.geometry.dispose();
+      ticketMesh.geometry = new THREE.BoxGeometry(ticketWidth, newHeight, ticketDepth, 4, 4, 1);
+
+      // Update Rim Light Colors
+      rimLight1.color.set(activeTheme.palette[1]);
+      rimLight2.color.set(activeTheme.palette[2]);
+      edgeMat.color.set(activeTheme.palette[1]);
+
+      updateTextures();
+
+      // Play thematic chord
+      auditionThemeAudio();
+    });
+  });
+
+  // ── 9. Procedural Web Audio Synthesizer ──
+  let audioCtx = null;
+  function getAudioContext() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    return audioCtx;
+  }
+
+  function playTone(freq, dur, type = 'sine') {
+    const ctx = getAudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + dur);
+  }
+
+  function auditionThemeAudio() {
+    const notes = activeTheme.audioNotes;
+    const tempo = activeTheme.tempo;
+    const beat = 60 / tempo;
+    notes.forEach((midi, i) => {
+      const freq = 440 * Math.pow(2, (midi - 69) / 12);
+      setTimeout(() => {
+        playTone(freq, beat * 1.5, activeTheme.mode === 'ticket' ? 'sawtooth' : 'sine');
+      }, i * beat * 350);
+    });
+  }
+
+  document.getElementById('btn-audio').addEventListener('click', auditionThemeAudio);
+
+  // ── 10. Main Render Loop ──
+  let clock = new THREE.Clock();
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+    const elapsed = clock.getElapsedTime();
+
+    // Auto-orbit rotation
+    if (isAutoRotate && !isDragging) {
+      targetRotY += 0.35 * delta;
+    }
+
+    // Spring physics damping
+    currentRotX += (targetRotX - currentRotX) * 0.08;
+    currentRotY += (targetRotY - currentRotY) * 0.08;
+
+    ticketGroup.rotation.x = currentRotX;
+    ticketGroup.rotation.y = currentRotY;
+
+    // Levitation hover
+    ticketGroup.position.y = Math.sin(elapsed * 1.8) * 0.08;
+
+    // Particle drift
+    particlePoints.rotation.y = elapsed * 0.02;
+
+    renderer.render(scene, camera);
+  }
+
+  animate();
+
+  // Resize Handler
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+})();
+</script>
+</body>
+</html>

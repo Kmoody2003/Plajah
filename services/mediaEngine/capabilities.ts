@@ -38,15 +38,17 @@ export function detectCapabilities(): Capabilities {
   }
 
   const isTauri = typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
+  const isWinUI = typeof window !== 'undefined' && !!(window as any).__PLAJAH_WINUI__;
   const isCapacitor = typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
 
   if (isTauri) {
-    // Desktop native: DeckLink/NDI/SRT/RTMP/BRAW available on Win/macOS/Linux.
+    // Desktop native: DeckLink/NDI/OMT/SRT/AVB/RTMP/BRAW available on Win/macOS/Linux.
     const desktop = platform === 'windows' || platform === 'macos' || platform === 'linux';
     return {
       host: 'tauri', platform, webgpu,
-      hardwareGenlock: desktop, ndi: true, brawDecode: desktop,
-      sources: { decklink: desktop, ndi: true, srt: true, rtmp: true, webrtc: true, uvc: true, file: true, braw: desktop },
+      hardwareGenlock: desktop, ndi: true, omt: desktop, srt: true, avb: desktop, brawDecode: desktop,
+      nativeOmt: desktop, nativeSrt: true, nativeAvb: desktop,
+      sources: { decklink: desktop, ndi: true, omt: desktop, srt: true, avb: desktop, rtmp: true, webrtc: true, uvc: true, file: true, braw: desktop, ambo: true, switcher: true },
     };
   }
 
@@ -54,15 +56,26 @@ export function detectCapabilities(): Capabilities {
     // Android native: NDI + camera + WebRTC + SRT; no DeckLink/BRAW.
     return {
       host: 'capacitor', platform, webgpu,
-      hardwareGenlock: false, ndi: true, brawDecode: false,
-      sources: { decklink: false, ndi: true, srt: true, rtmp: true, webrtc: true, uvc: true, file: true, braw: false },
+      hardwareGenlock: false, ndi: true, omt: false, srt: true, avb: false, brawDecode: false,
+      sources: { decklink: false, ndi: true, omt: false, srt: true, avb: false, rtmp: true, webrtc: true, uvc: true, file: true, braw: false, ambo: true, switcher: true },
     };
   }
 
-  // Browser tab — WebRTC/WHEP + local webcam + file only.
+  if (isWinUI) {
+    return {
+      host: 'winui', platform, webgpu,
+      hardwareGenlock: true, ndi: true, omt: true, srt: true, avb: true, brawDecode: true,
+      nativeOmt: true, nativeSrt: true, nativeAvb: true,
+      cameraControl: true, mainconceptMpeg2: true,
+      sources: { decklink: true, ndi: true, omt: true, srt: true, avb: true, rtmp: true, webrtc: true, uvc: true, file: true, braw: true, ambo: true, switcher: true },
+    };
+  }
+
+  // Browser tab — WebRTC/WHEP + local webcam + file + virtual app sources.
   const browserSources: Record<SourceKind, boolean> = {
-    decklink: false, ndi: false, srt: false, rtmp: false,
+    decklink: false, ndi: false, omt: false, srt: false, avb: false, rtmp: false,
     webrtc: true, uvc: true, file: true, braw: false,
+    ambo: true, switcher: true,
   };
   return {
     host: 'browser', platform, webgpu,

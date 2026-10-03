@@ -26,6 +26,8 @@ export const KIDS_THEME: KidsTheme = {
 // the kid's navigation (guardians can extend via parentalControls.allowedSurfaces).
 export const KIDS_DEFAULT_SURFACES = [
   'KIDS_LIBRARY',              // the kids reading + learn-to-read home
+  'VOCA',                      // read-aloud game
+  'STUDENT_HOME',              // Homeroom
   'BOOKS', 'BOOK_READER',      // Lorea reading library + learn-to-read tools
   'CLASSROOMS', 'CLASSROOM_DETAIL',
   'GAMES', 'GAME_PLAYER',

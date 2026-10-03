@@ -1,0 +1,1522 @@
+{
+ "courseId": "history-arab-world",
+ "verifier": "A",
+ "note": "WebFetch worked. Opened ~40 Wikipedia pages (secondary, not primary sources); other claims answered from knowledge and marked with empty sources.",
+ "fetched": 42,
+ "questions": [
+  {
+   "id": "history-arab-world.l01.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l01.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l01.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l02.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l02.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l03.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l03.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l03.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l04.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l04.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l05.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l05.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l05.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l05.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l05.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l06.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l06.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l07.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l07.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l07.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l08.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l08.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l09.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l09.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l09.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l09.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l10.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l10.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l10.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l11.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l11.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l12.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l12.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l12.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l12.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l13.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l13.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l13.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l13.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l14.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l14.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l14.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l15.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l15.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l15.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l15.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l16.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l16.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l16.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l17.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l17.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l17.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l17.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l18.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l18.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l18.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l18.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l19.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l19.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l20.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l21.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l21.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l21.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l21.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l21.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l22.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l22.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l22.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l22.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l22.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l23.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l23.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l23.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l23.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l23.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l24.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l24.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l24.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l24.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l24.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l25.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l25.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l25.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l25.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l25.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l26.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l26.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l26.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l26.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l26.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l27.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l27.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l27.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l27.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l27.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l28.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l28.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l28.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l28.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "history-arab-world.l28.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "history-arab-world.l01",
+   "claim": "Arab League founded 1945 with 22 member states",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Arab_League"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l01",
+   "claim": "Middle East has no fixed borders / modern label",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard usage; from knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l01",
+   "claim": "Indonesia, Pakistan, Bangladesh each have more Muslims than any Arab country",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge (Pew/CIA data)"
+  },
+  {
+   "lessonId": "history-arab-world.l02",
+   "claim": "Cuneiform appeared around 3200 BCE",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cuneiform"
+   ],
+   "note": "Sources say c. 3300-3200 BCE"
+  },
+  {
+   "lessonId": "history-arab-world.l02",
+   "claim": "Cyrus took Babylon in 539 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l02",
+   "claim": "Egypt unification c. 3100 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Traditional date; from knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l03",
+   "claim": "Rome annexed the Nabataean kingdom in 106 CE",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Nabataeans"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l03",
+   "claim": "Quraysh dominated Mecca and the Kaaba sanctuary pre-Islam",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l03",
+   "claim": "Ghassanids and Lakhmids were Byzantine/Sasanian-allied Arab states",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l04",
+   "claim": "Hijra in 622 CE marks the start of the Islamic calendar",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Hijra_(Islam)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l04",
+   "claim": "Muhammad born c. 570, died 632",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Traditional dates; from knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l04",
+   "claim": "Five Pillars listed correctly",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l05",
+   "claim": "Abu Bakr 632-634, Umar 634-644, Uthman 644-656, Ali 656-661",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rashidun_Caliphate"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l05",
+   "claim": "Battle of Yarmuk c. 636",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Usually dated 636; from knowledge, page fetched did not state it"
+  },
+  {
+   "lessonId": "history-arab-world.l05",
+   "claim": "Sasanian state collapsed by 650s",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rashidun_Caliphate"
+   ],
+   "note": "Conquest completed c. 651"
+  },
+  {
+   "lessonId": "history-arab-world.l06",
+   "claim": "Karbala 680, Husayn killed by forces of Yazid",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Battle_of_Karbala"
+   ],
+   "note": "Directly ordered by Ubayd Allah ibn Ziyad under Yazid; phrasing acceptable"
+  },
+  {
+   "lessonId": "history-arab-world.l06",
+   "claim": "Siffin fought in 657",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Battle_of_Karbala"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l06",
+   "claim": "Four Sunni law schools Hanafi, Maliki, Shafii, Hanbali",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l07",
+   "claim": "Umayyad dynasty 661-750, capital Damascus",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Umayyad_Caliphate"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l07",
+   "claim": "Dome of the Rock completed 691-692, oldest surviving major Islamic monument",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Dome_of_the_Rock"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l07",
+   "claim": "Abd al-Rahman escaped and founded Cordoba state in 756; Iberia invaded 711",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Umayyad_Caliphate"
+   ],
+   "note": "756 date from knowledge; page confirms the state"
+  },
+  {
+   "lessonId": "history-arab-world.l08",
+   "claim": "Baghdad founded 762 by al-Mansur as Round City",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Baghdad"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l08",
+   "claim": "Buyids took Baghdad in 945",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l08",
+   "claim": "Abbasid caliphate in Baghdad ended by Mongols 1258",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Baghdad"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l09",
+   "claim": "al-Mamun ruled 813-833 and is associated with the House of Wisdom",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/House_of_Wisdom"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l09",
+   "claim": "Historians debate what the House of Wisdom was",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/House_of_Wisdom"
+   ],
+   "note": "Gutas view noted"
+  },
+  {
+   "lessonId": "history-arab-world.l09",
+   "claim": "Hunayn ibn Ishaq was a Christian translator in 9th-century Baghdad",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l10",
+   "claim": "Ibn al-Haytham c. 965-1040, worked in Cairo, Book of Optics",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ibn_al-Haytham"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l10",
+   "claim": "al-Khwarizmi's al-jabr gave the word algebra",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l10",
+   "claim": "Maragha observatory and al-Tusi in the 13th century",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l11",
+   "claim": "Ibn Sina c. 980-1037, Canon of Medicine used in European universities",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Avicenna"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l11",
+   "claim": "al-Ghazali 1058-1111 wrote Incoherence of the Philosophers",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l11",
+   "claim": "Ibn Rushd 1126-1198, Cordoba",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l12",
+   "claim": "Ninth-century fragment is earliest trace of the Nights",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/One_Thousand_and_One_Nights"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l12",
+   "claim": "Galland's translation in early 1700s; Aladdin added later",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/One_Thousand_and_One_Nights"
+   ],
+   "note": "Galland 1704-1717"
+  },
+  {
+   "lessonId": "history-arab-world.l12",
+   "claim": "Abu Nuwas c. 756-814; al-Mutanabbi 915-965",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l13",
+   "claim": "Al-Azhar founded 970-972",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Al-Azhar_University"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l13",
+   "claim": "Ibn Muqla died 940",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l13",
+   "claim": "al-Wasiti illustrated al-Hariri's maqamat in 1237",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l14",
+   "claim": "Al-Azhar founded 970-972 as Fatimid mosque",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Al-Azhar_University"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l14",
+   "claim": "Fatimids conquered Egypt 969; Saladin ended them 1171",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l14",
+   "claim": "al-Hakim ordered destruction of Holy Sepulchre in 1009",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l15",
+   "claim": "Granada fell in 1492 as the last Muslim state in Iberia",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Fall_of_Granada"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l15",
+   "claim": "Abd al-Rahman III declared caliphate 929; taifas c. 1031; Toledo 1085",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l15",
+   "claim": "Maimonides born in Cordoba 1138",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l16",
+   "claim": "Saladin defeated Crusaders at Hattin 1187 and recovered Jerusalem",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Battle_of_Hattin"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l16",
+   "claim": "First Crusade took Jerusalem 1099; Urban II at Clermont 1095",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l16",
+   "claim": "Acre fell 1291 to the Mamluks",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mamluk_Sultanate"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l17",
+   "claim": "Hulagu captured Baghdad 1258, al-Mustasim killed",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Siege_of_Baghdad_(1258)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l17",
+   "claim": "Ain Jalut 1260 Mamluk victory",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Battle_of_Ain_Jalut"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l17",
+   "claim": "Ghazan converted c. 1295; Timur 1401 sack",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; Damascus sack is often dated 1400-1401"
+  },
+  {
+   "lessonId": "history-arab-world.l18",
+   "claim": "Mamluk sultanate 1250-1517",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mamluk_Sultanate"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l18",
+   "claim": "Baybars ruled 1260-1277",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mamluk_Sultanate"
+   ],
+   "note": "Page confirms 1260 accession"
+  },
+  {
+   "lessonId": "history-arab-world.l18",
+   "claim": "Ibn Khaldun 1332-1406, asabiyya in Muqaddimah",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l19",
+   "claim": "Mehmed II took Constantinople 1453",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l19",
+   "claim": "Selim I defeated Mamluks 1516-1517; Chaldiran 1514",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Battle_of_Chaldiran"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l19",
+   "claim": "Suleiman took Baghdad 1534, besieged Vienna 1529",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Baghdad"
+   ],
+   "note": "Baghdad 1534 confirmed"
+  },
+  {
+   "lessonId": "history-arab-world.l20",
+   "claim": "Tanzimat 1839-1876; constitution 1876",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Tanzimat"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l20",
+   "claim": "Devshirme took Christian boys from the Balkans",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l20",
+   "claim": "Young Turk revolution 1908 restored the constitution",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l21",
+   "claim": "Ismail took Tabriz 1501, declared Twelver Shia official",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ismail_I"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l21",
+   "claim": "Ottomans defeated Safavids at Chaldiran 1514",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Battle_of_Chaldiran"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l21",
+   "claim": "Treaty of Zuhab 1639 settled a border roughly like later Iran-Iraq border",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Treaty_of_Zuhab"
+   ],
+   "note": "Page confirms 1639 and Mesopotamia to Ottomans"
+  },
+  {
+   "lessonId": "history-arab-world.l22",
+   "claim": "Suez Canal opened 1869; Britain occupied Egypt 1882",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Suez_Canal"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l22",
+   "claim": "Napoleon invaded Egypt 1798; Muhammad Ali ruled 1805-1848",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l22",
+   "claim": "France invaded Algeria 1830; Tunisia 1881; Libya 1911; Morocco 1912",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l23",
+   "claim": "Maysalun July 1920 French defeat of Faisal",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Battle_of_Maysalun"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l23",
+   "claim": "Sykes-Picot 1916; Balfour 1917",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l23",
+   "claim": "Arab Revolt began June 1916; Aqaba 1917; Damascus Oct 1918",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l24",
+   "claim": "Saudi Arabia named a kingdom in 1932",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Saudi_Arabia"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l24",
+   "claim": "Egypt nominal independence 1922; Iraq 1932; Turkey republic 1923",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l24",
+   "claim": "UAR 1958-1961; Algerian war 1954-1962",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l25",
+   "claim": "UN partition vote November 1947; Jewish leaders accepted, Arab leaders rejected",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/1947_UN_Partition_Plan"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l25",
+   "claim": "Israel declared independence 14 May 1948; roughly 700,000 Palestinians displaced",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Figure widely cited (UN est. ~711,000)"
+  },
+  {
+   "lessonId": "history-arab-world.l25",
+   "claim": "1967 war territories; Egypt-Israel peace 1979",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l26",
+   "claim": "Nasser nationalised Suez Canal Company July 1956; Israel invaded late October",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Suez_Crisis"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l26",
+   "claim": "US and USSR pressure forced withdrawal",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Suez_Crisis"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l26",
+   "claim": "Oil in Persia 1908, Iraq 1927, Saudi Arabia 1938; OPEC 1960",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l27",
+   "claim": "Iran-Iraq war 1980-1988 with chemical weapons, hundreds of thousands killed",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Iran%E2%80%93Iraq_War"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l27",
+   "claim": "Iraq invaded Kuwait August 1990; Taif Agreement 1989",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l27",
+   "claim": "Lebanese civil war 1975-1990; Israel invaded 1982",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l28",
+   "claim": "Bouazizi self-immolation December 2010; Ben Ali left January 2011",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mohamed_Bouazizi"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "history-arab-world.l28",
+   "claim": "Mubarak resigned February 2011",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  },
+  {
+   "lessonId": "history-arab-world.l28",
+   "claim": "Assad government fell December 2024",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge"
+  }
+ ]
+}

@@ -9,6 +9,7 @@ import { X } from 'lucide-react';
 import { INSTRUMENTS } from '../../../../services/melos/beats/instrumentFactory';
 import type { InstrumentType } from '../../../../services/melos/beats/grooveDoc';
 import { SURFACE } from '../theme';
+import { WindowsVstBrowser } from './WindowsVstBrowser';
 
 interface Props {
   onPick: (type: InstrumentType) => void;
@@ -55,6 +56,7 @@ export const InstrumentPicker: React.FC<Props> = ({ onPick, onClose, destination
             </div>
           </button>
         ))}
+        <WindowsVstBrowser />
       </div>
     </div>
   </div>

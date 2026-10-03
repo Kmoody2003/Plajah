@@ -1,0 +1,1548 @@
+{
+ "courseId": "music-genres",
+ "verifier": "B",
+ "note": "WebFetch worked (mostly Wikipedia; UNESCO for tango). Fetches for Cold Sweat and Gasolina returned 404 and Tresor gave no data. Claims without sources are unverifiable. Question answers are from knowledge.",
+ "fetched": 54,
+ "questions": [
+  {
+   "id": "music-genres.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l02.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l03.q4",
+   "answer": 1,
+   "confidence": "medium",
+   "sources": [],
+   "note": "Wikipedia calls Crazy Blues the first significant blues hit; 'first blues record by a Black artist' is a contested claim."
+  },
+  {
+   "id": "music-genres.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l04.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l07.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l07.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l08.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l17.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l18.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l19.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l19.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l19.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l20.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l20.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l21.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l21.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l21.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l21.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l21.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l22.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l22.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l22.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l22.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l22.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l23.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l23.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l23.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l23.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l23.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l24.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l24.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l24.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l24.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l24.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l25.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l25.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l25.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l25.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l25.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l26.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l26.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l26.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l26.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l26.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l27.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l27.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l27.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l27.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l27.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l28.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l28.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l28.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l28.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-genres.l28.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "music-genres.l01",
+   "claim": "Billboard began using 'rhythm and blues' in 1949 in place of race records",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Race_record"
+   ],
+   "note": "June 1949 per Wikipedia."
+  },
+  {
+   "lessonId": "music-genres.l01",
+   "claim": "1920s US record companies marketed Black artists' records as 'race records'",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Race_record"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l01",
+   "claim": "Genres are defined by shared features recognised by listeners, performers and sellers",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l02",
+   "claim": "Fisk Jubilee Singers began touring in 1871 to raise money for Fisk",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Fisk_Jubilee_Singers"
+   ],
+   "note": "Tour began Oct 6, 1871."
+  },
+  {
+   "lessonId": "music-genres.l02",
+   "claim": "Dorsey wrote 'Take My Hand, Precious Lord' in 1932 after personal loss",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Take_My_Hand,_Precious_Lord"
+   ],
+   "note": "Page confirms 1932 and bereavement; it does not itself use the 'father of gospel' title."
+  },
+  {
+   "lessonId": "music-genres.l02",
+   "claim": "Sister Rosetta Tharpe's electric guitar gospel foreshadowed rock and roll",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l03",
+   "claim": "Mamie Smith's 'Crazy Blues' (1920) generally cited as first blues hit by a Black vocalist",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Crazy_Blues"
+   ],
+   "note": "Recorded Aug 1920; page calls it the first significant blues hit; 'first by a Black artist' is an attributed claim."
+  },
+  {
+   "lessonId": "music-genres.l03",
+   "claim": "W. C. Handy published 'Memphis Blues' in 1912 and 'St. Louis Blues' in 1914",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/W._C._Handy"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l03",
+   "claim": "Robert Johnson recorded in 1936 and 1937",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l04",
+   "claim": "Original Dixieland Jass Band made the commonly cited first jazz record in 1917",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Original_Dixieland_Jass_Band"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l04",
+   "claim": "Kind of Blue (1959) is a landmark of modal jazz",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Kind_of_Blue"
+   ],
+   "note": "Released Aug 17, 1959."
+  },
+  {
+   "lessonId": "music-genres.l04",
+   "claim": "No recordings of Buddy Bolden survive",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Buddy_Bolden"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l05",
+   "claim": "Bristol sessions 1927 by Ralph Peer with Jimmie Rodgers and Carter Family, called big bang of country",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Bristol_sessions"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l05",
+   "claim": "Bill Monroe's Blue Grass Boys; Earl Scruggs three-finger style; acoustic, no drums",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Bluegrass_music"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l05",
+   "claim": "WSM radio launched what became the Grand Ole Opry in the mid-1920s",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l06",
+   "claim": "Aretha Franklin's 1967 'Respect' was written and recorded by Otis Redding in 1965",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Respect_(song)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l06",
+   "claim": "Ray Charles's 'I Got a Woman' recorded 1954 bringing gospel feeling to secular lyrics",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/I_Got_a_Woman"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l06",
+   "claim": "Motown founded in Detroit in 1959 by Berry Gordy",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Motown"
+   ],
+   "note": "Founded as Tamla Jan 1959; Motown Record Corp incorporated 1960."
+  },
+  {
+   "lessonId": "music-genres.l07",
+   "claim": "Bill Haley's 'Rock Around the Clock' recorded in 1954, major hit in 1955",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rock_Around_the_Clock"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l07",
+   "claim": "Little Richard's 'Tutti Frutti' 1955 and Pat Boone's cover 1956",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Tutti_Frutti_(song)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l07",
+   "claim": "Sam Phillips of Sun Records recorded Elvis's 'That's All Right' in 1954",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l08",
+   "claim": "James Brown's 'Cold Sweat' 1967 and 'Papa's Got a Brand New Bag' 1965",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Cold Sweat page fetch returned 404."
+  },
+  {
+   "lessonId": "music-genres.l08",
+   "claim": "Clyde Stubblefield's 'Funky Drummer' break recorded 1969",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Funky_Drummer"
+   ],
+   "note": "Recorded Nov 20, 1969; released 1970."
+  },
+  {
+   "lessonId": "music-genres.l08",
+   "claim": "Parliament and Funkadelic led by George Clinton with Bootsy Collins and Bernie Worrell",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l09",
+   "claim": "Clash's London Calling released 1979 blending reggae with punk",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/London_Calling"
+   ],
+   "note": "UK release Dec 14, 1979."
+  },
+  {
+   "lessonId": "music-genres.l09",
+   "claim": "Patti Smith's Horses (1975) and Ramones debut (1976) from CBGB scene",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l09",
+   "claim": "Sex Pistols released 'Anarchy in the U.K.' in 1976",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l10",
+   "claim": "Black Sabbath's debut album released 1970 with tritone-based title riff",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Black_Sabbath_(album)"
+   ],
+   "note": "UK release Feb 13, 1970."
+  },
+  {
+   "lessonId": "music-genres.l10",
+   "claim": "NWOBHM including Iron Maiden around 1980",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l10",
+   "claim": "Black metal emerged strongly in Norway in the early 1990s",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l11",
+   "claim": "Name reggae linked to Toots and the Maytals 'Do the Reggay' (1968)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Reggae"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l11",
+   "claim": "One drop drum pattern is iconic to reggae",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Reggae"
+   ],
+   "note": "Page confirms one drop; the 'third beat' detail not explicitly verified."
+  },
+  {
+   "lessonId": "music-genres.l11",
+   "claim": "Catch a Fire released 1973 by Island; The Harder They Come film 1972",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l12",
+   "claim": "Kool Herc born in Kingston, moved to the Bronx; brought sound-system culture",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/DJ_Kool_Herc"
+   ],
+   "note": "Page says Jamaican-American, born Clive Campbell 1955."
+  },
+  {
+   "lessonId": "music-genres.l12",
+   "claim": "King Tubby and Lee Perry remixed on the console to create dub",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l12",
+   "claim": "U-Roy a celebrated toaster in the late 1960s",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l13",
+   "claim": "Kool Herc party at 1520 Sedgwick Avenue on Aug 11, 1973",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/DJ_Kool_Herc"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l13",
+   "claim": "Sugarhill Gang's 'Rapper's Delight' (1979) first rap single to become widespread hit",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rapper%27s_Delight"
+   ],
+   "note": "Released Sept 1979; page notes Fatback Band's 'King Tim III' preceded it, so 'first' is framed as 'considered by many'."
+  },
+  {
+   "lessonId": "music-genres.l13",
+   "claim": "Grandmaster Flash and the Furious Five 'The Message' 1982",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l14",
+   "claim": "Roland TR-808 released in 1980",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Roland_TR-808"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l14",
+   "claim": "Akai MPC introduced in 1988",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Akai_MPC"
+   ],
+   "note": "MPC60 released Dec 8, 1988."
+  },
+  {
+   "lessonId": "music-genres.l14",
+   "claim": "1991 US court ruling against Biz Markie over uncleared sample",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Grand_Upright_Music,_Ltd._v._Warner_Bros._Records_Inc."
+   ],
+   "note": "Decided Dec 17, 1991."
+  },
+  {
+   "lessonId": "music-genres.l15",
+   "claim": "Disco Demolition Night, July 12, 1979, Comiskey Park, ended in riot",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Disco_Demolition_Night"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l15",
+   "claim": "Donna Summer's 'I Feel Love' (1977) by Moroder and Bellotte used synthesizers for backing track",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/I_Feel_Love"
+   ],
+   "note": "Kick drum was played live by Keith Forsey, so 'entire backing track' is slightly generous."
+  },
+  {
+   "lessonId": "music-genres.l15",
+   "claim": "David Mancuso's Loft parties began in 1970",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l16",
+   "claim": "House name traced to Warehouse club where Frankie Knuckles played from 1977",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Frankie_Knuckles"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l16",
+   "claim": "Phuture 'Acid Tracks' (1987) built on Roland TB-303",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Acid_Tracks"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l16",
+   "claim": "Second Summer of Love in 1988 in Britain driven by acid house",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Second_Summer_of_Love"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l17",
+   "claim": "Techno! The New Dance Sound of Detroit compilation 1988 introduced name to Britain",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Techno!_The_New_Dance_Sound_of_Detroit"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l17",
+   "claim": "Derrick May's 'Strings of Life' (1987)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Strings_of_Life"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l17",
+   "claim": "Tresor in Berlin opened in 1991",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Wikipedia fetch did not give the year."
+  },
+  {
+   "lessonId": "music-genres.l18",
+   "claim": "Eno's Ambient 1: Music for Airports recorded 1978, wider release 1979",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ambient_1:_Music_for_Airports"
+   ],
+   "note": "Recorded 1978; released Feb 1979."
+  },
+  {
+   "lessonId": "music-genres.l18",
+   "claim": "Aphex Twin's Selected Ambient Works 85-92 released in 1992",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Selected_Ambient_Works_85%E2%80%9392"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l18",
+   "claim": "Drum and bass about 160-175 BPM; dubstep around 140",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l19",
+   "claim": "MTV launched August 1, 1981",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/MTV"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l19",
+   "claim": "Auto-Tune introduced 1997; Cher's 'Believe' 1998",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Auto-Tune"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l19",
+   "claim": "Billboard Hot 100 launched in 1958",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Billboard_Hot_100"
+   ],
+   "note": "Aug 4, 1958."
+  },
+  {
+   "lessonId": "music-genres.l20",
+   "claim": "Fania Records founded 1964 by Johnny Pacheco and Jerry Masucci",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Fania_Records"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l20",
+   "claim": "Clave is a two-bar five-note pattern, 3-2 or 2-3",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l20",
+   "claim": "Celia Cruz, Colon, Lavoe, Blades associated with Fania All-Stars",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l21",
+   "claim": "Joao Gilberto's 'Chega de Saudade' single 1958, album 1959",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Chega_de_Saudade_(album)"
+   ],
+   "note": "Album released Apr 14, 1959; 1958 single date not verified."
+  },
+  {
+   "lessonId": "music-genres.l21",
+   "claim": "Getz/Gilberto 1964 with Girl from Ipanema and Astrud Gilberto",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Getz/Gilberto"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l21",
+   "claim": "Jazz Samba by Getz and Charlie Byrd in 1962",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l22",
+   "claim": "UNESCO inscribed tango of Argentina and Uruguay in 2009",
+   "verdict": "supported",
+   "sources": [
+    "https://ich.unesco.org/en/RL/tango-00258"
+   ],
+   "note": "Official UNESCO page."
+  },
+  {
+   "lessonId": "music-genres.l22",
+   "claim": "Carlos Gardel most famous tango singer in the 1920s-30s",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l22",
+   "claim": "Bandoneon developed in Germany",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l23",
+   "claim": "Cumbia originates on Colombia's Caribbean coast from Indigenous, African, Spanish heritages",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l23",
+   "claim": "Discos Fuentes adapted cumbia to dance orchestras",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l23",
+   "claim": "Cumbia villera arose in Argentina in the late 1990s",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l24",
+   "claim": "'Dem Bow' by Shabba Ranks is from 1990",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Dem_Bow"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l24",
+   "claim": "Despacito (2017) one of the most-streamed songs ever",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Despacito"
+   ],
+   "note": "Released Jan 13, 2017; became most-streamed song in July 2017."
+  },
+  {
+   "lessonId": "music-genres.l24",
+   "claim": "Daddy Yankee's 'Gasolina' 2004 breakthrough",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Fetch returned 404."
+  },
+  {
+   "lessonId": "music-genres.l25",
+   "claim": "Fela born 1938, died 1997; Kalakuta Republic attacked by soldiers in 1977",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Fela_Kuti"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l25",
+   "claim": "Afrobeat created chiefly by Fela Kuti with drummer Tony Allen",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Fela_Kuti"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l25",
+   "claim": "Fela performed at the Shrine in Lagos",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l26",
+   "claim": "Paul Simon's Graceland 1986 criticised for breaking cultural boycott of South Africa",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Graceland_(album)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l26",
+   "claim": "E. T. Mensah prominent in Ghanaian highlife",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l26",
+   "claim": "Youssou N'Dour developed mbalax",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l27",
+   "claim": "Seo Taiji and Boys debuted in 1992",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Seo_Taiji_and_Boys"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l27",
+   "claim": "Gangnam Style first YouTube video to pass one billion views (2012)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Gangnam_Style"
+   ],
+   "note": "Dec 21, 2012."
+  },
+  {
+   "lessonId": "music-genres.l27",
+   "claim": "SM Entertainment founded in 1989 by Lee Soo-man",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/SM_Entertainment"
+   ],
+   "note": "Imprecise: SM Studio founded 1989; incorporated as SM Entertainment Feb 1995."
+  },
+  {
+   "lessonId": "music-genres.l28",
+   "claim": "Harry Smith's Anthology of American Folk Music 1952 from 1920s-30s records",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Anthology_of_American_Folk_Music"
+   ],
+   "note": "Recordings 1926-1933."
+  },
+  {
+   "lessonId": "music-genres.l28",
+   "claim": "Guthrie wrote 'This Land Is Your Land' in 1940; Newport Folk Festival began 1959; Dylan electric 1965",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/This_Land_Is_Your_Land",
+    "https://en.wikipedia.org/wiki/Newport_Folk_Festival"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "music-genres.l28",
+   "claim": "Child collected 300+ English and Scottish ballads in the late 19th century",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Child_Ballads"
+   ],
+   "note": "305 ballads."
+  }
+ ]
+}

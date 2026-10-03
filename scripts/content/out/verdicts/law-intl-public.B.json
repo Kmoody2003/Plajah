@@ -1,0 +1,1415 @@
+{
+ "courseId": "law-intl-public",
+ "verifier": "B",
+ "fetched": 58,
+ "note": "WebFetch was blocked (403) on worldcourts, justia, refworld and the ICJ PDFs; I used ICJ case pages and curl fallbacks instead. Truncated options: q18.q4 opt1 and q20.q1 opt3 are cut off mid-sentence, and q10.q1 opt2 drops the breach element. Several others look shortened (q11.q5, q12.q5, q14.q4, q17.q4, q19.q4). Coverage gaps: the 2024 OPT advisory opinion, South Africa v. Israel (pending; Reply/Rejoinder time-limits fixed 21 May 2026) and the BBNJ Agreement (in force 17 Jan 2026) are not covered.",
+ "questions": [
+  {
+   "id": "law-intl-public.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text"
+   ]
+  },
+  {
+   "id": "law-intl-public.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/case/4"
+   ]
+  },
+  {
+   "id": "law-intl-public.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/statute"
+   ]
+  },
+  {
+   "id": "law-intl-public.l02.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/statute"
+   ]
+  },
+  {
+   "id": "law-intl-public.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/case/45"
+   ]
+  },
+  {
+   "id": "law-intl-public.l02.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text"
+   ]
+  },
+  {
+   "id": "law-intl-public.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/case/51"
+   ]
+  },
+  {
+   "id": "law-intl-public.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l03.q4",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Option 1 is best, though its wording is convoluted."
+  },
+  {
+   "id": "law-intl-public.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://avalon.law.yale.edu/20th_century/intam03.asp"
+   ]
+  },
+  {
+   "id": "law-intl-public.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://avalon.law.yale.edu/20th_century/intam03.asp"
+   ]
+  },
+  {
+   "id": "law-intl-public.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/case/141"
+   ]
+  },
+  {
+   "id": "law-intl-public.l04.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://iilj.org/wp-content/uploads/2016/08/France-v.-Turkey.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/depts/los/convention_agreements/texts/unclos/unclos_e.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l06.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/case/12"
+   ]
+  },
+  {
+   "id": "law-intl-public.l06.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/case/92",
+    "https://iilj.org/wp-content/uploads/2016/08/Case-Concerning-the-Gabc%C3%ADkovo-Nagymaros-Project-Hungary-v.-Slovakia.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l08.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.oyez.org/cases/2007/06-984"
+   ]
+  },
+  {
+   "id": "law-intl-public.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l10.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/draft_articles/9_6_2001.pdf"
+   ],
+   "note": "Option 2 is truncated: it gives only attribution and drops the second element (breach of an international obligation) that ARSIWA Art 2 requires. It is still the only defensible choice."
+  },
+  {
+   "id": "law-intl-public.l10.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/draft_articles/9_6_2001.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/case/1"
+   ]
+  },
+  {
+   "id": "law-intl-public.l10.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.asil.org/insights/volume/11/issue/9/world-court-finds-serbia-responsible-breaches-genocide-convention-not"
+   ]
+  },
+  {
+   "id": "law-intl-public.l10.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.asil.org/insights/volume/11/issue/9/world-court-finds-serbia-responsible-breaches-genocide-convention-not"
+   ]
+  },
+  {
+   "id": "law-intl-public.l11.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/draft_articles/9_6_2001.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l11.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.landmarkchambers.co.uk/wp-content/uploads/2018/08/Presentation-JN-Chorzow-Factory.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l11.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l11.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/draft_articles/9_6_2001.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l11.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Option 3 looks shortened: it does not say that the threat to bombard the capital is unlawful."
+  },
+  {
+   "id": "law-intl-public.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l12.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/case/121"
+   ]
+  },
+  {
+   "id": "law-intl-public.l12.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/avl/ha/vcdr/vcdr.html"
+   ]
+  },
+  {
+   "id": "law-intl-public.l12.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/case/143"
+   ]
+  },
+  {
+   "id": "law-intl-public.l12.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Option 0 looks cut short: it deals with personal immunity but says nothing about continuing functional immunity for official acts."
+  },
+  {
+   "id": "law-intl-public.l13.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text"
+   ]
+  },
+  {
+   "id": "law-intl-public.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l13.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text"
+   ]
+  },
+  {
+   "id": "law-intl-public.l13.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text"
+   ]
+  },
+  {
+   "id": "law-intl-public.l13.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l14.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text"
+   ]
+  },
+  {
+   "id": "law-intl-public.l14.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/node/100900"
+   ]
+  },
+  {
+   "id": "law-intl-public.l14.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text",
+    "https://legal.un.org/unjuridicalyearbook/pdfs/english/by_volume/1971/chpVII.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l14.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/node/100900"
+   ],
+   "note": "Option 1 looks shortened: it does not say that T's collective self-defence is unlawful without a request from S (Nicaragua)."
+  },
+  {
+   "id": "law-intl-public.l14.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/case/116"
+   ]
+  },
+  {
+   "id": "law-intl-public.l15.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text"
+   ]
+  },
+  {
+   "id": "law-intl-public.l15.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text"
+   ]
+  },
+  {
+   "id": "law-intl-public.l15.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text"
+   ]
+  },
+  {
+   "id": "law-intl-public.l15.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text"
+   ]
+  },
+  {
+   "id": "law-intl-public.l15.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/en/ga/sessions/emergency.shtml"
+   ]
+  },
+  {
+   "id": "law-intl-public.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/statute"
+   ]
+  },
+  {
+   "id": "law-intl-public.l16.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/statute"
+   ]
+  },
+  {
+   "id": "law-intl-public.l16.q3",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text"
+   ],
+   "note": "Best option, but incomplete: Art 96(2) also lets other organs and specialised agencies authorised by the GA request opinions."
+  },
+  {
+   "id": "law-intl-public.l16.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text",
+    "https://www.icj-cij.org/statute"
+   ]
+  },
+  {
+   "id": "law-intl-public.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/statute"
+   ]
+  },
+  {
+   "id": "law-intl-public.l17.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/depts/los/convention_agreements/texts/unclos/unclos_e.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l17.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://docs.pca-cpa.org/2016/07/PH-CN-20160712-Press-Release-No-11-English.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l17.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/depts/los/convention_agreements/texts/unclos/unclos_e.pdf"
+   ],
+   "note": "Option 2 looks shortened: it leaves out ITLOS prompt release under Art 292, which the stem's demand for immediate release points to."
+  },
+  {
+   "id": "law-intl-public.l17.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l18.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/depts/los/convention_agreements/texts/unclos/unclos_e.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l18.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/depts/los/convention_agreements/texts/unclos/unclos_e.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l18.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/depts/los/convention_agreements/texts/unclos/unclos_e.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l18.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Option 1 is CUT OFF mid-sentence ('passage that does not prejudice peace'). UNCLOS Art 19 continues 'good order or security of the coastal State'."
+  },
+  {
+   "id": "law-intl-public.l18.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/depts/los/convention_agreements/texts/unclos/unclos_e.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l19.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://legal.un.org/riaa/cases/vol_III/1905-1982.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l19.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/node/101867"
+   ]
+  },
+  {
+   "id": "law-intl-public.l19.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l19.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Option 0 looks shortened and gives no reason (the customary EIA and notification duties)."
+  },
+  {
+   "id": "law-intl-public.l19.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l20.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.unoosa.org/pdf/publications/STSPACE11E.pdf"
+   ],
+   "note": "Option 3 is CUT OFF mid-sentence ('by claim of sovereignty, use'). OST Art II continues 'by means of use or occupation, or by any other means'."
+  },
+  {
+   "id": "law-intl-public.l20.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.unoosa.org/pdf/publications/STSPACE11E.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l20.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.unoosa.org/pdf/publications/STSPACE11E.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-public.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-public.l20.q5",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [
+    "https://www.unoosa.org/pdf/publications/STSPACE11E.pdf"
+   ],
+   "note": "Whether P is itself a launching State depends on the facts. Fault liability between launching States under Art III is the intended answer."
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-intl-public.l01",
+   "claim": "UN Charter Article 2(1) states the principle of sovereign equality.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l01",
+   "claim": "Reparation for Injuries (ICJ, 1949): the UN has international legal personality and can bring international claims.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/case/4"
+   ],
+   "note": "Advisory opinion of 11 April 1949."
+  },
+  {
+   "lessonId": "law-intl-public.l01",
+   "claim": "UN personality is objective and does not depend on recognition by each state.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "The ICJ case page I opened does not cover this. I did not open the full opinion."
+  },
+  {
+   "lessonId": "law-intl-public.l02",
+   "claim": "ICJ Statute Art 38(1) sources, and Art 38(2) ex aequo et bono if the parties agree.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/statute"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l02",
+   "claim": "Art 59: a decision binds only the parties and only in that case.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/statute"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l02",
+   "claim": "Temple of Preah Vihear (1962): Thailand had accepted the map, so the temple was in Cambodia.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/case/45"
+   ],
+   "note": "The ICJ page confirms that the map was accepted. The acquiescence/estoppel labels come from secondary sources."
+  },
+  {
+   "lessonId": "law-intl-public.l03",
+   "claim": "North Sea Continental Shelf (1969): Germany had not ratified the 1958 Convention, and equidistance was not customary law.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/case/51"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l03",
+   "claim": "Fisheries case (1951): Norway applied its baseline method consistently and the UK did not object for decades, \"so the rule was not opposable to Norway\".",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.icj-cij.org/node/100132"
+   ],
+   "note": "The lesson merges two separate points. The Court found the ten-mile rule inapplicable against Norway because Norway had always opposed it. The UK's lack of protest until 1933 went to the general acceptance of Norway's system. The persistent-objector explanation needs rewording."
+  },
+  {
+   "lessonId": "law-intl-public.l03",
+   "claim": "VCLT Art 53: a treaty that conflicts with a peremptory norm when concluded is void, with the definition of jus cogens.",
+   "verdict": "supported",
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l04",
+   "claim": "Montevideo Convention Art 1 sets the four criteria; Art 3 says political existence is independent of recognition.",
+   "verdict": "supported",
+   "sources": [
+    "https://avalon.law.yale.edu/20th_century/intam03.asp"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l04",
+   "claim": "Kosovo advisory opinion (22 July 2010): the declaration of independence did not violate international law.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/case/141"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l04",
+   "claim": "East Timor (1995): self-determination has an erga omnes character. Western Sahara (1975): free and genuine expression of the will of the peoples.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/case/84",
+    "https://www.icj-cij.org/case/61"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l05",
+   "claim": "Island of Palmas (Huber, 1928): sovereignty means independence over a portion of the globe, and title rests on the continuous and peaceful display of authority.",
+   "verdict": "supported",
+   "sources": [
+    "https://legal.un.org/riaa/cases/vol_II/829-871.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l05",
+   "claim": "Lotus (PCIJ 1927): facts of the Lotus/Boz-Kourt collision, Turkey prosecuted the officer at Constantinople, and restrictions on states cannot be presumed.",
+   "verdict": "supported",
+   "sources": [
+    "https://iilj.org/wp-content/uploads/2016/08/France-v.-Turkey.pdf"
+   ],
+   "note": "Decided on the President's casting vote."
+  },
+  {
+   "lessonId": "law-intl-public.l05",
+   "claim": "UNCLOS Art 97: in a high-seas collision only the flag state or the state of nationality may bring penal proceedings.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.un.org/depts/los/convention_agreements/texts/unclos/unclos_e.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l06",
+   "claim": "The VCLT entered into force in 1980. The US signed but has never ratified it.",
+   "verdict": "supported",
+   "sources": [
+    "https://treaties.un.org/Pages/ViewDetails.aspx?src=TREATY&mtdsg_no=XXIII-1&chapter=23&clang=_en"
+   ],
+   "note": "In force 27 Jan 1980, with 119 parties as of 2 Oct 2026. The US signed on 24 Apr 1970."
+  },
+  {
+   "lessonId": "law-intl-public.l06",
+   "claim": "Art 20: no objection within 12 months counts as acceptance, and an objection does not stop entry into force between the two states unless clearly stated.",
+   "verdict": "supported",
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l06",
+   "claim": "Reservations to the Genocide Convention (1951): the test is compatibility with object and purpose.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/case/12"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l07",
+   "claim": "VCLT Art 26 (pacta sunt servanda) and Art 27 (internal law is no justification).",
+   "verdict": "supported",
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l07",
+   "claim": "Art 32: preparatory work may be used to confirm a meaning, or to settle one that is ambiguous, obscure or absurd.",
+   "verdict": "supported",
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l07",
+   "claim": "Gabcikovo-Nagymaros (1997): Hungary's termination was ineffective and the 1977 treaty remained in force.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/case/92",
+    "https://iilj.org/wp-content/uploads/2016/08/Case-Concerning-the-Gabc%C3%ADkovo-Nagymaros-Project-Hungary-v.-Slovakia.pdf"
+   ],
+   "note": "Holding D, 11 votes to 4."
+  },
+  {
+   "lessonId": "law-intl-public.l08",
+   "claim": "Art 56: no right of withdrawal unless intended or implied, and 12 months' notice is required.",
+   "verdict": "supported",
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l08",
+   "claim": "Art 62(2)(a) excludes boundary treaties. Art 60(5) protects humanitarian provisions.",
+   "verdict": "supported",
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l08",
+   "claim": "Gabcikovo: the changes Hungary relied on were not radical enough to transform the obligations.",
+   "verdict": "supported",
+   "sources": [
+    "https://iilj.org/wp-content/uploads/2016/08/Case-Concerning-the-Gabc%C3%ADkovo-Nagymaros-Project-Hungary-v.-Slovakia.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l09",
+   "claim": "Medellin v. Texas (2008): Avena was not directly enforceable domestic law, and the President's memorandum was ineffective.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.oyez.org/cases/2007/06-984"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l09",
+   "claim": "The Paquete Habana (1900): international law is part of US law, and coastal fishing vessels are exempt from capture.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/175/677"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l09",
+   "claim": "VCLT Art 27: internal law does not excuse non-performance of a treaty.",
+   "verdict": "supported",
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/conventions/1_1_1969.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l10",
+   "claim": "ARSIWA were adopted in 2001 and annexed to GA resolution 56/83. Art 2 has two elements: attribution and breach.",
+   "verdict": "supported",
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/draft_articles/9_6_2001.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l10",
+   "claim": "Art 4: organs of the state, including organs of territorial units, are attributable to it.",
+   "verdict": "supported",
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/draft_articles/9_6_2001.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l10",
+   "claim": "Bosnian Genocide (2007): the Court applied effective control and rejected overall control. Serbia breached its duties to prevent and to cooperate with the ICTY, but did not commit genocide.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.asil.org/insights/volume/11/issue/9/world-court-finds-serbia-responsible-breaches-genocide-convention-not",
+    "https://www.icj-cij.org/case/91"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l11",
+   "claim": "ARSIWA Art 34: restitution, compensation and satisfaction.",
+   "verdict": "supported",
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/draft_articles/9_6_2001.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l11",
+   "claim": "Chorzow Factory (PCIJ 1928): reparation must wipe out all the consequences of the illegal act.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.landmarkchambers.co.uk/wp-content/uploads/2018/08/Presentation-JN-Chorzow-Factory.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l11",
+   "claim": "Art 24 (distress) and Art 25 (necessity: the only way to safeguard an essential interest against a grave and imminent peril).",
+   "verdict": "supported",
+   "sources": [
+    "https://legal.un.org/ilc/texts/instruments/english/draft_articles/9_6_2001.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l12",
+   "claim": "Germany v. Italy (3 Feb 2012): Italy violated Germany's immunity, with no exception for serious violations.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/case/143"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l12",
+   "claim": "The 2004 UN Convention on Jurisdictional Immunities is not in force.",
+   "verdict": "supported",
+   "sources": [
+    "https://treaties.un.org/Pages/ViewDetails.aspx?src=TREATY&mtdsg_no=III-13&chapter=3&clang=_en"
+   ],
+   "note": "Still not in force as of 2 Oct 2026: 25 parties, 30 needed."
+  },
+  {
+   "lessonId": "law-intl-public.l12",
+   "claim": "Arrest Warrant (14 Feb 2002): a serving foreign minister has full criminal immunity. VCDR Art 9: persona non grata without giving reasons. FSIA: foreign states are presumptively immune.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/case/121",
+    "https://legal.un.org/avl/ha/vcdr/vcdr.html",
+    "https://www.law.cornell.edu/uscode/text/28/1604"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l13",
+   "claim": "Charter Art 25: Council decisions bind members. Art 41: non-military measures.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l13",
+   "claim": "Art 94(1): members comply with ICJ decisions. Art 94(2) allows recourse to the Council.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l13",
+   "claim": "WTO findings can authorise trade retaliation.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against a page."
+  },
+  {
+   "lessonId": "law-intl-public.l14",
+   "claim": "Nicaragua (1986): armed bands can amount to an armed attack, but weapons or logistic aid cannot. Collective self-defence needs a declaration and a request. Custom applies despite the US reservation.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/node/100900"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l14",
+   "claim": "Namibia (1971): abstention by a permanent member is not a veto.",
+   "verdict": "supported",
+   "sources": [
+    "https://legal.un.org/unjuridicalyearbook/pdfs/english/by_volume/1971/chpVII.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l14",
+   "claim": "DRC v. Uganda (2005): the self-defence claim was rejected, and the rebel attacks were not attributable to the DRC.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/case/116"
+   ],
+   "note": "The page does not cover the point that the Court left self-defence against non-state actors open."
+  },
+  {
+   "lessonId": "law-intl-public.l15",
+   "claim": "The Council has 15 members, 5 permanent (Art 23). Art 27 voting. Admission under Art 4(2). Secretary-General appointed under Art 97.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l15",
+   "claim": "The Trusteeship Council suspended operations in 1994 after Palau.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.un.org/en/about-us/trusteeship-council"
+   ],
+   "note": "Suspended 1 Nov 1994."
+  },
+  {
+   "lessonId": "law-intl-public.l15",
+   "claim": "Uniting for Peace (377(V), 1950): the GA may recommend collective measures, including force.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.un.org/en/ga/sessions/emergency.shtml"
+   ],
+   "note": "The Palestine resolution 67/19 claim is unchecked because the UN press page failed to load."
+  },
+  {
+   "lessonId": "law-intl-public.l16",
+   "claim": "The ICJ has 15 judges with nine-year terms, no two of the same nationality.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/statute"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l16",
+   "claim": "A minority of states have optional clause declarations. The UK has one and the US does not.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/declarations"
+   ],
+   "note": "75 states as of 2026. The UK declaration is dated 22 Feb 2017."
+  },
+  {
+   "lessonId": "law-intl-public.l16",
+   "claim": "LaGrand (27 June 2001): provisional measures are binding.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/case/104"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l17",
+   "claim": "UNCLOS Art 287 makes Annex VII arbitration the default. ITLOS has 21 judges.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.un.org/depts/los/convention_agreements/texts/unclos/unclos_e.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l17",
+   "claim": "South China Sea award (12 July 2016): no legal basis for historic rights within the nine-dash line, and no Spratly feature generates an EEZ.",
+   "verdict": "supported",
+   "sources": [
+    "https://docs.pca-cpa.org/2016/07/PH-CN-20160712-Press-Release-No-11-English.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l17",
+   "claim": "The Rome Statute dates from 1998 and has been in force since 2002. The US, Russia and China are not parties. The WTO Appellate Body is still not functioning.",
+   "verdict": "supported",
+   "sources": [
+    "https://treaties.un.org/Pages/ViewDetails.aspx?src=TREATY&mtdsg_no=XVIII-10&chapter=18&clang=_en",
+    "https://www.wto.org/english/tratop_e/dispu_e/appellate_body_e.htm"
+   ],
+   "note": "The WTO page confirms the AB still cannot hear appeals. The ICC status page lists recent withdrawal notices that the lesson does not mention."
+  },
+  {
+   "lessonId": "law-intl-public.l18",
+   "claim": "UNCLOS entered into force in 1994 and \"the United States has signed but not ratified it\".",
+   "verdict": "contradicted",
+   "sources": [
+    "https://treaties.un.org/Pages/ViewDetails.aspx?src=TREATY&mtdsg_no=XXI-6&chapter=21&clang=_en",
+    "https://treaties.un.org/Pages/ViewDetails.aspx?src=TREATY&mtdsg_no=XXI-6-a&chapter=21&clang=_en"
+   ],
+   "note": "UNCLOS entered into force on 16 Nov 1994 and has 172 parties as of 2 Oct 2026. The US never signed UNCLOS itself. It signed only the 1994 Part XI Agreement (29 Jul 1994), which it has not ratified. The lesson also omits the BBNJ Agreement, in force since 17 Jan 2026 with 101 parties."
+  },
+  {
+   "lessonId": "law-intl-public.l18",
+   "claim": "Breadths: territorial sea 12 nm (Art 3), contiguous zone 24 nm (Art 33), EEZ 200 nm (Art 57). Also Art 121(3), Art 136 (common heritage), and Art 111(2) (hot pursuit from the EEZ).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.un.org/depts/los/convention_agreements/texts/unclos/unclos_e.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l18",
+   "claim": "Corfu Channel: warships have a right of innocent passage through international straits in peacetime without authorisation.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/case/1"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l19",
+   "claim": "Trail Smelter: no injury by fumes where the case is of serious consequence and proved by clear and convincing evidence.",
+   "verdict": "supported",
+   "sources": [
+    "https://legal.un.org/riaa/cases/vol_III/1905-1982.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l19",
+   "claim": "Pulp Mills (2010): an EIA is required by general international law, its content is set by national law, and Uruguay breached only procedural obligations.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.asil.org/insights/volume/14/issue/9/pulp-mills-river-uruguay-international-court-justice-recognizes",
+    "https://www.icj-cij.org/node/101867"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l19",
+   "claim": "The Paris Agreement dates from 2015 and has been in force since 2016. The ICJ climate change advisory opinion was given in 2025.",
+   "verdict": "supported",
+   "sources": [
+    "https://treaties.un.org/Pages/ViewDetails.aspx?src=TREATY&mtdsg_no=XXVII-7-d&chapter=27&clang=_en",
+    "https://www.icj-cij.org/case/187"
+   ],
+   "note": "The Paris Agreement entered into force on 4 Nov 2016. The advisory opinion was delivered on 23 Jul 2025. The lesson omits the US withdrawal, effective 27 Jan 2026."
+  },
+  {
+   "lessonId": "law-intl-public.l20",
+   "claim": "OST Art II (non-appropriation by sovereignty, use, occupation or any other means) and Art VI (authorisation and continuing supervision of private actors).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.unoosa.org/pdf/publications/STSPACE11E.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l20",
+   "claim": "Liability Convention: absolute liability on the surface and to aircraft (Art II); fault-based liability elsewhere (Art III).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.unoosa.org/pdf/publications/STSPACE11E.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-public.l20",
+   "claim": "Cosmos 954 (1978) was settled in 1981 for less than the claim. The Moon Agreement has no major space power as a party. The Artemis Accords date from 2020.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.jaxa.jp/library/space_law/chapter_3/3-2-2-1_e.html",
+    "https://treaties.un.org/Pages/ViewDetails.aspx?src=TREATY&mtdsg_no=XXIV-2&chapter=24&clang=_en",
+    "https://www.nasa.gov/artemis-accords/"
+   ],
+   "note": "Cosmos 954 settled for C$3M against a claim of about C$6M. The Moon Agreement has 17 parties (Saudi Arabia withdrew in 2024)."
+  }
+ ]
+}

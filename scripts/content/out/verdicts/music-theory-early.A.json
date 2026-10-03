@@ -1,0 +1,674 @@
+{
+ "courseId": "music-theory-early",
+ "verifier": "A",
+ "questions": [
+  {
+   "id": "music-theory-early.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l01.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Wording 'can NOT' with a 'None' option is a tricky double-negative for PreK-2."
+  },
+  {
+   "id": "music-theory-early.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l02.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l05.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l06.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l07.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l09.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l10.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l12.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l13.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l14.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l14.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-early.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "music-theory-early.l03",
+   "claim": "Forte means loud and piano means soft; the piano is named for playing soft and loud (pianoforte)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From standard references/knowledge; not freshly fetched."
+  },
+  {
+   "lessonId": "music-theory-early.l03",
+   "claim": "Forte pronounced FOR-tay",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard Italian-derived English pronunciation."
+  },
+  {
+   "lessonId": "music-theory-early.l09",
+   "claim": "Brass players buzz lips into a metal mouthpiece; trumpet/tuba are brass; clarinet/flute/recorder are woodwinds",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-early.l10",
+   "claim": "Twinkle tune comes from French song Ah! vous dirai-je, maman, published in Paris in the 1700s",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Melody first published c.1761; also used for Alphabet Song and Baa Baa Black Sheep."
+  },
+  {
+   "lessonId": "music-theory-early.l10",
+   "claim": "Mozart wrote piano variations on the tune",
+   "verdict": "supported",
+   "sources": [],
+   "note": "K. 265, c.1781-82."
+  },
+  {
+   "lessonId": "music-theory-early.l10",
+   "claim": "Tune is in public domain",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Melody is public domain; some arrangements/recordings are not."
+  },
+  {
+   "lessonId": "music-theory-early.l11",
+   "claim": "Ode to Joy is from the last (fourth) movement of Beethoven's Ninth Symphony and moves mostly by step",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-early.l11",
+   "claim": "Morning is from Grieg's Peer Gynt and opens with a flute",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Flute opens, oboe joins/continues the theme."
+  },
+  {
+   "lessonId": "music-theory-early.l12",
+   "claim": "Peter and the Wolf: bird=flute, duck=oboe, cat=clarinet, wolf=French horns",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Wolf is three horns."
+  },
+  {
+   "lessonId": "music-theory-early.l12",
+   "claim": "Carnival of the Animals by Saint-Saens includes lion, elephant, swan, aquarium; elephant played low",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Elephant is double bass."
+  },
+  {
+   "lessonId": "music-theory-early.l16",
+   "claim": "Mozart born 1756 in Salzburg, now Austria; toured Europe as a child",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Salzburg was then an independent archbishopric within the Holy Roman Empire."
+  },
+  {
+   "lessonId": "music-theory-early.l16",
+   "claim": "Beethoven (Germany) lost his hearing but kept composing",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-theory-early.l13",
+   "claim": "Solfege order do re mi fa sol la ti do; hand signs per syllable",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Some traditions use 'si' for ti and 'so' for sol."
+  },
+  {
+   "lessonId": "music-theory-early.l08",
+   "claim": "Ta / ti-ti rhythm syllables (one sound vs two even sounds per beat)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Kodaly-style syllables; ta/ti-ti are teaching conventions, not universal."
+  },
+  {
+   "lessonId": "music-theory-early.l01",
+   "claim": "Beat is the steady pulse of music",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  }
+ ]
+}

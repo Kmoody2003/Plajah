@@ -1,0 +1,1618 @@
+{
+ "courseId": "med-anatomy",
+ "label": "Human Anatomy",
+ "lessons": [
+  {
+   "id": "med-anatomy.l01",
+   "title": "Vertebral Column and Spinal Cord",
+   "body": [
+    "The vertebral column has 7 cervical, 12 thoracic, 5 lumbar, 5 fused sacral and 3 to 5 fused coccygeal vertebrae. A typical vertebra has a body anteriorly, a vertebral arch posteriorly (pedicles and laminae), a spinous process, two transverse processes and articular processes that form the zygapophyseal joints. Regional features help identification: cervical vertebrae have transverse foramina that transmit the vertebral artery (usually from C6 upward); thoracic vertebrae have costal facets for the ribs; lumbar vertebrae have large bodies and no foramina or facets. The atlas (C1) has no body and carries the skull; the axis (C2) has the dens, held against the atlas by the transverse ligament, whose rupture risks cord compression.",
+    "Intervertebral discs have a gelatinous nucleus pulposus inside a fibrous annulus fibrosus. Herniation most often occurs posterolaterally, where the annulus is thinner and the posterior longitudinal ligament is weaker. Because spinal nerves exit through the intervertebral foramen above the pedicle of the same-numbered vertebra in the lumbar region, a posterolateral herniation at L4-L5 typically compresses the traversing L5 root, not the exiting L4 root. A worked example: a patient with L5 radiculopathy has weak great-toe extension and sensory loss over the dorsum of the foot.",
+    "The spinal cord is shorter than the canal because the column grows faster than the cord during development. In adults the cord ends as the conus medullaris at about the L1-L2 level, and below it lies the cauda equina, a bundle of lumbar and sacral roots in a sac of cerebrospinal fluid. The meninges are the pia mater (adherent to the cord), the arachnoid and the tough dura mater. The subarachnoid space ends at about S2, and the filum terminale extends to the coccyx. Lumbar puncture is done below the conus, usually L3-L4 or L4-L5; the line between the iliac crests (the supracristal plane) crosses roughly L4. The needle passes skin, supraspinous and interspinous ligaments, ligamentum flavum, the epidural space, dura and arachnoid. Epidural anaesthesia stops just short of the dura.",
+    "The cord has cervical and lumbosacral enlargements for the limb plexuses. Spinal nerves number 31 pairs: 8 cervical, 12 thoracic, 5 lumbar, 5 sacral and 1 coccygeal. There are eight cervical nerves but seven cervical vertebrae, because C1 to C7 exit above their vertebrae and C8 exits below C7. From T1 downward each nerve exits below the vertebra of the same number, which is why the cauda equina roots descend a long way before leaving."
+   ]
+  },
+  {
+   "id": "med-anatomy.l02",
+   "title": "Cord Tracts, Blood Supply and Lesions",
+   "body": [
+    "Three ascending systems matter clinically. The dorsal columns (fasciculus gracilis and cuneatus) carry fine touch, vibration and proprioception ipsilaterally and cross in the medulla. The spinothalamic tract carries pain and temperature from the contralateral body, because its fibres synapse in the dorsal horn and cross within one or two segments through the anterior white commissure. The spinocerebellar tracts carry unconscious proprioception to the cerebellum. The main descending pathway is the lateral corticospinal tract, which crosses at the pyramidal decussation in the medulla, so it controls ipsilateral muscles below the level of a cord lesion.",
+    "A cord hemisection produces Brown-Sequard syndrome. Below the lesion there is ipsilateral weakness (corticospinal), ipsilateral loss of vibration and proprioception (dorsal column) and contralateral loss of pain and temperature (spinothalamic). At the level of the lesion there is ipsilateral segmental loss of all sensation and lower motor neuron weakness. Syringomyelia, a central cavity usually in the cervical cord, interrupts the crossing spinothalamic fibres in the anterior commissure and gives a cape-like bilateral loss of pain and temperature with preserved touch, a dissociated sensory loss.",
+    "Blood supply comes from one anterior spinal artery and two posterior spinal arteries, reinforced by radicular arteries. The anterior spinal artery supplies the anterior two thirds of the cord, including corticospinal tracts and spinothalamic tracts. Occlusion produces motor paralysis and loss of pain and temperature below the lesion but spares the dorsal columns, which the posterior spinal arteries supply. The great anterior radicular artery of Adamkiewicz, usually arising on the left from a lower thoracic or upper lumbar intercostal or lumbar artery, feeds the lower cord. It is endangered during aortic aneurysm surgery, and injury can produce paraplegia.",
+    "Level matters. Upper motor neuron lesions cause spasticity, hyperreflexia and an extensor plantar response; lower motor neuron lesions cause flaccid weakness, atrophy, fasciculations and hyporeflexia. Cauda equina syndrome from a large central disc herniation causes saddle anaesthesia, urinary retention or overflow incontinence and variable leg weakness, and is a surgical emergency. Remember that the conus and cauda equina are different structures: conus lesions tend to be early and bilateral with more sphincter involvement, while cauda equina lesions are asymmetric root lesions. Spinal cord compression from a vertebral metastasis or abscess is likewise an emergency, because the level of the sensory deficit helps localise the lesion to the segment just above it."
+   ]
+  },
+  {
+   "id": "med-anatomy.l03",
+   "title": "Thoracic Wall, Pleura and Lungs",
+   "body": [
+    "The thoracic cage consists of 12 pairs of ribs, the thoracic vertebrae and the sternum. Ribs 1 to 7 are true ribs attaching directly to the sternum by costal cartilage, ribs 8 to 10 attach via the cartilage above, and ribs 11 and 12 are floating. Each intercostal space contains three muscle layers (external, internal and innermost intercostals) and a neurovascular bundle running in the plane between the internal and innermost layers in the order vein, artery, nerve from superior to inferior (VAN). The bundle lies in the costal groove along the lower border of the rib above. Therefore a chest tube or needle thoracostomy is placed just above the upper border of the rib below, to avoid damaging it.",
+    "Each lung is covered by visceral pleura, which is insensitive to pain and is supplied by the autonomic nervous system. The parietal pleura lines the chest wall, diaphragm and mediastinum and is sensitive to pain via the intercostal nerves and the phrenic nerve. The pleural cavity ends in costodiaphragmatic recesses, the lowest points where fluid collects, reaching rib 8 in the midclavicular line, rib 10 in the midaxillary line and rib 12 posteriorly. Pleural effusion is therefore tapped posteriorly, low in the space but above the diaphragm. A pneumothorax is air in the pleural space; a tension pneumothorax acts as a one-way valve, shifting the mediastinum, compressing the great veins and causing hypotension.",
+    "The right lung has three lobes (upper, middle, lower) and two fissures; the left has two lobes with an oblique fissure and a lingula, the homologue of the middle lobe, plus a cardiac notch. The right main bronchus is shorter, wider and more vertical than the left, so aspirated material and foreign bodies more often enter the right lung, usually the posterior segment of the right upper lobe when supine or the superior segment of the lower lobe. Each lobe divides into bronchopulmonary segments, each with its own segmental bronchus and pulmonary artery branch, and separated by connective tissue; this allows a segment to be surgically resected. The pulmonary veins lie between segments.",
+    "The diaphragm is supplied by the phrenic nerve (C3, C4, C5), which keeps the diaphragm alive. Irritation of the diaphragmatic pleura refers pain to the shoulder tip, because the phrenic and supraclavicular nerves share the C3 to C5 dermatomes. The lymphatic drainage of the lung passes to hilar and tracheobronchial nodes."
+   ]
+  },
+  {
+   "id": "med-anatomy.l04",
+   "title": "The Heart and Mediastinum",
+   "body": [
+    "The mediastinum is the central compartment between the pleural cavities. It is divided at the sternal angle (T4-T5 level) into a superior part and an inferior part; the inferior part is split into anterior, middle (containing the heart and pericardium) and posterior portions. The thymus lies in the anterior and superior mediastinum; the oesophagus, thoracic aorta, thoracic duct, azygos system and sympathetic trunks lie posteriorly. The sternal angle also marks the second costal cartilage, the start and end of the aortic arch and the carina bifurcation.",
+    "The heart sits in a fibrous pericardium lined by the serous parietal pericardium; the visceral layer (epicardium) covers the heart, with the pericardial cavity between. Rapid accumulation of fluid in this cavity compresses the heart: cardiac tamponade produces hypotension, muffled heart sounds and distended neck veins (Beck triad). The right atrium receives the venae cavae and coronary sinus, the right ventricle sends blood to the pulmonary trunk, the left atrium receives four pulmonary veins and the left ventricle pumps to the aorta. Anteriorly, the sternocostal surface is mostly right ventricle; the left atrium forms most of the base posteriorly, and lies against the oesophagus, so enlargement can compress it.",
+    "The right coronary artery (RCA) arises from the right aortic sinus and supplies the right atrium, most of the right ventricle, the SA node in most people and, in a right-dominant circulation (about 80 percent), gives rise to the posterior descending artery that supplies the inferior septum and AV node. The left coronary artery arises from the left aortic sinus and divides into the left anterior descending (LAD), which supplies the anterior left ventricle and the anterior two thirds of the interventricular septum, and the circumflex, which supplies the lateral and posterior left ventricle. LAD occlusion causes an anterior infarct; RCA occlusion may cause an inferior infarct with bradycardia or AV block because of nodal ischaemia.",
+    "The conduction system comprises the SA node at the junction of the superior vena cava and right atrium, the AV node in the triangle of Koch, the bundle of His and the left and right bundle branches. Sympathetic fibres from T1-T4 accelerate the heart, and the vagus slows it. Visceral cardiac pain travels with sympathetic afferents to T1-T4, so angina is felt in the chest and medial arm and sometimes the jaw. The heart valves auscultate at the sites downstream of flow: aortic at the right second intercostal space, pulmonary at the left second, tricuspid at the left lower sternal border and mitral at the apex in the fifth intercostal space at the midclavicular line."
+   ]
+  },
+  {
+   "id": "med-anatomy.l05",
+   "title": "Abdominal Wall, Inguinal Canal and Hernias",
+   "body": [
+    "The anterolateral abdominal wall has, from superficial to deep, skin, Camper fascia (fatty), Scarpa fascia (membranous), the external oblique, internal oblique and transversus abdominis muscles, transversalis fascia, extraperitoneal fat and parietal peritoneum. The rectus abdominis lies in the rectus sheath; above the arcuate line the sheath splits around it, and below the line all aponeuroses pass anterior to the muscle, leaving only transversalis fascia behind. Dermatome T10 is at the umbilicus; the nerves are the lower intercostal, subcostal, iliohypogastric and ilioinguinal nerves.",
+    "The inguinal canal is an oblique passage about 4 cm long above the inguinal ligament, running from the deep ring (an opening in the transversalis fascia) to the superficial ring (an opening in the external oblique aponeurosis). In men it carries the spermatic cord; in women, the round ligament of the uterus. Both sexes have the ilioinguinal nerve in the canal. The roof is the internal oblique and transversus abdominis (the conjoint tendon forms the posterior wall medially), the anterior wall is the external oblique aponeurosis, the floor is the inguinal ligament, and the posterior wall is transversalis fascia. The spermatic cord layers derive from the abdominal wall: external spermatic fascia from the external oblique, cremasteric muscle and fascia from the internal oblique, and internal spermatic fascia from transversalis fascia.",
+    "Hernias are protrusions through a weakness. Hesselbach triangle is bounded by the inferior epigastric vessels laterally, the rectus sheath medially and the inguinal ligament below. A direct inguinal hernia passes through this triangle, medial to the inferior epigastric vessels, pushes through the posterior wall of the canal and usually comes through the superficial ring only. An indirect inguinal hernia passes through the deep ring lateral to the epigastric vessels, follows the course of the cord inside the internal spermatic fascia, and is often congenital, from a patent processus vaginalis. Femoral hernias go below and lateral to the pubic tubercle through the femoral ring, medial to the femoral vein, and carry a high risk of strangulation because the ring is narrow and rigid. Femoral hernias are commoner in women.",
+    "The key distinction is the relationship to the inferior epigastric artery, a branch of the external iliac artery. A worked example: an elderly man with a bulge appearing on straining, reducing when lying, medial to the epigastric vessels at surgery, has a direct hernia. A young child with a bulge descending to the scrotum has an indirect hernia."
+   ]
+  },
+  {
+   "id": "med-anatomy.l06",
+   "title": "Peritoneum and the GI Viscera",
+   "body": [
+    "The peritoneum is a serous membrane. The parietal layer lines the cavity and is pain sensitive through somatic nerves; the visceral layer covers organs and is sensitive to stretch via visceral afferents. Organs are intraperitoneal (wrapped, with a mesentery, such as the stomach, jejunum, ileum, liver and spleen), primarily retroperitoneal (behind the peritoneum, such as the kidneys, adrenals and aorta) or secondarily retroperitoneal (they started intraperitoneal, then fused to the posterior wall, such as the duodenum except its first part, ascending and descending colon, and pancreas except the tail). A helpful mnemonic is SAD PUCKER. The lesser omentum runs from the liver to the lesser curvature and first part of the duodenum; its free edge, the hepatoduodenal ligament, contains the portal triad (portal vein, hepatic artery proper, bile duct). The opening posterior to it is the epiploic foramen, the entrance to the lesser sac; the Pringle manoeuvre compresses the free edge to control liver bleeding. The greater omentum hangs from the greater curvature.",
+    "The foregut gives the oesophagus to the second part of the duodenum (above the major duodenal papilla), plus liver, gallbladder, pancreas and spleen, and is supplied by the coeliac trunk (T12). The midgut runs from the duodenum below the papilla to the proximal two thirds of the transverse colon and is supplied by the superior mesenteric artery (SMA; L1). The hindgut runs from the distal third of the transverse colon to the upper anal canal and is supplied by the inferior mesenteric artery (IMA; L3). Pain follows embryologic origin: foregut disease is felt in the epigastrium, midgut in the periumbilical region and hindgut in the suprapubic region. Appendicitis classically starts periumbilical (midgut visceral pain, T10) and migrates to the right lower quadrant once the parietal peritoneum is irritated, at McBurney point about one third of the way from the anterior superior iliac spine to the umbilicus.",
+    "The stomach has lesser and greater curvatures, cardia, fundus, body and pylorus. Its blood supply runs along both curvatures: the left and right gastric arteries along the lesser, and the left and right gastroepiploic arteries along the greater, with short gastric arteries to the fundus. The posterior duodenal ulcer can erode the gastroduodenal artery and bleed severely, while an anterior ulcer is more likely to perforate into the peritoneal cavity. The vagus nerves provide parasympathetic innervation: anterior vagal trunk from the left vagus, posterior from the right.",
+    "The small bowel is distinguished by the jejunum having long vasa recta and prominent plicae, and the ileum having shorter vasa recta and Peyer patches. Meckel diverticulum is a remnant of the vitelline duct in about 2 percent of people, about 2 feet (60 cm) from the ileocaecal valve, and may contain ectopic gastric or pancreatic tissue. The colon has taeniae coli, haustra and epiploic appendages."
+   ]
+  },
+  {
+   "id": "med-anatomy.l07",
+   "title": "Abdominal Vasculature and Portal Anastomoses",
+   "body": [
+    "The abdominal aorta begins at the aortic hiatus (T12) and ends by bifurcating at L4. Its unpaired ventral branches are the coeliac trunk (T12), SMA (L1) and IMA (L3). The coeliac trunk gives the left gastric, splenic and common hepatic arteries; the common hepatic gives the gastroduodenal artery and hepatic artery proper, and the gastroduodenal divides into the superior pancreaticoduodenal and right gastroepiploic arteries. The paired lateral branches are the inferior phrenic, middle suprarenal, renal and gonadal arteries; lumbar arteries arise posteriorly, and the median sacral artery from the bifurcation. The SMA supplies the pancreatic head and duodenum (via the inferior pancreaticoduodenal artery), jejunum, ileum and colon to the splenic flexure region. The marginal artery of Drummond connects the SMA and IMA territories, and watershed zones near the splenic flexure are vulnerable to ischaemia in hypotension.",
+    "The portal vein forms behind the neck of the pancreas from the superior mesenteric and splenic veins; the inferior mesenteric vein usually drains into the splenic. It carries nutrient-rich blood from the gut to the liver sinusoids, and the hepatic veins drain into the inferior vena cava. In portal hypertension, blood seeks a path around the liver through portosystemic anastomoses where portal and systemic veins meet. At the lower oesophagus, left gastric veins (portal) meet oesophageal veins draining to the azygos (systemic), producing oesophageal varices with risk of haematemesis. At the umbilicus, paraumbilical veins (portal) join epigastric veins, producing caput medusae. At the anorectal junction, the superior rectal vein (portal via the IMV) meets the middle and inferior rectal veins (systemic via the internal iliac and pudendal), producing rectal varices, distinct from haemorrhoids. Retroperitoneal anastomoses also exist between colonic veins and the posterior abdominal wall.",
+    "The inferior vena cava forms at L5 from the common iliac veins and ascends on the right of the aorta, passing through the diaphragm at T8. It receives the right gonadal vein directly, while the left gonadal vein drains into the left renal vein. This arrangement explains why varicoceles occur more often on the left, because the left testicular vein enters at a right angle and the left renal vein can be compressed between the SMA and aorta (the nutcracker phenomenon). An abrupt left-sided varicocele that does not decompress when lying down can signal a renal mass obstructing the left renal vein.",
+    "The SMA has an important anatomical relationship with the third part of the duodenum, which passes between the SMA and aorta. Loss of retroperitoneal fat in rapid weight loss can narrow this angle and compress the duodenum, producing SMA syndrome with postprandial vomiting. Acute mesenteric ischaemia from an SMA embolus produces severe pain out of proportion to examination."
+   ]
+  },
+  {
+   "id": "med-anatomy.l08",
+   "title": "Retroperitoneum, Kidneys and Posterior Wall",
+   "body": [
+    "The retroperitoneum lies behind the parietal peritoneum and contains the kidneys, adrenal glands, ureters, aorta, inferior vena cava, the pancreas (mostly), most of the duodenum, and lymph nodes and nerves. Each kidney sits at about T12 to L3, the right slightly lower because of the liver. The kidney has a fibrous capsule, perirenal fat, the renal (Gerota) fascia and pararenal fat. The renal hilum from anterior to posterior contains the vein, artery and pelvis (the order VAP). Segmental arteries are end arteries, so occlusion causes segmental infarction. The renal arteries arise at L1-L2; the left renal vein crosses anterior to the aorta below the SMA origin, and the right renal artery passes posterior to the IVC.",
+    "The ureters descend on the psoas major, cross the pelvic brim at the bifurcation of the common iliac artery and pass to the bladder. They have three physiological narrowings, where stones tend to lodge: the pelviureteric junction, the pelvic brim, and the vesicoureteric junction, the narrowest. Renal colic radiates from loin to groin because the ureter is supplied by T10-L2 segments, which share the ilioinguinal and genitofemoral dermatomes with the scrotum or labia. Surgical caution: in the pelvis the ureter lies under the uterine artery in women (\"water under the bridge\") and under the vas deferens in men, so ligation of those vessels can injure the ureter.",
+    "The adrenal glands lie above the kidneys. The right adrenal vein is short and drains directly to the IVC; the left drains into the left renal vein. The cortex has three zones (glomerulosa makes aldosterone, fasciculata cortisol, reticularis androgens) and the medulla is a modified sympathetic ganglion producing catecholamines; its preganglionic sympathetic supply is unusual in having no postsynaptic neurons. The pancreas has head, neck, body and tail; the head sits in the duodenal C-loop, with the uncinate process behind the SMV, and the tail lies in the splenorenal ligament near the splenic hilum. Pancreatic head cancer may compress the common bile duct, causing painless jaundice.",
+    "The posterior abdominal wall contains psoas major (hip flexor, from lumbar vertebrae and discs to the lesser trochanter), iliacus and quadratus lumborum. The psoas lies near the ureter and sympathetic trunk; a psoas abscess or irritation produces pain on hip extension. The lumbar plexus forms within psoas from L1-L4 and gives the iliohypogastric, ilioinguinal, genitofemoral, lateral femoral cutaneous, femoral and obturator nerves. The femoral nerve emerges on the lateral border of psoas, while the obturator emerges from the medial border."
+   ]
+  },
+  {
+   "id": "med-anatomy.l09",
+   "title": "Pelvis and Pelvic Viscera",
+   "body": [
+    "The bony pelvis is formed by the two hip bones (each fusing ilium, ischium and pubis at the acetabulum), the sacrum and coccyx. The pelvic brim (pelvic inlet) separates the false pelvis above from the true pelvis below. In females the inlet is wider and rounder and the subpubic angle is larger, which suits childbirth. The pelvic floor is formed by the levator ani (puborectalis, pubococcygeus and iliococcygeus) and coccygeus, covered by fascia. The puborectalis forms a sling that maintains the anorectal angle, a major mechanism of faecal continence. The levator ani is innervated by nerves from S3-S4 and the pudendal nerve, and weakening after childbirth contributes to pelvic organ prolapse.",
+    "The bladder in adults lies behind the pubic symphysis; when full it rises above the pubis and the peritoneum is lifted off the anterior wall, allowing suprapubic needle aspiration without entering the peritoneal cavity. The ureters enter the bladder posteriorly at the trigone, which is smooth muscle, whereas the rest of the wall is detrusor muscle. In males the prostate surrounds the urethra just below the bladder. Its posterior surface lies against the rectum, which is why digital rectal examination assesses it, and the peripheral zone is where most carcinomas arise, whereas benign enlargement of the transition zone compresses the urethra and causes obstructive urinary symptoms. The seminal vesicles lie behind the bladder, and the vas deferens passes superior to the ureter near the bladder.",
+    "In females the uterus lies between the bladder and the rectum, usually anteverted and anteflexed. The broad ligament is a peritoneal fold supporting the uterus, tubes and ovaries. The round ligament runs through the inguinal canal to the labia majora; the ovarian ligament connects ovary to uterus; the suspensory ligament of the ovary carries the ovarian vessels. The cardinal (transverse cervical) ligaments are the main support of the cervix and carry the uterine vessels, with the ureter lying nearby. The rectouterine pouch (pouch of Douglas) is the lowest point of the female peritoneal cavity, and pus or blood may collect there; it can be drained through the posterior vaginal fornix. The male equivalent is the rectovesical pouch.",
+    "Arterial supply to the pelvis is mostly the internal iliac artery. Its anterior division gives the uterine, vaginal, vesical, middle rectal, obturator and internal pudendal arteries, and its posterior division gives the iliolumbar, lateral sacral and superior gluteal arteries. The ovarian artery comes from the aorta, and the superior rectal from the inferior mesenteric. Lymph drains from most pelvic organs to the internal and external iliac nodes, but the ovary and testis drain to para-aortic nodes, and the superficial perineum and lower vagina to the superficial inguinal nodes. Parasympathetic fibres from S2-S4 (pelvic splanchnic nerves) cause bladder contraction and erection, while sympathetic fibres supply emission and ejaculation."
+   ]
+  },
+  {
+   "id": "med-anatomy.l10",
+   "title": "The Perineum",
+   "body": [
+    "The perineum is the diamond-shaped region below the pelvic floor, bounded by the pubic symphysis, ischiopubic rami, ischial tuberosities, sacrotuberous ligaments and coccyx. A line between the ischial tuberosities divides it into the anterior urogenital triangle and the posterior anal triangle. The urogenital triangle contains the superficial and deep perineal pouches. The superficial pouch has the ischiocavernosus, bulbospongiosus and superficial transverse perineal muscles, plus the erectile tissues (the crura and bulb of the penis or clitoris and vestibular bulbs). The deep pouch contains the external urethral sphincter and deep transverse perineal muscle. The perineal body, a central tendinous point, anchors many of these muscles and is torn in obstetric injury; an episiotomy cuts near it.",
+    "The pudendal nerve (S2-S4) is the main nerve of the perineum. It leaves the pelvis through the greater sciatic foramen, passes around the ischial spine and sacrospinous ligament and re-enters via the lesser sciatic foramen, then travels in the pudendal canal with the internal pudendal vessels. It gives the inferior rectal nerve, perineal nerve and dorsal nerve of penis or clitoris, supplying the external anal sphincter, perineal skin and muscles, and sensation of the genitalia. For a pudendal nerve block during childbirth, the clinician palpates the ischial spine transvaginally and injects near the nerve as it passes it, so the spine is the key landmark. The bulbourethral glands lie in the deep pouch.",
+    "The anal canal is about 4 cm long. The pectinate (dentate) line marks the junction of endoderm (hindgut) and ectoderm. Above the line, blood comes from the superior rectal artery, drains to the portal system through the superior rectal vein and lymph to the internal iliac nodes, and the mucosa has visceral innervation, so it is insensitive to cutting and pinprick. Below the line, supply is by the inferior rectal artery, drainage to systemic veins, lymph to superficial inguinal nodes and sensation by the somatic inferior rectal nerve, so lesions here are painful. Internal haemorrhoids arise above the line and are usually painless bleeding; external haemorrhoids below it are painful. Squamous cell carcinoma of the anal canal below the line spreads to inguinal nodes, while rectal adenocarcinoma spreads to iliac and mesenteric nodes.",
+    "The ischioanal (ischiorectal) fossae are fat-filled wedges lateral to the anal canal that allow it to distend. Abscesses can spread between the two fossae through the deep postanal space, producing a horseshoe pattern. The internal anal sphincter is involuntary smooth muscle with sympathetic and parasympathetic supply, while the external sphincter is skeletal muscle under voluntary control."
+   ]
+  },
+  {
+   "id": "med-anatomy.l11",
+   "title": "Gluteal Region, Thigh and Hip",
+   "body": [
+    "The hip joint is a ball-and-socket synovial joint between the femoral head and the acetabulum. Stability comes from the deep socket, labrum and strong capsular ligaments (iliofemoral, pubofemoral, ischiofemoral). Blood supply to the femoral head comes mainly from the medial and lateral circumflex femoral arteries, branches of the profunda femoris, forming a ring at the base of the neck, with a small contribution from the artery of the ligament of the head. Femoral neck fractures can disrupt the retinacular vessels and cause avascular necrosis of the head, especially in older patients. Typical signs of a displaced neck-of-femur fracture are a shortened, externally rotated leg.",
+    "In the gluteal region the gluteus maximus extends and externally rotates the thigh, innervated by the inferior gluteal nerve (L5-S2). The gluteus medius and minimus abduct the thigh and keep the pelvis level when standing on one leg; they are supplied by the superior gluteal nerve (L4-S1). Damage to the superior gluteal nerve produces a Trendelenburg gait: when standing on the affected leg, the pelvis drops on the opposite side. Intramuscular injections are given in the upper outer quadrant of the buttock to avoid the sciatic nerve, which leaves the pelvis through the greater sciatic foramen below piriformis. The sciatic nerve (L4-S3) has tibial and common fibular components, and in the posterior thigh it supplies the hamstrings (semitendinosus, semimembranosus, biceps femoris) and the hamstring part of adductor magnus.",
+    "The femoral triangle is bordered by the inguinal ligament, sartorius and adductor longus. Its contents from lateral to medial are the femoral nerve, artery, vein and the femoral canal with lymphatics (NAVEL: nerve, artery, vein, empty space, lymphatics). The femoral sheath encloses the artery, vein and canal but not the nerve. The femoral pulse is felt at the midinguinal point, halfway between the anterior superior iliac spine and pubic symphysis, and the femoral vein is medial to the artery, a point that matters for central venous cannulation. The femoral nerve (L2-L4) supplies the anterior compartment: quadriceps femoris (knee extension) and sartorius, with the saphenous nerve giving sensation to the medial leg and foot. Femoral nerve injury causes weak knee extension and loss of the patellar reflex.",
+    "The medial compartment (adductors, gracilis) is supplied by the obturator nerve (L2-L4), and obturator injury weakens adduction and leaves numbness of the medial thigh. The posterior compartment is the sciatic territory. Deep venous drainage runs with the arteries into the femoral vein, and a superficial great saphenous vein passes anterior to the medial malleolus and joins the femoral vein at the saphenofemoral junction, which is the source of vein harvests for bypass grafting. The adductor canal carries the femoral vessels and saphenous nerve and ends at the adductor hiatus, where the artery becomes popliteal."
+   ]
+  },
+  {
+   "id": "med-anatomy.l12",
+   "title": "Knee, Leg and Foot",
+   "body": [
+    "The knee is a hinge joint with some rotation, with cruciate and collateral ligaments and menisci. The anterior cruciate ligament (ACL) prevents anterior translation of the tibia on the femur, and the posterior cruciate (PCL) prevents posterior translation. The medial collateral ligament resists valgus stress and is attached to the medial meniscus, so injury to one often involves the other. The lateral meniscus is more mobile. A pivoting injury with a pop and rapid swelling suggests ACL rupture, and the anterior drawer and Lachman tests are positive. The unhappy triad is classically ACL, MCL and medial meniscus injury, although more recent data suggest lateral meniscus tears are frequent with ACL ruptures.",
+    "The popliteal fossa contains from superficial to deep the tibial nerve, popliteal vein and popliteal artery, the artery being deepest and closest to the femur. A supracondylar femur fracture or knee dislocation may injure the artery. The sciatic nerve divides near the apex into the tibial nerve and the common fibular (peroneal) nerve. The common fibular nerve winds around the neck of the fibula, where it is superficial and vulnerable to fracture, casts or compression. It divides into the superficial fibular nerve (everts the foot, sensation to the dorsum of the foot) and the deep fibular nerve (dorsiflexion and toe extension, sensation of the first web space). Injury produces foot drop with a high-stepping gait and loss of sensation of the lateral leg and dorsum of the foot. The tibial nerve supplies plantarflexors and the muscles of the sole through the medial and lateral plantar nerves, and injury causes loss of plantarflexion and sole sensation.",
+    "The leg has anterior, lateral, superficial posterior and deep posterior compartments. The anterior compartment contains the dorsiflexors and the anterior tibial vessels with the deep fibular nerve; the lateral contains the fibularis longus and brevis; the posterior ones contain the gastrocnemius, soleus, tibialis posterior and long flexors. Fractures or reperfusion after ischaemia raise pressure within a tight fascial compartment, causing compartment syndrome: pain out of proportion, pain on passive stretch, tense swelling, and later paraesthesia, with pulses often preserved until late. Treatment is surgical fasciotomy. The anterior compartment is the one most often involved.",
+    "The foot is supported by medial and lateral longitudinal arches and the transverse arch, held by bones and ligaments including the plantar aponeurosis and the spring ligament. Ankle sprains most commonly involve the lateral ligament complex (the anterior talofibular ligament is the weakest and most frequently torn) during inversion injury, because the deltoid ligament on the medial side is stronger. The dorsalis pedis artery is palpated lateral to the extensor hallucis longus tendon, and the posterior tibial artery pulse behind the medial malleolus. Tarsal tunnel syndrome is entrapment of the tibial nerve behind the medial malleolus."
+   ]
+  },
+  {
+   "id": "med-anatomy.l13",
+   "title": "Shoulder, Axilla and Rotator Cuff",
+   "body": [
+    "The glenohumeral joint is a ball-and-socket joint with the greatest range of motion of any joint, bought at the price of stability. The glenoid is shallow, deepened only slightly by the labrum, so dislocation is common. Anterior-inferior dislocation is most frequent and may injure the axillary nerve, which winds around the surgical neck of the humerus. The rotator cuff comprises supraspinatus, infraspinatus, teres minor and subscapularis (SITS). Together they hold the humeral head in the glenoid. Supraspinatus initiates abduction in the first 15 degrees and is the most commonly torn; infraspinatus and teres minor externally rotate; subscapularis internally rotates. Supraspinatus passes beneath the acromion and can be impinged, causing a painful arc of abduction between about 60 and 120 degrees.",
+    "Nerve supply to the scapular muscles: suprascapular nerve (C5-C6) to supraspinatus and infraspinatus, upper and lower subscapular nerves to subscapularis, axillary nerve to teres minor and deltoid. The deltoid abducts from 15 to 90 degrees, and the axillary nerve also supplies a patch of skin over the lateral shoulder (the regimental badge area); loss of that sensation together with deltoid weakness points to axillary nerve injury. Serratus anterior, innervated by the long thoracic nerve (C5-C7), holds the scapula against the chest wall. Injury, for instance during axillary lymph node dissection or mastectomy, causes a winged scapula. Trapezius, supplied by the accessory nerve (cranial nerve XI), elevates the scapula; injury to the nerve in the posterior triangle causes a drooping shoulder and weak shrug.",
+    "The axilla is a pyramidal space between the arm and chest wall. Its apex is the cervico-axillary canal, bounded by the clavicle, first rib and scapula; its contents are the axillary artery and vein, the cords and branches of the brachial plexus and lymph nodes in fat. The axillary artery begins at the lateral border of the first rib as the continuation of the subclavian and ends at the inferior border of teres major, becoming the brachial artery. It is divided into three parts by pectoralis minor and gives off the superior thoracic, thoracoacromial and lateral thoracic arteries, then the subscapular, anterior and posterior circumflex humeral arteries. The scapular anastomosis around the scapula provides collateral flow if the subclavian or axillary artery is ligated.",
+    "Axillary lymph nodes drain the upper limb, the breast (about 75 percent of lymph from the breast drains to axillary nodes) and the thoracic wall above the umbilicus. Sentinel node biopsy identifies the first node to receive drainage from a breast tumour. The clavicle is the most commonly fractured bone, usually at the junction of the middle and lateral thirds, with the medial fragment pulled up by sternocleidomastoid."
+   ]
+  },
+  {
+   "id": "med-anatomy.l14",
+   "title": "The Brachial Plexus",
+   "body": [
+    "The brachial plexus forms from the anterior rami of C5-T1. Learning its architecture lets a clinician localise any lesion. The five roots form three trunks (upper C5-C6, middle C7, lower C8-T1), each trunk splits into anterior and posterior divisions, and divisions recombine into three cords named for their relationship to the axillary artery: lateral, posterior and medial. The mnemonic is Randy Travis Drinks Cold Beer: roots, trunks, divisions, cords, branches. The roots and trunks lie in the posterior triangle of the neck between the scalene muscles, the cords in the axilla.",
+    "Branches from the roots include the dorsal scapular nerve (C5, to rhomboids) and long thoracic nerve (C5-C7, to serratus anterior). From the upper trunk comes the suprascapular nerve. The lateral cord gives the lateral pectoral nerve, the musculocutaneous nerve (C5-C7) and the lateral root of the median nerve. The medial cord gives the medial pectoral, medial brachial and antebrachial cutaneous nerves, the ulnar nerve (C8-T1) and the medial root of the median nerve. The posterior cord gives the upper and lower subscapular, thoracodorsal, axillary and radial nerves. The median nerve is thus formed by two roots forming an M with the lateral and medial cords on either side of the axillary artery.",
+    "Upper trunk injury (Erb-Duchenne palsy, C5-C6) results from excessive widening of the angle between the neck and shoulder, for example when a baby's shoulder is stuck at delivery (shoulder dystocia) or in a fall onto the shoulder. The arm hangs in adduction and internal rotation with the forearm pronated, the waiter's tip position, because abductors, external rotators and biceps are weak. Lower trunk injury (Klumpke palsy, C8-T1) follows traction on an abducted arm, such as grabbing a branch while falling, and affects the intrinsic hand muscles, causing a claw hand; if T1 sympathetic fibres are involved, Horner syndrome (ptosis, miosis, anhidrosis) appears. A cervical rib or a Pancoast tumour at the apex of the lung can also compress the lower trunk and subclavian vessels (thoracic outlet syndrome).",
+    "A useful framework for lesions: a lateral cord lesion spares the ulnar nerve but weakens elbow flexion; a posterior cord lesion causes weakness of shoulder abduction and wrist and finger extension (axillary and radial nerves); a medial cord lesion produces a claw hand with sensory loss in the medial arm and hand. Total plexus injuries from motorcycle accidents often avulse roots from the cord; sensory loss with a preserved axon reflex (the histamine flare) suggests a preganglionic lesion because the dorsal root ganglion remains intact."
+   ]
+  },
+  {
+   "id": "med-anatomy.l15",
+   "title": "Arm, Elbow and Nerve Injuries",
+   "body": [
+    "The arm has anterior and posterior compartments separated by intermuscular septa. The anterior compartment (biceps brachii, brachialis and coracobrachialis) flexes the elbow and is supplied by the musculocutaneous nerve (C5-C7), which pierces coracobrachialis and continues as the lateral cutaneous nerve of the forearm. The posterior compartment (triceps) extends the elbow and is supplied by the radial nerve (C5-T1). The brachial artery runs medially along the arm and, at the cubital fossa, lies medial to the biceps tendon. In the fossa from lateral to medial are the radial nerve (deep), the biceps tendon, the brachial artery and the median nerve. The median cubital vein crosses the fossa and is used for venepuncture; it lies superficial to the bicipital aponeurosis, which protects the artery and median nerve.",
+    "The radial nerve winds around the humerus in the radial (spiral) groove on the posterior aspect of the humeral shaft, with the profunda brachii artery. A mid-shaft humeral fracture can injure it, causing wrist drop (loss of wrist and finger extension), weakness of supination, loss of sensation over the dorsum of the hand and first web space, and preserved triceps because the branches to triceps leave proximally. Compression in the axilla, such as crutch use, can also affect the triceps. Radial wrist drop must be distinguished from lesions that affect only the posterior interosseous nerve, a deep branch winding around the radial neck, which causes finger drop but no sensory loss and no wrist drop of the full type.",
+    "The axillary nerve injury occurs with surgical neck fractures of the humerus. The medial epicondyle fracture injures the ulnar nerve in the groove behind it, giving the funny bone sensation when struck. Ulnar neuropathy at the elbow causes numbness of the little finger and the medial ring finger, weakness of the interossei and adductor pollicis (positive Froment sign, in which the patient flexes the thumb interphalangeal joint to hold a paper) and clawing, more marked in lesions at the wrist than at the elbow (the ulnar paradox) because the flexor digitorum profundus to digits 4 and 5 is spared at the wrist and pulls the fingers into flexion.",
+    "A supracondylar fracture of the humerus in children can injure the median nerve (particularly the anterior interosseous branch) and the brachial artery, and a resulting forearm compartment ischaemia can produce Volkmann contracture. A worked example: a child with a supracondylar fracture who cannot make an OK sign has anterior interosseous nerve involvement, since the flexor pollicis longus and the lateral flexor digitorum profundus are weak."
+   ]
+  },
+  {
+   "id": "med-anatomy.l16",
+   "title": "Forearm and Hand",
+   "body": [
+    "The forearm has a flexor-pronator anterior compartment, mostly supplied by the median nerve, with flexor carpi ulnaris and the medial half of flexor digitorum profundus supplied by the ulnar nerve, and an extensor-supinator posterior compartment supplied by the radial nerve (through the posterior interosseous nerve). The median nerve passes between the two heads of pronator teres and gives the anterior interosseous nerve, which supplies flexor pollicis longus, pronator quadratus and the lateral half of flexor digitorum profundus without a cutaneous branch. The palmar cutaneous branch of the median nerve arises proximal to the carpal tunnel, so the thenar skin sensation is spared in carpal tunnel syndrome.",
+    "The carpal tunnel is bounded by the carpal bones and the flexor retinaculum (transverse carpal ligament), and transmits the median nerve with nine flexor tendons: four flexor digitorum superficialis, four flexor digitorum profundus and flexor pollicis longus. Compression of the median nerve causes numbness and tingling in the lateral three and a half digits (palmar side), worse at night, with thenar wasting and weak thumb abduction late in the disease. Tinel and Phalen signs are positive. Causes include repetitive use, pregnancy, hypothyroidism, diabetes and rheumatoid arthritis. The ulnar nerve and artery pass superficial to the retinaculum in Guyon canal, and so are not affected by carpal tunnel syndrome.",
+    "The thenar muscles (abductor pollicis brevis, flexor pollicis brevis and opponens pollicis) are supplied by the recurrent branch of the median nerve, and the first two lumbricals by the median nerve. The remaining intrinsic muscles, including the hypothenar group, all interossei (dorsal abduct, palmar adduct: DAB and PAD), the third and fourth lumbricals and adductor pollicis, are supplied by the deep branch of the ulnar nerve. The simplest rule is LOAF: the lateral two lumbricals, opponens pollicis, abductor pollicis brevis and flexor pollicis brevis are median. A median nerve lesion at the elbow gives the hand of benediction when making a fist, as the index and middle fingers cannot flex.",
+    "The hand has a dual arterial supply: the superficial palmar arch (mostly ulnar artery) and the deep palmar arch (mostly radial artery). The anatomical snuffbox, between the extensor pollicis longus and the extensor pollicis brevis and abductor pollicis longus tendons, houses the radial artery and the scaphoid. Scaphoid fractures follow a fall on an outstretched hand, cause snuffbox tenderness and may be missed on early radiographs. The scaphoid blood supply enters distally and flows retrograde, so fractures through the waist can cause proximal pole avascular necrosis and nonunion. The Allen test assesses the collateral flow in the hand before radial artery puncture."
+   ]
+  },
+  {
+   "id": "med-anatomy.l17",
+   "title": "Skull, Meninges and Intracranial Haemorrhage",
+   "body": [
+    "The cranial floor has three fossae. The anterior fossa holds the frontal lobes and the cribriform plate, through which olfactory nerve filaments pass; fracture here can cause anosmia and CSF rhinorrhoea. The middle fossa holds the temporal lobes and pituitary fossa and contains the optic canal, superior orbital fissure and the foramina rotundum, ovale and spinosum. The posterior fossa holds the cerebellum and brainstem and the foramen magnum and jugular foramen. Foramen ovale transmits the mandibular nerve (V3) and the accessory meningeal artery; foramen spinosum transmits the middle meningeal artery; foramen rotundum transmits the maxillary nerve (V2); the jugular foramen transmits cranial nerves IX, X and XI and the internal jugular vein; and the internal acoustic meatus transmits VII and VIII.",
+    "Three meningeal layers cover the brain. The dura mater has an outer periosteal layer and an inner meningeal layer, which separate to form dural venous sinuses. The arachnoid mater lies beneath it, with the subarachnoid space containing CSF and the major arteries and veins. The pia mater adheres to the brain surface. The dura is supplied mainly by the middle meningeal artery, a branch of the maxillary artery, which enters through foramen spinosum and lies on the inner surface of the pterion, a thin H-shaped junction of the frontal, parietal, temporal and sphenoid bones. A blow to the pterion can tear this artery, causing an epidural haematoma, a lens-shaped (biconvex) collection that does not cross suture lines. Classically there is a brief loss of consciousness, a lucid interval, then deterioration from rising arterial pressure and herniation.",
+    "Subdural haematoma, in contrast, results from tearing of bridging veins that cross the subdural space to the dural sinuses; it is crescent-shaped, crosses suture lines and is common in the elderly and alcoholic, where brain atrophy stretches the veins, with a presentation over days to weeks. Subarachnoid haemorrhage commonly follows rupture of a berry aneurysm at the circle of Willis, especially the anterior communicating artery junction, and causes a sudden severe thunderclap headache. Berry aneurysms are associated with polycystic kidney disease.",
+    "The dural venous sinuses drain the brain to the internal jugular veins. The superior sagittal sinus runs in the falx cerebri and drains through the confluence of sinuses to the transverse and sigmoid sinuses. The cavernous sinus on either side of the sella turcica contains the internal carotid artery and the abducens nerve (CN VI) within the sinus, and in its lateral wall CN III, IV, V1 and V2. Infection from the dangerous area of the face can spread via the valveless facial and ophthalmic veins to the cavernous sinus, producing thrombosis with ophthalmoplegia, proptosis and sensory loss over the forehead and cheek."
+   ]
+  },
+  {
+   "id": "med-anatomy.l18",
+   "title": "The Cranial Nerves",
+   "body": [
+    "The cranial nerves are I olfactory, II optic, III oculomotor, IV trochlear, V trigeminal, VI abducens, VII facial, VIII vestibulocochlear, IX glossopharyngeal, X vagus, XI accessory and XII hypoglossal. I and II attach to the forebrain, III and IV to the midbrain, V to the pons, VI, VII and VIII at the pontomedullary junction, and IX to XII to the medulla (XI has spinal roots too). Function: I, II and VIII are purely sensory; III, IV, VI, XI and XII are purely motor; V, VII, IX and X are mixed. Parasympathetic fibres travel with III (ciliary ganglion; pupil constriction), VII (pterygopalatine and submandibular ganglia; lacrimal and salivary glands), IX (otic ganglion; parotid) and X (thoracic and abdominal viscera).",
+    "The eye muscles are supplied by three nerves: the lateral rectus by VI, the superior oblique by IV, and the rest by III. The mnemonic is LR6 SO4. A complete oculomotor palsy produces a down-and-out eye (unopposed lateral rectus and superior oblique), ptosis from levator palpebrae paralysis and a dilated pupil from loss of parasympathetic fibres, which travel on the outside of the nerve and are compressed first by an expanding posterior communicating artery aneurysm or uncal herniation. In diabetic ischaemic third nerve palsy the pupil is often spared, because the central fibres bear the ischaemia and the peripheral parasympathetic fibres are spared. Abducens palsy causes an inability to abduct and horizontal diplopia, a long intracranial course making it a false localising sign in raised intracranial pressure.",
+    "The trigeminal nerve divides into V1 (ophthalmic, through the superior orbital fissure), V2 (maxillary, foramen rotundum) and V3 (mandibular, foramen ovale). V3 carries motor fibres to the muscles of mastication. The corneal reflex has sensory limb V1 and motor limb VII. The facial nerve exits through the stylomastoid foramen, supplies muscles of facial expression and runs through the parotid gland; before that it gives chorda tympani (taste to the anterior two thirds of the tongue), the nerve to stapedius and greater petrosal nerve. Lower motor neuron facial palsy (Bell palsy) paralyses the entire half of the face, including the forehead, whereas an upper motor neuron lesion (such as a stroke) spares the forehead because the upper facial nucleus receives bilateral cortical input.",
+    "The glossopharyngeal nerve provides taste and sensation to the posterior third of the tongue and the afferent limb of the gag reflex, with the vagus the efferent limb. The vagus supplies the pharyngeal and laryngeal muscles; the recurrent laryngeal nerve loops under the aortic arch on the left and the right subclavian artery on the right, and injury causes hoarseness (thyroid surgery risk). The accessory nerve supplies sternocleidomastoid and trapezius. The hypoglossal nerve supplies the tongue muscles, and a lesion makes the tongue deviate toward the side of the lesion because the genioglossus on the intact side pushes it across."
+   ]
+  },
+  {
+   "id": "med-anatomy.l19",
+   "title": "Neck Triangles, Thyroid and Fascial Spaces",
+   "body": [
+    "The sternocleidomastoid (SCM) divides each side of the neck into an anterior triangle and a posterior triangle. The anterior triangle is bounded by the SCM, the midline and the mandible, and is divided by the digastric and omohyoid muscles into submandibular, submental, carotid and muscular triangles. The posterior triangle is bounded by SCM, trapezius and the clavicle. It contains the accessory nerve (CN XI) running superficially, the roots and trunks of the brachial plexus, the third part of the subclavian artery and the external jugular vein. The accessory nerve lies superficially, and lymph node biopsy here can injure it, causing a weak shrug and shoulder droop. Erb point, the midpoint of the posterior border of SCM, is where the lesser occipital, great auricular, transverse cervical and supraclavicular nerves emerge, and is the site of cervical plexus blocks.",
+    "The carotid sheath contains the common carotid artery, internal jugular vein and vagus nerve. The common carotid bifurcates at about the level of the upper border of the thyroid cartilage (C4) into the internal carotid, which has no branches in the neck, and the external carotid, which gives superior thyroid, ascending pharyngeal, lingual, facial, occipital, posterior auricular, maxillary and superficial temporal arteries. The carotid sinus (a baroreceptor, CN IX) and carotid body (a chemoreceptor, CN IX) lie at the bifurcation. Carotid endarterectomy exposes the bifurcation along the anterior border of SCM, with risk to the hypoglossal and vagus nerves.",
+    "The thyroid gland has two lobes joined by an isthmus lying anterior to the second to fourth tracheal rings. It is supplied by the superior thyroid artery (from the external carotid) and inferior thyroid artery (from the thyrocervical trunk of the subclavian). The superior laryngeal nerve, particularly its external branch which supplies the cricothyroid muscle, lies near the superior thyroid artery, and the recurrent laryngeal nerve is near the inferior thyroid artery; each is at risk during thyroidectomy, causing voice weakness or hoarseness respectively. The parathyroid glands, normally four, lie on the posterior surface and may be damaged, causing hypocalcaemia. The thyroid develops from the foramen caecum and descends along the thyroglossal duct, so a thyroglossal duct cyst lies in the midline and moves upward with tongue protrusion.",
+    "Cervical fascia creates spaces through which infection travels. The retropharyngeal space lies behind the pharynx and in front of the prevertebral fascia and communicates with the posterior mediastinum, so a retropharyngeal abscess can spread to the chest. Ludwig angina is a bilateral submandibular space infection, usually odontogenic from the mandibular molars, that can elevate the tongue and obstruct the airway. Emergency airway access is by cricothyrotomy through the cricothyroid membrane, between the thyroid and cricoid cartilages, which is superficial and avascular relative to a tracheotomy."
+   ]
+  },
+  {
+   "id": "med-anatomy.l20",
+   "title": "Face, Orbit and Oral Region",
+   "body": [
+    "Sensation of the face is supplied by the three divisions of the trigeminal nerve: V1 to the forehead, upper eyelid and nose bridge, V2 to the cheek, upper lip and lower eyelid, and V3 to the lower lip, chin and lower jaw (apart from the angle of the mandible, supplied by C2-C3). The muscles of facial expression are supplied by branches of the facial nerve, which fans out from within the parotid gland as temporal, zygomatic, buccal, marginal mandibular and cervical branches. The parotid gland is enclosed by a tight fascia and has an important surgical relationship: the facial nerve runs through it, so parotid surgery risks facial palsy. Stensen duct crosses the masseter and pierces the buccinator to open opposite the upper second molar. Parotid swelling in mumps is painful because the capsule is unyielding, and the auriculotemporal nerve carries the pain.",
+    "The orbit has a roof, floor, medial and lateral walls with several openings. The optic canal in the sphenoid transmits the optic nerve and ophthalmic artery. The superior orbital fissure transmits CN III, IV, V1 and VI and the superior ophthalmic vein; the inferior orbital fissure transmits the maxillary branch to the infraorbital nerve. The weakest wall is the floor (and medial wall, thin as lamina papyracea). A blow to the eye can cause a blowout fracture of the floor, in which the orbital contents herniate into the maxillary sinus; the inferior rectus muscle can become entrapped, so the patient cannot look up and has diplopia, and infraorbital nerve injury causes numbness of the cheek and upper lip.",
+    "The lacrimal gland, supplied by parasympathetic fibres from the facial nerve (via the greater petrosal nerve and pterygopalatine ganglion), drains through the lacrimal puncta to the nasolacrimal duct and inferior meatus of the nose. Sympathetic fibres from the superior cervical ganglion dilate the pupil and raise the eyelid by Muller muscle. Interruption of the sympathetic chain gives Horner syndrome: ptosis, miosis and anhidrosis. The parasympathetic pupil path is by the Edinger-Westphal nucleus to CN III, the ciliary ganglion and the sphincter pupillae.",
+    "The tongue has taste and general sensation to the anterior two thirds by the chorda tympani (taste) and the lingual nerve (touch, a branch of V3), and the posterior third by IX. Intrinsic and extrinsic muscles are supplied by XII, except palatoglossus, supplied by X. Lymph from the tongue tip drains to the submental nodes, and the lateral tongue to submandibular nodes, which matters in oral cancer staging. The inferior alveolar nerve block anaesthetises the lower teeth by injection near the mandibular foramen, and the nearby lingual nerve is usually anaesthetised at the same time."
+   ]
+  },
+  {
+   "id": "med-anatomy.l21",
+   "title": "Surface Anatomy and Clinical Landmarks",
+   "body": [
+    "Surface anatomy links what a clinician can feel to what lies beneath. Good landmarks are bony and reliable. The suprasternal notch lies at about T2-T3, the sternal angle at T4-T5, the xiphisternal joint at about T9, and the inferior costal margin at about L2-L3 (the tenth costal cartilage). In the neck the hyoid sits at C3, the thyroid cartilage at C4-C5 and the cricoid cartilage at C6, which marks the junction of the larynx and trachea, the pharynx and oesophagus, and the level where the carotid artery can be compressed against the C6 transverse process (the carotid tubercle). The spinous process of C7 (vertebra prominens) is the prominent one at the base of the neck.",
+    "The transpyloric plane (of Addison) lies midway between the suprasternal notch and the pubic symphysis, at about L1. It passes through the pylorus, the neck of the pancreas, the origin of the superior mesenteric artery, the hila of the kidneys, the duodenojejunal flexure, the fundus of the gallbladder at the tip of the ninth costal cartilage, and the termination of the spinal cord. The subcostal plane is at L3, the supracristal plane at L4 (the level of aortic bifurcation and lumbar puncture) and the intertubercular plane at L5 across the iliac tubercles, where the inferior vena cava forms. The scapular spine lies at T3 and the inferior angle of the scapula at T7. Dermatomes provide a further map: T4 at the nipple, T10 at the umbilicus and L1 at the inguinal ligament.",
+    "Cardiac and lung borders also map to the surface. The apex beat is normally in the fifth left intercostal space at the midclavicular line. The lungs reach the sixth rib at the midclavicular line, the eighth in the midaxillary line and the tenth posteriorly, whereas the pleura extends two ribs lower: the eighth, tenth and twelfth, respectively. The oblique fissures follow a line from the T3 spine to the sixth costochondral junction, which helps decide where to auscultate each lobe. The right horizontal fissure follows the fourth rib anteriorly.",
+    "In the limbs, palpation sites matter: the carotid pulse at the anterior border of SCM at C6, the brachial pulse medial to the biceps tendon, the radial pulse lateral to flexor carpi radialis, the femoral pulse at the midinguinal point, the popliteal pulse deep in the fossa, the dorsalis pedis lateral to extensor hallucis longus and the posterior tibial pulse behind the medial malleolus. The ulnar nerve is palpable behind the medial epicondyle and the common fibular nerve against the neck of the fibula. A worked example: a stab wound at the left fifth intercostal space in the midclavicular line is likely to enter the left ventricle, because the apex lies there and the lung and pleura retract at that level."
+   ]
+  },
+  {
+   "id": "med-anatomy.l22",
+   "title": "Embryologic Origins That Explain Anatomy",
+   "body": [
+    "Many adult relationships make sense only through development. The pharyngeal arches give the head and neck their nerves and muscles. Arch 1 is supplied by the trigeminal nerve (V3 for the muscles of mastication), arch 2 by the facial nerve (muscles of facial expression, stapedius), arch 3 by the glossopharyngeal nerve (stylopharyngeus only), arches 4 and 6 by the vagus (laryngeal and pharyngeal muscles). The recurrent laryngeal nerve loops under the sixth arch artery on the left (the ductus arteriosus) and under the fourth arch artery on the right (the right subclavian artery), which explains the left-right asymmetry. Pharyngeal pouches give the middle ear and tubes (1), palatine tonsil (2), inferior parathyroids and thymus (3) and superior parathyroids (4). A lateral neck cyst along the anterior border of SCM is a branchial cleft cyst from the second arch region.",
+    "The diaphragm forms from the septum transversum (central tendon), pleuroperitoneal membranes, oesophageal mesentery and body-wall muscle. The septum transversum arises at cervical levels, so the phrenic nerve (C3-C5) travels from the neck to the diaphragm. A congenital diaphragmatic hernia, most often through the posterolateral foramen of Bochdalek on the left, allows abdominal contents into the chest, compresses the developing lung and causes pulmonary hypoplasia.",
+    "The midgut herniates into the umbilical cord at week 6 and returns by week 10, rotating 270 degrees counterclockwise around the SMA, so a failure leads to malrotation, volvulus and obstruction. Persistence of the vitelline duct gives Meckel diverticulum. The foregut rotation moves the stomach so the left vagus becomes anterior; the dorsal mesentery of the foregut and the rotation also create the lesser sac. The heart tube loops to the right; the atrial septum (septum primum and secundum, with the foramen ovale) closes at birth when left atrial pressure rises, and a patent foramen ovale may allow paradoxical embolism. A ventricular septal defect is the most common congenital heart anomaly and usually involves the membranous septum.",
+    "The urogenital system also tells a story. The kidneys develop from the pronephros, mesonephros and metanephros; the metanephros ascends from the pelvis. A horseshoe kidney becomes trapped under the inferior mesenteric artery during ascent. The gonads descend from the posterior abdominal wall via the gubernaculum, and testicular lymph drains to para-aortic nodes for this reason. A patent processus vaginalis permits an indirect hernia or hydrocele. In males, the paramesonephric ducts regress under anti-Mullerian hormone; in females the same ducts form the uterine tubes, uterus and upper vagina. The ureteric bud arises from the mesonephric duct, and duplications of the ureter can result when two buds develop."
+   ]
+  },
+  {
+   "id": "med-anatomy.l23",
+   "title": "Imaging Anatomy: Radiograph, CT, MRI and Ultrasound",
+   "body": [
+    "Each imaging modality maps tissue properties onto grey levels, so you must know what the picture represents. A plain radiograph is a shadow summing all tissues along the X-ray path: bone and calcium appear white because they attenuate strongly, air black, with fat and soft tissue in between. Overlying structures can hide each other, which is why two views at right angles are usually needed. In a posteroanterior chest film the heart normally occupies less than half of the maximum internal chest width, the right heart border is formed by the right atrium, and the left heart border by the left ventricle and the left atrial appendage, with the aortic knuckle (arch) above. A blunted costophrenic angle suggests a pleural effusion, since fluid pools in the costodiaphragmatic recess. The silhouette sign is the loss of an expected border when an adjacent structure has the same density: loss of the right heart border suggests right middle lobe disease.",
+    "Computed tomography (CT) acquires cross-sectional slices from X-ray attenuation, expressed in Hounsfield units (water is 0, air about minus 1000, dense bone strongly positive). It excels at bone, lung, acute haemorrhage (blood is bright) and rapid trauma assessment. Intravenous iodinated contrast enhances vessels and organs. Axial images are viewed as if looking up from the patient's feet, so the patient's right is on the viewer's left. Magnetic resonance imaging (MRI) uses the behaviour of hydrogen nuclei in a magnetic field. On T1-weighted images fat is bright and fluid dark, giving good anatomical detail; on T2-weighted images fluid is bright, which makes oedema and many lesions conspicuous. MRI offers excellent soft tissue contrast of the brain, spinal cord, joints and pelvis, with no ionising radiation, but takes longer and is contraindicated with some implants.",
+    "Ultrasound uses reflected sound and is real-time, portable and free of radiation. Fluid appears black (anechoic), which makes it suited to the gallbladder, kidneys, pregnancy and the heart, while bone and air reflect sound and obscure deeper structures. Doppler imaging measures flow. Choosing a test therefore follows the anatomy: a suspected pleural effusion on ultrasound or chest film, an acute head bleed on CT, a torn cruciate ligament or spinal cord lesion on MRI, a free-air perforation on an upright chest film or CT.",
+    "A systematic approach prevents missed findings: confirm the patient and the side, check technique and orientation, review the structures from the outside inward (soft tissue, bones, pleura and lungs, mediastinum), and compare both sides. Anatomical knowledge underpins interpretation. For example, on an axial CT of the upper abdomen at the level of the pancreas, the splenic vein runs behind the body of the pancreas, the aorta lies in front of the vertebral body slightly left of midline and the IVC to its right, so one can identify each structure by position, not by guessing."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-anatomy.l01.q1",
+   "lessonId": "med-anatomy.l01",
+   "kind": "mcq",
+   "prompt": "At what approximate vertebral level does the adult spinal cord end as the conus medullaris?",
+   "choices": [
+    "The L1-L2 level, with the cauda equina below it",
+    "The T10-T11 level, with the cauda equina below it",
+    "The L4-L5 level, with the filum terminale below it",
+    "The S1-S2 level, with the cauda equina below it"
+   ]
+  },
+  {
+   "id": "med-anatomy.l01.q2",
+   "lessonId": "med-anatomy.l01",
+   "kind": "mcq",
+   "prompt": "Which structure fuses to the posterior arch to form the roof of the vertebral foramen on each side?",
+   "choices": [
+    "The uncinate processes joining at the midline",
+    "The laminae of the vertebral arch joining at the midline",
+    "The transverse processes joining at the midline",
+    "The costal facets joining at the midline"
+   ]
+  },
+  {
+   "id": "med-anatomy.l01.q3",
+   "lessonId": "med-anatomy.l01",
+   "kind": "mcq",
+   "prompt": "Which layer is the last one the needle crosses before reaching CSF during lumbar puncture?",
+   "choices": [
+    "The ligamentum flavum, after the dura mater",
+    "The posterior longitudinal ligament, after the arachnoid",
+    "The arachnoid mater, after the dura mater",
+    "The pia mater, after the arachnoid mater"
+   ]
+  },
+  {
+   "id": "med-anatomy.l01.q4",
+   "lessonId": "med-anatomy.l01",
+   "kind": "mcq",
+   "prompt": "A 45-year-old man has sudden low back pain radiating down the lateral leg to the dorsum of the foot, with weakness of great toe extension. MRI shows a posterolateral disc herniation at L4-L5. Which nerve root is most likely compressed?",
+   "choices": [
+    "The exiting L4 root, leaving at the L4-L5 foramen",
+    "The traversing S1 root, passing beneath the L5-S1 disc",
+    "The exiting L5 root, leaving at the L5-S1 foramen",
+    "The traversing L5 root, passing beneath the L4-L5 disc"
+   ]
+  },
+  {
+   "id": "med-anatomy.l01.q5",
+   "lessonId": "med-anatomy.l01",
+   "kind": "mcq",
+   "prompt": "A 6-month-old needs a spinal tap. An experienced clinician chooses a lower interspace than for an adult because of which anatomical fact?",
+   "choices": [
+    "The conus medullaris ends lower in infants, around L3",
+    "The subarachnoid space ends higher in infants, around L1",
+    "The dura mater is fused to the cord in infants",
+    "The cauda equina is absent in infants"
+   ]
+  },
+  {
+   "id": "med-anatomy.l02.q1",
+   "lessonId": "med-anatomy.l02",
+   "kind": "mcq",
+   "prompt": "Which tract carries pain and temperature sensation from the right leg to the brain?",
+   "choices": [
+    "The right spinothalamic tract without crossing",
+    "The left dorsal column after crossing in the medulla",
+    "The right lateral corticospinal tract after crossing in the pons",
+    "The left spinothalamic tract after crossing near the entry level"
+   ]
+  },
+  {
+   "id": "med-anatomy.l02.q2",
+   "lessonId": "med-anatomy.l02",
+   "kind": "mcq",
+   "prompt": "Occlusion of the anterior spinal artery would most likely spare which function?",
+   "choices": [
+    "Pain and temperature, carried in the spinothalamic tracts",
+    "Lower motor neuron function in the anterior horns",
+    "Vibration and proprioception, carried in the dorsal columns",
+    "Voluntary movement, carried in the corticospinal tracts"
+   ]
+  },
+  {
+   "id": "med-anatomy.l02.q3",
+   "lessonId": "med-anatomy.l02",
+   "kind": "mcq",
+   "prompt": "Which finding is characteristic of a lower motor neuron lesion rather than an upper motor neuron lesion?",
+   "choices": [
+    "Clasp-knife rigidity with hyperreflexia below the lesion",
+    "Muscle atrophy with fasciculations and diminished reflexes",
+    "Spasticity with brisk reflexes and clonus",
+    "An extensor plantar response with preserved bulk"
+   ]
+  },
+  {
+   "id": "med-anatomy.l02.q4",
+   "lessonId": "med-anatomy.l02",
+   "kind": "mcq",
+   "prompt": "A 28-year-old man is stabbed in the back on the right at T8. He has right leg weakness, loss of vibration and position sense in the right leg, and loss of pain and temperature in the left leg below the umbilicus. What explains the contralateral pain loss?",
+   "choices": [
+    "Spinothalamic fibres cross to the opposite side within a few segments of entry",
+    "Corticospinal fibres cross at the level of the stab wound",
+    "Dorsal column fibres cross at the level of the stab wound",
+    "Spinocerebellar fibres cross in the medulla and carry pain"
+   ]
+  },
+  {
+   "id": "med-anatomy.l02.q5",
+   "lessonId": "med-anatomy.l02",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man has an elective thoracoabdominal aortic aneurysm repair. On waking he has flaccid paraplegia with loss of pain and temperature below the groin, but vibration sense in the legs is preserved. Which vessel is most likely compromised?",
+   "choices": [
+    "The posterior spinal arteries bilaterally",
+    "The vertebral arteries at the foramen magnum",
+    "The posterior inferior cerebellar arteries",
+    "The great anterior radicular artery feeding the anterior spinal artery"
+   ]
+  },
+  {
+   "id": "med-anatomy.l03.q1",
+   "lessonId": "med-anatomy.l03",
+   "kind": "mcq",
+   "prompt": "In which order do the structures of the intercostal neurovascular bundle lie from superior to inferior?",
+   "choices": [
+    "Artery, vein, nerve",
+    "Vein, nerve, artery",
+    "Vein, artery, nerve",
+    "Nerve, artery, vein"
+   ]
+  },
+  {
+   "id": "med-anatomy.l03.q2",
+   "lessonId": "med-anatomy.l03",
+   "kind": "mcq",
+   "prompt": "Which nerve provides the motor supply to the diaphragm?",
+   "choices": [
+    "The vagus nerve from the medulla",
+    "The long thoracic nerve from C5-C7",
+    "The intercostal nerves from T1-T11",
+    "The phrenic nerve from C3-C5"
+   ]
+  },
+  {
+   "id": "med-anatomy.l03.q3",
+   "lessonId": "med-anatomy.l03",
+   "kind": "mcq",
+   "prompt": "Why do aspirated foreign bodies enter the right main bronchus more often than the left?",
+   "choices": [
+    "It is shorter, wider and more vertical than the left",
+    "It is longer, narrower and more horizontal than the left",
+    "It is crossed by the aortic arch, which widens it",
+    "It lacks cartilage rings and collapses on inspiration"
+   ]
+  },
+  {
+   "id": "med-anatomy.l03.q4",
+   "lessonId": "med-anatomy.l03",
+   "kind": "mcq",
+   "prompt": "A 22-year-old tall thin man develops sudden right pleuritic chest pain and dyspnea. Breath sounds are absent on the right and the trachea is central with normal blood pressure. Where is the best site to avoid the neurovascular bundle if a needle must be placed?",
+   "choices": [
+    "Along the inferior border of the rib, adjacent to the vein",
+    "Just above the upper border of a rib, in the intercostal space",
+    "Just below the lower border of a rib, in the costal groove",
+    "Directly through the middle of the rib cartilage"
+   ]
+  },
+  {
+   "id": "med-anatomy.l03.q5",
+   "lessonId": "med-anatomy.l03",
+   "kind": "mcq",
+   "prompt": "A patient with a subphrenic abscess complains of pain at the tip of the right shoulder. Which nerve pathway best explains this?",
+   "choices": [
+    "Vagal afferents from the abdomen sharing dermatomes with the shoulder",
+    "Sympathetic afferents from T1-T4 sharing dermatomes with the shoulder",
+    "Phrenic nerve afferents from the diaphragm to C3-C5 sharing dermatomes with the shoulder",
+    "Intercostal nerve afferents from T7-T11 sharing dermatomes with the shoulder"
+   ]
+  },
+  {
+   "id": "med-anatomy.l04.q1",
+   "lessonId": "med-anatomy.l04",
+   "kind": "mcq",
+   "prompt": "Which coronary artery typically gives rise to the posterior descending artery in a right-dominant heart?",
+   "choices": [
+    "The left main coronary artery",
+    "The right coronary artery",
+    "The left anterior descending artery",
+    "The left circumflex artery"
+   ]
+  },
+  {
+   "id": "med-anatomy.l04.q2",
+   "lessonId": "med-anatomy.l04",
+   "kind": "mcq",
+   "prompt": "Which valve is best heard at the left fifth intercostal space in the midclavicular line?",
+   "choices": [
+    "The mitral valve at the cardiac apex",
+    "The aortic valve at the apex of the heart",
+    "The pulmonary valve over the left atrium",
+    "The tricuspid valve at the right second space"
+   ]
+  },
+  {
+   "id": "med-anatomy.l04.q3",
+   "lessonId": "med-anatomy.l04",
+   "kind": "mcq",
+   "prompt": "At which vertebral level does the sternal angle lie, marking the aortic arch beginning and the carina?",
+   "choices": [
+    "T2-T3, at the first costal cartilage",
+    "T9-T10, at the xiphisternal joint",
+    "T7-T8, at the fifth costal cartilage",
+    "T4-T5, at the second costal cartilage"
+   ]
+  },
+  {
+   "id": "med-anatomy.l04.q4",
+   "lessonId": "med-anatomy.l04",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man has crushing chest pain, bradycardia and ST elevation in leads II, III and aVF with a new first-degree AV block. Which artery is most likely occluded?",
+   "choices": [
+    "The left circumflex artery supplying the lateral wall",
+    "The left main coronary artery supplying the anterior wall",
+    "The proximal right coronary artery supplying the AV node",
+    "The left anterior descending artery supplying the septum"
+   ]
+  },
+  {
+   "id": "med-anatomy.l04.q5",
+   "lessonId": "med-anatomy.l04",
+   "kind": "mcq",
+   "prompt": "A 30-year-old man is stabbed in the left fifth intercostal space near the sternum. He has hypotension, distended neck veins and muffled heart sounds. Which anatomical consequence explains this picture?",
+   "choices": [
+    "Air in the pericardium collapsing the left atrium",
+    "Blood in the pericardial cavity limiting ventricular filling",
+    "Blood in the pleural cavity shifting the mediastinum",
+    "Blood in the mediastinum compressing the oesophagus only"
+   ]
+  },
+  {
+   "id": "med-anatomy.l05.q1",
+   "lessonId": "med-anatomy.l05",
+   "kind": "mcq",
+   "prompt": "Which layer of the spermatic cord is derived from the internal oblique muscle?",
+   "choices": [
+    "The cremasteric muscle and fascia",
+    "The external spermatic fascia",
+    "The internal spermatic fascia",
+    "The tunica vaginalis"
+   ]
+  },
+  {
+   "id": "med-anatomy.l05.q2",
+   "lessonId": "med-anatomy.l05",
+   "kind": "mcq",
+   "prompt": "Which structure forms the anterior wall of the inguinal canal along its whole length?",
+   "choices": [
+    "The inguinal ligament",
+    "The external oblique aponeurosis",
+    "The transversalis fascia",
+    "The conjoint tendon"
+   ]
+  },
+  {
+   "id": "med-anatomy.l05.q3",
+   "lessonId": "med-anatomy.l05",
+   "kind": "mcq",
+   "prompt": "A hernia emerges medial to the inferior epigastric vessels through Hesselbach triangle. Which type is this?",
+   "choices": [
+    "A femoral hernia",
+    "An obturator hernia",
+    "A direct inguinal hernia",
+    "An indirect inguinal hernia"
+   ]
+  },
+  {
+   "id": "med-anatomy.l05.q4",
+   "lessonId": "med-anatomy.l05",
+   "kind": "mcq",
+   "prompt": "A 5-year-old boy has an intermittent groin swelling extending into the scrotum that is worse when he cries. At repair, the sac lies within the spermatic cord, lateral to the inferior epigastric vessels. What is the underlying anatomical cause?",
+   "choices": [
+    "A weak posterior wall in Hesselbach triangle",
+    "A defect of the femoral ring below the inguinal ligament",
+    "A defect of the linea alba above the umbilicus",
+    "A patent processus vaginalis through the deep inguinal ring"
+   ]
+  },
+  {
+   "id": "med-anatomy.l05.q5",
+   "lessonId": "med-anatomy.l05",
+   "kind": "mcq",
+   "prompt": "A 68-year-old woman has a tender, firm lump just below and lateral to the pubic tubercle with small bowel obstruction. Why is this hernia especially likely to strangulate?",
+   "choices": [
+    "The femoral ring is narrow and bounded by rigid ligamentous structures",
+    "The sac lies within the soft spermatic cord layers",
+    "The neck is wide and lies in the posterior rectus sheath",
+    "The sac passes through the loose superficial inguinal ring"
+   ]
+  },
+  {
+   "id": "med-anatomy.l06.q1",
+   "lessonId": "med-anatomy.l06",
+   "kind": "mcq",
+   "prompt": "Which structure within the hepatoduodenal ligament forms the posterior-most element of the portal triad?",
+   "choices": [
+    "The common bile duct",
+    "The hepatic artery proper",
+    "The cystic artery",
+    "The portal vein"
+   ]
+  },
+  {
+   "id": "med-anatomy.l06.q2",
+   "lessonId": "med-anatomy.l06",
+   "kind": "mcq",
+   "prompt": "Which organ is secondarily retroperitoneal?",
+   "choices": [
+    "The jejunum",
+    "The spleen",
+    "The descending colon",
+    "The transverse colon"
+   ]
+  },
+  {
+   "id": "med-anatomy.l06.q3",
+   "lessonId": "med-anatomy.l06",
+   "kind": "mcq",
+   "prompt": "Visceral pain from the appendix is initially perceived in which area?",
+   "choices": [
+    "The suprapubic region",
+    "The periumbilical region",
+    "The epigastrium",
+    "The right iliac fossa"
+   ]
+  },
+  {
+   "id": "med-anatomy.l06.q4",
+   "lessonId": "med-anatomy.l06",
+   "kind": "mcq",
+   "prompt": "A 52-year-old man with long-standing epigastric pain presents with sudden severe haematemesis. Imaging shows a deep ulcer in the posterior wall of the first part of the duodenum. Which artery is most likely eroded?",
+   "choices": [
+    "The gastroduodenal artery",
+    "The left gastric artery",
+    "The splenic artery",
+    "The right gastroepiploic artery"
+   ]
+  },
+  {
+   "id": "med-anatomy.l06.q5",
+   "lessonId": "med-anatomy.l06",
+   "kind": "mcq",
+   "prompt": "A 19-year-old has painless rectal bleeding. Technetium scanning shows uptake in the right lower abdomen, and a diverticulum is found on the antimesenteric border of the ileum. What best explains the bleeding?",
+   "choices": [
+    "Inflammation of lymphoid follicles in an appendix",
+    "Ischaemia of a segment supplied by the IMA",
+    "Colonic mucosa in a duplication cyst",
+    "Ectopic gastric mucosa in a vitelline duct remnant"
+   ]
+  },
+  {
+   "id": "med-anatomy.l07.q1",
+   "lessonId": "med-anatomy.l07",
+   "kind": "mcq",
+   "prompt": "At which vertebral level does the superior mesenteric artery arise?",
+   "choices": [
+    "L3",
+    "L4",
+    "L1",
+    "T12"
+   ]
+  },
+  {
+   "id": "med-anatomy.l07.q2",
+   "lessonId": "med-anatomy.l07",
+   "kind": "mcq",
+   "prompt": "Which vein joins the superior mesenteric vein to form the portal vein?",
+   "choices": [
+    "The left gastric vein",
+    "The inferior vena cava tributary",
+    "The right renal vein",
+    "The splenic vein"
+   ]
+  },
+  {
+   "id": "med-anatomy.l07.q3",
+   "lessonId": "med-anatomy.l07",
+   "kind": "mcq",
+   "prompt": "Which portosystemic anastomosis lies at the gastro-oesophageal junction?",
+   "choices": [
+    "Left gastric veins with oesophageal veins draining to the azygos",
+    "Superior rectal veins with middle rectal veins",
+    "Paraumbilical veins with superficial epigastric veins",
+    "Splenic veins with the left renal vein tributaries"
+   ]
+  },
+  {
+   "id": "med-anatomy.l07.q4",
+   "lessonId": "med-anatomy.l07",
+   "kind": "mcq",
+   "prompt": "A 55-year-old man with alcohol-related cirrhosis vomits a large volume of blood. Endoscopy shows distal oesophageal varices. Which pathway best explains their development?",
+   "choices": [
+    "Splenic artery aneurysm shunting blood to the oesophagus",
+    "Portal hypertension diverting blood through left gastric to azygos veins",
+    "Hepatic vein thrombosis causing reversed flow in the azygos",
+    "Inferior vena cava compression above the diaphragm"
+   ]
+  },
+  {
+   "id": "med-anatomy.l07.q5",
+   "lessonId": "med-anatomy.l07",
+   "kind": "mcq",
+   "prompt": "A 24-year-old man has a left varicocele that persists when lying down, with flank pain and haematuria. Which anatomical feature most plausibly explains the left-sided location and warrants imaging?",
+   "choices": [
+    "The left testicular artery arises from the inferior mesenteric artery",
+    "The left testicular vein drains into the left common iliac vein",
+    "The left testicular vein drains into the left renal vein, which a mass can obstruct",
+    "The left testicular vein drains directly into the IVC at a right angle"
+   ]
+  },
+  {
+   "id": "med-anatomy.l08.q1",
+   "lessonId": "med-anatomy.l08",
+   "kind": "mcq",
+   "prompt": "What is the order of structures at the renal hilum from anterior to posterior?",
+   "choices": [
+    "Vein, pelvis, artery",
+    "Vein, artery, pelvis",
+    "Artery, vein, pelvis",
+    "Pelvis, artery, vein"
+   ]
+  },
+  {
+   "id": "med-anatomy.l08.q2",
+   "lessonId": "med-anatomy.l08",
+   "kind": "mcq",
+   "prompt": "Which is the narrowest part of the ureter, where stones often lodge?",
+   "choices": [
+    "The vesicoureteric junction",
+    "The pelviureteric junction",
+    "The crossing of the gonadal vessels",
+    "The midpoint on psoas major"
+   ]
+  },
+  {
+   "id": "med-anatomy.l08.q3",
+   "lessonId": "med-anatomy.l08",
+   "kind": "mcq",
+   "prompt": "Which adrenal vein drains directly into the inferior vena cava?",
+   "choices": [
+    "The left adrenal vein",
+    "Both adrenal veins",
+    "Neither; both drain to the renal veins",
+    "The right adrenal vein"
+   ]
+  },
+  {
+   "id": "med-anatomy.l08.q4",
+   "lessonId": "med-anatomy.l08",
+   "kind": "mcq",
+   "prompt": "A 35-year-old woman undergoing hysterectomy has an unexpected hydronephrosis afterwards, and imaging shows the distal left ureter was ligated. Which relationship explains the injury?",
+   "choices": [
+    "The ureter lies lateral to the ovarian artery at the pelvic brim",
+    "The ureter crosses anterior to the external iliac vein",
+    "The ureter passes beneath the uterine artery near the cervix",
+    "The ureter passes above the uterine artery near the fundus"
+   ]
+  },
+  {
+   "id": "med-anatomy.l08.q5",
+   "lessonId": "med-anatomy.l08",
+   "kind": "mcq",
+   "prompt": "A 62-year-old man has painless jaundice, weight loss and a palpable gallbladder. CT shows a mass in the head of the pancreas. Which structure is compressed to cause jaundice?",
+   "choices": [
+    "The main pancreatic duct tail near the spleen",
+    "The intrapancreatic common bile duct",
+    "The cystic duct near the gallbladder neck",
+    "The common hepatic artery in the lesser omentum"
+   ]
+  },
+  {
+   "id": "med-anatomy.l09.q1",
+   "lessonId": "med-anatomy.l09",
+   "kind": "mcq",
+   "prompt": "Which structure is the lowest point of the peritoneal cavity in an upright female?",
+   "choices": [
+    "The rectouterine pouch of Douglas",
+    "The vesicouterine pouch",
+    "The hepatorenal pouch",
+    "The paracolic gutter"
+   ]
+  },
+  {
+   "id": "med-anatomy.l09.q2",
+   "lessonId": "med-anatomy.l09",
+   "kind": "mcq",
+   "prompt": "Which prostatic zone is the most common site of adenocarcinoma?",
+   "choices": [
+    "The anterior fibromuscular stroma near the bladder",
+    "The peripheral zone, palpable on rectal examination",
+    "The transition zone, surrounding the urethra",
+    "The central zone, surrounding the ejaculatory ducts"
+   ]
+  },
+  {
+   "id": "med-anatomy.l09.q3",
+   "lessonId": "med-anatomy.l09",
+   "kind": "mcq",
+   "prompt": "Which ligament is the main support of the uterine cervix and carries the uterine vessels?",
+   "choices": [
+    "The suspensory ligament of the ovary",
+    "The ovarian ligament of the uterus",
+    "The cardinal (transverse cervical) ligament",
+    "The round ligament of the uterus"
+   ]
+  },
+  {
+   "id": "med-anatomy.l09.q4",
+   "lessonId": "med-anatomy.l09",
+   "kind": "mcq",
+   "prompt": "A 68-year-old man has weak urinary stream, nocturia and a smooth enlarged prostate. Which anatomical statement best explains his obstruction?",
+   "choices": [
+    "Enlargement of the peripheral zone compresses the ejaculatory ducts",
+    "Enlargement of the seminal vesicles compresses the bladder neck",
+    "Enlargement of the bulbourethral glands compresses the membranous urethra",
+    "Enlargement of the periurethral transition zone compresses the prostatic urethra"
+   ]
+  },
+  {
+   "id": "med-anatomy.l09.q5",
+   "lessonId": "med-anatomy.l09",
+   "kind": "mcq",
+   "prompt": "A 27-year-old woman has lower abdominal pain, fever and a bulging posterior vaginal fornix. Which anatomical fact explains where pus has collected?",
+   "choices": [
+    "The rectouterine pouch is the most dependent part of the female peritoneal cavity",
+    "The vesicouterine pouch lies directly behind the cervix",
+    "The hepatorenal pouch extends to the posterior fornix",
+    "The ischioanal fossa communicates with the peritoneal cavity"
+   ]
+  },
+  {
+   "id": "med-anatomy.l10.q1",
+   "lessonId": "med-anatomy.l10",
+   "kind": "mcq",
+   "prompt": "Which nerve is the principal sensory and motor nerve of the perineum?",
+   "choices": [
+    "The genitofemoral nerve (L1-L2)",
+    "The ilioinguinal nerve (L1)",
+    "The pudendal nerve (S2-S4)",
+    "The obturator nerve (L2-L4)"
+   ]
+  },
+  {
+   "id": "med-anatomy.l10.q2",
+   "lessonId": "med-anatomy.l10",
+   "kind": "mcq",
+   "prompt": "Which feature of the anal canal is the junction of hindgut endoderm and ectoderm?",
+   "choices": [
+    "The anorectal ring",
+    "The white line of Hilton",
+    "The anal columns of Morgagni",
+    "The pectinate (dentate) line"
+   ]
+  },
+  {
+   "id": "med-anatomy.l10.q3",
+   "lessonId": "med-anatomy.l10",
+   "kind": "mcq",
+   "prompt": "Where do lymphatics from the anal canal below the pectinate line drain?",
+   "choices": [
+    "To the superficial inguinal lymph nodes",
+    "To the internal iliac lymph nodes",
+    "To the inferior mesenteric nodes",
+    "To the para-aortic nodes"
+   ]
+  },
+  {
+   "id": "med-anatomy.l10.q4",
+   "lessonId": "med-anatomy.l10",
+   "kind": "mcq",
+   "prompt": "A 32-year-old woman in labour receives a pudendal nerve block. Which landmark should the clinician palpate to place the injection correctly?",
+   "choices": [
+    "The ischial tuberosity, near where the nerve ends",
+    "The ischial spine, near where the nerve crosses it",
+    "The pubic tubercle, near where the nerve emerges",
+    "The sacral promontory, near where the nerve forms"
+   ]
+  },
+  {
+   "id": "med-anatomy.l10.q5",
+   "lessonId": "med-anatomy.l10",
+   "kind": "mcq",
+   "prompt": "A 45-year-old man has bright red painless bleeding at the end of defecation and, on anoscopy, a soft swelling at 7 o'clock above the pectinate line. Why is it painless?",
+   "choices": [
+    "The tissue above the line contains no venous plexus and little arterial supply",
+    "The swelling lies within the external sphincter and compresses sensory fibres",
+    "The mucosa above the line has visceral innervation without pain-sensitive somatic fibres",
+    "The mucosa above the line is supplied by the pudendal nerve with no pain fibres"
+   ]
+  },
+  {
+   "id": "med-anatomy.l11.q1",
+   "lessonId": "med-anatomy.l11",
+   "kind": "mcq",
+   "prompt": "Which nerve supplies the quadriceps femoris?",
+   "choices": [
+    "The obturator nerve",
+    "The superior gluteal nerve",
+    "The tibial nerve",
+    "The femoral nerve"
+   ]
+  },
+  {
+   "id": "med-anatomy.l11.q2",
+   "lessonId": "med-anatomy.l11",
+   "kind": "mcq",
+   "prompt": "What is the order of structures in the femoral triangle from lateral to medial?",
+   "choices": [
+    "Vein, artery, nerve, canal",
+    "Nerve, vein, artery, canal",
+    "Nerve, artery, vein, canal",
+    "Artery, nerve, vein, canal"
+   ]
+  },
+  {
+   "id": "med-anatomy.l11.q3",
+   "lessonId": "med-anatomy.l11",
+   "kind": "mcq",
+   "prompt": "Which artery contributes the majority of the blood supply to the femoral head in adults?",
+   "choices": [
+    "The inferior gluteal artery",
+    "The medial circumflex femoral artery",
+    "The artery of the ligamentum teres",
+    "The obturator artery"
+   ]
+  },
+  {
+   "id": "med-anatomy.l11.q4",
+   "lessonId": "med-anatomy.l11",
+   "kind": "mcq",
+   "prompt": "A 72-year-old woman falls and has a shortened, externally rotated right leg. Radiographs show a displaced subcapital femoral neck fracture. Which complication is most feared in the head fragment?",
+   "choices": [
+    "Avascular necrosis from interruption of retinacular vessels",
+    "Sciatic nerve palsy from posterior displacement",
+    "Femoral artery thrombosis from anterior displacement",
+    "Septic arthritis from capsule rupture"
+   ]
+  },
+  {
+   "id": "med-anatomy.l11.q5",
+   "lessonId": "med-anatomy.l11",
+   "kind": "mcq",
+   "prompt": "A 40-year-old man has a gait where the pelvis drops to the left when he stands on his right leg, after a deep injection into the right buttock. Which muscle weakness best explains this?",
+   "choices": [
+    "Left gluteus medius, from superior gluteal nerve injury",
+    "Right gluteus maximus, from inferior gluteal nerve injury",
+    "Right iliopsoas, from femoral nerve injury",
+    "Right gluteus medius, from superior gluteal nerve injury"
+   ]
+  },
+  {
+   "id": "med-anatomy.l12.q1",
+   "lessonId": "med-anatomy.l12",
+   "kind": "mcq",
+   "prompt": "Which ligament prevents anterior translation of the tibia on the femur?",
+   "choices": [
+    "The anterior cruciate ligament",
+    "The posterior cruciate ligament",
+    "The medial collateral ligament",
+    "The lateral collateral ligament"
+   ]
+  },
+  {
+   "id": "med-anatomy.l12.q2",
+   "lessonId": "med-anatomy.l12",
+   "kind": "mcq",
+   "prompt": "Which ankle ligament is most commonly torn in an inversion sprain?",
+   "choices": [
+    "The spring ligament",
+    "The anterior talofibular ligament",
+    "The deltoid ligament",
+    "The calcaneofibular ligament"
+   ]
+  },
+  {
+   "id": "med-anatomy.l12.q3",
+   "lessonId": "med-anatomy.l12",
+   "kind": "mcq",
+   "prompt": "Which nerve is most vulnerable to injury around the neck of the fibula?",
+   "choices": [
+    "The sural nerve",
+    "The saphenous nerve",
+    "The common fibular nerve",
+    "The tibial nerve"
+   ]
+  },
+  {
+   "id": "med-anatomy.l12.q4",
+   "lessonId": "med-anatomy.l12",
+   "kind": "mcq",
+   "prompt": "A 19-year-old footballer lands awkwardly, hears a pop and develops a haemarthrosis. The anterior drawer test is positive. Which statement explains the instability?",
+   "choices": [
+    "Loss of the restraint to posterior tibial translation on the femur",
+    "Loss of the restraint to valgus stress on the lateral side",
+    "Loss of the restraint to varus stress on the medial side",
+    "Loss of the restraint to anterior tibial translation on the femur"
+   ]
+  },
+  {
+   "id": "med-anatomy.l12.q5",
+   "lessonId": "med-anatomy.l12",
+   "kind": "mcq",
+   "prompt": "A 24-year-old man with a tibial shaft fracture has escalating leg pain unrelieved by analgesia, severe pain with passive toe flexion, and a tense calf, but palpable pedal pulses. What is the best explanation?",
+   "choices": [
+    "Raised pressure within a closed fascial compartment compromising capillary perfusion",
+    "Complete occlusion of the popliteal artery by an intimal tear",
+    "Compression of the common fibular nerve at the fibular neck",
+    "Venous thrombosis of the great saphenous vein at the ankle"
+   ]
+  },
+  {
+   "id": "med-anatomy.l13.q1",
+   "lessonId": "med-anatomy.l13",
+   "kind": "mcq",
+   "prompt": "Which rotator cuff muscle initiates abduction of the arm and is most commonly torn?",
+   "choices": [
+    "Subscapularis, supplied by the subscapular nerves",
+    "Supraspinatus, supplied by the suprascapular nerve",
+    "Infraspinatus, supplied by the suprascapular nerve",
+    "Teres minor, supplied by the axillary nerve"
+   ]
+  },
+  {
+   "id": "med-anatomy.l13.q2",
+   "lessonId": "med-anatomy.l13",
+   "kind": "mcq",
+   "prompt": "Which nerve supplies serratus anterior, and what is the result of its injury?",
+   "choices": [
+    "The long thoracic nerve; the scapula becomes winged",
+    "The thoracodorsal nerve; the scapula becomes winged",
+    "The dorsal scapular nerve; the arm cannot abduct",
+    "The accessory nerve; the shoulder droops forward"
+   ]
+  },
+  {
+   "id": "med-anatomy.l13.q3",
+   "lessonId": "med-anatomy.l13",
+   "kind": "mcq",
+   "prompt": "Where does the axillary artery become the brachial artery?",
+   "choices": [
+    "At the lateral border of the first rib",
+    "At the inferior border of pectoralis minor",
+    "At the surgical neck of the humerus",
+    "At the inferior border of teres major"
+   ]
+  },
+  {
+   "id": "med-anatomy.l13.q4",
+   "lessonId": "med-anatomy.l13",
+   "kind": "mcq",
+   "prompt": "A 22-year-old rugby player dislocates his shoulder anteriorly. Afterwards he has weak arm abduction and numbness over the lateral upper arm. Which structure is most likely injured?",
+   "choices": [
+    "The radial nerve, in the spiral groove of the humerus",
+    "The musculocutaneous nerve, piercing the coracobrachialis",
+    "The axillary nerve, wrapping the surgical neck of the humerus",
+    "The suprascapular nerve, in the suprascapular notch of the scapula"
+   ]
+  },
+  {
+   "id": "med-anatomy.l13.q5",
+   "lessonId": "med-anatomy.l13",
+   "kind": "mcq",
+   "prompt": "A 55-year-old woman after axillary node dissection has her medial scapular border lifting off the chest wall when she pushes against a wall. Which injury best explains this?",
+   "choices": [
+    "Injury to the nerve crossing the thoracodorsal bundle supplying latissimus dorsi",
+    "Injury to the nerve on the lateral thoracic wall supplying serratus anterior",
+    "Injury to the nerve in the posterior triangle supplying trapezius",
+    "Injury to the nerve beneath the rhomboids supplying the scapular retractors"
+   ]
+  },
+  {
+   "id": "med-anatomy.l14.q1",
+   "lessonId": "med-anatomy.l14",
+   "kind": "mcq",
+   "prompt": "Which spinal nerves form the brachial plexus?",
+   "choices": [
+    "The anterior rami of C3 to C7",
+    "The anterior rami of C6 to T2",
+    "The anterior rami of C5 to T1",
+    "The posterior rami of C5 to T1"
+   ]
+  },
+  {
+   "id": "med-anatomy.l14.q2",
+   "lessonId": "med-anatomy.l14",
+   "kind": "mcq",
+   "prompt": "Which cord of the brachial plexus gives rise to the axillary and radial nerves?",
+   "choices": [
+    "The lateral cord",
+    "The medial cord",
+    "The upper trunk",
+    "The posterior cord"
+   ]
+  },
+  {
+   "id": "med-anatomy.l14.q3",
+   "lessonId": "med-anatomy.l14",
+   "kind": "mcq",
+   "prompt": "A claw hand with sensory loss on the medial hand and Horner syndrome suggests injury to which part of the plexus?",
+   "choices": [
+    "The lower trunk or C8-T1 roots",
+    "The upper trunk or C5-C6 roots",
+    "The lateral cord near the coracoid process",
+    "The posterior cord near the subscapularis"
+   ]
+  },
+  {
+   "id": "med-anatomy.l14.q4",
+   "lessonId": "med-anatomy.l14",
+   "kind": "mcq",
+   "prompt": "A newborn delivered after shoulder dystocia holds the right arm adducted, internally rotated and pronated, with an intact grasp. Which injury is most likely?",
+   "choices": [
+    "Medial cord injury behind pectoralis minor",
+    "Upper trunk traction injury of C5-C6",
+    "Lower trunk traction injury of C8-T1",
+    "Posterior cord injury at the axillary level"
+   ]
+  },
+  {
+   "id": "med-anatomy.l14.q5",
+   "lessonId": "med-anatomy.l14",
+   "kind": "mcq",
+   "prompt": "A 60-year-old smoker has shoulder pain, hand weakness, ulnar-side numbness, ptosis and miosis on the right. Chest imaging shows an apical lung mass. Which anatomy explains the full picture?",
+   "choices": [
+    "Compression of the radial nerve and the stellate ganglion at the humerus",
+    "Invasion of the long thoracic nerve and the accessory nerve at the clavicle",
+    "Invasion of the lower trunk and the sympathetic chain at the thoracic inlet",
+    "Compression of the upper trunk and the phrenic nerve at the neck"
+   ]
+  },
+  {
+   "id": "med-anatomy.l15.q1",
+   "lessonId": "med-anatomy.l15",
+   "kind": "mcq",
+   "prompt": "Which nerve passes in the radial groove of the humerus?",
+   "choices": [
+    "The ulnar nerve",
+    "The median nerve",
+    "The musculocutaneous nerve",
+    "The radial nerve"
+   ]
+  },
+  {
+   "id": "med-anatomy.l15.q2",
+   "lessonId": "med-anatomy.l15",
+   "kind": "mcq",
+   "prompt": "Which finding is characteristic of radial nerve injury in the spiral groove?",
+   "choices": [
+    "Ape hand with preserved wrist extension",
+    "Winged scapula with preserved wrist extension",
+    "Wrist drop with preserved elbow extension",
+    "Claw hand with loss of elbow extension"
+   ]
+  },
+  {
+   "id": "med-anatomy.l15.q3",
+   "lessonId": "med-anatomy.l15",
+   "kind": "mcq",
+   "prompt": "Which structure lies immediately lateral to the brachial artery in the cubital fossa?",
+   "choices": [
+    "The median cubital vein",
+    "The biceps tendon",
+    "The median nerve",
+    "The pronator teres"
+   ]
+  },
+  {
+   "id": "med-anatomy.l15.q4",
+   "lessonId": "med-anatomy.l15",
+   "kind": "mcq",
+   "prompt": "A 7-year-old falls on an outstretched hand and has a displaced supracondylar fracture. He cannot flex the thumb interphalangeal joint or index distal phalanx, but sensation is intact. Which structure is injured?",
+   "choices": [
+    "The anterior interosseous branch of the median nerve",
+    "The posterior interosseous branch of the radial nerve",
+    "The deep branch of the ulnar nerve",
+    "The recurrent thenar branch of the median nerve"
+   ]
+  },
+  {
+   "id": "med-anatomy.l15.q5",
+   "lessonId": "med-anatomy.l15",
+   "kind": "mcq",
+   "prompt": "A 35-year-old man fractures the medial epicondyle of the humerus. Weeks later he has numbness of the little finger and cannot adduct his thumb, so flexes the thumb interphalangeal joint when gripping paper. Which nerve is involved?",
+   "choices": [
+    "The median nerve, between the heads of pronator teres",
+    "The radial nerve, in the groove of the humerus",
+    "The musculocutaneous nerve, beneath the biceps brachii",
+    "The ulnar nerve, in the groove behind the epicondyle"
+   ]
+  },
+  {
+   "id": "med-anatomy.l16.q1",
+   "lessonId": "med-anatomy.l16",
+   "kind": "mcq",
+   "prompt": "Which structure lies within the carpal tunnel along with the flexor tendons?",
+   "choices": [
+    "The median nerve",
+    "The ulnar nerve",
+    "The radial artery",
+    "The ulnar artery"
+   ]
+  },
+  {
+   "id": "med-anatomy.l16.q2",
+   "lessonId": "med-anatomy.l16",
+   "kind": "mcq",
+   "prompt": "Which muscle group is supplied by the deep branch of the ulnar nerve?",
+   "choices": [
+    "The pronator muscles of the forearm",
+    "The interossei and adductor pollicis",
+    "The thenar muscles and lateral lumbricals",
+    "The extensor muscles of the thumb"
+   ]
+  },
+  {
+   "id": "med-anatomy.l16.q3",
+   "lessonId": "med-anatomy.l16",
+   "kind": "mcq",
+   "prompt": "Why is thenar skin sensation preserved in carpal tunnel syndrome?",
+   "choices": [
+    "The radial nerve supplies the thenar eminence skin",
+    "The palmar cutaneous branch runs through the tunnel",
+    "The palmar cutaneous branch arises proximal to the tunnel",
+    "The ulnar nerve supplies the thenar eminence skin"
+   ]
+  },
+  {
+   "id": "med-anatomy.l16.q4",
+   "lessonId": "med-anatomy.l16",
+   "kind": "mcq",
+   "prompt": "A 38-year-old pregnant woman has night-time numbness of her thumb, index and middle fingers, weak thumb abduction, and a positive Tinel sign at the wrist. What explains her symptoms?",
+   "choices": [
+    "Compression of the ulnar nerve within Guyon canal",
+    "Compression of the radial nerve beneath the supinator",
+    "Compression of the C8 root at the thoracic outlet",
+    "Compression of the median nerve beneath the flexor retinaculum"
+   ]
+  },
+  {
+   "id": "med-anatomy.l16.q5",
+   "lessonId": "med-anatomy.l16",
+   "kind": "mcq",
+   "prompt": "A 25-year-old man falls on an outstretched hand and has tenderness in the anatomical snuffbox, with initially normal radiographs. Why is he at risk of nonunion of the injured bone?",
+   "choices": [
+    "Its blood supply enters distally and flows retrograde to the proximal pole",
+    "Its blood supply enters proximally and flows antegrade to the distal pole",
+    "It has no articular cartilage so it cannot heal by callus",
+    "It lies superficial to the radial artery and is infected easily"
+   ]
+  },
+  {
+   "id": "med-anatomy.l17.q1",
+   "lessonId": "med-anatomy.l17",
+   "kind": "mcq",
+   "prompt": "Which foramen transmits the middle meningeal artery into the cranial cavity?",
+   "choices": [
+    "Foramen magnum",
+    "Foramen spinosum",
+    "Foramen ovale",
+    "Foramen rotundum"
+   ]
+  },
+  {
+   "id": "med-anatomy.l17.q2",
+   "lessonId": "med-anatomy.l17",
+   "kind": "mcq",
+   "prompt": "Which structure runs within the cavernous sinus itself rather than in its lateral wall?",
+   "choices": [
+    "The abducens nerve and internal carotid artery",
+    "The oculomotor nerve and the trochlear nerve",
+    "The ophthalmic nerve and the maxillary nerve",
+    "The facial nerve and the vestibulocochlear nerve"
+   ]
+  },
+  {
+   "id": "med-anatomy.l17.q3",
+   "lessonId": "med-anatomy.l17",
+   "kind": "mcq",
+   "prompt": "Which vessel is torn in a subdural haematoma?",
+   "choices": [
+    "The middle meningeal artery near the pterion",
+    "A berry aneurysm at the circle of Willis",
+    "The anterior spinal artery at the foramen magnum",
+    "A bridging vein crossing to a dural sinus"
+   ]
+  },
+  {
+   "id": "med-anatomy.l17.q4",
+   "lessonId": "med-anatomy.l17",
+   "kind": "mcq",
+   "prompt": "A 19-year-old is struck on the side of the head with a bat, briefly loses consciousness, then talks normally for an hour before becoming drowsy with a dilated left pupil. CT shows a biconvex collection that stops at a suture. Which vessel is most likely torn?",
+   "choices": [
+    "The superior sagittal sinus beneath the vertex",
+    "A ruptured aneurysm of the anterior communicating artery",
+    "The middle meningeal artery beneath the pterion",
+    "A cortical bridging vein beneath the dura"
+   ]
+  },
+  {
+   "id": "med-anatomy.l17.q5",
+   "lessonId": "med-anatomy.l17",
+   "kind": "mcq",
+   "prompt": "A 22-year-old squeezes a pustule on the upper lip. Days later he has fever, proptosis, ophthalmoplegia and numbness of the forehead. Which pathway explains this?",
+   "choices": [
+    "Spread along the olfactory nerve through the cribriform plate",
+    "Spread through valveless facial and ophthalmic veins to the cavernous sinus",
+    "Spread through the maxillary artery to the pterygoid plexus only",
+    "Spread through the sigmoid sinus to the internal jugular vein"
+   ]
+  },
+  {
+   "id": "med-anatomy.l18.q1",
+   "lessonId": "med-anatomy.l18",
+   "kind": "mcq",
+   "prompt": "Which cranial nerve supplies the lateral rectus muscle?",
+   "choices": [
+    "The oculomotor nerve",
+    "The trigeminal nerve",
+    "The abducens nerve",
+    "The trochlear nerve"
+   ]
+  },
+  {
+   "id": "med-anatomy.l18.q2",
+   "lessonId": "med-anatomy.l18",
+   "kind": "mcq",
+   "prompt": "Which feature distinguishes a lower motor neuron facial palsy from an upper motor neuron lesion?",
+   "choices": [
+    "The forehead is spared",
+    "Taste is spared in all cases",
+    "Hearing is always impaired",
+    "The forehead is also paralysed"
+   ]
+  },
+  {
+   "id": "med-anatomy.l18.q3",
+   "lessonId": "med-anatomy.l18",
+   "kind": "mcq",
+   "prompt": "A patient's tongue deviates to the right on protrusion. Which lesion is most consistent?",
+   "choices": [
+    "A right hypoglossal nerve lesion",
+    "A left hypoglossal nerve lesion",
+    "A right glossopharyngeal nerve lesion",
+    "A left lingual nerve lesion"
+   ]
+  },
+  {
+   "id": "med-anatomy.l18.q4",
+   "lessonId": "med-anatomy.l18",
+   "kind": "mcq",
+   "prompt": "A 60-year-old woman has a sudden severe headache and a left eye that is down and out with ptosis and a dilated pupil. Which cause is most likely given the pupil?",
+   "choices": [
+    "A trochlear nerve injury from a head trauma",
+    "A posterior communicating artery aneurysm compressing the third nerve",
+    "Diabetic ischaemia of the central fibres of the third nerve",
+    "A lesion of the abducens nerve in the cavernous sinus"
+   ]
+  },
+  {
+   "id": "med-anatomy.l18.q5",
+   "lessonId": "med-anatomy.l18",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman undergoes total thyroidectomy and wakes hoarse with a weak, breathy voice. Which nerve was most likely injured?",
+   "choices": [
+    "The hypoglossal nerve near the lingual artery",
+    "The glossopharyngeal nerve near the stylopharyngeus",
+    "The recurrent laryngeal nerve near the inferior thyroid artery",
+    "The external laryngeal nerve near the superior thyroid artery"
+   ]
+  },
+  {
+   "id": "med-anatomy.l19.q1",
+   "lessonId": "med-anatomy.l19",
+   "kind": "mcq",
+   "prompt": "Which nerve crosses the posterior triangle superficially and is at risk during lymph node biopsy?",
+   "choices": [
+    "The hypoglossal nerve (CN XII)",
+    "The vagus nerve (CN X)",
+    "The phrenic nerve",
+    "The accessory nerve (CN XI)"
+   ]
+  },
+  {
+   "id": "med-anatomy.l19.q2",
+   "lessonId": "med-anatomy.l19",
+   "kind": "mcq",
+   "prompt": "Which artery supplies the thyroid gland from the subclavian system?",
+   "choices": [
+    "The lingual artery from the external carotid",
+    "The ascending pharyngeal artery from the internal carotid",
+    "The inferior thyroid artery from the thyrocervical trunk",
+    "The superior thyroid artery from the thyrocervical trunk"
+   ]
+  },
+  {
+   "id": "med-anatomy.l19.q3",
+   "lessonId": "med-anatomy.l19",
+   "kind": "mcq",
+   "prompt": "Which structure moves upward with tongue protrusion when it is a midline neck mass?",
+   "choices": [
+    "A thyroid lymph node",
+    "A thyroglossal duct cyst",
+    "A branchial cleft cyst",
+    "A cystic hygroma"
+   ]
+  },
+  {
+   "id": "med-anatomy.l19.q4",
+   "lessonId": "med-anatomy.l19",
+   "kind": "mcq",
+   "prompt": "A 30-year-old man has fever, dysphagia, trismus and bilateral submandibular swelling elevating the tongue after a molar extraction. What is the main concern?",
+   "choices": [
+    "Airway obstruction from bilateral submandibular space infection",
+    "Cavernous sinus thrombosis from the lower teeth",
+    "Spread to the pleural cavity through the parotid fascia",
+    "Spinal cord compression from the carotid space"
+   ]
+  },
+  {
+   "id": "med-anatomy.l19.q5",
+   "lessonId": "med-anatomy.l19",
+   "kind": "mcq",
+   "prompt": "A 50-year-old woman after thyroidectomy has perioral tingling and carpopedal spasm two days later. What anatomical explanation is most likely?",
+   "choices": [
+    "Injury to the recurrent laryngeal nerve in the tracheo-oesophageal groove",
+    "Division of the isthmus anterior to the second to fourth tracheal rings",
+    "Injury to the external laryngeal nerve near the superior thyroid artery",
+    "Removal or devascularisation of the parathyroid glands on the posterior thyroid surface"
+   ]
+  },
+  {
+   "id": "med-anatomy.l20.q1",
+   "lessonId": "med-anatomy.l20",
+   "kind": "mcq",
+   "prompt": "Which division of the trigeminal nerve supplies the skin of the lower lip and chin?",
+   "choices": [
+    "V2, the maxillary division",
+    "V1, the ophthalmic division",
+    "The facial nerve, marginal mandibular branch",
+    "V3, the mandibular division"
+   ]
+  },
+  {
+   "id": "med-anatomy.l20.q2",
+   "lessonId": "med-anatomy.l20",
+   "kind": "mcq",
+   "prompt": "Which nerve carries taste from the anterior two thirds of the tongue?",
+   "choices": [
+    "The glossopharyngeal nerve through the otic ganglion",
+    "The hypoglossal nerve through the lingual branch",
+    "The chorda tympani, a branch of the facial nerve",
+    "The lingual nerve alone, as a branch of V3"
+   ]
+  },
+  {
+   "id": "med-anatomy.l20.q3",
+   "lessonId": "med-anatomy.l20",
+   "kind": "mcq",
+   "prompt": "Which fissure transmits the oculomotor, trochlear, abducens and ophthalmic nerves into the orbit?",
+   "choices": [
+    "The infraorbital foramen",
+    "The superior orbital fissure",
+    "The inferior orbital fissure",
+    "The optic canal"
+   ]
+  },
+  {
+   "id": "med-anatomy.l20.q4",
+   "lessonId": "med-anatomy.l20",
+   "kind": "mcq",
+   "prompt": "A 17-year-old is punched in the eye and cannot look upward with the left eye, has diplopia and numbness over the left cheek. CT shows fluid in the maxillary sinus. Which injury is most likely?",
+   "choices": [
+    "A floor fracture entrapping the inferior rectus and injuring the infraorbital nerve",
+    "A roof fracture injuring the trochlear nerve and the frontal nerve",
+    "A lateral wall fracture injuring the lacrimal gland and the abducens nerve",
+    "A medial wall fracture injuring the optic nerve in the optic canal"
+   ]
+  },
+  {
+   "id": "med-anatomy.l20.q5",
+   "lessonId": "med-anatomy.l20",
+   "kind": "mcq",
+   "prompt": "A 55-year-old man has a hard mass in the parotid gland and, after surgery, cannot close his right eye or raise his right eyebrow. What explains this?",
+   "choices": [
+    "Injury to the auriculotemporal nerve running behind the gland",
+    "Injury to the great auricular nerve over the gland surface",
+    "Injury to the mandibular nerve within the infratemporal fossa",
+    "Injury to the branches of the facial nerve running within the gland"
+   ]
+  },
+  {
+   "id": "med-anatomy.l21.q1",
+   "lessonId": "med-anatomy.l21",
+   "kind": "mcq",
+   "prompt": "At which vertebral level does the transpyloric plane lie?",
+   "choices": [
+    "L3",
+    "L4",
+    "L1",
+    "T9"
+   ]
+  },
+  {
+   "id": "med-anatomy.l21.q2",
+   "lessonId": "med-anatomy.l21",
+   "kind": "mcq",
+   "prompt": "Which landmark marks the vertebral level at which the common iliac arteries and aorta divide, useful for lumbar puncture?",
+   "choices": [
+    "The line joining the anterior superior iliac spines",
+    "The line joining the inferior angles of the scapulae",
+    "The line joining the ischial tuberosities",
+    "The line joining the highest points of the iliac crests"
+   ]
+  },
+  {
+   "id": "med-anatomy.l21.q3",
+   "lessonId": "med-anatomy.l21",
+   "kind": "mcq",
+   "prompt": "Where is the apex beat normally found in a healthy adult?",
+   "choices": [
+    "The left fifth intercostal space in the midclavicular line",
+    "The left third intercostal space at the sternal border",
+    "The right fifth intercostal space in the midclavicular line",
+    "The left seventh intercostal space in the midaxillary line"
+   ]
+  },
+  {
+   "id": "med-anatomy.l21.q4",
+   "lessonId": "med-anatomy.l21",
+   "kind": "mcq",
+   "prompt": "A 28-year-old man is stabbed in the left fifth intercostal space at the midclavicular line and becomes hypotensive. Which structure is most likely penetrated?",
+   "choices": [
+    "The left lung apex above the clavicle",
+    "The left ventricle near the apex",
+    "The right atrium beside the right border",
+    "The ascending aorta behind the sternal angle"
+   ]
+  },
+  {
+   "id": "med-anatomy.l21.q5",
+   "lessonId": "med-anatomy.l21",
+   "kind": "mcq",
+   "prompt": "A 32-year-old woman needs a lumbar puncture. The clinician finds the level by palpating the highest points of both iliac crests and inserting just below. Why is this safe?",
+   "choices": [
+    "The line crosses about S2, below the end of the dural sac at L4",
+    "The line crosses about T12, below the cauda equina roots",
+    "The line crosses about L4, below the conus medullaris at L1-L2",
+    "The line crosses about L1, above the conus medullaris at L3"
+   ]
+  },
+  {
+   "id": "med-anatomy.l22.q1",
+   "lessonId": "med-anatomy.l22",
+   "kind": "mcq",
+   "prompt": "Which pharyngeal arch is supplied by the glossopharyngeal nerve?",
+   "choices": [
+    "The fourth arch",
+    "The third arch",
+    "The second arch",
+    "The first arch"
+   ]
+  },
+  {
+   "id": "med-anatomy.l22.q2",
+   "lessonId": "med-anatomy.l22",
+   "kind": "mcq",
+   "prompt": "Why does the phrenic nerve arise in the neck although the diaphragm lies in the trunk?",
+   "choices": [
+    "The septum transversum forms at cervical levels and carries its nerve down",
+    "The pleuroperitoneal membranes form in the pelvis and carry the nerve up",
+    "The oesophageal mesentery forms at thoracic levels and keeps its nerve",
+    "The body-wall muscle forms in the neck and migrates to the chest"
+   ]
+  },
+  {
+   "id": "med-anatomy.l22.q3",
+   "lessonId": "med-anatomy.l22",
+   "kind": "mcq",
+   "prompt": "Which structure explains why the left recurrent laryngeal nerve loops under the aortic arch?",
+   "choices": [
+    "The ligamentum venosum (the remnant of the left umbilical vein)",
+    "The median umbilical ligament (the remnant of the urachus)",
+    "The ligamentum teres (the remnant of the right umbilical vein)",
+    "The ductus arteriosus (the remnant of the sixth arch artery)"
+   ]
+  },
+  {
+   "id": "med-anatomy.l22.q4",
+   "lessonId": "med-anatomy.l22",
+   "kind": "mcq",
+   "prompt": "A term newborn has respiratory distress, a scaphoid abdomen and bowel sounds in the left chest. Which developmental failure explains the lung findings?",
+   "choices": [
+    "Failure of the tracheoesophageal septum to form, causing a fistula between airway and gut",
+    "Failure of the foregut to rotate, causing a volvulus",
+    "Failure of the pleuroperitoneal membrane to close the posterolateral defect, causing pulmonary hypoplasia",
+    "Failure of the septum transversum to descend, causing an anterior retrosternal defect"
+   ]
+  },
+  {
+   "id": "med-anatomy.l22.q5",
+   "lessonId": "med-anatomy.l22",
+   "kind": "mcq",
+   "prompt": "A 22-year-old woman has a stroke attributed to a venous clot, and echocardiography with bubble contrast shows bubbles crossing into the left atrium at rest and with Valsalva. What developmental structure is persistent?",
+   "choices": [
+    "The vitelline duct, from incomplete involution of the yolk stalk",
+    "The foramen ovale, from incomplete fusion of the septum primum and secundum",
+    "The ductus arteriosus, from incomplete closure after birth",
+    "The foramen caecum, from incomplete obliteration of the thyroglossal duct"
+   ]
+  },
+  {
+   "id": "med-anatomy.l23.q1",
+   "lessonId": "med-anatomy.l23",
+   "kind": "mcq",
+   "prompt": "On a T2-weighted MRI, which tissue appears bright?",
+   "choices": [
+    "Fluid such as cerebrospinal fluid",
+    "Dense cortical bone",
+    "Air within the lung",
+    "Fat in a T1 sequence only"
+   ]
+  },
+  {
+   "id": "med-anatomy.l23.q2",
+   "lessonId": "med-anatomy.l23",
+   "kind": "mcq",
+   "prompt": "Which modality is the first choice for rapid assessment of acute intracranial haemorrhage?",
+   "choices": [
+    "T2-weighted spinal MRI",
+    "Non-contrast computed tomography",
+    "Ultrasound through the skull",
+    "Plain skull radiograph in two views"
+   ]
+  },
+  {
+   "id": "med-anatomy.l23.q3",
+   "lessonId": "med-anatomy.l23",
+   "kind": "mcq",
+   "prompt": "On an axial CT image displayed in the standard convention, where is the patient's right side?",
+   "choices": [
+    "At the top of the image",
+    "At the bottom of the image",
+    "On the viewer's left",
+    "On the viewer's right"
+   ]
+  },
+  {
+   "id": "med-anatomy.l23.q4",
+   "lessonId": "med-anatomy.l23",
+   "kind": "mcq",
+   "prompt": "A 67-year-old man with cough has a chest film showing loss of the right heart border while the right hemidiaphragm outline is preserved. Which location of consolidation best explains this?",
+   "choices": [
+    "The right lower lobe, abutting the right hemidiaphragm",
+    "The left lingula, abutting the left heart border",
+    "The right upper lobe, abutting the superior mediastinum",
+    "The right middle lobe, abutting the right heart border"
+   ]
+  },
+  {
+   "id": "med-anatomy.l23.q5",
+   "lessonId": "med-anatomy.l23",
+   "kind": "mcq",
+   "prompt": "A 30-year-old woman has right upper quadrant pain after meals. The best first imaging test to look for gallstones uses which property?",
+   "choices": [
+    "Stones reflect sound and cast acoustic shadows within anechoic bile",
+    "Stones attenuate X-rays more strongly than bile on a plain radiograph",
+    "Stones shorten T1 relaxation times and appear bright on MRI",
+    "Stones emit gamma rays after intravenous tracer uptake"
+   ]
+  }
+ ]
+}

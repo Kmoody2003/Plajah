@@ -1,0 +1,1522 @@
+{
+ "courseId": "med-ethics-prof",
+ "label": "Medical Ethics, Law and the Philosophy of Medicine",
+ "lessons": [
+  {
+   "id": "med-ethics-prof.l01",
+   "title": "Principlism: Four Prima Facie Principles",
+   "body": [
+    "Clinical ethics needs a vocabulary that clinicians, patients, lawyers and philosophers with different deep commitments can all use. The most influential candidate is principlism, set out by Tom Beauchamp and James Childress in Principles of Biomedical Ethics (first edition 1979). It proposes four mid-level principles that many moral traditions can accept even when they disagree about ultimate foundations: respect for autonomy, nonmaleficence, beneficence and justice.",
+    "Respect for autonomy means respecting the capacity of a person with decision-making ability to hold views, make choices and act on them. In practice it generates duties of truthful disclosure, informed consent, confidentiality and respect for refusal. Nonmaleficence is the duty not to inflict harm, and beneficence is the duty to contribute to welfare, which includes preventing and removing harm. The two are separated because they behave differently: the duty not to harm is generally stronger and more stringent than the duty to benefit. Justice concerns fair distribution of benefits, risks and costs, and is usually divided into distributive justice, procedural fairness and rights-based claims.",
+    "The key logical feature is that the principles are prima facie binding. A prima facie duty is binding unless it conflicts with an equal or stronger duty in the circumstances. No principle is lexically ranked above the others. When they conflict, the method is specification and balancing: specify what the principle means in context, then weigh the competing considerations with explicit reasons that could be defended to others. Beauchamp and Childress also describe the justification of the underlying norms through the common morality and reflective equilibrium, which means adjusting principles and judgments about cases against each other until they cohere.",
+    "Principlism has well-known critiques. Critics say it is a checklist that does not tell you what to do when principles collide, that it is distinctively American in its priority on autonomy, and that it lacks a unifying theory. Defenders reply that a pluralist framework is more honest about moral life than one master theory. A good student can both use the four principles and say where they run out.",
+    "Worked example. A competent 70-year-old with an operable but risky tumour refuses surgery that her surgeon thinks would probably cure her. Beneficence and nonmaleficence are in tension, since surgery offers benefit and risks harm, but autonomy is decisive about whether to accept the risk of an intervention on her own body, provided she has capacity and understands. The clinician's task is to explore her reasons, correct misunderstandings, and offer alternatives; if capacity and understanding are intact, her informed refusal governs. Justice may enter later if her choice affects scarce resources, but it does not override a competent refusal here.",
+    "A common trap is to treat autonomy as a trump card. In the framework it is one principle among four, and its weight depends on whether the choice is truly autonomous and what harm to others is at stake."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l02",
+   "title": "Virtue Ethics, Deontology and Consequentialism",
+   "body": [
+    "Principlism is a mid-level toolkit. Underneath it sit the great families of moral theory, and a medical ethicist should be able to say what each one adds and where each struggles.",
+    "Consequentialism holds that an act is right to the extent that it produces the best outcomes. Its classical form, utilitarianism, counts the welfare of everyone affected impartially. In medicine it underlies much public health reasoning, cost-effectiveness analysis and triage: when resources are limited, choose the policy that does the most good overall. Its standard objection is that it can seem to license sacrificing an individual for aggregate benefit, as when a healthy person is imagined as an organ source for five patients. Sophisticated consequentialists reply that rules protecting individuals, such as consent, tend to produce better results in the long run.",
+    "Deontology, associated with Immanuel Kant, holds that some duties bind regardless of outcomes. A central formulation is that persons must be treated as ends in themselves and never merely as means. This grounds respect for consent, bans on deceptive experimentation, and the idea that a patient has rights that cannot be traded off for utility. Its difficulty is how to resolve conflicts between duties, and the charge that rigid rules can produce bad outcomes, such as a truth-telling rule that seems to demand cruelty.",
+    "Virtue ethics, traced to Aristotle, shifts the question from what should I do to what kind of person should I be. The focus is on character traits such as compassion, practical wisdom (phronesis), integrity, courage and trustworthiness. It fits the professional tradition, where the good doctor is described by dispositions as well as rules, and it explains why two clinicians can follow the same rules and yet differ in how they treat patients. Its weakness is action guidance: advice to do what the virtuous person would do is hard to apply in a novel dilemma.",
+    "The doctrine of double effect is a bridging idea from the deontological tradition. It says that an action with both a good and a bad effect can be permissible if the action itself is not wrong, the bad effect is foreseen but not intended as a means to the good, the good effect is not produced by way of the bad, and the good outweighs the bad. It is used to analyse, for example, giving opioids to relieve dying patients' suffering with a foreseen risk of hastening death.",
+    "Worked example. A hospital must decide whether to adopt a policy that shortens waiting lists by reducing consent discussion time. A consequentialist asks about total outcomes, a deontologist asks whether the policy treats patients as mere means, and a virtue theorist asks what the policy does to clinicians' attentiveness and patients' trust. Each lens flags something the others can miss."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l03",
+   "title": "Care Ethics, Narrative Medicine and Casuistry",
+   "body": [
+    "Not every ethical approach begins with a principle or a theory. Three influential alternatives begin from relationships, stories and cases.",
+    "Care ethics emerged from feminist philosophy in the 1980s, associated with Carol Gilligan, whose book In a Different Voice challenged models of moral development that treated abstract justice reasoning as the highest form, and with Nel Noddings and Joan Tronto. It holds that moral life is built from relationships of dependence and responsiveness, and that attentiveness, responsibility, competence and responsiveness to the cared-for person are central moral activities. In medicine it draws attention to vulnerability, to the unpaid caregiving that sustains health systems, and to how power differences shape a clinical encounter. Its critics worry that it can slide into paternalism or parochialism, favouring those close to us. Its defenders say it corrects an overly individualist picture of the patient as a free-standing chooser.",
+    "Narrative medicine, developed by Rita Charon, treats clinical practice as an encounter with stories. Patients present illness as a narrative that has a before, a meaning and a future, and clinicians need narrative competence: the ability to absorb, interpret and respond to stories. Close reading of literature and reflective writing are used to train this skill. The ethical point is that a diagnosis is not the whole truth about a person. A treatment decision that is correct on the numbers may still fail if it ignores what the illness means in the patient's life. The method has been criticised for resting on thin empirical evidence about whether it improves care, so its claims are best presented as a plausible and widely adopted approach rather than a proven intervention.",
+    "Casuistry is case-based reasoning. Albert Jonsen and Stephen Toulmin, in The Abuse of Casuistry (1988), revived an older tradition of reasoning from paradigm cases, where agreement exists about a clear instance, to harder cases by analogy and by attention to circumstances. This mirrors how common-law courts work, and it matches how experienced ethics consultants often reason. Jonsen's four-topics method, using medical indications, patient preferences, quality of life and contextual features, is a practical form of it. Its weakness is that analogies can be chosen to fit a desired answer, so someone must still justify which cases count as paradigms.",
+    "These approaches are best seen as complements. A principle names what is at stake, a narrative shows whose life it is, and a case shows how similar problems have been resolved.",
+    "Worked example. An elderly woman with advanced heart failure declines a defibrillator. The principlist sees autonomy and nonmaleficence. The narrative reader hears that her husband died after a long intensive-care stay and that she fears the same ending. The care ethicist notes that her daughter, who provides daily care, was not consulted. The casuist compares her case to paradigm refusals of life-prolonging treatment. A good consultation draws on all four."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l04",
+   "title": "The Hippocratic Tradition and the Modern Codes",
+   "body": [
+    "The Hippocratic Oath is a short Greek text from the classical period, traditionally attributed to the Hippocratic school of around the fifth to fourth century BCE, though its authorship is unknown. It binds the physician to teachers and students, to benefit patients according to ability and judgment, to refuse to give a deadly drug or to administer an abortifacient pessary in the original text, to keep patients' secrets, and to avoid sexual exploitation of those in the household. The popular phrase first do no harm does not appear in the Oath. A related idea, to help or at least to do no harm, appears in the Hippocratic Epidemics, and the Latin tag primum non nocere is of later origin. The Oath's lasting influence is the idea of medicine as a profession with duties to patients, but it is also strongly paternalistic: the physician decides what benefits the patient.",
+    "Later landmarks include Thomas Percival's Medical Ethics (1803), which codified etiquette and duties in the English-speaking world, and the American Medical Association's first Code of Ethics (1847), which drew on Percival. The twentieth century added codes responding to catastrophe.",
+    "The Nuremberg Code (1947) came from the judgment in the Doctors' Trial, in which American military judges tried Nazi physicians for crimes including coercive experiments on concentration camp prisoners. Its first principle states that the voluntary consent of the human subject is absolutely essential, and it sets out conditions such as a scientific rationale, avoidance of unnecessary suffering, and the subject's right to withdraw. It was not a law of any country and it was criticised as too absolute, especially for research on children and incapacitated persons.",
+    "The Declaration of Helsinki, issued by the World Medical Association in 1964 and revised many times since, is the principal international statement on research ethics. It differs from Nuremberg by recognising the role of independent ethics committee review, accepting surrogate consent for those who cannot consent, and distinguishing clinical research from therapy. The Declaration of Geneva (1948) is a modernised physician's pledge and a separate document.",
+    "The Belmont Report (1979) was produced by the US National Commission for the Protection of Human Subjects, established under the National Research Act of 1974 after the Tuskegee revelations. It identified three principles: respect for persons, beneficence and justice, and tied them to informed consent, risk-benefit assessment and fair selection of subjects. Belmont's principles fed into the US federal regulations on human subjects research, the Common Rule (45 CFR 46), and influenced principlism.",
+    "Worked example. A research proposal would give a placebo to children with a treatable condition. Nuremberg does not directly address it, Helsinki requires independent review and justification, and Belmont tells reviewers to ask whether risks are justified and whether the burden falls fairly. Knowing which document says what is a common exam trap."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l05",
+   "title": "Informed Consent: Elements, Standards and Exceptions",
+   "body": [
+    "Informed consent is both an ethical doctrine and a legal one. Ethically it expresses respect for autonomy: a person's body and life are theirs to direct. Legally it is the reason a touching that would otherwise be a battery is lawful, and it is the basis of a negligence claim when a clinician fails to disclose material information.",
+    "The standard ethical elements are: threshold elements (capacity and voluntariness), information elements (disclosure of material information, a recommendation, and understanding of both), and consent elements (a decision in favour of a plan and authorisation of it). Voluntariness means freedom from coercion and from controlling manipulation, though persuasion by honest argument is allowed. The information that must be disclosed typically includes the nature of the proposed intervention, its risks and expected benefits, reasonable alternatives including no treatment, and the consequences of declining.",
+    "The history shows the doctrine's shape. In Schloendorff v. Society of New York Hospital (New York, 1914), Judge Cardozo recognised that an adult of sound mind has the right to decide what is done with his body, and that surgery without consent is a battery. The phrase informed consent entered American law in Salgo v. Leland Stanford Jr. University Board of Trustees (California Court of Appeal, 1957), which required disclosure of facts necessary to form an intelligent consent. Canterbury v. Spence (D.C. Circuit, 1972) shifted the measure of disclosure.",
+    "States divide on the standard of disclosure. Under the professional (reasonable physician) standard, the physician must disclose what a reasonable physician in the same community or specialty would disclose. Under the patient-oriented (reasonable patient) standard, adopted in Canterbury, the physician must disclose what a reasonable person in the patient's position would consider material to the decision. Jurisdictions are split, and neither is simply the majority rule across the whole country. A claim based on nondisclosure is usually brought in negligence and requires causation: the plaintiff must show that a reasonable person in her position would not have consented had the risk been disclosed, and that the undisclosed risk materialised. A battery claim is reserved, in most states, for treatment that differs fundamentally from what was consented to.",
+    "There are recognised exceptions. In a true emergency where the patient lacks capacity and no surrogate is available, consent is implied for necessary lifesaving care. Patients may waive disclosure, though the waiver must itself be informed and voluntary. Therapeutic privilege, withholding information because disclosure itself would harm the patient, is very narrow and cannot be used merely because the patient might refuse. Treatment under legal compulsion, for example some public health orders, is a separate category with its own procedural safeguards.",
+    "Worked example. A surgeon fails to mention a known 1 percent risk of nerve injury that a reasonable patient would consider material. The patient has the operation, the injury occurs, and the surgeon performed it competently. The surgery itself was not negligent, but under a reasonable-patient jurisdiction the nondisclosure may be actionable if the patient proves she would have declined the procedure had she known. Under a physician standard, the answer would depend on what comparable surgeons disclose."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l06",
+   "title": "Decision-Making Capacity",
+   "body": [
+    "Capacity is a patient's ability to make a particular healthcare decision. It is a threshold for informed consent: a person who lacks it cannot give or refuse valid consent, and decisions then pass to a surrogate or to a best-interests process. Three features make capacity easy to mishandle, so a student should be able to state them clearly.",
+    "First, capacity is decision-specific. A patient may have capacity to choose a simple treatment and lack it for a complex one, or have it at one time of day and lack it at another because of delirium or sedation. It is not an on-off property of the person. Second, the more serious the consequences of a decision, the more carefully capacity should be examined, which is sometimes described as a sliding scale. A sliding scale does not mean that disagreement with the clinician is evidence of incapacity. Third, capacity is a clinical judgment made by the treating clinician, while competence is a legal status determined by a court. In practice the words are often used loosely, but a court adjudicates competence and appoints a guardian where needed.",
+    "The widely used framework from Appelbaum and Grisso identifies four abilities. Understanding: can the patient grasp the relevant information about condition, options and consequences? Appreciation: can the patient recognise that the information applies to him, rather than acknowledging facts in the abstract? Reasoning: can the patient manipulate information rationally and weigh options against his own values? Expressing a choice: can the patient communicate a stable decision? Appreciation is where psychiatric conditions often interfere, for example when a patient with severe depression accepts that treatment works for others but believes he is beyond help, or a patient with delusions denies that he is ill.",
+    "Important traps follow. A refusal of recommended treatment, a bad decision, or an unusual religious belief does not by itself show lack of capacity. A psychiatric diagnosis or an intellectual disability does not equal incapacity. Conversely, a patient who agrees with the clinician may still lack capacity, and assent from such a patient should not be treated as consent. Reversible causes such as infection, pain, hypoglycaemia, or medication effects should be sought and treated, and the assessment repeated.",
+    "In England and Wales the Mental Capacity Act 2005 sets out a statutory test and begins from a presumption of capacity; in the United States there is no single federal capacity test, and the standard is set by state law and common practice. If a patient lacks capacity, the clinician follows a prior valid directive where there is one, otherwise a surrogate, and if there is a dispute or no surrogate an ethics consultation or court may be needed.",
+    "Worked example. A 66-year-old man with confusion from a urinary infection refuses antibiotics, saying that he is fine and that the staff are poisoning him. He can repeat the risks but insists he has no infection. He fails appreciation and reasoning, so he lacks capacity for this decision at this time. The team treats the delirium and re-assesses, rather than labelling him permanently incompetent."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l07",
+   "title": "Confidentiality and Its Limits",
+   "body": [
+    "Confidentiality is among the oldest duties in medicine, appearing in the Hippocratic Oath. Its justification is partly consequentialist and partly rights-based. Patients who fear disclosure may withhold facts or avoid care, which harms them and public health, and a person's health information is part of a private sphere that deserves respect in its own right. The duty is strong but not absolute, and a clear account of where it yields is a core professional skill.",
+    "In the United States the main federal source is the HIPAA Privacy Rule (45 CFR Parts 160 and 164), issued under the Health Insurance Portability and Accountability Act of 1996. It applies to covered entities (most health care providers, health plans and clearinghouses) and their business associates. Protected health information may be used and disclosed without individual authorisation for treatment, payment and health care operations, so sharing a chart with a consulting specialist needs no signed release. Other uses generally need written authorisation. The Rule also permits or requires disclosure in specified situations, including some public health activities, reporting of abuse and neglect, certain law enforcement and judicial purposes, and to avert a serious and imminent threat to health or safety. Disclosures are generally limited to the minimum necessary, except for treatment. State law may be more protective, and records of substance use disorder treatment from federally assisted programmes have a separate regulation (42 CFR Part 2). HIPAA is a regulatory scheme, not itself a private right to sue, though state tort and professional discipline may apply.",
+    "Common ethical grounds for breaching confidentiality are a serious risk to an identifiable third party, mandatory reporting laws (for example child abuse in all states, and in many places certain infectious diseases and some injuries), and a court order. The classic case is Tarasoff v. Regents of the University of California (California Supreme Court, 1976), where a patient told his psychologist he intended to kill a woman and then did. The court held that when a therapist determines, or under professional standards should determine, that a patient poses a serious danger of violence to another, the therapist must use reasonable care to protect the intended victim. That may include warning the victim or others, notifying police, or taking other reasonable steps. States have responded differently: some impose a mandatory duty to warn or protect, some make disclosure permissive, and some decline to recognise a duty. A student must therefore name the split rather than treat Tarasoff as a nationwide rule.",
+    "Particular traps include minors, where state law determines which services a minor may consent to and therefore who controls the information, and family members, who have no automatic right to information unless the patient agrees or the law provides. Verbal discussion with a family member present at the bedside with the patient's apparent agreement is usually acceptable.",
+    "Worked example. A patient with newly diagnosed HIV declines to tell his wife. The physician urges him to do so and offers help. Where state law and professional guidance allow disclosure to an identifiable person at significant risk, and the patient persistently refuses, the clinician checks the jurisdiction's rules and often involves the public health department's partner-notification services rather than disclosing unilaterally. The mere fact of risk to a spouse does not by itself dissolve confidentiality everywhere."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l08",
+   "title": "Truth-Telling and Disclosure of Bad News",
+   "body": [
+    "Until the later twentieth century, concealing a serious diagnosis from the patient was common practice in many countries. A frequently cited American survey from 1961 found that most physicians said they usually avoided telling patients that they had cancer, and later surveys found the practice had reversed. The shift followed the rise of patient autonomy, effective treatments that made disclosure less hopeless, and the legal development of informed consent. Today the dominant norm in American and European medicine is truthful disclosure, but the reasoning behind it remains worth knowing.",
+    "The ethical arguments for truth-telling are several. Autonomy needs information, so a patient who is deceived cannot decide for herself. Deception breaches the trust on which the clinical relationship depends. Kant argued that lying is wrong in itself, while consequentialists point to long-term loss of trust in medicine. Arguments against full disclosure rest mainly on beneficence: bad news may cause distress, destroy hope, or worsen outcomes. Evidence that most patients wish to be told, and that honest communication does not generally cause the harms feared, has weakened this argument in most settings. It remains true that patients differ in how much they want to know, and that clinicians should find out.",
+    "Several refinements matter. Truth-telling is not the same as unloading all information at once; disclosure can be paced, begun by asking what the patient already understands and how much they want to know. The right not to know is recognised: a patient may decline details, for example genetic risk information, and the clinician should respect this while ensuring the patient knows what is available. Therapeutic privilege, withholding information on the ground that disclosure would seriously harm the patient, is legally narrow and ethically controversial, and it is not available simply because the clinician thinks the patient would refuse. Cultural and family practices vary; some patients prefer that a relative receive information first. The best response is to ask the patient how they want information shared, not to assume either way. Requests by relatives to hide a diagnosis from a capable patient should not be followed as such, but they are a signal to explore the family's fears and the patient's wishes.",
+    "The SPIKES protocol (Baile and colleagues, 2000) is a widely taught six-step approach to delivering bad news: Setting up, Perception, Invitation, Knowledge, Emotions, and Strategy and Summary. It is a communication aid, not an ethical theory.",
+    "Placebo use raises a related issue. Prescribing an inert substance while telling the patient it is an active drug is deception and sits badly with informed consent, while open-label placebo is a separate research topic. Honesty also applies to prognosis: clinicians tend to overestimate survival, and patients are poorly served by vague reassurance.",
+    "Worked example. The daughter of an 80-year-old woman with newly found pancreatic cancer asks the doctor to tell her mother only that she has a growth. The doctor meets the daughter, explains that the mother has a right to information, and asks what worries her. Then, with the mother, the doctor asks how much she wishes to know and offers to share as much or as little as she prefers. If the mother asks directly, she is told the truth."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l09",
+   "title": "Surrogate Decision-Making and Advance Care Planning",
+   "body": [
+    "When a patient lacks capacity, someone else must decide. The ethical aim is to respect the patient as far as possible, and three standards guide the surrogate in descending order of preference.",
+    "The first is the expressed wish: if the patient left a valid advance directive or clearly stated instructions that apply to the situation, they are followed. The second is substituted judgment: the surrogate asks what this particular patient would choose if she could see her situation, drawing on her values and past statements. The third is the best interests standard: if nothing is known about the patient's wishes, the surrogate and clinicians choose what a reasonable person would see as most beneficial, weighing benefits and burdens. The surrogate is not asked what the surrogate would want for himself, and a common error is to substitute the family's preferences for the patient's.",
+    "Who is the surrogate? Most US states have statutes setting a default hierarchy for those without a designated agent, commonly beginning with a court-appointed guardian, then the spouse or partner, adult children, parents and siblings, though the order and the inclusion of unmarried partners and close friends vary by state. A patient can avoid default rules by appointing a health care agent through a durable power of attorney for health care, sometimes called a health care proxy.",
+    "Advance directives take two main forms. A living will states preferences about treatments in particular circumstances, such as refusal of ventilation if terminally ill. A durable power of attorney for health care appoints an agent to decide. Each has weaknesses: a living will cannot anticipate every situation and its wording can be vague, while an agent may be unsure what the patient would want, so the best practice combines them and records the conversation. POLST (Physician Orders for Life-Sustaining Treatment, with state variants in name and form) is a different instrument: a portable medical order for seriously ill or frail patients, signed by a clinician after a conversation, not a directive for healthy people. A do-not-resuscitate order is a specific order to forgo cardiopulmonary resuscitation. The Patient Self-Determination Act of 1990 requires hospitals and other institutions receiving Medicare or Medicaid funds to inform patients about their right to make directives.",
+    "Two landmark cases frame the law. In re Quinlan (New Jersey Supreme Court, 1976) allowed the father of a young woman in a persistent vegetative state to authorise removal of her ventilator, relying on privacy rights and the family's role. Cruzan v. Director, Missouri Department of Health (US Supreme Court, 1990) assumed that a competent person has a constitutionally protected liberty interest in refusing unwanted treatment, including artificial nutrition and hydration, but held that a state may require clear and convincing evidence of an incompetent patient's wishes before a surrogate may withdraw treatment. Cruzan therefore tells us a state may demand a high evidentiary standard, not that every state must.",
+    "Worked example. A 75-year-old man with advanced dementia develops pneumonia. His daughter says she cannot bear to lose him and wants everything done. The team asks her what he would say. She recalls that he often said he never wanted to live \"hooked to machines\". The surrogate's task is to report his values, not her own preference, and the team supports her through that reframing, which is substituted judgment applied."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l10",
+   "title": "Palliative Care and Withdrawing Treatment",
+   "body": [
+    "Palliative care is specialised care for people living with serious illness, aimed at relieving symptoms and suffering and supporting patients and families, at any stage and alongside disease-directed treatment. The World Health Organization defines it as an approach that improves quality of life by prevention and relief of suffering through early identification and treatment of pain and other problems. Hospice is a model of palliative care for people near the end of life. In the United States the Medicare hospice benefit is available when a physician certifies that the patient would likely die within six months if the illness runs its expected course, and it continues if the patient lives longer and is recertified. Palliative care itself does not require a terminal prognosis, and a patient is not abandoning treatment by accepting it.",
+    "A basic ethical and legal principle is that withholding and withdrawing life-sustaining treatment are morally equivalent when the treatment is not wanted or no longer serves the patient's goals. If a ventilator trial is started and the patient does not recover, stopping it is not killing; the underlying disease causes death. The mistaken view that withdrawing is worse than never starting leads clinicians to avoid starting treatments that might help, for fear of being unable to stop. A patient has the right to refuse any treatment, and the law, as in Cruzan, generally treats artificial nutrition and hydration as medical treatment that may be refused or withdrawn like any other. There is no obligation to provide treatments that are medically futile in the sense of offering no physiological benefit, though disputes over what counts as futile or potentially inappropriate are common, and institutions use processes rather than individual vetoes.",
+    "The doctrine of double effect applies to symptom control. Opioids and sedatives given to relieve severe suffering in the dying are permissible when the intention is relief, the dose is proportionate to the symptom, and the foreseen risk of hastening death is accepted but not intended. Evidence suggests that appropriately titrated opioids do not generally shorten life, so the risk is often overstated. Palliative sedation, giving sedatives to lower consciousness in a patient with refractory suffering near death, is distinguished from euthanasia by its goal, the proportionality of the drug and the underlying cause of death, though critics argue that the line is thinner in practice. Voluntarily stopping eating and drinking is a recognised path in which a capable patient declines oral intake, and it is legally treated as a refusal of treatment rather than assisted suicide in most jurisdictions.",
+    "Death can be determined by neurological criteria, often called brain death, under the Uniform Determination of Death Act (1981), which most states have adopted. That is a different question from withdrawing treatment from a living patient. Some states provide accommodation for religious objections.",
+    "Worked example. A 68-year-old with end-stage lung disease on ventilator support after a failed trial of therapy has no realistic chance of leaving intensive care. His surrogate, applying his earlier statements, asks to stop the ventilator. The team provides opioids and sedatives to control breathlessness and distress as the ventilator is withdrawn. Withdrawal is not euthanasia, and the symptom medication is justified by double effect and proportionality."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l11",
+   "title": "Assisted Dying: The Positions and the Law",
+   "body": [
+    "Terms matter. Euthanasia is a clinician deliberately ending a patient's life, usually by injecting a lethal drug, at the patient's request (voluntary), without it (non-voluntary, where the patient cannot consent) or against the patient's wishes (involuntary, which is murder everywhere). Physician-assisted suicide, also called physician-assisted dying or aid in dying, means the physician provides a means, usually a prescription for a lethal dose, that the patient takes. In some places both are grouped as medical assistance in dying. All of these differ from refusing or withdrawing treatment and from palliative care, discussed in the previous lesson, which are lawful in principle everywhere in the United States.",
+    "The main arguments in favour rest on autonomy and compassion. A capable adult facing unrelievable suffering, it is said, has a right to decide the manner and time of her death, and a clinician who helps acts out of mercy. Defenders add that the distinction between withdrawing treatment and assisting death is thin, since both foreseeably end life at a patient's request. The main arguments against rest on the intrinsic value of life, the integrity of the medical profession, and risks of abuse. Opponents argue that the doctor's role is to heal and comfort, and not to kill, that safeguards may erode over time (the slippery slope claim, whose empirical support is itself disputed), that disabled, poor or elderly people may feel pressure to choose death, that prognoses are uncertain, and that better palliative care should address suffering. Both sides are serious. Evidence about slippery slopes comes mostly from Oregon, the Netherlands and Belgium, and people interpret it differently. Professional bodies are divided: the American Medical Association's Code of Medical Ethics opposes physician-assisted suicide, while some groups take a position of studied neutrality or support.",
+    "Law, as of this writing, varies sharply. In the United States, the Supreme Court held in Washington v. Glucksberg (1997) that there is no constitutional right to assistance in suicide, and in Vacco v. Quill (1997) that a state may distinguish between refusing life-sustaining treatment and assisted suicide without violating equal protection. These decisions left the question to the states. Oregon's Death with Dignity Act (adopted by ballot in 1994, in effect from 1997) was the first statute, and a number of other jurisdictions have since authorised physician-assisted dying, including Washington, Vermont, California, Colorado, Hawaii, New Jersey, Maine, New Mexico, the District of Columbia, Delaware (in effect 1 January 2026), New York (in effect 5 August 2026) and Illinois (in effect 12 September 2026), and in Montana a state supreme court decision, Baxter v. Montana (2009), allows it as a defence. Treat this as a snapshot as of October 2026: the list has been growing, so check current status. Typical statutes limit access to adults with decision-making capacity, a terminal illness with a prognosis of six months or less, and a request to self-administer an oral medication, with two physicians and waiting periods. Euthanasia is not lawful in any US state.",
+    "Elsewhere, the Netherlands and Belgium (both 2002) permit euthanasia and assisted suicide under due-care criteria, Canada permits medical assistance in dying following Carter v. Canada (2015) and legislation in 2016, later broadened, and Switzerland does not criminalise assisting suicide when it is not done for selfish motives. Spain and New Zealand (both 2021) have adopted laws, and as of August 2026 every Australian state and territory has legislated for voluntary assisted dying, though the Northern Territory scheme is not yet operating. Assisting suicide remains a crime in England and Wales under the Suicide Act 1961. A Commons-passed bill to change that fell when the parliamentary session ended in April 2026, and a reintroduced bill was defeated at second reading on 11 September 2026 by 286 votes to 270, so the law is unchanged, though the debate continues.",
+    "Worked example. A student asked to evaluate a law requiring a six-month prognosis should separate three questions: whether prognosis can be predicted accurately, whether suffering is only a feature of terminal illness, and whether a safeguard exists for decision-making capacity. The first and third are empirical and procedural, the second is a value judgment. Separating them is more useful than choosing sides."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l12",
+   "title": "Reproductive Ethics: Contraception, Abortion, Assisted Reproduction and Prenatal Testing",
+   "body": [
+    "Reproductive ethics touches some of the deepest disagreements in medicine. The task here is not to resolve them but to be able to state the strongest versions of each position, to identify the factual and the evaluative questions, and to state the current law accurately.",
+    "Abortion. The central ethical question is the moral status of the embryo or fetus and how it weighs against the pregnant woman's interests and rights. One family of positions holds that the fetus has the full moral status of a person from conception, or from a very early point, so abortion is wrong except perhaps to save the woman's life. Another holds that moral status develops gradually, for example with sentience or viability, so early abortion is permissible and later abortion needs stronger reasons. A third argues, following Judith Jarvis Thomson, that even if the fetus is a person, bodily autonomy means a woman is not obligated to continue a pregnancy, and critics reply that the analogy fails because of the special relation of parent to child and the difference between killing and letting die. A fourth stresses justice: restrictions fall most heavily on poor women and affect health outcomes. Each can be given in its strongest form without strawmen. Public views are divided, and many people hold mixed positions that depend on stage and circumstance.",
+    "Law. In Roe v. Wade (1973) and Planned Parenthood v. Casey (1992), the Supreme Court recognised a constitutional right to abortion before viability. In Dobbs v. Jackson Women's Health Organization (2022), the Court overruled both, holding that the Constitution does not confer a right to abortion and that regulation returns to the people and their elected representatives. As of this writing, abortion law is set mostly by states and varies widely, from broad legal access to near-total bans with narrow exceptions, and the details change frequently through legislation and litigation. Students should therefore check current state law and not assume a national rule. Federal law also contains conscientious objection protections for some providers, such as the Church Amendments.",
+    "Contraception and sterilisation raise issues of autonomy, coercion and history, including eugenic sterilisation programmes in the early twentieth century, one of which was upheld in Buck v. Bell (1927), a decision widely condemned today. Informed choice and avoidance of coercion are the central principles.",
+    "Assisted reproduction raises questions about the moral status of embryos, disposition of frozen embryos, donor anonymity and the child's interest in knowing origins, commercial surrogacy (legal in some jurisdictions and prohibited in others), and fair access given costs. Preimplantation genetic testing and prenatal screening raise a debated expressivist objection: that selecting against disability may express a negative view of disabled lives, whereas defenders argue that choices are about the situation of a particular family, not a judgment of worth.",
+    "Maternal-fetal conflict arises when a pregnant woman declines recommended treatment. Courts in the United States have, with few exceptions, held that a competent pregnant patient keeps the right to refuse, and professional bodies such as the American College of Obstetricians and Gynecologists advise against coercion.",
+    "Worked example. A clinician asked about an abortion request does not first ask whether it is right. She asks whether the patient has capacity, is free of coercion, understands the options, and what state law requires, and she follows a conscientious objection policy that ensures timely referral if she declines to participate."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l13",
+   "title": "Historical Abuses in Research and What They Taught",
+   "body": [
+    "Research ethics rules were built in response to specific, documented abuses. Learning them accurately matters, because the lessons are only as good as the facts.",
+    "The Nazi medical experiments, including freezing, high-altitude, infectious disease and sterilisation experiments on prisoners in concentration camps, led to the Doctors' Trial at Nuremberg (1946 to 1947) and the Nuremberg Code. The judgment's response was to state that the voluntary consent of the subject is essential.",
+    "The Tuskegee study is the best-known American case. From 1932 until 1972 the US Public Health Service followed about 600 Black men in Macon County, Alabama, around 400 of whom had syphilis and about 200 of whom did not, to observe the natural history of untreated disease. The men were told they were being treated for bad blood and were not told they had syphilis or that they were research subjects in a study of untreated disease. When penicillin became the standard cure in the 1940s, it was not offered to them, and efforts were made to keep them from receiving treatment elsewhere. The study ended in 1972 after Peter Buxtun, a Public Health Service employee, raised concerns and the story was reported in the press. A class action settlement followed, and President Clinton formally apologised in 1997. The study is often misdescribed as one in which researchers infected the men with syphilis. That is false: the men already had the disease, and the wrong was in withholding information and effective treatment and in deceiving them. It also left an enduring legacy of distrust in some Black communities, which research on vaccine and clinical trial participation has examined.",
+    "Other cases show the pattern. The Willowbrook State School studies (1956 onward) deliberately infected children with intellectual disabilities with hepatitis to study the disease and a possible vaccine; parental consent was obtained but was criticised as coerced, since admission to the overcrowded institution was in some reports linked to enrolment. In 1963 the Jewish Chronic Disease Hospital study injected live cancer cells into elderly patients without telling them what they were. Henry Beecher's 1966 article in the New England Journal of Medicine catalogued 22 examples of ethically troubling research at respected US institutions. The US Public Health Service also conducted syphilis experiments in Guatemala between 1946 and 1948, in which prisoners, soldiers and psychiatric patients were deliberately exposed to infection, and a US presidential commission examined it in 2011. The case of Henrietta Lacks, whose cervical cancer cells were taken in 1951 and became the HeLa line without her knowledge, is generally treated as a consent and ownership issue, not an experiment on a person, and it influenced debates about the use of tissues.",
+    "The regulatory response in the United States was the National Research Act of 1974, which required institutional review boards for federally funded research and created the commission that wrote the Belmont Report. Federal rules for human subjects research are now codified in 45 CFR 46, the Common Rule. In 1999, the death of Jesse Gelsinger, an 18-year-old in a gene therapy trial at the University of Pennsylvania, brought attention to the adequacy of consent and to investigators' financial interests.",
+    "Worked example. A student asked what Tuskegee shows should avoid the myth that researchers gave the men syphilis, and should explain that the abuse was deception and denial of an available cure, which led directly to informed consent and independent review as requirements."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l14",
+   "title": "Research Ethics Today: Review, Consent, Equipoise and Vulnerable Subjects",
+   "body": [
+    "Research differs from treatment in its primary aim. Clinical care aims at the patient's benefit, while research aims at generalisable knowledge, with the participant's benefit incidental. That difference means the clinician's duties of beneficence cannot be assumed to cover the researcher's role, and extra safeguards apply.",
+    "Oversight in the United States centres on the institutional review board (IRB), a committee that reviews proposed research under the Common Rule (45 CFR 46) and, for drug and device trials, Food and Drug Administration regulations. Criteria for approval include minimising risks, reasonable risks in relation to anticipated benefits and the importance of the knowledge, equitable selection of subjects, informed consent that is sought and documented, and provisions for data monitoring and confidentiality. Internationally, ethics committees fulfil a similar function under the Declaration of Helsinki and the CIOMS guidelines. Large trials usually have an independent data and safety monitoring board that can stop a study early for harm, clear benefit or futility.",
+    "Consent in research is more demanding than in treatment, because the participant takes risks for others. The consent process must explain the purpose, procedures, risks, benefits, alternatives, confidentiality, that participation is voluntary, and the right to withdraw without penalty. A frequent trap is therapeutic misconception: participants, including intelligent ones, assume that the trial is designed for their personal benefit, for example that random assignment reflects a doctor's choice. Good consent explicitly counters it.",
+    "The ethical justification for randomising people between treatments is equipoise. Classical theoretical equipoise means the investigator has no good reason to prefer one arm. Benjamin Freedman's clinical equipoise, proposed in 1987, means genuine uncertainty or disagreement within the expert community about which treatment is better. Without equipoise, assigning participants to what is believed to be an inferior treatment is hard to justify. Placebo controls are acceptable where no proven effective therapy exists or when withholding it poses no risk of serious harm, and they are contested otherwise. A trial may be stopped early because interim data show clear benefit or harm, but stopping rules and interim analyses raise statistical and ethical issues, because early stopping for benefit tends to overestimate effect sizes.",
+    "Vulnerable subjects need added protection. The US regulations contain subparts for pregnant women, prisoners and children. Research with children generally requires parental permission plus the child's assent where appropriate, and risk above minimal needs a prospect of direct benefit or a narrow, important justification. Adults who lack capacity may enrol through a legally authorised representative. The ethical aim is neither blanket exclusion, which deprives these groups of evidence-based care, nor unprotected inclusion.",
+    "Other topics include conflicts of interest of investigators, post-trial access to beneficial interventions in trials run in low-income countries, and the controversy surrounding trials in which a control group in a poorer country was given a less effective regimen than the standard elsewhere, as in disputes about the 1990s perinatal HIV transmission trials. Research integrity, including fabrication, falsification and plagiarism, is a separate matter.",
+    "Worked example. A trial plans to randomise patients with an untreated but serious infection to a new drug or placebo, despite an established effective antibiotic. An IRB would ask whether withholding the antibiotic poses serious risk, since if so the placebo arm cannot be justified and the control should be active treatment."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l15",
+   "title": "Resource Allocation and Distributive Justice",
+   "body": [
+    "Scarcity is a fact of health care. Organs, intensive care beds, specialist time and budgets are limited, so someone must decide who gets what, whether openly or implicitly. Allocation ethics asks which reasons for those decisions are legitimate.",
+    "The main distributive theories each pick out something that matters. Utilitarian or maximising approaches aim to produce the greatest total benefit, for example the most lives or the most life-years saved, often measured in quality-adjusted life years (QALYs), which combine length and quality of life. Egalitarian approaches stress equal worth and favour giving everyone an equal chance, for instance by lottery among similar claimants, or equal access to a decent minimum of care. Prioritarian views give extra weight to benefits for the worst off, which in medicine usually means the sickest or those who would otherwise lose the most. Libertarian approaches emphasise voluntary exchange and property rights and are sceptical of claims on others' resources. John Rawls's theory of justice as fairness and Norman Daniels's extension of it to health argue that health care protects a fair equality of opportunity and is therefore of special moral importance. Many real systems blend these views.",
+    "Tension is easy to see. Saving the most lives may favour treating those with the best prognosis, while a prioritarian would favour the sickest. Maximising life-years favours the young, which some regard as fair under a life-cycle or fair innings argument that everyone should have a chance at a normal span, while others see it as age discrimination. QALYs are criticised as discriminating against people with chronic illness or disability, because their quality-of-life weights are lower, and some legal systems and professional guidance therefore avoid them. In England the National Institute for Health and Care Excellence uses a threshold, of 25 to 35 thousand pounds per QALY since April 2026 (raised from 20 to 30 thousand, the range used for about two decades), in appraising technologies, though that is a decision rule and not a fixed law of nature.",
+    "Organ allocation shows a constructed system. In the United States, the National Organ Transplant Act of 1984 prohibits buying and selling organs and created the national transplant network, run under federal contract and known as the Organ Procurement and Transplantation Network. Allocation policies use factors such as medical urgency, expected benefit, blood and tissue matching, waiting time and geography, and explicitly exclude social worth, wealth and celebrity. Debates focus on whether geography should determine access and how to weigh urgency against likely benefit.",
+    "During surges such as the COVID-19 pandemic, hospitals developed crisis standards of care, with triage protocols that used measures of short-term survival, such as the SOFA score, and sometimes a lottery for ties. The best protocols were developed before the crisis, applied by triage teams separate from the treating clinician, and open to appeal. Daniels and Sabin's accountability for reasonableness gives a framework for legitimate decisions where people disagree on principles: publicity of the reasons, relevance of the reasons, a process of appeal and revision, and enforcement. Disability-rights law, including the Americans with Disabilities Act, forbids categorical exclusion of people because of disability, so the focus is on individualised assessment of likelihood of benefit.",
+    "Worked example. Two ventilators are available and three patients need them: a healthy 30-year-old nurse, a 72-year-old with moderate prognosis, and a 40-year-old with a poor prognosis. A utilitarian triage ranks by likelihood of survival, so the nurse and the 72-year-old may receive them. A lottery among equals would apply only if prognoses are equal. Using the patient's social status or ability to pay would be inconsistent with every mainstream theory."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l16",
+   "title": "Conflicts of Interest in Medicine",
+   "body": [
+    "A conflict of interest exists when a professional's secondary interest, such as financial gain, career advancement or a relationship, creates a risk of undue influence on judgment concerning a primary interest, such as patient welfare or the integrity of research. The conflict is the risk, not an accusation of misconduct. A clinician can be conflicted without being corrupt, and a conflict can distort judgment without the person noticing, which is why conflicts are managed by rules and not left to individual conscience.",
+    "Examples include industry payments to prescribers for speaking, consulting or meals, ownership of a laboratory or imaging centre to which a physician refers patients, financial stakes in a product that an investigator is testing, authorship of guidelines by experts with industry ties, and pay structures that reward volume. Evidence indicates that even small gifts and interactions are associated with changes in prescribing behaviour, and that industry sponsored trials are more likely to report favourable conclusions than independent ones, as shown in a Cochrane review of the topic, although the mechanisms involve choices of comparator, outcomes and reporting. Most physicians believe they are unaffected, which is itself part of the problem.",
+    "Management tools fall along a spectrum: prohibition of the activity, disclosure, and recusal or independent oversight. Disclosure is the most common and the weakest. It informs patients and readers, but it does not remove the conflict, and some experimental work suggests that disclosure can leave recipients no better protected and may even license advisers to be more biased, a result that is debated. Stronger tools include barring conflicted persons from voting on a guideline recommendation or from running a trial, independent data analysis, and institutional policies on gifts.",
+    "US law addresses some kinds of conflict. The Physician Payments Sunshine Act, enacted as part of the Affordable Care Act of 2010, requires manufacturers of drugs, devices and supplies covered by federal programmes to report payments and ownership interests to physicians and teaching hospitals, and the Centers for Medicare and Medicaid Services publishes them in a database called Open Payments. The Stark Law prohibits physicians from referring Medicare patients for certain designated health services to entities with which they or their family members have a financial relationship, unless an exception applies. The federal Anti-Kickback Statute makes it a crime to knowingly and willingly offer or accept remuneration to induce referrals of items or services paid by federal health care programmes. Journals require authors to disclose conflicts, and the International Committee of Medical Journal Editors has a standard disclosure form.",
+    "Moore v. Regents of the University of California (California Supreme Court, 1990) concerned a patient whose physician used his removed cells to develop a commercially valuable cell line without telling him. The court held that a physician must disclose personal research or economic interests unrelated to the patient's health if they may affect the physician's professional judgment, and that disclosure failure can give rise to claims for breach of fiduciary duty or lack of informed consent. The court declined to find that the patient had a property interest in his cells for a conversion claim.",
+    "Worked example. A cardiologist who receives consulting fees from a stent manufacturer is asked to join a hospital committee choosing a stent supplier. The ordinary solution is to disclose the relationship and recuse from the vote, while remaining available to answer technical questions, since disclosure alone leaves the influence on the vote in place."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l17",
+   "title": "Medical Error, Disclosure and Patient Safety",
+   "body": [
+    "An adverse event is harm caused by medical care rather than the underlying disease. A medical error is a failure of planned action or use of a wrong plan, and many adverse events involve no error, while some errors cause no harm (near misses). A sentinel event is a patient safety event reaching a patient and causing death, permanent harm or severe temporary harm. A never event is a serious, largely preventable event such as wrong-site surgery or a retained instrument. These distinctions matter because ethics and law treat them differently.",
+    "The modern patient safety movement started with the Institute of Medicine report To Err Is Human (1999), which estimated that tens of thousands of Americans die each year from preventable hospital errors. The exact figures are disputed, with later studies producing higher and lower estimates, but the report's lasting contribution was conceptual. It argued that most errors result from faulty systems and processes, not from individual carelessness, so the response should be redesign (checklists, forcing functions, barcode checks, hand-off protocols) rather than only punishment. James Reason's Swiss cheese model describes how harm occurs when holes in several layers of defence line up, so latent conditions such as understaffing and confusing labelling combine with an active failure by a clinician at the sharp end. Root cause analysis and similar methods look for those system contributors.",
+    "Just culture is the framework that distinguishes three kinds of behaviour. Human error, a slip or lapse, calls for console and system repair. At-risk behaviour, a drift into shortcuts whose risk is not appreciated, calls for coaching and removing incentives. Reckless behaviour, conscious disregard of a substantial and unjustifiable risk, calls for discipline. The aim is to encourage reporting without excusing recklessness. Punishing every error drives reporting underground.",
+    "The ethical duty of disclosure follows from truthfulness, autonomy and trust. A patient who has been harmed by an error needs to know in order to obtain corrective care, make decisions and cope. Professional bodies, including the American Medical Association, the American College of Physicians and the Joint Commission, expect clinicians and institutions to disclose unanticipated outcomes and errors. Good disclosure explains what is known, accepts responsibility where appropriate, expresses regret, describes what will be done to repair and prevent harm, and is followed up. Programmes such as the Communication and Optimal Resolution (CANDOR) toolkit combine prompt disclosure, investigation and early compensation.",
+    "Law interacts with this. Many states have enacted apology statutes, which make an expression of sympathy, and in some states an admission of fault, inadmissible as evidence of liability, although their scope varies, so a clinician should know the local law. Some hospitals report that early disclosure with offers of compensation did not raise claims and may have reduced costs, though the evidence base is mixed. Peer review protections in state law shield some internal quality review from discovery, and federal law supports voluntary reporting through the Patient Safety and Quality Improvement Act of 2005. The National Practitioner Data Bank, created under the Health Care Quality Improvement Act of 1986, collects reports of malpractice payments and certain disciplinary actions.",
+    "Worked example. A nurse gives a patient ten times the intended dose of insulin through a decimal slip, the error is caught, and the patient is treated in intensive care and recovers. Ethically, the patient should be told what happened and what is being done. The system review asks why the packaging and order screen allowed such an error. Under just culture, the nurse is treated as someone who made a human error in a flawed system, unless an investigation shows reckless behaviour."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l18",
+   "title": "Malpractice and the Law of Consent: An Overview",
+   "body": [
+    "Medical malpractice is professional negligence by a health care provider, and a plaintiff must prove the same four elements as in any negligence claim: duty, breach, causation and damages.",
+    "Duty arises when a physician-patient relationship exists, usually by agreement to treat. There is generally no duty to treat a stranger, though the Emergency Medical Treatment and Labor Act (EMTALA, 1986) imposes obligations on hospitals with emergency departments that participate in Medicare to screen and stabilise anyone who comes in, regardless of ability to pay. Good Samaritan statutes in states protect certain volunteer rescuers from liability for ordinary negligence.",
+    "Breach means falling below the standard of care. The traditional standard asks what a reasonably competent practitioner in the same field would do in similar circumstances. Older law used a locality rule tied to the community, which most jurisdictions have replaced with a national standard, at least for specialists. A specialist is held to the standard of that specialty. The standard of care is nearly always established by expert testimony, since lay jurors cannot judge technical practice. Expert evidence admissibility is governed by Daubert v. Merrell Dow Pharmaceuticals (US Supreme Court, 1993) in federal courts and in many states, while other states follow different tests. The doctrine of res ipsa loquitur, the thing speaks for itself, allows an inference of negligence without expert testimony in rare cases where the event does not ordinarily occur without negligence, such as a surgical instrument left inside a patient. Courts apply the doctrine in medicine with some caution. An error of judgment is not negligence if the choice was within the range of acceptable practice, and where a respectable minority of physicians would have taken the same approach, many jurisdictions treat that as acceptable.",
+    "Causation has two parts: cause in fact (usually the but-for test, whether harm would have occurred without the breach) and proximate cause. Because patients are often already ill, plaintiffs struggle to prove that negligent delay caused the injury. Loss of chance is now accepted in a majority of states (one 2021 survey counted 29 of 50 as of November 2019, with 15 rejecting it and 6 undecided), allowing recovery when negligence reduced a patient's chance of survival or recovery below fifty percent, while the traditional all-or-nothing rule, still applied in a substantial minority, requires proof that the outcome more likely than not would have differed. Which rule applies depends on the state and may have shifted since, so check current law. Damages include economic losses and non-economic damages such as pain and suffering, and some states cap non-economic damages. Many states impose statutes of limitations running from the injury or its discovery, plus outer limits called statutes of repose.",
+    "Consent connects to this framework in two ways. A treatment without any consent, or a procedure substantially different from the one agreed, is traditionally a battery, an intentional tort that does not require proof of negligence. Failure to disclose material risks is treated in most jurisdictions as negligence, requiring causation as described in the consent lesson. Hospitals may be liable vicariously for employees and, in the Darling v. Charleston Community Memorial Hospital (Illinois Supreme Court, 1965) line of cases, directly under corporate negligence for failing to supervise the quality of care.",
+    "Worked example. A radiologist misses a nodule visible on a chest film that a reasonably competent radiologist would have identified. The tumour is found a year later at a more advanced stage. The plaintiff must prove that the miss was a breach, through an expert, and that earlier diagnosis would more likely than not have led to a better outcome. If survival even with earlier diagnosis would have been under half, a jurisdiction following the traditional all-or-nothing rule denies recovery, while a loss-of-chance jurisdiction may allow proportional damages."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l19",
+   "title": "What Are Health and Disease? Naturalism, Normativism and the Limits of Definition",
+   "body": [
+    "Medicine treats diseases, but there is no consensus on what a disease is. The question is practical. Whether something counts as a disease can affect whether insurers cover it, whether a person is excused from obligations, whether it is treated or tolerated, and whether a pharmaceutical company can market a drug for it.",
+    "Naturalism holds that disease is an objective, value-free biological category. The best-known version is Christopher Boorse's biostatistical theory. It defines health as normal functioning, that is, the performance of each part's typical contribution to survival and reproduction at or above a statistically typical level for a reference class, usually defined by age and sex. Disease is an internal state that reduces functional ability below that typical level. The theory has the advantage of separating disease from social values. Its difficulties are well known. Common conditions such as dental caries or, in some populations, gum disease are statistically normal but still seem to be diseases. Some reductions in function are unremarkable and not diseases, such as fitness differences. The choice of reference class can be disputed, and function in biology is a contested concept.",
+    "Normativism holds that calling something a disease is inherently evaluative: a condition is a disease because it is bad, harmful or undesirable, in a way that depends on human values. H. Tristram Engelhardt and K. W. M. Fulford developed versions of this view. The concept of disease on this account describes what we want treated. Evidence for normativism includes historical cases where conditions were classified as diseases because of social values. The standard example is homosexuality, which was listed as a mental disorder in early editions of the American Psychiatric Association's Diagnostic and Statistical Manual and removed in 1973 after debate, a change driven by evidence and by shifting values. Drapetomania, a supposed disease of enslaved people running away, proposed by Samuel Cartwright in 1851, is another example of a spurious diagnosis serving social ends. Critics of normativism say it makes disease too subjective and relative.",
+    "Hybrid accounts combine the two. Jerome Wakefield's harmful dysfunction analysis says a condition is a disorder if it involves a failure of a mechanism to perform its naturally selected function (a factual component) and that failure harms the person according to social values (an evaluative component). Lennart Nordenfelt's holistic theory defines health in terms of the ability to achieve vital goals in standard circumstances.",
+    "Related terms help. Disease usually refers to a pathophysiological abnormality as understood by clinicians. Illness is the person's lived experience of feeling unwell, and sickness is the social role. A person can have a disease without illness (early asymptomatic cancer) and illness without detectable disease. The World Health Organization's constitution of 1948 defined health as a state of complete physical, mental and social well-being, not merely the absence of disease, a definition criticised as utopian because almost everyone would be unhealthy most of the time. Proposals such as health as the ability to adapt and self-manage have been offered in response.",
+    "Practical consequences include medicalization, the extension of medical categories to ordinary experiences, and overdiagnosis, the labelling of conditions that would never have caused harm. The wider the definition, the more people are labelled.",
+    "Worked example. A student asked whether being shorter than 99 percent of peers is a disease would note that a statistical account says only that it is unusual, a normative account asks whether it harms or limits the person in context, and a hybrid account asks whether any underlying mechanism has failed and whether this harms. Growth hormone deficiency, caused by a failed mechanism, would count under the hybrid account, but idiopathic short stature without dysfunction is more contested."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l20",
+   "title": "Causation in Medicine: From Koch to Bradford Hill to Counterfactuals",
+   "body": [
+    "Medicine constantly asks whether an exposure causes an outcome: whether smoking causes lung cancer, a drug causes a side effect, or a delay caused a death. Philosophy of medicine distinguishes several concepts of causation, because each fits some problems and fails others.",
+    "Koch's postulates, associated with Robert Koch and Friedrich Loeffler in the nineteenth century, set criteria for showing that a particular microorganism causes a particular disease: the organism should be found in all cases of the disease, isolated and grown in pure culture, cause the disease when introduced into a healthy host, and be re-isolated. They were influential and helped build germ theory, but they fail for many conditions. Asymptomatic carriers carry the organism without disease, some organisms cannot be grown in culture, and many diseases have multiple contributing causes. Koch's single necessary cause model does not fit chronic disease.",
+    "Sir Austin Bradford Hill proposed in 1965 a list of considerations for judging whether an observed association is likely causal. They are often called Bradford Hill criteria, but Hill himself presented them as viewpoints and not as a checklist. They include strength of association, consistency across studies, specificity, temporality (the cause must precede the effect, which is the only essential one), biological gradient or dose-response, plausibility, coherence, experiment, and analogy. The point is that causal inference is a judgment that combines evidence and does not reduce to a single test. The smoking and lung cancer case was the paradigm, since randomised trials of smoking were not possible.",
+    "Kenneth Rothman's sufficient-component cause model pictures a disease as occurring when a complete set of component causes, a sufficient cause, is assembled. A given component may belong to many different sufficient causes, and a disease can have many distinct sets. It explains why an exposure can be a cause of disease in some people and not in others, and why removing one component can prevent disease without being the only cause.",
+    "Counterfactual accounts define a cause as something whose absence would have changed the outcome: the exposure caused the disease in this person if she would not have become ill had she not been exposed. This underlies randomised trials, where the control group stands in for the unobservable counterfactual of the treated group, and it underlies the but-for test in tort law. Observational studies use methods such as adjustment, matching, instrumental variables and natural experiments, but they depend on assumptions about confounding that cannot be fully tested. A confounder is a factor associated with both exposure and outcome that is not on the causal path and so can produce a spurious association.",
+    "The distinction between population-level and individual-level causation also matters. A study may show that a risk factor raises risk in a population, but cannot show that it caused disease in a given patient. Law struggles with this when it asks whether an exposure caused a particular plaintiff's cancer, and often relies on a relative risk above two as a rough indicator that the exposure more likely than not caused a case, a rule of thumb that is itself debated.",
+    "Worked example. Observational data show that coffee drinkers have more lung cancer. Smokers are more likely to drink coffee, so smoking confounds the association. After adjustment for smoking, the association disappears. Temporality is satisfied, but the strength of association has an alternative explanation, so the causal inference fails."
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l21",
+   "title": "The Epistemology of Evidence-Based Medicine",
+   "body": [
+    "Evidence-based medicine (EBM) was defined by David Sackett and colleagues in 1996 as the conscientious, explicit and judicious use of current best evidence in making decisions about the care of individual patients, integrated with clinical expertise and patient values. The definition has three parts, and critics who say EBM ignores expertise and patients are often attacking a caricature. The philosophical questions concern what counts as evidence and how it supports a conclusion.",
+    "A familiar hierarchy ranks evidence from systematic reviews of randomised trials and individual randomised trials, through cohort and case-control studies, to case series and expert opinion. The rationale for randomisation is that it balances known and unknown confounders on average, so differences in outcome can be attributed to the intervention, and blinding limits expectation effects. Modern frameworks such as GRADE do not simply rank by design. They grade the certainty of evidence for each outcome, starting high for randomised trials and low for observational studies, then moving down for risk of bias, inconsistency, indirectness, imprecision and publication bias, or up for large effects or dose-response, and they separate certainty of evidence from strength of recommendation, which depends also on values and resources.",
+    "Philosophers have raised several challenges. Randomisation balances confounders only in expectation. In a single trial, particularly a small one, chance imbalances can occur. Nancy Cartwright and others argue that a trial establishes that an intervention worked in the trial population, but that applying it to a particular patient requires further assumptions about similarity, which is the problem of external validity or generalisability. Trials often exclude older patients, those with several conditions, and women of childbearing age. Average effects can hide heterogeneity, so a treatment that helps some and harms others can look neutral.",
+    "Other concerns include surrogate endpoints, such as blood pressure or cholesterol or tumour shrinkage, which are used in place of outcomes patients care about. A surrogate is valid only if effects on it reliably predict effects on the clinical outcome, and history has examples in which a drug improved a surrogate but did harm. The CAST trial in the 1980s and 1990s is a standard teaching case: drugs that suppressed ventricular arrhythmias after myocardial infarction, a favourable surrogate, increased mortality. Publication bias, selective outcome reporting and sponsor influence distort the literature, and trial registration and reporting standards are partial remedies. P-values and statistical significance are often misread, and the replication problem in science is a reminder that single studies are fallible.",
+    "Bayesian reasoning links evidence to diagnosis. The probability that a positive test indicates disease depends on the pretest probability, the sensitivity and the specificity, and for a rare disease even a very accurate test yields many false positives. Neglecting base rates is a common cognitive error.",
+    "EBM also has limits and complements. Mechanistic evidence, case reports for rare events, qualitative evidence about patient experience and expert judgment all have a role, and some interventions, such as parachutes in the famous satirical argument, are accepted without a randomised trial because the effect is so large and the mechanism so clear. Shared decision-making integrates evidence with patient values, where the best choice depends on how a patient weighs benefit against burden.",
+    "Worked example. A trial shows that a drug lowers a biomarker in men aged 50 to 65 with no other illness. A clinician considering it for an 84-year-old woman with several conditions asks about outcomes that matter, whether the trial population resembles her, and whether the absolute benefit, not just the relative reduction, is large enough for her goals."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-ethics-prof.l01.q1",
+   "lessonId": "med-ethics-prof.l01",
+   "kind": "mcq",
+   "prompt": "Which set correctly lists the four principles of principlism as set out by Beauchamp and Childress?",
+   "choices": [
+    "Autonomy, fidelity, veracity and justice",
+    "Beneficence, confidentiality, justice and equity",
+    "Nonmaleficence, utility, justice and reciprocity",
+    "Autonomy, beneficence, nonmaleficence and justice"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l01.q2",
+   "lessonId": "med-ethics-prof.l01",
+   "kind": "mcq",
+   "prompt": "What does it mean to say a principle is prima facie binding?",
+   "choices": [
+    "It binds absolutely, so that the principle always overrides every competing consideration in medicine",
+    "It binds only when the patient has explicitly requested it, giving it no force without a request",
+    "It binds unless it conflicts with an equal or stronger duty in the particular circumstances",
+    "It binds only when no other clinician on the team disagrees about the right course of action"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l01.q3",
+   "lessonId": "med-ethics-prof.l01",
+   "kind": "mcq",
+   "prompt": "Why do Beauchamp and Childress treat nonmaleficence and beneficence as separate principles?",
+   "choices": [
+    "The two always recommend the same action in practice, and are only listed separately for emphasis",
+    "The duty not to harm is generally more stringent than the duty to provide benefit",
+    "Beneficence is a duty of physicians alone, whereas nonmaleficence is the shared duty of the wider team",
+    "Nonmaleficence is a legal liability standard, whereas beneficence is a purely aspirational ethical ideal"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l01.q4",
+   "lessonId": "med-ethics-prof.l01",
+   "kind": "mcq",
+   "prompt": "A competent 58-year-old Jehovah's Witness with a bleeding gastric ulcer, fully informed that transfusion may be lifesaving, declines blood products and accepts other treatment. Her surgeon strongly believes transfusion is in her interest. Which analysis best reflects principlism?",
+   "choices": [
+    "Autonomy is decisive because capacity and understanding are intact; the team explores her reasons, offers alternatives and respects the refusal",
+    "Beneficence is decisive because preserving life is the lexically first duty, so transfusion should proceed once she loses consciousness",
+    "Justice is decisive because blood is a scarce shared resource and her refusal commits the hospital to a costlier course, so it may be set aside",
+    "Nonmaleficence is decisive because withholding a transfusion is itself a harm, so her refusal is invalid without an ethics ruling"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l01.q5",
+   "lessonId": "med-ethics-prof.l01",
+   "kind": "mcq",
+   "prompt": "A critic says principlism is \"a checklist\" that gives no way to decide when autonomy conflicts with beneficence. Which response from within the framework is most accurate?",
+   "choices": [
+    "The framework resolves every conflict by ranking autonomy first, so no further weighing of the principles is required",
+    "The framework resolves conflicts by majority vote among clinicians, which is why it is called a consensus method",
+    "The framework concedes that conflicts have no rational resolution, so they are left to institutional policy or the senior clinician",
+    "The framework supplies specification and balancing, requiring explicit reasons for how each principle is weighed in the case"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l02.q1",
+   "lessonId": "med-ethics-prof.l02",
+   "kind": "mcq",
+   "prompt": "Which moral theory is most associated with the idea that persons must never be treated merely as means?",
+   "choices": [
+    "Kantian deontology",
+    "Classical utilitarianism",
+    "Aristotelian virtue ethics",
+    "Ethical egoism"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l02.q2",
+   "lessonId": "med-ethics-prof.l02",
+   "kind": "mcq",
+   "prompt": "A hospital board evaluates a policy purely by asking which option yields the greatest total improvement in patient outcomes per dollar. Which approach is it using?",
+   "choices": [
+    "Narrative reasoning",
+    "Consequentialist reasoning",
+    "Deontological reasoning",
+    "Virtue-based reasoning"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l02.q3",
+   "lessonId": "med-ethics-prof.l02",
+   "kind": "mcq",
+   "prompt": "Which feature is a standard condition of the doctrine of double effect?",
+   "choices": [
+    "The good effect must be produced by way of the bad effect, so the harm serves as the means to the benefit",
+    "The action is permissible only if the patient has already died, so that no living person bears the harm",
+    "The bad effect is foreseen but not intended as the means of achieving the good effect",
+    "The bad effect must be impossible to foresee at the time of acting, since foreseen harm is always intended"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l02.q4",
+   "lessonId": "med-ethics-prof.l02",
+   "kind": "mcq",
+   "prompt": "A surgeon who consistently follows consent protocols is nonetheless described by patients as curt and dismissive, and trust in her unit is falling. Which theoretical tradition best explains why compliance with rules does not exhaust what is wrong?",
+   "choices": [
+    "Utilitarianism, because only aggregate welfare matters, so rule following cannot be a moral consideration of any kind in medicine",
+    "Ethical egoism, because the surgeon is correctly pursuing her own interests and staying within the protocol she is bound by",
+    "Legal positivism, because the law alone defines what counts as acceptable bedside behaviour and she has met every legal duty",
+    "Virtue ethics, because it evaluates settled character traits such as compassion and practical wisdom alongside rule following"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l02.q5",
+   "lessonId": "med-ethics-prof.l02",
+   "kind": "mcq",
+   "prompt": "A utilitarian argument claims that a healthy patient should be sacrificed to supply organs to five dying patients. Which reply best reflects a sophisticated consequentialist position?",
+   "choices": [
+    "Rules protecting individuals, such as consent, tend to produce better outcomes overall, so the proposed policy would likely do more harm than good",
+    "The argument is correct because aggregate benefit is the only consideration and public trust in medicine is morally irrelevant to the outcome of the policy",
+    "The argument fails because consequences can never be counted when lives are at stake, so consequentialism says nothing about this proposal at all",
+    "The argument fails because transplantable organs are not scarce under any realistic circumstance, so the case is simply empty of any real content"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l03.q1",
+   "lessonId": "med-ethics-prof.l03",
+   "kind": "mcq",
+   "prompt": "Which scholar is most closely associated with the development of narrative medicine?",
+   "choices": [
+    "Tom Beauchamp",
+    "Rita Charon",
+    "Carol Gilligan",
+    "Albert Jonsen"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l03.q2",
+   "lessonId": "med-ethics-prof.l03",
+   "kind": "mcq",
+   "prompt": "What is the central ethical claim of care ethics about the nature of moral life?",
+   "choices": [
+    "Moral life is built from relationships of dependence and responsiveness, so attentiveness and responsibility are core moral activities",
+    "Moral life is best captured by impartial rules that apply identically to every person, whatever their relationships and particular needs",
+    "Moral life reduces to calculating the total welfare produced by each available action for everyone affected by the choice in question",
+    "Moral life consists of obeying commands issued by a legitimate professional authority, whose directives define the content of right conduct"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l03.q3",
+   "lessonId": "med-ethics-prof.l03",
+   "kind": "mcq",
+   "prompt": "Which feature best describes casuistry as developed by Jonsen and Toulmin?",
+   "choices": [
+    "Deriving all conclusions deductively from a single supreme moral principle applied to each case",
+    "Deciding each case by the personal intuition of the senior clinician without reference to precedent",
+    "Substituting statistical outcome data for moral argument whenever such data are available",
+    "Reasoning from paradigm cases to harder cases by analogy and attention to circumstances"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l03.q4",
+   "lessonId": "med-ethics-prof.l03",
+   "kind": "mcq",
+   "prompt": "A 79-year-old man with end-stage lung disease repeatedly declines hospital admission. His clinicians see only non-adherence. Further conversation reveals that he cared for his wife in hospital for months before she died and now equates hospitals with loss of dignity. Which approach most directly brought this crucial information to light?",
+   "choices": [
+    "Strict deontological rule following, by applying a standard admission protocol uniformly to every patient in his position",
+    "Cost-effectiveness analysis, by estimating the quality-adjusted life years that admission would gain him over alternatives",
+    "Narrative competence, by attending to the meaning the illness and hospitals have within the patient's life story",
+    "Utilitarian triage, by ranking his expected benefit against that of other patients who are awaiting hospital beds"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l03.q5",
+   "lessonId": "med-ethics-prof.l03",
+   "kind": "mcq",
+   "prompt": "A critic argues that casuistry is unreliable because a reasoner can pick whichever analogous cases support a favoured conclusion. What is the strongest reply available to a casuist?",
+   "choices": [
+    "Casuistry avoids moral judgment altogether and merely reports what clinicians usually do in practice, so there is nothing for a reasoner to cherry pick from",
+    "Paradigm cases must be justified by broad agreement, and the relevant circumstances of the new case must be argued explicitly, which constrains cherry picking",
+    "Casuists never use analogy between cases at all, so the objection about choosing convenient analogies does not apply to the method of casuistry in any form",
+    "The method guarantees a correct answer whenever any single precedent exists, so selecting among competing paradigm cases is never a real problem for casuists in practice"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l04.q1",
+   "lessonId": "med-ethics-prof.l04",
+   "kind": "mcq",
+   "prompt": "The phrase \"first do no harm\" is often attributed to the Hippocratic Oath. What is the accurate position?",
+   "choices": [
+    "The American Medical Association added the phrase to the Oath in its 1847 Code of Medical Ethics, from which the Latin tag was later coined",
+    "The phrase comes from the Nuremberg Code and was only later projected backward onto the Hippocratic Oath by modern medical historians",
+    "The phrase does not appear in the Oath; a related idea appears in the Hippocratic Epidemics, and the Latin tag is later",
+    "The phrase is the first line of the Oath and appears in every surviving manuscript of the Hippocratic text from antiquity onward"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l04.q2",
+   "lessonId": "med-ethics-prof.l04",
+   "kind": "mcq",
+   "prompt": "The Belmont Report identified which three principles for research with human subjects?",
+   "choices": [
+    "Autonomy, nonmaleficence and veracity",
+    "Informed consent, confidentiality and equipoise",
+    "Voluntariness, reciprocity and proportionality",
+    "Respect for persons, beneficence and justice"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l04.q3",
+   "lessonId": "med-ethics-prof.l04",
+   "kind": "mcq",
+   "prompt": "Which statement correctly distinguishes the Nuremberg Code from the Declaration of Helsinki?",
+   "choices": [
+    "Helsinki recognises independent ethics committee review and surrogate consent for those unable to consent, which Nuremberg did not",
+    "Nuremberg is binding United States statute law, whereas Helsinki is only a nonbinding aspirational statement drafted by physicians",
+    "Nuremberg allows nonconsensual research if the science is important enough, whereas Helsinki flatly forbids any research without consent",
+    "Helsinki was drafted by the judges of the Doctors' Trial itself, whereas Nuremberg was written later by a national medical association"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l04.q4",
+   "lessonId": "med-ethics-prof.l04",
+   "kind": "mcq",
+   "prompt": "A research ethics board reviewing a study is asked what a Belmont-based analysis requires. The study would enrol only residents of a low-income institution because they are convenient and easy to monitor, though the findings would benefit the general population. Which Belmont principle is most directly engaged and how?",
+   "choices": [
+    "Nonmaleficence alone, because Belmont treats the selection of subjects as lying outside the scope of its three basic ethical principles",
+    "Justice, because selection of subjects must be fair and vulnerable groups should not be chosen for convenience while others reap the benefits",
+    "Respect for persons, because a convenient and easily monitored population has by definition already consented to all the research it takes part in",
+    "Beneficence, because any benefit to the wider population automatically justifies how the individual research subjects happen to be selected"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l04.q5",
+   "lessonId": "med-ethics-prof.l04",
+   "kind": "mcq",
+   "prompt": "A student states: \"The Nuremberg Code settled all later ethical questions in research, so Helsinki and Belmont were unnecessary.\" Which analysis of this claim is most accurate?",
+   "choices": [
+    "It is mistaken only because Belmont formally repealed the Nuremberg Code when it was published in 1979, replacing it with a binding federal regulation of its own",
+    "It is correct, because Helsinki and Belmont merely restate the Nuremberg Code word for word in new settings, adding no new protections for any group of subjects",
+    "It is mistaken: Nuremberg was a judgment-based statement that left gaps on matters such as incapacitated subjects and independent review, which later documents addressed",
+    "It is correct, because Nuremberg is binding international treaty law that has never been revised and therefore already answers every later question about research ethics"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l05.q1",
+   "lessonId": "med-ethics-prof.l05",
+   "kind": "mcq",
+   "prompt": "In which case did a New York court recognise that an adult of sound mind may decide what is done to his body and that surgery without consent is a battery?",
+   "choices": [
+    "Canterbury v. Spence (1972)",
+    "Salgo v. Leland Stanford Jr. University Board of Trustees (1957)",
+    "Cruzan v. Director, Missouri Department of Health (1990)",
+    "Schloendorff v. Society of New York Hospital (1914)"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l05.q2",
+   "lessonId": "med-ethics-prof.l05",
+   "kind": "mcq",
+   "prompt": "Under the reasonable patient standard of disclosure, what must the physician disclose?",
+   "choices": [
+    "Every conceivable risk of the procedure regardless of how remote or insignificant it may be, so that nothing is left undisclosed",
+    "Only the information that the individual patient specifically asks about during the visit, since unprompted disclosure is not required",
+    "The information a reasonable person in the patient's position would consider material to the decision",
+    "The information that a reasonable physician in the same specialty and community customarily gives to patients facing a comparable procedure"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l05.q3",
+   "lessonId": "med-ethics-prof.l05",
+   "kind": "mcq",
+   "prompt": "A plaintiff claims a surgeon failed to disclose a material risk that then occurred. What additional element must usually be proved in a negligence-based informed consent claim?",
+   "choices": [
+    "That the plaintiff signed no written consent form before the procedure, since a signed form defeats any later disclosure claim",
+    "That a reasonable person in the plaintiff's position would not have consented if the risk had been disclosed",
+    "That the surgeon intended to deceive the patient about the risk of the operation, so that the nondisclosure was knowing and deliberate",
+    "That the surgical technique used departed from the manner in which most surgeons in the specialty customarily perform the procedure"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l05.q4",
+   "lessonId": "med-ethics-prof.l05",
+   "kind": "mcq",
+   "prompt": "A 54-year-old woman is told about the benefits of a spinal fusion but not about a 2 percent risk of permanent bladder dysfunction, which a reasonable patient would consider material. The operation is performed skilfully and the complication occurs. She states that she would have chosen physiotherapy instead. In a jurisdiction that follows the Canterbury approach, what is the most likely analysis?",
+   "choices": [
+    "A negligence claim for nondisclosure may succeed because the risk was material, it materialised, and a reasonable patient would have declined",
+    "No claim lies because a skilfully performed operation cannot give rise to liability of any kind once the surgeon met the technical standard of care",
+    "A claim lies only in battery because any nondisclosure of a risk converts the whole procedure into an unconsented touching of the patient",
+    "No claim lies unless the surgeon actually intended the complication to occur, because negligence cannot be founded on an omitted warning alone"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l05.q5",
+   "lessonId": "med-ethics-prof.l05",
+   "kind": "mcq",
+   "prompt": "An unconscious 30-year-old man with massive traumatic haemorrhage arrives alone, with no identification and no surrogate reachable. Surgery is urgently needed to save his life. Which analysis of consent is most accurate?",
+   "choices": [
+    "Surgery must wait for a court order because no consent can be implied without a signed document from the patient or a legally authorised surrogate",
+    "Surgery may proceed only under therapeutic privilege, because disclosing the risks to a dying man would itself cause him serious harm",
+    "Surgery may proceed only once the hospital's lawyers have confirmed that no family member can be found and that no advance directive exists",
+    "Consent is implied under the emergency exception because he lacks capacity, delay would endanger life, and a reasonable person would consent"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l06.q1",
+   "lessonId": "med-ethics-prof.l06",
+   "kind": "mcq",
+   "prompt": "Which list correctly gives the four abilities commonly assessed in decision-making capacity?",
+   "choices": [
+    "Understanding, appreciation, reasoning and expressing a choice",
+    "Memory, intelligence, orientation and expressing a choice",
+    "Understanding, agreement, obedience and expressing a choice",
+    "Orientation, reasoning, voluntariness and legal competence"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l06.q2",
+   "lessonId": "med-ethics-prof.l06",
+   "kind": "mcq",
+   "prompt": "Which statement about capacity is correct?",
+   "choices": [
+    "It is shown to be lacking whenever the patient refuses the treatment that the clinician recommends, since refusal signals impaired judgment",
+    "It is specific to a particular decision and time, so a patient may have capacity for one choice but not another",
+    "It is a fixed trait of the individual that is either present or absent in all circumstances, so one assessment settles every later decision",
+    "It is determined by a court in every case before any treatment can lawfully be given or refused by an adult patient"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l06.q3",
+   "lessonId": "med-ethics-prof.l06",
+   "kind": "mcq",
+   "prompt": "A patient with severe depression says he understands that antidepressants help many people but that they cannot help him because he is beyond saving. Which ability is most clearly impaired?",
+   "choices": [
+    "Understanding, because he cannot repeat the facts about the antidepressant treatment back in his own words when asked",
+    "Voluntariness, because his refusal is the product of pressure and coercion from his treating physician and his relatives",
+    "Appreciation, because he does not recognise that the information applies to his own situation",
+    "Expressing a choice, because he is unable to communicate any decision about the treatment to his clinicians or family"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l06.q4",
+   "lessonId": "med-ethics-prof.l06",
+   "kind": "mcq",
+   "prompt": "A 72-year-old woman with moderate dementia is recommended an operation for a broken hip. She repeats that surgery will fix the bone, that anaesthesia has risks, and that without it she may not walk again. She says she wants surgery because her son told her to say yes and she does not want to disappoint him, and she cannot say what she would do if he were absent. What is the best assessment?",
+   "choices": [
+    "She plainly has capacity because she agreed with the recommended treatment, and her agreement settles the question without any further inquiry",
+    "She plainly lacks capacity because any diagnosis of dementia automatically removes the ability to make decisions about one's own care",
+    "She lacks capacity because her son's influence is by definition coercion, which makes her stated choice invalid and unlawful to follow",
+    "Capacity is doubtful for reasoning and voluntariness, so the team should explore her own values and may need surrogate involvement"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l06.q5",
+   "lessonId": "med-ethics-prof.l06",
+   "kind": "mcq",
+   "prompt": "A competent 40-year-old woman declines chemotherapy recommended by her oncologist because of a belief in the healing power of prayer. She understands the prognosis with and without treatment and has held the belief for decades. Her oncologist thinks she is irrational. Which conclusion is best supported?",
+   "choices": [
+    "The refusal does not itself show incapacity if she understands, appreciates and reasons within her values, so the team should continue to engage with her",
+    "She must lack capacity because a belief in the healing power of prayer is itself evidence of a delusion or thought disorder in a patient who holds it",
+    "The oncologist's disagreement with her choice is enough to justify seeking a guardian under a sliding scale of capacity requirements that rises with the stakes",
+    "Her refusal should be disregarded because it would lead to a worse medical outcome than the treatment that has been recommended to her by her oncologist"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l07.q1",
+   "lessonId": "med-ethics-prof.l07",
+   "kind": "mcq",
+   "prompt": "Under the HIPAA Privacy Rule, which use of protected health information generally requires no individual authorisation?",
+   "choices": [
+    "Disclosure of psychotherapy session details to a relative who asks out of concern",
+    "Disclosure to a consulting specialist for the purpose of treating the patient",
+    "Disclosure of the patient's chart to a marketing firm promoting a new product",
+    "Disclosure of the chart to the patient's employer to explain a sick leave absence"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l07.q2",
+   "lessonId": "med-ethics-prof.l07",
+   "kind": "mcq",
+   "prompt": "What did the California Supreme Court hold in Tarasoff v. Regents of the University of California (1976)?",
+   "choices": [
+    "A therapist who determines that a patient is a serious danger of violence to another must use reasonable care to protect the intended victim",
+    "A therapist must always report any patient who voices violent fantasies to the police, whether or not an identifiable person is at risk of harm",
+    "A therapist owes a duty only to the patient because confidentiality is absolute, so no disclosure to an endangered third party is ever permitted",
+    "A therapist is strictly liable for any violence committed in the community by a former patient, regardless of any warning signs the therapist observed"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l07.q3",
+   "lessonId": "med-ethics-prof.l07",
+   "kind": "mcq",
+   "prompt": "Which statement about the response of states to Tarasoff is correct?",
+   "choices": [
+    "Every state has adopted the California rule as a mandatory duty to warn, so therapists everywhere must disclose a serious threat",
+    "Every state has rejected the Tarasoff rule and prohibits therapists from making any disclosure of a patient's threats to anyone",
+    "Federal law preempted state variation by imposing one uniform national duty to warn that all therapists must follow",
+    "States differ: some impose a mandatory duty to protect, some permit disclosure, and some recognise no such duty"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l07.q4",
+   "lessonId": "med-ethics-prof.l07",
+   "kind": "mcq",
+   "prompt": "A 16-year-old girl tells her physician she is sexually active and requests contraception, asking that her parents not be told. Her state law permits minors to consent to contraception. Her mother telephones asking for information about the visit. What is the best approach?",
+   "choices": [
+    "The physician should disclose the information because the patient is under 18 and HIPAA does not cover records of any minor's care or treatment",
+    "The physician may disclose only if the mother promises not to reveal the information to the girl's father or to anyone else outside the household",
+    "Because state law allows the minor to consent to this service, her information is protected and the physician should not disclose it without her permission",
+    "Parents have an unconditional right to all information about any minor's care, so the physician should tell the mother everything she asks about the visit"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l07.q5",
+   "lessonId": "med-ethics-prof.l07",
+   "kind": "mcq",
+   "prompt": "A patient on a psychiatric ward tells his clinician in confidence that he will \"deal with\" a named coworker the next day and has described buying a weapon. The clinician assesses the threat as serious and imminent. The state has a permissive disclosure statute. Which course is most defensible?",
+   "choices": [
+    "Discuss the matter only with the patient's own family, because they are the sole permitted recipients of protective disclosures under HIPAA in these cases",
+    "Take reasonable protective steps, such as notifying the coworker and the police, and document the assessment, since HIPAA permits disclosure to avert a serious and imminent threat",
+    "Maintain complete confidentiality because HIPAA prohibits any disclosure of health information that the patient has not himself authorised in writing beforehand",
+    "Wait until the patient actually commits a crime, since a clinician may lawfully disclose confidential information only after a harm has occurred to someone"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l08.q1",
+   "lessonId": "med-ethics-prof.l08",
+   "kind": "mcq",
+   "prompt": "Which description best fits the SPIKES protocol?",
+   "choices": [
+    "A scoring system for assessing decision-making capacity in hospital inpatients, with a threshold that determines whether consent is valid",
+    "A regulation governing disclosure of medical errors to patients and families, requiring a written apology within a fixed period",
+    "A six-step approach to delivering bad news that begins with setting up the conversation and assessing the patient's perception",
+    "A legal standard that defines when a physician may lawfully withhold a diagnosis from a patient who is likely to be distressed by it"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l08.q2",
+   "lessonId": "med-ethics-prof.l08",
+   "kind": "mcq",
+   "prompt": "What is the best description of therapeutic privilege?",
+   "choices": [
+    "The patient's right to refuse any information about a diagnosis or prognosis, so that the clinician may not volunteer it at all",
+    "A physician's privilege not to testify in court about confidential communications made by a patient during treatment",
+    "The right of family members to receive information in place of the patient whenever they judge that it would be distressing",
+    "Withholding information because disclosure would itself seriously harm the patient, a narrow and contested exception"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l08.q3",
+   "lessonId": "med-ethics-prof.l08",
+   "kind": "mcq",
+   "prompt": "A family asks that an elderly capable patient not be told her cancer diagnosis. What is the most appropriate first response?",
+   "choices": [
+    "Explore the family's concerns and ask the patient how much information she wants, instead of assuming either way",
+    "Comply with the request because families always have authority over disclosure in such cases",
+    "Disclose everything immediately in writing without discussion, since honesty overrides every other consideration",
+    "Refuse to speak to the family at all because their wishes are legally irrelevant"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l08.q4",
+   "lessonId": "med-ethics-prof.l08",
+   "kind": "mcq",
+   "prompt": "A 61-year-old man with metastatic disease says: \"Doc, I just want to know whether to plan for my son's wedding in March.\" Previous clinicians gave only vague reassurance. The physician estimates survival of perhaps a few months. Which approach best balances truthfulness and compassion?",
+   "choices": [
+    "State a precise date of death so that there is no ambiguity, because any uncertainty in the estimate would be a form of deception",
+    "Ask what he understands, share the realistic estimate with its uncertainty, acknowledge his emotions, and plan around his goals",
+    "Offer firm reassurance that he will be fine, because hope is all that matters at this stage of a serious illness and honesty adds nothing",
+    "Decline to answer because prognosis lies outside the proper scope of a physician's duties and should be left to the oncologist"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l08.q5",
+   "lessonId": "med-ethics-prof.l08",
+   "kind": "mcq",
+   "prompt": "A patient tells her geneticist she wants to be tested for a hereditary cancer syndrome but does not want to learn whether she carries a separate variant linked to untreatable late-onset dementia. Which principle is most clearly at stake in respecting her wishes?",
+   "choices": [
+    "The duty to warn third parties, because relatives may later be affected by the dementia variant if it is found",
+    "The doctrine of double effect, since the test result has both a good and a bad consequence that must be weighed",
+    "The right not to know, an aspect of autonomy, provided she understands what information exists and what she is declining",
+    "The doctrine of therapeutic privilege, since the clinician has independently decided the dementia result would harm her and may withhold it"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l09.q1",
+   "lessonId": "med-ethics-prof.l09",
+   "kind": "mcq",
+   "prompt": "In descending order of preference, which sequence of standards should a surrogate decision-maker use?",
+   "choices": [
+    "Best interests, then substituted judgment, then expressed wishes",
+    "Substituted judgment, then the surrogate's own preferences, then expressed wishes",
+    "Family consensus, then physician recommendation, then expressed wishes",
+    "Expressed wishes, then substituted judgment, then best interests"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l09.q2",
+   "lessonId": "med-ethics-prof.l09",
+   "kind": "mcq",
+   "prompt": "What did Cruzan v. Director, Missouri Department of Health (1990) hold regarding an incompetent patient's wishes?",
+   "choices": [
+    "A state may never allow withdrawal of artificial nutrition and hydration from any patient under any circumstances, because it is ordinary care",
+    "A state may act only on the written order of the patient's treating physician, so a surrogate has no standing to request withdrawal at all",
+    "A state may require clear and convincing evidence of the patient's wishes before a surrogate may withdraw life-sustaining treatment",
+    "A state must always permit a family to withdraw treatment from an incompetent patient whenever the family agrees among themselves, whatever the evidence"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l09.q3",
+   "lessonId": "med-ethics-prof.l09",
+   "kind": "mcq",
+   "prompt": "Which feature distinguishes a POLST form from a living will?",
+   "choices": [
+    "It is a statement used only to refuse organ donation after death, completed at a motor vehicle office and filed with the state registry",
+    "It is a portable medical order signed by a clinician for seriously ill or frail patients, rather than a statement of preferences",
+    "It is a document signed only by healthy adults to appoint a health care agent, taking effect whenever the signer later loses capacity",
+    "It is a court order that appoints a guardian for an incapacitated adult and gives the guardian authority over all medical decisions"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l09.q4",
+   "lessonId": "med-ethics-prof.l09",
+   "kind": "mcq",
+   "prompt": "A 70-year-old woman with advanced dementia has aspiration pneumonia. Her son, the designated health care agent, says he cannot accept her death and requests intubation. Her living will, signed ten years earlier while competent, states she would refuse mechanical ventilation if she could no longer recognise her family. Which approach is most appropriate?",
+   "choices": [
+    "Follow the living will as her expressed wish and support the son, who is empowered to speak for her, not to substitute his own preferences",
+    "Follow the son because a health care agent's decision always overrides any prior written statement by the patient, however clear it was",
+    "Set aside the living will because it was signed ten years before her illness and therefore carries no weight about her present condition",
+    "Seek a court order in every such case, because an agent and a written directive can never be reconciled by the clinical team"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l09.q5",
+   "lessonId": "med-ethics-prof.l09",
+   "kind": "mcq",
+   "prompt": "A 55-year-old man in a persistent vegetative state has no directive. His wife and brother disagree. His wife recalls him saying he would never want to be kept alive like that. His brother wants treatment continued. State law ranks a spouse above a sibling. Which analysis is best?",
+   "choices": [
+    "The brother should prevail because relatives vote on such questions and a tied family is resolved in favour of continuing treatment",
+    "The physician should choose alone because any family disagreement removes the role of a surrogate and returns authority to the clinician",
+    "The decision should be postponed indefinitely until the patient recovers capacity, which is the expected course of a persistent vegetative state",
+    "The wife is the legal surrogate, and her account of his wishes supports substituted judgment, with an ethics consultation available if the dispute persists"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l10.q1",
+   "lessonId": "med-ethics-prof.l10",
+   "kind": "mcq",
+   "prompt": "In the United States, what does the Medicare hospice benefit generally require?",
+   "choices": [
+    "A court finding that the patient is permanently incapable of making health decisions, so that a guardian can elect hospice",
+    "Certification by a physician that the patient would likely die within six months if the illness runs its expected course",
+    "A signed statement that the patient will accept no treatment of any kind for the underlying disease, including pain and symptom control",
+    "Evidence that the patient is over 80 years old and has no surviving family members able to provide care at home"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l10.q2",
+   "lessonId": "med-ethics-prof.l10",
+   "kind": "mcq",
+   "prompt": "Which statement about withholding versus withdrawing life-sustaining treatment reflects the prevailing ethical and legal view?",
+   "choices": [
+    "They are morally equivalent when the treatment is not wanted or no longer serves the patient's goals",
+    "Withdrawing treatment is killing the patient, whereas withholding treatment is merely allowing death, so only withholding is ethically acceptable",
+    "Withholding treatment is always unlawful once a patient is admitted, whereas withdrawing it is always lawful if the family requests it",
+    "Neither is permissible unless the patient has already died by neurological criteria, because both shorten the life of a living person"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l10.q3",
+   "lessonId": "med-ethics-prof.l10",
+   "kind": "mcq",
+   "prompt": "Which condition is necessary for the doctrine of double effect to justify giving opioids in the dying?",
+   "choices": [
+    "The intention is to hasten death so that suffering ends sooner for the patient and for the family at the bedside",
+    "The dose must be chosen to exceed the amount needed for comfort so that death is made certain within a short time",
+    "The patient must have no capacity and no surrogate, so that the choice of dose belongs to the treating clinician alone",
+    "The intention is symptom relief with a proportionate dose, accepting a foreseen risk of hastening death without intending it"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l10.q4",
+   "lessonId": "med-ethics-prof.l10",
+   "kind": "mcq",
+   "prompt": "A 77-year-old with end-stage emphysema on a ventilator for three weeks has not weaned. He previously told his family, \"No long-term machines.\" They request withdrawal. The nurse worries that this makes the team responsible for his death. Which reply is most accurate?",
+   "choices": [
+    "It is permissible only after a court order, because withdrawal of ventilation without a ruling is always unlawful in every state",
+    "It is impermissible, because a treatment that has already been started cannot ethically be stopped once it has begun",
+    "Withdrawing an unwanted ventilator is respecting a refusal of treatment, and his underlying disease is the cause of death, with comfort medicines given for symptoms",
+    "It is euthanasia, because the ventilator was keeping him alive and withdrawal is an act that directly causes his death"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l10.q5",
+   "lessonId": "med-ethics-prof.l10",
+   "kind": "mcq",
+   "prompt": "A 59-year-old with metastatic cancer and severe refractory suffering in the last days of life is given continuous sedation to relieve distress. His family asks whether this is euthanasia. Which analysis best distinguishes the two?",
+   "choices": [
+    "Euthanasia and sedation differ only in the speed of the drug used, and not in the intention behind giving it or in the outcome",
+    "Sedation aims at relief of suffering, is titrated to symptoms, and death follows from the underlying disease, whereas euthanasia aims at death by administering a lethal agent",
+    "The two are identical, because any sedation that lowers consciousness shortens life by definition and so is a form of euthanasia in every case",
+    "Sedation is permissible only when the patient has asked for death in a written request made before the final days of the illness"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l11.q1",
+   "lessonId": "med-ethics-prof.l11",
+   "kind": "mcq",
+   "prompt": "What did the Supreme Court hold in Washington v. Glucksberg (1997)?",
+   "choices": [
+    "The Constitution does not guarantee a right to assistance in suicide, leaving the question to the states",
+    "The Constitution guarantees terminally ill adults a right to physician-assisted suicide, so state prohibitions are invalid",
+    "States must permit physician-assisted suicide if they already permit refusal of life-sustaining treatment by competent adults",
+    "States may prohibit refusal of life-sustaining treatment by competent adults, since only the right to life is constitutionally protected"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l11.q2",
+   "lessonId": "med-ethics-prof.l11",
+   "kind": "mcq",
+   "prompt": "Which of the following correctly distinguishes euthanasia from physician-assisted suicide?",
+   "choices": [
+    "Euthanasia is lawful in every US state when requested, whereas assisted suicide is lawful in none of them",
+    "In euthanasia the clinician administers the lethal agent, whereas in assisted suicide the patient takes a prescribed means",
+    "In euthanasia the patient takes a prescribed means, whereas in assisted suicide the clinician personally administers the lethal agent",
+    "Euthanasia is limited to unconscious patients who cannot request it, whereas assisted suicide is limited to conscious patients"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l11.q3",
+   "lessonId": "med-ethics-prof.l11",
+   "kind": "mcq",
+   "prompt": "Which is a typical eligibility feature of US state aid-in-dying statutes?",
+   "choices": [
+    "A minor whose parents consent and whose physician certifies that the minor is suffering seriously from an incurable illness",
+    "A patient whose family has unanimously requested assistance on his behalf after he has lost decision-making capacity",
+    "An adult with decision-making capacity and a terminal illness with a prognosis of six months or less",
+    "Any adult with chronic pain of any duration who requests assistance from a physician and has tried one other therapy"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l11.q4",
+   "lessonId": "med-ethics-prof.l11",
+   "kind": "mcq",
+   "prompt": "A legislator argues: \"Once a state allows assistance for those with terminal illness, it will inevitably extend to people who are not dying.\" A researcher responds that the claim is empirical. Which approach best evaluates it?",
+   "choices": [
+    "Accept the claim, because any liberalisation of the law necessarily leads to further liberalisation in every jurisdiction that adopts it",
+    "Reject the claim, because evidence from other jurisdictions can never be relevant to predicting what will happen in a different place",
+    "Treat the claim as proved if any single patient has received assistance outside the terms of the statute in any jurisdiction",
+    "Examine data on how eligibility and use have changed over time in jurisdictions with the law, and consider whether differences reflect legislative change or the practice itself"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l11.q5",
+   "lessonId": "med-ethics-prof.l11",
+   "kind": "mcq",
+   "prompt": "A hospital ethics committee is asked to evaluate this statement: \"Because we allow patients to refuse ventilators, we must also allow physicians to prescribe lethal drugs.\" Which response best reflects the reasoning used in Vacco v. Quill?",
+   "choices": [
+    "A state may rationally distinguish refusing treatment from assisted suicide, relying on differences in causation and intention, so the first does not entail the second",
+    "The two are legally identical, so any state that allows refusal of treatment must also allow the prescribing of lethal drugs",
+    "Refusal of treatment is unconstitutional in any state where assisted suicide is prohibited by statute, because the rights are linked",
+    "The distinction is invalid because the patient dies in both situations after a clinician has acted, so causation and intent are irrelevant"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l12.q1",
+   "lessonId": "med-ethics-prof.l12",
+   "kind": "mcq",
+   "prompt": "What was the effect of Dobbs v. Jackson Women's Health Organization (2022)?",
+   "choices": [
+    "It reaffirmed Roe and Casey and extended abortion rights to later stages of pregnancy, with strict scrutiny for state restrictions",
+    "It enacted a national statutory ban on abortion that applies in all states and displaces every state law on the subject",
+    "It held that abortion is a protected right under the Fourth Amendment's guarantee against unreasonable searches and seizures",
+    "It overruled Roe and Casey, holding that the Constitution does not confer a right to abortion and returning regulation to the states"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l12.q2",
+   "lessonId": "med-ethics-prof.l12",
+   "kind": "mcq",
+   "prompt": "In the argument associated with Judith Jarvis Thomson, what is the core claim?",
+   "choices": [
+    "Abortion is justified only when the woman's life is directly threatened by the pregnancy, since no lesser burden can outweigh fetal life",
+    "Abortion is wrong because the fetus has the full moral status of a person from conception, which outweighs any burden on the woman",
+    "Even if the fetus is a person, a woman is not necessarily obliged to sustain it with her body",
+    "The fetus is not a human organism at any stage of pregnancy before birth, so no moral question about abortion ever arises"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l12.q3",
+   "lessonId": "med-ethics-prof.l12",
+   "kind": "mcq",
+   "prompt": "Which statement about maternal-fetal conflict in United States courts is generally accurate?",
+   "choices": [
+    "Courts hold that physicians must obtain a court order before any treatment of a pregnant patient can lawfully begin",
+    "Courts have, with few exceptions, held that a competent pregnant patient retains the right to refuse treatment",
+    "Courts have routinely ordered cesarean surgery over the objection of competent women whenever physicians believed the fetus was at risk",
+    "Courts treat pregnancy as removing a woman's legal capacity to refuse medical treatment for the duration of the pregnancy"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l12.q4",
+   "lessonId": "med-ethics-prof.l12",
+   "kind": "mcq",
+   "prompt": "A couple using preimplantation genetic testing asks for embryos to be screened for a severe, early-onset, fatal condition that runs in the family. A disability-rights advocate argues this expresses disvalue for disabled people. A clinician considers how to reason through this. Which analysis best captures the debate?",
+   "choices": [
+    "The expressivist objection claims selection expresses a negative judgment of disabled lives, while defenders respond that the choice concerns a particular family's situation and not the worth of persons",
+    "The objection is settled, because no one has ever argued that selecting among embryos could be wrongful in any respect, so the clinician may proceed freely",
+    "The defence is settled, because the law forbids any criticism of a patient's reproductive decisions, so the advocate's view carries no weight in practice",
+    "The objection applies only to commercial laboratories, and never to the decisions of patients themselves, so the couple's choice is beyond criticism"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l12.q5",
+   "lessonId": "med-ethics-prof.l12",
+   "kind": "mcq",
+   "prompt": "A physician has a conscientious objection to participating in a particular reproductive service. A patient requests it in a state where it is legal. Which response best fits professional guidance in this area?",
+   "choices": [
+    "Refuse to discuss the matter and give the patient no information, so that she is not misled into thinking that the service is acceptable",
+    "Provide the service regardless of conscience, because professional status eliminates the right to moral objection entirely",
+    "Deceive the patient into believing that the service is unavailable anywhere in the region, to discourage her from seeking it elsewhere",
+    "Avoid imposing personal views, inform the patient honestly of options, and ensure timely referral or transfer according to institutional policy"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l13.q1",
+   "lessonId": "med-ethics-prof.l13",
+   "kind": "mcq",
+   "prompt": "Which description of the Tuskegee study of untreated syphilis is accurate?",
+   "choices": [
+    "Researchers treated all participants promptly with penicillin once it became available and followed their recovery over many years of observation",
+    "Researchers studied volunteers who gave full informed consent and who were told that the study was about the natural course of untreated disease",
+    "Researchers observed men who already had syphilis, deceived them about the study, and withheld penicillin after it became standard treatment",
+    "Researchers deliberately infected hundreds of healthy men with syphilis in order to test whether a candidate vaccine could prevent the disease"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l13.q2",
+   "lessonId": "med-ethics-prof.l13",
+   "kind": "mcq",
+   "prompt": "What was the main US legislative response to the revelations about Tuskegee?",
+   "choices": [
+    "The Patient Self-Determination Act of 1990, which required hospitals to ask patients about advance directives and created the Belmont Commission",
+    "The Health Insurance Portability and Accountability Act of 1996, which established medical privacy rules and required institutional review boards",
+    "The Affordable Care Act of 2010, which established national health insurance exchanges and set up the federal human subjects regulations",
+    "The National Research Act of 1974, which required institutional review boards and created the commission that produced the Belmont Report"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l13.q3",
+   "lessonId": "med-ethics-prof.l13",
+   "kind": "mcq",
+   "prompt": "What did Henry Beecher's 1966 article in the New England Journal of Medicine do?",
+   "choices": [
+    "It described 22 examples of ethically troubling research conducted at respected American institutions",
+    "It reported the results of the Doctors' Trial in Nuremberg and set out the ten principles of the Nuremberg Code for the first time",
+    "It disclosed the Tuskegee study to the public for the first time and led directly to the congressional hearings of 1972",
+    "It proposed that all research on human subjects in the United States be abolished until federal regulations could be written"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l13.q4",
+   "lessonId": "med-ethics-prof.l13",
+   "kind": "mcq",
+   "prompt": "A trainee says: \"Henrietta Lacks was subjected to an unethical experiment in which doctors infected her with cancer.\" What is the best correction?",
+   "choices": [
+    "The statement is incorrect, because she gave full informed consent to the cell line and her family received royalties from its commercial use",
+    "Her tumour cells were taken in 1951 without her knowledge and became the HeLa line, raising consent and ownership issues, but she was not infected with cancer by researchers",
+    "The statement is correct, because her cancer was caused by the doctors who treated her at the hospital in 1951 and who infected her deliberately",
+    "The statement is incorrect, because her cells were never used outside the hospital where she was treated and were destroyed after her death"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l13.q5",
+   "lessonId": "med-ethics-prof.l13",
+   "kind": "mcq",
+   "prompt": "A teaching exercise compares the Tuskegee study with the Willowbrook hepatitis studies. Which comparison is most accurate?",
+   "choices": [
+    "Both involved subjects who were told the true purpose of the research and who were offered the best available treatment throughout",
+    "Both were conducted entirely in Nazi Germany by physicians who were later prosecuted at the Doctors' Trial for crimes against humanity",
+    "Both involved vulnerable populations and consent problems, but at Tuskegee the men already had the disease and were denied treatment, while at Willowbrook children were deliberately infected",
+    "Both involved deliberate infection of healthy adults who gave full consent, and both were halted when the researchers published their results"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l14.q1",
+   "lessonId": "med-ethics-prof.l14",
+   "kind": "mcq",
+   "prompt": "What is the primary aim of research that distinguishes it from clinical care?",
+   "choices": [
+    "Ensuring that all participants receive an identical treatment",
+    "Generating generalisable knowledge, with benefit to participants incidental",
+    "Providing the best possible treatment for each individual participant",
+    "Reducing the cost of care for the institution conducting the research"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l14.q2",
+   "lessonId": "med-ethics-prof.l14",
+   "kind": "mcq",
+   "prompt": "Which definition best describes clinical equipoise as proposed by Benjamin Freedman?",
+   "choices": [
+    "Genuine uncertainty or disagreement in the expert clinical community about which treatment is better",
+    "The investigator's personal certainty that the two treatments being compared are equivalent, so that either arm is acceptable for any patient",
+    "The requirement that both arms of a trial have exactly equal numbers of participants, so that neither arm is favoured by chance",
+    "The requirement that participants be told in advance which treatment they will receive, so that nobody is assigned blindly"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l14.q3",
+   "lessonId": "med-ethics-prof.l14",
+   "kind": "mcq",
+   "prompt": "What is therapeutic misconception?",
+   "choices": [
+    "A clinician's belief that a placebo has no effect on the participants of a trial, so that no participant can be misled about it",
+    "The mistaken view that a clinical trial can be run without ethical approval so long as every participant has signed a consent form",
+    "The belief that a drug which is already approved for one use cannot be studied further in any new population or indication",
+    "A participant's belief that research procedures are designed for her personal therapeutic benefit"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l14.q4",
+   "lessonId": "med-ethics-prof.l14",
+   "kind": "mcq",
+   "prompt": "A proposed trial would randomise patients with a serious bacterial infection to a new antibiotic or to saline placebo, although an established antibiotic is known to be highly effective and withholding it risks death. How would an IRB most appropriately respond?",
+   "choices": [
+    "Approve the design if participants sign a consent form accepting the risk of death or serious harm from untreated disease",
+    "Approve the design because institutional review boards may not weigh the scientific alternatives when assessing the risks to participants",
+    "Reject the placebo arm because withholding a proven effective therapy causes serious risk, and require an active comparator",
+    "Approve the design because placebo controls are always the most scientifically rigorous way to test a new drug, whatever the condition"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l14.q5",
+   "lessonId": "med-ethics-prof.l14",
+   "kind": "mcq",
+   "prompt": "An interim analysis of a large cancer trial shows a larger benefit than expected in the treatment arm, and the data monitoring board is deciding whether to stop. Which consideration is most appropriate?",
+   "choices": [
+    "The board should consult the sponsor's marketing department before deciding, since the commercial value of the drug is the key consideration",
+    "Stopping for benefit serves participants in the control arm but may overestimate the effect, so pre-specified stopping rules and sufficient events are important",
+    "Stopping early has no statistical consequences, because trial results are unaffected by when the analysis happens to occur in the study",
+    "A trial should never stop early for benefit, because the full planned sample size is always required before any conclusion can be drawn"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l15.q1",
+   "lessonId": "med-ethics-prof.l15",
+   "kind": "mcq",
+   "prompt": "What does the National Organ Transplant Act of 1984 prohibit?",
+   "choices": [
+    "The purchase and sale of human organs for transplantation",
+    "The donation of organs by living persons to family members",
+    "The transplantation of organs from deceased donors",
+    "The use of waiting lists in organ allocation"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l15.q2",
+   "lessonId": "med-ethics-prof.l15",
+   "kind": "mcq",
+   "prompt": "Which distributive approach gives extra weight to benefiting the worst off, which in medicine often means the sickest patients?",
+   "choices": [
+    "Ethical egoism",
+    "Prioritarianism",
+    "Strict utilitarianism",
+    "Libertarianism"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l15.q3",
+   "lessonId": "med-ethics-prof.l15",
+   "kind": "mcq",
+   "prompt": "Which set lists the four conditions of accountability for reasonableness as described by Daniels and Sabin?",
+   "choices": [
+    "Publicity, secrecy, majority approval and review",
+    "Cost, benefit, risk and appeal",
+    "Publicity, relevance, appeals and revision, and enforcement",
+    "Efficiency, equity, autonomy and enforcement"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l15.q4",
+   "lessonId": "med-ethics-prof.l15",
+   "kind": "mcq",
+   "prompt": "A hospital in a surge has one ventilator and two patients with equal prognosis: a 28-year-old unemployed man and a 28-year-old prominent philanthropist who offers a large donation to the hospital. Which approach best fits mainstream allocation ethics?",
+   "choices": [
+    "Give the ventilator to the philanthropist because his donation will help more patients later, so his survival has the greater social value",
+    "Give the ventilator to the unemployed man because his social contribution is lower and so he has the greater need for it",
+    "Withhold both ventilators because no ethical basis exists for choosing between two patients with equal prognoses and equal need",
+    "Decide by a fair procedure such as a lottery, since prognosis is equal and wealth or social status is not a legitimate criterion"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l15.q5",
+   "lessonId": "med-ethics-prof.l15",
+   "kind": "mcq",
+   "prompt": "A crisis standards of care protocol excludes all patients with intellectual disability from ventilators regardless of individual prognosis. A disability-rights group objects. Which analysis is best?",
+   "choices": [
+    "The categorical exclusion conflicts with disability-rights law and sound ethics, which require individualised assessment of the likelihood of benefit",
+    "The exclusion is acceptable because intellectual disability always reduces survival from respiratory failure, which makes the group a poor use of resources",
+    "The exclusion is required by the Americans with Disabilities Act in order to conserve scarce resources during a declared emergency",
+    "The exclusion is acceptable provided that the affected group is told about it in advance and given a chance to object to the policy"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l16.q1",
+   "lessonId": "med-ethics-prof.l16",
+   "kind": "mcq",
+   "prompt": "Which US law requires drug and device manufacturers to report payments to physicians, which are published in a public database?",
+   "choices": [
+    "The Stark Law",
+    "The National Organ Transplant Act",
+    "The Patient Self-Determination Act",
+    "The Physician Payments Sunshine Act, part of the Affordable Care Act"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l16.q2",
+   "lessonId": "med-ethics-prof.l16",
+   "kind": "mcq",
+   "prompt": "What does the federal Anti-Kickback Statute criminalise?",
+   "choices": [
+    "Any payment from industry to a physician for any purpose, including legitimate research, consulting under a written contract and speaking",
+    "The disclosure of conflicts of interest to journals by authors, since the statute treats disclosure itself as remuneration for referrals",
+    "Knowingly and willingly offering or accepting remuneration to induce referrals of items or services paid for by federal health programmes",
+    "Any physician ownership of a hospital or an outpatient clinic, since ownership always creates an improper incentive to refer patients to it"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l16.q3",
+   "lessonId": "med-ethics-prof.l16",
+   "kind": "mcq",
+   "prompt": "What did the court hold in Moore v. Regents of the University of California (1990) about the physician's duty?",
+   "choices": [
+    "A physician has no duties of disclosure about economic interests once the treatment relationship has formally ended with the patient",
+    "A physician must disclose personal research or economic interests unrelated to the patient's health that may affect professional judgment",
+    "A patient owns his excised cells as property and may sue for conversion whenever they are used in research without his knowledge",
+    "A physician may never use excised tissue for research under any circumstances, even when the patient has consented in writing"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l16.q4",
+   "lessonId": "med-ethics-prof.l16",
+   "kind": "mcq",
+   "prompt": "A cardiologist who receives consulting fees from a stent manufacturer sits on a committee choosing which stent the hospital will buy. She discloses the fees and then votes. A colleague argues disclosure solves the problem. Which response is most accurate?",
+   "choices": [
+    "Disclosure informs others but leaves the potential influence on her vote intact, so recusal from the decision is the stronger management",
+    "Disclosure eliminates the conflict entirely because the committee is now aware of it, so her vote may be counted without any concern",
+    "Disclosure is irrelevant because consulting fees from a manufacturer never affect the professional judgment of a clinician on a committee",
+    "Disclosure makes her vote unlawful under the Anti-Kickback Statute in every case, so she must resign her seat on the committee"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l16.q5",
+   "lessonId": "med-ethics-prof.l16",
+   "kind": "mcq",
+   "prompt": "A systematic review finds that industry-sponsored trials more often report favourable conclusions than non-industry trials, even when risk of bias ratings look similar. A reader proposes explanations. Which is most consistent with the evidence on how bias can arise?",
+   "choices": [
+    "The only possible explanation is falsification of data by every industry sponsor, since honest trials could never favour the sponsor's product",
+    "The pattern shows that independent trials are always unreliable, so only industry-sponsored evidence should be used to guide practice",
+    "The pattern arises only because industry trials enrol many more patients, which makes small effects statistically significant by chance",
+    "Choices of comparator, outcomes, analysis and reporting can favour the sponsor's product even without data fabrication"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l17.q1",
+   "lessonId": "med-ethics-prof.l17",
+   "kind": "mcq",
+   "prompt": "Which term describes a patient safety event that reaches a patient and causes death, permanent harm or severe temporary harm?",
+   "choices": [
+    "A latent condition",
+    "A therapeutic privilege",
+    "A sentinel event",
+    "A near miss"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l17.q2",
+   "lessonId": "med-ethics-prof.l17",
+   "kind": "mcq",
+   "prompt": "In the Swiss cheese model, what does a \"hole\" in a layer of defence represent?",
+   "choices": [
+    "A clinician who has been deliberately negligent and should be disciplined",
+    "A patient who refuses recommended care and so contributes to harm",
+    "A legal loophole that allows hospitals to avoid liability for adverse events",
+    "A weakness in a safeguard, which can align with others to allow harm to reach a patient"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l17.q3",
+   "lessonId": "med-ethics-prof.l17",
+   "kind": "mcq",
+   "prompt": "Under a just culture framework, how should a recklessly unsafe behaviour be treated differently from a simple human error?",
+   "choices": [
+    "Reckless behaviour, conscious disregard of a substantial risk, warrants discipline, while human error warrants support and system repair",
+    "Both should be treated identically, because the outcome of the event alone determines whether a clinician should be disciplined or supported",
+    "Human error should be disciplined and reckless behaviour excused if no patient was harmed, because the outcome determines the culpability",
+    "Neither should ever be reported or reviewed, because reporting discourages staff from working and so makes the whole system less safe"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l17.q4",
+   "lessonId": "med-ethics-prof.l17",
+   "kind": "mcq",
+   "prompt": "A resident notices after discharge that a patient was given the wrong anticoagulant dose, which led to a minor bleed that resolved without lasting harm. The resident worries that disclosure will invite a lawsuit. Which approach is most consistent with professional guidance?",
+   "choices": [
+    "Alter the chart so the dosing history appears consistent with the order, and avoid any discussion of the event with the patient",
+    "Disclose promptly with the supervising physician, explain what happened, apologise, describe corrective steps and report the event for system review",
+    "Say nothing because no lasting harm occurred, and disclosure would only cause the patient and her family needless distress and mistrust",
+    "Disclose only if the patient asks about the dose at a later visit, since volunteering the error would be an unrequested intrusion"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l17.q5",
+   "lessonId": "med-ethics-prof.l17",
+   "kind": "mcq",
+   "prompt": "A hospital adopts a programme of prompt disclosure of errors, investigation and early offers of compensation. A critic predicts that claims will inevitably rise. Which statement about the evidence is most accurate?",
+   "choices": [
+    "Evidence conclusively proves that such programmes always raise malpractice claims in every hospital, because patients learn of errors",
+    "Evidence shows that the programmes are illegal in every state that has passed an apology statute protecting the clinician's expression of regret",
+    "Some institutions report no rise in claims and possibly lower costs, though the evidence is mixed and the effect depends on context",
+    "Evidence conclusively proves that such programmes always reduce malpractice claims in every hospital that has adopted a disclosure policy"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l18.q1",
+   "lessonId": "med-ethics-prof.l18",
+   "kind": "mcq",
+   "prompt": "Which four elements must a plaintiff prove in a medical malpractice claim?",
+   "choices": [
+    "Notice, consent, breach and apology",
+    "Duty, breach, causation and damages",
+    "Intent, consent, causation and damages",
+    "Duty, motive, breach and punishment"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l18.q2",
+   "lessonId": "med-ethics-prof.l18",
+   "kind": "mcq",
+   "prompt": "In which situation is the doctrine of res ipsa loquitur most likely to allow an inference of negligence without expert testimony?",
+   "choices": [
+    "A surgical instrument is found inside a patient after an abdominal operation",
+    "A patient's cancer recurs after surgery performed by a skilled surgeon",
+    "A patient has a known complication of a procedure that was disclosed beforehand",
+    "A patient dies after a difficult operation on a very ill person"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l18.q3",
+   "lessonId": "med-ethics-prof.l18",
+   "kind": "mcq",
+   "prompt": "What does a loss-of-chance jurisdiction allow that a jurisdiction following the traditional all-or-nothing rule generally does not?",
+   "choices": [
+    "Recovery without any proof that the physician breached the standard of care, since the loss of a chance is itself the injury compensated",
+    "Recovery of punitive damages in all malpractice claims involving a delay in diagnosis, whether or not the delay changed the outcome",
+    "Recovery by family members who had no relationship with the patient and who are not recognised as survivors under the wrongful death statute",
+    "Recovery when negligence reduced a patient's chance of survival below fifty percent, even if survival was not more likely than not"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l18.q4",
+   "lessonId": "med-ethics-prof.l18",
+   "kind": "mcq",
+   "prompt": "A 62-year-old man with chest pain is told he has indigestion and is sent home. The emergency physician did not order an electrocardiogram, which a reasonably competent emergency physician would have obtained. He returns the next day with a myocardial infarction. An expert testifies that prompt diagnosis would have given him a 35 percent chance of avoiding permanent heart damage. In a jurisdiction following the traditional all-or-nothing rule, what is the most likely result?",
+   "choices": [
+    "The plaintiff wins because res ipsa loquitur applies to every missed diagnosis, so negligence is presumed without any proof of causation",
+    "The plaintiff loses because emergency physicians owe no duty of care to patients who leave the department before treatment is complete",
+    "The plaintiff loses on causation because earlier diagnosis would not more likely than not have changed the outcome",
+    "The plaintiff wins in full, because a breach of the standard of care has been shown and breach alone establishes liability for the harm"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l18.q5",
+   "lessonId": "med-ethics-prof.l18",
+   "kind": "mcq",
+   "prompt": "A surgeon performs a hernia repair competently, but the patient had consented only to a repair on the left side and the surgeon, finding no problem there, repaired the right side instead without any emergency or a further discussion. Which claim is most directly supported?",
+   "choices": [
+    "A claim lies under EMTALA, because that statute governs consent to elective surgery and sets the standard of disclosure for operations",
+    "Battery, because the procedure was substantially different from the one to which the patient consented",
+    "No claim lies, because skilful surgery cannot give rise to any liability when the patient has signed a general consent form before the operation",
+    "Only a negligent nondisclosure claim lies, because battery requires an intent to injure the patient and the surgeon had no such intent"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l19.q1",
+   "lessonId": "med-ethics-prof.l19",
+   "kind": "mcq",
+   "prompt": "According to Boorse's biostatistical theory, what is disease?",
+   "choices": [
+    "An internal state that reduces functional ability below the species-typical level for a reference class",
+    "Any condition that society currently regards as undesirable or stigmatised, whatever the person's functional ability or underlying biology",
+    "Any state in which a person feels unwell, regardless of the underlying biology or of whether any function is actually impaired",
+    "Any condition that requires medical treatment in order to prevent death, so that conditions which are not life-threatening are excluded"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l19.q2",
+   "lessonId": "med-ethics-prof.l19",
+   "kind": "mcq",
+   "prompt": "What is the best description of the distinction between disease and illness?",
+   "choices": [
+    "Disease and illness are purely legal terms with no meaning outside the courts, which define them for insurance and disability claims",
+    "Disease is a pathophysiological abnormality as understood by clinicians, while illness is the person's lived experience of being unwell",
+    "Disease is a mild condition, while illness refers only to severe or life-threatening conditions that require hospital admission to manage",
+    "Disease refers to mental conditions, while illness refers to physical ones, so that the two terms never describe the same patient"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l19.q3",
+   "lessonId": "med-ethics-prof.l19",
+   "kind": "mcq",
+   "prompt": "Which feature characterises Wakefield's harmful dysfunction analysis?",
+   "choices": [
+    "A disorder exists whenever a person feels distress, regardless of mechanism and regardless of whether any biological function has failed",
+    "A disorder is anything listed in a diagnostic manual at the time of assessment, with no further condition about function or harm",
+    "A disorder requires both a failure of a naturally selected mechanism and harm as judged by social values",
+    "A disorder requires only that a person is statistically unusual in some trait, whether or not any function fails or any harm results"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l19.q4",
+   "lessonId": "med-ethics-prof.l19",
+   "kind": "mcq",
+   "prompt": "A student argues that the 1973 removal of homosexuality from the American Psychiatric Association's diagnostic manual supports normativism about disease. A classmate objects. Which exchange best reflects the philosophical debate?",
+   "choices": [
+    "The student says the removal proves disease concepts have no connection to biology; the classmate says that no diagnostic category has ever changed, so the example is not real",
+    "The student says the removal proves every diagnosis is arbitrary; the classmate says that it shows diagnoses are fixed by statutes passed by legislatures",
+    "The student says the removal was ordered by a court after a lawsuit; the classmate says the manual is itself a law of the United States",
+    "The student says the reclassification reflected shifting values about what counts as harmful; the classmate replies that it also reflected evidence that no dysfunction or distress was inherent, so naturalists can explain it too"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l19.q5",
+   "lessonId": "med-ethics-prof.l19",
+   "kind": "mcq",
+   "prompt": "A pharmaceutical company proposes that mildly elevated but statistically common blood pressure readings in a population be reclassified as a disease needing drug treatment. Which concern is most directly raised by the discussion of definitions?",
+   "choices": [
+    "Medicalization and overdiagnosis, because widening a category labels more people who might not have been harmed",
+    "The need to abandon all disease definitions, since definitions can never be used for any practical purpose in clinical medicine",
+    "The fact that statistical normality guarantees that a condition is not a disease, so no common condition should ever be treated",
+    "The fact that normativism forbids any treatment of conditions that are common, since only rare conditions can be regarded as harmful"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l20.q1",
+   "lessonId": "med-ethics-prof.l20",
+   "kind": "mcq",
+   "prompt": "Which of the Bradford Hill considerations is the only one generally regarded as essential for causation?",
+   "choices": [
+    "Temporality, because the cause must precede the effect",
+    "Specificity, because each cause must produce only one disease",
+    "Analogy, because a similar cause must be known for another disease",
+    "Strength of association, because a weak association can never be causal"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l20.q2",
+   "lessonId": "med-ethics-prof.l20",
+   "kind": "mcq",
+   "prompt": "Why do Koch's postulates fail for many chronic and multifactorial diseases?",
+   "choices": [
+    "They require that no healthy person ever carries the organism, which is a condition that is always satisfied in practice",
+    "They assume a single necessary organism, which does not fit diseases with carriers, multiple causes or organisms that cannot be cultured",
+    "They allow causation to be inferred from any statistical association alone, without any experiment or specific isolation of an organism",
+    "They were developed to study drugs rather than organisms, and so they cannot be applied to infectious diseases at all"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l20.q3",
+   "lessonId": "med-ethics-prof.l20",
+   "kind": "mcq",
+   "prompt": "What is a confounder?",
+   "choices": [
+    "A random error in measurement that affects all subjects equally and that is removed by increasing the size of the sample",
+    "A variable that has been measured only after the outcome occurred, so that it cannot be adjusted for in the analysis",
+    "A factor associated with both the exposure and the outcome, not on the causal path, that can create a spurious association",
+    "A factor that lies on the causal path between exposure and outcome and explains how the effect of the exposure occurs"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l20.q4",
+   "lessonId": "med-ethics-prof.l20",
+   "kind": "mcq",
+   "prompt": "An observational study finds that people who carry matches have higher rates of lung cancer than those who do not. Smoking explains both match carrying and lung cancer. Which statement best describes this situation?",
+   "choices": [
+    "Match carrying is a mediator on the causal path from smoking to lung cancer, so adjusting for it would remove a real effect",
+    "The association shows that carrying matches is a sufficient cause of lung cancer, since the cancer occurs in those who carry them",
+    "The association proves nothing, because observational studies cannot detect any real causes and so cannot inform clinical practice",
+    "Smoking confounds the association, and adjusting for it should remove the apparent effect of carrying matches"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l20.q5",
+   "lessonId": "med-ethics-prof.l20",
+   "kind": "mcq",
+   "prompt": "A court must decide whether a chemical exposure caused a specific plaintiff's cancer. An epidemiological study shows that exposure doubled the relative risk in the population. Which statement best reflects the problem of moving from population to individual causation?",
+   "choices": [
+    "Population relative risk can suggest that an exposure more likely than not caused a case when it exceeds two, but this is a rough heuristic that cannot prove cause in the individual",
+    "Population data are irrelevant to individual causation and may never be used in court, since only direct evidence can establish a cause",
+    "A relative risk of exactly two proves that the exposure caused the plaintiff's cancer with certainty, since it is the legal threshold",
+    "Individual causation can always be established by examining the tumour under a microscope, which shows which exposure produced it"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l21.q1",
+   "lessonId": "med-ethics-prof.l21",
+   "kind": "mcq",
+   "prompt": "How did Sackett and colleagues define evidence-based medicine in 1996?",
+   "choices": [
+    "The use of cost-effectiveness data to decide which treatments will be funded by insurers and national health systems",
+    "The conscientious, explicit and judicious use of current best evidence in decisions about individual patients, integrated with clinical expertise and patient values",
+    "The replacement of clinical judgment by rules derived from randomised trials alone, whatever the patient's circumstances or preferences",
+    "The use of expert opinion as the highest form of evidence for medical decisions, ahead of controlled studies and systematic reviews"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l21.q2",
+   "lessonId": "med-ethics-prof.l21",
+   "kind": "mcq",
+   "prompt": "What is the main rationale for randomisation in a clinical trial?",
+   "choices": [
+    "It balances known and unknown confounders between groups on average so that differences can be attributed to the intervention",
+    "It guarantees that every participant will benefit from the intervention under study, so that no participant is disadvantaged by the allocation",
+    "It ensures that participants and clinicians both know which treatment was given, so that care can be adjusted to each patient",
+    "It removes the need for statistical analysis of the results, because chance can no longer produce a difference between the groups"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l21.q3",
+   "lessonId": "med-ethics-prof.l21",
+   "kind": "mcq",
+   "prompt": "Why is a surrogate endpoint potentially misleading?",
+   "choices": [
+    "Surrogate endpoints can only be measured in animal studies and so never apply to humans, which is why regulators do not accept them",
+    "Surrogates are always identical to the clinical outcome and so give no extra information, which makes them redundant in every trial",
+    "Surrogate endpoints are forbidden in all trials by regulatory agencies, which require that every trial measure death as its outcome",
+    "An effect on the surrogate may not reliably predict an effect on the outcome that matters to patients, and some treatments improve surrogates while causing harm"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l21.q4",
+   "lessonId": "med-ethics-prof.l21",
+   "kind": "mcq",
+   "prompt": "A trial of a new antihypertensive enrolled adults aged 45 to 65 with no other illnesses, and showed fewer strokes. A geriatrician considers it for an 86-year-old with advanced kidney disease and frequent falls. Which concern best illustrates the problem of external validity?",
+   "choices": [
+    "The trial cannot apply to anyone older than 65 because randomisation fails after that age and the groups become imbalanced",
+    "The trial result is meaningless because fewer strokes is not an outcome of interest to patients and does not reflect any real benefit",
+    "The patient differs from the trial population in age and comorbidity, so the average effect may not apply and harms such as falls may weigh more heavily",
+    "The trial has no internal validity because it was randomised, so its results cannot be applied to this or to any other patient"
+   ]
+  },
+  {
+   "id": "med-ethics-prof.l21.q5",
+   "lessonId": "med-ethics-prof.l21",
+   "kind": "mcq",
+   "prompt": "A screening test for a rare disease that affects 1 in 1,000 people has sensitivity of 95 percent and specificity of 95 percent. A patient with no symptoms tests positive. Which conclusion is correct?",
+   "choices": [
+    "The chance that she has the disease cannot be estimated by any method, because the prevalence of the disease is not known to the clinician",
+    "The chance that she has the disease is still low, because false positives from the large unaffected group outnumber true positives",
+    "The chance that she has the disease is about 95 percent, because that is the sensitivity of the test and it is the same as the predictive value",
+    "The chance that she has the disease is about 5 percent, because that is the false-positive rate of the test and it sets the predictive value"
+   ]
+  }
+ ]
+}

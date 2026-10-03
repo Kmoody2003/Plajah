@@ -803,16 +803,27 @@ const PollComposer: React.FC<{ postId: string; onDone: () => void; isDark: boole
 
 const mapLegacyComment = (c: any): PostComment => ({
   id: c.id,
-  text: c.text || '',
-  authorId: c.uid || c.authorId || '',
-  authorName: c.author || c.authorName || 'User',
-  authorPhoto: c.authorPhoto || '',
+  text: c.text || c.comment || '',
+  authorId: c.authorId || c.userId || c.uid || '',
+  authorName: c.authorName || c.userName || c.author || c.displayName || 'User',
+  authorPhoto: c.authorPhoto || c.userPhoto || c.photoURL || '',
   timestamp: c.timestamp || 0,
   parentId: c.parentId || null,
   likedBy: c.likedBy || [],
   likesCount: c.likesCount || 0,
   ...(c.gifUrl ? { gifUrl: c.gifUrl } : {}),
 });
+
+const isMatchingComment = (pending: PostComment, real: PostComment): boolean => {
+  if (pending.id === real.id) return true;
+  if (pending.text.trim() !== real.text.trim()) return false;
+  if ((pending.parentId ?? null) !== (real.parentId ?? null)) return false;
+  if (pending.authorId && real.authorId && pending.authorId === real.authorId) return true;
+  if (pending.authorName && real.authorName && pending.authorName.toLowerCase() === real.authorName.toLowerCase()) return true;
+  const currentUid = auth.currentUser?.uid;
+  if (currentUid && (real.authorId === currentUid || pending.authorId === currentUid)) return true;
+  return false;
+};
 
 const CommentSection: React.FC<CommentSectionProps> = ({
   postId,
@@ -875,8 +886,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const comments = isLegacy
     ? (() => {
         const ext = (externalComments || []).map(mapLegacyComment);
-        const seen = new Set(ext.map(c => `${c.authorName} ${c.text}`));
-        const stillPending = pendingLegacy.filter(p => !seen.has(`${p.authorName} ${p.text}`));
+        const stillPending = pendingLegacy.filter(p => !ext.some(real => isMatchingComment(p, real)));
         return [...ext, ...stillPending].sort((a, b) => a.timestamp - b.timestamp);
       })()
     : internalComments;
@@ -903,8 +913,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   // Once the parent's subscription delivers the real comment, drop the optimistic.
   useEffect(() => {
     if (!isLegacy) return;
-    const seen = new Set((externalComments || []).map((c: any) => `${c.author || c.authorName} ${c.text}`));
-    setPendingLegacy(prev => prev.filter(p => !seen.has(`${p.authorName} ${p.text}`)));
+    const ext = (externalComments || []).map(mapLegacyComment);
+    setPendingLegacy(prev => prev.filter(p => !ext.some(real => isMatchingComment(p, real))));
   }, [externalComments, isLegacy]);
 
   const handleDelete = useCallback(async (commentId: string) => {
@@ -970,15 +980,21 @@ const CommentSection: React.FC<CommentSectionProps> = ({
             </p>
           </div>
         </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all active:scale-90
-              ${isDark ? 'text-white/30 hover:text-white hover:bg-white/5' : 'text-black/30 hover:text-black hover:bg-black/5'}`}
-          >
-            <X size={16} />
-          </button>
-        )}
+        <div className="flex items-center gap-2.5">
+          <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider text-purple-300 bg-purple-500/10 border border-purple-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+            Realtime Sync Active
+          </span>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all active:scale-90
+                ${isDark ? 'text-white/30 hover:text-white hover:bg-white/5' : 'text-black/30 hover:text-black hover:bg-black/5'}`}
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Comment list ── */}
@@ -1105,7 +1121,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                   id: `pending-${now}`,
                   text: data.text.trim(),
                   authorId: user.uid,
-                  authorName: user.displayName || 'Anonymous',
+                  authorName: user.displayName || 'User',
                   authorPhoto: user.photoURL || '',
                   timestamp: now,
                   parentId: replyTo?.id ?? null,

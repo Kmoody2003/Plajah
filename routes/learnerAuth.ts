@@ -46,7 +46,7 @@ learnerAuthRouter.post('/provision', async (req: Request, res: Response) => {
   const uid = await callerUid(req);
   if (!uid) return res.status(401).json({ error: 'Sign in to create a learner account.' });
 
-  const { username, password, displayName, birthYear, role, classroomId } = req.body ?? {};
+  const { username, password, displayName, birthYear, role, classroomId, speechRecognition } = req.body ?? {};
   const u = isValidUsername(username); if (!u.ok) return res.status(400).json({ error: u.reason });
   const p = isValidChildPassword(password); if (!p.ok) return res.status(400).json({ error: p.reason });
   if (!displayName || typeof displayName !== 'string') return res.status(400).json({ error: 'A display name is required.' });
@@ -72,7 +72,9 @@ learnerAuthRouter.post('/provision', async (req: Request, res: Response) => {
     isChild: true, accountType: 'CHILD', username: username.toLowerCase(),
     childState, role: 'user', tier: 'FREE',
     followerCount: 0, followingCount: 0, createdAt: now,
-    parentalControls: CHILD_CONTROLS,
+    // reading-voice consent is decided by the adult creating the account (parent, or school for a teacher-
+    // provisioned student) so a child never waits for an absent adult before Chora can listen
+    parentalControls: speechRecognition === true ? { ...CHILD_CONTROLS, speechRecognition: true, updatedAt: now, updatedBy: uid } : CHILD_CONTROLS,
     ...(typeof birthYear === 'number' ? { birthYear } : {}),
     ...(asTeacher ? { provisionedByTeacherUid: uid } : { guardianUid: uid }),
   };
@@ -90,6 +92,7 @@ learnerAuthRouter.post('/provision', async (req: Request, res: Response) => {
     const kids: string[] = Array.isArray(parent?.childUids) ? parent!.childUids : [];
     if (!kids.includes(childUid)) await fsPatch(USER(uid), { childUids: [...kids, childUid] });
   }
+  if (speechRecognition === true) await audit(childUid, uid, 'consent', asTeacher ? 'voca-speech:school' : 'voca-speech:guardian');
   if (classroomId && typeof classroomId === 'string') await audit(childUid, uid, 'provision', `class:${classroomId}`);
   else await audit(childUid, uid, 'provision', asTeacher ? 'teacher' : 'parent');
 

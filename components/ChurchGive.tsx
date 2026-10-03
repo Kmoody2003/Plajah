@@ -11,6 +11,7 @@ import type { Organization, GivingFund } from '../types';
 import { auth } from '../services/backendService';
 import { startChurchDonation } from '../services/stripeService';
 import { shareOrigin } from '../services/deepLinkService';
+import { grossUpDollars } from '../services/giftFees';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 
 const PRESETS = [10, 25, 50, 100, 250];
@@ -23,9 +24,13 @@ const ChurchGive: React.FC<{ org: Organization; onClose: () => void; fundGiven?:
   const [recurring, setRecurring] = useState(false);
   const [busy, setBusy] = useState(false);
   const [showQr, setShowQr] = useState(false);
+  // Donor covers the processing fee by default so 100% of the gift reaches the ministry (only on connected-payout orgs).
+  const feeCoverOffered = !!org.stripeAccountId && !org.givingUrl && org.financeSettings?.donorCoversFees !== false;
+  const [coverFees, setCoverFees] = useState(true);
 
   const fund = funds.find(f => f.id === fundId) || funds[0];
   const finalAmount = custom ? Number(custom) : amount;
+  const feeMath = feeCoverOffered && coverFees && finalAmount >= 1 ? grossUpDollars(finalAmount) : null;
   const giveLink = `${shareOrigin()}/?org=${org.id}&give=1`;
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=${encodeURIComponent(org.givingUrl || giveLink)}`;
 
@@ -36,7 +41,7 @@ const ChurchGive: React.FC<{ org: Organization; onClose: () => void; fundGiven?:
     try {
       const token = await auth.currentUser?.getIdToken();
       if (!token) { setBusy(false); alert('Please sign in to give.'); return; }
-      await startChurchDonation({ churchId: org.id, churchName: org.name, amount: finalAmount, fund: fund.name, recurring, userIdToken: token });
+      await startChurchDonation({ churchId: org.id, churchName: org.name, amount: finalAmount, fund: fund.name, recurring, coverFees: feeCoverOffered ? coverFees : false, userIdToken: token });
     } catch (e: any) { setBusy(false); alert(e?.message || 'Could not start giving.'); }
   };
 
@@ -89,9 +94,20 @@ const ChurchGive: React.FC<{ org: Organization; onClose: () => void; fundGiven?:
         {recurring && <Check size={14} />}
       </button>
 
+      {feeCoverOffered && (
+        <button type="button" onClick={() => setCoverFees(c => !c)} aria-pressed={coverFees}
+          className={`w-full flex items-start gap-3 text-left p-4 rounded-2xl border mb-6 -mt-2 transition-all ${coverFees ? 'bg-small-orange/10 border-small-orange/40' : 'bg-white/5 border-white/10'}`}>
+          <span className={`mt-0.5 w-5 h-5 shrink-0 rounded-md border grid place-items-center ${coverFees ? 'bg-small-orange border-small-orange text-black' : 'border-white/30'}`}>{coverFees && <Check size={13} />}</span>
+          <span className="min-w-0">
+            <span className="block text-sm font-bold text-white">Cover the processing fee{feeMath ? ` (+$${feeMath.fee.toFixed(2)})` : ''}</span>
+            <span className="block text-[11px] text-white/45 mt-0.5 leading-snug">So 100% of your ${finalAmount || 0} gift goes to {org.name}{feeMath ? `. You'll be charged $${feeMath.total.toFixed(2)}${recurring ? ' each month' : ''}.` : '.'}</span>
+          </span>
+        </button>
+      )}
+
       <button onClick={give} disabled={busy || !finalAmount || finalAmount < 1}
         className="w-full py-4 bg-small-orange text-black rounded-full font-black text-sm uppercase tracking-widest hover:brightness-110 disabled:opacity-30 flex items-center justify-center gap-2">
-        {busy ? <><Loader2 size={18} className="animate-spin" /> Redirecting…</> : <><Gift size={18} /> Give ${finalAmount || 0}{recurring ? '/mo' : ''}</>}
+        {busy ? <><Loader2 size={18} className="animate-spin" /> Redirecting…</> : <><Gift size={18} /> Give ${(feeMath ? feeMath.total.toFixed(2) : (finalAmount || 0))}{recurring ? '/mo' : ''}</>}
       </button>
 
       {/* QR — scan to give */}

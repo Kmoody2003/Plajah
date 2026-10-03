@@ -1,0 +1,1385 @@
+{
+ "courseId": "color-theory",
+ "label": "Color Theory",
+ "lessons": [
+  {
+   "id": "color-theory.l01",
+   "title": "Light, Eyes and the Idea of Color",
+   "body": [
+    "Hold a red apple in a sunny room and it looks red. Carry it into a room lit only by green light and it looks nearly black. The apple has not changed, so where did the red go? The answer is that color is not a single thing sitting inside an object. It is an experience produced by three partners working together: a light source, a surface, and a viewer.",
+    "In the 1600s Isaac Newton passed sunlight through a glass prism and showed that white light is a mixture that can be spread into a band of colors, which we call a spectrum. Visible light is a small slice of electromagnetic radiation, roughly from 400 to 700 nanometres in wavelength, with violet at the short end and red at the long end.",
+    "A surface does not make light; it sends some wavelengths back to you and absorbs others. The apple looks red in daylight because it reflects mostly long wavelengths and absorbs much of the rest. In pure green light there are few long wavelengths to reflect, so little light comes back.",
+    "The eye finishes the job. The retina holds rod cells, which work in dim light and do not distinguish colors, and cone cells, of which people with typical color vision have three kinds, most sensitive to longer, middle and shorter wavelengths. The brain compares their signals to produce the sensation of color. Because it is a comparison, the same surface can look different under different lighting and beside different neighbors, a theme this whole course returns to."
+   ]
+  },
+  {
+   "id": "color-theory.l02",
+   "title": "Mixing Light and Mixing Paint",
+   "body": [
+    "There are two very different ways to make a new color, and confusing them is the source of many classroom puzzles.",
+    "Additive mixing combines beams of light. A screen starts dark and adds light: red, green and blue lights are the additive primaries. Red and green light together look yellow, green and blue look cyan, red and blue look magenta, and all three at full strength look white. That is why phones, televisions and monitors are built from tiny red, green and blue elements.",
+    "Subtractive mixing happens with paint, ink and dye. Here you start with white paper that reflects nearly everything, and each layer of pigment absorbs, or subtracts, some wavelengths. The primaries for this model are cyan, magenta and yellow. Each one absorbs roughly one third of the spectrum: cyan absorbs mostly red, magenta absorbs mostly green, and yellow absorbs mostly blue. Overlap cyan and yellow and the result absorbs red and blue, leaving green. Mix all three and, in theory, almost nothing is reflected, giving a dark result.",
+    "In practice real inks are imperfect, so cyan, magenta and yellow together make a muddy dark brown rather than a true black. This is why printers add a separate black ink, which is the K in CMYK.",
+    "A worked example: shine a red spotlight and a green spotlight onto the same white wall and you see yellow. Mix red and green paint and you see a dull brown. Same words, opposite processes, because one adds light and the other takes it away."
+   ]
+  },
+  {
+   "id": "color-theory.l03",
+   "title": "Hue, Value and Saturation",
+   "body": [
+    "Saying \"blue\" is not specific enough to match a color. Designers describe a color with three properties, and the same ideas appear in nearly every color system.",
+    "Hue is the family a color belongs to, such as red, yellow, green or blue. It is what people usually mean by \"the color.\"",
+    "Value is how light or dark a color is, from near white to near black. It is separate from hue: a pale pink and a deep maroon are the same hue family at very different values. Value is the property that carries most of the structure of an image. A quick way to check it is to squint, or to convert a picture to grayscale; if two shapes turn into the same gray, they have similar values.",
+    "Saturation, also called chroma or intensity, is how vivid or pure a color is. A fire-engine red is highly saturated; the same red mixed toward gray becomes a muted, dusty tone. Adding a bit of the complementary color, or gray, lowers saturation.",
+    "Painters give names to common changes. A tint is a color with white added, a shade is a color with black added, and a tone is a color with gray added.",
+    "Software uses these ideas too. Systems called HSV and HSL describe colors with a hue angle plus saturation and lightness numbers, while the Munsell system, developed by the American artist Albert Munsell in the early 1900s, names them hue, value and chroma. Example: a navy jacket and a sky-blue shirt share a hue but differ in value."
+   ]
+  },
+  {
+   "id": "color-theory.l04",
+   "title": "Color Wheels: RYB, RGB and CMY",
+   "body": [
+    "A color wheel bends the spectrum into a circle so that relationships between hues are visible at a glance. Newton arranged colors in a circle in his writing on optics, and many versions have followed. The wheel you see depends on which primaries it is built on.",
+    "The traditional painter's wheel uses red, yellow and blue as primaries, with orange, green and violet as secondaries. This RYB wheel is what most art classes teach, and its vocabulary is deeply embedded in painting, interior design and everyday talk. Its complementary pairs are red and green, blue and orange, and yellow and violet.",
+    "The RGB wheel is built on the additive primaries of light: red, green and blue, with cyan, magenta and yellow as the secondaries. Its opposite pairs are red and cyan, green and magenta, and blue and yellow. Digital color tools usually show a wheel like this.",
+    "The CMY wheel is the subtractive counterpart used in printing. Its primaries are cyan, magenta and yellow, and its secondaries are red, green and blue.",
+    "These wheels disagree on what the primaries are, so which is right? Each is a model, not a law of nature. The RYB wheel is a simplification: with real pigments, a magenta-leaning red and a cyan-leaning blue plus yellow can mix a wider range than traditional red, yellow and blue pigments can. That is one reason printing uses CMY rather than RYB. Pick the wheel that matches your medium, and be aware that the words \"complement\" and \"primary\" change meaning when the wheel changes."
+   ]
+  },
+  {
+   "id": "color-theory.l05",
+   "title": "Complementary and Analogous Schemes",
+   "body": [
+    "A color scheme, sometimes called a harmony, is a recipe for choosing hues that work together. The two simplest recipes sit at opposite ends of the wheel.",
+    "A complementary scheme pairs two hues directly opposite each other, such as blue and orange on the traditional wheel. Side by side they intensify each other, because each is the strongest contrast the other can have in hue. That makes complementary pairs excellent for drawing attention. A single orange sign on a blue wall is hard to miss.",
+    "The risk is that equal amounts of two strongly saturated complements can feel harsh or seem to vibrate where they meet. A common remedy is to let one color dominate and use the other as an accent, or to lower the saturation of one of them. Mixing complementary paints in unequal amounts is also the standard way painters make a muted, natural-looking neutral without reaching for black.",
+    "An analogous scheme uses hues that sit next to each other, such as yellow, yellow-green and green. The result is cohesive and calm because the colors share a common ingredient. Nature offers many examples, like an autumn hillside of reds, oranges and yellows. The weakness is a lack of punch, so designers add variety through value and saturation, and sometimes a small complementary accent.",
+    "Worked example: a cafe interior of greens in several lights and darks feels restful. A single coral cushion, close to the complement of green, becomes the focal point without disturbing the mood.",
+    "Treat schemes as starting points, not rules. Plenty of successful work breaks them."
+   ]
+  },
+  {
+   "id": "color-theory.l06",
+   "title": "Triadic, Split-Complementary and Tetradic Schemes",
+   "body": [
+    "Once you move beyond two colors, the wheel offers several patterns.",
+    "A triadic scheme uses three hues spaced evenly, a third of the way around the wheel from each other. On the traditional wheel the clearest example is red, yellow and blue; the secondary triad is orange, green and violet. Triadic schemes are lively and varied, and they are easy to unbalance when all three are equally bright. The usual fix is to choose one dominant hue and let the other two play supporting roles.",
+    "A split-complementary scheme starts with one hue and then uses the two hues on either side of its complement instead of the complement itself. For blue, that means the yellow-orange and red-orange neighbors of orange. You keep much of the contrast of a complementary pair, but with less tension and more variety, so it is a popular choice for beginners.",
+    "A tetradic or rectangular scheme uses two complementary pairs, giving four hues. A square scheme spaces four hues evenly around the wheel. These offer many options and are difficult to balance, so one hue should lead and the others should be toned down or used sparingly.",
+    "Example: a poster built on a deep blue background with small touches of yellow-orange and red-orange uses a split-complementary scheme, giving a vivid focal point without the starkness of blue against a single orange.",
+    "Remember that a scheme describes hue only. Value and saturation decide whether the result is bold, quiet, or muddy."
+   ]
+  },
+  {
+   "id": "color-theory.l07",
+   "title": "Color Temperature: Warm and Cool",
+   "body": [
+    "Reds, oranges and yellows are called warm; blues, blue-greens and violets are called cool. The names come from associations with fire and sunlight on one side and water, ice and shade on the other. Warm colors are often said to advance and cool ones to recede, which painters use to suggest depth, though the effect is a tendency, not a guarantee.",
+    "Temperature is relative. A red that leans toward orange feels warm, while a crimson that leans toward blue feels cooler, even though both are red. Greens and violets are the in-between colors, which can lean either way depending on what surrounds them. A single color can look warm beside one neighbor and cool beside another.",
+    "Painters often exploit this with light. Under warm sunlight, shadows tend to be cooler, so a scene may combine warm lights with cool shadows to look natural and lively.",
+    "Photographers and filmmakers use the word differently, which confuses people. They measure the color of a light source in kelvins, a scale based on the color a heated ideal object glows at that temperature. Lower numbers, such as a candle flame or a household tungsten bulb at roughly 3000 K, give orange-ish light that looks warm. Higher numbers, such as overcast daylight at 6500 K or above, give bluer light that looks cool. So in photography, a higher kelvin value means a cooler-looking light, the reverse of what the word \"hot\" might suggest.",
+    "Example: setting a camera for tungsten light in a room lit by daylight will make the picture look blue."
+   ]
+  },
+  {
+   "id": "color-theory.l08",
+   "title": "Simultaneous Contrast: How Neighbors Change Color",
+   "body": [
+    "Place a medium gray square on a white background and another identical gray square on a black background. The square on black looks lighter. Nothing about the squares differs; the surroundings change how we see them. This is simultaneous contrast: our perception of a color shifts toward the opposite of its surroundings.",
+    "The effect works on value, as in the gray squares, and on hue and saturation too. A gray patch surrounded by saturated red tends to take on a slight greenish tint, the complement of red. A mid-tone orange looks more vivid on a blue ground than on a brown one.",
+    "Simultaneous contrast is related to, but not the same as, afterimages. If you stare at a bright red shape for half a minute and then look at a white wall, you may see a pale blue-green ghost of the shape. That is a successive effect, often explained by fatigue in the cells that responded to red, and it happens over time rather than across space.",
+    "For makers, the lesson is that color cannot be judged in isolation. A paint chip chosen on a white shelf can look different on a wall of another color. A designer who needs a color to look the same in two places may have to change it slightly. A painter can make a gray look warm by surrounding it with a cool blue rather than mixing in orange.",
+    "Worked example: two identical beige buttons on a navy sweater and on a cream sweater will not look quite the same beige. Always check colors in context."
+   ]
+  },
+  {
+   "id": "color-theory.l09",
+   "title": "Chevreul and the Law of Contrast",
+   "body": [
+    "Michel Eugene Chevreul was a French chemist who, in the 1820s, became director of dyeing at the Gobelins tapestry works in Paris. Standard accounts say that he was asked to investigate complaints that certain dyes looked weak or dull in the finished tapestries. His conclusion was that part of the problem was not the dye at all but the way a color looks beside other colors.",
+    "In 1839 he published The Principles of Harmony and Contrast of Colours, which stated what he called the law of simultaneous contrast of colors. In his account, when two colors are seen side by side, each appears to shift away from the other, changing in both tone and hue. He also described how adjacent colors are best arranged: harmonies of contrast, such as complementary pairs, and harmonies of analogy, such as near neighbors.",
+    "Chevreul's work was practical, aimed at dyers, weavers and manufacturers, but it also reached artists. Writers on art have often linked his ideas to the Impressionists and to Georges Seurat, who in the 1880s used small dots of separate color placed side by side in works such as A Sunday Afternoon on the Island of La Grande Jatte. How directly each artist used Chevreul is a matter for art historians, and Seurat is generally thought to have read several color theorists.",
+    "Example: a weaver who places a gray thread between two reds learns that it can look greenish, so adjusting the thread may be needed to get the intended effect."
+   ]
+  },
+  {
+   "id": "color-theory.l10",
+   "title": "Itten and Albers: Teaching Color at the Bauhaus and Beyond",
+   "body": [
+    "Johannes Itten, a Swiss artist, taught the preliminary course at the Bauhaus school in Germany from 1919 until the early 1920s, and wrote about color for decades afterward. In The Art of Color he described seven contrasts that artists can use: contrast of hue, light-dark, cold-warm, complementary, simultaneous, saturation, and extension, meaning the relative amount of each color. Itten's system gives students a vocabulary and a set of exercises, though some later critics found his claims about the emotional character of colors more subjective than scientific.",
+    "Josef Albers, who studied and then taught at the Bauhaus before emigrating to the United States, took a different path. His book Interaction of Color, published by Yale University Press in 1963, is built around experiments done with cut pieces of colored paper rather than paint. Its central idea is that color is the most relative medium in art: we almost never see a color as it is, but always through its relationship to others.",
+    "His exercises are simple but surprising. Students arrange papers so that two different colors look the same, or so that one color looks like two. Albers asked students to observe and test, not just memorise rules.",
+    "The two approaches complement each other. Itten offers a framework of named contrasts for planning; Albers offers a method for discovering how colors behave in practice.",
+    "Example: placing a small square of one orange on a green ground and on a purple ground can show the same orange looking like two different oranges, which is the kind of discovery Albers wanted students to make for themselves."
+   ]
+  },
+  {
+   "id": "color-theory.l11",
+   "title": "Color Psychology and Cultural Meaning: What We Can and Cannot Claim",
+   "body": [
+    "Articles about color psychology often claim that blue calms, red excites, or yellow cheers, as if each hue works like a drug. The research is more modest. Studies do find that color can influence mood, attention or judgment in some settings, but effects tend to be small, to depend on context, and to vary between people. Findings in this field have also proved hard to replicate. A careful reader treats strong claims, especially about sales or health, with suspicion.",
+    "Many associations are learned from culture, not built in. White is worn at weddings in many Western countries, while in several East Asian traditions white is associated with funerals and mourning, and in other places black is the color of mourning. Red can mean luck and celebration in China, danger or stop in road signs in many countries, and love in Valentine's cards. Even within one culture, meaning changes with context: a red cross, a red dress and a red ink correction all say different things.",
+    "Language provides another clue. In 1969 Brent Berlin and Paul Kay argued that languages tend to add basic color terms in a similar order, with systems ranging from two terms up to eleven. Their work has been debated and refined since, but it shows that how we divide the spectrum is partly cultural.",
+    "A useful rule for designers is to treat color meaning as local. Check the audience, the setting and the competing associations. Example: stock charts show gains in green and losses in red in the United States, but several East Asian markets traditionally reverse this."
+   ]
+  },
+  {
+   "id": "color-theory.l12",
+   "title": "Accessibility and Contrast Ratios",
+   "body": [
+    "Not everyone sees color the same way. Color vision deficiency, often called color blindness, affects roughly 8 percent of men of Northern European ancestry and a much smaller share of women, with rates varying by population. Many more people have low vision, glare on a screen, or an aging eye. Good color design therefore does not depend on hue alone.",
+    "The Web Content Accessibility Guidelines (WCAG), published by the World Wide Web Consortium, measure the contrast between a text color and its background as a ratio from 1:1, with no contrast, to 21:1, the contrast of black on white. The calculation compares the relative luminance of the two colors, which is a measure of lightness that accounts for how the eye weighs red, green and blue.",
+    "For WCAG 2.x at level AA, ordinary text should reach at least 4.5:1, large text at least 3:1, and user interface components and meaningful graphics at least 3:1. Level AAA asks for 7:1 for ordinary text. Large text is defined by size, about 18 point, or 14 point bold. A commonly cited example is that a mid-gray of about #767676 on white lands close to the 4.5:1 mark.",
+    "These numbers are helpful benchmarks, not a full guarantee of readability. Critics note that the formula can misjudge some color pairs, especially dark backgrounds, and newer methods are under discussion. Contrast is also not the only requirement: do not use color alone to convey information. Pair red and green status dots with labels, shapes or icons.",
+    "Example: a pale gray caption on a white page may look elegant, but if it falls below the ratio, many readers will struggle."
+   ]
+  },
+  {
+   "id": "color-theory.l13",
+   "title": "Print versus Screen: CMYK, RGB and Pantone",
+   "body": [
+    "A screen makes color by emitting red, green and blue light. A printed page makes color by reflecting ambient light through layers of ink. That difference explains why a bright image on a monitor often looks duller on paper.",
+    "Commercial printing usually uses four process inks: cyan, magenta, yellow and black, abbreviated CMYK. The K stands for key, the plate that carries the detail, and black is used because mixing the three colored inks alone gives a muddy result and costs more ink. Printers build color from tiny dots of these inks, called halftone dots, which the eye blends together.",
+    "The range of colors a device can reproduce is its gamut. The CMYK gamut cannot reach some of the most vivid blues, greens and oranges a screen can display, so those colors shift when converted. Designers soft-proof, meaning they preview the conversion on screen, and ask a printer for a physical proof when color accuracy matters.",
+    "Some jobs use spot colors instead: a single premixed ink applied on its own. The best known matching system is Pantone, whose numbered swatch books let a designer specify, for instance, a brand color and expect the same ink from different printers. Spot inks can reach colors process inks cannot, and give consistent brand matching, but they add cost per color.",
+    "Example: a company logo in electric blue looks brilliant on a phone but may print duller in CMYK. The designer might specify a Pantone spot ink for packaging, and a CMYK approximation for newspaper ads, accepting that the two will not be identical."
+   ]
+  },
+  {
+   "id": "color-theory.l14",
+   "title": "Color Spaces: sRGB, Display P3 and Beyond",
+   "body": [
+    "The numbers in a digital image, such as 255, 0, 0, do not mean anything exact until you know the color space they belong to. A color space defines the primaries, the white point and how the numbers map to light. The same triple of numbers can mean a slightly different red in different spaces.",
+    "sRGB is the default space for the web and for most ordinary displays. It was created in the 1990s as a common standard so that images would look reasonably similar across devices. Its gamut is modest, but its universality is its strength: if no other information is attached, software generally assumes sRGB.",
+    "Display P3 is a wider space, based on a set of primaries originally used in digital cinema. It covers a noticeably larger range of saturated reds and greens than sRGB, and many modern phones, laptops and monitors can show it. Web standards now allow designers to specify colors in P3, while older displays simply show the nearest color they can.",
+    "Video has its own standards. Rec. 709 is the standard for high-definition television, with a gamut close to sRGB, and Rec. 2020 is a far wider space for ultra high-definition and HDR video, which few displays fully cover.",
+    "A colour space with a very large range is not automatically better. Colors must be converted correctly between spaces, and an embedded profile tells software how to interpret the file. Without a profile, images may look washed out or oversaturated.",
+    "Example: a photo edited in Display P3 and shared without a profile may look flat on a device that assumes sRGB. Tag images with their color profiles."
+   ]
+  },
+  {
+   "id": "color-theory.l15",
+   "title": "A Short History of Pigments",
+   "body": [
+    "For most of history, color came from earth, plants, insects, minerals and shellfish, and the cost of a color shaped how it was used.",
+    "Egyptian blue, made by heating sand, copper and a flux, is one of the earliest known synthetic pigments, used in ancient Egypt for thousands of years. Tyrian purple, a dye extracted from sea snails of the Murex family, was associated with the Phoenician city of Tyre in the ancient Mediterranean and was very expensive because a great many snails were needed for a small amount of dye. Purple became linked with rank and wealth in several ancient societies.",
+    "Natural ultramarine was made from the semi-precious stone lapis lazuli, mined for centuries in what is now Afghanistan. Its name comes from Latin words meaning from beyond the sea, and it was among the costliest pigments in European painting. In the 1820s chemists in France and Germany produced an artificial version, making a brilliant blue far more affordable.",
+    "Prussian blue, discovered in Berlin in the early 1700s, was among the first modern synthetic pigments. In 1856 the young English chemist William Henry Perkin, trying to make a medicine, produced the first synthetic aniline dye, mauveine, which started the synthetic dye industry. Many 19th-century pigments, such as cadmium colors, also expanded painters' choices, and the collapsible metal paint tube, patented in the 1840s by the American portrait painter John Goffe Rand, made painting outdoors easier.",
+    "Some historic pigments, such as lead white, were toxic. Today, safety information matters as much as hue when choosing a pigment."
+   ]
+  },
+  {
+   "id": "color-theory.l16",
+   "title": "Color in Painting",
+   "body": [
+    "Painters work with the subtractive world of pigment, and many of the ideas in this course began as studio practice.",
+    "One of the most important choices is value structure. A painting that reads well in grayscale usually holds together in color, because values carry the shapes. It is often noted that in Claude Monet's Impression, Sunrise of 1872 the orange sun and the blue-gray sky are close in value, which is why the sun seems to shimmer; in black and white it nearly disappears.",
+    "Another tool is the limited palette. The Zorn palette, associated with the Swedish painter Anders Zorn, uses just yellow ochre, vermilion, ivory black and white, yet can mix a surprising range of natural-looking colors, including cool grays. Limiting the paints encourages harmony, since every mix shares the same ingredients.",
+    "Temperature is used to suggest light and space. Warm lights are often paired with cooler shadows, and distant objects are painted lighter and bluer to suggest air between viewer and scene, a device sometimes called atmospheric perspective and discussed by Leonardo da Vinci.",
+    "Some painters leaned on pure effect. In the 1880s Seurat placed dots of unmixed color side by side, relying on the viewer's eye to blend them at a distance. Pablo Picasso's Blue Period, roughly 1901 to 1904, built mood by confining much of his work to blues and blue-greens.",
+    "Example: to paint a warm sunlit white wall, a painter might add a touch of yellow to the lit side and a touch of violet-blue to the shadow side, rather than just using lighter and darker gray."
+   ]
+  },
+  {
+   "id": "color-theory.l17",
+   "title": "Color in Film: Grading and the Look",
+   "body": [
+    "A film is shot over weeks, in different places and lighting, yet it must look like one world. Color grading is the post-production process of adjusting an image's brightness, contrast and color to achieve this, and to create a deliberate look.",
+    "Grading usually begins with primary correction, which affects the whole frame. Common controls adjust shadows (lift), midtones (gamma) and highlights (gain), and the white balance. After that, secondary correction targets a specific color or area, such as making a sky richer or an actor's shirt less saturated. Colorists rely on scopes, graphs that show brightness and color information, because the eye is easily fooled by room lighting and fatigue.",
+    "Many cameras record a flat, wide-range image, often called log footage, that preserves detail but looks gray. A look-up table (LUT) is a stored set of color conversions that can bring such footage to a standard view or apply a stylistic look.",
+    "Early color film processes such as Technicolor, popular from the 1930s, had a distinct palette built in by the chemistry. Digital grading gave filmmakers fine control over every frame. The 2000 film O Brother, Where Art Thou? is often cited as the first major feature to be fully color-graded digitally.",
+    "A frequently discussed trend is the pairing of warm skin tones with teal backgrounds. It works because orange and teal sit near opposite sides of the wheel, so faces stand out, but critics say overuse makes films look alike.",
+    "Example: a colorist may cool a hospital corridor and keep skin warm, so the setting feels clinical while the person stays vivid."
+   ]
+  },
+  {
+   "id": "color-theory.l18",
+   "title": "Color in Graphic and Interface Design",
+   "body": [
+    "In graphic and interface design, color does jobs beyond decoration. It directs attention, groups related things, and signals what can be clicked or what has gone wrong.",
+    "A common starting point is a hierarchy of roles. A brand color serves as the primary accent, used for the most important actions. Neutral colors, such as whites, grays and near-blacks, make up most of the surface and carry text. Functional colors communicate state: for example, green for success, amber for warnings and red for errors. The saying 60-30-10, meaning roughly sixty percent dominant color, thirty percent secondary and ten percent accent, is a rule of thumb for balance, not a law.",
+    "Teams store these choices as design tokens, named values such as color-primary, so that a change is made once and applies everywhere. This also makes themes, such as light and dark mode, easier to maintain. Dark mode is not simply an inverted version of light mode: saturated colors often look harsh on dark backgrounds, so designers tend to soften them and check contrast again.",
+    "Accessibility ties in closely. Text and controls should meet contrast guidelines, and state should never be shown by color alone. An error field might turn red but should also show an icon and a message.",
+    "Finally, test on real devices. Screens differ in brightness and color rendering, and brand colors may need small adjustments so they look consistent.",
+    "Example: a form's Submit button uses the brand color, secondary actions use outlined gray buttons, and an error message adds an icon alongside red text."
+   ]
+  },
+  {
+   "id": "color-theory.l19",
+   "title": "Color in Stage and Lighting Design",
+   "body": [
+    "A lighting designer paints with light, so the rules of additive mixing apply. Overlapping beams of red, green and blue produce lighter colors, and all three together approach white.",
+    "Traditional theatre lights are white-ish lamps shining through colored filters called gels. A gel works subtractively: it absorbs the wavelengths it does not pass, so it can only remove light, never add it. That is why a deep blue gel makes a dim beam. Modern LED fixtures usually include red, green and blue emitters, often with extras such as white or amber, and mix color electronically.",
+    "What the audience sees depends on how the light meets the surface. A red dress under red light looks bright red; under blue light it looks very dark, because the dress reflects little blue. A white costume takes on whatever color is shining on it, which is why designers coordinate costume, scenery and lighting together and test them under working light.",
+    "Designers also use color temperature. Warm amber light can suggest a sunset or candlelight, while cool blue can suggest night, moonlight or a clinical space, though the meaning always depends on the story and the audience. Skin tones are often lit with a gentle warm or neutral front light so that faces stay readable while colored light shapes the mood.",
+    "Example: a night scene might use deep blue wash for the set with a narrow warm pool on an actor holding a lantern, so the actor stands out from the cool background."
+   ]
+  },
+  {
+   "id": "color-theory.l20",
+   "title": "Building a Palette",
+   "body": [
+    "A palette is a small, chosen set of colors that work together for a particular job. Building one is a process of narrowing, not inventing, and the steps are the same whether you are decorating, painting or designing an app.",
+    "First, define the purpose and mood. A children's reading app and a law firm's website need different palettes, even if both use blue. Second, pick a dominant color, often a hue with a clear role such as the main background or brand color. Third, choose supporting colors using one of the schemes from this course: analogous colors for harmony, a complementary or split-complementary accent for emphasis. Fourth, include neutrals, because palettes of only vivid colors are tiring.",
+    "Value and saturation deserve special care. Offer a range of lights and darks within the set so that shapes and text can separate. Limit the number of highly saturated colors; an effective palette often has one or two bright voices and several quieter ones.",
+    "Many people begin from a source of inspiration, such as a photograph, a painting or a natural scene, and sample the colors from it. Software can extract swatches, but the human check matters: do the colors still work together in proportion?",
+    "Finally, test in context. View the palette at the real size, in real lighting and on several screens, and check contrast for text. Adjust, then write the final values down, with names, so others can use them consistently.",
+    "Example: for a bakery brand, you might choose a warm cream background, a deep brown for text, a muted tomato red for buttons, and a small leaf green for highlights."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "color-theory.l01.q1",
+   "lessonId": "color-theory.l01",
+   "kind": "tf",
+   "prompt": "The color you see depends on the light source, the surface and your eyes and brain, not on the object alone.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l01.q2",
+   "lessonId": "color-theory.l01",
+   "kind": "mcq",
+   "prompt": "Roughly what range of wavelengths makes up visible light?",
+   "choices": [
+    "About 40 to 70 nanometres",
+    "About 400 to 700 nanometres",
+    "About 4 to 7 nanometres",
+    "About 4000 to 7000 nanometres"
+   ]
+  },
+  {
+   "id": "color-theory.l01.q3",
+   "lessonId": "color-theory.l01",
+   "kind": "mcq",
+   "prompt": "A red apple looks almost black under pure green light. What is the best explanation?",
+   "choices": [
+    "Green light destroys the apple’s pigment",
+    "The eye cannot see green light",
+    "It reflects mostly long wavelengths, and green light has few of them to reflect",
+    "The apple gives off its own dark light"
+   ]
+  },
+  {
+   "id": "color-theory.l01.q4",
+   "lessonId": "color-theory.l01",
+   "kind": "mcq",
+   "prompt": "Which cells in the retina work in dim light but do not distinguish colors?",
+   "choices": [
+    "Cones",
+    "Pupils",
+    "Lenses",
+    "Rods"
+   ]
+  },
+  {
+   "id": "color-theory.l01.q5",
+   "lessonId": "color-theory.l01",
+   "kind": "tf",
+   "prompt": "Newton used a prism to show that white light can be separated into a spectrum of colors.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l02.q1",
+   "lessonId": "color-theory.l02",
+   "kind": "mcq",
+   "prompt": "Which set gives the additive primaries?",
+   "choices": [
+    "Red, yellow and blue",
+    "Cyan, magenta and yellow",
+    "Orange, green and violet",
+    "Red, green and blue"
+   ]
+  },
+  {
+   "id": "color-theory.l02.q2",
+   "lessonId": "color-theory.l02",
+   "kind": "tf",
+   "prompt": "Mixing red light and green light together produces yellow light.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l02.q3",
+   "lessonId": "color-theory.l02",
+   "kind": "mcq",
+   "prompt": "Why do printers add a separate black ink to cyan, magenta and yellow?",
+   "choices": [
+    "Printers cannot print yellow without black",
+    "Real inks overlap into a muddy dark brown rather than a true black",
+    "Cyan, magenta and yellow cannot make any dark color",
+    "Black ink is needed to make white"
+   ]
+  },
+  {
+   "id": "color-theory.l02.q4",
+   "lessonId": "color-theory.l02",
+   "kind": "mcq",
+   "prompt": "In subtractive mixing, what does a layer of pigment do to the light?",
+   "choices": [
+    "It makes the light brighter",
+    "It converts light into sound",
+    "It absorbs some wavelengths",
+    "It adds new light"
+   ]
+  },
+  {
+   "id": "color-theory.l02.q5",
+   "lessonId": "color-theory.l02",
+   "kind": "mcq",
+   "prompt": "A red spotlight and a green spotlight overlap on a white wall. What do you see where they overlap?",
+   "choices": [
+    "Dull brown",
+    "Blue",
+    "Black",
+    "Yellow"
+   ]
+  },
+  {
+   "id": "color-theory.l03.q1",
+   "lessonId": "color-theory.l03",
+   "kind": "mcq",
+   "prompt": "What does value describe?",
+   "choices": [
+    "How expensive the paint is",
+    "How warm it looks",
+    "How light or dark a color is",
+    "Which color family it belongs to"
+   ]
+  },
+  {
+   "id": "color-theory.l03.q2",
+   "lessonId": "color-theory.l03",
+   "kind": "tf",
+   "prompt": "Saturation describes how vivid or pure a color is.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l03.q3",
+   "lessonId": "color-theory.l03",
+   "kind": "mcq",
+   "prompt": "A painter adds white to a blue paint. What is the result called?",
+   "choices": [
+    "A tint",
+    "A shade",
+    "A tone",
+    "A hue"
+   ]
+  },
+  {
+   "id": "color-theory.l03.q4",
+   "lessonId": "color-theory.l03",
+   "kind": "mcq",
+   "prompt": "Two shapes look identical when a picture is converted to grayscale. What does that tell you?",
+   "choices": [
+    "They are the same material",
+    "They have similar values",
+    "They have the same hue",
+    "They have the same saturation"
+   ]
+  },
+  {
+   "id": "color-theory.l03.q5",
+   "lessonId": "color-theory.l03",
+   "kind": "mcq",
+   "prompt": "Which trio names the properties in the Munsell system?",
+   "choices": [
+    "Tint, shade and tone",
+    "Warm, cool and neutral",
+    "Hue, value and chroma",
+    "Red, green and blue"
+   ]
+  },
+  {
+   "id": "color-theory.l04.q1",
+   "lessonId": "color-theory.l04",
+   "kind": "mcq",
+   "prompt": "Which wheel uses red, yellow and blue as primaries?",
+   "choices": [
+    "The grayscale wheel",
+    "The traditional painter’s RYB wheel",
+    "The RGB wheel",
+    "The CMY wheel"
+   ]
+  },
+  {
+   "id": "color-theory.l04.q2",
+   "lessonId": "color-theory.l04",
+   "kind": "mcq",
+   "prompt": "On the RGB wheel, which color is opposite red?",
+   "choices": [
+    "Yellow",
+    "Magenta",
+    "Cyan",
+    "Green"
+   ]
+  },
+  {
+   "id": "color-theory.l04.q3",
+   "lessonId": "color-theory.l04",
+   "kind": "tf",
+   "prompt": "The RYB, RGB and CMY wheels agree on which colors are primaries.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l04.q4",
+   "lessonId": "color-theory.l04",
+   "kind": "mcq",
+   "prompt": "Why does printing use cyan, magenta and yellow rather than red, yellow and blue?",
+   "choices": [
+    "Those inks can mix a wider range of colors",
+    "Cyan, magenta and yellow are the colors of light",
+    "Red, yellow and blue cannot be made into ink",
+    "The RYB wheel is based on additive mixing"
+   ]
+  },
+  {
+   "id": "color-theory.l04.q5",
+   "lessonId": "color-theory.l04",
+   "kind": "tf",
+   "prompt": "A color wheel is a model, useful for a purpose, not a law of nature.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l05.q1",
+   "lessonId": "color-theory.l05",
+   "kind": "mcq",
+   "prompt": "Which pair is complementary on the traditional painter’s wheel?",
+   "choices": [
+    "Blue and orange",
+    "Blue and green",
+    "Red and orange",
+    "Yellow and green"
+   ]
+  },
+  {
+   "id": "color-theory.l05.q2",
+   "lessonId": "color-theory.l05",
+   "kind": "mcq",
+   "prompt": "What is an analogous scheme?",
+   "choices": [
+    "Only black, white and gray",
+    "Hues that sit next to each other on the wheel",
+    "Hues directly opposite each other",
+    "Three hues spaced evenly"
+   ]
+  },
+  {
+   "id": "color-theory.l05.q3",
+   "lessonId": "color-theory.l05",
+   "kind": "tf",
+   "prompt": "Strong complementary colors used in equal amounts can look harsh or seem to vibrate.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l05.q4",
+   "lessonId": "color-theory.l05",
+   "kind": "mcq",
+   "prompt": "A designer uses a calm green room with one coral cushion. What is the cushion’s role?",
+   "choices": [
+    "An analogous background color",
+    "A neutral",
+    "A shade of the green",
+    "A near-complementary accent that draws attention"
+   ]
+  },
+  {
+   "id": "color-theory.l05.q5",
+   "lessonId": "color-theory.l05",
+   "kind": "mcq",
+   "prompt": "How do painters often make a muted natural neutral without black?",
+   "choices": [
+    "Mix complementary paints in unequal amounts",
+    "Add more of the same color",
+    "Use only analogous colors",
+    "Use a tint of any hue"
+   ]
+  },
+  {
+   "id": "color-theory.l06.q1",
+   "lessonId": "color-theory.l06",
+   "kind": "mcq",
+   "prompt": "How many hues are in a triadic scheme?",
+   "choices": [
+    "Two",
+    "Four",
+    "Five",
+    "Three"
+   ]
+  },
+  {
+   "id": "color-theory.l06.q2",
+   "lessonId": "color-theory.l06",
+   "kind": "mcq",
+   "prompt": "A split-complementary scheme for blue uses blue plus which hues?",
+   "choices": [
+    "The two hues on either side of orange",
+    "Orange only",
+    "The two hues on either side of blue",
+    "Green and violet"
+   ]
+  },
+  {
+   "id": "color-theory.l06.q3",
+   "lessonId": "color-theory.l06",
+   "kind": "tf",
+   "prompt": "A tetradic scheme uses two complementary pairs.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l06.q4",
+   "lessonId": "color-theory.l06",
+   "kind": "mcq",
+   "prompt": "What is a common way to keep a triadic scheme from feeling unbalanced?",
+   "choices": [
+    "Remove two of the hues",
+    "Use only the darkest values",
+    "Let one hue dominate and use the others in support",
+    "Make all three equally bright and equally large"
+   ]
+  },
+  {
+   "id": "color-theory.l06.q5",
+   "lessonId": "color-theory.l06",
+   "kind": "tf",
+   "prompt": "A color scheme tells you the exact value and saturation to use.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l07.q1",
+   "lessonId": "color-theory.l07",
+   "kind": "mcq",
+   "prompt": "Which group is usually called warm?",
+   "choices": [
+    "Blue-greens",
+    "Grays",
+    "Reds, oranges and yellows",
+    "Blues and violets"
+   ]
+  },
+  {
+   "id": "color-theory.l07.q2",
+   "lessonId": "color-theory.l07",
+   "kind": "tf",
+   "prompt": "Whether a color seems warm or cool can depend on the colors beside it.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l07.q3",
+   "lessonId": "color-theory.l07",
+   "kind": "mcq",
+   "prompt": "In photography, which light is cooler-looking?",
+   "choices": [
+    "Light at a higher kelvin value",
+    "Light at a lower kelvin value",
+    "Candlelight",
+    "A tungsten bulb"
+   ]
+  },
+  {
+   "id": "color-theory.l07.q4",
+   "lessonId": "color-theory.l07",
+   "kind": "mcq",
+   "prompt": "Why does a crimson red feel cooler than an orange-red?",
+   "choices": [
+    "It is a primary color",
+    "It leans toward blue",
+    "It is brighter",
+    "It is darker"
+   ]
+  },
+  {
+   "id": "color-theory.l07.q5",
+   "lessonId": "color-theory.l07",
+   "kind": "mcq",
+   "prompt": "A painter shows sunlight on a wall. Which combination is a common choice?",
+   "choices": [
+    "All areas the same temperature",
+    "Only gray",
+    "Warm lit areas with cooler shadows",
+    "Cool lit areas with warm shadows only"
+   ]
+  },
+  {
+   "id": "color-theory.l08.q1",
+   "lessonId": "color-theory.l08",
+   "kind": "mcq",
+   "prompt": "Two identical gray squares are placed on a white and on a black background. What happens?",
+   "choices": [
+    "Both look black",
+    "The one on black looks lighter",
+    "The one on white looks lighter",
+    "They look exactly the same"
+   ]
+  },
+  {
+   "id": "color-theory.l08.q2",
+   "lessonId": "color-theory.l08",
+   "kind": "tf",
+   "prompt": "Simultaneous contrast changes how a color looks without changing the color itself.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l08.q3",
+   "lessonId": "color-theory.l08",
+   "kind": "mcq",
+   "prompt": "A gray patch surrounded by saturated red tends to look slightly what?",
+   "choices": [
+    "Reddish",
+    "Yellowish",
+    "Unchanged",
+    "Greenish"
+   ]
+  },
+  {
+   "id": "color-theory.l08.q4",
+   "lessonId": "color-theory.l08",
+   "kind": "mcq",
+   "prompt": "Staring at a red shape and then seeing a pale blue-green ghost on a white wall is called what?",
+   "choices": [
+    "An afterimage, a successive effect",
+    "Simultaneous contrast across space",
+    "Additive mixing",
+    "Atmospheric perspective"
+   ]
+  },
+  {
+   "id": "color-theory.l08.q5",
+   "lessonId": "color-theory.l08",
+   "kind": "mcq",
+   "prompt": "What practical lesson does simultaneous contrast give a designer?",
+   "choices": [
+    "Color is the same everywhere",
+    "Judge a color in context, not in isolation",
+    "Never use gray",
+    "Always use complements"
+   ]
+  },
+  {
+   "id": "color-theory.l09.q1",
+   "lessonId": "color-theory.l09",
+   "kind": "mcq",
+   "prompt": "Who published The Principles of Harmony and Contrast of Colours in 1839?",
+   "choices": [
+    "Michel Eugene Chevreul",
+    "Isaac Newton",
+    "Josef Albers",
+    "Johannes Itten"
+   ]
+  },
+  {
+   "id": "color-theory.l09.q2",
+   "lessonId": "color-theory.l09",
+   "kind": "tf",
+   "prompt": "Chevreul’s law of simultaneous contrast says that colors seen side by side appear to shift away from each other.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l09.q3",
+   "lessonId": "color-theory.l09",
+   "kind": "mcq",
+   "prompt": "According to standard accounts, what practical problem led Chevreul to study contrast?",
+   "choices": [
+    "A dispute about the speed of light",
+    "A theory about afterimages in poetry",
+    "Complaints that dyed tapestries looked dull",
+    "A shortage of blue pigment"
+   ]
+  },
+  {
+   "id": "color-theory.l09.q4",
+   "lessonId": "color-theory.l09",
+   "kind": "mcq",
+   "prompt": "Which painter is often linked with Chevreul’s ideas through the use of small dots of separate color?",
+   "choices": [
+    "Rembrandt",
+    "Claude Lorrain",
+    "Francisco Goya",
+    "Georges Seurat"
+   ]
+  },
+  {
+   "id": "color-theory.l09.q5",
+   "lessonId": "color-theory.l09",
+   "kind": "tf",
+   "prompt": "Chevreul’s work was aimed only at fine artists and never at dyers or manufacturers.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l10.q1",
+   "lessonId": "color-theory.l10",
+   "kind": "mcq",
+   "prompt": "Which teacher wrote Interaction of Color, published in 1963?",
+   "choices": [
+    "Johannes Itten",
+    "Michel Chevreul",
+    "Isaac Newton",
+    "Josef Albers"
+   ]
+  },
+  {
+   "id": "color-theory.l10.q2",
+   "lessonId": "color-theory.l10",
+   "kind": "tf",
+   "prompt": "Albers believed color is highly relative and is seen through its relationships to other colors.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l10.q3",
+   "lessonId": "color-theory.l10",
+   "kind": "mcq",
+   "prompt": "Which of these is one of Itten’s seven contrasts?",
+   "choices": [
+    "Contrast of sound",
+    "Contrast of extension",
+    "Contrast of fabrics",
+    "Contrast of centuries"
+   ]
+  },
+  {
+   "id": "color-theory.l10.q4",
+   "lessonId": "color-theory.l10",
+   "kind": "mcq",
+   "prompt": "Where did Johannes Itten teach the preliminary course?",
+   "choices": [
+    "The Gobelins works",
+    "The Louvre",
+    "The Bauhaus",
+    "Yale University"
+   ]
+  },
+  {
+   "id": "color-theory.l10.q5",
+   "lessonId": "color-theory.l10",
+   "kind": "mcq",
+   "prompt": "How do the two teaching approaches differ in emphasis?",
+   "choices": [
+    "Itten used only photographs; Albers used only words",
+    "Both rejected experiments",
+    "Albers listed seven contrasts; Itten used no exercises",
+    "Itten offers a framework of named contrasts; Albers emphasises experiments with paper"
+   ]
+  },
+  {
+   "id": "color-theory.l11.q1",
+   "lessonId": "color-theory.l11",
+   "kind": "tf",
+   "prompt": "Research on color psychology finds large, universal effects that are identical for everyone.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l11.q2",
+   "lessonId": "color-theory.l11",
+   "kind": "mcq",
+   "prompt": "Which statement about color meanings is most accurate?",
+   "choices": [
+    "All are fixed by biology",
+    "They never change",
+    "They are the same in every language",
+    "Many are learned from culture and vary by context"
+   ]
+  },
+  {
+   "id": "color-theory.l11.q3",
+   "lessonId": "color-theory.l11",
+   "kind": "mcq",
+   "prompt": "In U.S. stock charts green usually shows gains. What does the lesson say about several East Asian markets?",
+   "choices": [
+    "They have traditionally reversed this, with red for gains",
+    "They never use color",
+    "They use green for gains too",
+    "They use only blue"
+   ]
+  },
+  {
+   "id": "color-theory.l11.q4",
+   "lessonId": "color-theory.l11",
+   "kind": "mcq",
+   "prompt": "What did Berlin and Kay argue in 1969?",
+   "choices": [
+    "Color words do not matter",
+    "Languages tend to add basic color terms in a similar order",
+    "All languages have exactly twelve color words",
+    "Color terms are random"
+   ]
+  },
+  {
+   "id": "color-theory.l11.q5",
+   "lessonId": "color-theory.l11",
+   "kind": "mcq",
+   "prompt": "What is a sound approach for a designer to color meaning?",
+   "choices": [
+    "Always choose blue",
+    "Ignore culture",
+    "Check the audience, setting and competing associations",
+    "Assume one meaning works everywhere"
+   ]
+  },
+  {
+   "id": "color-theory.l12.q1",
+   "lessonId": "color-theory.l12",
+   "kind": "mcq",
+   "prompt": "What is the maximum contrast ratio, black on white, in WCAG?",
+   "choices": [
+    "4.5:1",
+    "21:1",
+    "10:1",
+    "100:1"
+   ]
+  },
+  {
+   "id": "color-theory.l12.q2",
+   "lessonId": "color-theory.l12",
+   "kind": "mcq",
+   "prompt": "Under WCAG 2.x level AA, what ratio is generally expected for ordinary body text?",
+   "choices": [
+    "At least 12:1",
+    "At least 21:1",
+    "At least 4.5:1",
+    "At least 1.5:1"
+   ]
+  },
+  {
+   "id": "color-theory.l12.q3",
+   "lessonId": "color-theory.l12",
+   "kind": "tf",
+   "prompt": "Meeting a contrast ratio guarantees that text is readable for every person.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l12.q4",
+   "lessonId": "color-theory.l12",
+   "kind": "mcq",
+   "prompt": "Why should a red-green status indicator also use labels or icons?",
+   "choices": [
+    "Some people cannot tell red from green",
+    "Red and green are the same hue",
+    "Icons are cheaper",
+    "Screens cannot show green"
+   ]
+  },
+  {
+   "id": "color-theory.l12.q5",
+   "lessonId": "color-theory.l12",
+   "kind": "mcq",
+   "prompt": "What does the WCAG contrast ratio compare?",
+   "choices": [
+    "Their print costs",
+    "The relative luminance of two colors",
+    "Their hue angles",
+    "Their names"
+   ]
+  },
+  {
+   "id": "color-theory.l13.q1",
+   "lessonId": "color-theory.l13",
+   "kind": "mcq",
+   "prompt": "What does the K in CMYK stand for?",
+   "choices": [
+    "Key, the black plate",
+    "Kelvin",
+    "Kilo",
+    "Knockout"
+   ]
+  },
+  {
+   "id": "color-theory.l13.q2",
+   "lessonId": "color-theory.l13",
+   "kind": "tf",
+   "prompt": "A screen makes color by emitting light, while a printed page reflects ambient light through ink.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l13.q3",
+   "lessonId": "color-theory.l13",
+   "kind": "mcq",
+   "prompt": "What is a gamut?",
+   "choices": [
+    "A paper finish",
+    "A kind of brush",
+    "The range of colors a device can reproduce",
+    "A type of ink"
+   ]
+  },
+  {
+   "id": "color-theory.l13.q4",
+   "lessonId": "color-theory.l13",
+   "kind": "mcq",
+   "prompt": "What is a spot color?",
+   "choices": [
+    "A color made of four dots",
+    "A color seen only on screen",
+    "A stain on paper",
+    "A single premixed ink applied on its own"
+   ]
+  },
+  {
+   "id": "color-theory.l13.q5",
+   "lessonId": "color-theory.l13",
+   "kind": "mcq",
+   "prompt": "An electric-blue logo looks duller when converted to CMYK. What is the likeliest reason?",
+   "choices": [
+    "It lies outside the CMYK gamut",
+    "CMYK cannot print blue at all",
+    "Screens are always dull",
+    "Black ink is added to blue"
+   ]
+  },
+  {
+   "id": "color-theory.l14.q1",
+   "lessonId": "color-theory.l14",
+   "kind": "mcq",
+   "prompt": "Which color space is the usual default for the web?",
+   "choices": [
+    "Rec. 2020",
+    "CMYK",
+    "Munsell",
+    "sRGB"
+   ]
+  },
+  {
+   "id": "color-theory.l14.q2",
+   "lessonId": "color-theory.l14",
+   "kind": "tf",
+   "prompt": "Display P3 covers a wider range of saturated colors than sRGB.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l14.q3",
+   "lessonId": "color-theory.l14",
+   "kind": "mcq",
+   "prompt": "What does a color profile tell software?",
+   "choices": [
+    "Who made the image",
+    "How to interpret the numbers in an image",
+    "How much the file costs",
+    "Which printer to use"
+   ]
+  },
+  {
+   "id": "color-theory.l14.q4",
+   "lessonId": "color-theory.l14",
+   "kind": "mcq",
+   "prompt": "Which standard is used for high-definition television, with a gamut close to sRGB?",
+   "choices": [
+    "Pantone",
+    "CMYK",
+    "Rec. 709",
+    "Rec. 2020"
+   ]
+  },
+  {
+   "id": "color-theory.l14.q5",
+   "lessonId": "color-theory.l14",
+   "kind": "mcq",
+   "prompt": "A photo edited in Display P3 and shared without a profile may look flat on some devices. Why?",
+   "choices": [
+    "P3 images are always dark",
+    "Flat screens cannot show color",
+    "The photo lost its pixels",
+    "They may assume sRGB and misread the numbers"
+   ]
+  },
+  {
+   "id": "color-theory.l15.q1",
+   "lessonId": "color-theory.l15",
+   "kind": "mcq",
+   "prompt": "Natural ultramarine was made from which stone?",
+   "choices": [
+    "Granite",
+    "Obsidian",
+    "Lapis lazuli",
+    "Chalk"
+   ]
+  },
+  {
+   "id": "color-theory.l15.q2",
+   "lessonId": "color-theory.l15",
+   "kind": "tf",
+   "prompt": "Tyrian purple was a dye from sea snails and was very expensive.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l15.q3",
+   "lessonId": "color-theory.l15",
+   "kind": "mcq",
+   "prompt": "Who produced the first synthetic aniline dye, mauveine, in 1856?",
+   "choices": [
+    "William Henry Perkin",
+    "Isaac Newton",
+    "Josef Albers",
+    "John Goffe Rand"
+   ]
+  },
+  {
+   "id": "color-theory.l15.q4",
+   "lessonId": "color-theory.l15",
+   "kind": "mcq",
+   "prompt": "Which pigment is among the earliest known synthetic pigments of the ancient world?",
+   "choices": [
+    "Cadmium red",
+    "Egyptian blue",
+    "Mauveine",
+    "Prussian blue"
+   ]
+  },
+  {
+   "id": "color-theory.l15.q5",
+   "lessonId": "color-theory.l15",
+   "kind": "mcq",
+   "prompt": "What did John Goffe Rand’s collapsible metal tube make easier?",
+   "choices": [
+    "Dyeing silk",
+    "Making glass",
+    "Painting outdoors",
+    "Printing newspapers"
+   ]
+  },
+  {
+   "id": "color-theory.l16.q1",
+   "lessonId": "color-theory.l16",
+   "kind": "mcq",
+   "prompt": "What does a strong value structure help a painting do?",
+   "choices": [
+    "Look identical to every other work",
+    "Read well even in grayscale",
+    "Use more paint",
+    "Avoid using color"
+   ]
+  },
+  {
+   "id": "color-theory.l16.q2",
+   "lessonId": "color-theory.l16",
+   "kind": "mcq",
+   "prompt": "Which paints make up the Zorn palette?",
+   "choices": [
+    "Cyan, magenta and yellow",
+    "Only black and white",
+    "Yellow ochre, vermilion, ivory black and white",
+    "Blue, green and violet"
+   ]
+  },
+  {
+   "id": "color-theory.l16.q3",
+   "lessonId": "color-theory.l16",
+   "kind": "tf",
+   "prompt": "Atmospheric perspective paints distant objects lighter and bluer to suggest air.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l16.q4",
+   "lessonId": "color-theory.l16",
+   "kind": "mcq",
+   "prompt": "What is often noted about the sun and sky in Monet’s Impression, Sunrise?",
+   "choices": [
+    "They are close in value",
+    "They are black and white",
+    "They use no orange",
+    "They use identical hues"
+   ]
+  },
+  {
+   "id": "color-theory.l16.q5",
+   "lessonId": "color-theory.l16",
+   "kind": "mcq",
+   "prompt": "Why does a limited palette tend to produce harmony?",
+   "choices": [
+    "It uses only complements",
+    "Every mix shares the same ingredients",
+    "It removes all contrast",
+    "It forbids white"
+   ]
+  },
+  {
+   "id": "color-theory.l17.q1",
+   "lessonId": "color-theory.l17",
+   "kind": "mcq",
+   "prompt": "What is color grading?",
+   "choices": [
+    "Adjusting brightness, contrast and color after shooting",
+    "Choosing actors",
+    "Writing the script",
+    "Recording sound"
+   ]
+  },
+  {
+   "id": "color-theory.l17.q2",
+   "lessonId": "color-theory.l17",
+   "kind": "mcq",
+   "prompt": "What do the lift, gamma and gain controls adjust?",
+   "choices": [
+    "Subtitle speed",
+    "Shadows, midtones and highlights",
+    "Camera lenses",
+    "Sound levels"
+   ]
+  },
+  {
+   "id": "color-theory.l17.q3",
+   "lessonId": "color-theory.l17",
+   "kind": "tf",
+   "prompt": "A LUT is a stored set of color conversions that can be applied to footage.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l17.q4",
+   "lessonId": "color-theory.l17",
+   "kind": "mcq",
+   "prompt": "Why do colorists rely on scopes?",
+   "choices": [
+    "Scopes make films shorter",
+    "Scopes record sound",
+    "Monitors cannot show images",
+    "The eye is easily fooled by room lighting and fatigue"
+   ]
+  },
+  {
+   "id": "color-theory.l17.q5",
+   "lessonId": "color-theory.l17",
+   "kind": "mcq",
+   "prompt": "Why does pairing orange skin tones with teal backgrounds work?",
+   "choices": [
+    "The colors are near opposites, so faces stand out",
+    "They are analogous",
+    "Both are neutral",
+    "They have the same value"
+   ]
+  },
+  {
+   "id": "color-theory.l18.q1",
+   "lessonId": "color-theory.l18",
+   "kind": "mcq",
+   "prompt": "In interface design, what is the main job of neutral colors?",
+   "choices": [
+    "Show errors",
+    "Replace the brand color",
+    "Make pages load faster",
+    "Carry most surfaces and text"
+   ]
+  },
+  {
+   "id": "color-theory.l18.q2",
+   "lessonId": "color-theory.l18",
+   "kind": "tf",
+   "prompt": "The 60-30-10 idea is a rule of thumb, not a law.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l18.q3",
+   "lessonId": "color-theory.l18",
+   "kind": "mcq",
+   "prompt": "What are design tokens?",
+   "choices": [
+    "A security feature",
+    "Named color values reused across a product",
+    "Coins for buying fonts",
+    "A type of printer"
+   ]
+  },
+  {
+   "id": "color-theory.l18.q4",
+   "lessonId": "color-theory.l18",
+   "kind": "mcq",
+   "prompt": "Why should an error field use an icon or message as well as red?",
+   "choices": [
+    "Icons are faster to load",
+    "Red is reserved for success",
+    "Color alone should not convey state",
+    "Red is not visible on screens"
+   ]
+  },
+  {
+   "id": "color-theory.l18.q5",
+   "lessonId": "color-theory.l18",
+   "kind": "mcq",
+   "prompt": "What is a common adjustment when moving a design to dark mode?",
+   "choices": [
+    "Invert every color",
+    "Remove all text",
+    "Use only pure white",
+    "Soften highly saturated colors and recheck contrast"
+   ]
+  },
+  {
+   "id": "color-theory.l19.q1",
+   "lessonId": "color-theory.l19",
+   "kind": "mcq",
+   "prompt": "What kind of mixing do overlapping colored stage lights use?",
+   "choices": [
+    "Neither",
+    "Print",
+    "Additive",
+    "Subtractive"
+   ]
+  },
+  {
+   "id": "color-theory.l19.q2",
+   "lessonId": "color-theory.l19",
+   "kind": "tf",
+   "prompt": "A colored gel can only remove light, never add it.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l19.q3",
+   "lessonId": "color-theory.l19",
+   "kind": "mcq",
+   "prompt": "A red dress under blue light will look what?",
+   "choices": [
+    "Very dark",
+    "Bright red",
+    "Bright blue",
+    "White"
+   ]
+  },
+  {
+   "id": "color-theory.l19.q4",
+   "lessonId": "color-theory.l19",
+   "kind": "mcq",
+   "prompt": "Why do designers test costumes and sets under working light?",
+   "choices": [
+    "It saves electricity",
+    "Surfaces change appearance under colored light",
+    "Costumes are always the same color",
+    "Gels are expensive"
+   ]
+  },
+  {
+   "id": "color-theory.l19.q5",
+   "lessonId": "color-theory.l19",
+   "kind": "mcq",
+   "prompt": "A night scene uses blue wash plus a warm pool on an actor with a lantern. What is the effect?",
+   "choices": [
+    "Everything looks the same color",
+    "The set looks warm",
+    "The actor stands out from the cool background",
+    "The actor disappears"
+   ]
+  },
+  {
+   "id": "color-theory.l20.q1",
+   "lessonId": "color-theory.l20",
+   "kind": "mcq",
+   "prompt": "What is a sensible first step in building a palette?",
+   "choices": [
+    "Choose a font",
+    "Define the purpose and mood",
+    "Pick the most saturated colors",
+    "Use every color"
+   ]
+  },
+  {
+   "id": "color-theory.l20.q2",
+   "lessonId": "color-theory.l20",
+   "kind": "tf",
+   "prompt": "A palette of only vivid colors with no neutrals is often tiring to look at.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "color-theory.l20.q3",
+   "lessonId": "color-theory.l20",
+   "kind": "mcq",
+   "prompt": "Why include a range of lights and darks in a palette?",
+   "choices": [
+    "To make it look random",
+    "To avoid hues",
+    "To save ink",
+    "So shapes and text can separate"
+   ]
+  },
+  {
+   "id": "color-theory.l20.q4",
+   "lessonId": "color-theory.l20",
+   "kind": "mcq",
+   "prompt": "What is a common source for palette inspiration?",
+   "choices": [
+    "A photograph or painting sampled for swatches",
+    "A random number",
+    "The dictionary",
+    "A map"
+   ]
+  },
+  {
+   "id": "color-theory.l20.q5",
+   "lessonId": "color-theory.l20",
+   "kind": "mcq",
+   "prompt": "What is the final step recommended after choosing colors?",
+   "choices": [
+    "Change them daily",
+    "Test in context and record named values",
+    "Print once and stop",
+    "Delete the neutrals"
+   ]
+  }
+ ]
+}

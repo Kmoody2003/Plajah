@@ -10,11 +10,14 @@
 // (show a placeholder). Call the returned release() on unmount. Subscribers can react to pressure.
 
 const MAX = (() => {
-  // A conservative fraction of the browser's real ceiling, shared across every surface. Scale down a
-  // touch on low-core devices (a rough proxy for weaker media pipelines).
+  const isNativeDesktop = typeof window !== 'undefined' && !!((window as any).__PLAJAH_WINUI__ || (window as any).__TAURI__);
   const cores = (typeof navigator !== 'undefined' && (navigator as any).hardwareConcurrency) || 8;
-  // This budget currently covers pool thumbnails, not foreground monitors.
-  // Leave hardware decode capacity for timeline picture + look-ahead sources.
+  // In native desktop shells (WinUI 3 with Direct3D/NVDEC/QuickSync), expand the budget
+  // to leverage local GPU hardware decode capabilities without conservative web constraints.
+  if (isNativeDesktop) {
+    return cores <= 4 ? 16 : 32;
+  }
+  // Browser fallback: conservative fraction of the browser ceiling
   return cores <= 4 ? 4 : 8;
 })();
 

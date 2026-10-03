@@ -14,6 +14,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Play } from 'lucide-react';
 import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
+import { thumb, THUMB, onThumbError } from '../src/lib/imageThumb';
 
 interface PostVideoProps {
   url?: string;
@@ -112,7 +113,7 @@ const PostVideo: React.FC<PostVideoProps> = ({ url, id, muxPlaybackId, poster, t
         aria-label={hasSource ? `Play ${title || 'video'}` : (title || 'Video')}
       >
         {resolvedPoster
-          ? <img src={resolvedPoster} alt={title || 'Video'} loading="lazy" className={natural ? 'w-full h-auto max-h-[85vh] object-contain' : 'w-full h-full object-cover'} />
+          ? <img src={thumb(resolvedPoster, THUMB.large) || resolvedPoster} onError={onThumbError(resolvedPoster)} alt={title || 'Video'} loading="lazy" decoding="async" className={natural ? 'w-full h-auto max-h-[85vh] object-contain' : 'w-full h-full object-cover'} />
           : <div className={natural ? 'w-full aspect-video' : 'w-full h-full'} style={{ background: 'linear-gradient(135deg,#1a1a1f,#0a0a0d)' }} />}
         {hasSource ? (
           <span className="absolute inset-0 flex items-center justify-center">

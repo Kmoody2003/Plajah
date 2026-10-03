@@ -45,6 +45,26 @@ export interface Lesson {
   resources?: { label: string; url: string }[];
   /** Education standards this lesson evidences, for the ledger. */
   standardIds?: string[];
+  /**
+   * What this lesson's facts depend on, so the living knowledge layer (services/livingKnowledge) can
+   * watch for new research, rulings, label changes or treaties and flag the lesson when they land.
+   */
+  anchors?: LessonAnchor[];
+  /** YYYY-MM the lesson's facts were last checked against current sources. */
+  asOf?: string;
+}
+
+export type AnchorKind = 'case' | 'statute' | 'regulation' | 'treaty' | 'mesh' | 'drug' | 'trial' | 'guideline' | 'concept';
+export interface LessonAnchor {
+  kind: AnchorKind;
+  /**
+   * case: "Marbury v. Madison|1803|US" (name|year|court or jurisdiction code); statute/regulation/treaty: the
+   * official short title with citation if certain; mesh: an exact MeSH heading ("Diabetes Mellitus, Type 2");
+   * drug: generic name; trial: the trial's name or NCT id; guideline: "Body, Topic, Year"; concept: a plain phrase.
+   */
+  ref: string;
+  /** Why the lesson depends on it, e.g. "leading case for the rule", "first-line therapy". */
+  note?: string;
 }
 
 export interface Track {

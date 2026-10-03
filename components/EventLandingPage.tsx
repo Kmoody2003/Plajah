@@ -4,16 +4,18 @@ import {
   MapPin, Calendar, Clock, Globe, Video, Ticket, Users, Share2,
   ChevronDown, ChevronUp, Check, X, ArrowLeft, ExternalLink,
   Copy, Twitter, Facebook, Zap, Heart, Package, Printer,
-  Music2, Play, AlertCircle, RefreshCw, QrCode, Info,
+  Music2, Play, AlertCircle, RefreshCw, QrCode, Info, Camera, Sparkles
 } from 'lucide-react';
-import { fetchEvent, purchaseTickets } from '../services/backendService';
-import { UserProfile, PlajahEvent, TicketTier } from '../types';
+import { fetchEvent, purchaseTickets, DEFAULT_VENUE_PACKAGES } from '../services/backendService';
+import { UserProfile, PlajahEvent, TicketTier, EventPackageAddon } from '../types';
+import TelaTicketPass from './tela/TelaTicketPass';
 
 interface Props {
   eventId: string;
   currentUser: UserProfile | null;
   onBack: () => void;
   onSignIn?: () => void;
+  onOpenPhotoPool?: (poolId: string) => void;
 }
 
 const fmt = (cents: number) =>
@@ -39,7 +41,11 @@ const PurchaseModal: React.FC<{ tier: TicketTier; event: PlajahEvent; currentUse
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
 
-  const subtotal = tier.priceCents * qty + (physical && packaging ? tier.customPackagingFeeCents : 0);
+  const availablePackages = (event.packages && event.packages.length > 0) ? event.packages : DEFAULT_VENUE_PACKAGES;
+  const [selectedPackages, setSelectedPackages] = useState<any[]>([]);
+
+  const packagesTotal = selectedPackages.reduce((sum, p) => sum + (p.priceCents || 0), 0);
+  const subtotal = tier.priceCents * qty + (physical && packaging ? tier.customPackagingFeeCents : 0) + packagesTotal;
   const platformFee = Math.round(subtotal * 0.10);
 
   const handleBuy = async () => {
@@ -47,7 +53,18 @@ const PurchaseModal: React.FC<{ tier: TicketTier; event: PlajahEvent; currentUse
     if (!currentUser) { onSignIn?.(); return; }
     setLoading(true); setError('');
     try {
-      const { url } = await purchaseTickets({ eventId: event.id, tierId: tier.id, quantity: qty, holderName, holderEmail, physicalRequested: physical, customPackagingRequested: packaging, shippingAddress: physical ? shippingAddr : undefined, promoCode: promoCode || undefined });
+      const { url } = await purchaseTickets({
+        eventId: event.id,
+        tierId: tier.id,
+        quantity: qty,
+        holderName,
+        holderEmail,
+        physicalRequested: physical,
+        customPackagingRequested: packaging,
+        shippingAddress: physical ? shippingAddr : undefined,
+        promoCode: promoCode || undefined,
+        selectedPackages,
+      });
       window.location.href = url;
     } catch (e: any) { setError(e.message); setLoading(false); }
   };
@@ -114,9 +131,63 @@ const PurchaseModal: React.FC<{ tier: TicketTier; event: PlajahEvent; currentUse
             </div>
           )}
 
+          {/* Beverage & Dining Packages */}
+          <div className="p-3 bg-white/[0.03] border border-white/8 rounded-xl space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] font-black uppercase tracking-wider text-blue-400">
+                Drink & Dining Package Add-Ons
+              </span>
+              <span className="text-[9px] text-white/30 uppercase tracking-widest">Optional</span>
+            </div>
+
+            <div className="space-y-1.5">
+              {availablePackages.map((pkg) => {
+                const isChecked = selectedPackages.some(p => p.id === pkg.id);
+                return (
+                  <label
+                    key={pkg.id}
+                    className={`flex items-start justify-between gap-2 p-2 rounded-xl border transition-all cursor-pointer ${
+                      isChecked ? 'bg-blue-500/15 border-blue-400/40 text-white' : 'bg-black/20 border-white/5 hover:border-white/10 text-white/70'
+                    }`}
+                  >
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-black text-white">{pkg.name}</span>
+                        {pkg.type === 'UNLIMITED' && (
+                          <span className="px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 text-[8px] font-black uppercase">
+                            Unlimited
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-white/40 line-clamp-1">{pkg.description}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs font-bold text-white">+{fmt(pkg.priceCents)}</span>
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={e => {
+                          if (e.target.checked) setSelectedPackages(prev => [...prev, pkg]);
+                          else setSelectedPackages(prev => prev.filter(p => p.id !== pkg.id));
+                        }}
+                        className="accent-blue-500 w-4 h-4 rounded"
+                      />
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Order summary */}
           <div className="p-3 bg-white/[0.03] border border-white/8 rounded-xl space-y-1.5 text-xs">
             <div className="flex justify-between text-white/50"><span>{tier.name} × {qty}</span><span>{fmt(tier.priceCents * qty)}</span></div>
+            {packagesTotal > 0 && (
+              <div className="flex justify-between text-blue-300">
+                <span>Add-on Packages ({selectedPackages.length})</span>
+                <span>+{fmt(packagesTotal)}</span>
+              </div>
+            )}
             {physical && packaging && <div className="flex justify-between text-white/50"><span>Custom packaging</span><span>{fmt(tier.customPackagingFeeCents)}</span></div>}
             <div className="flex justify-between text-white/30 text-[10px]"><span>Platform fee (10%)</span><span>{fmt(platformFee)}</span></div>
             <div className="h-px bg-white/8" />
@@ -270,6 +341,98 @@ const EventLandingPage: React.FC<Props> = ({ eventId, currentUser, onBack, onSig
             <div>
               <h2 className="text-sm font-black uppercase tracking-widest text-white/30 mb-3">About This Event</h2>
               <p className="text-white/70 leading-relaxed whitespace-pre-wrap">{event.description}</p>
+            </div>
+
+            {/* Live Crowd Photo Pool Card */}
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-purple-950/40 to-pink-950/40 border border-purple-500/30 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#6B0099] to-[#D40055] flex items-center justify-center shrink-0 shadow-lg shadow-purple-900/30">
+                  <Camera size={22} className="text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black uppercase text-white">Live Event Photo Pool</h3>
+                    <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300">
+                      Crowdsourced Stream
+                    </span>
+                  </div>
+                  <p className="text-xs text-white/50 mt-0.5">
+                    Attendees share concert memories, backstage angles, and real-time photos.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  const poolId = event.photoPoolId || `pool_${event.id}`;
+                  if (onOpenPhotoPool) onOpenPhotoPool(poolId);
+                  else alert('Opening Live Photo Pool…');
+                }}
+                className="px-4 py-2.5 bg-white text-black text-xs font-black uppercase tracking-wider rounded-xl hover:scale-105 transition-all shrink-0 shadow-lg cursor-pointer"
+              >
+                Join Pool
+              </button>
+            </div>
+
+            {/* Beverage & Dining Packages */}
+            <div className="p-6 rounded-3xl bg-gradient-to-r from-blue-950/40 via-purple-950/20 to-black/60 border border-blue-400/25 space-y-4 shadow-xl">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[9px] font-black uppercase tracking-[0.25em] text-blue-400">
+                      Smart F&B Add-Ons
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-[8px] font-black uppercase">
+                      Living Pass Perks
+                    </span>
+                  </div>
+                  <h3 className="text-base font-black text-white">All-Access Drink & Food Packages</h3>
+                  <p className="text-xs text-white/50 mt-0.5">
+                    Live digital redemption at any bar or food station. Zero physical tickets or tokens required.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                {((event.packages && event.packages.length > 0) ? event.packages : DEFAULT_VENUE_PACKAGES).slice(0, 4).map((p) => (
+                  <div
+                    key={p.id}
+                    className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/8 space-y-2 hover:border-white/15 transition-all"
+                  >
+                    <div className="flex items-start justify-between">
+                      <h4 className="text-xs font-black text-white">{p.name}</h4>
+                      <span className="text-xs font-black text-blue-300">+{fmt(p.priceCents)}</span>
+                    </div>
+                    <p className="text-[10px] text-white/50 line-clamp-2">{p.description}</p>
+                    <div className="flex items-center gap-1.5 text-[9px] text-white/40">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      <span>{p.type === 'UNLIMITED' ? 'All-inclusive · Cooldown paced' : `${p.totalUnits} ${p.unitName}`}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Living Ticket Pass Preview */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-black uppercase tracking-widest text-white/30 flex items-center gap-1.5">
+                  <Sparkles size={13} className="text-amber-400" /> Official Living Pass (Tela Design)
+                </h2>
+                <span className="text-[9px] font-black uppercase text-white/40">Dynamic Anti-Scalp Shimmer</span>
+              </div>
+              <TelaTicketPass
+                eventTitle={event.title}
+                artistName={event.creatorName}
+                date={fmtDate(event.startDate)}
+                time={fmtTime(event.startDate)}
+                venue={event.venueName || 'Venue'}
+                city={event.city || ''}
+                tierName={availableTiers[0]?.name || 'General Admission'}
+                priceCents={availableTiers[0]?.priceCents || 0}
+                coverImage={event.coverImage}
+                design={event.ticketDesign}
+                interactive={false}
+              />
             </div>
 
             {/* Itinerary */}

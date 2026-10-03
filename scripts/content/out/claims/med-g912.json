@@ -1,0 +1,1185 @@
+{
+ "courseId": "med-g912",
+ "label": "Introduction to Medicine and Biomedical Science",
+ "lessons": [
+  {
+   "id": "med-g912.l01",
+   "title": "Homeostasis and Feedback",
+   "body": [
+    "Cells only work well inside a narrow range of conditions. Body temperature, blood glucose, blood acidity, water balance and blood pressure all have a normal range, and staying inside it is called homeostasis. Illness can often be understood as a failure of this balancing, either because a control system is broken or because the stress on it is too large.",
+    "Every homeostatic loop has the same parts. A sensor detects a variable, a control center compares it to a set point, and an effector acts to change it. Most loops use negative feedback, meaning the response opposes the change. When you get hot, temperature sensors in the skin and brain signal the hypothalamus, which triggers sweating and wider skin blood vessels so heat leaves the body. When you get cold, it triggers shivering and narrowed skin vessels. The output shuts the stimulus off, which is why the system is stable.",
+    "Positive feedback is rarer and amplifies a change until an event finishes. Labor contractions are a classic case: stretching of the cervix triggers oxytocin release, which strengthens contractions, which stretch the cervix more, until birth ends the loop. Blood clotting also uses positive feedback locally.",
+    "A worked example is blood glucose. After a meal, rising glucose is sensed by pancreatic beta cells, which release insulin. Insulin moves glucose into muscle and fat cells and tells the liver to store it, so glucose falls. Between meals, falling glucose lets alpha cells release glucagon, which tells the liver to release stored glucose. Two opposing hormones give tight control. When this loop fails, as in diabetes, the consequences are described in a later lesson.",
+    "Set points can also shift on purpose. During a fever, immune signals raise the hypothalamic set point, so a person feels cold and shivers until the body reaches the new, higher temperature."
+   ]
+  },
+  {
+   "id": "med-g912.l02",
+   "title": "The Heart and Circulation",
+   "body": [
+    "The circulatory system delivers oxygen and nutrients, removes carbon dioxide and wastes, and carries hormones and immune cells. The heart is a double pump with four chambers. The right side receives oxygen-poor blood from the body and sends it through the pulmonary circuit to the lungs. The left side receives oxygen-rich blood from the lungs and sends it through the systemic circuit to the rest of the body. Because the left ventricle must push blood through the whole body, its wall is much thicker than the right.",
+    "One-way valves keep blood moving forward: the tricuspid and mitral valves sit between atria and ventricles, and the pulmonary and aortic valves sit at the exits. The familiar heart sounds come mostly from valves closing. A heartbeat is coordinated by electrical signals starting in the sinoatrial node, the natural pacemaker, then passing through the atrioventricular node to the ventricles. An electrocardiogram (ECG) records this activity.",
+    "Blood leaves the heart in arteries, which have thick, elastic, muscular walls to handle high pressure. It exchanges materials with tissues across the thin walls of capillaries, then returns in veins, which are lower pressure and rely on valves and skeletal muscle squeezing to push blood back toward the heart. Cardiac output is heart rate multiplied by stroke volume, the amount ejected per beat. At rest it is roughly 5 liters per minute in an adult, and it rises greatly in exercise.",
+    "Blood pressure depends on cardiac output and on resistance, which is set mainly by the width of small arteries. This is why drugs that widen vessels or reduce the heart's workload can lower blood pressure. The heart muscle itself is fed by the coronary arteries, so a blockage there starves the muscle, which is the basis of a heart attack."
+   ]
+  },
+  {
+   "id": "med-g912.l03",
+   "title": "Lungs and Kidneys: Gas, Fluid and Acid-Base Balance",
+   "body": [
+    "The lungs bring oxygen into the blood and remove carbon dioxide. Air travels down the trachea and branching bronchi to millions of tiny air sacs called alveoli. Alveolar walls are one cell thick and wrapped in capillaries, so oxygen diffuses into blood and carbon dioxide diffuses out, driven by differences in partial pressure. Breathing in happens when the diaphragm contracts and flattens, enlarging the chest so pressure inside falls below atmospheric pressure and air flows in.",
+    "Carbon dioxide matters for more than waste removal. It combines with water to form carbonic acid, so breathing rate directly alters blood pH. Breathe faster and blood CO2 falls, making blood less acidic. Breathe slower, or fail to clear CO2 in lung disease, and blood becomes more acidic. The brainstem drives breathing mainly in response to CO2 and pH, not oxygen.",
+    "The kidneys filter blood in about a million functional units called nephrons. Filtration at the glomerulus produces a protein-free fluid, and the tubule then reabsorbs most of the water, sodium, glucose and bicarbonate while secreting wastes and extra potassium or hydrogen ions. Hormones tune this: antidiuretic hormone makes the collecting duct reabsorb more water, and aldosterone makes it retain sodium. The kidneys also release erythropoietin to stimulate red blood cell production and activate vitamin D.",
+    "Together the lungs and kidneys share acid-base control. The lungs adjust CO2 within minutes, while the kidneys adjust bicarbonate and acid excretion over hours to days. Blood pH is held near 7.4, and even small shifts can disturb enzymes and heart rhythm. A worked case: someone with severe vomiting loses stomach acid, blood turns alkaline, and the lungs compensate by breathing more slowly to retain CO2."
+   ]
+  },
+  {
+   "id": "med-g912.l04",
+   "title": "Nervous and Endocrine Control",
+   "body": [
+    "The body coordinates itself with two communication networks. The nervous system is fast and specific. Neurons carry electrical impulses called action potentials along their axons and pass the message to the next cell across a synapse using chemical neurotransmitters. The central nervous system is the brain and spinal cord; the peripheral nervous system carries sensory information in and motor commands out. The autonomic part runs involuntary functions, with the sympathetic branch preparing for action (faster heart rate, wider airways) and the parasympathetic branch favoring rest and digestion.",
+    "The endocrine system is slower but longer lasting. Glands release hormones into the blood, and only cells with the matching receptor respond. The hypothalamus and pituitary sit at the top of many loops. The hypothalamus releases releasing hormones, the pituitary releases stimulating hormones, and these drive target glands such as the thyroid, adrenals and gonads. Those glands then release their own hormones, which feed back to shut the upper levels down. This is negative feedback again.",
+    "Thyroid regulation is a clear example. Low thyroid hormone raises pituitary thyroid-stimulating hormone (TSH), which pushes the thyroid to make more. When thyroid hormone rises, TSH falls. This is why in a typical underactive thyroid caused by gland failure, TSH is high while thyroid hormone is low, because the pituitary keeps pushing a gland that cannot respond.",
+    "The two systems overlap. In stress, the sympathetic nervous system rapidly releases adrenaline from the adrenal medulla, while the slower hormone cortisol from the adrenal cortex mobilizes energy over hours. Understanding which system is involved, and where in a loop a fault lies, is a central skill in diagnosis."
+   ]
+  },
+  {
+   "id": "med-g912.l05",
+   "title": "Cell Injury and Inflammation",
+   "body": [
+    "Pathology is the study of how disease changes the body. Its starting point is cell injury. Cells can be injured by lack of oxygen, toxins, microbes, physical force, heat, cold, radiation or immune attack. Mild injury is reversible: the cell swells and then recovers. Severe or prolonged injury causes cell death, either by necrosis, which is messy and releases contents that provoke inflammation, or by apoptosis, a tidy programmed self-destruction used in normal development and in removing damaged cells.",
+    "Inflammation is the coordinated response to injury or infection. Its aim is to bring defenders to the site, remove the cause and dead tissue, and start repair. The classic signs, known since antiquity, are redness, heat, swelling and pain, with loss of function added later. Each has a mechanism. Chemical mediators such as histamine widen local blood vessels, which increases blood flow, causing redness and warmth. The vessels also become leaky, letting fluid and proteins into tissue, causing swelling. Mediators and swelling stimulate nerve endings, causing pain.",
+    "Cells arrive in a typical order. Neutrophils come first and are the main early responders to bacteria. Macrophages arrive later, clear debris and help organize repair. If the cause persists, chronic inflammation develops, with lymphocytes and macrophages, ongoing tissue damage and scarring, as in long-standing hepatitis or in the artery wall in atherosclerosis.",
+    "Healing then follows. Some tissues regenerate with the same cell type, such as skin surface and liver. Others, such as heart muscle, mainly heal with scar made of collagen. A scar holds tissue together but does not contract or conduct like the original, which is why a heart attack can leave lasting weakness.",
+    "Anti-inflammatory drugs such as ibuprofen block enzymes that make prostaglandins, mediators of pain, fever and swelling. They treat symptoms of an inflammatory process rather than its cause."
+   ]
+  },
+  {
+   "id": "med-g912.l06",
+   "title": "Infection and the Immune Response",
+   "body": [
+    "Pathogens are organisms that cause disease. The main groups are bacteria (single-celled, living on their own), viruses (tiny packages of genetic material that must enter host cells to replicate), fungi, and parasites such as protozoa and worms. Knowing the group matters because treatments differ. Antibiotics act on bacterial features, for example the bacterial cell wall or bacterial ribosomes, and do nothing against viruses. Antiviral drugs target steps in the viral life cycle. Antibiotic use against viral colds therefore adds side effects and resistance risk without benefit.",
+    "The immune system has two layers. Innate immunity is immediate and general: skin and mucus barriers, stomach acid, phagocytes that engulf microbes, inflammation, and fever. Adaptive immunity is slower on a first encounter but specific and has memory. B cells make antibodies that bind a particular antigen, and T cells either help coordinate the response or kill infected cells directly.",
+    "Memory is why people rarely get some diseases twice and why vaccines work. A vaccine shows the immune system an antigen, for example a piece of a pathogen or a weakened or inactivated form, without causing the disease. The first exposure produces a slow primary response and memory cells; later exposure to the real pathogen triggers a faster, stronger secondary response. Antibodies can also be borrowed: a newborn carries antibodies from the mother that provide temporary protection.",
+    "Antibiotic resistance arises by natural selection. When an antibiotic is used, susceptible bacteria die and any bacteria with a resistance gene survive and multiply, and resistance genes can spread between bacteria. Every use of antibiotics selects for resistance, which is why they should be used only when needed and the prescribed course followed as directed by the clinician.",
+    "A worked example: in bacterial pneumonia, bacteria in the alveoli trigger neutrophil influx and fluid, which fills air sacs and impairs gas exchange. That explains fever, cough with sputum and low oxygen, and why antibiotics plus support are the standard treatment."
+   ]
+  },
+  {
+   "id": "med-g912.l07",
+   "title": "Cancer: When Cell Growth Escapes Control",
+   "body": [
+    "Cancer is a group of diseases in which cells divide without proper control and can invade other tissues. It begins with changes in DNA called mutations. Most mutations are harmless, but a few hit genes that control growth. Two classes matter most. Proto-oncogenes are accelerators: when mutated into oncogenes they push cells to divide. Tumor suppressor genes are brakes or repair crews; when they are lost, as with TP53, which normally halts damaged cells or triggers their death, errors accumulate. Cancer usually needs several such changes in one cell lineage, which is one reason risk rises with age.",
+    "Mutations can be inherited, as in BRCA1 and BRCA2 variants that raise breast and ovarian cancer risk, but most arise during life from random copying errors and from carcinogens. Established carcinogens include tobacco smoke, ultraviolet radiation, asbestos, and some infections such as human papillomavirus, which causes cervical cancer, and hepatitis B and C viruses, which raise liver cancer risk.",
+    "A tumor is a mass of abnormal cells. A benign tumor stays local and does not invade; a malignant tumor invades surrounding tissue and can spread. Spread through blood or lymph to distant organs is called metastasis, and it is the main reason cancer kills. Cancers are named by tissue of origin: carcinoma arises in epithelial tissue such as lung, breast or colon; sarcoma arises in connective tissue; leukemia and lymphoma arise from blood and lymphatic cells.",
+    "Staging describes how far the cancer has spread and strongly guides treatment and outlook. Treatment options include surgery, radiation, chemotherapy that targets rapidly dividing cells, targeted drugs aimed at a specific mutated protein, and immunotherapy that helps immune cells attack tumor. Because rapidly dividing normal cells, such as hair follicles and gut lining, are also affected by chemotherapy, hair loss and nausea are expected effects.",
+    "Screening aims to find cancer early, for example by cervical cytology or HPV testing, mammography, and colon cancer screening. Screening schedules are set by expert bodies and change with evidence."
+   ]
+  },
+  {
+   "id": "med-g912.l08",
+   "title": "Autoimmune and Genetic Disease",
+   "body": [
+    "Normally the immune system learns to tolerate the body own tissues: self-reactive lymphocytes are eliminated or restrained as they develop. Autoimmune disease occurs when tolerance fails and the immune system attacks normal tissue. Causes involve a mix of inherited susceptibility, environmental triggers such as infection, and sex hormones, since many autoimmune diseases are more common in women. Examples include type 1 diabetes, where T cells destroy insulin-producing beta cells; rheumatoid arthritis, where joint lining is attacked; multiple sclerosis, where myelin in the central nervous system is damaged; and Graves disease, where antibodies stimulate the thyroid. Treatment usually suppresses or redirects the immune response, and the cost is higher infection risk.",
+    "Genetic disease results from changes in DNA. Humans have 23 chromosome pairs, with one copy of each from each parent. In autosomal recessive disease, a person needs two faulty copies; carriers with one copy are usually healthy. Cystic fibrosis, caused by variants in the CFTR gene, which encodes a chloride channel, is an example: thick mucus builds up in the lungs and pancreas. Two carrier parents have a 1 in 4 chance of an affected child with each pregnancy. In autosomal dominant disease, one faulty copy is enough, so an affected parent has a 1 in 2 chance of passing it on; Huntington disease is an example. In X-linked recessive disease, such as hemophilia A and Duchenne muscular dystrophy, males are more often affected because they have only one X chromosome.",
+    "Sickle cell disease is a clear case of how a small change has large effects. One altered DNA letter changes one amino acid in the beta chain of hemoglobin. Under low oxygen, the abnormal hemoglobin forms stiff fibers that bend red cells into rigid sickle shapes. They block small vessels, causing pain episodes, and break down early, causing anemia. Carriers have some protection against severe malaria, which helps explain why the variant is common in regions where malaria was widespread.",
+    "Other conditions come from chromosome number, such as trisomy 21 causing Down syndrome. Many common diseases are multifactorial, meaning many genes and environment contribute, so having a risk gene is not destiny."
+   ]
+  },
+  {
+   "id": "med-g912.l09",
+   "title": "Diabetes Mellitus",
+   "body": [
+    "Diabetes mellitus is a group of conditions in which blood glucose stays too high because of too little insulin or because tissues respond poorly to it. Insulin is the hormone that lets muscle and fat cells take up glucose and tells the liver to store it, so without its action glucose builds up in blood while cells are starved.",
+    "In type 1 diabetes, the immune system destroys the beta cells of the pancreas, so the body makes little or no insulin. It often starts in childhood or young adulthood, and people need insulin therapy for life. Without insulin, the body breaks down fat for fuel and produces acidic ketones. This can lead to diabetic ketoacidosis, a medical emergency with nausea, rapid deep breathing, abdominal pain and confusion.",
+    "In type 2 diabetes, the main problem begins as insulin resistance: tissues respond less to insulin, so the pancreas compensates by making more. Over years the beta cells can tire and insulin output falls. Risk factors include excess body fat (especially around the abdomen), physical inactivity, family history and age. It is much more common than type 1. Lifestyle change is the foundation of management, and drugs such as metformin, which reduces liver glucose output and improves insulin sensitivity, are widely used, with insulin added when needed. Other drug classes also exist and the choice depends on the person, which is a decision for clinicians.",
+    "Diagnosis uses blood tests. Widely used thresholds, which are approximate and require confirmation in the absence of clear symptoms, are a fasting plasma glucose of 126 mg/dL or higher, or hemoglobin A1c of 6.5 percent or higher. A1c reflects average glucose over roughly the past two to three months, because glucose attaches to hemoglobin in red cells that live about 120 days.",
+    "Chronic high glucose damages small and large vessels. This causes diabetic retinopathy (eye), nephropathy (kidney), neuropathy (nerve), and raises the risk of heart attack and stroke. Good glucose control, blood pressure control and regular screening reduce complications. Too much insulin relative to food causes the opposite emergency, hypoglycemia, with sweating, shakiness and confusion."
+   ]
+  },
+  {
+   "id": "med-g912.l10",
+   "title": "Hypertension and Heart Disease",
+   "body": [
+    "Hypertension means persistently high arterial blood pressure. It is usually silent for years, which is why it is called a silent killer. Blood pressure is written as systolic over diastolic: systolic is the peak pressure when the ventricle contracts and diastolic is the pressure between beats. In the United States, the 2025 AHA/ACC guideline defines hypertension as 130/80 mm Hg or higher, keeping the categories introduced in 2017 (normal below 120/80, elevated 120 to 129 with diastolic below 80, stage 1 130 to 139 or 80 to 89, stage 2 140/90 or higher); other guidelines use 140/90, so the exact cutoff depends on the guideline body. Diagnosis needs repeated measurements, because single readings vary with stress and technique.",
+    "Most hypertension is primary, with no single cause, and involves genetics, excess sodium intake, excess weight, inactivity, alcohol and age. Secondary hypertension has an identifiable cause, such as kidney disease or hormone-producing tumors. The harm is mechanical: pressure injures artery walls, thickens the left ventricle, and over time contributes to stroke, heart failure, kidney failure and eye damage. Treatment combines lifestyle measures, such as lower sodium, weight loss, exercise and limited alcohol, with drugs from several classes, including diuretics, ACE inhibitors, angiotensin receptor blockers, calcium channel blockers and beta blockers.",
+    "Coronary artery disease is the build-up of plaque in the arteries feeding the heart, a form of atherosclerosis. Plaque begins when LDL cholesterol enters a damaged artery wall, is taken up by macrophages, and causes chronic inflammation. A plaque can narrow the artery, and when it narrows enough, exertion causes chest pain called angina because demand outstrips supply. If a plaque ruptures, a clot forms rapidly and can block the artery, cutting off oxygen to the heart muscle supplied by it. This is a myocardial infarction, or heart attack, and heart muscle dies in a time-dependent way, so speed of treatment matters.",
+    "Risk factors include high LDL, hypertension, smoking, diabetes, family history, obesity and inactivity. Statins such as atorvastatin lower LDL by blocking a liver enzyme (HMG-CoA reductase) in cholesterol synthesis, and their benefit in lowering heart attack risk is well established. Prevention focuses on not smoking, healthy eating, activity, and treating pressure, glucose and cholesterol."
+   ]
+  },
+  {
+   "id": "med-g912.l11",
+   "title": "Asthma and Airway Disease",
+   "body": [
+    "Asthma is a chronic inflammatory disease of the airways in which the bronchi become narrowed, swollen and overly reactive. The result is episodes of wheeze, cough, chest tightness and shortness of breath, often worse at night or with triggers. Triggers include allergens such as pollen, dust mites and pet dander, respiratory viruses, cold air, exercise, smoke and air pollution. It often starts in childhood and often runs alongside allergic conditions such as eczema and hay fever.",
+    "Three things narrow the airway. First, the smooth muscle around the bronchi tightens (bronchoconstriction). Second, the airway lining becomes inflamed and swollen. Third, glands produce excess thick mucus. Because air flows through a tube whose resistance rises steeply as the radius shrinks, even modest narrowing greatly reduces airflow, and breathing out becomes especially hard, producing the high-pitched wheeze.",
+    "The key feature is that the narrowing is variable and largely reversible, which separates asthma from chronic obstructive pulmonary disease (COPD). COPD is mainly caused by smoking and involves progressive, only partly reversible airflow limitation. Lung function tests with spirometry measure how much air can be forcefully exhaled in the first second compared with total exhaled volume; in asthma, this improves after an inhaled bronchodilator.",
+    "Treatment mirrors the two main mechanisms. Reliever medicines, such as the short-acting beta-2 agonist albuterol, relax bronchial smooth muscle within minutes by stimulating beta-2 receptors in the airway. They treat the spasm but not the inflammation. Controller medicines, most importantly inhaled corticosteroids, reduce airway inflammation over days to weeks and lower the frequency of attacks. Current international guidance (GINA 2025) says asthma should not be treated with a short-acting beta-2 agonist alone at any severity, because the inflammation is untreated; for adolescents and adults the preferred reliever is as-needed low-dose inhaled corticosteroid with formoterol, which treats both spasm and inflammation. Avoiding triggers matters too.",
+    "An asthma attack that does not respond to the reliever, with trouble speaking in full sentences, blue lips, or exhaustion, is an emergency requiring urgent care."
+   ]
+  },
+  {
+   "id": "med-g912.l12",
+   "title": "Pharmacology Basics",
+   "body": [
+    "Pharmacology is the study of how drugs act on the body and how the body handles drugs. These two halves have names. Pharmacodynamics asks what the drug does to the body: which target it binds and what that causes. Pharmacokinetics asks what the body does to the drug, and is summarized by four steps: absorption, distribution, metabolism and excretion.",
+    "Most drugs act on a receptor, enzyme, ion channel or transporter. An agonist binds a receptor and activates it, as albuterol activates beta-2 receptors. An antagonist binds and blocks the receptor without activating it, as a beta blocker does. Enzyme inhibitors reduce an enzyme activity, as statins inhibit HMG-CoA reductase and NSAIDs inhibit cyclooxygenase. Many drugs are selective, but selectivity is rarely complete, so an effect on other targets creates side effects.",
+    "For pharmacokinetics, route matters. A swallowed drug must be absorbed from the gut and then travels via the portal vein to the liver, which may metabolize much of it before it reaches the rest of the body, called first-pass metabolism. Intravenous drugs avoid this. The liver metabolizes many drugs using the cytochrome P450 enzyme family, and the kidneys excrete many drugs or their metabolites. Liver or kidney disease can therefore raise drug levels and toxicity.",
+    "The therapeutic index describes the gap between a helpful dose and a harmful one. Drugs with a narrow therapeutic index, such as warfarin, a blood thinner, require careful monitoring because small changes in level matter. Drug interactions often arise when one drug changes the metabolism of another: a drug that inhibits a liver enzyme can raise levels of a second drug that enzyme clears, and a drug that induces the enzyme can lower them. Food, supplements and alcohol can interact too.",
+    "Adverse effects are part of every drug. Some are predictable extensions of the main action (a blood thinner causes bleeding), some are idiosyncratic or allergic (a rash or anaphylaxis with penicillin). Allergy is not the same as a side effect, and a person with a true allergy must avoid that drug. All dosing decisions belong to the prescriber, who weighs benefit, risk, age, organ function and other medicines."
+   ]
+  },
+  {
+   "id": "med-g912.l13",
+   "title": "Vital Signs and Laboratory Tests",
+   "body": [
+    "Diagnosis begins with a history (what the patient reports), a physical examination, and vital signs. The classic vital signs are temperature, heart rate (pulse), respiratory rate, blood pressure and oxygen saturation, often measured with a finger sensor called a pulse oximeter. Typical resting adult values are approximate and vary with age and fitness: heart rate about 60 to 100 beats per minute, respiratory rate about 12 to 20 breaths per minute, oral temperature about 36.5 to 37.5 C, and oxygen saturation 95 percent or higher in most healthy people. Trends matter more than single numbers, and a normal-looking value can be abnormal for a particular person.",
+    "Laboratory tests measure chemicals and cells in blood, urine and other samples. The complete blood count counts red cells, white cells and platelets, and gives hemoglobin. Low hemoglobin means anemia, a raised white cell count often suggests infection or inflammation, and low platelets raise bleeding risk. A basic metabolic panel reports sodium, potassium, glucose, creatinine and others; creatinine is a muscle waste product cleared by the kidneys, so a rise suggests reduced kidney filtration. Liver enzymes such as ALT rise when liver cells are injured. Troponin, a protein inside heart muscle cells, rises in blood when those cells die, which makes it central to diagnosing heart attack. Reference ranges are statistical and differ between laboratories, so results are always read against the range printed for that lab.",
+    "No test is perfect, so two properties describe how good it is. Sensitivity is the fraction of people with the disease who test positive; a highly sensitive test rarely misses disease and is useful for ruling it out when negative. Specificity is the fraction of people without the disease who test negative; a highly specific test rarely gives false alarms and is useful for ruling disease in when positive.",
+    "The meaning of a result also depends on how common the disease is. Suppose a test is 95 percent sensitive and 95 percent specific, and the disease affects 1 in 1000 people. Testing 100000 people finds 100 with disease, of whom 95 test positive, but 99900 are healthy and 5 percent, about 4995, test falsely positive. Only about 2 percent of positives are true. This is why screening a low-risk population produces many false positives, and why tests are interpreted alongside the patient story."
+   ]
+  },
+  {
+   "id": "med-g912.l14",
+   "title": "Medical Imaging",
+   "body": [
+    "Imaging lets clinicians see inside the body without surgery. Each method uses a different physical signal, and so each is good at different questions and carries different risks.",
+    "Plain X-rays use ionizing radiation passing through the body. Dense tissues such as bone absorb more and appear white, while air in the lungs appears black. A chest X-ray is quick and cheap and shows pneumonia, some heart size changes, and fractures are shown on limb films. Its weakness is that it flattens a three-dimensional body into one image and shows soft tissue poorly.",
+    "Computed tomography (CT) takes many X-ray measurements from different angles and reconstructs cross-sectional slices. It is fast, which makes it valuable in trauma and for suspected stroke bleeding, and excellent for bone, lung and bleeding. It uses a larger radiation dose than a plain film. Contrast dye can improve blood vessel and organ detail, but it can cause allergic reactions or harm kidneys in vulnerable patients.",
+    "Magnetic resonance imaging (MRI) uses strong magnetic fields and radio waves to detect the behavior of hydrogen atoms, mostly in water and fat. It involves no ionizing radiation and gives superb soft-tissue detail of brain, spinal cord, joints and ligaments. It is slower, noisy, expensive, and unsafe near certain metal implants or devices because of the magnet, so patients are screened first.",
+    "Ultrasound uses high-frequency sound waves that reflect from tissue boundaries. It is radiation-free, portable and shows motion in real time, so it is the standard first tool for the fetus in pregnancy, gallbladder, heart (echocardiography) and blood flow. It struggles with air and bone, which block sound.",
+    "Nuclear imaging such as PET uses a small amount of a radioactive tracer that accumulates where metabolism is high, so it can reveal active tumors or brain activity patterns. Choosing a test is a risk-benefit decision. For example, a pregnant patient with abdominal pain might get ultrasound first to avoid radiation. Radiation from medical imaging adds a small lifetime cancer risk, so tests should be ordered when their expected benefit justifies it."
+   ]
+  },
+  {
+   "id": "med-g912.l15",
+   "title": "Public Health and Epidemiology",
+   "body": [
+    "Public health aims to protect and improve health across whole populations. Its core science is epidemiology, the study of how often diseases occur, who gets them, and why. Two basic measures are easily confused. Incidence is the number of new cases in a population over a period of time. Prevalence is the number of existing cases at a point in time. A long-lasting, treatable disease like type 2 diabetes can have high prevalence even when incidence is modest, because people live with it for many years. A disease that is rapidly fatal or rapidly cured has prevalence close to incidence.",
+    "Epidemiologists compare groups to find causes. A cohort study follows people with and without an exposure forward in time and compares who develops disease. A case-control study starts with people who have a disease and similar people who do not, and looks back at exposures; it is efficient for rare diseases. Relative risk compares the chance of disease in exposed versus unexposed groups, and an odds ratio is used in case-control designs.",
+    "A major challenge is confounding. Coffee drinkers may have higher lung cancer rates, but the reason is that many coffee drinkers also smoke. Smoking is a confounder: linked to both the exposure and the outcome. Correlation does not prove causation. Evidence for causation grows when the association is strong, consistent across studies, has the exposure before the outcome, shows a dose-response pattern, and has a plausible mechanism.",
+    "For infectious disease, the basic reproduction number, R0, is the average number of people one case infects in a fully susceptible population. If R0 is above 1, the outbreak grows. Immunity in a population lowers the effective reproduction number. Herd immunity means enough people are immune that spread is limited and some unprotected people are indirectly shielded. The rough threshold is 1 minus 1 over R0, so a pathogen with R0 of 12, as often cited for measles, needs coverage near 92 percent, whereas one with R0 of 2 needs about 50 percent.",
+    "Prevention operates at several levels: primary prevention stops disease before it starts (vaccination, clean water, tobacco control), secondary prevention detects disease early (screening), and tertiary prevention reduces harm from established disease (rehabilitation). Tools include surveillance, contact tracing, sanitation, vaccination programs and health education."
+   ]
+  },
+  {
+   "id": "med-g912.l16",
+   "title": "Evidence-Based Medicine and Trial Design",
+   "body": [
+    "Evidence-based medicine combines the best available research with clinician expertise and the values and circumstances of the patient. It exists because plausible ideas often fail: treatments that seem sensible by mechanism or experience can be useless or harmful, and many illnesses improve on their own, so recovery after a treatment does not show the treatment caused it.",
+    "The strongest design for testing a treatment is the randomized controlled trial. Participants are randomly assigned to treatment or a comparison group, so known and unknown differences such as age, severity or lifestyle are spread out by chance rather than by choice. This is what lets a difference in outcome be attributed to the treatment. Comparison is made with placebo, an inactive look-alike, or with the current standard treatment. Blinding keeps participants, and in double-blind trials also the researchers assessing outcomes, from knowing who got which, to prevent expectations from shaping results. The placebo effect, real improvement in symptoms from the expectation of benefit, is why uncontrolled reports of improvement are unreliable.",
+    "Observational studies cannot randomize, so confounding is a risk. They are essential when randomization is unethical or impractical, such as testing whether smoking causes cancer. A systematic review gathers all studies on a question using a stated method, and a meta-analysis statistically pools their results, usually sitting at the top of the evidence hierarchy if the underlying studies are sound.",
+    "Trials can mislead. A small sample gives imprecise results, and chance can produce differences. A p-value tells how surprising the data would be if the treatment truly had no effect; by convention, below 0.05 is called statistically significant, but significance is not the same as importance, and a tiny effect can be significant in a huge trial. Confidence intervals show the plausible range of the effect. Other problems include dropouts, short follow-up, surrogate outcomes (improving a lab number instead of how people feel or live), and publication bias, where positive trials are published more than negative ones.",
+    "Reading effects needs care. If a drug cuts the risk of an event from 2 percent to 1 percent, the relative risk reduction is 50 percent, which sounds impressive, but the absolute risk reduction is 1 point, and about 100 people must be treated for one to benefit. The number needed to treat is 1 divided by the absolute risk reduction."
+   ]
+  },
+  {
+   "id": "med-g912.l17",
+   "title": "Medical Ethics: Principles and Consent",
+   "body": [
+    "Medical ethics is the study of what clinicians should do when values compete. A widely taught framework, set out by Tom Beauchamp and James Childress, uses four principles. Autonomy is respect for a person right to make informed decisions about their own body. Beneficence is acting to benefit the patient. Nonmaleficence is avoiding harm, often summarized as first, do no harm. Justice is fairness in how benefits, burdens and scarce resources are distributed. The principles often pull against each other, and ethics is the work of weighing them in a specific case rather than applying any one automatically.",
+    "Informed consent puts autonomy into practice. For consent to be valid, the patient must have decision-making capacity, be given relevant information (the nature of the treatment, its risks and benefits, and reasonable alternatives including doing nothing), understand it, and decide voluntarily. A patient with capacity may refuse treatment even when clinicians believe refusal is unwise. Capacity is specific to a decision and is judged by whether the person can understand the information, appreciate how it applies to them, reason about options and express a choice. It is not the same as agreeing with the clinician. Minors generally need a parent or guardian to consent, with exceptions that vary by place and by type of care, so details differ by jurisdiction.",
+    "Exceptions to the need for consent include emergencies in which a patient is unable to decide and delay would risk serious harm; the law presumes that a reasonable person would consent. When a patient lacks capacity and has no prior wishes known, a surrogate decision-maker, usually a close family member, decides based on what the patient would have wanted, called substituted judgment, and otherwise on the patient best interests. Advance directives and living wills record choices ahead of time.",
+    "Confidentiality is the duty to protect patient information. In the United States, the HIPAA privacy rules limit how health information may be shared. Confidentiality has limits: reporting some infectious diseases, suspected child abuse, or a serious and specific threat to others may be required or permitted by law.",
+    "A worked example: an adult with capacity and a serious infection refuses antibiotics because of fear. The ethical response is not coercion but to explore the reason, correct misunderstandings, offer alternatives, document the discussion and respect the decision, while leaving the door open for the patient to change their mind."
+   ]
+  },
+  {
+   "id": "med-g912.l18",
+   "title": "First Aid and Basic Life Support",
+   "body": [
+    "First aid is the immediate care given before professional help arrives. Whatever the emergency, the first step is safety: check that the scene is safe for you before you approach, because a second casualty helps nobody. Then check responsiveness, call your local emergency number or have someone call, and send someone to fetch an automated external defibrillator (AED) if one is available. Training and certification from a recognized course are the best way to learn these skills, and this lesson is an overview, not a replacement.",
+    "Severe bleeding is controlled with firm, direct pressure on the wound using a clean cloth or dressing, without lifting it to check. If blood soaks through, add more material on top and keep pressing. For life-threatening limb bleeding that direct pressure cannot control, a tourniquet applied by a trained person can save life.",
+    "Choking occurs when the airway is blocked. If a person can cough forcefully, encourage coughing. If they cannot cough, speak or breathe, current first aid guidance for adults includes back blows and abdominal thrusts. Infants have different techniques, so formal training matters. If the person becomes unresponsive, call for help and begin CPR.",
+    "Cardiac arrest means the heart has stopped pumping effectively, so the brain and organs receive no oxygen. The person is unresponsive and not breathing normally (occasional gasping does not count). The key response is cardiopulmonary resuscitation (CPR). Chest compressions mimic the pump, and for adults they are delivered at the center of the chest, hard and fast, at a rate of about 100 to 120 per minute and a depth of about 5 to 6 cm (2 to 2.4 inches), allowing the chest to recoil fully, with minimal interruptions. Lay rescuers who are untrained may do compressions only; trained rescuers add rescue breaths in a ratio of 30 compressions to 2 breaths.",
+    "An AED analyzes the heart rhythm and delivers a shock only when it detects a shockable rhythm, such as ventricular fibrillation, in which the heart quivers chaotically. Pads are placed on the bare chest as shown on the device and voice prompts guide the rescuer. Early CPR and early defibrillation greatly improve survival, and for each minute of delay in defibrillation, the chance of survival drops substantially. Stay with the person until help arrives.",
+    "For other emergencies, remember the signs: face drooping, arm weakness and speech trouble suggest stroke, and every minute matters; call emergency services immediately."
+   ]
+  },
+  {
+   "id": "med-g912.l19",
+   "title": "Becoming a Clinician",
+   "body": [
+    "Healthcare is a team effort, and there are many ways into it. The details below describe the United States and vary elsewhere, and requirements change, so check current sources from schools and licensing boards.",
+    "To become a physician in the United States, a student typically completes an undergraduate degree with required science courses, takes the MCAT admissions exam, and applies to medical school, which is four years. The first years focus on basic science and the later years on clinical rotations through specialties. Graduates earn an MD (Doctor of Medicine) or a DO (Doctor of Osteopathic Medicine); both can be licensed to practice with full medical rights in all states, and DO training adds some emphasis on musculoskeletal manipulation. Next comes residency, a paid training position in a specialty that lasts about three years for primary care fields such as family medicine and longer for surgery and subspecialties. After residency, some pursue fellowship training. Throughout, licensing examinations and state licensure are required, and board certification demonstrates specialty competence. In total, this commonly spans a decade or more after high school.",
+    "Nursing has several routes. A licensed practical or vocational nurse completes a shorter program. A registered nurse earns an associate or bachelor degree in nursing and passes a national licensing exam. Advanced practice registered nurses, such as nurse practitioners, hold a graduate degree and can diagnose and treat patients with a scope of practice set by each state. Nurses spend more time at the bedside, carrying out care plans, monitoring patients, educating them and acting as their advocates.",
+    "Many other professions are essential. Physician assistants complete a master level program and practice with a team approach. Pharmacists hold a doctorate in pharmacy and are experts in drugs and interactions. Physical and occupational therapists restore function; respiratory therapists manage breathing support; medical laboratory scientists run diagnostic tests; paramedics and emergency medical technicians provide care in emergencies; dentists, psychologists and public health professionals also contribute. Biomedical scientists work in research on disease mechanisms and treatments, often with a PhD, and physician-scientists combine MD and PhD training.",
+    "For high school students, useful steps include strong science and math preparation, volunteering, shadowing clinicians, and learning basics such as CPR. Cost, workload and time are real factors, so exploring several careers helps match interests to a path."
+   ]
+  },
+  {
+   "id": "med-g912.l20",
+   "title": "Judging Health Claims and Misinformation",
+   "body": [
+    "Health information is everywhere, and much of it is wrong, exaggerated or sold for profit. The skills of evidence-based medicine apply to everyday claims, and learning to question a claim is a form of care for yourself and others.",
+    "Start with the source. Who is making the claim, and what do they gain? Government health agencies, university medical centers and professional societies publish reviewed guidance and disclose their evidence. A person selling a supplement, a diet program or a device has a financial interest in persuading you. Check whether the author has relevant expertise, and whether independent experts agree. Be cautious of a lone voice contradicting a large body of research, though experts do sometimes revise their views as evidence changes.",
+    "Next, look at the type of evidence. A personal story, called an anecdote, is not a controlled test: people tend to try a remedy when symptoms are at their worst and to improve later by chance, which leads them to credit the remedy. Studies in cells or animals are early steps and often do not translate into benefits for people. Randomized trials and systematic reviews give stronger evidence. A headline that says a food causes or cures a disease often rests on an observational link that may be confounded.",
+    "Watch for warning signs. Claims of a cure for many unrelated diseases, a secret that doctors are hiding, reliance on testimonials, urgent pressure to buy, and no mention of side effects are marks of a scam. Real treatments have both benefits and risks, and honest sources discuss both. Be careful with numbers: a relative change, for example doubling a very small risk, can sound frightening or exciting while the absolute change is tiny.",
+    "Natural does not mean safe. Many drugs originate in plants, and some herbal products interact with prescribed medicines or harm the liver. Supplements in the United States are not required to prove effectiveness before sale. Also remember that a treatment that has not been tested is not proven useless, but it is not proven helpful either.",
+    "A worked example: an influencer claims a juice cleanse removes toxins. Ask what toxins, how they were measured, and whether a trial compared it with a control. The liver and kidneys already clear waste, and no good evidence shows that such cleanses add benefit. When in doubt, ask a pharmacist or clinician and check a trustworthy public health source."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-g912.l01.q1",
+   "lessonId": "med-g912.l01",
+   "kind": "mcq",
+   "prompt": "In a homeostatic loop, which component compares the measured value with the set point?",
+   "choices": [
+    "The effector, such as a sweat gland",
+    "The stimulus, such as rising heat",
+    "The control center, such as the hypothalamus",
+    "The sensor, such as a skin thermoreceptor"
+   ]
+  },
+  {
+   "id": "med-g912.l01.q2",
+   "lessonId": "med-g912.l01",
+   "kind": "mcq",
+   "prompt": "Which statement best describes negative feedback?",
+   "choices": [
+    "The response strengthens the original change until a process is completed",
+    "The response causes a permanent shift of the set point away from its normal value",
+    "The response only occurs when the nervous system rather than hormones is involved in the control step",
+    "The response opposes the original change and so returns the variable toward its set point"
+   ]
+  },
+  {
+   "id": "med-g912.l01.q3",
+   "lessonId": "med-g912.l01",
+   "kind": "mcq",
+   "prompt": "After a large meal, blood glucose rises. Which sequence correctly describes the usual response?",
+   "choices": [
+    "Beta cells release insulin, tissues take up glucose and the liver stores it, so glucose falls",
+    "Alpha cells release glucagon, the liver releases glucose, so glucose falls further below the set point",
+    "Beta cells release insulin, the liver releases stored glucose, so glucose rises further",
+    "Alpha cells release glucagon, tissues take up glucose and the liver stores it"
+   ]
+  },
+  {
+   "id": "med-g912.l01.q4",
+   "lessonId": "med-g912.l01",
+   "kind": "mcq",
+   "prompt": "A patient with a fever reports feeling cold and begins shivering even though body temperature is already above 37 C. What best explains this?",
+   "choices": [
+    "Sweat glands are overactive, which has lowered the set point temporarily",
+    "Immune signals have raised the hypothalamic set point, so the body is working to reach a higher temperature",
+    "The hypothalamic sensors have failed, so the body cannot detect that it is already warm and keeps generating heat",
+    "Positive feedback in skin blood vessels is cooling the body below its set point"
+   ]
+  },
+  {
+   "id": "med-g912.l02.q1",
+   "lessonId": "med-g912.l02",
+   "kind": "mcq",
+   "prompt": "Why is the wall of the left ventricle thicker than the right?",
+   "choices": [
+    "It pumps blood through the lungs, which have the highest resistance",
+    "It must generate enough pressure to push blood through the whole systemic circuit",
+    "It must hold more total blood volume than any other chamber of the heart",
+    "It contains the sinoatrial node, which sets the heart rate and so needs extra muscle"
+   ]
+  },
+  {
+   "id": "med-g912.l02.q2",
+   "lessonId": "med-g912.l02",
+   "kind": "mcq",
+   "prompt": "Which structure is the heart's natural pacemaker?",
+   "choices": [
+    "The sinoatrial node",
+    "The atrioventricular node",
+    "The aortic valve",
+    "The coronary sinus"
+   ]
+  },
+  {
+   "id": "med-g912.l02.q3",
+   "lessonId": "med-g912.l02",
+   "kind": "mcq",
+   "prompt": "A resting adult has a heart rate of 70 beats per minute and a stroke volume of 70 mL. Approximately what is the cardiac output?",
+   "choices": [
+    "About 0.5 liters per minute",
+    "About 49 liters per minute",
+    "About 1.0 liters per minute",
+    "About 4.9 liters per minute"
+   ]
+  },
+  {
+   "id": "med-g912.l02.q4",
+   "lessonId": "med-g912.l02",
+   "kind": "mcq",
+   "prompt": "A drug causes widening of small arteries without changing heart rate or stroke volume. What is the most likely effect on blood pressure, and why?",
+   "choices": [
+    "It stays the same, because pressure depends only on cardiac output",
+    "It falls, because wider vessels lower cardiac output by reducing venous return only and so weaken contraction",
+    "It falls, because lower vascular resistance reduces pressure at the same cardiac output",
+    "It rises, because wider vessels raise the volume of blood in the heart"
+   ]
+  },
+  {
+   "id": "med-g912.l03.q1",
+   "lessonId": "med-g912.l03",
+   "kind": "mcq",
+   "prompt": "Where does gas exchange between air and blood occur?",
+   "choices": [
+    "Across the thin walls of alveoli and surrounding capillaries",
+    "Across the thick cartilage-supported walls of the bronchi as air flows through them",
+    "Inside the trachea, where air is warmed and moistened",
+    "Within the pleural space between the lung and chest wall"
+   ]
+  },
+  {
+   "id": "med-g912.l03.q2",
+   "lessonId": "med-g912.l03",
+   "kind": "mcq",
+   "prompt": "A person breathes rapidly and deeply during a panic attack. What happens to blood CO2 and pH?",
+   "choices": [
+    "CO2 is unchanged and pH is unchanged because the kidneys correct it instantly",
+    "CO2 falls and blood becomes less acidic (higher pH)",
+    "CO2 rises and blood becomes more acidic (lower pH)",
+    "CO2 falls and blood becomes more acidic (lower pH)"
+   ]
+  },
+  {
+   "id": "med-g912.l03.q3",
+   "lessonId": "med-g912.l03",
+   "kind": "mcq",
+   "prompt": "Which hormone causes the kidney collecting duct to reabsorb more water?",
+   "choices": [
+    "Erythropoietin",
+    "Glucagon",
+    "Antidiuretic hormone",
+    "Aldosterone"
+   ]
+  },
+  {
+   "id": "med-g912.l03.q4",
+   "lessonId": "med-g912.l03",
+   "kind": "mcq",
+   "prompt": "A man has had several days of severe vomiting and his blood has become alkaline. Which compensation is expected?",
+   "choices": [
+    "Faster breathing that blows off CO2 and so lowers carbonic acid",
+    "Increased kidney secretion of bicarbonate has no role because the lungs act alone",
+    "Increased kidney production of erythropoietin to buffer the pH",
+    "Slower breathing that retains CO2 and so raises carbonic acid"
+   ]
+  },
+  {
+   "id": "med-g912.l04.q1",
+   "lessonId": "med-g912.l04",
+   "kind": "mcq",
+   "prompt": "Which statement correctly contrasts the nervous and endocrine systems?",
+   "choices": [
+    "Nervous signals travel through blood, while hormonal signals travel along axons",
+    "Nervous signals are slow and widespread, while hormonal signals are fast and local to one organ",
+    "Only the endocrine system can influence heart rate and blood pressure",
+    "Nervous signals are fast and targeted, while hormonal signals are slower and last longer"
+   ]
+  },
+  {
+   "id": "med-g912.l04.q2",
+   "lessonId": "med-g912.l04",
+   "kind": "mcq",
+   "prompt": "Which autonomic branch increases heart rate and widens the airways during stress?",
+   "choices": [
+    "The somatic branch",
+    "The enteric branch",
+    "The sympathetic branch",
+    "The parasympathetic branch"
+   ]
+  },
+  {
+   "id": "med-g912.l04.q3",
+   "lessonId": "med-g912.l04",
+   "kind": "mcq",
+   "prompt": "In a patient whose thyroid gland itself has failed, what pattern of TSH and thyroid hormone is expected?",
+   "choices": [
+    "Low TSH with high thyroid hormone",
+    "High TSH with low thyroid hormone",
+    "Low TSH with low thyroid hormone",
+    "High TSH with high thyroid hormone"
+   ]
+  },
+  {
+   "id": "med-g912.l04.q4",
+   "lessonId": "med-g912.l04",
+   "kind": "mcq",
+   "prompt": "A patient has low thyroid hormone and a low TSH, and imaging shows a pituitary tumor. Why does this differ from primary thyroid failure?",
+   "choices": [
+    "The pituitary is not producing enough TSH, so the thyroid is under-stimulated rather than failing on its own",
+    "The thyroid is overproducing hormone, which suppresses the pituitary through positive feedback, lowering TSH and the output of the gland itself",
+    "The hypothalamus is releasing too much releasing hormone, which raises TSH",
+    "The thyroid gland is healthy and low hormone is caused by high TSH"
+   ]
+  },
+  {
+   "id": "med-g912.l05.q1",
+   "lessonId": "med-g912.l05",
+   "kind": "mcq",
+   "prompt": "Which sign of inflammation is caused mainly by increased blood flow to the injured area?",
+   "choices": [
+    "Loss of function only",
+    "Scar formation",
+    "Redness and warmth",
+    "Pain only"
+   ]
+  },
+  {
+   "id": "med-g912.l05.q2",
+   "lessonId": "med-g912.l05",
+   "kind": "mcq",
+   "prompt": "Which cell type is typically the first to arrive in large numbers in acute bacterial inflammation?",
+   "choices": [
+    "Macrophages",
+    "Plasma cells",
+    "Red blood cells",
+    "Neutrophils"
+   ]
+  },
+  {
+   "id": "med-g912.l05.q3",
+   "lessonId": "med-g912.l05",
+   "kind": "mcq",
+   "prompt": "Why does a heart attack that kills heart muscle often leave lasting weakness even after healing?",
+   "choices": [
+    "Cardiac muscle mainly heals by collagen scar, which does not contract like muscle",
+    "Cardiac muscle regenerates fully but only after the inflammatory phase has been blocked",
+    "Necrosis in the heart is replaced by apoptosis of neighboring vessels",
+    "Healing in the heart is prevented because neutrophils cannot enter cardiac tissue"
+   ]
+  },
+  {
+   "id": "med-g912.l05.q4",
+   "lessonId": "med-g912.l05",
+   "kind": "mcq",
+   "prompt": "A patient takes ibuprofen for a swollen, painful ankle after a sprain. Which statement best explains why it relieves pain and swelling?",
+   "choices": [
+    "It increases histamine release, which shuts down the vessel leakiness",
+    "It blocks enzymes that make prostaglandins, which are mediators of pain and inflammation",
+    "It destroys neutrophils at the site, so the inflammatory process cannot continue and tissue heals sooner",
+    "It removes the cause of the injury by speeding collagen scar formation"
+   ]
+  },
+  {
+   "id": "med-g912.l06.q1",
+   "lessonId": "med-g912.l06",
+   "kind": "mcq",
+   "prompt": "Why are antibiotics ineffective against the common cold?",
+   "choices": [
+    "Colds produce toxins that antibiotics cannot neutralize",
+    "Colds are caused by viruses, and antibiotics target bacterial structures",
+    "Colds are caused by fungi, which have different cell walls",
+    "Colds are caused by parasites that live inside red blood cells and are cleared by the spleen"
+   ]
+  },
+  {
+   "id": "med-g912.l06.q2",
+   "lessonId": "med-g912.l06",
+   "kind": "mcq",
+   "prompt": "Which cell is the direct source of the antibodies released into the blood?",
+   "choices": [
+    "Plasma cells, the differentiated form of B cells",
+    "Neutrophils, the first phagocytes to arrive",
+    "Cytotoxic T cells, which kill infected cells",
+    "Platelets, the fragments that form clots"
+   ]
+  },
+  {
+   "id": "med-g912.l06.q3",
+   "lessonId": "med-g912.l06",
+   "kind": "mcq",
+   "prompt": "How does a vaccine provide protection against a later infection?",
+   "choices": [
+    "It supplies finished antibodies that persist for the whole life of the person without any immune cell involvement",
+    "It kills all bacteria in the body before they can multiply",
+    "It permanently raises the activity of neutrophils",
+    "It creates memory cells so a later exposure triggers a faster, stronger response"
+   ]
+  },
+  {
+   "id": "med-g912.l06.q4",
+   "lessonId": "med-g912.l06",
+   "kind": "mcq",
+   "prompt": "A patient stops a prescribed antibiotic early because they feel better, and weeks later the infection returns and no longer responds to the same drug. Which mechanism best explains the second result?",
+   "choices": [
+    "The patient developed an allergy that blocked the drug from reaching the bacteria",
+    "The drug converted to a form that now stimulates bacterial growth",
+    "Surviving bacteria carrying resistance traits were selected and then multiplied",
+    "The antibiotic taught the bacteria which of its targets to modify in the patient immune system"
+   ]
+  },
+  {
+   "id": "med-g912.l07.q1",
+   "lessonId": "med-g912.l07",
+   "kind": "mcq",
+   "prompt": "In cancer biology, what does the term metastasis describe?",
+   "choices": [
+    "Spread of cancer cells to distant sites through blood or lymph",
+    "Growth of a benign tumor that stays encapsulated in its tissue",
+    "Repair of damaged DNA by tumor suppressor genes",
+    "Death of a cancer cell by programmed self-destruction"
+   ]
+  },
+  {
+   "id": "med-g912.l07.q2",
+   "lessonId": "med-g912.l07",
+   "kind": "mcq",
+   "prompt": "Which description fits a tumor suppressor gene such as TP53?",
+   "choices": [
+    "A gene that is only present in cancer cells",
+    "A brake or repair gene whose loss lets damaged cells keep dividing",
+    "An accelerator gene that must be switched on to cause cell division",
+    "A gene that produces antibodies against tumor cells"
+   ]
+  },
+  {
+   "id": "med-g912.l07.q3",
+   "lessonId": "med-g912.l07",
+   "kind": "mcq",
+   "prompt": "A cancer that arises from epithelial cells lining the colon is best classified as which type?",
+   "choices": [
+    "Lymphoma",
+    "Leukemia",
+    "Carcinoma",
+    "Sarcoma"
+   ]
+  },
+  {
+   "id": "med-g912.l07.q4",
+   "lessonId": "med-g912.l07",
+   "kind": "mcq",
+   "prompt": "A patient receiving chemotherapy has nausea and hair loss. Which explanation best accounts for both effects?",
+   "choices": [
+    "Chemotherapy drugs selectively target neurons and so disrupt hair growth cycles and gut motility through the nervous system",
+    "Chemotherapy causes oncogene activation in normal cells of the gut and scalp, which triggers nausea and hair shedding",
+    "Chemotherapy triggers metastasis of the tumor to the skin and stomach",
+    "Many chemotherapy drugs damage all rapidly dividing cells, including gut lining and hair follicle cells"
+   ]
+  },
+  {
+   "id": "med-g912.l08.q1",
+   "lessonId": "med-g912.l08",
+   "kind": "mcq",
+   "prompt": "In autosomal recessive disease, two carrier parents have what chance of an affected child in each pregnancy?",
+   "choices": [
+    "1 in 2",
+    "3 in 4",
+    "Almost zero",
+    "1 in 4"
+   ]
+  },
+  {
+   "id": "med-g912.l08.q2",
+   "lessonId": "med-g912.l08",
+   "kind": "mcq",
+   "prompt": "Which condition is the best example of an autoimmune disease?",
+   "choices": [
+    "Sickle cell disease, where hemoglobin forms stiff fibers",
+    "Down syndrome, which results from an extra chromosome 21",
+    "Type 1 diabetes, where T cells destroy insulin-producing beta cells",
+    "Cystic fibrosis, where a chloride channel is defective and mucus thickens"
+   ]
+  },
+  {
+   "id": "med-g912.l08.q3",
+   "lessonId": "med-g912.l08",
+   "kind": "mcq",
+   "prompt": "Which pattern of inheritance explains why males are more often affected by hemophilia A than females?",
+   "choices": [
+    "Autosomal recessive, because males have fewer autosomes",
+    "X-linked recessive, because males have only one X chromosome",
+    "Autosomal dominant, because males carry more dominant alleles",
+    "Mitochondrial inheritance, because males pass it to all sons"
+   ]
+  },
+  {
+   "id": "med-g912.l08.q4",
+   "lessonId": "med-g912.l08",
+   "kind": "mcq",
+   "prompt": "A couple are both carriers of a CF variant and their first child is unaffected. What is the probability their second child is affected?",
+   "choices": [
+    "1 in 4, because each pregnancy is an independent event",
+    "1 in 3, because the first child lowers the remaining risk",
+    "1 in 2, because one allele has already been passed on",
+    "Near zero, because the unaffected first child used up the affected combination"
+   ]
+  },
+  {
+   "id": "med-g912.l09.q1",
+   "lessonId": "med-g912.l09",
+   "kind": "mcq",
+   "prompt": "What is the basic defect in type 1 diabetes?",
+   "choices": [
+    "Overproduction of glucagon by the liver in response to a high-fat diet",
+    "Failure of the kidney tubule to reabsorb glucose from the filtrate",
+    "Autoimmune destruction of pancreatic beta cells, so little insulin is made",
+    "Resistance of muscle and fat cells to insulin despite high insulin output by the pancreas"
+   ]
+  },
+  {
+   "id": "med-g912.l09.q2",
+   "lessonId": "med-g912.l09",
+   "kind": "mcq",
+   "prompt": "Hemoglobin A1c is useful because it reflects what?",
+   "choices": [
+    "Blood glucose at the instant of the blood draw",
+    "The amount of insulin made by the pancreas in the past week or so of fasting",
+    "The ketone level in the blood over the past day",
+    "Average blood glucose over roughly the previous two to three months"
+   ]
+  },
+  {
+   "id": "med-g912.l09.q3",
+   "lessonId": "med-g912.l09",
+   "kind": "mcq",
+   "prompt": "A man with long-standing type 2 diabetes develops numbness in his feet and reduced vision. What is the most likely general explanation?",
+   "choices": [
+    "Prolonged high glucose damages small blood vessels and nerves, causing neuropathy and retinopathy",
+    "Excess insulin has directly destroyed peripheral nerve endings and the cells of the retina over time",
+    "Ketone accumulation causes permanent loss of retinal cells within days and of the peripheral nerves",
+    "The pancreas is producing autoantibodies against the optic nerve"
+   ]
+  },
+  {
+   "id": "med-g912.l09.q4",
+   "lessonId": "med-g912.l09",
+   "kind": "mcq",
+   "prompt": "A 15-year-old with known type 1 diabetes has two days of vomiting and abdominal pain, deep rapid breathing, a fruity breath odor and a glucose of 450 mg/dL. What process best explains the rapid deep breathing?",
+   "choices": [
+    "Insulin excess causing a drop in brain glucose that stimulates the brainstem",
+    "Respiratory compensation for metabolic acidosis from ketone accumulation",
+    "Respiratory compensation for metabolic alkalosis from vomiting",
+    "Primary lung disease that is causing abnormally high blood oxygen and low CO2"
+   ]
+  },
+  {
+   "id": "med-g912.l10.q1",
+   "lessonId": "med-g912.l10",
+   "kind": "mcq",
+   "prompt": "Which of the following best describes systolic blood pressure?",
+   "choices": [
+    "The peak pressure in the arteries when the ventricle contracts",
+    "The lowest pressure in the arteries between heartbeats, when the ventricle relaxes",
+    "The pressure within the veins returning to the right atrium",
+    "The pressure inside the lungs during inspiration"
+   ]
+  },
+  {
+   "id": "med-g912.l10.q2",
+   "lessonId": "med-g912.l10",
+   "kind": "mcq",
+   "prompt": "Why do statin drugs lower LDL cholesterol?",
+   "choices": [
+    "They widen coronary arteries by relaxing smooth muscle",
+    "They inhibit HMG-CoA reductase, an enzyme in cholesterol synthesis in the liver",
+    "They block cholesterol absorption by binding to dietary fat in the intestine only",
+    "They dissolve plaques by activating clot-breaking enzymes"
+   ]
+  },
+  {
+   "id": "med-g912.l10.q3",
+   "lessonId": "med-g912.l10",
+   "kind": "mcq",
+   "prompt": "What event most directly causes a sudden heart attack in a person with coronary atherosclerosis?",
+   "choices": [
+    "A sudden rise in HDL cholesterol that destabilizes the vessel wall",
+    "Direct bacterial invasion of the heart muscle",
+    "Rupture of a plaque followed by clot formation that blocks the artery",
+    "Gradual narrowing of the artery to exactly half its original width over several decades"
+   ]
+  },
+  {
+   "id": "med-g912.l10.q4",
+   "lessonId": "med-g912.l10",
+   "kind": "mcq",
+   "prompt": "A 58-year-old smoker with untreated hypertension and diabetes reports chest pressure on exertion that resolves with rest. Which mechanism best explains the symptom?",
+   "choices": [
+    "Sudden complete clot formation that destroys heart muscle even at rest",
+    "Inflammation of the pericardium causing pain that worsens with breathing and lying flat",
+    "Spasm of the esophagus due to reflux of stomach acid, triggered by exertion and relieved by antacids",
+    "Fixed narrowing of coronary arteries limits blood supply when oxygen demand rises with exertion"
+   ]
+  },
+  {
+   "id": "med-g912.l11.q1",
+   "lessonId": "med-g912.l11",
+   "kind": "mcq",
+   "prompt": "Which feature best distinguishes asthma from COPD?",
+   "choices": [
+    "Asthma never involves inflammation of the airway lining",
+    "Airflow narrowing in asthma is variable and largely reversible",
+    "Asthma is always caused by smoking while COPD is not",
+    "Asthma only affects the alveoli, while COPD only affects the bronchi"
+   ]
+  },
+  {
+   "id": "med-g912.l11.q2",
+   "lessonId": "med-g912.l11",
+   "kind": "mcq",
+   "prompt": "How does albuterol relieve acute wheezing?",
+   "choices": [
+    "It stimulates beta-2 receptors, relaxing bronchial smooth muscle",
+    "It blocks beta-2 receptors, which prevents the airway from relaxing",
+    "It reduces airway inflammation over several weeks",
+    "It dries mucus by stopping the glands from producing fluid"
+   ]
+  },
+  {
+   "id": "med-g912.l11.q3",
+   "lessonId": "med-g912.l11",
+   "kind": "mcq",
+   "prompt": "Why does a small decrease in airway radius cause a large increase in resistance?",
+   "choices": [
+    "Narrow airways produce more oxygen, which stalls airflow",
+    "Resistance is unaffected by radius but depends only on airway length",
+    "Narrowing increases the lung surface area for gas exchange",
+    "Resistance to flow rises steeply as the radius of a tube shrinks"
+   ]
+  },
+  {
+   "id": "med-g912.l11.q4",
+   "lessonId": "med-g912.l11",
+   "kind": "mcq",
+   "prompt": "A child with asthma uses a short-acting albuterol reliever several times a week and wakes at night with cough, but is not on any controller medicine. Which reasoning best explains why more frequent symptoms are expected?",
+   "choices": [
+    "The bronchial smooth muscle has been replaced by scar tissue from the inhaler over several weeks of use",
+    "The cough is due to excess drug accumulating in the alveoli",
+    "The airway inflammation is untreated, since relievers relax muscle but do not reduce inflammation",
+    "The reliever is destroying beta-2 receptors, which prevents normal breathing and thickens the mucus"
+   ]
+  },
+  {
+   "id": "med-g912.l12.q1",
+   "lessonId": "med-g912.l12",
+   "kind": "mcq",
+   "prompt": "Which pair correctly lists pharmacokinetic processes?",
+   "choices": [
+    "Binding and activation of receptors",
+    "Selectivity and potency",
+    "Absorption and metabolism",
+    "Agonism and antagonism"
+   ]
+  },
+  {
+   "id": "med-g912.l12.q2",
+   "lessonId": "med-g912.l12",
+   "kind": "mcq",
+   "prompt": "A drug that binds a receptor and blocks it without activating it is called what?",
+   "choices": [
+    "An agonist",
+    "A prodrug",
+    "A substrate",
+    "An antagonist"
+   ]
+  },
+  {
+   "id": "med-g912.l12.q3",
+   "lessonId": "med-g912.l12",
+   "kind": "mcq",
+   "prompt": "Why can liver disease increase the risk of toxicity from some oral drugs?",
+   "choices": [
+    "Reduced liver metabolism, including less first-pass clearance, leaves more active drug in circulation",
+    "The liver stops absorbing the drug from the intestine, so it accumulates in the gut and causes toxicity there",
+    "Liver disease makes the kidneys produce more cytochrome P450 enzymes, which breaks the drug down faster",
+    "The drug can no longer bind to its receptor because the liver changes the receptor shape"
+   ]
+  },
+  {
+   "id": "med-g912.l12.q4",
+   "lessonId": "med-g912.l12",
+   "kind": "mcq",
+   "prompt": "A patient on a narrow-therapeutic-index blood thinner starts a new medicine that inhibits the liver enzyme that clears the blood thinner. What is the expected consequence?",
+   "choices": [
+    "Faster conversion of the blood thinner to an inactive form",
+    "Higher blood thinner levels with increased risk of bleeding",
+    "Lower blood thinner levels with increased risk of clotting",
+    "No change, since the kidneys fully compensate for liver enzyme inhibition"
+   ]
+  },
+  {
+   "id": "med-g912.l13.q1",
+   "lessonId": "med-g912.l13",
+   "kind": "mcq",
+   "prompt": "Which blood protein is a key marker of heart muscle cell death in suspected heart attack?",
+   "choices": [
+    "Creatinine",
+    "Alanine aminotransferase",
+    "Hemoglobin",
+    "Troponin"
+   ]
+  },
+  {
+   "id": "med-g912.l13.q2",
+   "lessonId": "med-g912.l13",
+   "kind": "mcq",
+   "prompt": "A test that rarely misses people who have the disease is described as having high what?",
+   "choices": [
+    "Prevalence",
+    "Incidence",
+    "Sensitivity",
+    "Specificity"
+   ]
+  },
+  {
+   "id": "med-g912.l13.q3",
+   "lessonId": "med-g912.l13",
+   "kind": "mcq",
+   "prompt": "A rising serum creatinine on repeat blood tests most directly suggests which problem?",
+   "choices": [
+    "Decreased red cell production",
+    "Reduced kidney filtration",
+    "Reduced platelet production",
+    "Increased insulin secretion"
+   ]
+  },
+  {
+   "id": "med-g912.l13.q4",
+   "lessonId": "med-g912.l13",
+   "kind": "mcq",
+   "prompt": "A screening test has 95 percent sensitivity and 95 percent specificity and is applied to a population where the disease affects 1 in 1000. Why will most positive results be false?",
+   "choices": [
+    "Because healthy people vastly outnumber diseased people, so the small false positive rate yields many more false alarms than true cases",
+    "Because 95 percent sensitivity means that 95 percent of positives are false",
+    "Because specificity falls automatically when disease prevalence is low",
+    "Because screening tests always give positive results in healthy people"
+   ]
+  },
+  {
+   "id": "med-g912.l14.q1",
+   "lessonId": "med-g912.l14",
+   "kind": "mcq",
+   "prompt": "Which imaging method uses no ionizing radiation and is commonly used first to examine a fetus?",
+   "choices": [
+    "Ultrasound",
+    "Computed tomography",
+    "Plain X-ray",
+    "PET scanning"
+   ]
+  },
+  {
+   "id": "med-g912.l14.q2",
+   "lessonId": "med-g912.l14",
+   "kind": "mcq",
+   "prompt": "Why must patients be screened for certain metal implants before MRI?",
+   "choices": [
+    "Metal causes allergic reactions to the contrast dye used in every MRI and clots the dye in blood vessels",
+    "The MRI scanner uses a very strong magnetic field that can move or heat some metal devices",
+    "The scanner emits high doses of ionizing radiation that metal reflects back onto the patient skin",
+    "The metal absorbs sound waves and distorts the ultrasound image"
+   ]
+  },
+  {
+   "id": "med-g912.l14.q3",
+   "lessonId": "med-g912.l14",
+   "kind": "mcq",
+   "prompt": "A patient arrives after a head injury and the clinician needs the fastest test to look for bleeding inside the skull. Which is most appropriate?",
+   "choices": [
+    "An ultrasound of the skull surface",
+    "A plain X-ray of the neck only",
+    "A CT scan of the head",
+    "A PET scan with a tracer"
+   ]
+  },
+  {
+   "id": "med-g912.l14.q4",
+   "lessonId": "med-g912.l14",
+   "kind": "mcq",
+   "prompt": "A healthy pregnant woman has right-sided abdominal pain. Which approach best weighs risk and benefit for the first imaging step?",
+   "choices": [
+    "CT first, because it always gives the clearest image regardless of radiation exposure",
+    "PET first, because it shows metabolic activity of the appendix and avoids any need for sound waves",
+    "No imaging ever, because every imaging method is harmful during pregnancy",
+    "Ultrasound first, because it avoids radiation and can answer many abdominal questions"
+   ]
+  },
+  {
+   "id": "med-g912.l15.q1",
+   "lessonId": "med-g912.l15",
+   "kind": "mcq",
+   "prompt": "What does prevalence measure?",
+   "choices": [
+    "The fraction of deaths among all cases",
+    "The number of existing cases at a point in time",
+    "The number of new cases over a period",
+    "The average number of people infected by one case"
+   ]
+  },
+  {
+   "id": "med-g912.l15.q2",
+   "lessonId": "med-g912.l15",
+   "kind": "mcq",
+   "prompt": "Which study design starts with people who already have a disease and compares them with similar people without it?",
+   "choices": [
+    "Case-control study",
+    "Randomized controlled trial",
+    "Cohort study",
+    "Systematic review"
+   ]
+  },
+  {
+   "id": "med-g912.l15.q3",
+   "lessonId": "med-g912.l15",
+   "kind": "mcq",
+   "prompt": "A pathogen has a basic reproduction number R0 of 4. Using the simple threshold formula, roughly what fraction of the population must be immune to stop sustained spread?",
+   "choices": [
+    "About 25 percent",
+    "About 40 percent",
+    "About 90 percent",
+    "About 75 percent"
+   ]
+  },
+  {
+   "id": "med-g912.l15.q4",
+   "lessonId": "med-g912.l15",
+   "kind": "mcq",
+   "prompt": "A study finds that people who carry lighters have higher rates of lung cancer. What is the best interpretation?",
+   "choices": [
+    "Lung cancer causes people to carry lighters, which proves reverse causation and explains the whole association",
+    "The association proves that carrying objects in the pocket raises cancer risk",
+    "Smoking is a confounder linked to both lighter carrying and lung cancer, so lighters are unlikely to be causal",
+    "Lighters emit chemicals that directly cause lung cancer at the same rate as tobacco smoke in people who never smoke"
+   ]
+  },
+  {
+   "id": "med-g912.l16.q1",
+   "lessonId": "med-g912.l16",
+   "kind": "mcq",
+   "prompt": "What is the main purpose of random assignment in a clinical trial?",
+   "choices": [
+    "To make sure participants know which treatment they get",
+    "To increase the number of participants who drop out",
+    "To balance known and unknown differences between groups by chance",
+    "To guarantee that every participant improves on the study drug during follow-up"
+   ]
+  },
+  {
+   "id": "med-g912.l16.q2",
+   "lessonId": "med-g912.l16",
+   "kind": "mcq",
+   "prompt": "Which statement about a p-value below 0.05 is most accurate?",
+   "choices": [
+    "The treatment is proven to work in every patient who was enrolled in the trial",
+    "There is a 95 percent chance the treatment effect is clinically important",
+    "The trial must have been free of bias, confounding and measurement error",
+    "The observed data would be fairly surprising if the treatment truly had no effect"
+   ]
+  },
+  {
+   "id": "med-g912.l16.q3",
+   "lessonId": "med-g912.l16",
+   "kind": "mcq",
+   "prompt": "A drug reduces the risk of an event from 4 percent to 3 percent. What is the number needed to treat?",
+   "choices": [
+    "100",
+    "4",
+    "25",
+    "1"
+   ]
+  },
+  {
+   "id": "med-g912.l16.q4",
+   "lessonId": "med-g912.l16",
+   "kind": "mcq",
+   "prompt": "A trial of a new cholesterol drug reports that the drug lowers a blood lab value more than placebo but does not report whether heart attacks or deaths changed. What is the key limitation?",
+   "choices": [
+    "It measured too many participants, which makes the p-value invalid",
+    "It used a surrogate outcome, so benefit on patient-centered outcomes is not shown",
+    "It lacked a placebo group, so improvement cannot be attributed to the drug alone",
+    "It used randomization, which prevents any claim about the lab value"
+   ]
+  },
+  {
+   "id": "med-g912.l17.q1",
+   "lessonId": "med-g912.l17",
+   "kind": "mcq",
+   "prompt": "Which ethical principle refers to respecting a patient right to make informed decisions about their own care?",
+   "choices": [
+    "Justice",
+    "Beneficence",
+    "Nonmaleficence",
+    "Autonomy"
+   ]
+  },
+  {
+   "id": "med-g912.l17.q2",
+   "lessonId": "med-g912.l17",
+   "kind": "mcq",
+   "prompt": "Which element is required for valid informed consent?",
+   "choices": [
+    "A family member signs for any adult regardless of the adult ability to decide or wishes",
+    "The patient is told only the benefits of treatment, to avoid causing unnecessary anxiety",
+    "The patient has decision-making capacity and is told about the risks, benefits and alternatives",
+    "The clinician recommends the treatment and the patient does not object"
+   ]
+  },
+  {
+   "id": "med-g912.l17.q3",
+   "lessonId": "med-g912.l17",
+   "kind": "mcq",
+   "prompt": "An unconscious adult arrives at an emergency department with a life-threatening bleed and no surrogate can be reached. How is treatment generally justified?",
+   "choices": [
+    "By waiting until the patient regains consciousness before taking any action",
+    "By emergency exception, since delay would risk serious harm and a reasonable person would be presumed to consent",
+    "By the adult being presumed to refuse, since nobody has given permission, which forbids any treatment until a surrogate is found",
+    "By requiring a court order before any treatment may begin"
+   ]
+  },
+  {
+   "id": "med-g912.l17.q4",
+   "lessonId": "med-g912.l17",
+   "kind": "mcq",
+   "prompt": "A 45-year-old with decision-making capacity declines a recommended operation after a thorough discussion of risks and benefits. Her surgeon believes the choice is mistaken. What is the ethically appropriate response?",
+   "choices": [
+    "Respect the refusal, document the discussion, and continue to offer alternatives and support",
+    "Proceed with the operation because beneficence outweighs autonomy when the surgeon is certain",
+    "Call her family so they can authorize the operation over her objection",
+    "Declare that she lacks capacity because she disagreed with the surgeon"
+   ]
+  },
+  {
+   "id": "med-g912.l18.q1",
+   "lessonId": "med-g912.l18",
+   "kind": "mcq",
+   "prompt": "What is the first thing a rescuer should do on finding a collapsed person?",
+   "choices": [
+    "Check that the scene is safe, then check responsiveness and call for help",
+    "Begin rescue breaths at once, before checking the scene or the responsiveness of the person",
+    "Move the person to a car for transport to a hospital",
+    "Give food or drink to see if the person wakes up"
+   ]
+  },
+  {
+   "id": "med-g912.l18.q2",
+   "lessonId": "med-g912.l18",
+   "kind": "mcq",
+   "prompt": "For adult CPR, approximately what compression rate and depth are recommended?",
+   "choices": [
+    "About 30 per minute, about 3 cm deep",
+    "About 100 to 120 per minute, about 5 to 6 cm deep",
+    "About 60 to 80 per minute, about 1 to 2 cm deep",
+    "About 140 to 160 per minute, about 8 to 9 cm deep"
+   ]
+  },
+  {
+   "id": "med-g912.l18.q3",
+   "lessonId": "med-g912.l18",
+   "kind": "mcq",
+   "prompt": "What does an automated external defibrillator do when it analyzes a heart rhythm?",
+   "choices": [
+    "It records the rhythm but never delivers a shock",
+    "It replaces the need for chest compressions entirely",
+    "It delivers a shock only if it detects a shockable rhythm such as ventricular fibrillation",
+    "It delivers a shock to every person regardless of rhythm to restart the heart at maximum energy"
+   ]
+  },
+  {
+   "id": "med-g912.l18.q4",
+   "lessonId": "med-g912.l18",
+   "kind": "mcq",
+   "prompt": "A bystander finds an adult who is unresponsive, not breathing normally and only occasionally gasping. A defibrillator is nearby, and the bystander is untrained in rescue breaths. What is the best action?",
+   "choices": [
+    "Wait to see whether the gasping improves before taking any action or the person starts to breathe normally again",
+    "Give only rescue breaths because compressions can harm the ribs",
+    "Raise the legs and give water to restore blood pressure",
+    "Call emergency services, start hard fast chest compressions, and have the AED brought and used"
+   ]
+  },
+  {
+   "id": "med-g912.l19.q1",
+   "lessonId": "med-g912.l19",
+   "kind": "mcq",
+   "prompt": "What is residency in the United States physician pathway?",
+   "choices": [
+    "A short volunteer program done in high school",
+    "Paid, supervised specialty training taken after medical school",
+    "The first two years of undergraduate premedical study",
+    "The licensing exam taken before applying to medical school"
+   ]
+  },
+  {
+   "id": "med-g912.l19.q2",
+   "lessonId": "med-g912.l19",
+   "kind": "mcq",
+   "prompt": "Which professional typically holds a doctorate focused on medication expertise and drug interactions?",
+   "choices": [
+    "A pharmacist",
+    "A respiratory therapist",
+    "A registered nurse",
+    "A medical laboratory scientist"
+   ]
+  },
+  {
+   "id": "med-g912.l19.q3",
+   "lessonId": "med-g912.l19",
+   "kind": "mcq",
+   "prompt": "Which statement about MD and DO physicians in the United States is most accurate?",
+   "choices": [
+    "Only MD physicians may prescribe medication, since DO graduates train as assistants",
+    "DO physicians are not allowed to perform surgery",
+    "DO training excludes any clinical rotations",
+    "Both can be licensed to practice medicine in all states and train in residencies"
+   ]
+  },
+  {
+   "id": "med-g912.l19.q4",
+   "lessonId": "med-g912.l19",
+   "kind": "mcq",
+   "prompt": "A student wants a clinical career with direct patient care, hands-on bedside work and a shorter route than medical school, but is open to later advancing to prescribing roles. Which path best fits?",
+   "choices": [
+    "Becoming a medical researcher without any laboratory training or advanced degree",
+    "Becoming a hospital administrator who must hold a medical license",
+    "Becoming a registered nurse, with the option of graduate training to become a nurse practitioner",
+    "Becoming a pathologist directly after high school through a short certificate program"
+   ]
+  },
+  {
+   "id": "med-g912.l20.q1",
+   "lessonId": "med-g912.l20",
+   "kind": "mcq",
+   "prompt": "Why is a personal testimonial weak evidence that a remedy works?",
+   "choices": [
+    "Testimonials cannot describe symptoms in any way",
+    "People often try remedies at their worst and improve by chance, crediting the remedy",
+    "Testimonials are always false and are written by the sellers of the remedy",
+    "A remedy cannot work if people share its results online"
+   ]
+  },
+  {
+   "id": "med-g912.l20.q2",
+   "lessonId": "med-g912.l20",
+   "kind": "mcq",
+   "prompt": "A website sells a supplement that it says cures cancer, diabetes and arthritis, and claims doctors hide the truth. Which feature is the strongest warning sign?",
+   "choices": [
+    "A single product claimed to cure many unrelated serious diseases",
+    "The use of a clear photograph of the product",
+    "A statement of the manufacturer address",
+    "A listed ingredient with a Latin name"
+   ]
+  },
+  {
+   "id": "med-g912.l20.q3",
+   "lessonId": "med-g912.l20",
+   "kind": "mcq",
+   "prompt": "Which statement about natural remedies is most accurate?",
+   "choices": [
+    "Natural products are always safer than any synthetic drug because they come from living organisms",
+    "Natural products cannot contain active chemicals because they are not manufactured",
+    "Natural products are tested like drugs before being sold in the United States",
+    "Natural does not mean safe, since some plant products harm the liver or interact with prescribed medicines"
+   ]
+  },
+  {
+   "id": "med-g912.l20.q4",
+   "lessonId": "med-g912.l20",
+   "kind": "mcq",
+   "prompt": "A headline says a new food doubles your risk of a rare disease. The underlying risk without the food is 1 in 10000. What is the most useful reading?",
+   "choices": [
+    "The risk is unchanged because rare diseases cannot be affected by diet of any food",
+    "The headline proves that the food causes the disease",
+    "The absolute risk rises to about 2 in 10000, a small absolute change despite sounding large",
+    "The risk rises to 1 in 2, which is a very high chance of developing the disease"
+   ]
+  }
+ ]
+}

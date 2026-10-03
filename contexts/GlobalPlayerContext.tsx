@@ -126,6 +126,9 @@ interface GlobalPlayerContextType {
   setVisualizerType: (t: 'FLOW' | 'PAINT') => void;
   isSlideshowActive: boolean;
   setIsSlideshowActive: (val: boolean) => void;
+  /** Explicit fullscreen modal takeover for slideshow. Only true on deliberate user action. */
+  isFullscreenSlideshowActive: boolean;
+  setIsFullscreenSlideshowActive: (val: boolean) => void;
   /** The TV FX Stage (audio-reactive visualizer) fullscreen takeover. */
   isTvFxActive: boolean;
   setIsTvFxActive: (val: boolean) => void;
@@ -229,6 +232,27 @@ const setSessionPosition = (audio: HTMLAudioElement | null) => {
   try { navigator.mediaSession.setPositionState({ duration: d, position: p, playbackRate: rate }); } catch { /* */ }
 };
 
+const syncToNativeAudioPlugin = (track: Track | null, album: Album | null, isPlaying: boolean) => {
+  if (!track) return;
+  const plajahNative = (window as any).Capacitor?.Plugins?.PlajahNativeAudio;
+  if (!plajahNative?.syncTrackInfo) return;
+  const src = toAbsoluteUrl(track.images?.[0] || (track as any).albumCover || album?.coverImage);
+  const streamUrl = track.audioUrl || (track as any).streamUrl || (track as any).url;
+  try {
+    plajahNative.syncTrackInfo({
+      title: track.title || 'Unknown Title',
+      artist: album?.artist || track.artist || 'Unknown Artist',
+      album: album?.title || (track as any).albumTitle || 'Plajah Chora',
+      artworkUrl: src || null,
+      durationMs: track.duration ? track.duration * 1000 : 0,
+      isPlaying,
+      streamUrl: streamUrl || null,
+    });
+  } catch {
+    // ignore
+  }
+};
+
 export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [currentAlbum, setCurrentAlbum] = useState<Album | null>(null);
@@ -257,6 +281,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled] = useState(true);
   const [visualizerType, setVisualizerType] = useState<'FLOW' | 'PAINT'>('FLOW');
   const [isSlideshowActive, setSlideshowActiveRaw] = useState(false);
+  const [isFullscreenSlideshowActive, setIsFullscreenSlideshowActive] = useState(false);
   const [isTvFxActive, setIsTvFxActive] = useState(false);
   const [isSlideshowAuto, setIsSlideshowAuto] = useState(false);
   // Every explicit listener toggle drops the auto marker — once they've chosen, the choice is
@@ -448,6 +473,14 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         });
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 2048;
+        // High-responsiveness tuning for desktop and mobile:
+        // 0.62 provides sharp, immediate transient response on drum kicks and synth drops,
+        // eliminating the sluggish 0.80 lag while maintaining smooth visual decay.
+        analyser.smoothingTimeConstant = 0.62;
+        // Expanded dynamic range (-85 dB to -15 dB) captures quiet nuances and prevents
+        // saturation/flatness on modern mastered audio.
+        analyser.minDecibels = -85;
+        analyser.maxDecibels = -15;
         analyserRef.current = analyser;
         setAnalyserEpoch(e => e + 1); // re-publish the now-live analyser to consumers
         // DJ carry-over filter — starts transparent (lowpass wide open), so it's inert until
@@ -634,23 +667,39 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Best-effort and idempotent: unsupported (older iOS) or CORS-tainted media simply yields no tap
   // and the visuals degrade to their previous non-reactive state — never a regression, never audio
   // loss. Consumers should call this when they actually need reactivity (e.g. opening a Mix).
-  const ensureAnalyserTap = useCallback(() => {
+  const ensureAnalyserTap = useCallback((force = false) => {
     const onTv = getPlatformInfo().isTV;
-    if (!isPhoneNotTv() && !onTv) return;         // desktop is already fed via connectAudioSource
-    if (sourceRef.current || tapSourceRef.current) return; // already routed/tapped
+    const isPhone = isPhoneNotTv();
+
+    // If already routed or tapped, only proceed if forced (e.g. signal is flat/silent)
+    if (!force && (sourceRef.current || tapSourceRef.current)) return;
+
     initAudioContext();
     const ctx = audioContextRef.current;
     const analyser = analyserRef.current;
     const audio = audioRef.current;
     if (!ctx || !analyser || !audio) return;
+
+    // Desktop: first attempt connectAudioSource if not connected yet
+    if (!isPhone && !sourceRef.current && !force) {
+      connectAudioSource();
+      if (sourceRef.current) return;
+    }
+
+    // Passive tap via captureStream (works on Desktop, Windows WebView2, and Mobile):
+    // Mirrors audio PCM directly to the analyser, immune to CORS-induced silence.
     const capture: (() => MediaStream) | undefined =
       (audio as any).captureStream || (audio as any).mozCaptureStream;
     if (capture) {
       try {
         const stream = capture.call(audio) as MediaStream;
         if (stream && stream.getAudioTracks().length > 0) {
+          if (tapSourceRef.current) {
+            try { tapSourceRef.current.disconnect(); } catch (_) {}
+            tapSourceRef.current = null;
+          }
           const src = ctx.createMediaStreamSource(stream);
-          src.connect(analyser);                 // tap → analyser ONLY; never → destination
+          src.connect(analyser); // tap → analyser ONLY; never → destination
           tapSourceRef.current = src;
           if (ctx.state === 'suspended') ctx.resume().catch(() => {});
           return;
@@ -659,11 +708,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         console.warn('[Plajah Audio] analyser tap unavailable:', e);
       }
     }
-    // TV fallback: wire the element through the graph directly. That is off-limits on a phone
-    // because it makes the OS suspend background audio, but a TV app is foreground by nature and
-    // a silent visualizer is the worse trade there. Deliberately LAST — the passive tap above
-    // can never affect audio, this can, so it only runs when the safe route is unavailable.
-    if (onTv) connectAudioSource(true);
+
+    // Direct audio graph fallback: ensure analyser always receives audio stream across mobile and desktop
+    connectAudioSource(true);
   }, [initAudioContext, connectAudioSource]);
 
   // Global click listener to resume AudioContext (critical for mobile browsers)
@@ -682,17 +729,32 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   // Continuous reactivity watchdog: when isPlaying is true, ensure AudioContext stays active
-  // and ensureAnalyserTap / connectAudioSource stays connected through full songs and track changes.
+  // and ensureAnalyserTap / connectAudioSource stays connected with active live signal.
   useEffect(() => {
     if (!isPlaying) return;
     const checkInterval = setInterval(() => {
-      if (audioContextRef.current?.state === 'suspended') {
-        audioContextRef.current.resume().catch(() => {});
+      const ctx = audioContextRef.current;
+      if (ctx?.state === 'suspended') {
+        ctx.resume().catch(() => {});
       }
       try {
-        ensureAnalyserTap();
+        const an = analyserRef.current;
+        const audio = audioRef.current;
+        if (!sourceRef.current && !tapSourceRef.current) {
+          ensureAnalyserTap();
+        } else if (an && audio && !audio.paused && audio.currentTime > 0.4) {
+          // Verify analyser has actual audio signal rather than flat zeros
+          const testBuf = new Uint8Array(32);
+          an.getByteFrequencyData(testBuf);
+          let sum = 0;
+          for (let i = 0; i < 32; i++) sum += testBuf[i];
+          if (sum === 0) {
+            // Signal is flat despite audio actively playing (e.g. CORS block or stale graph)
+            ensureAnalyserTap(true);
+          }
+        }
       } catch { /* ignore */ }
-    }, 2500);
+    }, 2000);
     return () => clearInterval(checkInterval);
   }, [isPlaying, ensureAnalyserTap]);
 
@@ -1898,6 +1960,48 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
   }, [resume, pause, prev, next, seek]);
 
+  // Sync metadata and playback status with native Android Media3 foreground service
+  useEffect(() => {
+    if (currentTrack) {
+      updateMediaMetadata(currentTrack, currentAlbum);
+      syncToNativeAudioPlugin(currentTrack, currentAlbum, isPlaying);
+    }
+  }, [currentTrack, currentAlbum, isPlaying]);
+
+  // Remote controls: Bluetooth AVRCP / Car Stereo / Fire TV / Silk remote commands
+  useEffect(() => {
+    const plajahNative = (window as any).Capacitor?.Plugins?.PlajahNativeAudio;
+    let removeListener: (() => void) | undefined;
+    if (plajahNative?.addListener) {
+      plajahNative.addListener('onRemoteCommand', (data: { command: string }) => {
+        if (data?.command === 'next') {
+          next();
+        } else if (data?.command === 'previous') {
+          prev();
+        } else if (data?.command === 'playPause') {
+          togglePlay();
+        }
+      }).then((handle: any) => {
+        if (handle?.remove) removeListener = () => handle.remove();
+      }).catch(() => {});
+    }
+
+    const handleTvPlayPause = () => togglePlay();
+    const handleTvNext = () => next();
+    const handleTvPrev = () => prev();
+
+    window.addEventListener('tv:media-play-pause', handleTvPlayPause);
+    window.addEventListener('tv:media-next', handleTvNext);
+    window.addEventListener('tv:media-prev', handleTvPrev);
+
+    return () => {
+      removeListener?.();
+      window.removeEventListener('tv:media-play-pause', handleTvPlayPause);
+      window.removeEventListener('tv:media-next', handleTvNext);
+      window.removeEventListener('tv:media-prev', handleTvPrev);
+    };
+  }, [next, prev, togglePlay]);
+
   useEffect(() => {
     const audio = audioRef.current;
 
@@ -2223,7 +2327,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
     analyser: analyserRef.current, ensureAnalyserTap, getAudioContext, setDjFilter, resetAudioFx, isFxActive,
     activeLiveFx, liveFxParams, toggleLiveFx, setLiveFxParam, clearLiveFx,
-    isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
+    isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isFullscreenSlideshowActive, setIsFullscreenSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme, isBigScreen: theme === 'BIG_SCREEN',
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
@@ -2237,7 +2341,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
     ensureAnalyserTap, getAudioContext, setDjFilter, resetAudioFx, isFxActive,
     activeLiveFx, liveFxParams, toggleLiveFx, setLiveFxParam, clearLiveFx,
-    isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
+    isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isFullscreenSlideshowActive, setIsFullscreenSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme,
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,

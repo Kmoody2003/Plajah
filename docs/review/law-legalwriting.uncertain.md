@@ -1,0 +1,33 @@
+# law-legalwriting: claims for expert review
+
+- l01: Characterization of the Restatements as secondary authority that becomes primary only through judicial adoption (standard view; confirm wording).
+- l02: Erie Railroad Co. v. Tompkins (U.S. 1938) summarized as state substantive law in diversity; the procedure/substance sorting (Hanna v. Plumer line) is only gestured at, not cited.
+- l02, q5: Hard-case framing of a state expert-affidavit deadline in federal court is deliberately generic; real outcomes depend on Hanna/Shady Grove analysis.
+- l03: Caselaw Access Project description (Harvard Law School Library, digitized reporters) and CourtListener/Free Law Project description; coverage and hosting arrangements may have changed as of this writing.
+- l03: PACER described as fee-based with a small waiver; fee schedule not stated.
+- l03: Description of the eCFR as unofficial and continuously updated, and govinfo/Law Revision Counsel/Congress.gov roles.
+- l04: Loper Bright Enterprises v. Raimondo (U.S. 2024) overruling Chevron, and the statement that prior Chevron-based holdings keep statutory stare decisis weight; check wording.
+- l04: Citator discussion is generic; no specific commercial or free tool features were asserted.
+- l05: Fictional case "Hale v. Orchard Mutual" and other named parties in questions are invented hypotheticals (not real cases).
+- l07: Church of the Holy Trinity v. United States (U.S. 1892) description (English pastor, contract-labor statute, purpose reading); check characterization.
+- l07: Statement that after Loper Bright courts give agency readings "careful attention for persuasiveness" (Skidmore-style respect); confirm phrasing.
+- l07, q5: Hypothetical "use a firearm" statute is modeled on a real doctrinal debate; no case cited.
+- l09: Rule 1.1 and work product statements (internal memo likely work product "in many circumstances"); varies by jurisdiction.
+- l10: Twombly (2007) / Iqbal (2009) summary, Celotex v. Catrett (1986) burden description, and statement that some states retain notice pleading.
+- l11: Contents of FRAP 28(a) described loosely (issues, statement of case, summary, argument with standard of review, conclusion); exact required items and order not stated.
+- l12: Anderson v. City of Bessemer City (1985) and FRCP 52(a)(6) for clear error; Ornelas v. United States (1996) split of de novo on reasonable suspicion/probable cause with clear-error deference to historical facts and due weight to local inferences.
+- l12: "Substantial evidence" for jury verdicts and "usually de novo" for JMOL rulings stated without exceptions; APA arbitrary-and-capricious mention only.
+- l13: Bluebook and ALWD described generically; Indigo Book described as free alternative; state public-domain/universal citation formats described generally; no edition numbers given.
+- l13: Signal definitions (see, see also, cf., but see, contra) simplified.
+- l14: Parol evidence rule exceptions list (fraud, mistake, ambiguity) is a simplification; states differ (four-corners vs. contextual approaches not named).
+- l14: Statement that UCC Article 2 gap-fillers supply reasonable price/time; "shall" convention is a drafting preference, not a law.
+- l15: Statement that courts consider but are not bound by severability clauses; APA notice-and-comment "for many rules."
+- l16: Plain Writing Act of 2010 summary (federal agencies must use clear communication in covered documents).
+- l17: FRAP 34 summary (argument may be dispensed with in certain circumstances); Supreme Court Rule 28 cited only as the time/argument rule.
+- l18: Model Rule 3.3 paraphrase, including override of Rule 1.6 and "continues to the conclusion of the proceeding"; state versions differ.
+- l18: Nix v. Whiteside (U.S. 1986) facts and holding as summarized (no right to perjury; no ineffective assistance).
+- l18: Statement that a lawyer may refuse evidence reasonably believed (not known) false, "except criminal defendant testimony in many jurisdictions."
+- l19: Mata v. Avianca, Inc. (S.D.N.Y. 2023) described as sanctions for fabricated AI-generated citations; sanction amount not stated.
+- l19: ABA Formal Opinion 512 (2024) on generative AI and the topics it covers; Rule 5.3 applied to vendors "by many authorities"; court standing orders on AI disclosure described generally.
+- l20: Paraphrases of Model Rules 3.1, 3.4, 4.1, 8.4 and Rule 1.2(d) idea (counseling vs. assisting crime/fraud); comment on negotiation puffery.
+- Course-wide: Model Rules are ABA models; each state's adopted text differs. Questions using named parties are fictional.

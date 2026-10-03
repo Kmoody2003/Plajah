@@ -1,0 +1,912 @@
+{
+ "courseId": "med-ethics-hs",
+ "label": "Bioethics",
+ "lessons": [
+  {
+   "id": "med-ethics-hs.l01",
+   "title": "The Four Principles",
+   "body": [
+    "Bioethics is the study of moral questions raised by medicine and the life sciences. The most widely taught framework is called principlism, set out by Tom Beauchamp and James Childress in their book Principles of Biomedical Ethics, first published in 1979. It names four principles that clinicians, researchers and policymakers can use to reason through problems.",
+    "Autonomy is respect for the self-determination of a person who has the capacity to decide. A competent patient may accept or refuse treatment even when a doctor disagrees. Beneficence is the duty to act for the patient's benefit, such as treating illness or relieving pain. Non-maleficence, often summarized in the Latin phrase primum non nocere, means avoiding harm, or at least not causing harm that outweighs benefit. Justice concerns fairness in how benefits, burdens and risks are distributed, such as who receives a scarce resource.",
+    "The principles are prima facie, which means each one binds unless it conflicts with another that is weightier in the situation. That is why they are a toolkit and not a formula. Suppose a competent adult with a treatable infection refuses antibiotics. Beneficence and non-maleficence point toward treating, but autonomy points toward respecting refusal. In most legal systems and in professional ethics, a capable adult's informed refusal prevails, although the clinician keeps explaining, exploring reasons and offering alternatives.",
+    "Common traps: treating autonomy as absolute (it is limited, for example, when others would be harmed or when capacity is lacking) and assuming that the principles always give one answer. Careful ethical reasoning identifies which principles are in tension, gathers the facts, hears the patient's values, and gives reasons that others could examine."
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l02",
+   "title": "Informed Consent and Capacity",
+   "body": [
+    "Informed consent is more than a signature. It is a process in which a clinician gives a patient the information needed to decide, the patient has the capacity to decide, and the choice is voluntary. The legal roots are old. In Schloendorff v. Society of New York Hospital (New York, 1914), Judge Cardozo wrote that every adult of sound mind has a right to determine what is done with his own body, and that surgery without consent is an assault. The phrase informed consent itself became common after a 1957 California case, Salgo v. Leland Stanford Jr. University Board of Trustees.",
+    "What must be disclosed? Courts split. Under the older professional standard, the doctor discloses what a reasonable physician would disclose. Under the patient-oriented standard, adopted in Canterbury v. Spence (D.C. Circuit, 1972), the doctor must disclose the risks a reasonable patient would consider material to the decision. Many US states follow each approach. Typical disclosures cover the diagnosis, the nature and purpose of the proposed treatment, its main risks and benefits, reasonable alternatives (including no treatment), and the expected outcome.",
+    "Capacity is decision-specific and is assessed by clinicians, not decided by a diagnosis or by age alone. Clinicians commonly look for four abilities: understanding the information, appreciating how it applies to oneself, reasoning about options, and expressing a stable choice. A patient with dementia may have capacity for one simple decision but not for a complex one. Disagreeing with the doctor is not evidence of incapacity.",
+    "There are exceptions. In a true emergency, when a patient cannot consent and delay threatens life or serious harm, treatment is generally allowed under implied consent. For patients lacking capacity, a surrogate decides, ideally using substituted judgment (what the patient would have wanted) and otherwise the patient's best interests. Minors are usually represented by parents, though many places allow minors to consent for certain services, and adolescents are asked for assent.",
+    "A worked example: a patient who is conscious, understands that declining a blood transfusion may be fatal, and says so consistently has capacity and may refuse, even if the clinician considers refusal unwise."
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l03",
+   "title": "Confidentiality and Its Limits",
+   "body": [
+    "Patients disclose embarrassing and frightening facts to clinicians because they expect confidentiality. Without that expectation people might hide symptoms, avoid care or lie, which harms both them and public health. Confidentiality is therefore both a duty owed to the individual and a condition for good medicine. Its roots reach back to the Hippocratic tradition, and modern codes of medical ethics repeat it.",
+    "In the United States the HIPAA Privacy Rule, issued under the Health Insurance Portability and Accountability Act of 1996, regulates how covered entities such as health plans and providers may use and disclose protected health information. In broad terms it permits sharing for treatment, payment and health care operations, requires patient authorization for many other uses, and lets patients see their records. Other countries have comparable privacy laws, and some US states add stronger protections for categories such as mental health or reproductive health.",
+    "Confidentiality is not absolute. Common exceptions include legally required reports of certain infectious diseases to public health authorities, gunshot wounds in many states, and suspected abuse of a child or vulnerable adult by mandated reporters. A famous case is Tarasoff v. Regents of the University of California (California Supreme Court, 1976). A patient told a psychologist that he intended to kill a woman and then did. The court held that when a therapist determines, or under professional standards should determine, that a patient presents a serious danger of violence to another, the therapist has a duty to use reasonable care to protect the intended victim. States have since adopted varied versions of this duty, some as a duty to warn, some as a duty to protect, and some not at all.",
+    "A useful test is proportionality: disclose only the minimum necessary, to the proper person, for a recognized, serious reason, and tell the patient where possible. Example: a teen asks a clinic for confidential contraception. Rules vary by state, but the clinician should explain the limits of confidentiality at the start so the teen can decide what to share."
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l04",
+   "title": "Mental Health, Capacity and Autonomy",
+   "body": [
+    "Mental illness raises a hard question: respect for autonomy assumes a person can make decisions, yet some conditions affect judgment, insight or mood. The key point is that a psychiatric diagnosis is not the same as lacking capacity. Many people with depression, schizophrenia or bipolar disorder have capacity for most decisions, and clinicians must assess capacity for the specific decision at hand.",
+    "Society also permits limited involuntary psychiatric care. Standards differ by state, but typical criteria require a mental disorder together with danger to self, danger to others, or in some places grave disability, meaning an inability to meet basic needs such as food and shelter. Commitment usually requires procedural protections: an evaluation, a time limit, a hearing and legal representation. In O'Connor v. Donaldson (US Supreme Court, 1975), the Court held that a state cannot constitutionally confine a non-dangerous person who is capable of surviving safely in freedom, simply because he is mentally ill. Courts have also required due process before involuntary treatment with medication in many settings.",
+    "Two principles guide the balance. The first is least restrictive alternative: if a safe option exists that restricts liberty less than hospitalization, such as outpatient treatment, it should be preferred. The second is that decisions made during illness may differ from a person's long-term values. Psychiatric advance directives let a person write down in a time of wellness how they would like to be treated in a later crisis, which supports autonomy across time.",
+    "The ethical tension is real in both directions. Over-intervening can strip dignity and discourage people from seeking help. Under-intervening can leave a person to suffer or die when treatment could restore their ability to choose. Careful clinicians ask whether the disorder is impairing the specific decision, whether less restrictive options exist, and whether the person's own past wishes can guide care.",
+    "Example: a person with severe depression who refuses food and says they do not deserve to live may lack the capacity to refuse treatment, but a person with a stable, different belief about medication who shows a clear understanding and consistent reasoning is entitled to decline."
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l05",
+   "title": "Nuremberg and the Birth of Research Ethics",
+   "body": [
+    "During the Second World War, physicians in Nazi Germany and in the camps it ran carried out cruel experiments on prisoners, who could not refuse. After the war, the United States held trials at Nuremberg. The Doctors' Trial (1946 to 1947) tried 23 defendants, mostly physicians and officials, and many were convicted of war crimes and crimes against humanity; several were sentenced to death. In the judgment, the judges set out ten principles for permissible human experimentation. These are known as the Nuremberg Code.",
+    "The first and most famous principle states that the voluntary consent of the human subject is absolutely essential. Consent must be given by a person with legal capacity, free of force, fraud or coercion, and with enough knowledge of the experiment to make an informed decision. Other principles require that the experiment aim to produce useful results unobtainable by other means, that it be based on prior animal studies, avoid unnecessary suffering, not risk death or disabling injury except perhaps when the researchers also serve as subjects, and that the subject be free to end the experiment at any time. The risk must never exceed the humanitarian importance of the problem.",
+    "The Code was not itself law and was written in response to a specific set of crimes, but it shaped later documents. In 1964 the World Medical Association adopted the Declaration of Helsinki, a statement of ethical principles for medical research that has been revised several times. Unlike Nuremberg, it was written by physicians for physicians, and it added ideas such as independent review of research protocols.",
+    "Why this matters: the Code established that scientific benefit does not by itself justify using a person as a means. A common mistake is to assume that research abuses were confined to one country or period. The next lessons show that the United States had its own, and that consent rules were often ignored even after Nuremberg."
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l06",
+   "title": "Tuskegee and the Belmont Report",
+   "body": [
+    "In 1932 the US Public Health Service began a study in Macon County, Alabama, to observe the natural course of untreated syphilis. About 600 Black men took part, roughly 400 with syphilis and about 200 without as a comparison group. The men were told they were being treated for bad blood and were given free meals, medical exams and burial insurance. They were never told they had syphilis in a way they could understand, and the study did not aim to treat it.",
+    "When penicillin became the standard, effective treatment for syphilis in the 1940s, the men were not offered it, and officials took steps to keep them from getting treatment elsewhere. The study ran for forty years. It ended in 1972 after a former Public Health Service employee, Peter Buxtun, who had raised concerns internally, told a reporter, and the Associated Press story brought public outrage. Many participants had died of syphilis or related complications, and some of their wives and children had been infected.",
+    "The response reshaped US research rules. Congress passed the National Research Act of 1974, which required institutional review boards for federally funded research and created a national commission. The commission produced the Belmont Report in 1979, which names three principles: respect for persons (including informed consent and protection of those with diminished autonomy), beneficence (maximizing benefits and minimizing harms), and justice (fair selection of research subjects, so that burdens do not fall on one group while benefits go to another). In 1997 President Clinton formally apologized to the survivors and their families.",
+    "The lasting lessons are about consent, honesty and justice, and also about trust. The study is often cited as one reason that some Black Americans distrust medical institutions, and building trust requires transparent practices. A common error is to say the men were infected by the government. Historians' accounts are that they already had the disease, but they were deceived and denied known treatment."
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l07",
+   "title": "Henrietta Lacks and the Ownership of Cells",
+   "body": [
+    "In 1951, Henrietta Lacks, a Black woman from Baltimore, was treated for cervical cancer at Johns Hopkins Hospital. During her care, samples of her tumor were taken and given to a researcher. Her cells proved unusually able to grow and divide in the laboratory, which at the time was a major challenge, and became the first immortal human cell line. Called HeLa, it was used in countless studies, including work on the polio vaccine, cancer, viruses and gene mapping. Henrietta Lacks died in 1951, and her family did not know of the cell line for years.",
+    "At the time, consent for research use of leftover tissue was not required as it is for experiments today, so there was no clear legal wrong. But the story highlights ethical issues. She was not asked, her family was not told, and her identity and later her genome became public in ways the family had not agreed to. In 2013, researchers published the HeLa genome, and after the family objected, the National Institutes of Health reached an agreement with the family that gives them a say in who can access the genomic data.",
+    "A related legal case is Moore v. Regents of the University of California (California Supreme Court, 1990). A patient's cells were used by doctors to develop a profitable cell line. The court said that the doctors had a duty to disclose their research and financial interests, but it did not accept that the patient had a property right in cells removed from his body.",
+    "Debates continue about whether donors should control uses of tissue, share in profits, or receive recognition. The revised Common Rule, the US federal policy on human subjects research, took effect in 2018 and changed rules about consent for secondary research with biospecimens. Careful reasoning separates two questions: what the law required at the time, and what ethics suggests we should do now."
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l08",
+   "title": "How Research Is Reviewed Today",
+   "body": [
+    "Modern research ethics turns the lessons of Nuremberg, Tuskegee and others into routine procedures. In the United States, most federally funded human research follows the Common Rule (45 CFR part 46), and research on drugs and devices follows Food and Drug Administration regulations. Before a study begins, an institutional review board (IRB), a committee that includes scientists and non-scientists, reviews the protocol. It asks whether risks are reasonable relative to benefits, whether participants are selected fairly, whether consent is properly obtained and documented, whether privacy is protected, and whether the study is safe as it proceeds.",
+    "Informed consent in research must explain the purpose, procedures, risks, potential benefits, alternatives and the right to withdraw without penalty. Consent forms are meant to be understandable, though studies show that long, technical forms can obscure risk. Extra protections apply to vulnerable groups, including children, prisoners, pregnant people and those with cognitive impairment, because they may be more easily coerced or less able to protect their interests.",
+    "A central concept is clinical equipoise, the idea that a randomized trial is ethical when there is genuine uncertainty in the expert community about which treatment is better. If a treatment is already known to be effective, giving some participants a placebo may be unethical, and the control group should receive the best standard therapy. Large trials also use data and safety monitoring boards, which can stop a study early if one arm shows clear harm or clear benefit.",
+    "Example: researchers propose a trial of a new blood pressure drug against placebo in people with severe hypertension. Because effective treatments exist, an IRB is likely to require that the comparison be against standard therapy, not placebo alone.",
+    "Common traps: confusing therapeutic misconception with consent, where participants believe the trial is designed to treat them individually, and thinking IRB approval ends ethical responsibility."
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l09",
+   "title": "Public Health versus Individual Liberty",
+   "body": [
+    "Public health aims to protect and improve the health of populations. Its tools include vaccination programs, quarantine and isolation, reporting of diseases, sanitation rules and health education. Many of these ask individuals to accept limits for the good of others. The ethical question is when such limits are justified.",
+    "An influential idea is John Stuart Mill's harm principle: society may limit a person's liberty to prevent harm to others, but not simply for the person's own good. Infectious disease fits the harm principle clearly because one person's infection can harm others. In the United States, the leading case is Jacobson v. Massachusetts (US Supreme Court, 1905), which upheld a local law requiring smallpox vaccination or a modest fine, holding that states may use their police power to enact reasonable regulations to protect public health. The Court noted limits: measures must be reasonable and not arbitrary or oppressive. The decision is still cited, though modern courts also apply later doctrines on individual rights and religious freedom.",
+    "Ethicists often propose conditions for justified restrictions: there is a real public health threat, the measure is likely to be effective, it is necessary, it is the least restrictive effective option, its burdens are proportionate to the benefits, it is applied fairly, and the public is told the reasons. Quarantine (separating healthy people who may have been exposed) and isolation (separating people who are sick) are examples.",
+    "The debate over vaccine mandates shows reasonable disagreement. Supporters point to community protection and to people who cannot be vaccinated for medical reasons. Opponents emphasize bodily integrity, personal or religious conviction, and doubts about government coercion. Policies differ widely: many US states allow school vaccination exemptions of various kinds, while others restrict them. Teaching the matter fairly means separating what the law requires, which varies by place, from the values at issue."
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l10",
+   "title": "Organ Donation and Allocation",
+   "body": [
+    "For many people with organ failure, a transplant is the best or only treatment, but there are far fewer donated organs than patients who need them. That scarcity creates two ethical problems: how to obtain organs, and how to distribute them fairly.",
+    "On obtaining organs, there are two main legal models. In an opt-in system, which the United States uses, a person must register agreement to donate, or family members agree on their behalf. In an opt-out system, sometimes called presumed consent, a person is presumed to be a donor unless they register an objection. Several European countries use opt-out laws, and in practice families are often still consulted. The evidence on whether opt-out increases donation is mixed, because infrastructure and family consent practices also matter.",
+    "The National Organ Transplant Act of 1984 made it illegal in the United States to buy or sell human organs for valuable consideration. Supporters of the ban stress risks of exploitation of the poor and commodification of the body. Critics argue regulated payment could save lives and respect autonomy, while noting that most countries other than Iran ban organ sales.",
+    "Donation after death rests on the dead donor rule: vital organs may be taken only from a person who is dead, and the person must not be killed by procurement. Death can be determined by irreversible cessation of circulatory and respiratory function, or by irreversible cessation of all functions of the entire brain, which is the basis of the Uniform Determination of Death Act of 1981. Living donors can give a kidney or part of a liver, which requires careful consent to avoid pressure from family.",
+    "Allocation systems in the United States are overseen under federal law and use medical criteria, not social worth. Factors typically include blood type compatibility, medical urgency, the likelihood of benefit, time waiting and geography, with details that differ by organ and change over time. A liver candidate, for example, is ranked largely by a score of how sick the patient is. Ethical debates include whether to give priority to younger patients, whether alcohol-related liver disease should reduce priority, and how to balance urgency against expected benefit."
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l11",
+   "title": "Genetic Screening, Testing and CRISPR",
+   "body": [
+    "Genetic technologies raise ethical questions because genetic information is personal, predictive and shared with relatives. Several different practices need to be kept apart.",
+    "Screening looks at populations to find people who may be at risk. Newborn screening, which tests a few drops of blood from nearly every baby in many countries, detects conditions such as phenylketonuria where early treatment prevents harm. Prenatal screening, including tests of cell-free DNA in the pregnant person's blood, estimates the chance of certain chromosome conditions, and diagnostic tests confirm. Carrier screening checks for recessive gene variants in prospective parents. Preimplantation genetic testing examines embryos made by in vitro fertilization. Ethical questions include informed choice, avoiding pressure, the information that may be found unexpectedly, and what disability-rights advocates call the expressive message that screening sends about the value of lives with disabilities.",
+    "Privacy and fairness are also in play. In the United States, the Genetic Information Nondiscrimination Act of 2008 bars health insurers and employers from discriminating on the basis of genetic information, but it does not cover life, disability or long-term care insurance.",
+    "Gene editing is a further step. CRISPR-Cas9, adapted from a bacterial defense system and developed by researchers including Jennifer Doudna and Emmanuelle Charpentier, who shared the 2020 Nobel Prize in Chemistry, lets scientists cut DNA at chosen locations. Somatic editing changes cells in one person and is not inherited; in 2023 regulators in the United Kingdom and the United States approved the first CRISPR-based therapy, for sickle cell disease. Germline editing changes embryos, eggs or sperm, so the change could be passed down to future generations who cannot consent. In 2018, the Chinese scientist He Jiankui announced the birth of gene-edited twins; the work was widely condemned, and he was later sentenced to prison in China.",
+    "Fair debate asks whether safety, consent, enhancement versus therapy, and equity of access can be satisfied. Some argue that germline editing to prevent serious disease could someday be acceptable under strict oversight. Others argue for a long pause or a ban because of safety, inequality and the risk of eugenic thinking."
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l12",
+   "title": "Reproductive Ethics Presented Fairly",
+   "body": [
+    "Reproductive ethics includes some of the most contested questions in society. This lesson separates the law, which is a matter of fact, from the arguments, where thoughtful people disagree.",
+    "The law in the United States: in Roe v. Wade (1973) and Planned Parenthood v. Casey (1992), the Supreme Court recognized a constitutional right to abortion before viability. In Dobbs v. Jackson Women's Health Organization (2022), the Court overruled Roe and Casey, holding that the Constitution does not confer a right to abortion and that the matter returns to the states and their legislatures. As a result, laws vary substantially by state and continue to change, so the legal position in any given place should be checked directly. Other countries differ widely.",
+    "The main arguments are better understood than caricatured. One view holds that a human life with moral worth begins at conception or very early, so abortion wrongs a human being, and that society should protect that being, perhaps with exceptions for the mother's life or other grave situations. A second view holds that a pregnant person has the right to control her own body, that forcing continuation of pregnancy imposes severe burdens, and that access to safe abortion protects health and equality. A third family of views is gradualist: moral status increases over time, perhaps tied to viability or sentience, so early abortion is more permissible than late abortion. Disagreements concern moral status of the embryo and fetus, the weight of bodily autonomy, and the role of law as against conscience.",
+    "Assisted reproduction raises related questions. In vitro fertilization often produces more embryos than are used, so there are questions about storing, donating, researching on or discarding embryos, which depend on one's view of embryo status. Surrogacy raises questions about exploitation, payment and parental rights, and laws differ greatly. Prenatal testing raises questions about selection.",
+    "Good ethical reasoning here identifies the premise at the root of a disagreement, such as moral status or bodily autonomy, and accepts that reasonable people may weigh them differently."
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l13",
+   "title": "End-of-Life Decisions",
+   "body": [
+    "Medicine can often prolong life in ways that may not match what a patient values. End-of-life ethics asks who decides, on what basis, and where the lines fall.",
+    "Two cases shaped US law. Karen Ann Quinlan, aged 21, lost consciousness in 1975 and entered a persistent vegetative state. Her parents asked that her ventilator be removed. In In re Quinlan (New Jersey Supreme Court, 1976), the court allowed it, reasoning that her right of privacy included a right to decline treatment that could be exercised by her guardian, and the case encouraged hospital ethics committees. After the ventilator was removed she kept breathing and lived for about nine more years. In Cruzan v. Director, Missouri Department of Health (US Supreme Court, 1990), the Court assumed that a competent person has a constitutionally protected liberty interest in refusing life-sustaining treatment, including artificial nutrition and hydration, but held that a state may require clear and convincing evidence of an incompetent patient's wishes. Cruzan led to wider use of advance directives such as living wills and health care proxies, and to the federal Patient Self-Determination Act of 1990.",
+    "Important distinctions include withholding versus withdrawing treatment (most ethicists see them as morally equivalent, since a patient may refuse treatment either way), letting die versus actively causing death, and the doctrine of double effect, which holds that giving needed pain relief that may incidentally hasten death can be permissible if the intent is to relieve suffering.",
+    "Assisted dying is more contested. In Washington v. Glucksberg and Vacco v. Quill (1997), the Supreme Court held that there is no constitutional right to assisted suicide but that states may permit or prohibit it. Oregon's Death with Dignity Act, approved by voters in 1994 and in effect from 1997, permits eligible terminally ill adults to obtain medication they take themselves; several other US states and countries have since passed laws of varying scope, and some countries permit clinician-administered euthanasia. As of this writing, laws are changing, so check the current position.",
+    "The arguments should be held fairly. Supporters stress autonomy, compassion and relief of suffering. Opponents stress the sanctity of life, the integrity of the medical profession as healers, risks to vulnerable people such as those with disabilities or without good care, and the possibility of subtle pressure. Palliative care is valued by most sides as a way to reduce suffering."
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l14",
+   "title": "Scarcity, Triage and Crisis Standards",
+   "body": [
+    "In a crisis such as a pandemic surge or disaster, demand for ventilators, beds or staff may exceed supply. Triage is the practice of prioritizing patients under scarcity. The word comes from French, and the practice was developed on battlefields. Hospitals and governments write crisis standards of care in advance so that decisions are not left to a clinician's moment-by-moment judgment.",
+    "Commonly proposed ethical aims include saving the most lives, giving priority to those who can benefit most, treating people equally, and keeping decisions transparent and open to appeal. Many plans rate the short-term likelihood of survival, sometimes using organ failure scores. Plans often reject first come, first served as the sole criterion, because it favors those who can reach hospitals fastest, and reject social worth, such as occupation or wealth, as a basis for ranking, except that giving priority to health care workers is sometimes defended as instrumental, so that they can keep treating others.",
+    "A central concern is disability discrimination. If a plan excludes people with disabilities from treatment because of assumptions about quality of life, it may break laws such as the Americans with Disabilities Act and Section 504 of the Rehabilitation Act. Rules should rest on evidence of short-term benefit, not on stereotypes or on age alone. Some plans also use ongoing reassessment, in which patients who do not improve may lose a ventilator to someone with better odds, which is ethically distressing and requires clear policy and explanation.",
+    "Process matters: separating triage decisions from treating clinicians reduces moral distress and bias, and palliative care should always be offered to those who do not receive the scarce treatment. The principle of non-abandonment says that even when a treatment is not available, care continues.",
+    "Example: two patients need the last ventilator. One has a good short-term prognosis, and one has a poorer prognosis from a different illness. A plan based on short-term survival would favor the first, whereas a plan based only on age or disability status would be open to serious criticism."
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l15",
+   "title": "Artificial Intelligence in Medicine",
+   "body": [
+    "Artificial intelligence (AI) systems that find patterns in data are used in medicine to read images, predict deterioration, summarize records and draft messages. As of this writing, this field is changing quickly, and rules are still developing. The ethical questions apply the older principles to a new setting.",
+    "Accuracy and safety come first. A model may perform well in the hospital where it was built and poorly in another with different patients, equipment or practice. It can also drift as practice changes. Evidence from properly designed studies is therefore more important than a company's claims. In the United States, some AI software is regulated by the Food and Drug Administration as a medical device, and in the European Union broader AI rules classify many medical uses as high risk.",
+    "Bias and justice: a model learns from past data, which may reflect past inequities. A widely cited 2019 study in the journal Science reported that a commercial algorithm used health care costs as a proxy for health needs, and because less money was spent on Black patients with the same level of illness, it underestimated their needs. The lesson is that the choice of what to predict, and the data used, can carry bias.",
+    "Transparency and accountability: many models are hard to interpret. Clinicians and patients may reasonably ask how a recommendation was produced, and the clinician remains responsible for the care given. Automation bias is the tendency to over-trust a machine's output, and deskilling is the risk that clinicians lose skills they stop using.",
+    "Consent and privacy: patients may deserve to know when AI contributes to their care, and training models on records raises questions of consent and data protection. Chatbots that give health advice can be confidently wrong.",
+    "A useful approach is to treat AI as a tool inside a system of human responsibility: test it locally, monitor it for errors and unequal performance, keep a human who can override it, and be honest with patients about its role."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-ethics-hs.l01.q1",
+   "lessonId": "med-ethics-hs.l01",
+   "kind": "mcq",
+   "prompt": "Which set correctly names the four principles in the Beauchamp and Childress framework?",
+   "choices": [
+    "Justice, veracity, fidelity and institutional trust",
+    "Autonomy, beneficence, non-maleficence and justice",
+    "Autonomy, loyalty, honesty and professional duty",
+    "Beneficence, efficiency, utility and public benefit"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l01.q2",
+   "lessonId": "med-ethics-hs.l01",
+   "kind": "mcq",
+   "prompt": "What does it mean to call the principles prima facie?",
+   "choices": [
+    "Each binds unless it conflicts with a weightier principle in the situation",
+    "Each must be applied in a fixed order of rank in every single case, with autonomy always first",
+    "Each applies only to physicians and never to researchers or nurses",
+    "Each is only a suggestion with no real moral weight in medicine"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l01.q3",
+   "lessonId": "med-ethics-hs.l01",
+   "kind": "mcq",
+   "prompt": "A capable adult declines a treatable infection's antibiotics after a full discussion. Which principle most directly supports respecting the refusal?",
+   "choices": [
+    "Beneficence",
+    "Non-maleficence",
+    "Justice",
+    "Autonomy"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l01.q4",
+   "lessonId": "med-ethics-hs.l01",
+   "kind": "mcq",
+   "prompt": "A hospital must decide how to distribute a limited number of ICU beds during a surge. A committee proposes giving priority by medical need and likelihood of benefit rather than social status. Which principle is the committee mainly applying, and what does it require?",
+   "choices": [
+    "Non-maleficence, because no patient should ever be denied a bed under any circumstance",
+    "Beneficence, because the hospital must maximize its own financial return from each bed",
+    "Justice, because scarce benefits should be distributed by fair criteria that are relevant to need and outcome",
+    "Autonomy, because each patient must be allowed to choose which intensive care bed that they will occupy during the surge"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l02.q1",
+   "lessonId": "med-ethics-hs.l02",
+   "kind": "mcq",
+   "prompt": "In Schloendorff v. Society of New York Hospital (1914), the court recognized that:",
+   "choices": [
+    "consent forms are required only for experimental treatments in hospitals",
+    "patients lose the right to refuse once they have entered a hospital",
+    "an adult of sound mind has a right to decide what is done to his own body",
+    "physicians may operate whenever they think surgery is medically best"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l02.q2",
+   "lessonId": "med-ethics-hs.l02",
+   "kind": "mcq",
+   "prompt": "Canterbury v. Spence (D.C. Cir. 1972) is associated with which disclosure standard?",
+   "choices": [
+    "The professional standard, based on what other physicians customarily tell patients",
+    "The subjective standard, based on each patient's private personal wishes alone",
+    "The emergency standard, based on what is necessary to save a life",
+    "The reasonable patient standard, based on risks material to a patient's decision"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l02.q3",
+   "lessonId": "med-ethics-hs.l02",
+   "kind": "mcq",
+   "prompt": "Which feature of capacity is most accurate?",
+   "choices": [
+    "It is decision-specific and can be present for one decision but not another",
+    "It is the same as a psychiatric diagnosis and is determined by a court only",
+    "It is determined by age, and every adult has full capacity for all choices",
+    "It is lost whenever a patient disagrees with the recommendation of a doctor"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l02.q4",
+   "lessonId": "med-ethics-hs.l02",
+   "kind": "mcq",
+   "prompt": "A 68-year-old woman with a bleeding gastric ulcer is alert, understands that refusing a transfusion may kill her, explains that it conflicts with her religious faith, and has said the same for years. Which is the most ethically and legally appropriate response?",
+   "choices": [
+    "Delay all care until a court has decided that she no longer has decision-making capacity",
+    "Respect her informed refusal while offering non-blood alternatives and continuing to discuss",
+    "Transfuse anyway because preserving life always outweighs the religious beliefs of a patient",
+    "Ask her adult child to override her decision since she is seriously ill and in danger"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l02.q5",
+   "lessonId": "med-ethics-hs.l02",
+   "kind": "mcq",
+   "prompt": "An unconscious trauma patient arrives bleeding heavily with no family present. Treatment is begun without a signed form. Which doctrine justifies this?",
+   "choices": [
+    "Therapeutic privilege",
+    "Assent of the patient",
+    "Implied consent in an emergency",
+    "Substituted judgment by a court"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l03.q1",
+   "lessonId": "med-ethics-hs.l03",
+   "kind": "mcq",
+   "prompt": "Which statement best describes the role of confidentiality in medicine?",
+   "choices": [
+    "It protects doctors from being asked questions about the patients they treat",
+    "It is an absolute duty that has no exceptions of any kind in any situation",
+    "It applies only to records on paper and not to spoken conversations",
+    "It encourages honest disclosure, which supports both individual care and public health"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l03.q2",
+   "lessonId": "med-ethics-hs.l03",
+   "kind": "mcq",
+   "prompt": "Which is a common legal exception to confidentiality in many places?",
+   "choices": [
+    "Posting a patient's diagnosis to a hospital newsletter",
+    "Telling the neighbors of a patient about the treatment",
+    "Mandated reporting of suspected child abuse",
+    "Sharing records with an employer who asks about a worker"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l03.q3",
+   "lessonId": "med-ethics-hs.l03",
+   "kind": "mcq",
+   "prompt": "In Tarasoff v. Regents of the University of California (Cal. 1976), the court held that a therapist who determines a patient is a serious danger to another person must:",
+   "choices": [
+    "report the patient to an employer so that the patient can be fired",
+    "use reasonable care to protect the intended victim",
+    "wait for the patient to commit a violent act before taking any steps",
+    "keep confidence in all cases because therapy depends on secrecy"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l03.q4",
+   "lessonId": "med-ethics-hs.l03",
+   "kind": "mcq",
+   "prompt": "A 16-year-old tells a clinic physician she is sexually active and wants contraception and asks that her parents not be told. Local law permits minors to consent to contraception. What is the best approach?",
+   "choices": [
+    "Provide care, explain confidentiality and its limits, and encourage her to involve a trusted adult",
+    "Refuse care until a parent has come to the clinic and signed a form saying that they agree with the request",
+    "Call her parents right away because all information about minors belongs to parents",
+    "Provide care and promise complete secrecy in every circumstance, even if she later reports abuse by an adult"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l04.q1",
+   "lessonId": "med-ethics-hs.l04",
+   "kind": "mcq",
+   "prompt": "Which statement about psychiatric diagnosis and capacity is most accurate?",
+   "choices": [
+    "A diagnosis does not by itself mean a person lacks capacity for a decision",
+    "Anyone who has a diagnosis of mental illness automatically lacks capacity",
+    "Capacity is judged only by the family of the patient and never by clinicians",
+    "Capacity is the same for every decision and does not vary with a situation"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l04.q2",
+   "lessonId": "med-ethics-hs.l04",
+   "kind": "mcq",
+   "prompt": "Which of these is a typical legal criterion for involuntary commitment in many US states?",
+   "choices": [
+    "A request by an employer or landlord to remove the person",
+    "A mental disorder together with danger to self or others",
+    "A disagreement with the recommendation of a treating physician",
+    "Any history of previous contact with mental health services"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l04.q3",
+   "lessonId": "med-ethics-hs.l04",
+   "kind": "mcq",
+   "prompt": "What did the Supreme Court hold in O'Connor v. Donaldson (1975)?",
+   "choices": [
+    "A person who has been confined may never again be treated with any medication",
+    "A state must always provide free housing for every person with mental illness",
+    "A state may not confine a non-dangerous person who can live safely in freedom simply because of mental illness",
+    "A state may confine any person with a mental illness if relatives request it"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l04.q4",
+   "lessonId": "med-ethics-hs.l04",
+   "kind": "mcq",
+   "prompt": "A man with schizophrenia, stable on medication, writes a psychiatric advance directive during remission stating which treatments he accepts in a future relapse. During a later relapse he refuses admission. Which ethical idea best supports giving weight to his directive?",
+   "choices": [
+    "Justice, since all people with mental illness must receive an identical treatment plan",
+    "Non-maleficence, since a written document can never contain any ethical risk at all",
+    "Beneficence, since a doctor's judgment in the moment must always override any statements that the patient made earlier in life",
+    "Autonomy extended across time, since the directive reflects his considered values while well"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l05.q1",
+   "lessonId": "med-ethics-hs.l05",
+   "kind": "mcq",
+   "prompt": "What is the first principle of the Nuremberg Code?",
+   "choices": [
+    "Subjects must be paid a fair wage for taking part in experiments",
+    "The voluntary consent of the human subject is absolutely essential",
+    "Experiments must be approved in advance by the government of the country where they are done",
+    "Research may proceed whenever the results are valuable to society"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l05.q2",
+   "lessonId": "med-ethics-hs.l05",
+   "kind": "mcq",
+   "prompt": "The Nuremberg Code arose from which event?",
+   "choices": [
+    "The Doctors' Trial held after the Second World War",
+    "A congressional hearing on pharmaceutical advertising in the 1960s",
+    "The founding of the World Health Organization in 1948 in Geneva",
+    "A court ruling on the safety of the first polio vaccine trials"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l05.q3",
+   "lessonId": "med-ethics-hs.l05",
+   "kind": "mcq",
+   "prompt": "How does the Declaration of Helsinki (1964) differ from the Nuremberg Code?",
+   "choices": [
+    "It was written by a criminal court as part of a judgment against a group of physicians",
+    "It abolished the need for subjects to give consent to research studies",
+    "It applies only to experiments that are carried out on animals",
+    "It was written by the medical profession and added independent review of research protocols"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l05.q4",
+   "lessonId": "med-ethics-hs.l05",
+   "kind": "mcq",
+   "prompt": "A researcher argues that a dangerous experiment on prisoners is justified because the knowledge gained would save thousands of lives. Under the Nuremberg Code, what is the best response?",
+   "choices": [
+    "The experiment is acceptable if a prison official gives permission for the prisoners",
+    "The experiment is acceptable provided that no subject dies before it is complete",
+    "Benefit to society cannot replace voluntary informed consent of each subject",
+    "The experiment is acceptable if the expected benefits are large enough and have been clearly proven in advance"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l06.q1",
+   "lessonId": "med-ethics-hs.l06",
+   "kind": "mcq",
+   "prompt": "What was the central ethical failure of the Tuskegee study after penicillin became standard for syphilis?",
+   "choices": [
+    "The study enrolled participants from several different countries",
+    "The study had been stopped before enough data had been collected",
+    "Participants were not offered effective treatment and were not told the truth",
+    "Participants received much more medicine than was safe at each of their regular visits"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l06.q2",
+   "lessonId": "med-ethics-hs.l06",
+   "kind": "mcq",
+   "prompt": "Which three principles are named in the Belmont Report (1979)?",
+   "choices": [
+    "Autonomy, loyalty and the collective public interest of the whole society",
+    "Honesty, veracity and the avoidance of all risk",
+    "Consent, secrecy and scientific freedom for scientists",
+    "Respect for persons, beneficence and justice"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l06.q3",
+   "lessonId": "med-ethics-hs.l06",
+   "kind": "mcq",
+   "prompt": "What did the National Research Act of 1974 require?",
+   "choices": [
+    "Institutional review boards for federally funded research with human subjects",
+    "A complete ban on all medical research that involves human volunteers in the country",
+    "Payment of every research participant by the federal government",
+    "That all research results be classified as secret for ten years"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l06.q4",
+   "lessonId": "med-ethics-hs.l06",
+   "kind": "mcq",
+   "prompt": "A committee reviewing a trial notices that all participants are drawn from one low-income community, while the likely beneficiaries are wealthy patients elsewhere. Which Belmont principle is most directly implicated?",
+   "choices": [
+    "Autonomy, because the participants have chosen to be in the community they live in",
+    "Justice, because burdens and benefits should be fairly distributed in selecting subjects",
+    "Beneficence, because the participants will not receive any benefit from the trial at all",
+    "Respect for persons, because low-income people are unable to give consent in any way"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l07.q1",
+   "lessonId": "med-ethics-hs.l07",
+   "kind": "mcq",
+   "prompt": "What made HeLa cells scientifically significant?",
+   "choices": [
+    "They were the first cells to be removed from a living human being",
+    "They were used only to study diseases that affect the heart",
+    "They were created by combining human cells with plant cells",
+    "They were the first human cells to grow continuously in the laboratory"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l07.q2",
+   "lessonId": "med-ethics-hs.l07",
+   "kind": "mcq",
+   "prompt": "In Moore v. Regents of the University of California (1990), the court held that:",
+   "choices": [
+    "doctors may use patient tissue for profit and never need to tell patients anything",
+    "a hospital must destroy all tissue after the patient's treatment has ended",
+    "doctors must disclose research and financial interests, but the patient had no property right in the cells",
+    "a patient owns all of the cells that are ever removed from their body, in any medical or research context"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l07.q3",
+   "lessonId": "med-ethics-hs.l07",
+   "kind": "mcq",
+   "prompt": "Which approach best separates the legal and ethical questions in the Lacks story?",
+   "choices": [
+    "Ignore the legal question since the case happened many decades ago",
+    "Ask what the law required in 1951 and, separately, what respect for persons suggests now",
+    "Assume that anything legal at the time must also have been ethical today",
+    "Assume that anything that would be considered unethical now must also have been clearly illegal back in 1951"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l07.q4",
+   "lessonId": "med-ethics-hs.l07",
+   "kind": "mcq",
+   "prompt": "A biobank wants to reuse stored, identifiable tissue samples for a new genetic study that donors never heard about. Which consideration most strongly favors asking donors again or obtaining broad consent upfront?",
+   "choices": [
+    "Genetic data can reveal information about donors and relatives, and donors may object to uses they did not expect",
+    "Tissue samples always lose all of their scientific value once the first study has been completed",
+    "Donors have a legal property right in their samples under US federal law",
+    "Consent is never needed for research that does not involve a new procedure"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l08.q1",
+   "lessonId": "med-ethics-hs.l08",
+   "kind": "mcq",
+   "prompt": "What is the main purpose of an institutional review board?",
+   "choices": [
+    "To review proposed human research for risk, fairness, consent and privacy",
+    "To pay researchers and to decide which proposed studies will receive their funding",
+    "To publish the results of studies in scientific journals",
+    "To treat patients who suffer injuries during a research study"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l08.q2",
+   "lessonId": "med-ethics-hs.l08",
+   "kind": "mcq",
+   "prompt": "What does clinical equipoise mean?",
+   "choices": [
+    "The belief that a new treatment is always better than an old one",
+    "Genuine uncertainty among experts about which treatment is better",
+    "Equal numbers of participants in each arm of every randomized trial",
+    "A balance between the costs and the profits of a study"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l08.q3",
+   "lessonId": "med-ethics-hs.l08",
+   "kind": "mcq",
+   "prompt": "Why do extra protections apply to groups such as prisoners and children in research?",
+   "choices": [
+    "They are the only groups that have a legal right to leave studies",
+    "They are more expensive to enroll, so rules reduce the costs",
+    "They may be more easily coerced or less able to protect their own interests",
+    "They are always considered to be unable to benefit from any type of research at all"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l08.q4",
+   "lessonId": "med-ethics-hs.l08",
+   "kind": "mcq",
+   "prompt": "Researchers want to test a new drug for a serious infection for which an effective antibiotic already exists. They propose giving half the participants only a sugar pill. What is the strongest ethical objection?",
+   "choices": [
+    "Randomization is never acceptable in any clinical trial that involves patients who have infections of any kind",
+    "Sugar pills are illegal to use in any trial that has been approved by an IRB",
+    "Participants cannot give informed consent when they receive any placebo",
+    "Equipoise is absent, so withholding a known effective therapy exposes the control group to serious harm"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l09.q1",
+   "lessonId": "med-ethics-hs.l09",
+   "kind": "mcq",
+   "prompt": "Which idea is most closely associated with the harm principle?",
+   "choices": [
+    "Liberty may be limited only to benefit the person restricted",
+    "Liberty may be limited to prevent harm to others",
+    "Liberty may be limited whenever a clear majority of voters happens to prefer it",
+    "Liberty may never be limited under any circumstance"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l09.q2",
+   "lessonId": "med-ethics-hs.l09",
+   "kind": "mcq",
+   "prompt": "What did Jacobson v. Massachusetts (1905) uphold?",
+   "choices": [
+    "A state law requiring smallpox vaccination or payment of a modest fine",
+    "A federal ban on all compulsory medical treatments anywhere within the country",
+    "A state requirement that people be quarantined for any illness",
+    "A rule that vaccination can be given to any person by force"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l09.q3",
+   "lessonId": "med-ethics-hs.l09",
+   "kind": "mcq",
+   "prompt": "Which pair correctly distinguishes quarantine from isolation?",
+   "choices": [
+    "Quarantine separates people who are already sick, and isolation separates only people who are healthy",
+    "Quarantine is voluntary only, and isolation is always required by law",
+    "Quarantine applies to animals, and isolation applies only to humans",
+    "Quarantine separates exposed people who may become ill, and isolation separates people who are sick"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l09.q4",
+   "lessonId": "med-ethics-hs.l09",
+   "kind": "mcq",
+   "prompt": "A city proposes closing all parks for six months to slow a mildly contagious illness that is rarely severe. Which ethical criterion most clearly raises concern?",
+   "choices": [
+    "Effectiveness, since closing parks has never been tried by any other city",
+    "Fairness, since all residents in the city would be affected in the same way",
+    "Proportionality, since the burden may be far greater than the expected public health benefit",
+    "Transparency, since closing the parks will make the public fully aware of the new policy and its reasons"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l10.q1",
+   "lessonId": "med-ethics-hs.l10",
+   "kind": "mcq",
+   "prompt": "What does the National Organ Transplant Act of 1984 prohibit in the United States?",
+   "choices": [
+    "Donating a kidney to a family member who is in need of a transplant",
+    "Registering as an organ donor on a driver's license",
+    "Removing organs from a patient who has been declared dead",
+    "Buying or selling human organs for valuable consideration"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l10.q2",
+   "lessonId": "med-ethics-hs.l10",
+   "kind": "mcq",
+   "prompt": "Which describes an opt-out (presumed consent) system?",
+   "choices": [
+    "A person must pay a small fee in order to register as a possible organ donor",
+    "A person is a donor only if they carry a card with their name",
+    "A person is presumed to be a donor unless they register an objection",
+    "A person can donate only if every relative agrees in writing first"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l10.q3",
+   "lessonId": "med-ethics-hs.l10",
+   "kind": "mcq",
+   "prompt": "The dead donor rule requires that:",
+   "choices": [
+    "organs from living donors be used only when the donor is a relative",
+    "vital organs be taken only from a person who is dead, and procurement not cause death",
+    "organs be removed only from patients who have signed a donor card before they died",
+    "organs be allocated first to patients who have waited the longest"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l10.q4",
+   "lessonId": "med-ethics-hs.l10",
+   "kind": "mcq",
+   "prompt": "Two patients need a liver. One is critically ill and has a high chance of dying within days, with moderate expected benefit from transplant. The other is stable, with a slightly better expected outcome. Which statement best describes the ethical tension?",
+   "choices": [
+    "Medical urgency and expected benefit can conflict, so allocation rules must weigh both fairly",
+    "Justice requires that the wealthier patient receive the liver simply because they can better afford follow-up care later",
+    "Beneficence requires that organs go to whichever patient has been waiting more years in any case",
+    "Autonomy requires that the patients choose between themselves who will receive the liver"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l11.q1",
+   "lessonId": "med-ethics-hs.l11",
+   "kind": "mcq",
+   "prompt": "What is the difference between somatic and germline gene editing?",
+   "choices": [
+    "Somatic editing changes the egg only, whereas germline editing changes the skin",
+    "Somatic editing is illegal everywhere, whereas germline editing is approved",
+    "Somatic changes are not inherited, whereas germline changes can be passed to descendants",
+    "Somatic editing is done only on animals in laboratories, whereas germline editing is done on humans"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l11.q2",
+   "lessonId": "med-ethics-hs.l11",
+   "kind": "mcq",
+   "prompt": "What does the Genetic Information Nondiscrimination Act of 2008 cover?",
+   "choices": [
+    "Discrimination by life insurers and long-term care insurers based on genes",
+    "The right of researchers to sell genetic data to the highest bidder",
+    "The ban on all kinds of genetic testing of people in the workplace",
+    "Discrimination by health insurers and employers based on genetic information"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l11.q3",
+   "lessonId": "med-ethics-hs.l11",
+   "kind": "mcq",
+   "prompt": "The announcement by He Jiankui in 2018 was widely condemned mainly because it involved:",
+   "choices": [
+    "the birth of children from gene-edited embryos, with unresolved safety and consent concerns",
+    "a somatic therapy that regulators had approved for a serious inherited blood disease in adults",
+    "a screening test for newborns that was reported without any parental consent",
+    "a plan to store genetic data about patients in an unsecured database"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l11.q4",
+   "lessonId": "med-ethics-hs.l11",
+   "kind": "mcq",
+   "prompt": "A couple who are both carriers of a recessive condition use in vitro fertilization and preimplantation genetic testing to select an unaffected embryo. Which concern would a disability-rights critic most likely raise?",
+   "choices": [
+    "That selecting an embryo is the same as editing its DNA with the CRISPR tools",
+    "That selection may express a devaluing message about the lives of people with the condition",
+    "That recessive conditions can never be detected in prospective parents before a pregnancy has begun",
+    "That in vitro fertilization requires the couple to disclose their genes to employers"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l12.q1",
+   "lessonId": "med-ethics-hs.l12",
+   "kind": "mcq",
+   "prompt": "What did Dobbs v. Jackson Women's Health Organization (2022) decide?",
+   "choices": [
+    "States may not regulate abortion in any manner after fetal viability",
+    "The Constitution does not confer a right to abortion, and the matter returns to the states",
+    "The Constitution guarantees access to abortion through the first trimester of pregnancy in every state",
+    "Abortion is banned in every state by a federal statute passed by Congress"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l12.q2",
+   "lessonId": "med-ethics-hs.l12",
+   "kind": "mcq",
+   "prompt": "A gradualist view of the moral status of the fetus holds that:",
+   "choices": [
+    "moral status grows over time, so early and late abortion may be judged differently",
+    "moral status is identical at every stage from conception until adulthood",
+    "moral status does not exist until a child has been born, registered and formally given a name",
+    "moral status depends entirely on the wishes of the biological father"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l12.q3",
+   "lessonId": "med-ethics-hs.l12",
+   "kind": "mcq",
+   "prompt": "Which statement best separates law from argument in this lesson?",
+   "choices": [
+    "The law settles the moral question completely, so no real argument remains once legislators have voted",
+    "The moral question is settled by experts, so the law must follow whatever they say",
+    "Both law and morality are the same everywhere and have not changed in modern times",
+    "The current law is a matter of fact that varies by place, whereas the moral arguments remain contested"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l12.q4",
+   "lessonId": "med-ethics-hs.l12",
+   "kind": "mcq",
+   "prompt": "A fertility clinic has several frozen embryos that the couple no longer needs. One person says the embryos have the moral status of persons, and another says they are clusters of cells with potential. Which is the most accurate analysis of their disagreement?",
+   "choices": [
+    "It depends mainly on the legal question of whether in vitro fertilization is permitted at all",
+    "It depends mainly on whether the couple has had a healthy child through earlier treatment",
+    "It depends mainly on a disagreement over the moral status of the embryo, which leads to different views on discarding or donation",
+    "It depends mainly on the yearly cost of storage, so the two views would be identical if storage were free of charge"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l13.q1",
+   "lessonId": "med-ethics-hs.l13",
+   "kind": "mcq",
+   "prompt": "What did the New Jersey Supreme Court allow in In re Quinlan (1976)?",
+   "choices": [
+    "Removal of a ventilator from a patient in a persistent vegetative state at her guardian's request",
+    "Active euthanasia for any patient whose family members requested the end of life, even if the patient objected",
+    "A hospital to override a patient's family and keep the ventilator in place forever",
+    "A physician to be paid by a patient's family to end the life of the patient"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l13.q2",
+   "lessonId": "med-ethics-hs.l13",
+   "kind": "mcq",
+   "prompt": "What standard did Cruzan v. Director, Missouri Department of Health (1990) permit a state to require?",
+   "choices": [
+    "No evidence at all, since a spouse always decides for the patient",
+    "Clear and convincing evidence of the incompetent patient's wishes",
+    "Proof beyond a reasonable doubt in a criminal trial of the family",
+    "A written agreement from every one of the treating physicians"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l13.q3",
+   "lessonId": "med-ethics-hs.l13",
+   "kind": "mcq",
+   "prompt": "Which statement about withholding and withdrawing life-sustaining treatment reflects the mainstream ethical view?",
+   "choices": [
+    "Withholding is a crime, while withdrawing is a matter of the doctor's taste",
+    "Neither is ever ethical without a court order in each particular case",
+    "They are generally seen as morally equivalent when a patient may refuse the treatment",
+    "Withdrawing is always morally wrong, whereas withholding is always required by ethics in every case"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l13.q4",
+   "lessonId": "med-ethics-hs.l13",
+   "kind": "mcq",
+   "prompt": "A 79-year-old woman with terminal cancer asks her doctor for medicine to relieve intense pain, understanding that high doses may slightly shorten her life. The doctor intends only to relieve suffering. Which doctrine best explains why many ethicists consider this acceptable?",
+   "choices": [
+    "The dead donor rule, because the patient is already considered to have died before the pain treatment is given",
+    "The reasonable patient standard, because the patient has disclosed all of her symptoms",
+    "The harm principle, because the dose could affect the other patients in the unit",
+    "The doctrine of double effect, because the intent is relief of pain and the earlier death is a foreseen side effect"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l13.q5",
+   "lessonId": "med-ethics-hs.l13",
+   "kind": "mcq",
+   "prompt": "In Washington v. Glucksberg (1997), the Supreme Court held that:",
+   "choices": [
+    "there is no constitutional right to assisted suicide, and states may regulate it",
+    "every state must permit physician-assisted dying for any terminally ill adult who requests it",
+    "assisted suicide is a federal crime in every state of the United States",
+    "competent patients may never refuse any type of life-sustaining treatment"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l14.q1",
+   "lessonId": "med-ethics-hs.l14",
+   "kind": "mcq",
+   "prompt": "What is the purpose of crisis standards of care?",
+   "choices": [
+    "To make sure that every patient receives exactly the same treatment in any crisis, whatever the supplies",
+    "To allow hospitals to ration care according to wealth and social status",
+    "To remove the need for doctors to ever talk about prognosis with patients",
+    "To set fair rules in advance for allocating scarce resources during a crisis"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l14.q2",
+   "lessonId": "med-ethics-hs.l14",
+   "kind": "mcq",
+   "prompt": "Which criterion do most triage ethicists reject as the sole basis for ranking patients?",
+   "choices": [
+    "Fair, transparent rules that can be applied to every patient equally",
+    "Regular review of the decision as the condition of the patient changes",
+    "First come, first served, because it favors those who can reach the hospital fastest",
+    "Short-term likelihood of surviving with the treatment being provided"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l14.q3",
+   "lessonId": "med-ethics-hs.l14",
+   "kind": "mcq",
+   "prompt": "Why might excluding patients with disabilities from ventilators on the basis of assumed quality of life be criticized?",
+   "choices": [
+    "It requires that doctors ask all patients about their religious beliefs",
+    "It can rest on stereotypes and may violate disability discrimination law",
+    "It always results in more ventilators than are needed being given to each of the patients",
+    "It prevents hospitals from using any medical evidence in triage"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l14.q4",
+   "lessonId": "med-ethics-hs.l14",
+   "kind": "mcq",
+   "prompt": "During a surge, a plan allocates the last ventilator to the patient with the best short-term survival odds, assessed by a triage team separate from the bedside clinicians, and offers palliative care to the other patient. Which two ethical features does this plan reflect?",
+   "choices": [
+    "Priority based on likely benefit and non-abandonment, with decisions separated from the treating team",
+    "Priority based on social worth and rank, with decisions made privately by a single treating clinician at the bedside",
+    "Priority based on age alone and ability to pay, with no provision for later review",
+    "Priority based on a lottery only, with palliative care offered just to those who win"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l15.q1",
+   "lessonId": "med-ethics-hs.l15",
+   "kind": "mcq",
+   "prompt": "What is automation bias?",
+   "choices": [
+    "A rule that clinicians must always follow the recommendations of software",
+    "A technique for training a model with only one type of patient",
+    "The tendency to over-trust the output of an automated system",
+    "The tendency of machines to dislike some of the patients that they serve and to treat them unfairly"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l15.q2",
+   "lessonId": "med-ethics-hs.l15",
+   "kind": "mcq",
+   "prompt": "Why can an algorithm trained on historical data produce unjust results?",
+   "choices": [
+    "Algorithms are legally forbidden from using any information about people who belong to a particular group",
+    "Historical data is always too small to train an algorithm in any useful way",
+    "Algorithms change their behavior only when a clinician has overruled them",
+    "The data may reflect past inequities, and a poorly chosen prediction target can carry that bias"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l15.q3",
+   "lessonId": "med-ethics-hs.l15",
+   "kind": "mcq",
+   "prompt": "A model for detecting disease from images performed well at the hospital that built it. What should a new hospital do before relying on it?",
+   "choices": [
+    "Test it on its own patients and equipment, and keep monitoring it after use begins",
+    "Trust the developer's published accuracy claims, since the model was clearly successful at another hospital",
+    "Use the model only on patients who have asked to be in a research study",
+    "Stop all human review of images, because the model is better than clinicians"
+   ]
+  },
+  {
+   "id": "med-ethics-hs.l15.q4",
+   "lessonId": "med-ethics-hs.l15",
+   "kind": "mcq",
+   "prompt": "A hospital deploys an AI tool that flags which patients should receive extra care management. Months later, an audit finds that at the same risk score, patients from one racial group are sicker than patients from another. Which diagnosis of the problem is most consistent with the 2019 Science study discussed in the lesson?",
+   "choices": [
+    "The audit is flawed because algorithms cannot be biased when they use mathematics",
+    "The model's target, such as past spending, may be a biased proxy for actual need",
+    "The model is too transparent, and showing the score to clinicians causes the bias",
+    "The model should have been trained without any information about health at all"
+   ]
+  }
+ ]
+}

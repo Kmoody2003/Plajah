@@ -1,0 +1,1629 @@
+{
+ "courseId": "graphic-design",
+ "label": "Graphic Design",
+ "lessons": [
+  {
+   "id": "graphic-design.l01",
+   "title": "What Design Is For",
+   "body": [
+    "Look at a stop sign. It has no clever artwork, yet it works: red, bold, eight-sided, with one word. A driver understands it in a fraction of a second. That is graphic design at its most basic. It is the planning and arranging of text and images so that a specific audience understands a specific message and, often, does something about it.",
+    "Design is different from decoration. Decoration makes something look nice. Design makes something work. A concert poster has to tell you who is playing, where and when, and make you want to go. A medicine label has to make the dose impossible to misread. A website menu has to help you find what you came for. In each case the designer asks three questions before touching a tool: who is this for, what must they understand or do, and where will they meet it?",
+    "Graphic design is also not the same as fine art. A painter may follow a private vision. A designer usually works for a client and an audience, within a brief, a budget and a deadline, and success is measured by whether the message gets through. That does not make design unimaginative. Constraints are what make clever solutions necessary.",
+    "Designers work in many forms: logos, posters, books, packaging, signs, websites and apps. The tools change, from pencils and printing presses to software, but the job stays the same. Every choice of size, color, shape and space either helps the viewer or gets in the way. The rest of this course is about making those choices on purpose."
+   ]
+  },
+  {
+   "id": "graphic-design.l02",
+   "title": "Hierarchy: What Should the Eye See First?",
+   "body": [
+    "Imagine a flyer for a school bake sale where the date, the place, the title, the price list and a joke are all printed in the same size and weight. Nothing is wrong with any single line, yet the reader does not know where to begin. The flyer has no hierarchy.",
+    "Visual hierarchy is the ordering of elements by importance so the eye moves through them in a deliberate sequence. Designers build it with a handful of tools. Size is the strongest: larger things are noticed first. Weight, meaning thick or thin strokes, does similar work. Color and contrast pull attention, since a bright shape on a quiet background stands out. Position matters too; in languages read left to right and top to bottom, people usually begin near the top left. Space can isolate an element and give it importance.",
+    "A useful habit is the squint test. Step back or blur your eyes until the details disappear. What remains visible is what the design is really emphasizing. If the joke is the most visible thing on the bake-sale flyer, the hierarchy is wrong.",
+    "Worked example: for the flyer, a designer might make \"Bake Sale\" the largest, boldest element (level one), set the date and place in a medium size (level two), and leave the price list and small print in the smallest size (level three). Three levels are often enough. If everything is emphasized, nothing is. Good hierarchy is mostly the discipline of deciding what matters least."
+   ]
+  },
+  {
+   "id": "graphic-design.l03",
+   "title": "Contrast and Repetition",
+   "body": [
+    "Two principles pull in opposite directions and work best together. Contrast says: if two things are different, make them clearly different. Repetition says: if two things are the same kind of thing, treat them the same way.",
+    "Contrast can be created through size, weight, color, shape, texture or style. Dark text on a light background is contrast in value, and it is what makes text readable. A heavy headline over light body text is contrast in weight. The key word is clearly. A headline set in 18 points above body text in 16 points is a timid difference that looks like a mistake. Either make the headline decisively larger or make them the same.",
+    "Repetition ties a piece together. When every section heading shares one font, size and color, readers learn the pattern and relax; they can recognize a heading without reading it. Repeating a color, a line style, a corner shape or a layout across the pages of a brochure or the screens of an app creates a sense of one coherent thing. Designers write these repeated choices into a style guide, and software supports them with styles and templates.",
+    "Worked example: a school newsletter uses a purple bar at the top of every page, headings always in bold sans serif, and captions always in small italics. That is repetition. The one story that matters most this month has a full-width photo and a headline twice the usual size. That is contrast, and it works because everything around it is consistent. Break a pattern only when you want attention."
+   ]
+  },
+  {
+   "id": "graphic-design.l04",
+   "title": "Alignment and Proximity",
+   "body": [
+    "Two more principles do quiet but powerful work. Alignment means lining elements up along shared edges or centers, such as a common left edge. Proximity means placing related items near one another and separating unrelated ones.",
+    "Consider a business card where the name sits left, the phone number floats centered, and the email hugs the right edge. Each item may look fine alone, but together they feel random. Aligning everything to one left edge creates an invisible line the eye follows, and the card suddenly feels organized. Weak alignment, such as items that are almost lined up, is worse than obvious misalignment because it looks like an error. Designers choose a small number of alignments and stick to them. Left-aligned text, with a ragged right edge, is the usual choice for reading because every line starts in the same place.",
+    "Proximity applies a principle from Gestalt psychology, a school of thought about how people perceive wholes: things close together are seen as a group. On the business card, the name and job title should sit close together, then a clear gap, then the contact details. Space does the grouping, so no boxes or lines are needed.",
+    "A common mistake is spacing everything evenly, which makes the page look like a list of unrelated parts. The fix is to vary the gaps on purpose: small gaps inside groups, larger gaps between groups. A viewer should be able to see the structure of the page from its spacing alone."
+   ]
+  },
+  {
+   "id": "graphic-design.l05",
+   "title": "The Anatomy of Letters",
+   "body": [
+    "Most of what we read is type, so a designer needs the vocabulary for it. Start with a distinction that people often blur. A typeface is a design for a whole set of characters, such as Garamond or Helvetica. A font is one specific version of it, such as Helvetica Bold at a given size. In digital use the words are often swapped, but the difference helps: a typeface is the family, a font is one member.",
+    "Now the parts of a letter. The baseline is the invisible line the letters sit on. The x-height is the height of a lowercase x, the body of most lowercase letters. The cap height is the height of capital letters. An ascender is the part of a letter that rises above the x-height, as in b, d and h; a descender drops below the baseline, as in g, p and y. A counter is the enclosed or partly enclosed space inside a letter, like the hole in an o. A serif is a small finishing stroke at the end of a main stroke, and a typeface without them is called sans serif.",
+    "Why does this matter? Because anatomy explains how typefaces differ in practice. Two fonts set at the same point size can look quite different in size if one has a taller x-height, since the lowercase letters take up most of a line of text. A large x-height with open counters generally stays legible at small sizes, which is why it is favored for screens.",
+    "Type size is measured in points. In digital design, one point is usually 1/72 of an inch, and 12 points make a pica, a unit used in print layout."
+   ]
+  },
+  {
+   "id": "graphic-design.l06",
+   "title": "Type Classification",
+   "body": [
+    "Thousands of typefaces exist, so designers group them into broad families. Knowing the families helps you choose by purpose rather than by guesswork.",
+    "Serif typefaces have small finishing strokes and have long been used for book text. Within that group, old style faces, such as Garamond, show gentle contrast between thick and thin strokes and a diagonal stress. Transitional faces, such as Baskerville, increase the contrast. Didone or modern faces, such as Bodoni, push the contrast to extremes, with hairline serifs and very thick vertical strokes, which can look elegant at large sizes but fragile in small text.",
+    "Slab serifs have thick, block-like serifs and a sturdy look. Sans serif faces drop the serifs. Grotesque and neo-grotesque sans serifs, of which Helvetica is the best-known example, have a neutral, even look. Humanist sans serifs, such as Gill Sans, draw on the proportions of calligraphy and feel warmer.",
+    "Beyond these, script typefaces imitate handwriting, and they are hard to read in long passages or in all capitals. Blackletter, the dense angular style used in medieval Europe, today signals tradition or, in some contexts, rock and tattoo culture. Display typefaces are designed for headlines only and tend to fall apart at body size. Monospace faces give every character the same width, which suits code and typewriter looks.",
+    "Worked example: for an invitation to a wedding, a designer may choose a refined serif for the names and a simple sans serif for the details. The choice is about tone: a classification is really a set of associations."
+   ]
+  },
+  {
+   "id": "graphic-design.l07",
+   "title": "Pairing Typefaces",
+   "body": [
+    "Two typefaces together can be an elegant team or a quarrel. The most reliable advice is also the simplest: use few typefaces, and make the relationship between them obvious.",
+    "The first strategy is contrast. Pair a serif headline with a sans serif body, or the reverse. Because the two styles are visibly different, the viewer reads the difference as intentional. The danger zone is two typefaces that are similar but not identical, say two different geometric sans serifs. The difference looks like an accident.",
+    "The second strategy is to use one family with many weights and styles. Many typefaces come in a superfamily with light, regular, bold and italic versions, and sometimes both serif and sans serif forms built to match. Hierarchy can then come from size, weight and style alone, which guarantees harmony.",
+    "A third idea is to look for shared structure. Fonts with a similar x-height, similar proportions or similar stroke contrast sit together comfortably even when their classifications differ.",
+    "A practical rule of thumb is to limit a project to two typefaces, or three at the very most, and to give each a specific job: one for headings, one for text, perhaps a third for captions or accents. Decorative display faces work in small doses.",
+    "Worked example: a museum leaflet sets headings in a bold slab serif and everything else in a quiet humanist sans serif. Only two typefaces appear across twelve pages. The design feels consistent because every typographic choice repeats."
+   ]
+  },
+  {
+   "id": "graphic-design.l08",
+   "title": "Leading, Kerning, Tracking and Measure",
+   "body": [
+    "Choosing a good typeface is only half of typography. The other half is spacing, and four terms cover it.",
+    "Leading, pronounced like the metal lead, is the vertical distance from one baseline to the next. Too tight and the descenders of one line collide with the ascenders of the next; too loose and the eye struggles to find the next line. For body text a common starting point is about 120 percent of the type size, so 10-point type might get 12-point leading, then adjusted by eye. Faces with large x-heights or long lines usually need more.",
+    "Kerning is the adjustment of space between a specific pair of letters, such as A and V, whose shapes leave an awkward gap. Good fonts include built-in kerning, and designers fine-tune it mainly in large type like logos and headlines. Tracking, also called letter-spacing, adjusts space across a whole word or block. Slightly open tracking suits small capital letters and tiny text; tightening it too far makes letters touch.",
+    "Measure is the length of a line of text. Long lines tire readers because it is hard to find the start of the next one; very short lines break rhythm. A commonly cited comfortable range for body text is roughly 45 to 75 characters per line, though this depends on size and context.",
+    "Worked example: a paragraph that spans a full page width at 100 characters per line looks heavy. Putting it into a column about 60 characters wide, with leading adjusted to match, makes the same words much easier to read."
+   ]
+  },
+  {
+   "id": "graphic-design.l09",
+   "title": "Typographic Hierarchy and Text Settings",
+   "body": [
+    "Lesson two covered hierarchy in general. Typography is where designers most often apply it. A type system defines a limited set of styles, each with a job: for instance a title, a heading, a subheading, body text, a caption and a footnote. Each style fixes typeface, size, weight, color and spacing. Software supports this with paragraph styles, and web design with style sheets, so every change is made once and updates everywhere. This is repetition in practice.",
+    "Differences between levels should be clear. A scale where each size is a consistent multiple of the last gives a sense of order. Weight, italic, capitals and color provide additional levels, but combining several at once, such as bold, italic, underlined and capital letters, is clutter. Pick one or two signals per level.",
+    "Alignment of paragraphs also matters. Flush left, ragged right text is the most common choice for reading. Justified text, where both edges are straight, looks tidy in newspapers and books, but poor spacing can leave uneven gaps and rivers of white space unless there is enough line length and hyphenation. Centered text suits short, formal lines such as invitations and fails in long paragraphs.",
+    "Pay attention to detail. Use proper quotation marks and apostrophes instead of straight marks typed from a keyboard, use real dashes, and avoid widows and orphans, meaning stray lines or single words left alone at the end or start of a column or page. Avoid underlining for emphasis, which on screens signals a link.",
+    "Worked example: a report uses six defined styles, and when the client asks for a different heading color, the designer changes one style and every heading updates."
+   ]
+  },
+  {
+   "id": "graphic-design.l10",
+   "title": "Whitespace and Balance",
+   "body": [
+    "Beginners often treat empty space as wasted space and fill every corner. Experienced designers treat it as a material. Whitespace, also called negative space, is any area without content, and it need not be white. It gives elements room to breathe, groups and separates content, and directs attention. A single object surrounded by generous space looks important, while the same object crowded among others looks ordinary. Luxury brands often use abundant space for this reason.",
+    "There are two kinds worth distinguishing. Macro whitespace is the large-scale space around the major parts of a layout, such as margins and gaps between sections. Micro whitespace is the small space inside things, such as leading and the gaps between letters or between a button and its label. Both affect readability and tone.",
+    "Balance is the sense that a composition is visually stable. Every element has visual weight, determined by size, darkness, color intensity and complexity. In symmetrical balance, similar weight is mirrored on either side of an axis, which feels formal and calm. In asymmetrical balance, unlike elements balance each other, as a small, dark shape can balance a large, pale area. Asymmetry feels more dynamic and is common in modern layouts.",
+    "Worked example: a poster has a large photo on the left and a block of text on the right. If the photo is heavy and dark, the designer might enlarge the text slightly, or leave extra empty space beside it, so the right side carries enough weight. If the layout feels like it is tipping over, balance is off."
+   ]
+  },
+  {
+   "id": "graphic-design.l11",
+   "title": "Grids and Layout Structure",
+   "body": [
+    "Behind most well-organized pages is a grid: an invisible framework used to place elements. A grid does not limit creativity so much as remove small decisions, so attention can go to the big ones.",
+    "The main parts are simple. Margins are the spaces between the content and the edge of the page. Columns are vertical divisions that hold text and images. Gutters are the gaps between columns. Modules are blocks formed where rows and columns intersect, and a grid built this way is called a modular grid. A baseline grid is a series of evenly spaced horizontal lines that text sits on, so lines of text in neighboring columns line up across the page.",
+    "Different jobs call for different grids. A novel needs a single text block with wide margins. A magazine might use a flexible multi-column grid, so a story can span two, three or four columns. A website uses a responsive grid that rearranges columns as the screen narrows.",
+    "Grids create alignment and repetition automatically. Elements that snap to the same lines look related, and readers sense the order even if they could not explain it. Good designers also know when to break the grid. A picture that spills across several columns or off the page edge gets attention precisely because the rest of the layout is regular.",
+    "Worked example: a designer sets up a twelve-column grid for a magazine spread. Because twelve divides evenly into twos, threes, fours and sixes, the same grid supports layouts with two, three or four columns."
+   ]
+  },
+  {
+   "id": "graphic-design.l12",
+   "title": "Color in Design",
+   "body": [
+    "Color is among the fastest ways to set a mood and organize a design, and it also confuses beginners. A few ideas help. Designers describe color by hue (the basic color name), saturation (how intense or muted it is) and value or lightness (how light or dark it is). Value is especially important because contrast between light and dark is what makes content legible, regardless of hue.",
+    "Color relationships are often described using the color wheel. Complementary colors sit opposite each other, such as blue and orange, and look vivid together. Analogous colors sit next to each other and feel harmonious. Monochromatic schemes use one hue in varied values. These are starting points, not laws.",
+    "A practical palette usually has a dominant color, one or two supporting colors, and a neutral. A common guide is to let one color lead and use the accent sparingly so it stands out for things that matter, such as buttons or warnings.",
+    "Meaning is partly cultural. Red may suggest danger, passion or celebration depending on context and place, and white signifies purity in some cultures and mourning in others. Designers research their audience rather than assume.",
+    "Screens and print produce color differently. Screens mix light using red, green and blue (RGB), an additive process. Print generally mixes cyan, magenta, yellow and black inks (CMYK), a subtractive process. Because the ranges differ, some vivid screen colors cannot be matched exactly in print. A full study of color theory belongs to a separate course."
+   ]
+  },
+  {
+   "id": "graphic-design.l13",
+   "title": "Working with Imagery",
+   "body": [
+    "Images do heavy lifting in design, from photographs and illustrations to icons and charts. The first question is whether an image earns its place. A good one communicates something words cannot, adds emotion or shows the product honestly. A decorative filler image that could belong to any page usually adds noise.",
+    "Choosing images means checking subject, mood, style and consistency. A set of images should feel like they belong together, with similar lighting, color treatment and viewpoint. Mixing a glossy studio photo with a flat cartoon on one page looks like two different brands.",
+    "Cropping is a design tool. Cropping tightly on a face makes it intimate, while a wide crop shows context. Crop to remove distractions and to put the subject where the layout needs it. Never stretch an image out of its proportions; scale it evenly. Text placed over an image needs enough contrast, which can be created by choosing a quiet area of the picture, adding a soft overlay or placing the text on a solid panel.",
+    "Technical quality matters. An image enlarged beyond its pixel dimensions looks blurry or blocky. Check that the resolution suits the final use, as covered in the production lessons.",
+    "Rights matter too. Finding a picture online does not mean you may use it. Photographs and illustrations are normally protected by copyright, so designers use images they made, commissioned, or licensed, or those in the public domain or under open licenses, and follow the terms. People shown in images may also require permission for certain uses."
+   ]
+  },
+  {
+   "id": "graphic-design.l14",
+   "title": "Accessible Design",
+   "body": [
+    "Accessible design means making work usable by as many people as possible, including those with low vision, color blindness, hearing loss, motor limitations or cognitive differences. It also helps everyone in difficult conditions, such as glare on a phone in sunlight. Treating accessibility as a late checklist is a mistake; it is easier and better to build it in from the start.",
+    "Contrast is the most basic item. The Web Content Accessibility Guidelines (WCAG), an international standard, define contrast ratios between text and background. At level AA, normal text should reach at least 4.5 to 1, and large text at least 3 to 1. Free tools compute these ratios. Pale grey text on white often fails.",
+    "Never rely on color alone to convey meaning. A notable minority of people, mostly men, have some form of color vision deficiency, and a chart that says \"red means bad, green means good\" with no other clue can mislead them. Add labels, patterns, icons or position.",
+    "Type size and spacing matter. Tiny, light, tightly spaced text is hard for many readers. Avoid long passages in all capitals or in decorative fonts. Make interactive elements, such as buttons, large enough to click or tap, and give them visible focus states for keyboard users.",
+    "On the web, images that carry meaning need text alternatives for screen readers, and headings should be real headings so users can navigate by structure. Video benefits from captions.",
+    "Worked example: a designer swaps a pastel yellow button with white text, which fails the contrast test, for a deep golden button with dark text, and adds an icon so that the meaning does not depend on hue."
+   ]
+  },
+  {
+   "id": "graphic-design.l15",
+   "title": "Logos and Identity Systems",
+   "body": [
+    "A logo is a mark that identifies an organization. It is not the brand itself. A brand is the whole set of impressions people hold about a company, and a logo is a signature that helps them recognize it.",
+    "Logos come in several types, and the terms are useful. A wordmark is the name set in distinctive lettering. A lettermark uses initials. A symbol or pictorial mark is a graphic icon. A combination mark pairs a symbol with a name. The famous Nike Swoosh, designed by Carolyn Davidson in the early 1970s, is an example of an abstract symbol that works without words once it is familiar.",
+    "Strong logos tend to share traits. They are simple, so they are remembered. They are distinctive, so they are not confused with competitors. They are appropriate to the organization's character and audience. And they are versatile: a good logo works small on a phone screen, large on a building, in one color, on light or dark backgrounds. Designers test logos at tiny sizes and in black and white, because color and detail can vanish.",
+    "An identity system extends the logo into a toolkit: color palette, typefaces, spacing rules, image style, patterns, icon style and the way all these combine. A brand guidelines document records the rules, including clear space around the logo, minimum size and misuse examples such as stretching or recoloring it.",
+    "Worked example: for a new neighborhood bakery, a designer sketches dozens of ideas on paper before refining a few. The final identity is a simple wheat-stalk symbol, a warm color pair and one friendly serif typeface, applied consistently to bags, signs and the website."
+   ]
+  },
+  {
+   "id": "graphic-design.l16",
+   "title": "Posters and Single-Page Communication",
+   "body": [
+    "A poster competes for attention in a busy street or hallway, and it usually gets only a glance. That makes it a perfect exercise in the core principles. The design has to work quickly.",
+    "Start by identifying the single most important message. A poster that says six things says nothing. Decide what the viewer must take away in a few seconds, such as the event name, and make that the dominant element. Secondary information, usually date, time and place, forms a clear second level, and details such as ticket information form a quiet third level. The squint test works well here.",
+    "Use a strong focal point. This can be a bold image, a striking piece of type or a simple shape. Contrast of scale, such as one huge element against small ones, grabs attention. Keep type large enough to read from the expected distance. Limit the number of typefaces and colors, because simplicity is what makes a poster readable from across a room.",
+    "Think about the viewer's path. People tend to move from the dominant element to the next strongest, so arrange the elements in the order you want them read. Make sure that the call to action, such as a web address or ticket instructions, is findable.",
+    "Consider format and context. A poster for a street may need to be visible from several meters away, while one for a classroom wall is seen up close. A designer also plans how it prints and how it will look on a phone when it is shared online.",
+    "The poster has a long history as a design form, and the early twentieth century produced many influential examples, but the lesson here is practical: one idea, one hierarchy, one clear action."
+   ]
+  },
+  {
+   "id": "graphic-design.l17",
+   "title": "Editorial and Book Design",
+   "body": [
+    "Editorial design covers magazines, newspapers, reports and books. Where a poster is read in seconds, these are read over minutes or hours, so comfort and navigation come first.",
+    "The basic unit is the page, but printed pages are usually seen as spreads, two facing pages. A designer plans the spread as a whole. Margins have names: the inner margin by the binding is the gutter or inside margin, and it often needs extra room so text is not lost in the fold. Traditional book designers often make the outer and bottom margins larger than the inner and top ones, which frames the text block pleasantly, though there is no single required proportion.",
+    "A reader navigates with running heads (a line at the top of each page with the book or chapter title), folios (page numbers), chapter openers, subheadings and a table of contents. Consistency here is what makes the design feel professional, and it is achieved through a master page and defined paragraph styles.",
+    "Body text for long reading is usually set in a readable serif or a clean sans serif at a comfortable size, with generous leading and a sensible measure, as discussed earlier. Magazines add variety through feature layouts, pull quotes and large images, but they still follow an underlying grid.",
+    "Printed books are made from sheets folded into groups of pages, commonly called signatures, which is why page counts are planned in multiples. Digital publications such as e-books use reflowable text, which adjusts to the reader's screen and settings, so the designer controls structure and styles more than exact page layouts.",
+    "Worked example: a designer setting a novel chooses one serif face, defines styles for chapter titles and paragraphs, adds running heads, and checks that no chapter ends with a single stranded line."
+   ]
+  },
+  {
+   "id": "graphic-design.l18",
+   "title": "Packaging Design",
+   "body": [
+    "Packaging has several jobs at once. It protects the product, it carries required information, it communicates the brand, and on a store shelf it competes with neighbors for a shopper's attention. Because it is three-dimensional, the designer must think about how the design wraps around corners, folds and curves.",
+    "Packaging begins with structure. A dieline is a flat template that shows the cuts, folds and glue areas of a box or label, drawn to exact measurements. Designers place artwork on top of the dieline, keeping important text away from folds and cut edges. They often make a physical mockup to check how the design reads once folded.",
+    "Materials and printing methods affect the result. Paperboard, corrugated cardboard, plastic, glass and metal take ink differently. Finishes such as varnish, foil or embossing add texture but cost more. A designer chats with the printer early.",
+    "Information has a hierarchy. On a typical food package, the brand and product name come first, then a key benefit or flavor, then the details. Required content such as ingredients, nutrition facts, weight and warnings is governed by rules that vary by product type and country, so designers work from the client's or regulator's specifications rather than guessing.",
+    "Consider the shelf. A product seen from a distance, next to a dozen others, needs a clear color block or shape. A variant system, such as using a different color for each flavor while keeping the layout identical, uses repetition and contrast together.",
+    "Sustainability is increasingly part of the brief, including minimizing material, using recyclable or reused components and avoiding oversized boxes."
+   ]
+  },
+  {
+   "id": "graphic-design.l19",
+   "title": "Web and Interface Design Basics",
+   "body": [
+    "On screens, people do not only look; they act. Designers of websites and apps, often called user interface (UI) designers, apply all the earlier principles and add new concerns: interaction, feedback and many screen sizes.",
+    "Responsive design means a layout adapts to the device. A page may show three columns on a wide monitor, then reflow into one on a phone. Designers often start with the small screen, then expand, since it forces focus on essential content. Images and text must scale gracefully, and controls must be large enough for fingers.",
+    "Hierarchy and consistency become interface conventions. Buttons look like buttons; links look like links; the main action stands out and secondary actions are quieter. Reusing the same components, such as the same button style everywhere, makes an interface learnable. Many teams keep a design system, a shared library of components, colors and type styles, which is repetition at scale.",
+    "Good interfaces give feedback. When a user taps a button, something should visibly change, such as a pressed state or a confirmation message, so they know it worked. Forms should label fields clearly and explain errors in plain words.",
+    "User experience (UX) design is the wider discipline of how a product works for its users, including research, flows and testing. UI design is the visual layer within it. Watching a few real people try to complete a task is one of the most valuable things a designer can do, because it reveals problems no one on the team could see.",
+    "Navigation should be predictable. Keep the primary choices few and clearly labeled, and let users always know where they are.",
+    "Accessibility, covered earlier, applies fully here: contrast, text size, keyboard use and screen reader support."
+   ]
+  },
+  {
+   "id": "graphic-design.l20",
+   "title": "Vector and Raster Graphics",
+   "body": [
+    "Digital images come in two fundamental kinds, and choosing the wrong one is a classic source of problems.",
+    "Raster images, also called bitmaps, are grids of tiny colored squares called pixels. Photographs are raster. A raster image has a fixed number of pixels, so if you enlarge it past its original size the software must invent pixels, and the result looks soft or blocky. Common raster file formats include JPEG, which uses lossy compression suited to photographs, PNG, which uses lossless compression and supports transparency, and TIFF, often used in print workflows. Editing programs such as Photoshop work mainly with raster images.",
+    "Vector graphics are defined by mathematical descriptions of points, lines and curves, along with fills and strokes. Because they are formulas rather than pixels, they can be scaled to any size, from a favicon to a billboard, without losing sharpness. Logos, icons and illustrations with clean shapes are usually vector. Common formats include SVG, widely used on the web, and PDF and EPS in print workflows, while programs such as Illustrator and Inkscape work mainly with vectors.",
+    "Each has limits. Vectors are not well suited to the continuous tones of photographs. Rasters cannot scale up cleanly.",
+    "Worked example: a designer builds a company logo as vector artwork. That one file produces a tiny website icon, a printed business card and a large vehicle wrap, all crisp. The same designer saves a photo for the website as a compressed JPEG at a size matching how large it will appear, so the page loads quickly.",
+    "Keep an original, editable master file, and export copies in the formats needed rather than repeatedly re-saving a lossy file."
+   ]
+  },
+  {
+   "id": "graphic-design.l21",
+   "title": "Print Production: Color, Resolution and Bleed",
+   "body": [
+    "A design that looks perfect on a screen can fail at the printer if the file is not prepared properly. Production knowledge prevents expensive reprints. Always ask your printer for their specifications, since requirements vary, but several concepts are nearly universal.",
+    "Color mode. Most commercial printing uses CMYK inks. Files built in RGB may shift in color when converted, and very bright screen colors may look duller. Designers set up print documents in CMYK from the start and judge color with proofs, since monitors differ. Spot colors, such as Pantone inks, are special premixed inks used when exact color matching is important, like brand colors.",
+    "Resolution. Resolution for print is measured in pixels per inch (ppi) of the image at its printed size. A typical target for photographs is about 300 ppi, though large-format items viewed from far away, such as banners, can use less. An image that is 3 inches wide at 300 ppi cannot simply be stretched to 12 inches without losing quality.",
+    "Bleed and margins. Printing and cutting are not perfectly exact, so a design with color or images reaching the edge extends past the trim line by a small amount called bleed, often around 1/8 inch (about 3 millimeters) in the United States, though printers set their own. Important text and logos stay inside a safe margin away from the trim, so a slightly shifted cut does not clip them. Crop marks show where to trim.",
+    "Black text. Small black text is usually set as 100 percent black only, rather than a mix of all four inks, which can show misregistration.",
+    "Fonts and files. Embed or outline fonts and include linked images, or export to a print-ready PDF, as the printer requests."
+   ]
+  },
+  {
+   "id": "graphic-design.l22",
+   "title": "The Swiss Style and Modernist Ideas",
+   "body": [
+    "Design history is a course of its own, but one tradition shapes so much of what you have learned that it deserves a lesson: the Swiss Style, also called the International Typographic Style. It emerged in Switzerland, centered on Zurich and Basel, in the years after the Second World War and developed through the 1950s and 1960s. It built on earlier modernist thinking, including ideas associated with the Bauhaus, the German design school of the 1920s, which is covered in the separate design movements course.",
+    "Its characteristics are easy to recognize. Designers used mathematical grids to organize pages. They favored sans serif type, flush-left ragged-right text and a clear typographic hierarchy. They preferred photography to illustration and wanted layouts to feel objective and orderly, with generous whitespace and asymmetric balance. The belief behind this was that design could be a neutral, universal means of communication, serving information rather than the designer's ego.",
+    "Well-known figures include Josef Müller-Brockmann, known for his rigorous grid-based posters and his writing on grid systems, and educators such as Armin Hofmann and Emil Ruder at the Basel school. Typefaces of the period include Helvetica, released in 1957 and designed by Max Miedinger with Eduard Hoffmann, and Univers by Adrian Frutiger, also from 1957.",
+    "The influence is huge: grids, hierarchy and clean sans serif type are the basis of much corporate identity, signage and interface design. There are also critiques. Later designers argued that strict neutrality can feel cold, that the idea of a universal style reflects particular cultural assumptions, and that expressive, playful approaches communicate things grids cannot.",
+    "Worked example: a transit map or airport sign system that uses a grid, one sans serif family and strict hierarchy is working in this tradition."
+   ]
+  },
+  {
+   "id": "graphic-design.l23",
+   "title": "Critique and the Design Process",
+   "body": [
+    "Professional design is a process, not a single flash of inspiration. Though names and steps vary between teams, a typical sequence runs as follows.",
+    "First comes the brief: a statement of the project's goals, audience, deliverables, constraints, budget and schedule. A vague brief is the largest source of trouble, so designers ask questions until it is clear what success looks like. Next is research: learning about the audience, the competition and the context. Then ideation, generating many options through sketches and quick thumbnails, since the first idea is rarely the best. The best directions are developed into concepts and presented to the client or team. After feedback, the chosen concept is refined, and details such as spacing, type and color are polished. Finally come production and delivery: preparing final files, checking proofs, handing over assets and documenting how they should be used. Projects often loop back to earlier stages.",
+    "Critique is the practice of examining work against goals. Effective critique talks about the work, not the person, and ties comments to the brief. \"I don't like it\" is not useful. \"The date is hard to find, and the audience needs it first\" is. Designers practice describing what they see, relating it to purpose, and suggesting what to try next. Receiving critique requires separating your ego from the work and asking clarifying questions rather than defending.",
+    "Working with clients means explaining your reasoning in terms of their goals, setting the number of revision rounds in advance, and getting approval in writing at key stages.",
+    "Worked example: a designer presents three logo directions with a sentence on why each fits the brief, gathers feedback, develops one, and delivers a final package with files and guidelines."
+   ]
+  },
+  {
+   "id": "graphic-design.l24",
+   "title": "Ethics and Professional Practice",
+   "body": [
+    "Because design persuades and informs, it carries responsibilities. Ethical questions in design are real, and reasonable people sometimes disagree about them.",
+    "Honesty. Design should not mislead. Charts with truncated or distorted axes can exaggerate differences, and packaging can imply a product is healthier or larger than it is. Interface tricks sometimes called dark patterns, such as hiding the cancel button or pre-ticking a costly option, work against users' interests. Designers can refuse or question such requests.",
+    "Representation. Images and symbols can reinforce stereotypes or exclude groups. Using cultural motifs, sacred symbols or traditional patterns as mere decoration without understanding or permission can cause offense, so research and consultation help. Inclusive design asks who might be left out.",
+    "Rights. Designers use fonts, images, software and others' work under licenses, and respecting the terms is both legal and professional. Fonts in particular are licensed software, often with separate terms for web, apps and print. Copying another designer's logo or layout closely is plagiarism and may be infringement. Contracts should state who owns the final work and when the rights transfer, typically on payment, and the details vary by agreement and law.",
+    "Fair practice. Some designers argue against speculative work, meaning unpaid pitches, because it undervalues the profession, while others accept it in limited situations. Pricing, whether by project, hour or value, should cover your time and risk.",
+    "Environmental and social impact also count, including material waste and the attention-grabbing design of apps.",
+    "Building a career. A portfolio should show a small number of strong projects, each explained: the problem, your role, your process and the result. Quality beats quantity. Keep learning, seek mentors and feedback, and keep your work and rights organized."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "graphic-design.l01.q1",
+   "lessonId": "graphic-design.l01",
+   "kind": "tf",
+   "prompt": "Graphic design is mainly about making things look decorative, whether or not the message gets through.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l01.q2",
+   "lessonId": "graphic-design.l01",
+   "kind": "mcq",
+   "prompt": "Which question should a designer ask before opening any software?",
+   "choices": [
+    "What is the cheapest font?",
+    "Who is this for and what must they understand or do?",
+    "Which filter looks trendiest?",
+    "How many colors can I fit in?"
+   ]
+  },
+  {
+   "id": "graphic-design.l01.q3",
+   "lessonId": "graphic-design.l01",
+   "kind": "mcq",
+   "prompt": "How does a designer's job usually differ from a painter's private vision?",
+   "choices": [
+    "A designer does not use images",
+    "A designer works without an audience",
+    "A designer typically works within a brief and is judged on whether the message gets through",
+    "A designer never works with constraints"
+   ]
+  },
+  {
+   "id": "graphic-design.l01.q4",
+   "lessonId": "graphic-design.l01",
+   "kind": "tf",
+   "prompt": "Constraints such as budget and deadline can push designers toward clever solutions.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l01.q5",
+   "lessonId": "graphic-design.l01",
+   "kind": "mcq",
+   "prompt": "A medicine label must make the dose hard to misread. This shows that design is mainly about what?",
+   "choices": [
+    "Making information work for people",
+    "Showing off artistic skill",
+    "Using as many fonts as possible",
+    "Avoiding all text"
+   ]
+  },
+  {
+   "id": "graphic-design.l02.q1",
+   "lessonId": "graphic-design.l02",
+   "kind": "mcq",
+   "prompt": "What does visual hierarchy do?",
+   "choices": [
+    "Makes every element equally prominent",
+    "Removes all text from a page",
+    "Chooses the printing method",
+    "Orders elements by importance so the eye follows a sequence"
+   ]
+  },
+  {
+   "id": "graphic-design.l02.q2",
+   "lessonId": "graphic-design.l02",
+   "kind": "tf",
+   "prompt": "Making everything bold and large is a reliable way to build hierarchy.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l02.q3",
+   "lessonId": "graphic-design.l02",
+   "kind": "mcq",
+   "prompt": "In the squint test, what is the designer looking for?",
+   "choices": [
+    "Whether the file is large",
+    "Which elements remain visible once details blur",
+    "Whether the colors are accurate",
+    "How many fonts are used"
+   ]
+  },
+  {
+   "id": "graphic-design.l02.q4",
+   "lessonId": "graphic-design.l02",
+   "kind": "mcq",
+   "prompt": "Which is typically the strongest tool for building hierarchy?",
+   "choices": [
+    "Paper brand",
+    "Document length",
+    "Size",
+    "File name"
+   ]
+  },
+  {
+   "id": "graphic-design.l02.q5",
+   "lessonId": "graphic-design.l02",
+   "kind": "tf",
+   "prompt": "Three levels of hierarchy, such as title, details and small print, are often enough for a simple flyer.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l03.q1",
+   "lessonId": "graphic-design.l03",
+   "kind": "mcq",
+   "prompt": "If two elements are different, what does the contrast principle advise?",
+   "choices": [
+    "Make them identical",
+    "Hide one of them",
+    "Make them clearly different",
+    "Make them slightly different"
+   ]
+  },
+  {
+   "id": "graphic-design.l03.q2",
+   "lessonId": "graphic-design.l03",
+   "kind": "tf",
+   "prompt": "Repetition means consistently treating similar elements in the same way.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l03.q3",
+   "lessonId": "graphic-design.l03",
+   "kind": "mcq",
+   "prompt": "A headline set at 18 points above 16-point text is an example of what?",
+   "choices": [
+    "A timid contrast that looks like a mistake",
+    "Strong contrast",
+    "Effective repetition",
+    "A grid"
+   ]
+  },
+  {
+   "id": "graphic-design.l03.q4",
+   "lessonId": "graphic-design.l03",
+   "kind": "mcq",
+   "prompt": "Why does a style guide help a design?",
+   "choices": [
+    "It replaces the brief",
+    "It records repeated choices so they stay consistent",
+    "It removes the need for color",
+    "It makes images higher resolution"
+   ]
+  },
+  {
+   "id": "graphic-design.l03.q5",
+   "lessonId": "graphic-design.l03",
+   "kind": "tf",
+   "prompt": "Breaking an established pattern is a way to draw attention to one element.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l04.q1",
+   "lessonId": "graphic-design.l04",
+   "kind": "mcq",
+   "prompt": "What does proximity mean in design?",
+   "choices": [
+    "Using only one font",
+    "Placing related items close together",
+    "Making all items the same color",
+    "Centering everything"
+   ]
+  },
+  {
+   "id": "graphic-design.l04.q2",
+   "lessonId": "graphic-design.l04",
+   "kind": "tf",
+   "prompt": "Almost-aligned elements look more intentional than clearly misaligned ones.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l04.q3",
+   "lessonId": "graphic-design.l04",
+   "kind": "mcq",
+   "prompt": "Why is flush-left, ragged-right text common for reading?",
+   "choices": [
+    "It uses less ink",
+    "It is required by law",
+    "It makes letters larger",
+    "Every line starts in the same place"
+   ]
+  },
+  {
+   "id": "graphic-design.l04.q4",
+   "lessonId": "graphic-design.l04",
+   "kind": "mcq",
+   "prompt": "On a business card, how can spacing alone group the name with the job title?",
+   "choices": [
+    "Place them close together with a larger gap before other details",
+    "Space everything evenly",
+    "Put them in different corners",
+    "Use different fonts for each word"
+   ]
+  },
+  {
+   "id": "graphic-design.l04.q5",
+   "lessonId": "graphic-design.l04",
+   "kind": "tf",
+   "prompt": "Spacing everything evenly makes the page structure clearer.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l05.q1",
+   "lessonId": "graphic-design.l05",
+   "kind": "mcq",
+   "prompt": "What is the difference between a typeface and a font?",
+   "choices": [
+    "A typeface is the design family; a font is one specific version of it",
+    "They are identical in every way",
+    "A font is the family; a typeface is one size",
+    "A typeface is only for print"
+   ]
+  },
+  {
+   "id": "graphic-design.l05.q2",
+   "lessonId": "graphic-design.l05",
+   "kind": "mcq",
+   "prompt": "What is the baseline?",
+   "choices": [
+    "The width of a letter",
+    "The line letters sit on",
+    "The top of capital letters",
+    "The space inside an o"
+   ]
+  },
+  {
+   "id": "graphic-design.l05.q3",
+   "lessonId": "graphic-design.l05",
+   "kind": "tf",
+   "prompt": "A descender is the part of a letter that drops below the baseline, as in g or y.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l05.q4",
+   "lessonId": "graphic-design.l05",
+   "kind": "mcq",
+   "prompt": "What is a counter?",
+   "choices": [
+    "A serif on a capital",
+    "The gap between lines",
+    "The thickest stroke",
+    "The enclosed or partly enclosed space within a letter"
+   ]
+  },
+  {
+   "id": "graphic-design.l05.q5",
+   "lessonId": "graphic-design.l05",
+   "kind": "mcq",
+   "prompt": "Two fonts at the same point size can look different in size because of what?",
+   "choices": [
+    "Differences in x-height",
+    "Differences in file name",
+    "Paper color",
+    "Number of pages"
+   ]
+  },
+  {
+   "id": "graphic-design.l06.q1",
+   "lessonId": "graphic-design.l06",
+   "kind": "mcq",
+   "prompt": "Which typeface group has no small finishing strokes?",
+   "choices": [
+    "Old style serif",
+    "Slab serif",
+    "Didone",
+    "Sans serif"
+   ]
+  },
+  {
+   "id": "graphic-design.l06.q2",
+   "lessonId": "graphic-design.l06",
+   "kind": "tf",
+   "prompt": "Script typefaces are usually a good choice for long passages of body text.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l06.q3",
+   "lessonId": "graphic-design.l06",
+   "kind": "mcq",
+   "prompt": "Which description fits Didone or modern serifs such as Bodoni?",
+   "choices": [
+    "Dense angular medieval letters",
+    "Extreme contrast between thick and thin strokes",
+    "Every character has equal width",
+    "Handwriting-like connected strokes"
+   ]
+  },
+  {
+   "id": "graphic-design.l06.q4",
+   "lessonId": "graphic-design.l06",
+   "kind": "mcq",
+   "prompt": "Which type group gives every character the same width?",
+   "choices": [
+    "Transitional",
+    "Blackletter",
+    "Monospace",
+    "Humanist sans"
+   ]
+  },
+  {
+   "id": "graphic-design.l06.q5",
+   "lessonId": "graphic-design.l06",
+   "kind": "tf",
+   "prompt": "Choosing a typeface class mainly sets a tone through its associations.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l07.q1",
+   "lessonId": "graphic-design.l07",
+   "kind": "mcq",
+   "prompt": "Which pairing reads as clearly intentional?",
+   "choices": [
+    "Five decorative faces",
+    "Two similar scripts",
+    "A serif headline with a sans serif body",
+    "Two nearly identical sans serifs"
+   ]
+  },
+  {
+   "id": "graphic-design.l07.q2",
+   "lessonId": "graphic-design.l07",
+   "kind": "tf",
+   "prompt": "Using a single family in several weights can guarantee harmony.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l07.q3",
+   "lessonId": "graphic-design.l07",
+   "kind": "mcq",
+   "prompt": "Why is pairing two similar-but-different typefaces risky?",
+   "choices": [
+    "The difference looks like an accident",
+    "It always prints incorrectly",
+    "It is against copyright law",
+    "It makes text invisible"
+   ]
+  },
+  {
+   "id": "graphic-design.l07.q4",
+   "lessonId": "graphic-design.l07",
+   "kind": "mcq",
+   "prompt": "A sensible limit for most projects is how many typefaces?",
+   "choices": [
+    "As many as the software offers",
+    "Two, or at most three",
+    "Ten",
+    "One per paragraph"
+   ]
+  },
+  {
+   "id": "graphic-design.l07.q5",
+   "lessonId": "graphic-design.l07",
+   "kind": "tf",
+   "prompt": "Similar x-heights and proportions can help fonts from different classes sit together comfortably.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l08.q1",
+   "lessonId": "graphic-design.l08",
+   "kind": "mcq",
+   "prompt": "What is leading?",
+   "choices": [
+    "The weight of the type",
+    "The vertical distance from one baseline to the next",
+    "The space between two specific letters",
+    "The length of a line"
+   ]
+  },
+  {
+   "id": "graphic-design.l08.q2",
+   "lessonId": "graphic-design.l08",
+   "kind": "mcq",
+   "prompt": "Kerning adjusts space where?",
+   "choices": [
+    "Between columns",
+    "Between pages",
+    "Between a specific pair of letters",
+    "Between paragraphs"
+   ]
+  },
+  {
+   "id": "graphic-design.l08.q3",
+   "lessonId": "graphic-design.l08",
+   "kind": "tf",
+   "prompt": "A very long line length makes it harder to find the start of the next line.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l08.q4",
+   "lessonId": "graphic-design.l08",
+   "kind": "mcq",
+   "prompt": "A commonly cited comfortable measure for body text is about how many characters per line?",
+   "choices": [
+    "45 to 75",
+    "5 to 10",
+    "150 to 200",
+    "300 to 400"
+   ]
+  },
+  {
+   "id": "graphic-design.l08.q5",
+   "lessonId": "graphic-design.l08",
+   "kind": "mcq",
+   "prompt": "What does tracking change?",
+   "choices": [
+    "The page margins",
+    "Space across a whole word or block of text",
+    "Only one letter pair",
+    "The color of text"
+   ]
+  },
+  {
+   "id": "graphic-design.l09.q1",
+   "lessonId": "graphic-design.l09",
+   "kind": "mcq",
+   "prompt": "What is a type system?",
+   "choices": [
+    "A limited set of defined text styles, each with a job",
+    "A single typeface used everywhere",
+    "A printer setting",
+    "A font download site"
+   ]
+  },
+  {
+   "id": "graphic-design.l09.q2",
+   "lessonId": "graphic-design.l09",
+   "kind": "tf",
+   "prompt": "Defining paragraph styles lets you change a heading's look everywhere at once.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l09.q3",
+   "lessonId": "graphic-design.l09",
+   "kind": "mcq",
+   "prompt": "Which text alignment is usually unsuitable for long paragraphs?",
+   "choices": [
+    "Justified with adequate line length",
+    "Ragged right",
+    "Centered",
+    "Flush left"
+   ]
+  },
+  {
+   "id": "graphic-design.l09.q4",
+   "lessonId": "graphic-design.l09",
+   "kind": "mcq",
+   "prompt": "What is a widow or orphan in typesetting?",
+   "choices": [
+    "A missing letter",
+    "A very large initial",
+    "A second font",
+    "A stray line or word left alone at the start or end of a column or page"
+   ]
+  },
+  {
+   "id": "graphic-design.l09.q5",
+   "lessonId": "graphic-design.l09",
+   "kind": "tf",
+   "prompt": "Combining bold, italic, underline and capitals on one heading is the recommended way to show emphasis.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l10.q1",
+   "lessonId": "graphic-design.l10",
+   "kind": "mcq",
+   "prompt": "What is whitespace in design?",
+   "choices": [
+    "Only the color white",
+    "A printing error",
+    "A type of font",
+    "Any area without content"
+   ]
+  },
+  {
+   "id": "graphic-design.l10.q2",
+   "lessonId": "graphic-design.l10",
+   "kind": "tf",
+   "prompt": "Whitespace is wasted space that should be filled.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l10.q3",
+   "lessonId": "graphic-design.l10",
+   "kind": "mcq",
+   "prompt": "Which describes asymmetrical balance?",
+   "choices": [
+    "Only one element on the page",
+    "Unlike elements balance each other, such as a small dark shape against a large pale area",
+    "Identical items mirrored on both sides",
+    "Everything centered"
+   ]
+  },
+  {
+   "id": "graphic-design.l10.q4",
+   "lessonId": "graphic-design.l10",
+   "kind": "mcq",
+   "prompt": "Which is an example of micro whitespace?",
+   "choices": [
+    "The gap between two sections",
+    "A blank page",
+    "Leading between lines of text",
+    "The margin around a whole page"
+   ]
+  },
+  {
+   "id": "graphic-design.l10.q5",
+   "lessonId": "graphic-design.l10",
+   "kind": "tf",
+   "prompt": "Symmetrical balance typically feels more formal and calm.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l11.q1",
+   "lessonId": "graphic-design.l11",
+   "kind": "mcq",
+   "prompt": "What is a gutter in a column grid?",
+   "choices": [
+    "A column of images",
+    "A baseline",
+    "The gap between columns",
+    "The outer page margin"
+   ]
+  },
+  {
+   "id": "graphic-design.l11.q2",
+   "lessonId": "graphic-design.l11",
+   "kind": "tf",
+   "prompt": "A grid helps elements look related and creates alignment automatically.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l11.q3",
+   "lessonId": "graphic-design.l11",
+   "kind": "mcq",
+   "prompt": "What does a baseline grid do?",
+   "choices": [
+    "Lets lines of text in neighboring columns line up",
+    "Sets the page's color mode",
+    "Defines the bleed",
+    "Chooses typefaces"
+   ]
+  },
+  {
+   "id": "graphic-design.l11.q4",
+   "lessonId": "graphic-design.l11",
+   "kind": "mcq",
+   "prompt": "Why is a twelve-column grid popular?",
+   "choices": [
+    "It forces one column only",
+    "Twelve divides evenly into twos, threes, fours and sixes",
+    "It is legally required",
+    "It uses less ink"
+   ]
+  },
+  {
+   "id": "graphic-design.l11.q5",
+   "lessonId": "graphic-design.l11",
+   "kind": "tf",
+   "prompt": "Breaking the grid on purpose can attract attention because the rest of the layout is regular.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l12.q1",
+   "lessonId": "graphic-design.l12",
+   "kind": "mcq",
+   "prompt": "Which property of color most affects legibility?",
+   "choices": [
+    "The brand",
+    "Value, meaning lightness or darkness",
+    "The hue's name",
+    "The file extension"
+   ]
+  },
+  {
+   "id": "graphic-design.l12.q2",
+   "lessonId": "graphic-design.l12",
+   "kind": "mcq",
+   "prompt": "Complementary colors are located where on the color wheel?",
+   "choices": [
+    "At the same point",
+    "Not on the wheel",
+    "Opposite each other",
+    "Next to each other"
+   ]
+  },
+  {
+   "id": "graphic-design.l12.q3",
+   "lessonId": "graphic-design.l12",
+   "kind": "tf",
+   "prompt": "The meaning of a color is identical in every culture.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l12.q4",
+   "lessonId": "graphic-design.l12",
+   "kind": "mcq",
+   "prompt": "Screens typically form color using which model?",
+   "choices": [
+    "RGB, an additive process",
+    "CMYK, a subtractive process",
+    "Pantone only",
+    "Black and white only"
+   ]
+  },
+  {
+   "id": "graphic-design.l12.q5",
+   "lessonId": "graphic-design.l12",
+   "kind": "mcq",
+   "prompt": "Why might a vivid screen color look duller in print?",
+   "choices": [
+    "Printing ignores color",
+    "CMYK inks cannot reproduce some colors RGB screens can",
+    "Paper is always gray",
+    "Printers dislike bright colors"
+   ]
+  },
+  {
+   "id": "graphic-design.l13.q1",
+   "lessonId": "graphic-design.l13",
+   "kind": "mcq",
+   "prompt": "What should happen to an image that is resized?",
+   "choices": [
+    "It should be scaled evenly, not stretched out of proportion",
+    "It should be stretched to fill",
+    "It should be flipped",
+    "It should be darkened"
+   ]
+  },
+  {
+   "id": "graphic-design.l13.q2",
+   "lessonId": "graphic-design.l13",
+   "kind": "tf",
+   "prompt": "If a photo can be found online, you may use it freely in your design.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l13.q3",
+   "lessonId": "graphic-design.l13",
+   "kind": "mcq",
+   "prompt": "Which helps text remain readable over a busy photo?",
+   "choices": [
+    "Using lower contrast",
+    "Stretching the photo",
+    "A soft overlay or a solid panel behind the text",
+    "Using a smaller font"
+   ]
+  },
+  {
+   "id": "graphic-design.l13.q4",
+   "lessonId": "graphic-design.l13",
+   "kind": "mcq",
+   "prompt": "What is a good test of whether an image earns its place?",
+   "choices": [
+    "Is it free?",
+    "Is it large?",
+    "Is it colorful?",
+    "Does it communicate something words cannot or add real emotion?"
+   ]
+  },
+  {
+   "id": "graphic-design.l13.q5",
+   "lessonId": "graphic-design.l13",
+   "kind": "tf",
+   "prompt": "A set of images should share similar lighting, color treatment and viewpoint to feel cohesive.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l14.q1",
+   "lessonId": "graphic-design.l14",
+   "kind": "mcq",
+   "prompt": "Under WCAG level AA, what minimum contrast ratio applies to normal-size text?",
+   "choices": [
+    "1.5 to 1",
+    "2 to 1",
+    "20 to 1",
+    "4.5 to 1"
+   ]
+  },
+  {
+   "id": "graphic-design.l14.q2",
+   "lessonId": "graphic-design.l14",
+   "kind": "tf",
+   "prompt": "A chart should rely on color alone to separate good from bad.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l14.q3",
+   "lessonId": "graphic-design.l14",
+   "kind": "mcq",
+   "prompt": "Which helps users who navigate with a keyboard?",
+   "choices": [
+    "Hiding buttons",
+    "Visible focus states on interactive elements",
+    "Removing all links",
+    "Using lighter text"
+   ]
+  },
+  {
+   "id": "graphic-design.l14.q4",
+   "lessonId": "graphic-design.l14",
+   "kind": "mcq",
+   "prompt": "Why do meaningful images need text alternatives on the web?",
+   "choices": [
+    "They print better",
+    "They need less color",
+    "Screen readers can then convey them to users",
+    "They load faster"
+   ]
+  },
+  {
+   "id": "graphic-design.l14.q5",
+   "lessonId": "graphic-design.l14",
+   "kind": "tf",
+   "prompt": "Accessible design benefits many people beyond those with permanent disabilities.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l15.q1",
+   "lessonId": "graphic-design.l15",
+   "kind": "mcq",
+   "prompt": "Which describes a wordmark?",
+   "choices": [
+    "A set of initials only",
+    "A color palette",
+    "The organization's name set in distinctive lettering",
+    "A graphic icon only"
+   ]
+  },
+  {
+   "id": "graphic-design.l15.q2",
+   "lessonId": "graphic-design.l15",
+   "kind": "tf",
+   "prompt": "A logo and a brand are the same thing.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l15.q3",
+   "lessonId": "graphic-design.l15",
+   "kind": "mcq",
+   "prompt": "Why do designers test logos small and in black and white?",
+   "choices": [
+    "To confirm they stay recognizable when color and detail are lost",
+    "Because color is banned",
+    "To save paper",
+    "Because logos must be gray"
+   ]
+  },
+  {
+   "id": "graphic-design.l15.q4",
+   "lessonId": "graphic-design.l15",
+   "kind": "mcq",
+   "prompt": "What does a brand guidelines document usually specify?",
+   "choices": [
+    "Employee salaries",
+    "Clear space, minimum size, colors, fonts and misuse examples",
+    "Only the logo's price",
+    "The printer's address"
+   ]
+  },
+  {
+   "id": "graphic-design.l15.q5",
+   "lessonId": "graphic-design.l15",
+   "kind": "mcq",
+   "prompt": "Which is an identity system?",
+   "choices": [
+    "A single poster",
+    "A font download",
+    "A toolkit of logo, color, type, imagery and rules applied consistently",
+    "One logo file"
+   ]
+  },
+  {
+   "id": "graphic-design.l16.q1",
+   "lessonId": "graphic-design.l16",
+   "kind": "mcq",
+   "prompt": "What should a designer decide first for a poster?",
+   "choices": [
+    "The border style",
+    "The single most important message",
+    "The paper brand",
+    "The font count"
+   ]
+  },
+  {
+   "id": "graphic-design.l16.q2",
+   "lessonId": "graphic-design.l16",
+   "kind": "tf",
+   "prompt": "A poster usually gets only a glance from viewers.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l16.q3",
+   "lessonId": "graphic-design.l16",
+   "kind": "mcq",
+   "prompt": "Which helps a poster grab attention?",
+   "choices": [
+    "Equal-size elements",
+    "Tiny type",
+    "Many colors",
+    "A strong focal point with contrast of scale"
+   ]
+  },
+  {
+   "id": "graphic-design.l16.q4",
+   "lessonId": "graphic-design.l16",
+   "kind": "mcq",
+   "prompt": "Why plan the viewer's path?",
+   "choices": [
+    "People move from the dominant element to the next strongest",
+    "Posters are read in random order",
+    "Because paths are legally required",
+    "To add more text"
+   ]
+  },
+  {
+   "id": "graphic-design.l16.q5",
+   "lessonId": "graphic-design.l16",
+   "kind": "tf",
+   "prompt": "A poster also needs a findable call to action, such as a web address.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l17.q1",
+   "lessonId": "graphic-design.l17",
+   "kind": "mcq",
+   "prompt": "What is a folio?",
+   "choices": [
+    "A page number",
+    "A chapter title",
+    "A paragraph style",
+    "A cover"
+   ]
+  },
+  {
+   "id": "graphic-design.l17.q2",
+   "lessonId": "graphic-design.l17",
+   "kind": "mcq",
+   "prompt": "What is a running head?",
+   "choices": [
+    "The binding",
+    "A line at the top of each page carrying the book or chapter title",
+    "A title on the cover",
+    "A large drop cap"
+   ]
+  },
+  {
+   "id": "graphic-design.l17.q3",
+   "lessonId": "graphic-design.l17",
+   "kind": "tf",
+   "prompt": "Printed books are made from sheets folded into signatures, so page counts are planned in multiples.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l17.q4",
+   "lessonId": "graphic-design.l17",
+   "kind": "mcq",
+   "prompt": "Why does the inner margin often need extra room?",
+   "choices": [
+    "Readers dislike margins",
+    "Printers require it by law",
+    "It saves ink",
+    "Text can be lost in the binding fold"
+   ]
+  },
+  {
+   "id": "graphic-design.l17.q5",
+   "lessonId": "graphic-design.l17",
+   "kind": "tf",
+   "prompt": "In e-books with reflowable text, the designer controls exact page layout as in print.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l18.q1",
+   "lessonId": "graphic-design.l18",
+   "kind": "mcq",
+   "prompt": "What is a dieline?",
+   "choices": [
+    "A line of text",
+    "A printing ink",
+    "A type of font",
+    "A flat template showing a package's cuts, folds and glue areas"
+   ]
+  },
+  {
+   "id": "graphic-design.l18.q2",
+   "lessonId": "graphic-design.l18",
+   "kind": "tf",
+   "prompt": "Packaging has to protect the product, inform and sell all at once.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l18.q3",
+   "lessonId": "graphic-design.l18",
+   "kind": "mcq",
+   "prompt": "Why keep important text away from folds and cut edges?",
+   "choices": [
+    "It makes text brighter",
+    "Folds and cutting can distort or clip it",
+    "Folds are decorative",
+    "Printers charge extra for text"
+   ]
+  },
+  {
+   "id": "graphic-design.l18.q4",
+   "lessonId": "graphic-design.l18",
+   "kind": "mcq",
+   "prompt": "Using one color per flavor with an identical layout is an example of what?",
+   "choices": [
+    "Random design",
+    "A dieline",
+    "Repetition and contrast together",
+    "Ignoring hierarchy"
+   ]
+  },
+  {
+   "id": "graphic-design.l18.q5",
+   "lessonId": "graphic-design.l18",
+   "kind": "tf",
+   "prompt": "Required packaging information is usually set by rules that vary by product and country.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l19.q1",
+   "lessonId": "graphic-design.l19",
+   "kind": "mcq",
+   "prompt": "What does responsive design mean?",
+   "choices": [
+    "A page is printed quickly",
+    "A logo animates",
+    "A layout adapts to different screen sizes",
+    "A site answers email"
+   ]
+  },
+  {
+   "id": "graphic-design.l19.q2",
+   "lessonId": "graphic-design.l19",
+   "kind": "tf",
+   "prompt": "Interface components like buttons should look consistent throughout a product.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l19.q3",
+   "lessonId": "graphic-design.l19",
+   "kind": "mcq",
+   "prompt": "What is a design system?",
+   "choices": [
+    "A shared library of components, colors and type styles",
+    "A printing press",
+    "A single poster",
+    "A client contract"
+   ]
+  },
+  {
+   "id": "graphic-design.l19.q4",
+   "lessonId": "graphic-design.l19",
+   "kind": "mcq",
+   "prompt": "Why give users feedback after they tap a button?",
+   "choices": [
+    "To hide errors",
+    "So they know the action worked",
+    "To slow them down",
+    "To add decoration"
+   ]
+  },
+  {
+   "id": "graphic-design.l19.q5",
+   "lessonId": "graphic-design.l19",
+   "kind": "tf",
+   "prompt": "UI design is the visual layer within the wider discipline of UX design.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l20.q1",
+   "lessonId": "graphic-design.l20",
+   "kind": "mcq",
+   "prompt": "Which graphics are made of mathematical descriptions of lines and curves?",
+   "choices": [
+    "Compressed JPEG",
+    "Vector",
+    "Raster",
+    "Bitmap"
+   ]
+  },
+  {
+   "id": "graphic-design.l20.q2",
+   "lessonId": "graphic-design.l20",
+   "kind": "tf",
+   "prompt": "Enlarging a raster image beyond its original pixel size makes it look soft or blocky.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l20.q3",
+   "lessonId": "graphic-design.l20",
+   "kind": "mcq",
+   "prompt": "Which file type is a good fit for a photograph on a web page?",
+   "choices": [
+    "SVG",
+    "A dieline",
+    "A swatch",
+    "JPEG"
+   ]
+  },
+  {
+   "id": "graphic-design.l20.q4",
+   "lessonId": "graphic-design.l20",
+   "kind": "mcq",
+   "prompt": "Which format supports lossless compression and transparency?",
+   "choices": [
+    "PNG",
+    "JPEG",
+    "EPS only",
+    "MP3"
+   ]
+  },
+  {
+   "id": "graphic-design.l20.q5",
+   "lessonId": "graphic-design.l20",
+   "kind": "tf",
+   "prompt": "A logo built as vector artwork can be used from a tiny icon to a billboard without losing sharpness.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l21.q1",
+   "lessonId": "graphic-design.l21",
+   "kind": "mcq",
+   "prompt": "What is bleed?",
+   "choices": [
+    "Artwork extending past the trim line so edges print cleanly",
+    "Ink that smears",
+    "A margin inside the page",
+    "A color mode"
+   ]
+  },
+  {
+   "id": "graphic-design.l21.q2",
+   "lessonId": "graphic-design.l21",
+   "kind": "mcq",
+   "prompt": "Which color mode do most commercial print jobs use?",
+   "choices": [
+    "Hex",
+    "CMYK",
+    "RGB",
+    "Grayscale only"
+   ]
+  },
+  {
+   "id": "graphic-design.l21.q3",
+   "lessonId": "graphic-design.l21",
+   "kind": "tf",
+   "prompt": "A typical target resolution for photos in print is about 300 ppi at the printed size.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l21.q4",
+   "lessonId": "graphic-design.l21",
+   "kind": "mcq",
+   "prompt": "Why keep important text inside a safe margin?",
+   "choices": [
+    "Margins are decorative",
+    "It makes text darker",
+    "It reduces file size",
+    "A slightly shifted cut will not clip it"
+   ]
+  },
+  {
+   "id": "graphic-design.l21.q5",
+   "lessonId": "graphic-design.l21",
+   "kind": "tf",
+   "prompt": "You should always ask the printer for their specifications because requirements vary.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l22.q1",
+   "lessonId": "graphic-design.l22",
+   "kind": "mcq",
+   "prompt": "In which country did the Swiss Style develop?",
+   "choices": [
+    "Japan",
+    "Brazil",
+    "Canada",
+    "Switzerland"
+   ]
+  },
+  {
+   "id": "graphic-design.l22.q2",
+   "lessonId": "graphic-design.l22",
+   "kind": "tf",
+   "prompt": "Swiss Style designers favored mathematical grids and sans serif type.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l22.q3",
+   "lessonId": "graphic-design.l22",
+   "kind": "mcq",
+   "prompt": "Which designer is known for grid-based posters and writing on grid systems?",
+   "choices": [
+    "Adrian Frutiger",
+    "Josef Müller-Brockmann",
+    "Carolyn Davidson",
+    "Max Miedinger"
+   ]
+  },
+  {
+   "id": "graphic-design.l22.q4",
+   "lessonId": "graphic-design.l22",
+   "kind": "mcq",
+   "prompt": "What belief underlay the Swiss Style?",
+   "choices": [
+    "Design should avoid grids",
+    "Design should use only script type",
+    "Design could be a neutral, universal means of communication",
+    "Design should be purely personal"
+   ]
+  },
+  {
+   "id": "graphic-design.l22.q5",
+   "lessonId": "graphic-design.l22",
+   "kind": "tf",
+   "prompt": "Later critics argued that strict neutrality can feel cold and reflect particular cultural assumptions.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l23.q1",
+   "lessonId": "graphic-design.l23",
+   "kind": "mcq",
+   "prompt": "What is a design brief?",
+   "choices": [
+    "A font list",
+    "A printing proof",
+    "A statement of goals, audience, deliverables, constraints, budget and schedule",
+    "A final logo"
+   ]
+  },
+  {
+   "id": "graphic-design.l23.q2",
+   "lessonId": "graphic-design.l23",
+   "kind": "mcq",
+   "prompt": "Which is a more useful critique comment?",
+   "choices": [
+    "I don't like it",
+    "It is ugly",
+    "Make it pop",
+    "The date is hard to find, and the audience needs it first"
+   ]
+  },
+  {
+   "id": "graphic-design.l23.q3",
+   "lessonId": "graphic-design.l23",
+   "kind": "tf",
+   "prompt": "Designers usually try only one idea because the first is best.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l23.q4",
+   "lessonId": "graphic-design.l23",
+   "kind": "mcq",
+   "prompt": "Why agree on the number of revision rounds in advance?",
+   "choices": [
+    "It is a printing rule",
+    "It sets expectations and limits endless changes",
+    "It makes work faster",
+    "It removes the need for a brief"
+   ]
+  },
+  {
+   "id": "graphic-design.l23.q5",
+   "lessonId": "graphic-design.l23",
+   "kind": "tf",
+   "prompt": "Projects can loop back to earlier stages as feedback arrives.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l24.q1",
+   "lessonId": "graphic-design.l24",
+   "kind": "mcq",
+   "prompt": "Which is an example of a dark pattern?",
+   "choices": [
+    "Adding alt text",
+    "Hiding a cancel button to discourage canceling",
+    "Labeling a button clearly",
+    "Using readable type"
+   ]
+  },
+  {
+   "id": "graphic-design.l24.q2",
+   "lessonId": "graphic-design.l24",
+   "kind": "tf",
+   "prompt": "A chart with a misleading axis can exaggerate differences.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "graphic-design.l24.q3",
+   "lessonId": "graphic-design.l24",
+   "kind": "mcq",
+   "prompt": "Fonts are best understood as what?",
+   "choices": [
+    "Free for any use",
+    "Always public domain",
+    "Part of the monitor",
+    "Licensed software with terms that may differ for web, app and print"
+   ]
+  },
+  {
+   "id": "graphic-design.l24.q4",
+   "lessonId": "graphic-design.l24",
+   "kind": "mcq",
+   "prompt": "What should a portfolio show?",
+   "choices": [
+    "A few strong projects with the problem, your role, process and result",
+    "Every file you ever made",
+    "Only finished logos with no explanation",
+    "Only photos of your desk"
+   ]
+  },
+  {
+   "id": "graphic-design.l24.q5",
+   "lessonId": "graphic-design.l24",
+   "kind": "tf",
+   "prompt": "Designers agree universally that unpaid speculative pitches are acceptable.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  }
+ ]
+}

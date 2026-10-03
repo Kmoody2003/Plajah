@@ -52,9 +52,32 @@ test('grey codecs (ProRes/RAW) import but are honest about export', () => {
   const pr = codecById('prores');
   assert.ok(pr.importTiers.length > 0, 'ProRes imports freely');
   // camera RAW is decode-only
-  for (const id of ['braw', 'r3d', 'arriraw']) {
-    assert.equal(codecById(id).exportTiers.length, 0, `${id} raw is decode-only`);
+  for (const id of ['braw', 'r3d', 'arriraw', 'canon_crm']) {
+    const c = codecById(id);
+    assert.ok(c, `${id} must exist`);
+    assert.equal(c.exportTiers.length, 0, `${id} raw is decode-only`);
+    assert.ok(c.importTiers.length > 0, `${id} raw is importable`);
   }
+});
+
+test('MainConcept and pro broadcast profiles are properly registered', () => {
+  const mcMpeg2 = codecById('mainconcept_mpeg2');
+  assert.ok(mcMpeg2, 'mainconcept_mpeg2 exists');
+  assert.equal(mcMpeg2.license, 'expired');
+  assert.ok(mcMpeg2.ext.includes('m2t'));
+  assert.ok(mcMpeg2.ext.includes('hdv'));
+
+  const mcAvc = codecById('mainconcept_avc');
+  assert.ok(mcAvc, 'mainconcept_avc exists');
+  assert.equal(mcAvc.license, 'vendor');
+
+  const xavc = codecById('xavc');
+  assert.ok(xavc, 'xavc exists');
+  assert.equal(xavc.license, 'vendor');
+
+  const crm = codecById('canon_crm');
+  assert.ok(crm, 'canon_crm exists');
+  assert.ok(canImport('take_001.crm'));
 });
 
 // ── structural integrity ──

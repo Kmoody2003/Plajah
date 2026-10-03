@@ -1,0 +1,2123 @@
+{
+ "courseId": "chora-history",
+ "label": "The Chora Curriculum",
+ "lessons": [
+  {
+   "id": "harm-01",
+   "title": "One Line, No Harmony: Plainchant",
+   "body": [
+    "Before harmony there was monophony: one melodic line, sung by everyone, unaccompanied. Gregorian chant — the liturgical repertory consolidated across the Frankish church in the 8th and 9th centuries — is the largest surviving body of it. A chant has no chords, no bar lines, no fixed tempo. Its rhythm follows the Latin text; its shape follows the meaning of the words.",
+    "What chant does have is mode. Rather than our two flavours (major and minor), the medieval church recognised eight modes, each defined not just by its scale but by its final (the note it comes to rest on) and its reciting tone (the note it hovers around). Dorian on D, Phrygian on E, Lydian on F, Mixolydian on G, plus a \"plagal\" partner for each that sits lower in the voice. When you hear a modern film composer reach for Phrygian to signal menace or Lydian to signal wonder, they are borrowing this vocabulary.",
+    "Notation appears in this repertory too, and it appears because of scale. When one church in Aachen had to sing what another church in Rome sang, oral transmission failed. Neumes — small marks above the text showing the shape of the melody — were the fix. By the 11th century Guido of Arezzo had added a staff with a coloured line fixing a pitch, and for the first time in history you could learn a melody you had never heard from a page."
+   ]
+  },
+  {
+   "id": "harm-02",
+   "title": "Organum: The First Second Voice",
+   "body": [
+    "The earliest surviving description of two-part singing is in the Musica enchiriadis, a treatise from the late 9th century. Its instruction is startlingly simple: take a chant, and have a second voice sing it in parallel at the interval of a fourth or a fifth below. That is parallel organum, and it is the beginning of Western polyphony.",
+    "Why fourths and fifths? Because of physics, not taste. Two pitches whose frequencies stand in a simple whole-number ratio — 2:1 for an octave, 3:2 for a fifth, 4:3 for a fourth — reinforce each other's overtones and sound fused rather than clashing. Medieval ears heard thirds (a messier 5:4) as mild dissonance. The consonance hierarchy we take for granted is a cultural settlement on top of an acoustic fact.",
+    "Over the next three centuries the second voice gained independence. By the Notre-Dame school in Paris around 1200 — Léonin and Pérotin — the lower voice was holding single chant notes for enormously long durations while two, three, even four upper voices ran florid melismas above them. This is the sound of Pérotin's Viderunt omnes: the chant is still there, stretched to the point of becoming a drone, and something entirely new is happening on top of it. Harmony has stopped decorating melody and started to become an event in its own right."
+   ]
+  },
+  {
+   "id": "harm-03",
+   "title": "Counterpoint and the Renaissance Ideal",
+   "body": [
+    "Counterpoint is the craft of writing two or more melodies that are individually satisfying and simultaneously coherent. In the 15th and 16th centuries this became the central discipline of European composition, and the imitative point — one voice states a phrase, the others enter with the same phrase at staggered intervals — became its signature gesture.",
+    "Josquin des Prez (c. 1450–1521) is the figure who made this expressive rather than merely clever. He matched musical gestures to text with a directness that startled his contemporaries; Martin Luther said other composers did what the notes wanted, but Josquin made the notes do what he wanted. Listen to \"Ave Maria… virgo serena\" and you can hear each phrase of text get its own imitative point, entries cascading through the voices like a wave.",
+    "Palestrina (c. 1525–1594) then codified the style so thoroughly that his practice became, and remains, the way counterpoint is taught. The famous rules — dissonance only on weak beats or properly prepared as a suspension, contrary motion preferred, no parallel fifths or octaves — are reverse-engineered descriptions of what Palestrina actually did, formalised by Johann Joseph Fux in Gradus ad Parnassum (1725). Haydn, Mozart and Beethoven all learned from Fux. Every counterpoint class since is downstream of one 16th-century Italian's habits."
+   ]
+  },
+  {
+   "id": "harm-04",
+   "title": "Tonality Arrives: Functional Harmony",
+   "body": [
+    "Somewhere between 1600 and 1700 the modal system narrowed into the major/minor system, and a new idea took hold: chords have functions. In a key, the tonic (I) is home, the dominant (V) is the chord that most wants to return there, and the subdominant (IV) is the chord that sets up the dominant. The leading tone — the seventh degree, a semitone below the tonic — pulls upward so strongly that the V chord containing it feels physically unstable. Resolution is a real sensation, and functional harmony is the machine for producing it on demand.",
+    "The basso continuo made this practical. Baroque scores gave a bass line with figures under it — numbers telling a keyboard player which intervals to stack above each note. Harmony had become a shorthand, something you could specify without writing out. That is a conceptual leap: chords are now objects with names, not accidental byproducts of independent lines.",
+    "Rameau's Traité de l'harmonie (1722) supplied the theory. He argued that a chord retains its identity through inversion — that a C-E-G and an E-G-C are the same harmonic object — and that a bass line of chord roots (the fundamental bass) governs a piece's structure. This is why we can say \"I–V–vi–IV\" and everyone knows what we mean. It is also why the twelve-bar blues, a Nashville number chart and a jazz lead sheet all work: they are all Rameau's insight, three hundred years later."
+   ]
+  },
+  {
+   "id": "harm-05",
+   "title": "Bach, Temperament, and the Twelve Keys",
+   "body": [
+    "Pure intervals do not fit into an octave. Stack twelve perfect fifths (3:2) and you land very slightly higher than seven octaves — a discrepancy of about a quarter of a semitone called the Pythagorean comma. Something has to give. Every tuning system in history is a different answer to the question of where to hide that error.",
+    "Meantone temperament, standard through the Renaissance, hid it by narrowing most fifths so that thirds came out beautifully pure — but it left one horrifically out-of-tune \"wolf\" fifth, which meant remote keys were unusable. Well temperament, the 18th-century family of solutions, spread the error unevenly so that every key was playable but each key had its own distinct colour. Equal temperament, now universal on pianos, spreads the error perfectly evenly: every semitone is exactly the twelfth root of two. Every key becomes usable and every key becomes identical in character.",
+    "Bach's The Well-Tempered Clavier (Book I, 1722; Book II, 1742) is a prelude and fugue in every one of the twenty-four major and minor keys — twice. It is a demonstration, an encyclopaedia, and a teaching manual simultaneously. Note what it is not: proof that Bach used equal temperament. \"Well-tempered\" almost certainly meant an unequal well temperament in which E major genuinely sounded different from E-flat major. Something was lost when we standardised. We gained the freedom to modulate anywhere and we traded away the idea that keys have personalities."
+   ]
+  },
+  {
+   "id": "harm-06",
+   "title": "Chromaticism and the Breaking of the Key",
+   "body": [
+    "Romantic composers pushed functional harmony as far as it would go by exploiting its own logic. If the dominant seventh creates tension by containing a tritone, then chords that contain more ambiguous dissonances create more tension — and if you keep deferring the resolution, you keep the listener suspended.",
+    "Wagner's Tristan und Isolde (1859) opens with the most-analysed four notes in music. The Tristan chord — F, B, D-sharp, G-sharp — resolves not to a tonic but to another dominant-function chord, which itself does not resolve. The opera then spends four hours declining to settle. Because the chord can be read several ways at once (a half-diminished seventh, an altered French sixth, an appoggiatura cluster), no single analysis wins, and that ambiguity is the point: the music is about longing that cannot be satisfied, and its harmony literally cannot come to rest.",
+    "From there the road is short. Debussy dissolved function by treating chords as colours to be moved in parallel rather than progressions to be resolved. Schoenberg, having reached what he called \"the emancipation of the dissonance\", concluded around 1908 that if no chord requires resolution then the key itself has no work left to do, and by 1921 had built the twelve-tone method to organise music without one. Harmony's 900-year expansion had reached its own edge."
+   ]
+  },
+  {
+   "id": "harm-07",
+   "title": "Blue Notes and the Other Harmonic Tradition",
+   "body": [
+    "The blues broke a rule that European harmony treats as structural: in a twelve-bar blues, the I chord is often a dominant seventh. In functional harmony a dominant seventh must resolve. In the blues it is home. Three chords that all \"want\" to move somewhere sit still, and the tension never discharges — it becomes the texture.",
+    "The blue notes make this deeper. West African vocal traditions carried into the American South a practice of pitch inflection — bending the third, seventh and fifth degrees to microtonal positions between what a piano can play. On a guitar or a voice these are continuous slides; on a keyboard they are approximated by playing the flat and natural third together, which is why blues piano sounds like a crushed grace note. The scale is not \"minor over a major chord\" — that is a European rationalisation of something that was never built from a European scale in the first place.",
+    "Jazz then extended the chord upward. If a dominant seventh is stable, you can stack a ninth, an eleventh and a thirteenth on it and it is still stable; alter those extensions (flat nine, sharp eleven) and you get colour without collapse. By the time you reach Coltrane's \"Giant Steps\" (1960), harmony is moving through three tonal centres a major third apart at a tempo that leaves no time to hear any of them as home. Two traditions — European functional harmony and the African-American blues — had fused into something neither could have produced alone."
+   ]
+  },
+  {
+   "id": "harm-08",
+   "title": "Modern Pop Harmony: Loops, Modes and the Four Chords",
+   "body": [
+    "The dominant harmonic device of the last thirty years is the loop: a short chord cycle repeated without alteration for the length of the song. I–V–vi–IV is the famous one, but vi–IV–I–V, i–VI–III–VII and the \"Axis\" family all behave the same way. Crucially, a loop has no cadence. There is no arrival, because the end of the cycle is also its beginning. Music that loops is not weak tonal music; it is doing something tonal music cannot, which is to establish a stable environment inside which other things — rhythm, timbre, lyric, production — carry the drama.",
+    "Modal borrowing is the second big device. Mixolydian (a major scale with a flat seventh) removes the leading tone and therefore the pull to the tonic, which is why so much rock feels grounded rather than yearning. Aeolian and Dorian loops do the same in minor; Dorian's raised sixth gives it the bittersweet lift you hear across house, UK garage and much of Radiohead. None of this is new — it is medieval modality returning after tonality's three-century occupation.",
+    "The third device is that harmony has partly been replaced. In a lot of trap, drill and modern R&B the harmonic content is a single sustained minor pad or a two-chord oscillation, and the actual musical argument happens in the drum programming, the vocal arrangement and the low end. This is not harmonic poverty. It is a reallocation of where a listener's attention is asked to go — and understanding that reallocation is the whole point of studying harmony historically rather than as a set of rules."
+   ]
+  },
+  {
+   "id": "rec-01",
+   "title": "Before the Microphone: Scott, Edison, Berliner",
+   "body": [
+    "Édouard-Léon Scott de Martinville built the phonautograph in 1857. It inscribed sound waves as a wavy line on smoke-blackened paper — a visual record with no way to play it back, because playback was not the goal. He was trying to make sound legible, not audible. In 2008 researchers at Lawrence Berkeley National Laboratory optically scanned his phonautograms and reconstructed the audio: a fragment of \"Au clair de la lune\" from 1860, seventeen years before Edison, is the oldest recognisable recording of a human voice.",
+    "Edison's tinfoil phonograph (1877) added the reversal: the same stylus that cut the groove could ride it again and vibrate a diaphragm. It recorded onto cylinders — later wax, then celluloid — which had the acoustic advantage of constant linear velocity from start to end, and the crushing commercial disadvantage that each one had to be recorded individually or copied slowly.",
+    "Emile Berliner's gramophone (1887) put the groove on a flat disc, laterally rather than vertically modulated, and a disc could be mass-pressed from a master. That single manufacturing fact decided the format war. By about 1912 discs had won, and the record industry — pressing plants, catalogues, distribution, royalties — became structurally possible. The 78 rpm shellac disc held roughly three minutes per side, and that arbitrary physical constraint quietly defined the length of a popular song for the next hundred years."
+   ]
+  },
+  {
+   "id": "rec-02",
+   "title": "The Acoustic Era: Playing Into the Horn",
+   "body": [
+    "Until 1925 there was no electricity in the recording chain. Performers played into a large horn; the sound pressure alone drove a diaphragm and a cutting stylus. That meant loud instruments got recorded and quiet ones did not. Violins were routinely replaced by Stroh violins — instruments with a metal horn instead of a body. String basses were swapped for tubas because the tuba's fundamental could actually move the diaphragm. Drummers were often reduced to woodblocks, because a bass drum could throw the stylus out of the groove entirely.",
+    "Singers had to modulate their distance from the horn in real time, backing away on loud notes and leaning in on soft ones — a physical performance technique that nobody needed before and nobody needs now. Enrico Caruso's voice happened to sit perfectly in the frequency range the acoustic process captured well, which is a large part of why he became the first recording superstar rather than merely a famous tenor.",
+    "So the earliest recorded repertory is not a neutral window onto how music sounded in 1905. It is a portrait of what the technology could hear. That is worth carrying forward: every recording you will ever study is a document of a capture system as much as a performance, and the system always has opinions."
+   ]
+  },
+  {
+   "id": "rec-03",
+   "title": "1925: Electrical Recording and the Invention of Intimacy",
+   "body": [
+    "In 1925 Western Electric's electrical system — a condenser microphone, a vacuum-tube amplifier, an electromagnetic cutter — replaced the horn. Frequency response roughly doubled in range. Bass became audible. Drums became recordable. Ensembles could sit in a room in a natural balance instead of crowding a cone.",
+    "The artistic consequence was larger than the technical one. If a microphone can amplify a whisper, a singer no longer needs to project to fill a hall — and a quiet voice, close to a mic, sounds like a person speaking directly into your ear. Bing Crosby built a career on exactly this, and crooning is the first vocal style in history that is impossible without electronics. Billie Holiday, Frank Sinatra, and eventually every pop vocalist you have ever heard are working in the space the microphone opened.",
+    "Radio arrived alongside it and changed the economics. A song could now reach millions simultaneously at no marginal cost, which made the hit — a single recording that everyone in a country knows — a coherent concept for the first time. It also triggered the first great fight over performance royalties, because broadcasters were using recordings commercially and the people on them were not being paid. That argument is still running, in different clothes, over streaming."
+   ]
+  },
+  {
+   "id": "rec-04",
+   "title": "Magnetic Tape: Editing, Overdubbing, and the End of the Take",
+   "body": [
+    "The Magnetophon, developed in Germany through the 1930s with AC bias giving it startling fidelity, was brought to the United States after the war by the signals engineer Jack Mullin. Bing Crosby — who hated live radio and wanted to pre-record — funded Ampex to build American machines. By 1948 tape was the professional standard.",
+    "Tape changed what a recording is. You could cut it with a razor blade and splice takes together, so a released performance need not have happened in one continuous stretch. You could record over part of it, so a mistake need not mean starting again. And, as Les Paul demonstrated with sound-on-sound and then the eight-track machine he commissioned from Ampex, you could layer one performer over themselves indefinitely. The record stopped documenting an event and became an artefact assembled from parts.",
+    "Everything downstream follows from that. Multitrack recording makes the mix a creative act. Tape delay and flanging make the studio an instrument. By the mid-1960s Phil Spector, Brian Wilson and George Martin are building records that could not be performed at all, and the album becomes a composed object rather than a collection of singles. When we later talk about sampling, remember it started here: the moment sound became a physical thing you could cut, it became a material."
+   ]
+  },
+  {
+   "id": "rec-05",
+   "title": "The LP, the 45, and the Format Wars",
+   "body": [
+    "Columbia introduced the 33⅓ rpm twelve-inch microgroove LP in 1948, offering more than twenty minutes a side on vinyl instead of shellac. RCA Victor responded in 1949 with the seven-inch 45 rpm disc: one song per side, cheap, durable, designed for jukeboxes and teenagers. Neither killed the other, and the truce shaped the industry — the 45 for pop singles, the LP for classical, jazz and, eventually, rock as a serious form.",
+    "Format is never neutral. Twenty-two minutes a side is why a classic album has two halves with distinct arcs and why side one track one is a recognised job. It is why Sgt. Pepper, Kind of Blue and What's Going On are conceived as continuous experiences. The 45's three minutes, inherited from the 78, is why a pop song has that length and why the \"radio edit\" exists as a category.",
+    "The pattern repeats every time. The cassette gave music portability and the mixtape, and made home copying an industry panic. The CD's seventy-four minutes led directly to the bloated seventy-minute album of the 1990s. The MP3 unbundled the album back into songs. Streaming's royalty threshold — a play counts after about thirty seconds — is measurably shortening intros and shrinking song lengths right now. If you want to predict what music will sound like, look at what the delivery format rewards."
+   ]
+  },
+  {
+   "id": "rec-06",
+   "title": "Field Recording: The Lomaxes and Folkways",
+   "body": [
+    "John A. Lomax and his son Alan carried a 315-pound disc-cutting machine into the American South for the Library of Congress from 1933 onward, recording work songs, ballads, hollers, and blues from people the commercial industry had never approached — including Huddie Ledbetter (\"Lead Belly\") at Angola and, in 1941, Muddy Waters at Stovall Plantation before he had recorded commercially at all. Their 1939 Southern States trip alone is hundreds of hours, and it is free to stream from the Library of Congress today.",
+    "Field recording carries an unresolved ethical weight and you should hold both halves of it. It preserved music that would otherwise have vanished entirely, and it gave a generation of musicians access to their own inheritance. It also involved outsiders taking recordings from communities with unequal power, sometimes claiming arrangement copyrights, and framing living traditions as artefacts. Alan Lomax's later work — and his eventual efforts to return royalties and recordings to source communities — is part of that reckoning.",
+    "Moses Asch's Folkways Records, founded in 1948, made a different commitment: record everything, and never delete anything. Folkways kept its entire catalogue permanently in print, however few copies sold. When the Smithsonian acquired it in 1987 it did so on the explicit condition that the promise be kept. Smithsonian Folkways still presses every one of those titles on demand — an archive run as a public duty rather than a back catalogue."
+   ]
+  },
+  {
+   "id": "rec-07",
+   "title": "Digital: Sampling Rates, the CD, and the Loudness War",
+   "body": [
+    "Digital audio rests on the Nyquist–Shannon sampling theorem: a signal containing no frequencies above f can be perfectly reconstructed from samples taken at a rate above 2f. Human hearing tops out around 20 kHz, so a rate somewhat above 40 kHz suffices. The CD's 44.1 kHz comes from the fact that early digital masters were stored on video tape, and 44.1 kHz fit the line and frame structure of existing video equipment. The most widely used number in audio history is an accident of a different format.",
+    "Bit depth governs dynamic range: roughly 6 dB per bit, so 16 bits gives about 96 dB — more than adequate for playback, tighter than you want for recording, which is why studios work at 24 bits. Compare that to vinyl at around 70 dB and you can see why the CD was sold on silence as much as on clarity.",
+    "Then the industry used all that headroom backwards. Because loud recordings command attention on radio and in shuffle, mastering engineers were pushed to compress and limit ever harder, raising average level while flattening peaks. Between the early 1990s and the late 2000s the dynamic range of mainstream releases collapsed; some records clip continuously by design. Loudness normalisation on streaming platforms has removed the commercial incentive — everything is played back at a matched level now — but a generation of masters is permanently squashed. Technology gave musicians 96 dB of range and the market spent twenty years throwing most of it away."
+   ]
+  },
+  {
+   "id": "rec-08",
+   "title": "Streaming: Music as a Service",
+   "body": [
+    "Streaming completes a 150-year arc. Music went from an event you had to attend, to an object you could own, to access you rent. Every constraint that shaped the previous eras — three minutes a side, twenty-two minutes a side, seventy-four minutes a disc — is gone. What replaces them is not freedom but a new set of incentives.",
+    "Those incentives are legible. Royalties accrue per qualifying play, typically after about thirty seconds, so intros have shortened and hooks arrive earlier. Playlists are a primary discovery surface, so tracks are increasingly written to survive being heard once, out of context, among strangers. The catalogue's near-infinite size means attention, not availability, is the scarce resource. And because pro-rata payout models divide a subscription pool by total plays platform-wide, your subscription does not primarily pay the artists you actually listen to.",
+    "The archival question is the one most people miss. A streaming catalogue is not a library — it is a licensing arrangement, and titles disappear when deals lapse. Nothing you stream is preserved by you. This is precisely why the Internet Archive, the Library of Congress's National Recording Registry, the UCSB cylinder archive and Smithsonian Folkways' never-delete promise matter more now than they did when everyone had shelves. The long-term memory of recorded music is held by institutions that treat it as a duty rather than a catalogue."
+   ]
+  },
+  {
+   "id": "form-01",
+   "title": "Phrase, Period, and the Musical Sentence",
+   "body": [
+    "A phrase is the smallest stretch of music that feels complete enough to end — typically four bars, ending in a cadence. Two phrases in a question-and-answer relationship make a period: the first (antecedent) ends on an inconclusive cadence, the second (consequent) restates the material and closes properly. That is the grammar of nearly all Classical melody and most folk and pop melody too.",
+    "The sentence is the other basic shape, and it is more dynamic. A short idea is stated, immediately repeated (often transposed), and then the material fragments and accelerates into a cadence. Beethoven's Fifth opens with a textbook one: statement, repetition a step lower, then continuous development. Where a period balances, a sentence builds.",
+    "Learning to hear these is the single highest-leverage listening skill there is, because larger forms are made from them. Sonata form is a drama of themes that are themselves periods and sentences. A pop verse is usually two periods. Once you can feel four-bar units without counting, you can hear a composer stretch one to five or compress one to three — and those irregularities are almost always where the expressive weight of a piece lives."
+   ]
+  },
+  {
+   "id": "form-02",
+   "title": "Binary, Ternary, and the Dance Suite",
+   "body": [
+    "Binary form is AB: two sections, each usually repeated, with the first moving away from the tonic (to the dominant in major, the relative major in minor) and the second travelling back. Almost every Baroque dance movement is in binary. Because the two halves are proportional and both repeat, the form feels like a room you walk through and then walk back across.",
+    "Ternary form is ABA: a statement, a contrasting middle, and a return. That return is psychologically enormous — you have heard the material, then been taken elsewhere, and now you hear it again knowing what it is. The da capo aria built an entire operatic century on it, with the singer expected to ornament the returning A section, which turned repetition into a display of invention.",
+    "The Baroque suite assembles these into a whole: allemande, courante, sarabande, gigue, plus optional galanteries — each a stylised dance with its own metre and character, all in the same key, all in binary. Bach's cello suites and keyboard partitas are the summit. Listen to a whole suite in order and you will feel a logic of tempo and weight that no single movement carries alone. That is the earliest large-scale form in Western music that works by contrast between movements rather than development inside one."
+   ]
+  },
+  {
+   "id": "form-03",
+   "title": "Sonata Form: Argument in Three Acts",
+   "body": [
+    "Sonata form has three parts. The exposition states a first theme in the tonic, modulates through a transition, and states a second theme in a new key — the dominant in major, the relative major in minor. The development takes that material somewhere unstable, fragmenting and sequencing it through remote keys. The recapitulation returns the first theme in the tonic and, crucially, restates the second theme in the tonic too, resolving the tonal conflict the exposition opened.",
+    "That last detail is the whole point, and it is why textbook descriptions built around \"first subject, second subject\" mislead. The drama is not two tunes meeting; it is a key relationship being established as a problem and then solved. A recapitulation that repeats the same themes in the same keys would be a repeat sign. A recapitulation that repeats them all in the tonic is a resolution.",
+    "Haydn established it, Mozart perfected its proportions, and Beethoven stretched it until it strained — enormously extended developments, codas that function as second developments, and in the Eroica a first movement longer than some complete earlier symphonies. Then it became a burden. For the whole 19th century, writing a symphony meant answering to this form, and composers from Brahms to Mahler defined themselves by how they handled it. Few structural ideas in any art form have dominated for so long."
+   ]
+  },
+  {
+   "id": "form-04",
+   "title": "Theme and Variations, Rondo, Fugue",
+   "body": [
+    "Variation form states a theme and then transforms it repeatedly — changing rhythm, harmony, mode, texture, register — while some skeleton persists. Bach's Goldberg Variations keep the bass and harmonic plan constant while everything above changes utterly, including a canon at every third variation, at successively wider intervals. Beethoven's Diabelli Variations take a deliberately banal waltz and extract thirty-three worlds from it. The form's whole argument is that the identity of a musical idea does not live in its surface.",
+    "Rondo alternates a recurring refrain with contrasting episodes: ABACA, or ABACABA. The refrain's return is reliable and satisfying, which is why rondo is so often a finale — after a weighty sonata-form first movement, an audience wants something whose logic they can follow in real time. This is also the structure of a pop song with a strong chorus, arrived at independently for the same psychological reason.",
+    "Fugue is not a form at all but a texture and a procedure. A subject is announced alone, answered in another voice at the fifth while the first continues in counterpoint, and once all voices have entered the piece proceeds through episodes and further entries in related keys, possibly with the subject inverted, augmented, or stacked against itself in stretto. No two fugues have the same shape, because the shape is whatever the subject's own properties permit. It is the purest example in music of a structure derived entirely from its material."
+   ]
+  },
+  {
+   "id": "form-05",
+   "title": "The 32-Bar Standard and the 12-Bar Blues",
+   "body": [
+    "The 32-bar AABA song form dominated American popular music from roughly 1920 to 1955. Eight bars of A, repeated, then a contrasting eight-bar bridge (the \"release\" or \"middle eight\") that usually moves to a new key area, then A returns. It is ternary form compressed to fit a 78 rpm side, and it produced \"Over the Rainbow\", \"Body and Soul\" and several thousand other standards.",
+    "The twelve-bar blues is shorter and even more consequential: four bars of I, two of IV, two of I, one of V, one of IV, two of I — with a lyric form of a line, the same line repeated, and an answering line. That AAB lyric structure gives the singer time to invent the third line while repeating the second, which is a compositional method disguised as a song form.",
+    "What makes both forms historically enormous is that they are shared. If a form is known by every musician in a scene, players who have never met can perform together at length — which is exactly what jazz needed. The head is played, then everyone improvises over the same repeating structure, then the head returns. \"Rhythm changes\" — the chord progression of Gershwin's \"I Got Rhythm\" — became a standard vehicle in its own right, spawning hundreds of new melodies over the same 32 bars. A form became public infrastructure."
+   ]
+  },
+  {
+   "id": "form-06",
+   "title": "Verse–Chorus and the Modern Pop Architecture",
+   "body": [
+    "Around the mid-1950s the AABA standard gave way to verse–chorus form, where the chorus — same lyric every time, higher energy, containing the title — is the destination and the verse is the approach. The reason is partly commercial (a repeated hook is memorable and therefore sells) and partly technical: rock and R&B are built on repeating riffs and grooves rather than on the harmonic through-composition standards relied on.",
+    "The modules multiplied. The pre-chorus emerged as a device to build tension and delay arrival, usually by removing the drums or rising in pitch. The post-chorus — a hook after the chorus, often wordless — became near-universal in the 2010s. The bridge does the job the old middle eight did: go somewhere different so the final chorus lands harder. In dance-derived music the drop replaces the chorus entirely, with the build performing the pre-chorus function and the release being rhythmic and timbral rather than melodic or harmonic.",
+    "The useful skill is hearing modules as decisions about tension and time. Every good pop record is a curve of expectation: something is withheld, something arrives, something is withheld again so it can arrive bigger. Map the sections of a song against how much energy each carries and you have its architecture. Do it for ten songs and you will never listen passively again."
+   ]
+  },
+  {
+   "id": "form-07",
+   "title": "Process, Loop, and Form Without Sections",
+   "body": [
+    "In 1964 Terry Riley's In C gave an ensemble fifty-three short melodic fragments and one instruction: play them in order, repeating each as many times as you like, and move on when you want. There are no sections. The form is emergent — it is whatever the players' independent decisions produce that night. Steve Reich's phase pieces do something related with precision: two identical loops start together and one drifts fractionally faster, so the entire structure of the piece is the audible consequence of one process running to completion.",
+    "That is a genuinely different theory of form. Rather than statement, contrast and return, you get a process set in motion and allowed to unfold. The listener's attention shifts from \"what happens next\" to \"what is happening now, and how is it different from a minute ago\". Brian Eno's ambient work pushes further, designing music that rewards attention without demanding it.",
+    "Club music inherited all of this through the twelve-inch and the DJ. A house or techno track is often a stack of loops introduced and removed one at a time; the arrangement is a set of instructions for mixing, and the real form is the DJ set, hours long, of which the track is a single component. Once you see it that way, dance music stops looking repetitive and starts looking like the most functionally sophisticated approach to large-scale musical time anyone has built since the symphony."
+   ]
+  },
+  {
+   "id": "rhy-01",
+   "title": "Pulse, Metre, and the Feel of Two Against Three",
+   "body": [
+    "Pulse is the steady beat you tap. Metre is the pattern of strong and weak beats grouped around it — duple (strong-weak), triple (strong-weak-weak) — and it is a perceptual construction, not a property of the sound. Play a completely even click track and most listeners will impose a grouping on it involuntarily. Metre is something your brain does to music.",
+    "Compound metres group beats in threes at the subdivision level: 6/8 is two beats each divided into three, which is why it lilts. That is genuinely different from 3/4, which is three beats each divided in two, even though both contain six eighth notes. The distinction is where the strong points fall, and it is why a Bach gigue and a Viennese waltz feel nothing alike.",
+    "Hemiola — two groups of three reinterpreted as three groups of two — is the oldest rhythmic trick in Western music and it is everywhere, from Renaissance dances to Bernstein's \"America\" to Radiohead. The genuinely important insight is that rhythmic interest almost always comes from ambiguity: two plausible groupings competing for the same span of time. Once you can hear a passage two ways at once, you have the ear you need for everything in this track."
+   ]
+  },
+  {
+   "id": "rhy-02",
+   "title": "Syncopation: Accenting What Should Be Weak",
+   "body": [
+    "Syncopation places accents where the metre does not expect them — on offbeats, on weak beats, or by tying across a strong beat so an expected downbeat never arrives. It only works because metre is a prediction: you cannot violate an expectation the listener does not hold. This is why syncopation feels physical. Your body has committed to a grouping and the music has landed somewhere else.",
+    "Ragtime made syncopation the whole point. In Scott Joplin's rags the left hand keeps a strict march bass while the right hand plays melodies whose accents fall persistently between the beats. The tension between an unyielding pulse and a displaced melody is exactly the mechanism, and Joplin's own published tempo warnings — that it is never right to play ragtime fast — indicate how much he wanted that friction heard rather than blurred.",
+    "The backbeat is syncopation industrialised. In common time the strong beats are 1 and 3; putting the snare hard on 2 and 4 permanently accents the weak beats, and after 1955 essentially all popular music does it. Combine that with a bass line that anticipates the downbeat and you have the fundamental rhythmic architecture of rock, soul, funk, reggae and hip-hop — a fixed pulse being continuously contradicted, forever."
+   ]
+  },
+  {
+   "id": "rhy-03",
+   "title": "Clave: The West African Timeline in the Americas",
+   "body": [
+    "Across West and Central African musical traditions, ensembles are organised around a timeline: a short, asymmetric, endlessly repeated pattern — often struck on a bell — against which every other part is positioned. It is not a metre and it is not an accompaniment. It is a reference grid, and it is asymmetric on purpose, because an asymmetric pattern tells you unambiguously where you are in the cycle.",
+    "Carried to the Americas through the transatlantic slave trade, these timelines became clave in Cuba, and clave organises son, rumba, mambo and salsa. The son clave in its 3-2 form places strokes on beats 1, the \"and\" of 2, and 4 of the first bar, then 2 and 3 of the second. Every part in the ensemble must agree with clave direction; a horn line written \"against clave\" is simply wrong, and experienced players hear the error instantly. The pattern is not decoration, it is the law.",
+    "Its relatives are everywhere. The Brazilian partido alto, the tresillo underlying habanera and the \"Spanish tinge\" Jelly Roll Morton said was essential to jazz, the second-line rhythms of New Orleans, the bo-diddley beat, and the syncopated hi-hat and 808 patterns of trap all descend from the same family. Studying clave is not studying a Latin speciality — it is studying the rhythmic substrate of nearly all popular music made in the Americas."
+   ]
+  },
+  {
+   "id": "rhy-04",
+   "title": "Swing and Microtiming",
+   "body": [
+    "Swing is usually described as playing eighth notes as a triplet quarter plus a triplet eighth — a 2:1 ratio. Measure real recordings and that is not what players do. The swing ratio varies with tempo (approaching 3:1 or higher at slow tempos, flattening toward 1:1 at very fast ones), varies between players, and varies within a single performance. It is a continuously negotiated feel, not a rhythmic value.",
+    "Microtiming is the general phenomenon: systematic deviations from the grid, on the order of a few milliseconds to a few tens of milliseconds, that carry musical meaning. A drummer playing the snare slightly late relative to the hi-hat produces the sensation of a groove \"laying back\"; playing slightly ahead produces urgency. In a great rhythm section these offsets are consistent and intentional, and the space between the instruments is precisely what listeners mean by feel.",
+    "This is the exact thing notation cannot represent and quantisation destroys. When early sequencers snapped everything to a rigid grid, the resulting music sounded mechanical — and rather than fix it, producers made that an aesthetic, then reintroduced feel through swing settings and humanise functions. J Dilla's drum programming is the most influential example of the reverse: deliberately unquantised, with the snare and hi-hat sitting in relationships no metronome would allow, producing a drunken elasticity that a generation of producers has chased ever since."
+   ]
+  },
+  {
+   "id": "rhy-05",
+   "title": "Funk: The One, and Rhythm as Composition",
+   "body": [
+    "Around 1965, with \"Papa's Got a Brand New Bag\" and then \"Cold Sweat\", James Brown stopped writing songs that moved through chords and started writing songs that stayed on one. What replaced harmonic motion was rhythmic interlock: each instrument playing a short, specific, repeating figure that fits into the others like gear teeth. The guitar plays a scratchy sixteenth-note pattern on the upper strings, the bass plays a line that lands hard on beat one and then vacates, the drums keep a pattern with more space than fill, and the horns punctuate.",
+    "\"The One\" is the doctrine. Where rock emphasises the backbeat, Brown insisted every part converge emphatically on beat one of each bar, then diverge for the rest of it. That produces a cycle with an unmistakable landmark and maximum freedom in between — and it means the ensemble can sustain a single groove for eight minutes without the listener losing their place.",
+    "Funk's deeper lesson is that arrangement is composition. There is often no chord change and barely a melody; the entire musical argument is which instruments are playing, what tiny figure each has, and when parts drop out and return. Everything after — Sly, Parliament, disco, hip-hop's break, house, Afrobeat's parallel development under Fela Kuti — inherits this. Learn to hear a funk record as a stack of independent rhythmic lines and you have learned to hear most modern production."
+   ]
+  },
+  {
+   "id": "rhy-06",
+   "title": "The Drum Machine: 808, 909, and Programmed Time",
+   "body": [
+    "The Roland TR-808 (1980) was designed to give musicians realistic drum sounds and did not achieve it. Its analogue circuits produce a kick with an extraordinarily long decaying sine sweep, a thin snappy snare, and a cowbell that sounds like nothing on earth. It sold poorly and was discontinued in 1983. Because it then turned up cheap secondhand, it was adopted by exactly the people the industry was not selling to — Afrika Bambaataa, Marvin Gaye's \"Sexual Healing\", the entire Miami bass and Southern hip-hop lineage — and its kick drum, tuned low and left to ring, became the foundation of trap.",
+    "The TR-909 (1983) went the same way into Chicago house and Detroit techno, its kick and open hi-hat becoming the definitive four-to-the-floor sound. The TB-303 bass synthesiser, an outright commercial disaster intended to replace a bass guitarist, was misused into acid house. In each case the technology's failure to be realistic is exactly what made it musically distinctive.",
+    "Programming also changed rhythm itself. A step sequencer presents time as a grid of sixteen boxes, and that representation encourages patterns that are hard to play and easy to draw — perfectly even hi-hat rolls, impossible triplet subdivisions, patterns that are identical every bar for six minutes. Human rhythm and grid rhythm are different musical materials, and most music since 1985 is some negotiated blend of the two."
+   ]
+  },
+  {
+   "id": "rhy-07",
+   "title": "Polyrhythm, Odd Metre, and Rhythm as the Frontier",
+   "body": [
+    "A polyrhythm is two conflicting subdivisions of the same span — three against four being the canonical case, where one part divides a bar into three and another into four, coinciding only at the start. West and Central African ensemble traditions are built on layered polyrhythm as a norm rather than a special effect, and the interlocking parts produce composite patterns that no single player is performing.",
+    "Odd metres — 5, 7, 11, 13 — are standard in Balkan folk music, in Indian classical tala, and in Turkish aksak. In Carnatic music, rhythmic cycles run to hundreds of beats with a mathematically rigorous system of subdivision and cadential formulae (korvai) whose sophistication has no European parallel. Western music's persistent 4/4 is not a universal default; it is a local habit.",
+    "The frontier claim is testable. Take mainstream releases from 1970 and from today and compare their harmonic vocabulary — today's is generally simpler. Compare their rhythmic content — polymetric hi-hat patterns, triplet flows over duple beats, half-time feel changes, aggressive microtiming, metric modulation in metal and math rock — and today's is markedly more complex. The centre of musical innovation moved from pitch to time, and if you want to hear where music is going, that is where to point your attention."
+   ]
+  },
+  {
+   "id": "law-01",
+   "title": "What a Sample Is: Musique Concrète to the Break",
+   "body": [
+    "In 1948 Pierre Schaeffer, working at French radio, began composing with recorded sound itself — train noises, struck objects, voices — cut and looped on disc and later tape. Musique concrète proposed that the material of music need not be notes at all. Stockhausen, Varèse, and the BBC Radiophonic Workshop developed the idea; the Beatles' \"Tomorrow Never Knows\" and \"Revolution 9\" carried tape-loop technique into popular music.",
+    "Hip-hop arrived at the same material from an entirely different direction: the dance floor. In the early 1970s in the Bronx, DJ Kool Herc noticed that dancers responded most to the percussion break — the few bars where the band drops out and the drums play alone. Using two copies of the same record and two turntables, he extended that break indefinitely, cutting back to the start of the break on one deck while the other played. Grandmaster Flash refined the technique into precise cutting and Grand Wizzard Theodore added the scratch.",
+    "The key point is conceptual. The break is not a quotation and not a cover. It is a piece of a recording being used as an instrument — the sonic material repurposed, not the composition performed. Everything in this track's legal difficulty follows from the fact that copyright law was built for compositions and performances and had no clean category for that."
+   ]
+  },
+  {
+   "id": "law-02",
+   "title": "Two Copyrights: The Song and the Master",
+   "body": [
+    "A recording embodies two distinct copyrighted works. The musical composition — melody, harmony, lyrics — is typically owned or administered by the songwriters and their publisher. The sound recording, called the master, is the particular fixed performance, and it is typically owned by the label or whoever financed the session. In the United States, sound recordings became federally protected only for recordings fixed on or after 15 February 1972; older recordings were governed by a patchwork of state law until the Music Modernization Act of 2018 brought them into a federal scheme with a staged public-domain schedule.",
+    "If you sample a recording, you have used both works, and you need permission from both. Publishing clearance typically yields a share of the new song's writing credit plus possibly an advance. Master clearance typically yields a flat fee, or a royalty, or both. The two negotiations are separate, with different counterparties, and either can refuse.",
+    "If instead you re-record the part yourself — an interpolation or replay — you no longer touch the master at all, and you need only composition clearance. This is why replays are so common in commercial releases: it removes an entire negotiation and often costs far less. It also explains the credit lists on modern hits, which sometimes run to a dozen names: every cleared composition contributes writers, and those writers are legally credited on the new work."
+   ]
+  },
+  {
+   "id": "law-03",
+   "title": "Grand Upright (1991): The Year Sampling Got Expensive",
+   "body": [
+    "Between roughly 1986 and 1991 producers built records from dozens of uncleared samples. Public Enemy's It Takes a Nation of Millions and the Beastie Boys' Paul's Boutique are layered collages of a density that would be economically impossible today. Clearance was informal, inconsistent, and frequently skipped, and the industry had not yet decided how seriously to take it.",
+    "Grand Upright Music, Ltd. v. Warner Bros. Records, decided in the Southern District of New York in 1991, settled it. Biz Markie had sampled Gilbert O'Sullivan's \"Alone Again (Naturally)\"; his team had sought permission and not obtained it, and released anyway. Judge Kevin Duffy granted an injunction, opened his opinion by quoting the commandment against stealing, and referred the matter for criminal prosecution. The album was pulled.",
+    "The commercial effect was immediate and permanent. Labels instituted mandatory clearance before release, sample-clearance specialists became a profession, and budgets for sample-heavy records became prohibitive. Producers responded by using fewer and shorter samples, by replaying parts instead, and eventually by moving toward original composition in software. An entire aesthetic was priced out of existence by one ruling — and the ruling did essentially no legal analysis of fair use, which is why scholars still criticise it while acknowledging that it reshaped the industry more than almost any other music case."
+   ]
+  },
+  {
+   "id": "law-04",
+   "title": "Campbell v. Acuff-Rose (1994): Parody and Transformative Use",
+   "body": [
+    "2 Live Crew recorded a rap version of Roy Orbison's \"Oh, Pretty Woman\" after being refused a licence. The publisher sued. In Campbell v. Acuff-Rose Music, Inc., 510 U.S. 569 (1994), a unanimous Supreme Court held that the commercial nature of a use does not create a presumption against fair use, and that parody can qualify.",
+    "The decisive concept, drawn by Justice Souter from Judge Pierre Leval's scholarship, is transformative use: the question of whether the new work adds something new, with a further purpose or different character, altering the original with new expression, meaning or message. The more transformative the use, the less the other statutory factors — including commerciality — weigh against it. That framing now dominates fair-use analysis in every medium, from documentary film to search engines to the current arguments about AI training data.",
+    "Two caveats matter for musicians. First, the Court distinguished parody, which comments on the original itself and therefore needs to borrow from it, from satire, which uses a work to comment on something else and has a weaker claim to borrowing. Second, the case concerned a re-performance of a composition, not a digital copy of a master recording, so it does not directly license sampling. Fair use in sampling remains fact-specific, expensive to litigate, and a poor thing to rely on for a commercial release."
+   ]
+  },
+  {
+   "id": "law-05",
+   "title": "Bridgeport vs. VMG: The De Minimis Split",
+   "body": [
+    "In Bridgeport Music, Inc. v. Dimension Films (6th Cir. 2005), concerning a two-second, pitch-shifted guitar chord from Funkadelic's \"Get Off Your Ass and Jam\", the Sixth Circuit held that the de minimis defence does not apply to sound recordings at all. Its instruction was blunt: get a licence or do not sample. The reasoning rested on the statutory text giving a sound-recording owner the exclusive right to reproduce the actual sounds fixed in the recording.",
+    "In VMG Salsoul, LLC v. Ciccone (9th Cir. 2016), concerning a 0.23-second horn hit in Madonna's \"Vogue\", the Ninth Circuit expressly disagreed, holding that the ordinary de minimis rule applies to sound recordings as to everything else, and that a use too trivial for an average listener to recognise is not infringement. The court acknowledged it was creating a circuit split.",
+    "So the law depends on where you are sued, and the Supreme Court has not resolved it. In practice the split changes very little for working musicians, because the risk-averse answer dominates commercial reality: labels, distributors and streaming services require documented clearance regardless of circuit, and the cost of litigating a defence exceeds the cost of a licence for anyone without a major behind them. The honest lesson is that the practical rule is set by the industry's risk tolerance rather than by the case law — clear it, replay it, or use a source that is genuinely free."
+   ]
+  },
+  {
+   "id": "law-06",
+   "title": "Clearing a Sample: The Practical Process",
+   "body": [
+    "Start by identifying both rights holders. For the composition, search the public repertoire databases of the performing rights organisations — ASCAP, BMI and SESAC in the US, PRS in the UK — and the publisher will be listed. For the master, the label is normally printed on the release and the current owner can be traced through catalogue acquisitions. Sample-identification databases are useful for finding what a record itself sampled.",
+    "Then approach both, before you release anything. A clearance request typically includes the source track and precise timecodes, a rough of the new track, a description of how the sample is used and how prominently, the expected commercial scale, and the formats and territories. Publishers commonly respond by asking for a percentage of the new composition — anywhere from a token share to a majority for a prominent hook — plus sometimes an advance. Masters owners typically want a flat buyout, a royalty per unit, or both. Either side may simply say no, and estates and certain catalogues are known for refusing.",
+    "Three practical alternatives exist and professionals use all of them. Replay the part with session musicians, which eliminates the master negotiation entirely. Use a licensed sample library, where the licence is granted at purchase — read it, since some prohibit use in competing sample packs. Or use genuinely free sources: works whose copyright has expired, Creative Commons material with attribution as required, and community libraries like Freesound. Never assume that a recording being old, obscure, or freely downloadable makes it free to use — check the actual licence every time."
+   ]
+  },
+  {
+   "id": "law-07",
+   "title": "The Public Domain, Creative Commons, and AI",
+   "body": [
+    "The public domain is real and enormous. In the United States, works published before 1930 are in the public domain, with the window advancing every January. Under the Music Modernization Act, pre-1972 sound recordings enter the public domain on a schedule — recordings first published before 1923 are already free, with later years following in defined increments. This is exactly why IMSLP can host hundreds of thousands of scores, why the Internet Archive's 78 collections stream in full, and why the Library of Congress's National Jukebox exists. Note the recurring trap: a public-domain composition can still be under a live recording copyright, so a 2019 recording of a Beethoven symphony is not free even though the symphony is.",
+    "Creative Commons licences let creators grant permission in advance. CC0 waives rights entirely; CC BY requires attribution; CC BY-SA additionally requires derivatives to carry the same licence; the NC and ND variants exclude commercial and derivative use respectively and are therefore unusable for most released music. Read which one applies before you build on anything.",
+    "Generative AI is the open question. Models are trained on enormous corpora of recordings whose licensing status was rarely negotiated, and litigation over whether that training is fair use is active in multiple jurisdictions. Separately, voice cloning raises rights of publicity and, in some states, specific likeness statutes that are distinct from copyright altogether. Where this lands will be as consequential as Grand Upright was, and the honest position today is that nobody knows yet. What you can do is document your sources, prefer material whose licence you can point to, and be transparent about what a release contains."
+   ]
+  },
+  {
+   "id": "pop-01",
+   "title": "Roots: Work Songs, Spirituals and the Delta",
+   "body": [
+    "The blues emerged in the Mississippi Delta and across the American South in the decades after emancipation, out of field hollers, work songs, spirituals and West African musical practice carried through slavery. Its central technique is call and response — a leader states, a group answers — which structures work songs, gospel services, jazz solos, funk arrangements and rap ad-libs alike. Its tonality uses inflected, bent pitches that no European scale contains. Its lyric form, AAB, gives a singer thinking time and lets repetition build weight.",
+    "W. C. Handy published \"Memphis Blues\" in 1912 and Mamie Smith's \"Crazy Blues\" in 1920 sold in enough quantity to prove a Black audience existed for recordings, which created the \"race records\" market. Bessie Smith became the biggest-selling artist of the classic blues era. Meanwhile country blues players in the Delta — Charley Patton, Son House, Robert Johnson — developed a guitar style in which the instrument answers the voice and holds the rhythm at once.",
+    "Two things are essential to carry. First, the blues is not simply sad music; it is a form for confronting hardship publicly, with humour and defiance as often as grief. Second, the Great Migration moved millions of Black Americans north between 1916 and 1970, carrying this music to Chicago, Detroit and New York, where electrification and urban audiences transformed it. Almost every subsequent chapter in this track happens because of that movement of people."
+   ]
+  },
+  {
+   "id": "pop-02",
+   "title": "New Orleans to Swing: Jazz Becomes Popular Music",
+   "body": [
+    "New Orleans at the turn of the 20th century had brass bands, Caribbean rhythm, ragtime, blues, opera and a Creole musical tradition in the same square mile. Early jazz came out of that collision: a front line of cornet, clarinet and trombone improvising simultaneously around a melody over a rhythm section. Jelly Roll Morton, who claimed to have invented it, at least demonstrated it could be composed as well as improvised.",
+    "Louis Armstrong changed the music's centre of gravity. In the Hot Five and Hot Seven recordings of 1925–28 he moved the emphasis from collective polyphony to the individual soloist, and his rhythmic conception — phrasing across the beat rather than on it — is essentially where swing comes from. \"West End Blues\" opens with an unaccompanied cadenza that musicians were still studying decades later. He also popularised scat and, as important, established the idea that a jazz performance is an act of personal expression.",
+    "By the mid-1930s the big bands made this the mainstream popular music of the United States. Count Basie's Kansas City band ran on riffs and an unrivalled rhythm section; Duke Ellington wrote for the specific players in his orchestra, treating the band as an instrument and producing a body of composition that stands with any American music of the century; Benny Goodman's success as a white bandleader playing Fletcher Henderson's arrangements is an early, explicit case of a pattern that repeats throughout this track."
+   ]
+  },
+  {
+   "id": "pop-03",
+   "title": "Bebop and the Break with Entertainment",
+   "body": [
+    "In the early 1940s, at Minton's Playhouse in Harlem and elsewhere, Charlie Parker, Dizzy Gillespie, Thelonious Monk, Kenny Clarke and Bud Powell built something the swing bands could not absorb. Tempos went beyond dancing speed. Harmony grew dense with substitutions and extended chords. Melodies were angular and asymmetric. The drummer moved timekeeping to the ride cymbal and used bass drum and snare for irregular accents — \"dropping bombs\" — so the pulse became implied rather than pounded.",
+    "Some of this was aesthetic and some of it was economic and political. A wartime recording ban, the collapse of the big-band economy, and a refusal to be entertainers for white audiences all fed into a music that demanded to be listened to. Parker's improvised lines are among the most studied melodic material of the century; his 1945–48 recordings remain a curriculum in themselves.",
+    "The consequence was a permanent split. Jazz moved into concert halls and away from the popular mainstream, and the space it vacated was filled by rhythm and blues, and then rock and roll. Everything the rest of this track describes happens partly because jazz chose complexity — a reminder that popular music history is driven by economics and audiences at least as much as by aesthetics."
+   ]
+  },
+  {
+   "id": "pop-04",
+   "title": "Gospel, R&B, and the Birth of Rock and Roll",
+   "body": [
+    "Gospel professionalised in the 1930s and 40s around Thomas A. Dorsey's compositions and singers like Mahalia Jackson and Sister Rosetta Tharpe — whose distorted electric guitar in the 1940s is, by any reasonable listening, rock guitar before rock existed. Gospel supplied the vocal technique that everything after would use: melisma, the shout, dynamic escalation to a climax, and the call-and-response between soloist and choir.",
+    "Rhythm and blues in the late 1940s was small-combo blues with a heavy backbeat, jump rhythm and honking tenor sax, sold to Black audiences by independent labels. When white teenagers began buying it — and when radio, television and disposable income created a teenage market for the first time — the music was renamed rock and roll and its audience broadened enormously.",
+    "The industry's mechanism for that broadening was the cover version. Pat Boone's sanitised recordings of Little Richard and Fats Domino outsold the originals on pop charts, and the songwriters got paid while the recording artists often did not. Chuck Berry's storytelling and guitar vocabulary, Little Richard's screamed intensity, and Elvis Presley's synthesis of blues, gospel and country all belong to the same moment. Understanding rock and roll requires holding both facts at once: it was a genuine musical fusion, and it was distributed through a system that systematically transferred value from Black artists to white ones."
+   ]
+  },
+  {
+   "id": "pop-05",
+   "title": "Soul: Motown, Stax, and the Sound of the Sixties",
+   "body": [
+    "Soul is what happens when gospel singing is turned on secular subject matter. Ray Charles did it explicitly and controversially in the mid-1950s, rewriting gospel songs with romantic lyrics; Sam Cooke crossed from the Soul Stirrers to pop and became the model for the soul singer as a complete artist. Aretha Franklin, floundering at Columbia as a jazz-pop vocalist, went to Atlantic and to Muscle Shoals in 1967 and made records that are simply the standard against which the genre is measured.",
+    "Two production houses defined the sound in opposite ways. Motown in Detroit, under Berry Gordy, ran on a factory model: staff writers such as Holland–Dozier–Holland, an in-house band (the Funk Brothers) on nearly everything, quality-control meetings, and a deliberate aim at a crossover pop audience — records mixed to sound good on a car radio, arrangements tight and bright. Stax in Memphis was the mirror image: an integrated house band in Booker T. and the M.G.'s, recording largely live in a converted cinema, with a rawer, drier, more rhythm-forward sound.",
+    "By the end of the decade soul had become a vehicle for something larger. Marvin Gaye's What's Going On (1971), made against Gordy's objections, is a suite about war, poverty and ecology; Curtis Mayfield and Stevie Wonder — the latter having won unprecedented creative control at 21 — made albums that treat popular music as a serious authorial medium. This is the point at which soul and rock converge on the same ambition from different directions."
+   ]
+  },
+  {
+   "id": "pop-06",
+   "title": "Rock: The Album, the Studio, and the Split",
+   "body": [
+    "The mid-1960s turned rock from a singles business into an album art form in about three years. The Beatles, Brian Wilson, Dylan going electric, and the general availability of multitrack recording combined so that a record could be a composed object with no live equivalent. Rubber Soul and Pet Sounds explicitly pushed each other; Sgt. Pepper is the point at which the album's status as a unified statement became the mainstream assumption.",
+    "The studio became an instrument. Producers and engineers — George Martin, Phil Spector, Glyn Johns, Eddie Kramer — were now co-authors, and techniques such as varispeed, tape loops, artificial double tracking, close-miked drums and deliberate distortion became compositional choices. Simultaneously the electric guitar's vocabulary expanded past recognition through Hendrix, whose feedback and controlled distortion treated amplifier behaviour as musical material.",
+    "Then it fragmented. Hard rock and metal pursued weight and volume; progressive rock pursued form and virtuosity; punk in 1976 rejected both in favour of speed, brevity and access; post-punk immediately reintroduced complexity from a different angle. Each split was as much sociological as musical — about who was allowed to make music, and what counted as competence. That argument never resolved, and it recurs identically in every genre that follows."
+   ]
+  },
+  {
+   "id": "pop-07",
+   "title": "Disco, Dub, and the Twelve-Inch",
+   "body": [
+    "Disco emerged from Black, Latino and gay club culture in early-1970s New York — at David Mancuso's Loft and then the clubs that followed — and its innovations were structural. The four-on-the-floor kick gave a continuous pulse that made beatmatching possible. The twelve-inch single, first cut as a promotional necessity, allowed longer tracks with more level and better bass response, and produced the extended mix: a version arranged for the dance floor rather than the radio, with long intros and outros designed to be mixed.",
+    "In Jamaica, dub developed the same decade from a different root. Engineers such as King Tubby and Lee \"Scratch\" Perry took existing reggae multitracks and remixed them radically — dropping the vocal, foregrounding the drum and bass, and drenching elements in tape echo and spring reverb as a live performance at the mixing desk. The B-side version became standard, and with it the idea that a recording is raw material for further authorship. Every remix culture since descends from this.",
+    "Both threads converge in the hands of DJs. Once you have long dance-floor edits, isolated instrumental versions, and two turntables, the person selecting and mixing records is making music. Disco's abrupt commercial backlash in 1979 — a demolition night at a baseball stadium, an industry retreat with unmistakable racial and homophobic subtext — did not kill it. It went underground and reappeared as house in Chicago and techno in Detroit within five years."
+   ]
+  },
+  {
+   "id": "pop-08",
+   "title": "Hip-Hop: From the Break to the Dominant Form",
+   "body": [
+    "Hip-hop begins as a set of practices rather than a genre: DJ Kool Herc extending breaks on two turntables from 1973, Afrika Bambaataa building an eclectic record-selection philosophy and an organisation around it, Grandmaster Flash developing precise cutting and the crossfader techniques still used today, and MCs who began as hype men for the DJ and grew into the focal point. \"Rapper's Delight\" (1979) put it on record; Grandmaster Flash and the Furious Five's \"The Message\" (1982) proved it could carry serious social subject matter.",
+    "The sampler industrialised it. Once an E-mu SP-1200 or an Akai MPC could store, chop and sequence recorded sound, the DJ's technique became a production method, and the mid-to-late 1980s produced records of extraordinary collage density — Marley Marl, the Bomb Squad, Prince Paul, Pete Rock, DJ Premier. Grand Upright then ended that economy, and the music adapted by sampling less and building more.",
+    "Regionalisation drove the next thirty years: the West Coast's G-funk, the South's bass and then the Atlanta trap sound that now defines the global rhythmic mainstream, Houston's chopped-and-screwed, drill in Chicago and then London. By the late 2010s hip-hop was the most-consumed genre in the United States and its production language — 808 sub-bass, triplet hi-hats, sung-rapped vocal melody — had become the default grammar of international pop. Note the historical shape: it is exactly the arc the blues, jazz, and rock and roll each took, compressed and repeated."
+   ]
+  },
+  {
+   "id": "pop-09",
+   "title": "House, Techno, and the Global Electronic Diaspora",
+   "body": [
+    "House takes its name from Chicago's Warehouse, where Frankie Knuckles played disco to a largely Black and gay crowd after disco's commercial collapse, extending and reworking records with a drum machine to keep the floor moving. Producers including Jesse Saunders, Marshall Jefferson and Larry Heard began making original tracks on cheap Roland gear; the TR-909's kick and the TB-303's misused filter sweep became acid house.",
+    "Techno developed in parallel in Detroit through Juan Atkins, Derrick May and Kevin Saunderson — three suburban school friends whose music married European electronic influence (Kraftwerk especially) to a specifically Detroit, post-industrial futurism. It is worth being precise about this: techno is Black American music with an explicitly Afrofuturist conception, and the widespread European framing of it as a European genre is a historical error.",
+    "Both travelled to the UK and continental Europe and detonated. Acid house and the 1988–89 rave period, then the rapid speciation into jungle and drum and bass, UK garage, grime, dubstep, and every subsequent branch; in Berlin, techno became civic infrastructure. Meanwhile the American mainstream largely ignored all of it until the 2010s EDM boom re-imported a commercialised version. The pattern of Black American innovation, foreign adoption, and delayed domestic recognition is by this point the single most reliable structure in this entire track."
+   ]
+  },
+  {
+   "id": "pop-10",
+   "title": "The Present: Genre Collapse and the Algorithm",
+   "body": [
+    "Three changes define the current period. Production tools became free or nearly so, meaning a bedroom laptop can produce a commercially competitive record and the label's historical monopoly on studio access is gone. Distribution became free, meaning anyone can put a track on every major service for a small annual fee. And discovery became algorithmic, meaning the gatekeeping function moved from A&R and radio programmers to recommender systems trained on aggregate listening behaviour.",
+    "Genre has consequently stopped functioning as an identity and started functioning as a set of production signifiers to be combined. An artist can make a country-trap record, a hyperpop record and a folk record in one year, and the audience — which no longer inherits a record collection from a scene — largely does not object. The playlist has replaced the genre as the organising unit, and playlists are organised by mood and activity rather than by musical lineage.",
+    "The consequences are genuinely mixed and worth holding without resolving. More people can make and release music than at any point in history, which is unambiguously good. Recorded-music income concentrates severely at the top and touring has become the primary revenue for almost everyone else. Recommenders optimise for engagement and tend to narrow rather than broaden exposure. And the material we have been studying — the sample, the break, the field recording, the master tape — now sits inside training corpora whose legal status is unresolved. The 150-year arc of this curriculum is still running, and you are inside the part that has not been written yet."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "chora-history.harm-01.q1",
+   "lessonId": "harm-01",
+   "kind": "mcq",
+   "prompt": "What is monophony?",
+   "choices": [
+    "Unpitched chanting",
+    "A single melodic line with no accompaniment",
+    "Two parallel melodic lines",
+    "Melody over chords"
+   ]
+  },
+  {
+   "id": "chora-history.harm-01.q2",
+   "lessonId": "harm-01",
+   "kind": "mcq",
+   "prompt": "A film composer wants a Phrygian colour to signal menace. In which tradition does this vocabulary originate?",
+   "choices": [
+    "Medieval church modes",
+    "Jazz harmony",
+    "Twelve-tone music",
+    "Baroque dance suites"
+   ]
+  },
+  {
+   "id": "chora-history.harm-01.q3",
+   "lessonId": "harm-01",
+   "kind": "mcq",
+   "prompt": "Why did notation appear in the chant repertory?",
+   "choices": [
+    "Composers wanted royalties",
+    "Instruments required it",
+    "Chant became too complicated for voices",
+    "Oral transmission failed when distant churches needed to sing the same chant"
+   ]
+  },
+  {
+   "id": "chora-history.harm-02.q1",
+   "lessonId": "harm-02",
+   "kind": "mcq",
+   "prompt": "In which treatise is the earliest surviving description of two-part singing?",
+   "choices": [
+    "Traite de l harmonie",
+    "Well-Tempered Clavier",
+    "Musica enchiriadis",
+    "Gradus ad Parnassum"
+   ]
+  },
+  {
+   "id": "chora-history.harm-02.q2",
+   "lessonId": "harm-02",
+   "kind": "mcq",
+   "prompt": "Which ratio describes a perfect fifth?",
+   "choices": [
+    "4:3",
+    "5:4",
+    "2:1",
+    "3:2"
+   ]
+  },
+  {
+   "id": "chora-history.harm-02.q3",
+   "lessonId": "harm-02",
+   "kind": "mcq",
+   "prompt": "What happened to the lower voice by the Notre-Dame school around 1200?",
+   "choices": [
+    "It held single chant notes for very long durations under florid upper voices",
+    "It sang in parallel fifths only",
+    "It moved to the top",
+    "It vanished"
+   ]
+  },
+  {
+   "id": "chora-history.harm-03.q1",
+   "lessonId": "harm-03",
+   "kind": "mcq",
+   "prompt": "What is the imitative point?",
+   "choices": [
+    "A cadence",
+    "A key change",
+    "A chord progression",
+    "One voice states a phrase and others enter with it at staggered intervals"
+   ]
+  },
+  {
+   "id": "chora-history.harm-03.q2",
+   "lessonId": "harm-03",
+   "kind": "mcq",
+   "prompt": "Which theorist formalised Palestrina style in Gradus ad Parnassum (1725)?",
+   "choices": [
+    "Zarlino",
+    "Rameau",
+    "Fux",
+    "Guido"
+   ]
+  },
+  {
+   "id": "chora-history.harm-03.q3",
+   "lessonId": "harm-03",
+   "kind": "mcq",
+   "prompt": "Why are the famous counterpoint rules described as reverse-engineered?",
+   "choices": [
+    "They are mathematical proofs",
+    "They were invented by Fux from observing what Palestrina actually did",
+    "Palestrina wrote them first",
+    "They came from Josquin"
+   ]
+  },
+  {
+   "id": "chora-history.harm-04.q1",
+   "lessonId": "harm-04",
+   "kind": "mcq",
+   "prompt": "Which chord is home in functional harmony?",
+   "choices": [
+    "The tonic (I)",
+    "The dominant (V)",
+    "The subdominant (IV)",
+    "The mediant"
+   ]
+  },
+  {
+   "id": "chora-history.harm-04.q2",
+   "lessonId": "harm-04",
+   "kind": "mcq",
+   "prompt": "What do the figures under a basso continuo bass line tell the keyboard player?",
+   "choices": [
+    "Tempo",
+    "Which intervals to stack above each note",
+    "Dynamics",
+    "Lyrics"
+   ]
+  },
+  {
+   "id": "chora-history.harm-04.q3",
+   "lessonId": "harm-04",
+   "kind": "mcq",
+   "prompt": "What did Rameau argue about chord identity?",
+   "choices": [
+    "Chords have no roots",
+    "Only triads exist",
+    "A chord keeps its identity through inversion",
+    "Inversions are different chords"
+   ]
+  },
+  {
+   "id": "chora-history.harm-05.q1",
+   "lessonId": "harm-05",
+   "kind": "mcq",
+   "prompt": "What is the Pythagorean comma?",
+   "choices": [
+    "A rhythmic pattern",
+    "The discrepancy when twelve perfect fifths overshoot seven octaves",
+    "A rest",
+    "An ornament"
+   ]
+  },
+  {
+   "id": "chora-history.harm-05.q2",
+   "lessonId": "harm-05",
+   "kind": "mcq",
+   "prompt": "In equal temperament how large is every semitone?",
+   "choices": [
+    "The twelfth root of two",
+    "A 3:2 ratio",
+    "A 5:4 ratio",
+    "Varies by key"
+   ]
+  },
+  {
+   "id": "chora-history.harm-05.q3",
+   "lessonId": "harm-05",
+   "kind": "mcq",
+   "prompt": "What does the lesson say about the Well-Tempered Clavier?",
+   "choices": [
+    "It only uses C major",
+    "It was written for organ",
+    "It proves Bach used equal temperament",
+    "Well-tempered almost certainly meant an unequal well temperament"
+   ]
+  },
+  {
+   "id": "chora-history.harm-06.q1",
+   "lessonId": "harm-06",
+   "kind": "mcq",
+   "prompt": "In which year did Tristan und Isolde premiere per the lesson date?",
+   "choices": [
+    "1959",
+    "1759",
+    "1859",
+    "1909"
+   ]
+  },
+  {
+   "id": "chora-history.harm-06.q2",
+   "lessonId": "harm-06",
+   "kind": "mcq",
+   "prompt": "Why is the Tristan chord ambiguous?",
+   "choices": [
+    "It is in C major",
+    "It is tonal",
+    "It has one note",
+    "It can be read several ways at once"
+   ]
+  },
+  {
+   "id": "chora-history.harm-06.q3",
+   "lessonId": "harm-06",
+   "kind": "mcq",
+   "prompt": "What did Schoenberg conclude around 1908?",
+   "choices": [
+    "If no chord requires resolution, the key has no work left to do",
+    "Return to modes",
+    "Use only triads",
+    "Abandon pitch"
+   ]
+  },
+  {
+   "id": "chora-history.harm-07.q1",
+   "lessonId": "harm-07",
+   "kind": "mcq",
+   "prompt": "In a twelve-bar blues, what role does the dominant seventh often play?",
+   "choices": [
+    "It is avoided",
+    "It is a bridge",
+    "It resolves each time",
+    "It serves as the I chord, i.e. home"
+   ]
+  },
+  {
+   "id": "chora-history.harm-07.q2",
+   "lessonId": "harm-07",
+   "kind": "mcq",
+   "prompt": "How is a blue note approximated on piano?",
+   "choices": [
+    "Retuning",
+    "Playing octaves",
+    "Playing the flat and natural third together",
+    "Using a pedal"
+   ]
+  },
+  {
+   "id": "chora-history.harm-07.q3",
+   "lessonId": "harm-07",
+   "kind": "mcq",
+   "prompt": "What happens in Coltrane Giant Steps (1960)?",
+   "choices": [
+    "A single key throughout",
+    "Three tonal centres a major third apart move too fast to hear one as home",
+    "Only modal vamps",
+    "Twelve-tone rows"
+   ]
+  },
+  {
+   "id": "chora-history.harm-08.q1",
+   "lessonId": "harm-08",
+   "kind": "mcq",
+   "prompt": "Why does a loop have no cadence?",
+   "choices": [
+    "The end of the cycle is also its beginning",
+    "It uses no chords",
+    "It is atonal",
+    "It is too short"
+   ]
+  },
+  {
+   "id": "chora-history.harm-08.q2",
+   "lessonId": "harm-08",
+   "kind": "mcq",
+   "prompt": "What does Mixolydian remove that makes rock feel grounded?",
+   "choices": [
+    "The third",
+    "The leading tone",
+    "The fifth",
+    "The tonic"
+   ]
+  },
+  {
+   "id": "chora-history.harm-08.q3",
+   "lessonId": "harm-08",
+   "kind": "mcq",
+   "prompt": "How does the lesson explain the single minor pad in trap and drill?",
+   "choices": [
+    "Copying classical music",
+    "Harmonic poverty",
+    "A reallocation of attention to drums, vocals and low end",
+    "A technical limitation of software"
+   ]
+  },
+  {
+   "id": "chora-history.rec-01.q1",
+   "lessonId": "rec-01",
+   "kind": "mcq",
+   "prompt": "Who built the phonautograph in 1857?",
+   "choices": [
+    "Western Electric",
+    "Edison",
+    "Berliner",
+    "Scott de Martinville"
+   ]
+  },
+  {
+   "id": "chora-history.rec-01.q2",
+   "lessonId": "rec-01",
+   "kind": "mcq",
+   "prompt": "Why did the flat disc beat the cylinder?",
+   "choices": [
+    "It was longer",
+    "Better fidelity",
+    "A disc could be mass-pressed from a master",
+    "It was cheaper to record"
+   ]
+  },
+  {
+   "id": "chora-history.rec-01.q3",
+   "lessonId": "rec-01",
+   "kind": "mcq",
+   "prompt": "How did the 78 rpm disc affect popular music?",
+   "choices": [
+    "It limited volume",
+    "Its roughly three-minute side defined song length for a century",
+    "It made albums standard",
+    "It had no effect"
+   ]
+  },
+  {
+   "id": "chora-history.rec-02.q1",
+   "lessonId": "rec-02",
+   "kind": "mcq",
+   "prompt": "When did the acoustic era end?",
+   "choices": [
+    "1925",
+    "1948",
+    "1982",
+    "1877"
+   ]
+  },
+  {
+   "id": "chora-history.rec-02.q2",
+   "lessonId": "rec-02",
+   "kind": "mcq",
+   "prompt": "Why were string basses swapped for tubas?",
+   "choices": [
+    "Tubas were more fashionable",
+    "The tuba fundamental could move the diaphragm",
+    "Tubas were quieter",
+    "Basses were scarce"
+   ]
+  },
+  {
+   "id": "chora-history.rec-02.q3",
+   "lessonId": "rec-02",
+   "kind": "mcq",
+   "prompt": "What does the lesson say about early recordings as evidence?",
+   "choices": [
+    "They are unreliable audio",
+    "They are neutral windows",
+    "They document the capture system as much as the performance",
+    "They are fake"
+   ]
+  },
+  {
+   "id": "chora-history.rec-03.q1",
+   "lessonId": "rec-03",
+   "kind": "mcq",
+   "prompt": "What replaced the horn in 1925?",
+   "choices": [
+    "Digital sampling",
+    "Western Electric electrical system with microphone, amplifier and electromagnetic cutter",
+    "Magnetic tape",
+    "The LP"
+   ]
+  },
+  {
+   "id": "chora-history.rec-03.q2",
+   "lessonId": "rec-03",
+   "kind": "mcq",
+   "prompt": "Which vocal style is impossible without electronics?",
+   "choices": [
+    "Crooning",
+    "Folk ballad",
+    "Plainchant",
+    "Opera"
+   ]
+  },
+  {
+   "id": "chora-history.rec-03.q3",
+   "lessonId": "rec-03",
+   "kind": "mcq",
+   "prompt": "What did radio make a coherent concept for the first time?",
+   "choices": [
+    "The concert",
+    "The LP",
+    "The album",
+    "The hit"
+   ]
+  },
+  {
+   "id": "chora-history.rec-04.q1",
+   "lessonId": "rec-04",
+   "kind": "mcq",
+   "prompt": "Who brought the Magnetophon to the United States?",
+   "choices": [
+    "Bing Crosby",
+    "Les Paul",
+    "Jack Mullin",
+    "Phil Spector"
+   ]
+  },
+  {
+   "id": "chora-history.rec-04.q2",
+   "lessonId": "rec-04",
+   "kind": "mcq",
+   "prompt": "What new capability did tape give engineers?",
+   "choices": [
+    "Colour video",
+    "Digital storage",
+    "Stereo only",
+    "Cutting and splicing takes"
+   ]
+  },
+  {
+   "id": "chora-history.rec-04.q3",
+   "lessonId": "rec-04",
+   "kind": "mcq",
+   "prompt": "How did multitrack recording change records?",
+   "choices": [
+    "They stopped documenting an event and became artefacts assembled from parts",
+    "They became shorter",
+    "They lost mixes",
+    "They needed no studio"
+   ]
+  },
+  {
+   "id": "chora-history.rec-05.q1",
+   "lessonId": "rec-05",
+   "kind": "mcq",
+   "prompt": "Who introduced the 33 1/3 LP in 1948?",
+   "choices": [
+    "Decca",
+    "Ampex",
+    "RCA Victor",
+    "Columbia"
+   ]
+  },
+  {
+   "id": "chora-history.rec-05.q2",
+   "lessonId": "rec-05",
+   "kind": "mcq",
+   "prompt": "Why do classic albums often have two distinct halves?",
+   "choices": [
+    "CD format",
+    "Streaming",
+    "Twenty-two minutes per side shaped the structure",
+    "Marketing"
+   ]
+  },
+  {
+   "id": "chora-history.rec-05.q3",
+   "lessonId": "rec-05",
+   "kind": "mcq",
+   "prompt": "What is streaming royalty threshold effect on songs?",
+   "choices": [
+    "It removes hooks",
+    "It shortens intros and song lengths",
+    "It lengthens songs",
+    "No effect"
+   ]
+  },
+  {
+   "id": "chora-history.rec-06.q1",
+   "lessonId": "rec-06",
+   "kind": "mcq",
+   "prompt": "Who recorded Southern folk music for the Library of Congress from 1933?",
+   "choices": [
+    "John and Alan Lomax",
+    "Moses Asch",
+    "Phil Spector",
+    "Alan Freed"
+   ]
+  },
+  {
+   "id": "chora-history.rec-06.q2",
+   "lessonId": "rec-06",
+   "kind": "mcq",
+   "prompt": "What was Moses Asch Folkways commitment?",
+   "choices": [
+    "Delete unprofitable titles",
+    "Record everything and never delete anything",
+    "Sell only singles",
+    "Use only tape"
+   ]
+  },
+  {
+   "id": "chora-history.rec-06.q3",
+   "lessonId": "rec-06",
+   "kind": "mcq",
+   "prompt": "What ethical tension does field recording carry?",
+   "choices": [
+    "Speed versus fidelity",
+    "No tension",
+    "Preservation and access versus outsiders taking recordings from unequal communities",
+    "Cost versus quality"
+   ]
+  },
+  {
+   "id": "chora-history.rec-07.q1",
+   "lessonId": "rec-07",
+   "kind": "mcq",
+   "prompt": "What does the Nyquist-Shannon theorem state?",
+   "choices": [
+    "Tape hisses",
+    "A signal can be reconstructed from samples above twice its highest frequency",
+    "Bits equal decibels",
+    "CDs hold 74 minutes"
+   ]
+  },
+  {
+   "id": "chora-history.rec-07.q2",
+   "lessonId": "rec-07",
+   "kind": "mcq",
+   "prompt": "Roughly what dynamic range do 16 bits give?",
+   "choices": [
+    "96 dB",
+    "144 dB",
+    "24 dB",
+    "48 dB"
+   ]
+  },
+  {
+   "id": "chora-history.rec-07.q3",
+   "lessonId": "rec-07",
+   "kind": "mcq",
+   "prompt": "Why did the loudness war happen?",
+   "choices": [
+    "CDs required it",
+    "Vinyl required it",
+    "Artists wanted noise",
+    "Loud recordings command attention on radio and shuffle"
+   ]
+  },
+  {
+   "id": "chora-history.rec-08.q1",
+   "lessonId": "rec-08",
+   "kind": "mcq",
+   "prompt": "What has replaced physical format constraints in streaming?",
+   "choices": [
+    "Longer albums",
+    "Vinyl",
+    "New incentives, such as per-play royalties",
+    "Total freedom"
+   ]
+  },
+  {
+   "id": "chora-history.rec-08.q2",
+   "lessonId": "rec-08",
+   "kind": "mcq",
+   "prompt": "Why does the lesson say a streaming catalogue is not a library?",
+   "choices": [
+    "It is private",
+    "It is small",
+    "It is analogue",
+    "It is a licensing arrangement and titles disappear"
+   ]
+  },
+  {
+   "id": "chora-history.rec-08.q3",
+   "lessonId": "rec-08",
+   "kind": "mcq",
+   "prompt": "Why does pro-rata payout mean your subscription does not primarily pay the artists you listen to?",
+   "choices": [
+    "It divides the pool by total plays platform-wide",
+    "Artists are paid equally",
+    "Royalties are fixed",
+    "Labels keep all"
+   ]
+  },
+  {
+   "id": "chora-history.form-01.q1",
+   "lessonId": "form-01",
+   "kind": "mcq",
+   "prompt": "What is a period?",
+   "choices": [
+    "A cadence",
+    "Two phrases in a question-and-answer relationship",
+    "A single note",
+    "A key change"
+   ]
+  },
+  {
+   "id": "chora-history.form-01.q2",
+   "lessonId": "form-01",
+   "kind": "mcq",
+   "prompt": "What is the shape of a sentence?",
+   "choices": [
+    "Statement, repetition, then fragmentation to a cadence",
+    "Two equal halves",
+    "ABA",
+    "Free"
+   ]
+  },
+  {
+   "id": "chora-history.form-01.q3",
+   "lessonId": "form-01",
+   "kind": "mcq",
+   "prompt": "Why do irregular phrase lengths matter?",
+   "choices": [
+    "They are required",
+    "They simplify analysis",
+    "They are errors",
+    "They are where expressive weight usually lives"
+   ]
+  },
+  {
+   "id": "chora-history.form-02.q1",
+   "lessonId": "form-02",
+   "kind": "mcq",
+   "prompt": "What is binary form?",
+   "choices": [
+    "ABACA",
+    "Through-composed",
+    "AB with sections often repeated",
+    "ABA"
+   ]
+  },
+  {
+   "id": "chora-history.form-02.q2",
+   "lessonId": "form-02",
+   "kind": "mcq",
+   "prompt": "Which operatic form built on ternary form with ornamented returns?",
+   "choices": [
+    "Recitative",
+    "Chorale",
+    "Overture",
+    "Da capo aria"
+   ]
+  },
+  {
+   "id": "chora-history.form-02.q3",
+   "lessonId": "form-02",
+   "kind": "mcq",
+   "prompt": "What is the Baroque suite significant for?",
+   "choices": [
+    "Contrast between movements rather than development within one",
+    "Sonata form",
+    "Atonality",
+    "Fugues"
+   ]
+  },
+  {
+   "id": "chora-history.form-03.q1",
+   "lessonId": "form-03",
+   "kind": "mcq",
+   "prompt": "What are the three parts of sonata form?",
+   "choices": [
+    "Verse, chorus, bridge",
+    "Theme, variation, coda",
+    "Subject, answer, episode",
+    "Exposition, development, recapitulation"
+   ]
+  },
+  {
+   "id": "chora-history.form-03.q2",
+   "lessonId": "form-03",
+   "kind": "mcq",
+   "prompt": "Where does the second theme return in the recapitulation?",
+   "choices": [
+    "In a remote key",
+    "It does not return",
+    "In the tonic",
+    "In the dominant"
+   ]
+  },
+  {
+   "id": "chora-history.form-03.q3",
+   "lessonId": "form-03",
+   "kind": "mcq",
+   "prompt": "Why is sonata form described as being about key, not tunes?",
+   "choices": [
+    "Beethoven said so",
+    "The drama is a key relationship set up as a problem then solved",
+    "Themes are irrelevant",
+    "Melodies are always the same"
+   ]
+  },
+  {
+   "id": "chora-history.form-04.q1",
+   "lessonId": "form-04",
+   "kind": "mcq",
+   "prompt": "What does variation form transform?",
+   "choices": [
+    "A theme with some skeleton persisting",
+    "Nothing",
+    "Only rhythm",
+    "Only key"
+   ]
+  },
+  {
+   "id": "chora-history.form-04.q2",
+   "lessonId": "form-04",
+   "kind": "mcq",
+   "prompt": "Which pattern is a rondo?",
+   "choices": [
+    "AAAA",
+    "ABACA",
+    "AABB",
+    "ABCD"
+   ]
+  },
+  {
+   "id": "chora-history.form-04.q3",
+   "lessonId": "form-04",
+   "kind": "mcq",
+   "prompt": "Why does the lesson say fugue is not a form?",
+   "choices": [
+    "It is atonal",
+    "It is a dance",
+    "It is a texture and procedure whose shape comes from the subject",
+    "It has no voices"
+   ]
+  },
+  {
+   "id": "chora-history.form-05.q1",
+   "lessonId": "form-05",
+   "kind": "mcq",
+   "prompt": "What is the structure of the 32-bar song form?",
+   "choices": [
+    "AAAA",
+    "AABA with eight-bar sections",
+    "ABAB",
+    "ABC"
+   ]
+  },
+  {
+   "id": "chora-history.form-05.q2",
+   "lessonId": "form-05",
+   "kind": "mcq",
+   "prompt": "What lyric form does the twelve-bar blues use?",
+   "choices": [
+    "Line, repeated line, answering line (AAB)",
+    "ABAB",
+    "AABA",
+    "Free verse"
+   ]
+  },
+  {
+   "id": "chora-history.form-05.q3",
+   "lessonId": "form-05",
+   "kind": "mcq",
+   "prompt": "Why does the lesson call a shared form public infrastructure?",
+   "choices": [
+    "It is free",
+    "It is law",
+    "It is required",
+    "Strangers can perform together because everyone knows it"
+   ]
+  },
+  {
+   "id": "chora-history.form-06.q1",
+   "lessonId": "form-06",
+   "kind": "mcq",
+   "prompt": "What does the chorus contain in verse-chorus form?",
+   "choices": [
+    "Spoken word",
+    "Only drums",
+    "The title and same lyric each time",
+    "A new lyric each time"
+   ]
+  },
+  {
+   "id": "chora-history.form-06.q2",
+   "lessonId": "form-06",
+   "kind": "mcq",
+   "prompt": "What is the pre-chorus for?",
+   "choices": [
+    "Ending the song",
+    "Introducing instruments",
+    "Providing silence",
+    "Building tension and delaying arrival"
+   ]
+  },
+  {
+   "id": "chora-history.form-06.q3",
+   "lessonId": "form-06",
+   "kind": "mcq",
+   "prompt": "In dance music what replaces the chorus?",
+   "choices": [
+    "The drop",
+    "The bridge",
+    "The coda",
+    "Nothing"
+   ]
+  },
+  {
+   "id": "chora-history.form-07.q1",
+   "lessonId": "form-07",
+   "kind": "mcq",
+   "prompt": "What is Terry Riley In C built from?",
+   "choices": [
+    "A twelve-tone row",
+    "A sonata",
+    "Improvisation only",
+    "Fifty-three short melodic fragments"
+   ]
+  },
+  {
+   "id": "chora-history.form-07.q2",
+   "lessonId": "form-07",
+   "kind": "mcq",
+   "prompt": "What drives Steve Reich phase pieces?",
+   "choices": [
+    "Chance",
+    "Harmony",
+    "Two identical loops with one drifting slightly faster",
+    "Key changes"
+   ]
+  },
+  {
+   "id": "chora-history.form-07.q3",
+   "lessonId": "form-07",
+   "kind": "mcq",
+   "prompt": "How does the lesson view house and techno forms?",
+   "choices": [
+    "Through-composed",
+    "Tracks are stacks of loops for mixing; the real form is the DJ set",
+    "Repetitive and poor",
+    "Sonata derived"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-01.q1",
+   "lessonId": "rhy-01",
+   "kind": "mcq",
+   "prompt": "What is metre?",
+   "choices": [
+    "A pattern of strong and weak beats around the pulse",
+    "The tempo",
+    "The pitch",
+    "The key"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-01.q2",
+   "lessonId": "rhy-01",
+   "kind": "mcq",
+   "prompt": "How does 6/8 differ from 3/4?",
+   "choices": [
+    "No difference",
+    "Two beats divided in three versus three beats divided in two",
+    "Faster",
+    "Louder"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-01.q3",
+   "lessonId": "rhy-01",
+   "kind": "mcq",
+   "prompt": "What is a hemiola?",
+   "choices": [
+    "A key change",
+    "A chord",
+    "Two groups of three reinterpreted as three groups of two",
+    "A rest"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-02.q1",
+   "lessonId": "rhy-02",
+   "kind": "mcq",
+   "prompt": "What is syncopation?",
+   "choices": [
+    "Playing faster",
+    "Playing in unison",
+    "Removing the bass",
+    "Placing accents where the metre does not expect them"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-02.q2",
+   "lessonId": "rhy-02",
+   "kind": "mcq",
+   "prompt": "In a backbeat, where does the snare fall in common time?",
+   "choices": [
+    "Only beat 1",
+    "Every sixteenth",
+    "Beats 2 and 4",
+    "Beats 1 and 3"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-02.q3",
+   "lessonId": "rhy-02",
+   "kind": "mcq",
+   "prompt": "Why does syncopation only work if metre is a prediction?",
+   "choices": [
+    "Syncopation is random",
+    "You cannot violate an expectation the listener does not hold",
+    "Metre is written down",
+    "It needs a drummer"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-03.q1",
+   "lessonId": "rhy-03",
+   "kind": "mcq",
+   "prompt": "What is a timeline in West and Central African traditions?",
+   "choices": [
+    "A harmony",
+    "A drum solo",
+    "A short asymmetric repeated pattern, often on a bell, used as a reference grid",
+    "A melody"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-03.q2",
+   "lessonId": "rhy-03",
+   "kind": "mcq",
+   "prompt": "Which Cuban pattern organises son, rumba, mambo and salsa?",
+   "choices": [
+    "Tresillo only",
+    "Backbeat",
+    "Hemiola",
+    "Clave"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-03.q3",
+   "lessonId": "rhy-03",
+   "kind": "mcq",
+   "prompt": "Why is the pattern asymmetric on purpose?",
+   "choices": [
+    "It tells you unambiguously where you are in the cycle",
+    "It is easier",
+    "It is faster",
+    "It is louder"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-04.q1",
+   "lessonId": "rhy-04",
+   "kind": "mcq",
+   "prompt": "What is the textbook swing ratio?",
+   "choices": [
+    "5:4",
+    "2:1",
+    "1:1",
+    "4:1"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-04.q2",
+   "lessonId": "rhy-04",
+   "kind": "mcq",
+   "prompt": "A drummer plays the snare slightly late relative to the hi-hat. What feel results?",
+   "choices": [
+    "Laid back",
+    "Urgent",
+    "Metronomic",
+    "Syncopated"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-04.q3",
+   "lessonId": "rhy-04",
+   "kind": "mcq",
+   "prompt": "What did J Dilla drum programming exemplify?",
+   "choices": [
+    "Perfect grid",
+    "Triplet-only patterns",
+    "Metronome precision",
+    "Deliberately unquantised feel with elastic timing"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-05.q1",
+   "lessonId": "rhy-05",
+   "kind": "mcq",
+   "prompt": "What is The One?",
+   "choices": [
+    "Every part converges emphatically on beat one of each bar",
+    "A chord",
+    "A key",
+    "A fill"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-05.q2",
+   "lessonId": "rhy-05",
+   "kind": "mcq",
+   "prompt": "What replaced harmonic motion in Brown funk around 1965?",
+   "choices": [
+    "Strings",
+    "Rhythmic interlock of short repeating figures",
+    "Modulation",
+    "Long melodies"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-05.q3",
+   "lessonId": "rhy-05",
+   "kind": "mcq",
+   "prompt": "What deeper lesson does funk teach?",
+   "choices": [
+    "Melody dominates",
+    "Tempo is fixed",
+    "Arrangement is composition",
+    "Chords are everything"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-06.q1",
+   "lessonId": "rhy-06",
+   "kind": "mcq",
+   "prompt": "Which machine was released in 1980 and discontinued in 1983?",
+   "choices": [
+    "TR-909",
+    "TB-303",
+    "SP-1200",
+    "Roland TR-808"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-06.q2",
+   "lessonId": "rhy-06",
+   "kind": "mcq",
+   "prompt": "Which machine kick became the definitive four-to-the-floor sound in house and techno?",
+   "choices": [
+    "TB-303",
+    "Linn",
+    "TR-909",
+    "TR-808"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-06.q3",
+   "lessonId": "rhy-06",
+   "kind": "mcq",
+   "prompt": "What does the lesson say a step sequencer encourages?",
+   "choices": [
+    "Loose timing",
+    "Patterns hard to play but easy to draw",
+    "Only swing",
+    "Live feel"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-07.q1",
+   "lessonId": "rhy-07",
+   "kind": "mcq",
+   "prompt": "What is the canonical polyrhythm?",
+   "choices": [
+    "Four against four",
+    "Five against five",
+    "Three against four",
+    "Two against two"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-07.q2",
+   "lessonId": "rhy-07",
+   "kind": "mcq",
+   "prompt": "Which Carnatic system uses cadential formulae?",
+   "choices": [
+    "Clave",
+    "Tala only",
+    "Syncopation",
+    "Korvai"
+   ]
+  },
+  {
+   "id": "chora-history.rhy-07.q3",
+   "lessonId": "rhy-07",
+   "kind": "mcq",
+   "prompt": "What is the lesson frontier claim?",
+   "choices": [
+    "Musical innovation moved from pitch to time",
+    "Harmony is more complex today",
+    "Rhythm is simpler today",
+    "4/4 is universal"
+   ]
+  },
+  {
+   "id": "chora-history.law-01.q1",
+   "lessonId": "law-01",
+   "kind": "mcq",
+   "prompt": "Who began composing with recorded sound in 1948 at French radio?",
+   "choices": [
+    "Cage",
+    "Pierre Schaeffer",
+    "Kool Herc",
+    "Stockhausen"
+   ]
+  },
+  {
+   "id": "chora-history.law-01.q2",
+   "lessonId": "law-01",
+   "kind": "mcq",
+   "prompt": "What did DJ Kool Herc extend using two turntables?",
+   "choices": [
+    "The percussion break",
+    "The chorus",
+    "The verse",
+    "The bassline"
+   ]
+  },
+  {
+   "id": "chora-history.law-01.q3",
+   "lessonId": "law-01",
+   "kind": "mcq",
+   "prompt": "Why did copyright law struggle with the break?",
+   "choices": [
+    "Breaks are old",
+    "DJs did not credit",
+    "The law forbade turntables",
+    "It treats compositions and performances, not repurposed pieces of recording"
+   ]
+  },
+  {
+   "id": "chora-history.law-02.q1",
+   "lessonId": "law-02",
+   "kind": "mcq",
+   "prompt": "Who typically owns the sound recording (master)?",
+   "choices": [
+    "The DJ",
+    "The radio station",
+    "The label or financier of the session",
+    "The songwriter"
+   ]
+  },
+  {
+   "id": "chora-history.law-02.q2",
+   "lessonId": "law-02",
+   "kind": "mcq",
+   "prompt": "If you replay a part yourself, which clearance do you skip?",
+   "choices": [
+    "The composition",
+    "Both",
+    "Neither",
+    "The master"
+   ]
+  },
+  {
+   "id": "chora-history.law-02.q3",
+   "lessonId": "law-02",
+   "kind": "mcq",
+   "prompt": "Why do modern hits have long credit lists?",
+   "choices": [
+    "Each cleared composition adds credited writers",
+    "Producers demand",
+    "Streaming rules",
+    "Randomly"
+   ]
+  },
+  {
+   "id": "chora-history.law-03.q1",
+   "lessonId": "law-03",
+   "kind": "mcq",
+   "prompt": "In which year was Grand Upright v. Warner decided?",
+   "choices": [
+    "1981",
+    "2001",
+    "1971",
+    "1991"
+   ]
+  },
+  {
+   "id": "chora-history.law-03.q2",
+   "lessonId": "law-03",
+   "kind": "mcq",
+   "prompt": "What happened after Grand Upright?",
+   "choices": [
+    "Clearance vanished",
+    "Hip-hop banned",
+    "Labels required clearance before release",
+    "Sampling grew"
+   ]
+  },
+  {
+   "id": "chora-history.law-03.q3",
+   "lessonId": "law-03",
+   "kind": "mcq",
+   "prompt": "Why do scholars criticise the ruling?",
+   "choices": [
+    "It was secret",
+    "It did essentially no fair use analysis",
+    "It was too lenient",
+    "It was reversed"
+   ]
+  },
+  {
+   "id": "chora-history.law-04.q1",
+   "lessonId": "law-04",
+   "kind": "mcq",
+   "prompt": "Which song did 2 Live Crew parody?",
+   "choices": [
+    "Oh, Pretty Woman",
+    "Alone Again",
+    "Vogue",
+    "Get Off Your Ass and Jam"
+   ]
+  },
+  {
+   "id": "chora-history.law-04.q2",
+   "lessonId": "law-04",
+   "kind": "mcq",
+   "prompt": "What concept became central to fair use after Campbell?",
+   "choices": [
+    "Work for hire",
+    "Transformative use",
+    "De minimis",
+    "Statutory damages"
+   ]
+  },
+  {
+   "id": "chora-history.law-04.q3",
+   "lessonId": "law-04",
+   "kind": "mcq",
+   "prompt": "Why does Campbell not directly license sampling?",
+   "choices": [
+    "It was unanimous",
+    "It was parody",
+    "It concerned a re-performance of a composition, not a digital copy of a master",
+    "It is old"
+   ]
+  },
+  {
+   "id": "chora-history.law-05.q1",
+   "lessonId": "law-05",
+   "kind": "mcq",
+   "prompt": "Which circuit held de minimis does not apply to sound recordings?",
+   "choices": [
+    "Fifth",
+    "Sixth",
+    "Ninth",
+    "Second"
+   ]
+  },
+  {
+   "id": "chora-history.law-05.q2",
+   "lessonId": "law-05",
+   "kind": "mcq",
+   "prompt": "What was sampled in the VMG Salsoul case?",
+   "choices": [
+    "A horn hit in Vogue",
+    "A guitar chord",
+    "A drum break",
+    "A vocal"
+   ]
+  },
+  {
+   "id": "chora-history.law-05.q3",
+   "lessonId": "law-05",
+   "kind": "mcq",
+   "prompt": "Why does the split change little in practice?",
+   "choices": [
+    "The Supreme Court settled it",
+    "Both agree",
+    "Samples are free",
+    "Industry requires documented clearance regardless of circuit"
+   ]
+  },
+  {
+   "id": "chora-history.law-06.q1",
+   "lessonId": "law-06",
+   "kind": "mcq",
+   "prompt": "Where do you find the composition rights holder?",
+   "choices": [
+    "Radio",
+    "Streaming charts",
+    "PRO databases like ASCAP, BMI",
+    "Record labels"
+   ]
+  },
+  {
+   "id": "chora-history.law-06.q2",
+   "lessonId": "law-06",
+   "kind": "mcq",
+   "prompt": "What do masters owners typically want?",
+   "choices": [
+    "Writing credit",
+    "Nothing",
+    "Co-production",
+    "A flat buyout, a royalty per unit, or both"
+   ]
+  },
+  {
+   "id": "chora-history.law-06.q3",
+   "lessonId": "law-06",
+   "kind": "mcq",
+   "prompt": "Which alternative eliminates the master negotiation entirely?",
+   "choices": [
+    "Replaying the part with session musicians",
+    "Pitching it",
+    "Reversing it",
+    "Quoting"
+   ]
+  },
+  {
+   "id": "chora-history.law-07.q1",
+   "lessonId": "law-07",
+   "kind": "mcq",
+   "prompt": "What does CC0 do?",
+   "choices": [
+    "Requires attribution",
+    "Bans commercial use",
+    "Bans derivatives",
+    "Waives rights entirely"
+   ]
+  },
+  {
+   "id": "chora-history.law-07.q2",
+   "lessonId": "law-07",
+   "kind": "mcq",
+   "prompt": "A 2019 recording of a Beethoven symphony is what?",
+   "choices": [
+    "Public domain",
+    "CC0",
+    "Not free because the recording has its own copyright",
+    "Free"
+   ]
+  },
+  {
+   "id": "chora-history.law-07.q3",
+   "lessonId": "law-07",
+   "kind": "mcq",
+   "prompt": "Why are NC and ND licences unusable for most released music?",
+   "choices": [
+    "They need payment",
+    "They exclude commercial and derivative use",
+    "They require attribution",
+    "They are expired"
+   ]
+  },
+  {
+   "id": "chora-history.pop-01.q1",
+   "lessonId": "pop-01",
+   "kind": "mcq",
+   "prompt": "What is call and response?",
+   "choices": [
+    "A fugue",
+    "A canon",
+    "A leader states and a group answers",
+    "A solo"
+   ]
+  },
+  {
+   "id": "chora-history.pop-01.q2",
+   "lessonId": "pop-01",
+   "kind": "mcq",
+   "prompt": "What market did Mamie Smith Crazy Blues (1920) prove?",
+   "choices": [
+    "Radio",
+    "Classical",
+    "Film music",
+    "A Black audience for recordings, creating race records"
+   ]
+  },
+  {
+   "id": "chora-history.pop-01.q3",
+   "lessonId": "pop-01",
+   "kind": "mcq",
+   "prompt": "What did the Great Migration do for the blues?",
+   "choices": [
+    "Carried it north where electrification and urban audiences transformed it",
+    "Ended it",
+    "Moved it to Europe",
+    "Stopped recording"
+   ]
+  },
+  {
+   "id": "chora-history.pop-02.q1",
+   "lessonId": "pop-02",
+   "kind": "mcq",
+   "prompt": "Which recordings of 1925-28 shifted emphasis to the soloist?",
+   "choices": [
+    "Morton Red Hot Peppers",
+    "Armstrong Hot Five and Hot Seven",
+    "Ellington Cotton Club",
+    "Basie Kansas City"
+   ]
+  },
+  {
+   "id": "chora-history.pop-02.q2",
+   "lessonId": "pop-02",
+   "kind": "mcq",
+   "prompt": "Whose band treated the orchestra as an instrument?",
+   "choices": [
+    "Duke Ellington",
+    "Count Basie",
+    "Benny Goodman",
+    "Fletcher Henderson"
+   ]
+  },
+  {
+   "id": "chora-history.pop-02.q3",
+   "lessonId": "pop-02",
+   "kind": "mcq",
+   "prompt": "What does Goodman success illustrate?",
+   "choices": [
+    "Jazz decline",
+    "Radio decline",
+    "Scat",
+    "A white bandleader succeeding with Black arrangements, a recurring pattern"
+   ]
+  },
+  {
+   "id": "chora-history.pop-03.q1",
+   "lessonId": "pop-03",
+   "kind": "mcq",
+   "prompt": "Where did bebop musicians gather in Harlem?",
+   "choices": [
+    "Minton Playhouse",
+    "Cotton Club",
+    "Savoy",
+    "Apollo"
+   ]
+  },
+  {
+   "id": "chora-history.pop-03.q2",
+   "lessonId": "pop-03",
+   "kind": "mcq",
+   "prompt": "Where did bebop drummers move timekeeping?",
+   "choices": [
+    "The tom",
+    "The ride cymbal",
+    "The bass drum",
+    "The snare"
+   ]
+  },
+  {
+   "id": "chora-history.pop-03.q3",
+   "lessonId": "pop-03",
+   "kind": "mcq",
+   "prompt": "What was the consequence of bebop?",
+   "choices": [
+    "Swing returned",
+    "Disco emerged",
+    "Jazz moved to concert halls and the vacated space went to R&B and rock",
+    "Jazz won radio"
+   ]
+  },
+  {
+   "id": "chora-history.pop-04.q1",
+   "lessonId": "pop-04",
+   "kind": "mcq",
+   "prompt": "Whose distorted electric guitar in the 1940s was rock guitar before rock?",
+   "choices": [
+    "Chuck Berry",
+    "Elvis",
+    "Bo Diddley",
+    "Sister Rosetta Tharpe"
+   ]
+  },
+  {
+   "id": "chora-history.pop-04.q2",
+   "lessonId": "pop-04",
+   "kind": "mcq",
+   "prompt": "What mechanism broadened R&B to white audiences?",
+   "choices": [
+    "Television only",
+    "Radio only",
+    "The cover version",
+    "Concerts"
+   ]
+  },
+  {
+   "id": "chora-history.pop-04.q3",
+   "lessonId": "pop-04",
+   "kind": "mcq",
+   "prompt": "What two facts must be held together about rock and roll?",
+   "choices": [
+    "It was radio and TV",
+    "A real fusion and a system transferring value from Black to white artists",
+    "It was fast and loud",
+    "It was new and old"
+   ]
+  },
+  {
+   "id": "chora-history.pop-05.q1",
+   "lessonId": "pop-05",
+   "kind": "mcq",
+   "prompt": "Which label in Detroit ran on a factory model?",
+   "choices": [
+    "Atlantic",
+    "Chess",
+    "Motown",
+    "Stax"
+   ]
+  },
+  {
+   "id": "chora-history.pop-05.q2",
+   "lessonId": "pop-05",
+   "kind": "mcq",
+   "prompt": "What was Stax house band?",
+   "choices": [
+    "Funk Brothers",
+    "Wrecking Crew",
+    "Muscle Shoals Rhythm",
+    "Booker T. and the M.G.s"
+   ]
+  },
+  {
+   "id": "chora-history.pop-05.q3",
+   "lessonId": "pop-05",
+   "kind": "mcq",
+   "prompt": "Why is What Going On (1971) significant?",
+   "choices": [
+    "A suite about war, poverty and ecology made against Gordy objections",
+    "A dance record",
+    "A Stax album",
+    "A debut"
+   ]
+  },
+  {
+   "id": "chora-history.pop-06.q1",
+   "lessonId": "pop-06",
+   "kind": "mcq",
+   "prompt": "Which album marked the album as a unified statement for the mainstream?",
+   "choices": [
+    "Nevermind",
+    "Sgt. Pepper",
+    "Please Please Me",
+    "Blonde on Blonde"
+   ]
+  },
+  {
+   "id": "chora-history.pop-06.q2",
+   "lessonId": "pop-06",
+   "kind": "mcq",
+   "prompt": "Who treated amplifier behaviour as musical material?",
+   "choices": [
+    "Hendrix",
+    "Clapton",
+    "Berry",
+    "Page"
+   ]
+  },
+  {
+   "id": "chora-history.pop-06.q3",
+   "lessonId": "pop-06",
+   "kind": "mcq",
+   "prompt": "What did punk in 1976 reject?",
+   "choices": [
+    "Guitars",
+    "Albums",
+    "Studios",
+    "Weight and virtuosity in favour of speed, brevity and access"
+   ]
+  },
+  {
+   "id": "chora-history.pop-07.q1",
+   "lessonId": "pop-07",
+   "kind": "mcq",
+   "prompt": "What did four-on-the-floor make possible?",
+   "choices": [
+    "Beatmatching",
+    "Scratching",
+    "Sampling",
+    "Auto-Tune"
+   ]
+  },
+  {
+   "id": "chora-history.pop-07.q2",
+   "lessonId": "pop-07",
+   "kind": "mcq",
+   "prompt": "Who are associated with dub?",
+   "choices": [
+    "Giorgio Moroder",
+    "King Tubby and Lee Scratch Perry",
+    "Kool Herc",
+    "Frankie Knuckles"
+   ]
+  },
+  {
+   "id": "chora-history.pop-07.q3",
+   "lessonId": "pop-07",
+   "kind": "mcq",
+   "prompt": "What happened to disco after the 1979 backlash?",
+   "choices": [
+    "Became rock",
+    "Became jazz",
+    "It went underground and reappeared as house and techno",
+    "Disappeared"
+   ]
+  },
+  {
+   "id": "chora-history.pop-08.q1",
+   "lessonId": "pop-08",
+   "kind": "mcq",
+   "prompt": "Which 1982 record proved hip-hop could carry serious social subject matter?",
+   "choices": [
+    "Rappers Delight",
+    "Sucker MCs",
+    "Walk This Way",
+    "The Message"
+   ]
+  },
+  {
+   "id": "chora-history.pop-08.q2",
+   "lessonId": "pop-08",
+   "kind": "mcq",
+   "prompt": "What machines industrialised hip-hop production?",
+   "choices": [
+    "Moog",
+    "Mellotron",
+    "E-mu SP-1200 and Akai MPC",
+    "TR-909"
+   ]
+  },
+  {
+   "id": "chora-history.pop-08.q3",
+   "lessonId": "pop-08",
+   "kind": "mcq",
+   "prompt": "What historical shape does hip-hop repeat?",
+   "choices": [
+    "A line",
+    "The arc of blues, jazz and rock and roll, compressed",
+    "A decline",
+    "A circle"
+   ]
+  },
+  {
+   "id": "chora-history.pop-09.q1",
+   "lessonId": "pop-09",
+   "kind": "mcq",
+   "prompt": "Where did house take its name from?",
+   "choices": [
+    "New York Paradise Garage",
+    "Berlin Tresor",
+    "Chicago Warehouse",
+    "Detroit Loft"
+   ]
+  },
+  {
+   "id": "chora-history.pop-09.q2",
+   "lessonId": "pop-09",
+   "kind": "mcq",
+   "prompt": "Who developed Detroit techno?",
+   "choices": [
+    "Knuckles, Heard, Jefferson",
+    "Kraftwerk",
+    "Moroder",
+    "Juan Atkins, Derrick May and Kevin Saunderson"
+   ]
+  },
+  {
+   "id": "chora-history.pop-09.q3",
+   "lessonId": "pop-09",
+   "kind": "mcq",
+   "prompt": "What does the lesson say about framing techno as European?",
+   "choices": [
+    "It is a historical error",
+    "It is accurate",
+    "It is partially true",
+    "It is debated"
+   ]
+  },
+  {
+   "id": "chora-history.pop-10.q1",
+   "lessonId": "pop-10",
+   "kind": "mcq",
+   "prompt": "What moved the gatekeeping function in the current period?",
+   "choices": [
+    "Recommender systems",
+    "A and R",
+    "Radio",
+    "Critics"
+   ]
+  },
+  {
+   "id": "chora-history.pop-10.q2",
+   "lessonId": "pop-10",
+   "kind": "mcq",
+   "prompt": "What replaced genre as the organising unit?",
+   "choices": [
+    "The scene",
+    "The playlist",
+    "The album",
+    "The label"
+   ]
+  },
+  {
+   "id": "chora-history.pop-10.q3",
+   "lessonId": "pop-10",
+   "kind": "mcq",
+   "prompt": "What is the primary revenue for most artists now?",
+   "choices": [
+    "Sales",
+    "Licensing",
+    "Touring",
+    "Streaming"
+   ]
+  }
+ ]
+}

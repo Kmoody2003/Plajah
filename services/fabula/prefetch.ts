@@ -6,6 +6,7 @@
 // a local one after its first pull — which is exactly why "buffering" only shows on cloud clips and why
 // the second playback is clean. Sequential + size-capped so it never saturates a lossy link.
 import { hasBytes, putBytes } from './mediaStore';
+import { onAssetDownloaded } from './mediaSource';
 
 const isHttp = (u: string) => /^https?:/i.test(u || '');
 const needsCors = (u: string) => isHttp(u) && typeof location !== 'undefined' && !u.startsWith(location.origin);
@@ -21,6 +22,13 @@ let suspended = false;               // true while the timeline is playing/scrub
 const done = new Set<string>();      // pulled OR permanently skipped (too big) this session
 const inflight = new Set<string>();
 const listeners = new Set<(id: string) => void>();
+
+// Wire mediaSource auto-downloads into prefetch listeners
+if (typeof window !== 'undefined') {
+  onAssetDownloaded((id) => {
+    markPulled(id);
+  });
+}
 
 /** Background conforming must NEVER contend with live playback or scrubbing — pulling a big file over
  *  a lossy link while the transport runs is exactly what makes the 2nd pass stutter. Fabula suspends
@@ -131,3 +139,24 @@ export function onPrefetched(cb: (id: string) => void): () => void {
 export function cancelPrefetch(): void { queue = []; try { current?.abort(); } catch { /* */ } }
 
 export function prefetchStatus() { return { queued: queue.length, running, done: done.size, inflight: inflight.size }; }
+
+/** Automatically queues all cloud-only media in the project to download to local storage. */
+export async function autoSyncProjectMedia(mediaPool: any[]): Promise<number> {
+  const candidates: Item[] = [];
+  for (const a of mediaPool || []) {
+    if (!a?.id) continue;
+    if (a.folderId || a.localFileHandle) continue; // Already read directly from drive
+    const cloud = [a.url, a.cloudUrl].find((u) => isHttp(u));
+    if (!cloud) continue;
+    if (await hasBytes('studio:blob:' + a.id)) {
+      markPulled(a.id);
+      continue;
+    }
+    candidates.push({ id: a.id, url: cloud });
+  }
+  if (candidates.length) {
+    prefetchAssets(candidates);
+  }
+  return candidates.length;
+}
+

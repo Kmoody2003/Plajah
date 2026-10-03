@@ -1,0 +1,1651 @@
+{
+ "courseId": "lit-studies-early",
+ "verifier": "B",
+ "note": "Most checks backed by Wikipedia pages fetched via WebFetch (a summarizing model, not primary sources); other details from knowledge. Several fetched pages did not explicitly confirm a detail (Poetics plot ranking/Oedipus, Quran Surah 12 best-of-stories, Norinaga on Genji); those are noted and rest on knowledge.",
+ "questions": [
+  {
+   "id": "lit-studies-early.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l01.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l01.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l02.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l02.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l02.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l03.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l03.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l03.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l03.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l04.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l04.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l04.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l05.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l05.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l05.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l06.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l06.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l06.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l07.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l07.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l07.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l07.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l08.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l08.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l08.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l09.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l09.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l09.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l10.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l10.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l11.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l11.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l11.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l11.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l12.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l12.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l13.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l13.q4",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Longer surahs generally come first but order is not strictly by length; choice 1 is closest."
+  },
+  {
+   "id": "lit-studies-early.l13.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l14.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l14.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l14.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l15.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l15.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l15.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l15.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l16.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l16.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l17.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l17.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l18.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l18.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l18.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l19.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l19.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l20.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l20.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l21.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l21.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l21.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l21.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l21.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l22.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l22.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l22.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l22.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l22.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l23.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l23.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l23.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l23.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l23.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l24.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l24.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l24.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l24.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l24.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l25.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l25.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l25.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l25.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l25.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l26.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l26.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l26.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l26.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l26.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l27.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l27.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l27.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l27.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l27.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l28.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l28.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l28.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l28.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lit-studies-early.l28.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "lit-studies-early.l01",
+   "claim": "Sonnet 18 line 3 reads 'Rough winds do shake the darling buds of May'",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l01",
+   "claim": "Sonnet 18 opens 'Shall I compare thee to a summer's day?'",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l01",
+   "claim": "Close reading method of notice/wonder/argue is a pedagogical framing",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Pedagogical method, not a checkable fact."
+  },
+  {
+   "lessonId": "lit-studies-early.l02",
+   "claim": "Cervantes's Don Quixote parodies chivalric romances",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l02",
+   "claim": "Epic = long narrative poem about heroes; lyric = short poem of speaker's feeling",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l02",
+   "claim": "Genre families epic/lyric/drama/prose narrative",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l03",
+   "claim": "Defoe's Robinson Crusoe (1719) opens 'I was born in the year 1632'",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l03",
+   "claim": "Chaucer the pilgrim narrates Canterbury Tales",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l03",
+   "claim": "Frame narrative = story nested in another story",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l04",
+   "claim": "Gilgamesh king of Uruk loses Enkidu and fails to gain eternal life",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l04",
+   "claim": "Walls of Uruk appear at beginning and end of the epic",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l04",
+   "claim": "Motif = recurring image; symbol = thing standing for more",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l05",
+   "claim": "Standard Babylonian version traditionally linked to scribe Sin-leqi-unninni",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Epic_of_Gilgamesh"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l05",
+   "claim": "Much text recovered from Nineveh library in the 19th century",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Epic_of_Gilgamesh"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l05",
+   "claim": "Gilgamesh written in cuneiform on clay tablets; earlier Sumerian poems exist",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Epic_of_Gilgamesh"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l06",
+   "claim": "Iliad opens with the anger (menis) of Achilles",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l06",
+   "claim": "Iliad ends with Hector's funeral after Priam's visit",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l06",
+   "claim": "Iliad is in dactylic hexameter and set in the tenth year of the war",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l07",
+   "claim": "Odysseus narrates his adventures (incl. Cyclops) to the Phaeacians",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l07",
+   "claim": "Recognition via nurse's scar, dog Argos, bed test with Penelope",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l07",
+   "claim": "Ten years of war plus ten years wandering",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l08",
+   "claim": "Tragedy performed at City Dionysia in honor of Dionysus in fifth-century Athens",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l08",
+   "claim": "Aeschylus, Sophocles, Euripides are the three surviving tragedians",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l08",
+   "claim": "Oedipus unknowingly killed father and married mother; Creon forbids burial of Polynices",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l09",
+   "claim": "Medea first performed 431 BCE",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Medea_(play)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l09",
+   "claim": "Euripides wrote Medea, Trojan Women, Bacchae",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l09",
+   "claim": "Agon = formal debate in Greek drama",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l10",
+   "claim": "Aristotle ranks plot (mythos) first of six parts",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Fetched page did not state plot ranks first; confirmed from Poetics ch.6 knowledge."
+  },
+  {
+   "lessonId": "lit-studies-early.l10",
+   "claim": "Peripeteia = reversal, anagnorisis = recognition; Oedipus the King as example",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Page confirmed terms; Oedipus example from Poetics ch.11 knowledge."
+  },
+  {
+   "lessonId": "lit-studies-early.l10",
+   "claim": "The three unities are not all Aristotle's; he stresses unity of action",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Poetics_(Aristotle)"
+   ],
+   "note": "Page confirms unities are debated; unity of time/place codified by Renaissance critics per standard references."
+  },
+  {
+   "lessonId": "lit-studies-early.l11",
+   "claim": "Virgil died in 19 BCE",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Aeneid"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l11",
+   "claim": "Aeneid opens 'arma virumque cano'",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Aeneid"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l11",
+   "claim": "Aeneid ends with Aeneas killing Turnus; Dido takes her own life in Book 4",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Aeneid"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l12",
+   "claim": "King James Version published 1611",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l12",
+   "claim": "Psalm 23 opens 'The Lord is my shepherd; I shall not want' in KJV",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l12",
+   "claim": "Biblical poetry uses parallelism",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l13",
+   "claim": "Quran has 114 surahs",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Quran"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l13",
+   "claim": "Revelation over about twenty-three years in Muslim tradition",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Quran"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l13",
+   "claim": "Surah 12 (Yusuf) tells one continuous story and calls it the best of stories (ahsan al-qasas, 12:3)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Fetched page did not confirm; Quran 12:3 ahsan al-qasas from knowledge."
+  },
+  {
+   "lessonId": "lit-studies-early.l14",
+   "claim": "Mahabharata traditionally about 100,000 verses",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mahabharata"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l14",
+   "claim": "Mahabharata attributed to Vyasa; Ramayana to Valmiki",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mahabharata"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l14",
+   "claim": "Bhagavad Gita is a dialogue of Arjuna and Krishna before the Kurukshetra battle",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mahabharata"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l15",
+   "claim": "Confucius traditionally dated 551-479 BCE",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Confucius"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l15",
+   "claim": "Analects compiled by followers after his death",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Confucius"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l15",
+   "claim": "Ren = humaneness/goodness; li = ritual/proper conduct",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; not on fetched page."
+  },
+  {
+   "lessonId": "lit-studies-early.l16",
+   "claim": "Tang dynasty dated 618-907",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l16",
+   "claim": "Li Bai and Du Fu were eighth-century poets",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l16",
+   "claim": "Du Fu's 'Spring View' opens with a broken state but surviving mountains and rivers",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l17",
+   "claim": "Genji written by Murasaki Shikibu in the early eleventh century (Heian period)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/The_Tale_of_Genji"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l17",
+   "claim": "Motoori Norinaga (18th c.) articulated mono no aware as the work's central quality",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Fetched page did not cover Norinaga; supported from knowledge."
+  },
+  {
+   "lessonId": "lit-studies-early.l17",
+   "claim": "Characters exchange waka, five-line poems",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/The_Tale_of_Genji"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l18",
+   "claim": "Galland's French translation appeared in the early 1700s (1704-1717)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/One_Thousand_and_One_Nights"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l18",
+   "claim": "Aladdin not in the earliest Arabic manuscripts",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/One_Thousand_and_One_Nights"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l18",
+   "claim": "Frame story: Shahryar and Shahrazad telling unfinished tales",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/One_Thousand_and_One_Nights"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l19",
+   "claim": "Beowulf manuscript dates to around the year 1000",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Beowulf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l19",
+   "claim": "Beowulf is set in Scandinavia (Geats and Danes)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Beowulf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l19",
+   "claim": "Alliterative verse with caesura; kenning 'whale-road'",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Beowulf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l20",
+   "claim": "Chretien de Troyes, twelfth century, wrote early Arthurian romances",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l20",
+   "claim": "Sir Gawain and the Green Knight is late 14th-century Middle English by anonymous poet",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l20",
+   "claim": "'Romance' originally meant vernacular Romance-language writing",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l21",
+   "claim": "Dante died in 1321 shortly after completing the poem",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Divine_Comedy"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l21",
+   "claim": "Three cantiche of 33 cantos plus one introductory canto = 100",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Divine_Comedy"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l21",
+   "claim": "Written in terza rima (aba bcb cdc) in the Tuscan vernacular; Virgil guides Dante",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Divine_Comedy"
+   ],
+   "note": "Fetched page confirmed terza rima/vernacular; Virgil as guide from knowledge."
+  },
+  {
+   "lessonId": "lit-studies-early.l22",
+   "claim": "Canterbury Tales written in Middle English in late 14th century and left unfinished",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l22",
+   "claim": "Opening line 'Whan that Aprille with his shoures soote'",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l22",
+   "claim": "Verse mainly rhymed ten-syllable (heroic) couplets",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Mostly couplets; Sir Thopas and Melibee are exceptions; lesson says mainly."
+  },
+  {
+   "lessonId": "lit-studies-early.l23",
+   "claim": "Shakespeare's 154 sonnets published in 1609",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Shakespeare%27s_sonnets"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l23",
+   "claim": "Rhyme scheme abab cdcd efef gg",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Shakespeare%27s_sonnets"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l23",
+   "claim": "Sonnet 130 opens 'My mistress' eyes are nothing like the sun'",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Shakespeare%27s_sonnets"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l24",
+   "claim": "First Folio published 1623; about half the plays first printed there",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/First_Folio"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l24",
+   "claim": "Hamlet written around 1600",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l24",
+   "claim": "Macbeth's 'Tomorrow, and tomorrow, and tomorrow' speech",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l25",
+   "claim": "Don Quixote Part 1 1605, Part 2 1615",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Don_Quixote"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l25",
+   "claim": "Narrative attributed to Arab historian Cide Hamete Benengeli",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Don_Quixote"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l25",
+   "claim": "Quixote mistakes windmills for giants",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l26",
+   "claim": "Paradise Lost first published 1667 in ten books, revised to twelve in 1674",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Paradise_Lost"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l26",
+   "claim": "Milton was blind when composing it",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Paradise_Lost"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l26",
+   "claim": "Quotes 'justify the ways of God to men' and 'Better to reign in Hell, than serve in Heaven'",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Paradise_Lost"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l27",
+   "claim": "Montaigne's Essays first published 1580; Bacon's 1597",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l27",
+   "claim": "Spectator 1711; Pamela 1740; Tom Jones 1749; Evelina 1778",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l27",
+   "claim": "Robinson Crusoe 1719; Austen published from 1811",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l28",
+   "claim": "Gulliver's Travels published 1726",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Gulliver%27s_Travels"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l28",
+   "claim": "A Modest Proposal published 1729",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-early.l28",
+   "claim": "Candide published 1759",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  }
+ ],
+ "fetched": 36
+}

@@ -157,6 +157,8 @@ interface UserProfileViewProps {
   onSelectApp?: (app: WebApp) => void;
   onNavigate?: (view: AppView) => void;
   onOpenCreator?: (type?: string) => void;
+  /** Open an organization page (Serves-at chips). */
+  onOpenOrg?: (orgId: string) => void;
   /** Navigate a Platform Pulse notification to its post/asset/activity. */
   onNotificationNavigate?: (n: any) => void;
   initialTab?: 'FEED' | 'CONTENT' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS';
@@ -248,6 +250,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   onSelectApp,
   onNavigate,
   onOpenCreator,
+  onOpenOrg,
   onNotificationNavigate,
   initialTab
 }) => {
@@ -1240,6 +1243,27 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 {profile.bio || <span className="italic text-white/25">No bio yet.</span>}
               </p>
             </div>
+
+            {/* Serves at — org roles this person chose to show (unlimited orgs) */}
+            {!!profile.orgAffiliations?.length && (
+              <div className="mt-3">
+                <p className="text-[9px] font-black uppercase tracking-widest text-white/35 mb-1.5">Serves at</p>
+                <div className="flex flex-wrap gap-2">
+                  {profile.orgAffiliations.map(a => (
+                    <button key={a.orgId} onClick={() => onOpenOrg?.(a.orgId)} disabled={!onOpenOrg} title={a.about || undefined}
+                      className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-left hover:bg-white/10 transition-all disabled:cursor-default">
+                      <span className="w-6 h-6 rounded-full overflow-hidden bg-white/10 shrink-0 grid place-items-center text-[10px] font-black text-white/60">
+                        {a.orgLogoUrl ? <img src={a.orgLogoUrl} alt="" className="w-full h-full object-cover" /> : a.orgName.charAt(0)}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-[11px] font-bold text-white leading-tight truncate">{a.title}{a.ministryName ? ` · ${a.ministryName}` : ''}</span>
+                        <span className="block text-[9px] text-white/45 leading-tight truncate">{a.orgName}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Relationship status — private by default; the owner always sees their own. */}
             {(profile.relationshipPublic || isOwnProfile) && isPartneredStatus(profile.relationshipStatus) && (

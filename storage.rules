@@ -7,6 +7,12 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    // Bot defense: require a real, non-anonymous registered account for storage writes.
+    // Anonymous sessions (guest listeners/viewers) are strictly read-only.
+    function isRegisteredUser() {
+      return isAuth() && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
     // NOTE: Firebase Storage cross-service Firestore lookups only support the
     // (default) Firestore database. This project uses a named database so the
     // firestore.exists() call always returns false. isAdmin() is kept for the
@@ -34,71 +40,64 @@ service firebase.storage {
              request.resource.contentType.matches('text/.*');
     }
 
-    // Maximum 100 GB for any single file. Full 4K/ProRes masters can exceed 25 GB, so
-    // this headroom guarantees a "25 GB or larger" film is never rejected at the rules
-    // layer. The primary film path is Mux direct-upload (no Storage cap at all); this
-    // limit governs the Firebase Storage fallback + non-Mux media (images, audio, etc.).
+    // Maximum 100 GB for any creative single file. Full 4K/ProRes masters, music albums,
+    // Fabula editing source footage, Lorea books and film releases fit with zero friction.
     function withinSizeLimit() {
       return request.resource.size < 100 * 1024 * 1024 * 1024;
     }
 
-    // ── User-scoped files ─────────────────────────────────────────────────────
+    // Social attachment limit (comments & chat messages): 50 MB ceiling stops storage-bomb bots
+    // in ephemeral social contexts without clipping photos, GIF reactions, or voice notes.
+    function withinSocialLimit() {
+      return request.resource.size < 50 * 1024 * 1024;
+    }
+
+    // ── User-scoped files (creative assets, books, audio, avatars) ───────────
     match /users/{uid}/{allPaths=**} {
       allow read: if true;
-      allow write: if (isAuth() && request.auth.uid == uid && isAllowedContentType() && withinSizeLimit())
+      allow write: if (isRegisteredUser() && request.auth.uid == uid && isAllowedContentType() && withinSizeLimit())
                    || isAdmin();
     }
 
     // ── Social post media (images/videos attached in the Universal Composer) ──
-    // Path shape: posts/<uid>/<timestamp>_<filename>. Owner-writable, public-readable.
-    // WITHOUT this rule these uploads fell through to the admin-only fallback and were
-    // DENIED for everyone — so post images/videos silently never uploaded (only text +
-    // external GIFs survived). This is the fix for "pictures/videos don't post."
     match /posts/{uid}/{allPaths=**} {
       allow read: if true;
-      allow write: if (isAuth() && request.auth.uid == uid && isAllowedContentType() && withinSizeLimit())
+      allow write: if (isRegisteredUser() && request.auth.uid == uid && isAllowedContentType() && withinSizeLimit())
                    || isAdmin();
     }
 
-    // ── Comment media (images/videos/audio attached to a comment) ─────────────
-    // Path shape: comments/<postId>/<timestamp>_<filename>. Any signed-in user may add
-    // media to a comment (same as albums/videos); public-readable. Was also denied.
+    // ── Comment media (social replies: images/videos/audio attached to a comment) ─
     match /comments/{postId}/{allPaths=**} {
       allow read: if true;
-      allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+      allow write: if (isRegisteredUser() && isAllowedContentType() && withinSocialLimit()) || isAdmin();
     }
 
-    // ── Chat media (images/gifts sent in a chat room) ────────────────────────
-    // Path shapes: chat/<roomId>/images/… and chat_intimate/<roomId>/… . Any signed-in
-    // user may upload; public-read. Was denied (no match block) → chat photos never attached.
+    // ── Chat media (images/voice/gifts sent in a chat room) ───────────────────
     match /chat/{roomId}/{allPaths=**} {
       allow read: if true;
-      allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+      allow write: if (isRegisteredUser() && isAllowedContentType() && withinSocialLimit()) || isAdmin();
     }
     match /chat_intimate/{roomId}/{allPaths=**} {
-      // These objects were previously world-readable. Authentication is the
-      // minimum safe gate until room membership is encoded into the object path.
       allow read: if isAuth();
-      allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+      allow write: if (isRegisteredUser() && isAllowedContentType() && withinSocialLimit()) || isAdmin();
     }
 
-    // ── Album content ─────────────────────────────────────────────────────────
+    // ── Album content (Music, Releases, Master Artwork, Stems) ───────────────
     match /albums/{albumId}/{allPaths=**} {
       allow read: if true;
-      allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+      allow write: if (isRegisteredUser() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
     }
 
-    // ── Video content ─────────────────────────────────────────────────────────
+    // ── Video content (Films, Shorts, Fabula Ingest, Series) ──────────────────
     match /videos/{videoId}/{allPaths=**} {
       allow read: if true;
-      allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+      allow write: if (isRegisteredUser() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
     }
 
-    // Real-time live-stream recording segments (uploaded live; server assembles → Mux, then
-    // may clear them). Public read so playback/assembly can pull; authed writes only.
+    // Real-time live-stream recording segments
     match /liveRecordings/{streamId}/{allPaths=**} {
       allow read: if true;
-      allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+      allow write: if (isRegisteredUser() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
     }
 
     // ── HideNSeek game assets ─────────────────────────────────────────────────
@@ -146,7 +145,7 @@ service firebase.storage {
     // media-type check wrongly rejected) and a 100 GB cap (a 25 GB+ master must never be rejected).
     match /uploads/{allPaths=**} {
       allow read: if true;
-      allow write: if isAuth() && withinSizeLimit();
+      allow write: if isRegisteredUser() && withinSizeLimit();
     }
 
     // Content HQ originals and revisions. Discovery and authorization are enforced by
@@ -154,7 +153,7 @@ service firebase.storage {
     // legacy uploads tree these objects are never public-readable.
     match /protected-hq/{scopeKind}/{scopeId}/{assetId}/{allPaths=**} {
       allow read: if false;
-      allow write: if isAuth() && isAllowedContentType() && withinSizeLimit();
+      allow write: if isRegisteredUser() && isAllowedContentType() && withinSizeLimit();
     }
 
     // ── Private media locker (Chora music + Taleo movies/TV the user owns) ────
@@ -163,13 +162,13 @@ service firebase.storage {
     // 100 GB cap so full movies (incl. 25 GB+ masters) fit.
     match /personal/{uid}/{allPaths=**} {
       allow read:  if isAuth() && request.auth.uid == uid;
-      allow write: if isAuth() && request.auth.uid == uid && withinSizeLimit();
+      allow write: if isRegisteredUser() && request.auth.uid == uid && withinSizeLimit();
     }
 
     // ── Fabula project JSON — owner-only (durable cloud copy of the editor project) ──
     match /fabula/{uid}/{allPaths=**} {
       allow read:  if isAuth() && request.auth.uid == uid;
-      allow write: if isAuth() && request.auth.uid == uid && request.resource.size < 50 * 1024 * 1024;
+      allow write: if isRegisteredUser() && request.auth.uid == uid && request.resource.size < 50 * 1024 * 1024;
     }
 
     // ── Taleo Story Intelligence reports — owner-only read, server-only write ──

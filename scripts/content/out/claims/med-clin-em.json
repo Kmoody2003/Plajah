@@ -1,0 +1,1291 @@
+{
+ "courseId": "med-clin-em",
+ "label": "Emergency and Critical Care",
+ "lessons": [
+  {
+   "id": "med-clin-em.l01",
+   "title": "The Primary Survey and Airway Management",
+   "body": [
+    "The primary survey is a fixed sequence that finds and treats the most immediately lethal problem first: Airway with cervical spine protection when trauma is possible, Breathing, Circulation with control of hemorrhage, Disability (a rapid neurologic check using AVPU or the Glasgow Coma Scale, plus pupils and glucose), and Exposure with environmental control. Each step is reassessed after every intervention, and life threats are treated as they are found rather than after the survey is finished. The sequence is the same for medical and trauma patients, although in cardiac arrest the American Heart Association emphasizes starting compressions first (circulation, airway, breathing) because the early priority is perfusion.",
+    "A patient who speaks in a clear voice has a patent airway for the moment, and the phrase \"talking means breathing\" is a useful first screen. Danger signs include stridor, hoarseness, drooling, inability to handle secretions, tripod positioning, swelling of the face or tongue, expanding neck hematoma, burns of the face with singed nasal hairs and carbonaceous sputum, and a Glasgow Coma Scale score of 8 or less. Simple maneuvers come first: jaw thrust (preferred when cervical spine injury is possible) or head tilt-chin lift, suction, and an oropharyngeal airway in an unconscious patient without a gag reflex or a nasopharyngeal airway in a patient who still has one. Nasopharyngeal airways are avoided in suspected basilar skull fracture. Bag-mask ventilation with high-flow oxygen supports a patient while preparing for definitive airway management, which means a cuffed tube in the trachea.",
+    "Indications for intubation include failure to protect or maintain the airway, failure of oxygenation or ventilation that does not respond to less invasive support, and an anticipated clinical course in which the airway will deteriorate (an expanding inhalation burn injury, an evolving anaphylactic airway). Rapid sequence intubation uses a sedative-induction agent followed immediately by a paralytic, without bag-mask ventilation between, to reduce aspiration risk. Etomidate is hemodynamically stable but briefly suppresses adrenal steroid synthesis; ketamine preserves airway reflexes and blood pressure and is favored in shock or asthma; propofol drops blood pressure. Succinylcholine is a depolarizing paralytic with fast onset and short duration, and is contraindicated in patients with a history of malignant hyperthermia, hyperkalemia, extensive burns beyond the first day or two, crush injury, denervation or prolonged immobility, and muscle disease, because upregulated acetylcholine receptors cause dangerous potassium release. Rocuronium, a non-depolarizing agent, is the alternative, and sugammadex reverses it. Preoxygenation for several minutes with high-flow nasal oxygen or a non-rebreather increases the apnea safety window. Confirmation of tube position uses waveform capnography, which is the most reliable method, along with chest rise and auscultation.",
+    "When intubation fails and the patient cannot be oxygenated, the plan is a supraglottic device, and if that fails, a surgical airway through the cricothyroid membrane (cricothyrotomy), which is the \"cannot intubate, cannot oxygenate\" rescue. Needle cricothyrotomy is used in young children, in whom the cricothyroid membrane is small.",
+    "Worked example: a man pulled from a house fire has facial burns, singed nasal hairs, a hoarse voice and carbonaceous sputum. He needs early intubation before airway edema progresses, even though he is talking now."
+   ]
+  },
+  {
+   "id": "med-clin-em.l02",
+   "title": "Shock: Hypovolemic, Cardiogenic, Distributive and Obstructive",
+   "body": [
+    "Shock is inadequate tissue perfusion with oxygen delivery that fails to meet metabolic demand. It begins with a compensated phase (tachycardia, vasoconstriction, cool skin, narrow pulse pressure) in which blood pressure may still be normal, and progresses to hypotension, lactic acidosis, and organ failure. Mean arterial pressure equals cardiac output times systemic vascular resistance, and cardiac output equals heart rate times stroke volume, which depends on preload, contractility and afterload. Four categories organize the differential, each with a typical hemodynamic profile.",
+    "Hypovolemic shock results from loss of intravascular volume through hemorrhage, vomiting, diarrhea, burns or third spacing. Preload falls, so cardiac output drops, with high systemic vascular resistance, flat neck veins and cold, clammy skin. Advanced Trauma Life Support classifies hemorrhage by blood loss: class I is under 15 percent with no change in vital signs, class II is 15 to 30 percent with tachycardia and narrowed pulse pressure, class III is 30 to 40 percent with hypotension and confusion, and class IV is over 40 percent with life-threatening collapse. Treatment is to stop bleeding and replace what is lost, with blood products in hemorrhage rather than prolonged crystalloid, because large volumes of crystalloid dilute clotting factors and worsen acidosis, hypothermia and coagulopathy. Tranexamic acid given within three hours of injury reduced death from bleeding in trauma in the CRASH-2 trial.",
+    "Cardiogenic shock is pump failure, most often from massive myocardial infarction, but also from arrhythmia, acute valve failure, myocarditis or advanced cardiomyopathy. Preload is high, so neck veins are distended, with pulmonary edema, cold extremities and high systemic vascular resistance. Management is revascularization when due to infarction, inotropes or vasopressors, and mechanical circulatory support, with cautious fluids. In the SHOCK trial, early revascularization improved long-term survival in patients with acute myocardial infarction complicated by cardiogenic shock.",
+    "Distributive shock is a failure of vascular tone with low systemic vascular resistance. Septic shock is the most common type, and others include anaphylaxis, neurogenic shock (loss of sympathetic tone from a cervical or high thoracic spinal cord injury, producing hypotension with bradycardia and warm, dry skin) and adrenal crisis. Early septic shock has warm extremities and a wide pulse pressure from vasodilation, and cardiac output may be high. Obstructive shock arises from a mechanical impediment to circulation: tension pneumothorax, cardiac tamponade (Beck triad of hypotension, muffled heart sounds and distended neck veins), and massive pulmonary embolism. Neck veins are distended and the treatment is relief of the obstruction: needle or finger decompression and chest tube, pericardiocentesis, or reperfusion with anticoagulation, thrombolysis or thrombectomy.",
+    "Bedside ultrasound (the RUSH exam) helps by examining the heart (pump function, effusion, right ventricular strain), the inferior vena cava, the lungs and the abdomen. Lactate and urine output track perfusion, and the shock index (heart rate divided by systolic blood pressure) above about 0.9 to 1.0 flags instability.",
+    "Worked example: a woman with a stab wound to the left chest has hypotension, distended neck veins, muffled heart sounds and a pericardial effusion on ultrasound. This is obstructive shock from tamponade, and she needs pericardial decompression and surgical repair, not further fluid alone."
+   ]
+  },
+  {
+   "id": "med-clin-em.l03",
+   "title": "Cardiac Arrest and Resuscitation Principles",
+   "body": [
+    "The American Heart Association publishes cardiopulmonary resuscitation (CPR) and advanced cardiovascular life support (ACLS) guidelines, updated in 2020 and again in 2025; this lesson presents principles that have been stable across them, and learners should consult the current document for details. Survival from cardiac arrest depends on a chain of survival: early recognition and activation of emergency response, immediate high-quality CPR, rapid defibrillation, advanced care, post-arrest care, and recovery.",
+    "High-quality CPR means compressions at a rate of 100 to 120 per minute and a depth of about 5 to 6 cm (at least 2 inches) in adults, allowing full chest recoil, minimizing interruptions, avoiding excessive ventilation, and rotating compressors about every two minutes. The adult ratio is 30 compressions to 2 breaths without an advanced airway; once an advanced airway is in place, compressions are continuous with a breath every six seconds. Capnography is useful because a sudden rise in end-tidal carbon dioxide suggests return of spontaneous circulation, while a persistently very low value after 20 minutes predicts a poor outcome.",
+    "The rhythm determines the pathway. Ventricular fibrillation and pulseless ventricular tachycardia are shockable: defibrillation is the definitive treatment, delivered as soon as possible, followed immediately by resumption of compressions. Epinephrine in the shockable pathway is given after initial defibrillation attempts fail (the 2020 algorithm placed it after the second shock; the 2025 guideline words it as after initial attempts), and amiodarone or lidocaine is considered for refractory shockable rhythms. Pulseless electrical activity and asystole are not shockable; the emphasis is on CPR, epinephrine as soon as feasible (2025: COR 2a), and a search for reversible causes. Epinephrine acts through alpha-1 vasoconstriction, raising coronary and cerebral perfusion pressure, and in trials increased return of circulation and short-term survival, with uncertain effect on neurologically intact survival. Vasopressin and routine calcium or bicarbonate are not recommended for routine use.",
+    "Reversible causes are remembered as the Hs and Ts: hypovolemia, hypoxia, hydrogen ion (acidosis), hypo- and hyperkalemia, hypothermia, and tension pneumothorax, tamponade, toxins, and thrombosis (pulmonary or coronary). Hyperkalemia is treated with calcium to stabilize the myocardium. Post-arrest care includes avoiding hypoxemia and hypotension, targeted temperature management with fever prevention, coronary angiography for suspected coronary cause (especially with ST elevation), and delayed prognostication, since neurologic assessment too early is unreliable. Termination of resuscitation depends on duration, rhythm, reversible causes and context.",
+    "Pediatric arrest differs: it is more often asphyxial (respiratory failure, drowning, sudden infant death) than primary arrhythmic, so ventilation matters more, and the pediatric advanced life support algorithm emphasizes airway and breathing. Compression to ventilation ratio is 30 to 2 for a single rescuer and 15 to 2 for two rescuers in infants and pre-pubertal children, while post-pubertal adolescents use the adult 30 to 2, and compression depth is about one third of the chest diameter. Bradycardia with poor perfusion in a child is treated with oxygenation and ventilation first, then epinephrine if it persists. Drugs are weight-based, using length-based tools to avoid dosing errors. Automated external defibrillators with pediatric pads are used in children.",
+    "Worked example: a collapsed 58-year-old man is pulseless and shows ventricular fibrillation on the monitor. After immediate CPR, a defibrillation shock is delivered and compressions resume at once, with epinephrine added after the second shock if the rhythm persists."
+   ]
+  },
+  {
+   "id": "med-clin-em.l04",
+   "title": "Sepsis and Septic Shock",
+   "body": [
+    "Sepsis is defined in the Third International Consensus (Sepsis-3, 2016) as life-threatening organ dysfunction caused by a dysregulated host response to infection, with organ dysfunction identified by an acute increase of two or more points in the Sequential Organ Failure Assessment (SOFA) score. Septic shock is sepsis with persistent hypotension requiring vasopressors to keep mean arterial pressure at or above 65 mmHg and a serum lactate above 2 mmol/L despite adequate fluid resuscitation. The quick SOFA bedside screen counts altered mentation, a respiratory rate of 22 or more, and systolic pressure of 100 or less, with two or more positive prompting further evaluation; it is not a diagnostic test and lacks sensitivity. The older SIRS criteria (temperature, heart rate, respiratory rate, white cell count) are still widely used for screening in some systems, and the Centers for Medicare and Medicaid Services SEP-1 measure relies on them.",
+    "Pathophysiology involves pathogen-associated molecular patterns recognized by toll-like receptors, a surge of cytokines such as tumor necrosis factor and interleukins, endothelial injury with capillary leak, vasodilation through nitric oxide, microvascular thrombosis, mitochondrial dysfunction and, in many patients, immunoparalysis. Common sources are pneumonia, urinary tract infection, intra-abdominal infection, skin and soft tissue infection and bloodstream or catheter infection. Patients at higher risk include the very young and very old, immunosuppressed patients, those with neutropenia, diabetes, cirrhosis or asplenia, and people with indwelling devices.",
+    "Early management follows the principle that timing matters. Recommended elements, as in the 2021 Surviving Sepsis Campaign guideline, include measuring lactate, obtaining blood cultures before antibiotics when this causes no meaningful delay, and starting broad-spectrum antimicrobials promptly: within one hour for septic shock or high likelihood of sepsis, and within three hours when the diagnosis is possible but uncertain, with antimicrobial choice guided by likely source, local resistance and prior cultures. Source control (draining an abscess, relieving an obstructed infected urinary tract or biliary tree, removing an infected device, debriding necrotizing infection) is as important as antibiotics and should be done as soon as feasible. Fluid resuscitation uses balanced crystalloids such as lactated Ringer's solution in preference to saline, with a suggested initial volume of at least 30 mL/kg within the first three hours for hypoperfusion, then guided by dynamic reassessment, since over-resuscitation harms patients, especially those with heart or kidney disease. The earlier, protocolized early goal-directed therapy was not superior to usual care in the ProCESS, ARISE and ProMISe trials.",
+    "Norepinephrine is the first-line vasopressor for septic shock, targeting a mean arterial pressure of 65. Vasopressin is added to reduce norepinephrine dose, and epinephrine can be a further addition. Hydrocortisone is suggested for septic shock that remains unresponsive to fluids and escalating vasopressors. Dobutamine is considered when there is persistent hypoperfusion with cardiac dysfunction. Blood transfusion is reserved for a hemoglobin below about 7 g/dL in the absence of ischemia. Mechanical ventilation when needed uses lung-protective tidal volumes. Stress ulcer prophylaxis and venous thromboembolism prophylaxis are given in appropriate patients.",
+    "Worked example: a 68-year-old woman with a urinary catheter has fever, confusion and blood pressure of 82/48 after two liters of fluid, and a lactate of 4.5. She has septic shock, so she needs broad-spectrum antibiotics, removal or exchange of the catheter or imaging for obstruction, and norepinephrine to maintain a mean arterial pressure of at least 65."
+   ]
+  },
+  {
+   "id": "med-clin-em.l05",
+   "title": "Chest Pain, Acute Coronary Syndromes and Arrhythmias",
+   "body": [
+    "The first aim in chest pain is to identify the dangerous causes: acute coronary syndrome, aortic dissection, pulmonary embolism, tension pneumothorax, esophageal rupture and pericardial tamponade. The 2021 ACC/AHA chest pain guideline recommends an electrocardiogram within 10 minutes of arrival for acute chest pain, followed by cardiac troponin measurement, with high-sensitivity assays enabling rapid rule-out protocols using serial values over one to three hours combined with a risk score such as HEART.",
+    "A STEMI is ST elevation in two contiguous leads (at least 1 mm in most leads, with higher thresholds in V2 and V3 that vary by age and sex) or a new left bundle branch block with a high clinical suspicion, indicating acute coronary occlusion. The treatment goal is rapid reperfusion: primary percutaneous coronary intervention with a first-medical-contact-to-device time of 90 minutes or less, or fibrinolysis within 30 minutes of arrival when PCI cannot be performed in time (within 120 minutes of first contact) and no contraindication is present. Aspirin is given early, along with a P2Y12 inhibitor and anticoagulation, and nitroglycerin relieves ischemic pain. Nitrates are avoided in right ventricular infarction (inferior ST elevation with right-sided changes), hypotension, and within 24 to 48 hours of phosphodiesterase-5 inhibitors, because preload reduction causes profound hypotension. Beta-blockers are avoided in acute heart failure, shock or bradycardia, and in cocaine-associated chest pain. Contraindications to fibrinolysis include prior intracranial hemorrhage, ischemic stroke within three months, intracranial neoplasm, active internal bleeding, suspected aortic dissection and significant head trauma.",
+    "NSTEMI and unstable angina present with ischemic symptoms without persistent ST elevation; troponin separates them. Treatment includes antiplatelet and anticoagulant therapy with risk-stratified invasive strategy. Complications of infarction follow a timeline: ventricular arrhythmias in the first hours, papillary muscle rupture with acute mitral regurgitation and ventricular septal rupture a few days after, free wall rupture with tamponade within the first week, and a ventricular aneurysm or Dressler syndrome (autoimmune pericarditis) weeks later.",
+    "Aortic dissection classically causes abrupt tearing pain radiating to the back, a blood pressure difference between arms, a new aortic regurgitation murmur and a widened mediastinum; risk factors are hypertension, connective tissue disease such as Marfan syndrome, and bicuspid aortic valve. Type A (ascending aorta) is a surgical emergency, and type B is generally managed medically with impulse and blood pressure control using intravenous beta-blockade first. Anticoagulants and fibrinolytics are dangerous in dissection, which is why the diagnosis is considered before fibrinolysis.",
+    "Unstable arrhythmias (hypotension, altered mental status, ischemic chest pain, acute heart failure or shock) require synchronized cardioversion in tachycardia with a pulse. Stable narrow-complex regular tachycardia (supraventricular tachycardia) responds to vagal maneuvers and then adenosine. Atrial fibrillation with rapid response is rate controlled with a beta-blocker or calcium channel blocker, and anticoagulation is assessed by risk score. Symptomatic bradycardia is treated with atropine, and then pacing or vasopressor infusion. Torsades de pointes is treated with intravenous magnesium. Wide-complex tachycardia of uncertain origin is treated as ventricular tachycardia.",
+    "Worked example: a 59-year-old man has crushing chest pain and ST elevation in leads II, III and aVF, with hypotension and clear lungs. Right-sided leads show ST elevation in V4R, so nitrates are avoided and fluids are given for right ventricular infarction while he proceeds to primary PCI."
+   ]
+  },
+  {
+   "id": "med-clin-em.l06",
+   "title": "Respiratory Emergencies and Anaphylaxis",
+   "body": [
+    "Acute respiratory failure is divided into hypoxemic (low oxygen with normal or low carbon dioxide), caused by ventilation-perfusion mismatch, shunt, diffusion limitation or low inspired oxygen, and hypercapnic (high carbon dioxide), caused by hypoventilation. Initial support is oxygen to a target saturation, noninvasive ventilation when appropriate, and treatment of the cause. Signs of impending failure include inability to speak in full sentences, accessory muscle use, paradoxical breathing, exhaustion, altered mentation, and a \"normal\" carbon dioxide in a patient who should be hyperventilating.",
+    "Asthma exacerbation is treated with inhaled short-acting beta agonists (albuterol) with ipratropium added in severe cases, and early systemic corticosteroids, whose benefit begins over hours. Intravenous magnesium sulfate is an option for severe attacks, and noninvasive ventilation can help. A rising or normal PaCO2 in an acute asthmatic is an ominous sign of fatigue. If intubation is needed, ketamine is a favored induction agent, and low respiratory rates with long expiratory times avoid dynamic hyperinflation (auto-PEEP). A silent chest suggests minimal air movement. COPD exacerbation is treated with bronchodilators, systemic corticosteroids (typically a short course), antibiotics when sputum is more purulent or ventilation is required, and noninvasive positive-pressure ventilation in hypercapnic acidosis, which reduces intubation and mortality; oxygen is titrated to a saturation of about 88 to 92 percent, because liberal oxygen may worsen hypercapnia in some patients.",
+    "Pneumothorax produces sudden pleuritic chest pain and dyspnea with decreased breath sounds and hyperresonance. Primary spontaneous pneumothorax occurs in tall thin young men and smokers from ruptured apical blebs, and secondary pneumothorax occurs with underlying lung disease. A tension pneumothorax is a clinical diagnosis: hypotension, distended neck veins, tracheal deviation away from the affected side and absent breath sounds. Treatment is immediate needle decompression (second intercostal space midclavicular line, or the fourth to fifth intercostal space at the anterior axillary line) followed by chest tube, without waiting for imaging.",
+    "Pulmonary embolism presents with dyspnea, pleuritic pain, tachycardia, hypoxemia and sometimes syncope or hemoptysis, with risk factors in Virchow triad: stasis, endothelial injury and hypercoagulability. Evaluation uses a pretest probability score (Wells or the Geneva score); a low-probability patient can be screened with the PERC rule or a D-dimer, and a positive result or higher probability needs CT pulmonary angiography (or ventilation-perfusion scanning in pregnancy or contrast allergy). Treatment is anticoagulation, with systemic thrombolysis for hemodynamically unstable (high-risk) embolism and catheter-directed or surgical options for contraindications. Right ventricular strain is indicated by troponin and BNP elevation, a dilated right ventricle on echocardiogram and an S1Q3T3 pattern, which is neither sensitive nor specific.",
+    "Anaphylaxis is a rapid-onset systemic allergic reaction involving skin or mucosal symptoms plus airway, breathing or circulatory compromise, most often triggered by foods, drugs and venom. Intramuscular epinephrine into the anterolateral thigh is the first-line, immediate treatment and should not be delayed, because it reverses airway edema and shock through alpha-1, beta-1 and beta-2 effects. Adjuncts are airway support, intravenous fluids, positioning supine with legs elevated, and nebulized albuterol for bronchospasm; antihistamines and corticosteroids are secondary and do not replace epinephrine. Patients on beta-blockers may be refractory, and glucagon is an option. Biphasic reactions can occur, so patients are observed, and discharged with an epinephrine auto-injector and allergy follow-up.",
+    "Worked example: a woman develops hives, wheezing, hypotension and throat tightness five minutes after a bee sting. She needs intramuscular epinephrine immediately, then oxygen, fluids and observation."
+   ]
+  },
+  {
+   "id": "med-clin-em.l07",
+   "title": "The Toxicologic Approach and Toxidromes",
+   "body": [
+    "Most poisoned patients are managed with excellent supportive care: airway, breathing and circulation first, then glucose, an electrocardiogram, and a targeted history of the substance, the amount, the time and the intent. Poison control centers (in the United States, 1-800-222-1222) and medical toxicologists provide real-time guidance. Collateral information from pill bottles, family and emergency medical services matters. Intentional ingestions are assumed to be mixed until proven otherwise, and acetaminophen and salicylate levels are checked in any intentional overdose because early features are silent. A toxidrome is a cluster of vital signs and examination findings that suggest a drug class.",
+    "The sympathomimetic toxidrome (cocaine, amphetamines, cathinones) shows hypertension, tachycardia, hyperthermia, dilated pupils, agitation and diaphoresis. The anticholinergic toxidrome (diphenhydramine, tricyclic antidepressants, atropine, jimsonweed) is described as hot as a hare, dry as a bone, red as a beet, blind as a bat and mad as a hatter: fever, dry skin, flushing, mydriasis, delirium, urinary retention and decreased bowel sounds. The cholinergic toxidrome (organophosphate and carbamate insecticides, nerve agents) produces miosis, salivation, lacrimation, urination, defecation, bronchorrhea, bronchospasm, bradycardia, and also muscle fasciculations and weakness, with the mnemonics DUMBELS or SLUDGE. The opioid toxidrome is miosis, respiratory depression and decreased consciousness. The sedative-hypnotic toxidrome (benzodiazepines, barbiturates, alcohol) shows depression of mental status with generally preserved vital signs and pupils, unlike opioids. Serotonin syndrome and neuroleptic malignant syndrome share hyperthermia and altered mentation but differ in neuromuscular findings: clonus and hyperreflexia in the first, bradyreflexia and rigidity in the second.",
+    "Decontamination has limited indications. Activated charcoal binds many substances in the gut and is most effective within about an hour of ingestion, and it is given only to patients with a protected airway and an intact gut; it does not bind iron, lithium, alcohols, acids and alkalis, or potassium well. Whole bowel irrigation with polyethylene glycol is used for sustained-release products, iron and body packers. Gastric lavage and syrup of ipecac are not routinely used. Skin decontamination with removal of clothing and irrigation matters for organophosphates and corrosives. Enhanced elimination includes urinary alkalinization for salicylates, and hemodialysis for toxic alcohols, lithium, salicylates and valproate in severe cases.",
+    "Metabolic clues sharpen the diagnosis. An elevated anion gap acidosis arises from toxins such as methanol, ethylene glycol, salicylates, iron, isoniazid, cyanide and carbon monoxide, and from lactate, ketones and uremia, commonly recalled by the mnemonic MUDPILES. An osmolar gap (the difference between measured and calculated osmolality) suggests the presence of an osmotically active substance such as methanol, ethylene glycol or isopropanol, although a normal gap does not exclude late toxic alcohol poisoning once the parent compound is metabolized. Isopropyl alcohol produces ketosis without acidosis.",
+    "Worked example: a 20-year-old at a party is agitated, hot and dry with dilated pupils, a heart rate of 140, urinary retention and hallucinations after taking a pill. This is an anticholinergic toxidrome, and the first steps are supportive care, cooling and benzodiazepines for agitation, with physostigmine reserved for selected pure cases without tricyclic antidepressant toxicity."
+   ]
+  },
+  {
+   "id": "med-clin-em.l08",
+   "title": "Common Overdoses and Their Antidotes",
+   "body": [
+    "Acetaminophen is the most common cause of acute liver failure from overdose. At therapeutic doses it is conjugated, but excess is shunted to the cytochrome P450 pathway that makes the toxic metabolite NAPQI, which is detoxified by glutathione until stores are depleted, after which NAPQI binds hepatocyte proteins and causes centrilobular necrosis. Early symptoms are minimal, then transaminases rise at 24 to 72 hours and liver failure follows. The Rumack-Matthew nomogram plots the serum level against time since a single acute ingestion, beginning at four hours, to decide whether to treat, and it does not apply to chronic or repeated supratherapeutic ingestion or unknown timing. Acetylcysteine replenishes glutathione and is most effective within eight to ten hours but is still beneficial later; it is given intravenously or orally, and anaphylactoid reactions to the intravenous form are treated by pausing and supportive care. Risk is higher in chronic alcohol use, fasting and enzyme-inducing drugs.",
+    "Opioid overdose causes respiratory depression, miosis and sedation. Naloxone, a competitive mu-receptor antagonist, reverses it and is titrated to restore ventilation rather than full arousal, to avoid precipitating withdrawal. Its duration (30 to 90 minutes) is shorter than that of many opioids such as methadone, so repeat dosing or an infusion and observation are required. Benzodiazepine overdose is usually managed with supportive care alone, since flumazenil can precipitate seizures in dependent patients and in co-ingestion of pro-convulsants such as tricyclic antidepressants. Beta-blocker overdose causes bradycardia, hypotension and, with some agents, hypoglycemia and seizures; first-line antidotal therapy is glucagon, with high-dose insulin euglycemia therapy, calcium and vasopressors as additional options. Calcium channel blocker overdose causes bradycardia and hypotension, with hyperglycemia from impaired insulin release in dihydropyridine and non-dihydropyridine toxicity; treatment is calcium, high-dose insulin with glucose, and vasopressors, with lipid emulsion and extracorporeal support in refractory cases.",
+    "Digoxin toxicity causes nausea, vomiting, visual changes (yellow-green halos), hyperkalemia in acute poisoning, and arrhythmias such as bidirectional ventricular tachycardia, atrial tachycardia with block, and high-grade atrioventricular block. Triggers in chronic therapy include renal impairment, hypokalemia, hypomagnesemia, hypercalcemia and drug interactions such as amiodarone, verapamil and quinidine. The antidote is digoxin-specific antibody (Fab) fragments; calcium was historically feared but is no longer considered harmful. Anticoagulant reversal: warfarin is reversed by vitamin K and prothrombin complex concentrate (fresh frozen plasma if unavailable); unfractionated heparin by protamine sulfate; dabigatran by idarucizumab; and factor Xa inhibitors (rivaroxaban, apixaban) by four-factor prothrombin complex concentrate in the United States, since andexanet alfa (Andexxa) was withdrawn from the U.S. market in December 2025 over thrombosis risk; it remains available in some other countries.",
+    "Other antidotes worth recognizing: fomepizole (or ethanol) for methanol and ethylene glycol by inhibiting alcohol dehydrogenase; atropine and pralidoxime for organophosphates; hydroxocobalamin for cyanide; methylene blue for methemoglobinemia; deferoxamine for iron; dimercaprol, succimer or calcium EDTA for lead and some other metals; pyridoxine for isoniazid seizures; glucagon for beta-blockers; octreotide for sulfonylurea hypoglycemia; sodium bicarbonate for tricyclic sodium channel toxicity and for salicylate enhanced elimination; and flumazenil in rare selected cases.",
+    "Worked example: a 19-year-old reports taking a large number of acetaminophen tablets six hours ago and is asymptomatic. A level drawn at four hours or later is plotted on the nomogram, and acetylcysteine is started if above the treatment line, without waiting for liver injury."
+   ]
+  },
+  {
+   "id": "med-clin-em.l09",
+   "title": "Salicylates, Toxic Alcohols, Carbon Monoxide, Cyanide and Tricyclics",
+   "body": [
+    "Salicylate (aspirin) poisoning uncouples oxidative phosphorylation and stimulates the medullary respiratory center. The typical adult picture is tinnitus, nausea and vomiting, tachypnea, hyperthermia and diaphoresis with a mixed acid-base disorder: primary respiratory alkalosis plus anion gap metabolic acidosis. Severe poisoning causes confusion, noncardiogenic pulmonary edema, seizures and cerebral edema. Treatment includes intravenous sodium bicarbonate to alkalinize serum and urine (ion trapping increases excretion), glucose even when serum values are normal, repeating levels because absorption from enteric-coated or bezoar formations is delayed, and hemodialysis for severe acidemia, altered mental status, pulmonary edema, renal failure or very high levels. Intubation of a salicylate-poisoned patient is hazardous because loss of respiratory compensation can precipitate a rapid fall in pH, so ventilator settings must keep a high minute ventilation.",
+    "Toxic alcohols cause anion gap acidosis with an osmolar gap early. Methanol (windshield washer fluid, adulterated spirits) is metabolized by alcohol dehydrogenase to formaldehyde and formic acid, causing visual disturbances including blindness (optic neuropathy) and basal ganglia injury. Ethylene glycol (antifreeze) is metabolized to glycolic and oxalic acids, causing renal failure with calcium oxalate crystals in the urine and hypocalcemia, with neurologic features first and cardiopulmonary injury later. Treatment is the same: block alcohol dehydrogenase with fomepizole (or ethanol if unavailable), give folate (methanol) or thiamine and pyridoxine (ethylene glycol), correct acidosis, and use hemodialysis for severe acidosis, high levels, visual or renal injury. Ethanol alone produces osmolar gap without acidosis, and isopropanol produces ketosis and sedation without acidosis.",
+    "Carbon monoxide binds hemoglobin with an affinity about 200 times that of oxygen, shifting the oxygen dissociation curve left and impairing cellular respiration. Presentation is headache, dizziness, nausea and confusion, often in winter or after exposure to generators or smoke, with cherry-red skin as a rare late finding. Pulse oximetry is falsely normal because standard devices cannot distinguish carboxyhemoglobin; diagnosis needs co-oximetry. Treatment is 100 percent oxygen, which shortens the half-life of carboxyhemoglobin from hours to about an hour, and hyperbaric oxygen is considered for loss of consciousness, neurologic deficits, ischemic ECG changes, pregnancy with high levels or severe poisoning, although evidence is debated. Delayed neurologic sequelae can appear weeks later. Cyanide, from smoke inhalation of burning plastics, industrial exposure or nitroprusside infusion, inhibits cytochrome c oxidase and produces lactic acidosis, high central venous oxygen saturation, and a bitter almond smell in some. The antidote is hydroxocobalamin (sodium nitrite and sodium thiosulfate are an older alternative; nitrites cause methemoglobinemia and are avoided with concurrent carbon monoxide poisoning).",
+    "Tricyclic antidepressant overdose combines sodium channel blockade (wide QRS, right axis shift in terminal 40 ms with a prominent R wave in aVR, ventricular arrhythmias), anticholinergic effects, alpha-1 blockade (hypotension) and GABA-A antagonism (seizures). Sodium bicarbonate is the treatment for QRS prolongation or arrhythmia, benzodiazepines for seizures, and norepinephrine for hypotension; physostigmine is contraindicated. Methemoglobinemia (dapsone, benzocaine, nitrites) produces cyanosis unresponsive to oxygen, chocolate-brown blood and a saturation near 85 percent on oximetry, treated with methylene blue, except in glucose-6-phosphate dehydrogenase deficiency.",
+    "Worked example: a man found confused after drinking an unknown liquid has an anion gap acidosis, an osmolar gap and visual blurring. Methanol poisoning is suspected, and fomepizole with dialysis is started without waiting for confirmation."
+   ]
+  },
+  {
+   "id": "med-clin-em.l10",
+   "title": "Heat Illness, Hypothermia and Drowning",
+   "body": [
+    "Heat illness spans a continuum. Heat cramps are painful muscle spasms from exertion and electrolyte shifts, with a normal core temperature. Heat exhaustion causes weakness, nausea, headache, tachycardia and sweating, with a core temperature below about 40 C and intact mental status, treated by cooling, rest and fluids. Heat stroke is a core temperature above about 40 C with central nervous system dysfunction (confusion, seizures, coma), a medical emergency with multi-organ injury including rhabdomyolysis, acute kidney injury, liver injury, disseminated intravascular coagulation and lactic acidosis. Exertional heat stroke occurs in athletes and soldiers who may still be sweating, while classic or non-exertional heat stroke occurs in older, chronically ill patients during heat waves, typically with dry skin. Drugs that impair heat dissipation (anticholinergics, diuretics, antipsychotics, stimulants) raise risk. The key to outcome is speed of cooling: whole-body cold water immersion cools fastest and is the preferred method in exertional heat stroke, with evaporative cooling using misted water and fans as an alternative, and the goal is to bring the temperature to about 38.9 C (102 F) promptly. Antipyretics are ineffective because the hypothalamic set point is normal. The differential includes sepsis, thyroid storm, malignant hyperthermia, neuroleptic malignant syndrome, serotonin syndrome and anticholinergic poisoning.",
+    "Hypothermia is a core temperature below 35 C and is graded as mild (32 to 35 C), moderate (28 to 32 C) and severe (below 28 C). Mild cases show shivering, tachycardia and confusion. As temperature falls, shivering stops, bradycardia and atrial fibrillation appear, the Osborn (J) wave may appear on the ECG, and eventually ventricular fibrillation, asystole and a deceptively dead appearance occur. Management begins with removing wet clothing, passive and active external rewarming with warm blankets and forced air for mild cases, and active core rewarming with warm intravenous fluids and body cavity lavage for moderate to severe cases. Extracorporeal rewarming (ECMO or cardiopulmonary bypass) is the preferred method for hypothermic cardiac arrest. Handling must be gentle because rough movement can trigger ventricular fibrillation. The saying \"nobody is dead until warm and dead\" reflects that resuscitation continues until rewarming, with exceptions such as obvious lethal injury or a serum potassium greater than about 12 mmol/L. Frostbite is tissue freezing and is treated with rapid rewarming in warm water (37 to 39 C) once refreezing can be prevented, with analgesia, and iloprost or thrombolysis for severe deep injury in selected cases.",
+    "Drowning is a process of respiratory impairment from submersion or immersion in liquid. The main injury is hypoxia: laryngospasm followed by aspiration, loss of surfactant function, pulmonary edema and hypoxic brain injury. The distinction between freshwater and saltwater has little clinical significance, as electrolyte shifts are rarely important. Resuscitation prioritizes ventilation, since cardiac arrest is hypoxic, and rescue breaths come first (the sequence is airway, breathing and then compressions). Cervical spine precautions are needed only with a history suggesting trauma, such as diving. Patients with symptoms need observation because deterioration from delayed pulmonary edema can occur, but those who are asymptomatic with normal examination and saturation after several hours can be discharged by local protocols. Hypothermia often coexists and may be neuroprotective in cold water, so prolonged resuscitation is justified in cold water drowning.",
+    "Worked example: a 20-year-old marathon runner collapses with a rectal temperature of 41.5 C, confusion and persistent sweating. This is exertional heat stroke, and the first step is immediate cold water immersion with monitoring, rather than antipyretics."
+   ]
+  },
+  {
+   "id": "med-clin-em.l11",
+   "title": "Bites, Stings, Altitude, Electrical and Radiation Injury",
+   "body": [
+    "Snakebite in North America is mostly from pit vipers (rattlesnakes, copperheads, cottonmouths), whose venom causes local pain, swelling, ecchymosis, coagulopathy (low fibrinogen, thrombocytopenia) and sometimes systemic effects. Coral snakes (elapids) have neurotoxic venom with minimal local findings and delayed symptoms. Care is to keep the patient calm and the limb at heart level, to remove constricting objects, to mark the margin of swelling, and to monitor with serial coagulation studies. Tourniquets, incision and suction, and ice are harmful and not recommended. Antivenom (Crotalidae polyvalent immune fab) is given for progressive swelling, coagulopathy or systemic effects. Black widow spider bites cause painful abdominal and truncal muscle cramps, hypertension and rigid abdomen, with latrodectus antivenom for severe cases; brown recluse bites cause local ulceration and rarely hemolysis. Scorpion stings in Arizona (bark scorpion) can cause neuromuscular hyperactivity treated with supportive care and, in severe cases, antivenom. Mammal bites need irrigation, and wound closure decisions weigh infection risk, with hand and cat bites high risk for infection. Antibiotic prophylaxis, tetanus status and rabies risk assessment guide further treatment: rabies postexposure prophylaxis consists of wound cleaning, rabies immune globulin and a vaccine series, given for exposure to",
+    "potentially rabid animals such as bats, raccoons, skunks and foxes, because rabies is almost always fatal once symptoms appear.",
+    "High-altitude illness occurs with rapid ascent above about 2,500 m. Acute mountain sickness (headache with nausea, fatigue, dizziness or poor sleep) is treated with rest, descent if worsening, and acetazolamide, a carbonic anhydrase inhibitor that induces a bicarbonate diuresis, producing metabolic acidosis that stimulates ventilation and speeds acclimatization; it is also used for prevention with graded ascent. High-altitude cerebral edema produces ataxia and altered consciousness, and is treated with immediate descent, dexamethasone and supplemental oxygen. High-altitude pulmonary edema produces dyspnea at rest, cough, pink sputum and crackles from hypoxic pulmonary vasoconstriction with uneven perfusion and increased capillary pressure; it is treated with descent, oxygen and nifedipine (a pulmonary vasodilator), with phosphodiesterase inhibitors as alternatives. Descent is the definitive therapy for all severe forms.",
+    "Electrical injury depends on voltage, current, resistance, duration and pathway. Low-voltage household current can cause arrhythmias or tetany, and high voltage causes deep tissue destruction. Alternating current can cause \"no-let-go\" tetany by sustaining muscle contraction. Presentation includes entry and exit burns, cardiac arrhythmias, rhabdomyolysis with myoglobinuria, compartment syndrome, fractures from tetanic contraction and neurologic injury. Evaluation includes an ECG, creatine kinase, urinalysis and monitoring for high-risk exposures (high voltage, loss of consciousness, abnormal ECG); treatment includes aggressive fluids for rhabdomyolysis and surgical review. Lightning injury causes cardiopulmonary arrest and autonomic and neurologic injury; the reverse triage principle applies in multiple victims, treating those in cardiac arrest first, because they often recover with prompt ventilation and CPR.",
+    "Radiation exposure care is chiefly supportive. Decontamination (removing clothing eliminates most contamination) protects both patient and staff, and acute radiation syndrome follows a pattern: prodrome with nausea and vomiting, latent phase, then hematopoietic, gastrointestinal or neurovascular manifestations depending on dose. The time to onset of vomiting and the lymphocyte count at 24 to 48 hours give an early estimate of dose. Potassium iodide protects the thyroid against radioactive iodine when given promptly. Prussian blue treats cesium and thallium contamination, and chelators such as DTPA treat plutonium and similar actinide contamination.",
+    "Worked example: a hiker who flew to a mountain town and climbed to 3,800 m has progressive breathlessness at rest, a wet cough with pink sputum and crackles. This is high-altitude pulmonary edema, and the treatment is descent with oxygen and nifedipine."
+   ]
+  },
+  {
+   "id": "med-clin-em.l12",
+   "title": "Metabolic and Neurologic Emergencies",
+   "body": [
+    "Diabetic ketoacidosis (DKA) is insulin deficiency with hyperglycemia (200 mg/dL or higher under the 2024 consensus, which lowered the older 250 cutoff, though euglycemic DKA occurs with SGLT2 inhibitors), ketosis and an anion gap metabolic acidosis (pH below 7.3 and bicarbonate below about 18 mEq/L). Triggers are infection, missed insulin, new-onset type 1 diabetes, myocardial infarction and medication. Features are polyuria, polydipsia, abdominal pain, vomiting, Kussmaul respirations and fruity breath. Total body potassium is depleted even when serum potassium is normal or high, since acidosis and insulin deficiency shift potassium out of cells. Management follows a sequence: isotonic fluids first, then check potassium before insulin; if potassium is below 3.5 mEq/L (the 2024 consensus value, raised from the older 3.3), replace it and delay insulin because insulin will drive potassium into cells and can cause arrhythmia, and add potassium to fluids when potassium is below the upper range. Intravenous regular insulin is continued until the anion gap closes, with glucose added when serum glucose falls to avoid hypoglycemia. The most feared complication in children is cerebral edema, and bicarbonate is reserved for severe acidosis. Hyperosmolar hyperglycemic state has very high glucose, osmolality above 320, profound dehydration and no significant ketosis.",
+    "Hyperkalemia is dangerous because of arrhythmia. ECG changes progress from peaked T waves to a prolonged PR interval and loss of P waves, a widened QRS, and a sine wave pattern, then ventricular fibrillation or asystole. Treatment priorities are membrane stabilization with intravenous calcium (it works in minutes but does not lower potassium), shifting potassium into cells with insulin plus glucose, nebulized albuterol and sodium bicarbonate in acidosis, and removal with loop diuretics, potassium binders such as sodium zirconium cyclosilicate or patiromer, or dialysis. Look for causes: renal failure, ACE inhibitors, potassium-sparing diuretics, rhabdomyolysis and tissue injury, adrenal insufficiency and succinylcholine.",
+    "Acute ischemic stroke is managed under a strict clock. A rapid glucose check and non-contrast head CT exclude hemorrhage and hypoglycemia as mimics. Intravenous alteplase or tenecteplase is considered for eligible patients within 4.5 hours of last known well, with contraindications including intracranial hemorrhage, recent major surgery or serious head trauma, uncontrolled severe hypertension (above 185/110 before treatment), platelet count below 100,000, anticoagulation with an elevated INR, and low glucose. Mechanical thrombectomy is indicated for large vessel occlusion, within 6 hours and, with advanced perfusion imaging, in selected patients from 6 to 16 hours (DEFUSE-3 criteria) and reasonably up to 24 hours (DAWN criteria). Blood pressure is not lowered aggressively unless thrombolysis is planned or there are other indications. Subarachnoid hemorrhage presents with a thunderclap headache, and a non-contrast CT within six hours of onset is very sensitive, but sensitivity falls after six hours, so a negative later CT with remaining suspicion is followed by lumbar puncture for xanthochromia or CT angiography.",
+    "Status epilepticus is a seizure lasting more than five minutes or repeated seizures without recovery. The American Epilepsy Society guideline of 2016 recommends a benzodiazepine as the first-line treatment (intramuscular midazolam, intravenous lorazepam or intravenous diazepam), followed if seizures persist by a second-line agent such as fosphenytoin, valproate or levetiracetam, with further therapy by anesthetic infusion with intubation. Check glucose, correct hyponatremia and hypocalcemia, and search for toxic causes such as isoniazid, which is treated with pyridoxine. Eclamptic seizures are treated with magnesium sulfate.",
+    "Worked example: a 19-year-old with type 1 diabetes has vomiting, rapid deep breathing, glucose 520 mg/dL, pH 7.1, and a serum potassium of 2.8 mEq/L. Insulin must be delayed while potassium is replaced, since insulin would lower it further and risk arrhythmia."
+   ]
+  },
+  {
+   "id": "med-clin-em.l13",
+   "title": "Trauma Primary Survey and Thoracic Injuries",
+   "body": [
+    "Trauma care follows the primary survey of Advanced Trauma Life Support, with one important change in emphasis for exsanguinating injury: catastrophic external hemorrhage is controlled first with direct pressure or a tourniquet (the \"cABCDE\" approach), because a patient can die of bleeding within minutes. Airway is secured with manual in-line cervical stabilization, breathing is assessed for the chest injuries that kill quickly, and circulation is assessed with two large-bore intravenous lines, a search for the site of bleeding, and early blood product transfusion. The sites where large volumes of blood hide are the chest, abdomen, pelvis, thighs and the floor (\"blood on the floor and four more\"), and the adjuncts of the primary survey are the chest radiograph, pelvic radiograph and the Focused Assessment with Sonography for Trauma (FAST) examination.",
+    "Six immediately life-threatening chest injuries are treated in the primary survey: airway obstruction, tension pneumothorax, open pneumothorax, massive hemothorax, flail chest and cardiac tamponade. Tension pneumothorax is decompressed at once, then a chest tube is placed. An open pneumothorax (\"sucking chest wound\") is covered with an occlusive dressing taped on three sides, forming a flutter valve, followed by a chest tube at a separate site. Massive hemothorax (more than 1,500 mL of blood on initial drainage or more than 200 mL per hour for several hours) needs a chest tube, blood transfusion and usually thoracotomy. Flail chest is two or more adjacent ribs fractured in two or more places, producing paradoxical movement, and the major threat is the underlying pulmonary contusion with hypoxia; management is oxygen, analgesia (including regional blocks) and ventilatory support when needed. Cardiac tamponade is addressed in the hypotension work-up with FAST pericardial views and pericardiocentesis or surgery.",
+    "Several potentially life-threatening chest injuries are found in the secondary survey: simple pneumothorax, hemothorax, pulmonary contusion, tracheobronchial tree injury, blunt cardiac injury, traumatic aortic injury, diaphragmatic injury and esophageal rupture. Traumatic aortic rupture usually occurs at the aortic isthmus just distal to the left subclavian artery, from deceleration, and a widened mediastinum on the chest radiograph prompts CT angiography. A persistent large air leak with a lung that fails to re-expand after chest tube suggests tracheobronchial injury. A resuscitative thoracotomy is reserved for penetrating trauma with recent loss of vital signs, usually within minutes.",
+    "Damage control resuscitation focuses on the lethal triad of hypothermia, acidosis and coagulopathy. Practices include permissive hypotension (accepting a lower blood pressure until bleeding is controlled, except in head injury), balanced transfusion of red cells, plasma and platelets in ratios approaching 1:1:1 as in the PROPPR trial, warming fluids, limiting crystalloid, early surgical hemorrhage control and tranexamic acid within three hours of injury, as the CRASH-2 trial showed reduced death from bleeding. Massive transfusion protocols standardize this response. Calcium is replaced because citrate in stored blood binds it.",
+    "Worked example: a 28-year-old man is stabbed in the left chest and has hypotension, absent breath sounds on the left, dullness to percussion and flat neck veins. This is massive hemothorax, so the plan is a chest tube, blood transfusion and surgical consultation for thoracotomy if drainage is large."
+   ]
+  },
+  {
+   "id": "med-clin-em.l14",
+   "title": "Abdominal, Pelvic, Head and Spine Trauma",
+   "body": [
+    "In blunt abdominal trauma, the spleen and liver are the most commonly injured solid organs. A hemodynamically unstable patient with a positive FAST (free fluid in the hepatorenal pouch, the splenorenal recess, the pelvis, or around the heart) goes to the operating room, while a stable patient is evaluated with contrast-enhanced CT, which can grade solid organ injury, and many stable splenic and hepatic injuries are managed nonoperatively with observation or angioembolization. FAST detects fluid but not reliably the organ injury itself, and it is poor for retroperitoneal and hollow-viscus injury. Penetrating abdominal injuries with instability, peritonitis or evisceration require laparotomy. Seat belt signs raise concern for bowel and mesenteric injury and for Chance fractures of the lumbar spine. Pelvic fractures can cause large retroperitoneal hemorrhage; the initial response is a pelvic binder at the level of the greater trochanters, transfusion, and then angioembolization or preperitoneal packing. Repeated springing of the pelvis is avoided, since it can dislodge clots. Blood at the urethral meatus, a high-riding prostate or scrotal hematoma suggests urethral injury, so a urinary catheter is withheld until a retrograde urethrogram has been done. Hematuria with a pelvic fracture raises concern for bladder rupture, and cystography is used.",
+    "Traumatic brain injury severity is graded by the Glasgow Coma Scale (eye 1 to 4, verbal 1 to 5, motor 1 to 6): 13 to 15 is mild, 9 to 12 moderate, and 8 or less severe. The Canadian CT Head Rule and the New Orleans Criteria help decide which minor injury patients need a CT. Epidural hematoma is classically from a tear of the middle meningeal artery after a temporal bone fracture, a lens-shaped (biconvex) collection that does not cross suture lines, with a lucid interval followed by deterioration, and needs surgical evacuation. Subdural hematoma comes from torn bridging veins, forming a crescent-shaped collection that crosses sutures, and is common in older adults and in people who drink heavily. Subarachnoid hemorrhage and cerebral contusion are other findings, and diffuse axonal injury is seen after rotational acceleration. Signs of rising intracranial pressure include a Cushing response (hypertension, bradycardia and irregular respirations), a blown pupil from uncal herniation compressing the oculomotor nerve and depressed consciousness. Management is to avoid hypoxia and hypotension (both worsen outcome), elevate the head of the bed, give hyperosmolar therapy (mannitol or hypertonic saline) for impending herniation, brief hyperventilation only as a bridge, and neurosurgical consultation. Basilar skull fracture signs are raccoon eyes, Battle sign, hemotympanum and cerebrospinal fluid leak.",
+    "Spinal injury is suspected in any patient with neck pain, neurologic deficit, altered mental status or a high-energy mechanism, and the cervical spine is cleared by the NEXUS criteria or the Canadian C-spine rule, or by CT. Neurogenic shock accompanies injuries above about T6. Complete cord injury produces loss of motor and sensory function below the level. Incomplete syndromes include anterior cord syndrome (loss of motor function and pain and temperature sensation below the lesion with preserved vibration and proprioception), central cord syndrome (arm weakness greater than leg weakness after hyperextension in an older patient with cervical spondylosis), and Brown-Sequard syndrome (ipsilateral motor and proprioception loss with contralateral loss of pain and temperature). High-dose steroids are not recommended for acute spinal cord injury in current guidance.",
+    "Worked example: a teenager struck in the temple by a ball loses consciousness briefly, wakes and is lucid, then becomes drowsy with a dilated right pupil. CT shows a biconvex collection, which is an epidural hematoma needing emergency surgical evacuation."
+   ]
+  },
+  {
+   "id": "med-clin-em.l15",
+   "title": "Burns and Special Trauma Populations",
+   "body": [
+    "Burns are classified by depth. Superficial (first-degree) burns affect the epidermis only and are red, painful and dry without blisters. Superficial partial-thickness (second-degree) burns are blistered, moist, pink and very painful and heal in a few weeks. Deep partial-thickness burns are drier and mottled with decreased sensation. Full-thickness (third-degree) burns are leathery, white, brown or black and insensate and need grafting. The extent of injury is estimated by the rule of nines in adults (head 9 percent, each arm 9 percent, each leg 18 percent, front and back of trunk 18 percent each, perineum 1 percent), by the palm of the patient's hand being about 1 percent, or by a Lund-Browder chart in children, whose head is proportionally larger. Only partial and full-thickness burns count toward total body surface area for fluid calculation.",
+    "The primary survey applies. Inhalation injury is suspected with facial burns, singed nasal hair, carbonaceous sputum, hoarseness, stridor and closed-space exposure, and early intubation is favored. Carbon monoxide and cyanide are considered. Circumferential full-thickness burns of the chest or limbs can restrict breathing or circulation and require escharotomy. Fluids follow a formula as a starting estimate, such as the Parkland formula, which gives a total volume over the first 24 hours using 4 mL per kilogram per percent of body surface area burned, with half given in the first eight hours from the time of injury, using lactated Ringer's solution; the rate is then titrated to urine output (about 0.5 mL/kg/h in adults) rather than followed blindly, since over-resuscitation causes edema and compartment syndromes. The American Burn Association's referral criteria include burns of 10 percent or more of body surface area in some groups, full-thickness burns, burns of the face, hands, feet, genitalia, perineum or major joints, electrical and chemical burns, inhalation injury, and burns in patients with comorbidity or in children cared for by a facility lacking pediatric capability. Chemical burns are treated by copious irrigation, with brushing off dry powders first, and hydrofluoric acid burns need calcium gluconate because of binding of calcium and risk of hypocalcemia and",
+    "arrhythmia. Cool running water for minutes helps limited burns, but ice and prolonged cooling of large burns cause hypothermia. Prophylactic systemic antibiotics are not given, and topical agents such as silver sulfadiazine are used on wounds. Tetanus status is updated.",
+    "Pregnant trauma patients have two patients, but maternal resuscitation is the best fetal resuscitation. Physiologic changes mask hypovolemia, since blood volume rises and tachycardia and hypotension appear late, so a large amount of blood can be lost before vital signs change. After about 20 weeks of gestation, the gravid uterus compresses the vena cava when supine, so the patient is tilted left or the uterus is displaced manually. Placental abruption is a major cause of fetal loss in blunt trauma and may be occult, and Rh-negative mothers receive Rh immune globulin. Fetal monitoring is advised after viable gestational age.",
+    "Children have a compliant skeleton, so serious internal injury can occur without fracture, and a larger head surface and body surface-to-mass ratio predispose to hypothermia and head injury. Tachycardia is the early sign of shock, and hypotension is a late sign of decompensation. A weight-based tape provides doses and tube sizes. Non-accidental trauma is suspected when history does not fit injury, and mandated reporting applies. Older adults tolerate hemorrhage poorly, use anticoagulants and beta-blockers that mask tachycardia, and have more severe injury from falls, so a lower threshold for CT and for trauma center care is used.",
+    "Worked example: an 80 kg man has partial-thickness burns of the anterior trunk and both entire arms. That is about 36 percent body surface area, and the Parkland estimate is 4 x 80 x 36 = 11,520 mL over 24 hours, half in the first eight hours, adjusted by urine output."
+   ]
+  },
+  {
+   "id": "med-clin-em.l16",
+   "title": "Mechanical Ventilation Basics",
+   "body": [
+    "A mechanical ventilator supports oxygenation, ventilation or both. Oxygenation is governed mainly by the fraction of inspired oxygen (FiO2) and positive end-expiratory pressure (PEEP), which recruits alveoli and raises mean airway pressure. Ventilation, the removal of carbon dioxide, is governed by minute ventilation, the product of tidal volume and respiratory rate. Increasing the rate or tidal volume lowers PaCO2, and decreasing them raises it.",
+    "Modes differ in what is controlled and what varies. In volume control (assist-control) ventilation, each breath has a set tidal volume, and airway pressure varies with lung compliance and resistance. In pressure control, each breath is delivered at a set inspiratory pressure and the tidal volume varies. Pressure support is a spontaneous mode in which the patient triggers each breath and the machine augments it with a set pressure, used for weaning. Synchronized intermittent mandatory ventilation combines set breaths with spontaneous ones. Noninvasive ventilation delivers CPAP or bilevel positive airway pressure through a mask, and is effective for cardiogenic pulmonary edema and hypercapnic COPD exacerbation; contraindications include inability to protect the airway, vomiting, severe agitation and hemodynamic instability.",
+    "Initial settings for a typical adult use lung-protective ventilation: a tidal volume of 6 to 8 mL per kilogram of predicted (not actual) body weight, which is calculated from height and sex; a respiratory rate of about 12 to 20; PEEP of about 5 cmH2O; and an FiO2 titrated to a saturation of about 92 to 96 percent, using the lowest effective level. The plateau pressure, measured with an inspiratory hold, reflects alveolar pressure and is kept below 30 cmH2O to limit barotrauma. Peak pressure includes resistance, and a rise in peak pressure with a stable plateau pressure points to an airway resistance problem such as a mucus plug, bronchospasm, a kinked tube or biting, while a rise in both peak and plateau pressures points to reduced compliance, such as pneumothorax, pulmonary edema, mainstem intubation, abdominal distension or pneumonia.",
+    "When a ventilated patient suddenly deteriorates, the DOPE mnemonic structures the search: displacement of the tube, obstruction, pneumothorax and equipment failure. The patient is disconnected from the ventilator and ventilated by hand with a bag while the cause is sought. Air trapping occurs in obstructive disease when expiratory time is insufficient, so that end-expiratory alveolar pressure remains positive (auto-PEEP or intrinsic PEEP), causing hypotension from reduced venous return, and barotrauma; the response is to lower the respiratory rate, shorten inspiratory time, allow longer expiration, and disconnect briefly from the circuit in an arresting patient.",
+    "Sedation and analgesia aim for the lightest level that provides comfort, with analgesia first and daily interruption of sedation or targeted light sedation to reduce ventilator days. Readiness to wean is judged by resolution of the underlying cause, adequate oxygenation on low support (for example PEEP of 8 or less and FiO2 of 0.5 or less), hemodynamic stability, and the ability to trigger breaths. A spontaneous breathing trial, using a T-piece or low pressure support for 30 to 120 minutes, is coupled with a rapid shallow breathing index (respiratory rate divided by tidal volume in liters), where values below about 105 predict success. Extubation also requires a cough, manageable secretions and a cuff leak test where stridor is a concern. Ventilator-associated pneumonia is reduced by head-of-bed elevation, oral care, spontaneous breathing trials and minimizing sedation.",
+    "Worked example: a patient with severe asthma on volume control has falling blood pressure, a rising peak and plateau pressure and flow that does not return to zero before the next breath. This is auto-PEEP, and the fix is a lower rate and longer expiratory time with bronchodilators."
+   ]
+  },
+  {
+   "id": "med-clin-em.l17",
+   "title": "ARDS and Critical Care Practices",
+   "body": [
+    "Acute respiratory distress syndrome (ARDS) is acute hypoxemic respiratory failure with bilateral opacities on imaging not fully explained by heart failure or fluid overload, arising within a week of a known insult such as pneumonia, sepsis, aspiration, pancreatitis, trauma or transfusion. The Berlin definition of 2012 grades severity by the ratio of arterial oxygen tension to inspired oxygen fraction (PaO2/FiO2) measured with at least 5 cmH2O of PEEP: mild is 200 to 300, moderate 100 to 200 and severe at or below 100. The pathology is diffuse alveolar damage, with endothelial and epithelial injury, protein-rich edema, hyaline membranes, loss of surfactant and shunt. Compliance is low and the lungs are heterogeneous, so a large tidal volume overdistends the open alveoli (volutrauma).",
+    "Management is built on evidence. The ARDS Network trial (ARMA, 2000) showed that ventilation with a tidal volume of 6 mL per kilogram of predicted body weight and plateau pressure of 30 cmH2O or below reduced mortality compared with 12 mL per kilogram, which established lung-protective ventilation. Higher PEEP strategies help some patients with more severe disease. In severe ARDS, prone positioning for at least 12 to 16 hours a day reduced mortality in the PROSEVA trial, by recruiting dorsal lung and improving ventilation-perfusion matching. Early short-course neuromuscular blockade has shown mixed results, and routine use is not recommended. A conservative fluid strategy once shock has resolved shortens ventilator days (FACTT trial). Corticosteroids have shown benefit in some studies and are suggested in guidelines for moderate to severe ARDS, though the evidence is evolving. Extracorporeal membrane oxygenation is considered in refractory severe cases at experienced centers. Permissive hypercapnia, accepting a higher PaCO2 and lower pH to limit pressure and volume, is a consequence of lung-protective ventilation.",
+    "The ICU relies on bundles of routine practice. The ABCDEF bundle (Assess and manage pain, Both spontaneous awakening and breathing trials, Choice of sedation and analgesia, Delirium monitoring and management, Early mobility, Family engagement) reduces delirium and ventilator time. Prevention of central line-associated bloodstream infection includes hand hygiene, full barrier precautions on insertion, chlorhexidine skin preparation, optimal site selection (avoiding the femoral site in adults when possible) and daily review of the necessity of lines. Catheter-associated urinary tract infection is lowered by removing catheters promptly. Stress ulcer prophylaxis is given to patients at high risk, such as those who are ventilated for more than 48 hours or have coagulopathy. Venous thromboembolism prophylaxis is standard. Enteral nutrition is started early, usually within 24 to 48 hours, in preference to parenteral nutrition. Glucose is managed in a range of about 140 to 180 mg/dL, as tighter control increased hypoglycemia in the NICE-SUGAR trial. Transfusion thresholds are restrictive, at a hemoglobin of about 7 g/dL in most patients.",
+    "Differential diagnosis of acute hypoxemia with bilateral infiltrates includes cardiogenic pulmonary edema, which responds to diuresis and has a raised BNP and a reduced ejection fraction, pneumonia, diffuse alveolar hemorrhage, acute eosinophilic pneumonia and transfusion-related acute lung injury.",
+    "Worked example: a 45-year-old with pancreatitis develops bilateral infiltrates and a PaO2/FiO2 of 90 on PEEP of 10. She has severe ARDS, so she needs lung-protective ventilation, and prone positioning is added if oxygenation stays poor."
+   ]
+  },
+  {
+   "id": "med-clin-em.l18",
+   "title": "Hemodynamic Support, Acid-Base and End-of-Life Questions in the ICU",
+   "body": [
+    "Vasoactive drugs are chosen by the shock physiology. Norepinephrine (alpha-1 and beta-1) is the vasopressor of choice in most shock. Vasopressin acts at V1 receptors and is a second agent in vasodilatory shock. Epinephrine adds beta effects and is used in refractory shock and anaphylaxis. Phenylephrine is a pure alpha-1 agonist that may reduce cardiac output and is used when tachyarrhythmia limits alternatives. Dopamine has dose-dependent effects but causes more arrhythmias than norepinephrine in shock. Dobutamine is a beta-1 inotrope with vasodilation, used in cardiogenic shock with preserved pressure, and milrinone is a phosphodiesterase-3 inhibitor that raises contractility while dilating vessels. Central venous access is preferred for vasopressors, though peripheral infusion is acceptable for short periods. An arterial line permits continuous pressure measurement and blood gases.",
+    "Arterial blood gas interpretation follows steps. Check the pH to find acidemia (below 7.35) or alkalemia (above 7.45). Check PaCO2 and bicarbonate to see which process matches the pH: a low pH with high PaCO2 is respiratory acidosis, and a low pH with low bicarbonate is metabolic acidosis. Then assess compensation. In metabolic acidosis, expected PaCO2 by Winter formula is 1.5 times bicarbonate plus 8, plus or minus 2; a PaCO2 higher than expected indicates a concurrent respiratory acidosis, and lower, a respiratory alkalosis. Calculate the anion gap, sodium minus chloride minus bicarbonate (normal about 8 to 12, and it should be corrected for low albumin); high gap acidosis arises from ketoacidosis, lactate, uremia and toxins, while normal gap (hyperchloremic) acidosis arises from diarrhea, renal tubular acidosis and large volumes of saline. For a high gap, compare the change in the gap with the change in bicarbonate (delta ratio) to detect a concurrent metabolic alkalosis or non-gap acidosis. Acute respiratory acidosis raises bicarbonate slightly (about 1 mEq/L per 10 mmHg of PaCO2), and chronic respiratory acidosis more (about 3 to 4 mEq/L per 10 mmHg).",
+    "Critical care also confronts death and dying. Brain death is the irreversible cessation of all functions of the entire brain, including the brainstem, and is legally death in the United States under the Uniform Determination of Death Act. The 2023 guideline from the American Academy of Neurology and partner societies standardized adult and pediatric determination: prerequisites include an established irreversible catastrophic brain injury, exclusion of confounders (hypothermia, hypotension, drug effect, severe metabolic derangement), then an examination showing coma, absent brainstem reflexes (pupillary, corneal, oculocephalic, vestibulo-ocular, gag and cough) and apnea testing, with ancillary tests such as cerebral blood flow studies if the apnea test or examination cannot be completed. The patient on a ventilator still has a heartbeat, but is dead. Brain death differs from a persistent vegetative state or a minimally conscious state, in which brainstem function persists. Families are supported, and organ donation is discussed by trained, separate teams.",
+    "Goals-of-care conversations use a surrogate if the patient lacks capacity. Withholding and withdrawing life-sustaining treatment are ethically equivalent when consistent with patient values, and palliative care involvement improves symptoms and communication. Code status is clarified early, and treatment is time-limited when prognosis is uncertain. Do-not-resuscitate orders do not mean do not treat. Futility disputes are resolved through ethics consultation and institutional policy.",
+    "Worked example: a patient with diabetic ketoacidosis has pH 7.20, bicarbonate 10 and PaCO2 20. Winter formula expects 1.5 x 10 + 8 = 23 plus or minus 2, so the PaCO2 of 20 is lower than expected, suggesting a coexisting respiratory alkalosis such as sepsis or salicylate."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-clin-em.l01.q1",
+   "lessonId": "med-clin-em.l01",
+   "kind": "mcq",
+   "prompt": "In the primary survey of an injured patient, which step follows airway with cervical spine protection?",
+   "choices": [
+    "Breathing and ventilation",
+    "Circulation with hemorrhage control",
+    "Disability and neurologic status",
+    "Exposure and environmental control"
+   ]
+  },
+  {
+   "id": "med-clin-em.l01.q2",
+   "lessonId": "med-clin-em.l01",
+   "kind": "mcq",
+   "prompt": "Which paralytic is contraindicated in a patient with a crush injury three days ago because of the risk of hyperkalemia?",
+   "choices": [
+    "Cisatracurium",
+    "Succinylcholine",
+    "Rocuronium",
+    "Vecuronium"
+   ]
+  },
+  {
+   "id": "med-clin-em.l01.q3",
+   "lessonId": "med-clin-em.l01",
+   "kind": "mcq",
+   "prompt": "A 30-year-old man pulled from a house fire is hoarse, with soot around the nose and mouth, and has facial burns. His oxygen saturation is normal. What is the best next step?",
+   "choices": [
+    "Nebulized epinephrine and reassessment in several hours",
+    "Chest radiograph before deciding on airway management",
+    "Early endotracheal intubation before airway edema progresses",
+    "Humidified oxygen by mask with observation overnight"
+   ]
+  },
+  {
+   "id": "med-clin-em.l01.q4",
+   "lessonId": "med-clin-em.l01",
+   "kind": "mcq",
+   "prompt": "Intubation fails three times in a 35-year-old man with massive facial trauma, and bag-mask ventilation and a supraglottic device cannot maintain oxygenation. Which action is appropriate?",
+   "choices": [
+    "Repeating direct laryngoscopy with a larger blade",
+    "Nasopharyngeal airway insertion and reassessment",
+    "Waiting for anesthesia to arrive before any further steps",
+    "Surgical cricothyrotomy"
+   ]
+  },
+  {
+   "id": "med-clin-em.l01.q5",
+   "lessonId": "med-clin-em.l01",
+   "kind": "mcq",
+   "prompt": "Which method provides the most reliable confirmation of endotracheal tube placement?",
+   "choices": [
+    "Waveform capnography",
+    "Auscultation over both lung fields",
+    "Observation of chest rise",
+    "Condensation within the tube"
+   ]
+  },
+  {
+   "id": "med-clin-em.l02.q1",
+   "lessonId": "med-clin-em.l02",
+   "kind": "mcq",
+   "prompt": "Which shock type is characterized by low preload, high systemic vascular resistance and flat neck veins?",
+   "choices": [
+    "Cardiogenic shock",
+    "Distributive shock",
+    "Obstructive shock",
+    "Hypovolemic shock"
+   ]
+  },
+  {
+   "id": "med-clin-em.l02.q2",
+   "lessonId": "med-clin-em.l02",
+   "kind": "mcq",
+   "prompt": "Which triad characterizes cardiac tamponade?",
+   "choices": [
+    "Bradycardia, hypotension and warm dry skin",
+    "Fever, tachycardia and widened pulse pressure",
+    "Hypotension, muffled heart sounds and distended neck veins",
+    "Hypotension, tracheal deviation and unilateral absent breath sounds"
+   ]
+  },
+  {
+   "id": "med-clin-em.l02.q3",
+   "lessonId": "med-clin-em.l02",
+   "kind": "mcq",
+   "prompt": "A 24-year-old man falls from a height and has hypotension, a heart rate of 52, warm dry skin and flaccid paralysis of the legs. Which shock type is most likely?",
+   "choices": [
+    "Cardiogenic shock",
+    "Neurogenic shock",
+    "Hemorrhagic shock",
+    "Obstructive shock"
+   ]
+  },
+  {
+   "id": "med-clin-em.l02.q4",
+   "lessonId": "med-clin-em.l02",
+   "kind": "mcq",
+   "prompt": "A 62-year-old man has hypotension, cool extremities, distended neck veins, crackles throughout both lungs and ST elevation in the anterior leads. What is the best treatment strategy?",
+   "choices": [
+    "Emergent revascularization with hemodynamic support",
+    "Aggressive crystalloid resuscitation of one to two liters",
+    "Furosemide alone to relieve pulmonary edema",
+    "Antibiotics and early vasopressor titration for sepsis"
+   ]
+  },
+  {
+   "id": "med-clin-em.l02.q5",
+   "lessonId": "med-clin-em.l02",
+   "kind": "mcq",
+   "prompt": "A trauma patient has a heart rate of 128, systolic pressure of 85, confusion and cool skin after an estimated loss of 35 percent of blood volume. Which class of hemorrhage is this and what resuscitation is preferred?",
+   "choices": [
+    "Class I, with oral fluids and observation in the emergency department",
+    "Class II, with a crystalloid bolus and then reassessment only",
+    "Class IV, with vasopressors as the main therapy for hypotension",
+    "Class III, with early blood product transfusion and hemorrhage control"
+   ]
+  },
+  {
+   "id": "med-clin-em.l03.q1",
+   "lessonId": "med-clin-em.l03",
+   "kind": "mcq",
+   "prompt": "Which rhythm is shockable in cardiac arrest?",
+   "choices": [
+    "Pulseless electrical activity",
+    "Sinus bradycardia with a pulse",
+    "Ventricular fibrillation",
+    "Asystole"
+   ]
+  },
+  {
+   "id": "med-clin-em.l03.q2",
+   "lessonId": "med-clin-em.l03",
+   "kind": "mcq",
+   "prompt": "Which is a recommended feature of high-quality adult CPR?",
+   "choices": [
+    "Compression rate above 140 per minute to maximize cardiac output",
+    "Shallow compressions to prevent rib fractures",
+    "Frequent pauses to check the rhythm every ten seconds",
+    "Compression rate of 100 to 120 per minute with full chest recoil"
+   ]
+  },
+  {
+   "id": "med-clin-em.l03.q3",
+   "lessonId": "med-clin-em.l03",
+   "kind": "mcq",
+   "prompt": "A 55-year-old man in pulseless electrical activity arrest has a monitor showing narrow complexes, flat neck veins and a history of a massive gastrointestinal bleed. Which reversible cause is most likely?",
+   "choices": [
+    "Hypovolemia",
+    "Tension pneumothorax",
+    "Cardiac tamponade",
+    "Pulmonary thrombosis"
+   ]
+  },
+  {
+   "id": "med-clin-em.l03.q4",
+   "lessonId": "med-clin-em.l03",
+   "kind": "mcq",
+   "prompt": "A 70-year-old woman with chronic kidney disease is in cardiac arrest with a wide complex rhythm, and an earlier potassium was 7.4 mEq/L. Which intervention best stabilizes the myocardium?",
+   "choices": [
+    "Intravenous atropine",
+    "Intravenous calcium",
+    "Intravenous lidocaine",
+    "Intravenous magnesium sulfate"
+   ]
+  },
+  {
+   "id": "med-clin-em.l03.q5",
+   "lessonId": "med-clin-em.l03",
+   "kind": "mcq",
+   "prompt": "A 4-year-old drowned and is found pulseless and apneic. Why is early rescue breathing emphasized in this case?",
+   "choices": [
+    "Compressions are ineffective in all children below age eight",
+    "Defibrillation is contraindicated in children under age eight",
+    "Pediatric arrest is usually asphyxial rather than primary arrhythmic",
+    "Children have a primary ventricular fibrillation rhythm in most arrests"
+   ]
+  },
+  {
+   "id": "med-clin-em.l04.q1",
+   "lessonId": "med-clin-em.l04",
+   "kind": "mcq",
+   "prompt": "According to Sepsis-3, how is sepsis defined?",
+   "choices": [
+    "Fever with hypotension that is unresponsive to initial fluid resuscitation",
+    "Life-threatening organ dysfunction caused by a dysregulated host response to infection",
+    "Infection with at least two systemic inflammatory response syndrome criteria",
+    "Infection with positive blood cultures and a rise in white blood cell count"
+   ]
+  },
+  {
+   "id": "med-clin-em.l04.q2",
+   "lessonId": "med-clin-em.l04",
+   "kind": "mcq",
+   "prompt": "Which vasopressor is first-line in septic shock?",
+   "choices": [
+    "Norepinephrine",
+    "Dopamine",
+    "Phenylephrine",
+    "Dobutamine"
+   ]
+  },
+  {
+   "id": "med-clin-em.l04.q3",
+   "lessonId": "med-clin-em.l04",
+   "kind": "mcq",
+   "prompt": "A 68-year-old woman with a urinary catheter has fever, confusion, a blood pressure of 82/48 after two liters of crystalloid, and a lactate of 4.5 mmol/L. Which set of actions is most appropriate?",
+   "choices": [
+    "Continued fluid boluses only, until the blood pressure fully normalizes",
+    "Antipyretics and oral antibiotics with outpatient follow-up in 48 hours",
+    "Dopamine infusion first, with antibiotics only after culture results return",
+    "Broad-spectrum antibiotics after cultures, source control and norepinephrine"
+   ]
+  },
+  {
+   "id": "med-clin-em.l04.q4",
+   "lessonId": "med-clin-em.l04",
+   "kind": "mcq",
+   "prompt": "A patient with septic shock remains hypotensive despite escalating norepinephrine and vasopressin. Which additional therapy is suggested?",
+   "choices": [
+    "High-dose insulin infusion",
+    "Intravenous bicarbonate for any pH value",
+    "Hydrocortisone",
+    "Dexamethasone as a replacement for all vasopressors"
+   ]
+  },
+  {
+   "id": "med-clin-em.l04.q5",
+   "lessonId": "med-clin-em.l04",
+   "kind": "mcq",
+   "prompt": "Which fluid type is generally preferred for initial sepsis resuscitation?",
+   "choices": [
+    "Unmodified 5 percent albumin given exclusively at all times",
+    "Balanced crystalloid such as lactated Ringer's solution",
+    "Hypotonic saline with dextrose added to the solution",
+    "Hydroxyethyl starch colloid solutions given as the first fluid"
+   ]
+  },
+  {
+   "id": "med-clin-em.l05.q1",
+   "lessonId": "med-clin-em.l05",
+   "kind": "mcq",
+   "prompt": "Within what time after arrival should an ECG be obtained for acute chest pain?",
+   "choices": [
+    "10 minutes",
+    "30 minutes",
+    "60 minutes",
+    "120 minutes"
+   ]
+  },
+  {
+   "id": "med-clin-em.l05.q2",
+   "lessonId": "med-clin-em.l05",
+   "kind": "mcq",
+   "prompt": "Which medication should be avoided in a patient with inferior STEMI and right ventricular infarction?",
+   "choices": [
+    "Clopidogrel",
+    "Nitroglycerin",
+    "Aspirin",
+    "Heparin"
+   ]
+  },
+  {
+   "id": "med-clin-em.l05.q3",
+   "lessonId": "med-clin-em.l05",
+   "kind": "mcq",
+   "prompt": "A 45-year-old man with Marfan syndrome has sudden tearing chest pain radiating to the back, a blood pressure of 170/100 in the right arm and 130/80 in the left, and a new diastolic murmur. What is the best initial management?",
+   "choices": [
+    "Heparin infusion and urgent coronary angiography without imaging the aorta",
+    "Oral analgesics with an outpatient CT angiogram scheduled for next week",
+    "Intravenous beta-blocker with rapid blood pressure and heart rate control, plus surgical consultation",
+    "Intravenous thrombolytic therapy for a presumed inferior myocardial infarction"
+   ]
+  },
+  {
+   "id": "med-clin-em.l05.q4",
+   "lessonId": "med-clin-em.l05",
+   "kind": "mcq",
+   "prompt": "A 66-year-old man has dyspnea, a heart rate of 170 with a narrow regular rhythm, and blood pressure of 78/40 with altered mentation. What is the best treatment?",
+   "choices": [
+    "Intravenous adenosine only, and repeat if ineffective",
+    "Oral beta-blocker and observation",
+    "Unsynchronized defibrillation at maximum energy",
+    "Synchronized cardioversion"
+   ]
+  },
+  {
+   "id": "med-clin-em.l05.q5",
+   "lessonId": "med-clin-em.l05",
+   "kind": "mcq",
+   "prompt": "A man five days after an anterior myocardial infarction develops sudden hypotension, a new harsh holosystolic murmur at the left sternal border and a step-up in oxygen saturation from right atrium to right ventricle. What is the diagnosis?",
+   "choices": [
+    "Ventricular septal rupture",
+    "Papillary muscle rupture",
+    "Free wall rupture with tamponade",
+    "Dressler syndrome"
+   ]
+  },
+  {
+   "id": "med-clin-em.l06.q1",
+   "lessonId": "med-clin-em.l06",
+   "kind": "mcq",
+   "prompt": "What is the first-line immediate treatment of anaphylaxis?",
+   "choices": [
+    "Intravenous diphenhydramine",
+    "Intravenous methylprednisolone",
+    "Nebulized albuterol alone",
+    "Intramuscular epinephrine"
+   ]
+  },
+  {
+   "id": "med-clin-em.l06.q2",
+   "lessonId": "med-clin-em.l06",
+   "kind": "mcq",
+   "prompt": "A patient with a COPD exacerbation has pH 7.28 and PaCO2 of 70 mmHg. Which intervention reduces intubation and mortality?",
+   "choices": [
+    "Sedation with a benzodiazepine",
+    "Immediate endotracheal intubation for all patients",
+    "Noninvasive positive-pressure ventilation",
+    "High-flow oxygen to a saturation of 100 percent"
+   ]
+  },
+  {
+   "id": "med-clin-em.l06.q3",
+   "lessonId": "med-clin-em.l06",
+   "kind": "mcq",
+   "prompt": "A 22-year-old tall thin man develops sudden left chest pain, and then hypotension, distended neck veins, absent left breath sounds and tracheal deviation to the right. What is the best next step?",
+   "choices": [
+    "Intravenous fluid bolus and observation in the resuscitation bay",
+    "Immediate needle decompression followed by chest tube",
+    "Chest radiograph to confirm before any intervention",
+    "CT pulmonary angiography to look for an embolus"
+   ]
+  },
+  {
+   "id": "med-clin-em.l06.q4",
+   "lessonId": "med-clin-em.l06",
+   "kind": "mcq",
+   "prompt": "A hospitalized patient who is recovering from a hip fracture surgery develops sudden dyspnea, tachycardia and pleuritic pain. His blood pressure is 82/50 and oxygen saturation is 86 percent. Which treatment is indicated?",
+   "choices": [
+    "Systemic thrombolysis or reperfusion therapy with anticoagulation",
+    "Outpatient anticoagulation after a low-risk stratification score",
+    "Antibiotics for presumed hospital pneumonia and bed rest",
+    "Diuretic therapy for presumed cardiogenic pulmonary edema"
+   ]
+  },
+  {
+   "id": "med-clin-em.l06.q5",
+   "lessonId": "med-clin-em.l06",
+   "kind": "mcq",
+   "prompt": "A 16-year-old with severe asthma has wheezing that suddenly decreases, with lethargy and a PaCO2 of 48 mmHg, which is normal to high for her. What does this indicate?",
+   "choices": [
+    "Improvement of airflow obstruction after bronchodilators",
+    "Development of a bacterial pneumonia as the main problem",
+    "A psychogenic cause of the breathlessness",
+    "Impending respiratory failure from fatigue"
+   ]
+  },
+  {
+   "id": "med-clin-em.l07.q1",
+   "lessonId": "med-clin-em.l07",
+   "kind": "mcq",
+   "prompt": "Which toxidrome includes miosis, salivation, lacrimation, bronchorrhea and bradycardia?",
+   "choices": [
+    "Sympathomimetic",
+    "Sedative-hypnotic",
+    "Cholinergic",
+    "Anticholinergic"
+   ]
+  },
+  {
+   "id": "med-clin-em.l07.q2",
+   "lessonId": "med-clin-em.l07",
+   "kind": "mcq",
+   "prompt": "Which substance is poorly adsorbed by activated charcoal?",
+   "choices": [
+    "Aspirin",
+    "Phenobarbital",
+    "Theophylline",
+    "Lithium"
+   ]
+  },
+  {
+   "id": "med-clin-em.l07.q3",
+   "lessonId": "med-clin-em.l07",
+   "kind": "mcq",
+   "prompt": "A 22-year-old is agitated with temperature 39.5 C, dry flushed skin, dilated pupils, a heart rate of 140, urinary retention and decreased bowel sounds. Which agent most likely caused this?",
+   "choices": [
+    "Diphenhydramine",
+    "Cocaine",
+    "Heroin",
+    "Organophosphate insecticide"
+   ]
+  },
+  {
+   "id": "med-clin-em.l07.q4",
+   "lessonId": "med-clin-em.l07",
+   "kind": "mcq",
+   "prompt": "A farmer has miosis, drooling, wheezing, diarrhea, bradycardia and muscle fasciculations after spraying a field. Which therapy treats the muscarinic effects?",
+   "choices": [
+    "Neostigmine, with edrophonium for fasciculations",
+    "Atropine, with pralidoxime for nicotinic effects",
+    "Physostigmine, with glycopyrrolate for bronchospasm",
+    "Naloxone, with flumazenil for respiratory depression"
+   ]
+  },
+  {
+   "id": "med-clin-em.l07.q5",
+   "lessonId": "med-clin-em.l07",
+   "kind": "mcq",
+   "prompt": "A patient with unknown ingestion has blurred vision, an anion gap metabolic acidosis and an osmolar gap. Which substance is most likely?",
+   "choices": [
+    "Metformin",
+    "Isoniazid",
+    "Methanol",
+    "Aspirin"
+   ]
+  },
+  {
+   "id": "med-clin-em.l08.q1",
+   "lessonId": "med-clin-em.l08",
+   "kind": "mcq",
+   "prompt": "Which antidote replenishes glutathione in acetaminophen overdose?",
+   "choices": [
+    "Glucagon",
+    "Acetylcysteine",
+    "Fomepizole",
+    "Flumazenil"
+   ]
+  },
+  {
+   "id": "med-clin-em.l08.q2",
+   "lessonId": "med-clin-em.l08",
+   "kind": "mcq",
+   "prompt": "Which agent is the antidote for dabigatran?",
+   "choices": [
+    "Idarucizumab",
+    "Protamine",
+    "Vitamin K",
+    "Andexanet alfa"
+   ]
+  },
+  {
+   "id": "med-clin-em.l08.q3",
+   "lessonId": "med-clin-em.l08",
+   "kind": "mcq",
+   "prompt": "A 19-year-old took many acetaminophen tablets six hours ago and has no symptoms. What is the best approach?",
+   "choices": [
+    "Wait for the transaminases to rise before deciding on any treatment",
+    "Give activated charcoal alone and discharge her after two hours",
+    "Start fomepizole and hold other therapy until the serum level returns",
+    "Plot a serum level on the nomogram and give acetylcysteine if above the treatment line"
+   ]
+  },
+  {
+   "id": "med-clin-em.l08.q4",
+   "lessonId": "med-clin-em.l08",
+   "kind": "mcq",
+   "prompt": "A 70-year-old on digoxin and furosemide has nausea, yellow-tinged vision, a potassium of 2.9 mEq/L and bidirectional ventricular tachycardia. Which is the best treatment?",
+   "choices": [
+    "Intravenous amiodarone as the sole therapy",
+    "Hemodialysis as the first-line antidote",
+    "Digoxin-specific antibody fragments with correction of electrolytes",
+    "Calcium channel blocker to control ventricular rate"
+   ]
+  },
+  {
+   "id": "med-clin-em.l08.q5",
+   "lessonId": "med-clin-em.l08",
+   "kind": "mcq",
+   "prompt": "A teenager overdosed on a beta-blocker and has bradycardia of 38 and hypotension unresponsive to fluids and atropine. Which antidotal therapy is first-line?",
+   "choices": [
+    "Pralidoxime",
+    "Glucagon",
+    "Naloxone",
+    "Flumazenil"
+   ]
+  },
+  {
+   "id": "med-clin-em.l09.q1",
+   "lessonId": "med-clin-em.l09",
+   "kind": "mcq",
+   "prompt": "Which antidote is used for methanol or ethylene glycol poisoning?",
+   "choices": [
+    "Fomepizole",
+    "Methylene blue",
+    "Hydroxocobalamin",
+    "Deferoxamine"
+   ]
+  },
+  {
+   "id": "med-clin-em.l09.q2",
+   "lessonId": "med-clin-em.l09",
+   "kind": "mcq",
+   "prompt": "Why is pulse oximetry unreliable in carbon monoxide poisoning?",
+   "choices": [
+    "It reads accurately and is the preferred diagnostic test",
+    "It reads carboxyhemoglobin as if it were oxyhemoglobin",
+    "It measures only dissolved oxygen in plasma",
+    "It reads falsely low because of hemolysis"
+   ]
+  },
+  {
+   "id": "med-clin-em.l09.q3",
+   "lessonId": "med-clin-em.l09",
+   "kind": "mcq",
+   "prompt": "A 35-year-old with tinnitus, vomiting, rapid breathing and a pH of 7.45 with low bicarbonate and a low PaCO2 has a high anion gap. Which treatment is most appropriate?",
+   "choices": [
+    "Acetylcysteine as the main antidote with supportive care only",
+    "Activated charcoal given repeatedly with no other specific therapy",
+    "Intravenous sodium bicarbonate with consideration of hemodialysis",
+    "Intubation with a low respiratory rate to rest the exhausted patient"
+   ]
+  },
+  {
+   "id": "med-clin-em.l09.q4",
+   "lessonId": "med-clin-em.l09",
+   "kind": "mcq",
+   "prompt": "A man rescued from a house fire has coma, severe lactic acidosis, hypotension and a very high central venous oxygen saturation. Which treatment is most appropriate for the toxin that inhibits cytochrome c oxidase?",
+   "choices": [
+    "Methylene blue",
+    "Flumazenil",
+    "Sodium nitrite alone because of carbon monoxide co-exposure",
+    "Hydroxocobalamin"
+   ]
+  },
+  {
+   "id": "med-clin-em.l09.q5",
+   "lessonId": "med-clin-em.l09",
+   "kind": "mcq",
+   "prompt": "A teenager overdoses on amitriptyline and develops seizures, a QRS of 140 ms and hypotension. Which pair of drugs is appropriate?",
+   "choices": [
+    "Sodium bicarbonate and a benzodiazepine",
+    "Physostigmine and flumazenil",
+    "Phenytoin and lidocaine",
+    "Procainamide and haloperidol"
+   ]
+  },
+  {
+   "id": "med-clin-em.l10.q1",
+   "lessonId": "med-clin-em.l10",
+   "kind": "mcq",
+   "prompt": "Which feature distinguishes heat stroke from heat exhaustion?",
+   "choices": [
+    "Mild headache and nausea with an intact mental status",
+    "Isolated tachycardia that improves after oral fluids",
+    "Core temperature above about 40 C with central nervous system dysfunction",
+    "Presence of muscle cramps and profuse sweating after exertion"
+   ]
+  },
+  {
+   "id": "med-clin-em.l10.q2",
+   "lessonId": "med-clin-em.l10",
+   "kind": "mcq",
+   "prompt": "What is the best cooling method for exertional heat stroke?",
+   "choices": [
+    "Acetaminophen with a standard fever protocol",
+    "Dantrolene infusion as for malignant hyperthermia",
+    "Intravenous ice-cold fluids given as the sole method",
+    "Whole-body cold water immersion"
+   ]
+  },
+  {
+   "id": "med-clin-em.l10.q3",
+   "lessonId": "med-clin-em.l10",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man found outdoors in winter has a core temperature of 27 C, bradycardia, and a J wave on the ECG, and he is pulseless with ventricular fibrillation. What is the preferred approach?",
+   "choices": [
+    "Continue CPR and rewarm, with extracorporeal rewarming if available",
+    "Terminate resuscitation because he is clinically dead",
+    "Give repeated defibrillation shocks without rewarming",
+    "Withhold chest compressions until his temperature is above 35 C"
+   ]
+  },
+  {
+   "id": "med-clin-em.l10.q4",
+   "lessonId": "med-clin-em.l10",
+   "kind": "mcq",
+   "prompt": "A 5-year-old is pulled from a pool, pulseless and apneic. Which resuscitation approach is most appropriate?",
+   "choices": [
+    "Waiting for the electrolytes to determine the type of water",
+    "Start with rescue breaths and ventilation, then compressions",
+    "Compressions only with no ventilation for the first five minutes",
+    "Abdominal thrusts to drain the water before any breaths"
+   ]
+  },
+  {
+   "id": "med-clin-em.l10.q5",
+   "lessonId": "med-clin-em.l10",
+   "kind": "mcq",
+   "prompt": "A runner with a temperature of 41 C is confused. Which test finding would suggest rhabdomyolysis as a complication?",
+   "choices": [
+    "Elevated urine ketones and a raised serum anion gap acidosis",
+    "Hyperglycemia with a low serum bicarbonate and Kussmaul breathing",
+    "Dark urine positive for blood with no red cells and a high creatine kinase",
+    "Hyponatremia with a low urine osmolality and low serum sodium"
+   ]
+  },
+  {
+   "id": "med-clin-em.l11.q1",
+   "lessonId": "med-clin-em.l11",
+   "kind": "mcq",
+   "prompt": "Which treatment is first-line for the prevention of acute mountain sickness during ascent?",
+   "choices": [
+    "Furosemide before the climb",
+    "Nifedipine started at sea level",
+    "Dexamethasone given as the only measure",
+    "Acetazolamide with a gradual ascent"
+   ]
+  },
+  {
+   "id": "med-clin-em.l11.q2",
+   "lessonId": "med-clin-em.l11",
+   "kind": "mcq",
+   "prompt": "Which is the recommended first aid after a rattlesnake bite?",
+   "choices": [
+    "Cutting across the bite site and applying oral suction",
+    "Applying ice packs to the limb to slow venom spread",
+    "Keeping the limb at heart level, immobilizing and rapid transport",
+    "Applying a tight tourniquet above the bite"
+   ]
+  },
+  {
+   "id": "med-clin-em.l11.q3",
+   "lessonId": "med-clin-em.l11",
+   "kind": "mcq",
+   "prompt": "A hiker at 3,800 m has dyspnea at rest, a wet cough with pink sputum and crackles. What is the best treatment?",
+   "choices": [
+    "Dexamethasone alone with rest at altitude",
+    "Immediate descent with oxygen and nifedipine",
+    "Acetazolamide alone and continued ascent",
+    "Intravenous furosemide and a normal saline bolus"
+   ]
+  },
+  {
+   "id": "med-clin-em.l11.q4",
+   "lessonId": "med-clin-em.l11",
+   "kind": "mcq",
+   "prompt": "A worker has a high-voltage electrical contact burn on the hand, dark urine and a markedly raised creatine kinase. Which intervention is a priority?",
+   "choices": [
+    "Aggressive intravenous fluids with monitoring for rhabdomyolysis and compartment syndrome",
+    "Discharge home with outpatient burn wound care in two days",
+    "Restriction of intravenous fluids to protect the failing kidneys",
+    "Intravenous methylene blue to bind the circulating myoglobin"
+   ]
+  },
+  {
+   "id": "med-clin-em.l11.q5",
+   "lessonId": "med-clin-em.l11",
+   "kind": "mcq",
+   "prompt": "A child is bitten by a bat that is not available for testing, and the wound is washed. What is the most appropriate additional management?",
+   "choices": [
+    "Observation of the child for ten days only",
+    "Oral antibiotics alone",
+    "Tetanus vaccine as the only treatment",
+    "Rabies immune globulin and a vaccine series"
+   ]
+  },
+  {
+   "id": "med-clin-em.l12.q1",
+   "lessonId": "med-clin-em.l12",
+   "kind": "mcq",
+   "prompt": "What is the first-line drug class for status epilepticus?",
+   "choices": [
+    "Benzodiazepine",
+    "Phenytoin",
+    "Levetiracetam",
+    "Propofol"
+   ]
+  },
+  {
+   "id": "med-clin-em.l12.q2",
+   "lessonId": "med-clin-em.l12",
+   "kind": "mcq",
+   "prompt": "Which intervention stabilizes the myocardial membrane in hyperkalemia with ECG changes?",
+   "choices": [
+    "Furosemide",
+    "Intravenous calcium",
+    "Insulin with glucose",
+    "Sodium polystyrene"
+   ]
+  },
+  {
+   "id": "med-clin-em.l12.q3",
+   "lessonId": "med-clin-em.l12",
+   "kind": "mcq",
+   "prompt": "A patient in diabetic ketoacidosis has a glucose of 520 mg/dL, pH 7.1 and a serum potassium of 2.8 mEq/L. What is the best next step?",
+   "choices": [
+    "Give bicarbonate and withhold fluids",
+    "Give insulin and dextrose with no potassium",
+    "Replace potassium and fluids before starting insulin",
+    "Start insulin immediately and add potassium later"
+   ]
+  },
+  {
+   "id": "med-clin-em.l12.q4",
+   "lessonId": "med-clin-em.l12",
+   "kind": "mcq",
+   "prompt": "A 65-year-old has sudden right arm weakness and aphasia 90 minutes ago. CT shows no hemorrhage, blood pressure is 170/95 and glucose is normal. What is the best treatment?",
+   "choices": [
+    "Aspirin and blood pressure reduction to below 120 systolic",
+    "Heparin infusion and lumbar puncture",
+    "Observation and MRI in 24 hours",
+    "Intravenous thrombolytic and evaluation for thrombectomy"
+   ]
+  },
+  {
+   "id": "med-clin-em.l12.q5",
+   "lessonId": "med-clin-em.l12",
+   "kind": "mcq",
+   "prompt": "A woman had a thunderclap headache 12 hours ago, and a non-contrast head CT obtained just now is normal. Suspicion for subarachnoid hemorrhage remains. What is the most appropriate next step?",
+   "choices": [
+    "Lumbar puncture for xanthochromia or CT angiography",
+    "Discharge with analgesics because the CT is normal",
+    "Intravenous thrombolytic therapy",
+    "Repeat the CT in one week"
+   ]
+  },
+  {
+   "id": "med-clin-em.l13.q1",
+   "lessonId": "med-clin-em.l13",
+   "kind": "mcq",
+   "prompt": "Which injury is treated in the primary survey with an occlusive dressing taped on three sides?",
+   "choices": [
+    "Traumatic aortic injury",
+    "Open pneumothorax",
+    "Flail chest",
+    "Simple rib fracture"
+   ]
+  },
+  {
+   "id": "med-clin-em.l13.q2",
+   "lessonId": "med-clin-em.l13",
+   "kind": "mcq",
+   "prompt": "Where does traumatic aortic rupture most commonly occur?",
+   "choices": [
+    "At the aortic isthmus distal to the left subclavian artery",
+    "At the aortic root just above the valve",
+    "At the bifurcation into the common iliac arteries",
+    "At the origin of the brachiocephalic artery"
+   ]
+  },
+  {
+   "id": "med-clin-em.l13.q3",
+   "lessonId": "med-clin-em.l13",
+   "kind": "mcq",
+   "prompt": "A 28-year-old man stabbed in the left chest has hypotension, absent breath sounds on the left, dullness to percussion and flat neck veins. What is the best next step?",
+   "choices": [
+    "Needle decompression of the left chest and then observation",
+    "Pericardiocentesis at the bedside with ultrasound guidance",
+    "CT of the chest with contrast before any treatment is started",
+    "Left chest tube with blood transfusion and surgical evaluation"
+   ]
+  },
+  {
+   "id": "med-clin-em.l13.q4",
+   "lessonId": "med-clin-em.l13",
+   "kind": "mcq",
+   "prompt": "A trauma patient receiving large volumes of crystalloid is cold, acidotic and oozing from all wounds. Which approach best prevents progression of this problem?",
+   "choices": [
+    "Vasopressors to raise the blood pressure above 120 systolic",
+    "Delaying blood products until laboratory coagulation results return",
+    "Balanced transfusion of red cells, plasma and platelets with warming and early hemorrhage control",
+    "More crystalloid boluses until the blood pressure is normal"
+   ]
+  },
+  {
+   "id": "med-clin-em.l13.q5",
+   "lessonId": "med-clin-em.l13",
+   "kind": "mcq",
+   "prompt": "A patient with multiple rib fractures has paradoxical chest wall movement and an oxygen saturation of 84 percent. What is the main cause of the hypoxemia?",
+   "choices": [
+    "Pericardial blood limiting ventricular filling",
+    "Underlying pulmonary contusion",
+    "Pain-free splinting of the chest wall",
+    "Mediastinal shift from tension physiology"
+   ]
+  },
+  {
+   "id": "med-clin-em.l14.q1",
+   "lessonId": "med-clin-em.l14",
+   "kind": "mcq",
+   "prompt": "Which finding on CT or imaging is classic for an epidural hematoma?",
+   "choices": [
+    "Blood within the basal cisterns and sulci",
+    "Multiple small punctate hemorrhages at the gray-white junction",
+    "A biconvex lens-shaped collection that does not cross suture lines",
+    "A crescent-shaped collection that crosses suture lines"
+   ]
+  },
+  {
+   "id": "med-clin-em.l14.q2",
+   "lessonId": "med-clin-em.l14",
+   "kind": "mcq",
+   "prompt": "A male trauma patient has blood at the urethral meatus and a high-riding prostate. What should be done before placing a urinary catheter?",
+   "choices": [
+    "Intravenous pyelogram",
+    "Blind catheter placement with a small size",
+    "Digital rectal manipulation of the prostate",
+    "Retrograde urethrogram"
+   ]
+  },
+  {
+   "id": "med-clin-em.l14.q3",
+   "lessonId": "med-clin-em.l14",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man falls and has weakness of the hands greater than the legs and a burning sensation in the arms, with preserved bowel function. Which syndrome is most likely?",
+   "choices": [
+    "Central cord syndrome",
+    "Anterior cord syndrome",
+    "Brown-Sequard syndrome",
+    "Cauda equina syndrome"
+   ]
+  },
+  {
+   "id": "med-clin-em.l14.q4",
+   "lessonId": "med-clin-em.l14",
+   "kind": "mcq",
+   "prompt": "A hemodynamically stable 25-year-old has splenic laceration on CT after a motor vehicle collision with no active extravasation. What is the usual management?",
+   "choices": [
+    "Diagnostic peritoneal lavage to repeat the abdominal evaluation",
+    "Nonoperative management with observation, with angioembolization if needed",
+    "Immediate splenectomy for every grade of splenic injury",
+    "Discharge from the emergency department without any observation"
+   ]
+  },
+  {
+   "id": "med-clin-em.l14.q5",
+   "lessonId": "med-clin-em.l14",
+   "kind": "mcq",
+   "prompt": "A teenager hit in the temple lost consciousness briefly, woke lucid, then became drowsy with a dilated ipsilateral pupil. CT shows a lens-shaped collection. What is the best management?",
+   "choices": [
+    "Lumbar puncture to assess for blood",
+    "Corticosteroids and discharge",
+    "Emergency neurosurgical evacuation",
+    "Repeat CT in 24 hours without treatment"
+   ]
+  },
+  {
+   "id": "med-clin-em.l15.q1",
+   "lessonId": "med-clin-em.l15",
+   "kind": "mcq",
+   "prompt": "Using the rule of nines, what percentage of body surface area does one adult leg represent?",
+   "choices": [
+    "9 percent",
+    "4.5 percent",
+    "36 percent",
+    "18 percent"
+   ]
+  },
+  {
+   "id": "med-clin-em.l15.q2",
+   "lessonId": "med-clin-em.l15",
+   "kind": "mcq",
+   "prompt": "Which fluid is typically used in Parkland-based burn resuscitation?",
+   "choices": [
+    "Hypotonic half-normal saline",
+    "Hydroxyethyl starch",
+    "Lactated Ringer's solution",
+    "Five percent dextrose in water"
+   ]
+  },
+  {
+   "id": "med-clin-em.l15.q3",
+   "lessonId": "med-clin-em.l15",
+   "kind": "mcq",
+   "prompt": "A 36-week pregnant woman in a collision is hypotensive when lying flat, and her heart rate is 120. What is the best simple maneuver?",
+   "choices": [
+    "Delay evaluation until fetal monitoring is available",
+    "Displace the uterus to the left or tilt her left",
+    "Place her prone to protect the abdomen",
+    "Withhold intravenous fluids to protect the fetus"
+   ]
+  },
+  {
+   "id": "med-clin-em.l15.q4",
+   "lessonId": "med-clin-em.l15",
+   "kind": "mcq",
+   "prompt": "A chemical worker has a painful hand burn after hydrofluoric acid exposure and develops arrhythmia. Which treatment is specific?",
+   "choices": [
+    "Calcium gluconate",
+    "Sodium bicarbonate irrigation only",
+    "Hydroxocobalamin",
+    "Silver sulfadiazine only"
+   ]
+  },
+  {
+   "id": "med-clin-em.l15.q5",
+   "lessonId": "med-clin-em.l15",
+   "kind": "mcq",
+   "prompt": "A 5-year-old has a heart rate of 150 and cool extremities after a fall, but a normal blood pressure. What does this indicate?",
+   "choices": [
+    "Normal pain response with no hypovolemia",
+    "Neurogenic shock with warm skin",
+    "Anxiety that does not need further evaluation",
+    "Compensated shock with hypotension as a late sign"
+   ]
+  },
+  {
+   "id": "med-clin-em.l16.q1",
+   "lessonId": "med-clin-em.l16",
+   "kind": "mcq",
+   "prompt": "Which ventilator setting primarily determines oxygenation in addition to FiO2?",
+   "choices": [
+    "Positive end-expiratory pressure",
+    "Respiratory rate",
+    "Inspiratory flow shape",
+    "Tidal volume alone"
+   ]
+  },
+  {
+   "id": "med-clin-em.l16.q2",
+   "lessonId": "med-clin-em.l16",
+   "kind": "mcq",
+   "prompt": "On volume-control ventilation, peak pressure rises but plateau pressure is unchanged. What is the most likely cause?",
+   "choices": [
+    "Right mainstem bronchus intubation",
+    "Increased airway resistance such as a mucus plug or bronchospasm",
+    "Decreased lung compliance such as pulmonary edema",
+    "Pneumothorax with a collapsed lung"
+   ]
+  },
+  {
+   "id": "med-clin-em.l16.q3",
+   "lessonId": "med-clin-em.l16",
+   "kind": "mcq",
+   "prompt": "A ventilated patient with severe asthma becomes hypotensive, and the expiratory flow tracing does not return to zero before the next breath. What is the best immediate management?",
+   "choices": [
+    "Add more PEEP to recruit alveoli",
+    "Increase the tidal volume to raise oxygenation",
+    "Lower the respiratory rate and lengthen expiratory time",
+    "Raise the respiratory rate to increase minute ventilation"
+   ]
+  },
+  {
+   "id": "med-clin-em.l16.q4",
+   "lessonId": "med-clin-em.l16",
+   "kind": "mcq",
+   "prompt": "A recently intubated patient develops sudden hypoxia and high peak pressure, absent breath sounds on the left and hypotension. What should be done first?",
+   "choices": [
+    "Increase sedation and wait for the alarm to clear itself",
+    "Increase FiO2 to 100 percent and recheck the blood gas in an hour",
+    "Order a CT scan of the chest before taking any other action",
+    "Disconnect from the ventilator and hand-ventilate while assessing for tube displacement or pneumothorax"
+   ]
+  },
+  {
+   "id": "med-clin-em.l16.q5",
+   "lessonId": "med-clin-em.l16",
+   "kind": "mcq",
+   "prompt": "A 170 cm adult man with ARDS is ventilated. How should tidal volume be selected?",
+   "choices": [
+    "Based on predicted body weight from height and sex",
+    "Based on his actual body weight on admission",
+    "Based on the severity of the hypoxemia alone",
+    "Based on the highest tolerated peak pressure"
+   ]
+  },
+  {
+   "id": "med-clin-em.l17.q1",
+   "lessonId": "med-clin-em.l17",
+   "kind": "mcq",
+   "prompt": "What tidal volume is used for lung-protective ventilation in ARDS?",
+   "choices": [
+    "About 3 mL per kg of actual body weight",
+    "About 6 mL per kg of predicted body weight",
+    "About 12 mL per kg of predicted body weight",
+    "About 15 mL per kg of actual body weight"
+   ]
+  },
+  {
+   "id": "med-clin-em.l17.q2",
+   "lessonId": "med-clin-em.l17",
+   "kind": "mcq",
+   "prompt": "Which intervention reduced mortality in severe ARDS in the PROSEVA trial?",
+   "choices": [
+    "Prone positioning for prolonged periods",
+    "High-frequency oscillatory ventilation",
+    "Inhaled nitric oxide",
+    "Routine early tracheostomy"
+   ]
+  },
+  {
+   "id": "med-clin-em.l17.q3",
+   "lessonId": "med-clin-em.l17",
+   "kind": "mcq",
+   "prompt": "A 45-year-old with pancreatitis has bilateral infiltrates, a PaO2/FiO2 of 90 on PEEP of 10, and a normal echocardiogram. Which statement describes her?",
+   "choices": [
+    "Mild ARDS that can be managed with oxygen by nasal cannula alone",
+    "Cardiogenic pulmonary edema requiring aggressive diuresis and afterload reduction",
+    "Community pneumonia requiring only oral antibiotics and observation",
+    "Severe ARDS requiring lung-protective ventilation, with prone positioning if oxygenation stays poor"
+   ]
+  },
+  {
+   "id": "med-clin-em.l17.q4",
+   "lessonId": "med-clin-em.l17",
+   "kind": "mcq",
+   "prompt": "A ventilated septic patient has a glucose of 250 mg/dL. Which glucose target is supported by the evidence?",
+   "choices": [
+    "Above 250 mg/dL to avoid hypoglycemia",
+    "Below 60 mg/dL to reduce mortality",
+    "Approximately 140 to 180 mg/dL",
+    "Strict control to 80 to 110 mg/dL"
+   ]
+  },
+  {
+   "id": "med-clin-em.l17.q5",
+   "lessonId": "med-clin-em.l17",
+   "kind": "mcq",
+   "prompt": "Which sign best points to cardiogenic pulmonary edema over ARDS in a patient with bilateral infiltrates?",
+   "choices": [
+    "A PaO2/FiO2 ratio of 150 measured on PEEP of 5 cmH2O",
+    "Raised BNP with reduced ejection fraction and response to diuresis",
+    "A preceding episode of aspiration or pneumonia",
+    "Fever with a high white blood cell count and purulent sputum"
+   ]
+  },
+  {
+   "id": "med-clin-em.l18.q1",
+   "lessonId": "med-clin-em.l18",
+   "kind": "mcq",
+   "prompt": "What does the Winter formula predict?",
+   "choices": [
+    "The anion gap in ketoacidosis",
+    "The osmolar gap in alcohol poisoning",
+    "Expected PaCO2 in metabolic acidosis",
+    "Expected bicarbonate in respiratory alkalosis"
+   ]
+  },
+  {
+   "id": "med-clin-em.l18.q2",
+   "lessonId": "med-clin-em.l18",
+   "kind": "mcq",
+   "prompt": "Which vasoactive drug is a beta-1 inotrope with vasodilatory effects, used in cardiogenic shock?",
+   "choices": [
+    "Phenylephrine",
+    "Vasopressin",
+    "Norepinephrine",
+    "Dobutamine"
+   ]
+  },
+  {
+   "id": "med-clin-em.l18.q3",
+   "lessonId": "med-clin-em.l18",
+   "kind": "mcq",
+   "prompt": "A patient in diabetic ketoacidosis has pH 7.12, bicarbonate 10 mEq/L and PaCO2 32 mmHg. What is the interpretation?",
+   "choices": [
+    "Anion gap metabolic acidosis with concurrent respiratory acidosis",
+    "Anion gap metabolic acidosis with appropriate respiratory compensation",
+    "Anion gap metabolic acidosis with concurrent respiratory alkalosis",
+    "Non-gap metabolic acidosis with metabolic alkalosis"
+   ]
+  },
+  {
+   "id": "med-clin-em.l18.q4",
+   "lessonId": "med-clin-em.l18",
+   "kind": "mcq",
+   "prompt": "A patient with severe head injury has coma, absent brainstem reflexes and no respiratory effort during a correctly performed apnea test, after confounders are excluded. What is the status?",
+   "choices": [
+    "Locked-in syndrome",
+    "Death by neurologic criteria",
+    "Persistent vegetative state",
+    "Minimally conscious state"
+   ]
+  },
+  {
+   "id": "med-clin-em.l18.q5",
+   "lessonId": "med-clin-em.l18",
+   "kind": "mcq",
+   "prompt": "A family asks to withdraw ventilator support from a patient who, before losing capacity, stated she would not want prolonged mechanical ventilation. What is the best approach?",
+   "choices": [
+    "Continue treatment until a court order is obtained",
+    "Obtain consent from the hospital administrator instead",
+    "Honor the wishes through the surrogate and provide palliative care",
+    "Refuse because withdrawal is ethically different from withholding"
+   ]
+  }
+ ]
+}

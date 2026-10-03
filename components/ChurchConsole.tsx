@@ -7,6 +7,11 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Send, Loader2, Check, Users, GraduationCap, Upload, Download, Mail } from 'lucide-react';
 import { TYPE } from '../src/lib/designSystem';
 import type { Organization } from '../types';
+import ChurchEducation from './church/ChurchEducation';
+import ImportWizard from './elevate/chms/ImportWizard';
+import { fetchOrgMembers } from '../services/organizationService';
+import { auth as chmsAuth } from '../services/backendService';
+import type { OrgMembership } from '../types';
 import {
   broadcastToChurch, importCongregantsCSV, fetchCongregants, exportCongregantsCSV, exportGivingCSV,
   createChurchClass, emailBroadcast, type Congregant,
@@ -16,7 +21,7 @@ const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 t
 const dl = (name: string, text: string) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' })); a.download = name; a.click(); };
 
 const ChurchConsole: React.FC<{ church: Organization; onClose: () => void }> = ({ church, onClose }) => {
-  const [tab, setTab] = useState<'messages' | 'people' | 'classes'>('messages');
+  const [tab, setTab] = useState<'messages' | 'people' | 'classes' | 'learn'>('messages');
 
   // Messages
   const [title, setTitle] = useState('');
@@ -31,6 +36,9 @@ const ChurchConsole: React.FC<{ church: Organization; onClose: () => void }> = (
   const [csv, setCsv] = useState('');
   const [importing, setImporting] = useState(false);
   const [importedN, setImportedN] = useState<number | null>(null);
+  const [wizard, setWizard] = useState(false);
+  const [myMem, setMyMem] = useState<OrgMembership | null>(null);
+  const openWizard = () => { fetchOrgMembers(church.id).then(ms => setMyMem(ms.find(m => m.userId === chmsAuth.currentUser?.uid) || null)).catch(() => setMyMem(null)).finally(() => setWizard(true)); };
   const loadPeople = () => fetchCongregants(church.id).then(setPeople).catch(() => {});
   useEffect(() => { if (tab === 'people') loadPeople(); }, [tab]);
 
@@ -55,6 +63,7 @@ const ChurchConsole: React.FC<{ church: Organization; onClose: () => void }> = (
     setSending(false);
   };
 
+  /** @deprecated Shallow congregant CSV import - superseded by ImportWizard (services/chmsImport). */
   const doImport = async () => {
     if (!csv.trim()) return;
     setImporting(true); setImportedN(null);
@@ -72,14 +81,14 @@ const ChurchConsole: React.FC<{ church: Organization; onClose: () => void }> = (
   };
 
   return (
-    <div className="min-h-full p-4 sm:p-6 lg:p-12 max-w-2xl mx-auto">
+    <div className="min-h-full p-4 sm:p-6 lg:p-12 max-w-3xl mx-auto">
       <button onClick={onClose} className={`flex items-center gap-2 text-white/40 hover:text-white ${TYPE.labelMd} font-black uppercase tracking-widest mb-8`}><ArrowLeft size={14} /> Back</button>
 
       <h1 className="text-2xl font-black uppercase tracking-tight text-white mb-1">Church Console</h1>
       <p className={`${TYPE.labelMd} font-bold text-white/40 uppercase tracking-widest mb-8`}>{church.name} · reach & learn</p>
 
       <div className="flex gap-1 p-1 bg-white/5 rounded-2xl w-fit mb-8">
-        {([['messages', 'Messages', Mail], ['people', 'People', Users], ['classes', 'Classes', GraduationCap]] as const).map(([t, label, Icon]) => (
+        {([['messages', 'Messages', Mail], ['people', 'People', Users], ['classes', 'Classes', GraduationCap], ['learn', 'Learn', GraduationCap]] as const).map(([t, label, Icon]) => (
           <button key={t} onClick={() => setTab(t)} className={`flex items-center gap-1.5 px-4 py-2 rounded-xl ${TYPE.labelMd} font-black uppercase tracking-widest transition-all ${tab === t ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}>
             <Icon size={12} /> {label}
           </button>
@@ -112,8 +121,21 @@ const ChurchConsole: React.FC<{ church: Organization; onClose: () => void }> = (
             </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
-            <p className={`${TYPE.labelMd} font-black uppercase tracking-widest text-white/40 flex items-center gap-2`}><Upload size={12} className="text-small-orange" /> Import from Servant Keeper (CSV)</p>
+          <div className="p-4 rounded-2xl bg-small-orange/10 border border-small-orange/30 space-y-3">
+            <p className={`${TYPE.labelMd} font-black uppercase tracking-widest text-small-orange flex items-center gap-2`}><Upload size={12} /> Import from Servant Keeper</p>
+            <p className="text-[11px] text-white/50">People, families, gifts, pledges and attendance - preview first, roll back any time.</p>
+            <button onClick={openWizard} className={`px-5 py-2.5 bg-small-orange text-black rounded-full font-black ${TYPE.labelMd} uppercase tracking-widest hover:brightness-110`}>Open import wizard</button>
+          </div>
+          {wizard && (
+            <div className="fixed inset-0 z-[200] bg-black/80 overflow-y-auto" onClick={e => { if (e.target === e.currentTarget) setWizard(false); }}>
+              <div className="min-h-full max-w-3xl mx-auto my-6 rounded-3xl bg-[#0b0b0f] border border-white/10">
+                <ImportWizard org={church} myMembership={myMem} onClose={() => setWizard(false)} onDone={loadPeople} />
+              </div>
+            </div>
+          )}
+
+          <div className="hidden p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
+            <p className={`${TYPE.labelMd} font-black uppercase tracking-widest text-white/40 flex items-center gap-2`}><Upload size={12} className="text-small-orange" /> Legacy congregant CSV (deprecated)</p>
             {importedN !== null && <p className={`${TYPE.labelMd} font-black uppercase tracking-widest text-green-400 flex items-center gap-1.5`}><Check size={12} /> Imported {importedN} people</p>}
             <label className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 ${TYPE.labelMd} font-black uppercase tracking-widest text-white/60 hover:text-white cursor-pointer w-fit`}>
               <Upload size={12} /> Choose CSV file
@@ -137,6 +159,8 @@ const ChurchConsole: React.FC<{ church: Organization; onClose: () => void }> = (
           )}
         </div>
       )}
+
+      {tab === 'learn' && <ChurchEducation church={church} canEdit />}
 
       {tab === 'classes' && (
         <div className="space-y-4">

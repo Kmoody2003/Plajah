@@ -8,9 +8,16 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
     <!-- Push notifications (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Local Media player permissions: music, video, photos -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
     <!-- Camera + microphone: live streaming, video calls, WebRTC, VTuber, podcast/recording.
          Capacitor's WebView grants getUserMedia at runtime only if these are declared here. -->
@@ -33,13 +40,31 @@
     -->
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
+    <!-- Meta Horizon OS (Quest) spatial device compatibility -->
+    <uses-feature android:name="android.hardware.vr.headtracking" android:required="false" />
+
+    <!-- Android 11+ package visibility: let SpeechRecognizer find the system speech service (Voca read-aloud) -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
+    <!-- Android 11+ package visibility: let SpeechRecognizer find the system speech service (Voca read-aloud) -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
 
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
+        android:banner="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:resizeableActivity="true"
         android:theme="@style/AppTheme">
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
@@ -80,7 +105,117 @@
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
+
+            <!-- "Open with Plajah" for local photos, videos and music (file managers, galleries,
+                 downloads). MainActivity boots the light LocalMediaLaunch viewer (?open=media)
+                 instead of the full platform, so the file is on screen almost immediately. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
         </activity>
+
+        <!-- Experience launchers: extra home-screen / app-drawer icons that open Plajah straight
+             into one experience. Each alias targets MainActivity; the experience slug rides in
+             meta-data, MainActivity turns it into the web start path ?view=<slug>
+             (src/lib/launchTarget.ts). Phone/tablet launcher only — TV keeps the single Plajah
+             tile. Icons: node scripts/generate-experience-icons.mjs -->
+        <activity-alias
+            android:name=".launch.Chora"
+            android:targetActivity=".MainActivity"
+            android:label="Chora"
+            android:icon="@mipmap/ic_launch_chora"
+            android:roundIcon="@mipmap/ic_launch_chora_round"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data android:name="com.plajah.app.EXPERIENCE" android:value="chora" />
+        </activity-alias>
+        <activity-alias
+            android:name=".launch.Reello"
+            android:targetActivity=".MainActivity"
+            android:label="Reello"
+            android:icon="@mipmap/ic_launch_reello"
+            android:roundIcon="@mipmap/ic_launch_reello_round"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data android:name="com.plajah.app.EXPERIENCE" android:value="reello" />
+        </activity-alias>
+        <activity-alias
+            android:name=".launch.Taleo"
+            android:targetActivity=".MainActivity"
+            android:label="Taleo"
+            android:icon="@mipmap/ic_launch_taleo"
+            android:roundIcon="@mipmap/ic_launch_taleo_round"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data android:name="com.plajah.app.EXPERIENCE" android:value="taleo" />
+        </activity-alias>
+        <activity-alias
+            android:name=".launch.Fabula"
+            android:targetActivity=".MainActivity"
+            android:label="Fabula"
+            android:icon="@mipmap/ic_launch_fabula"
+            android:roundIcon="@mipmap/ic_launch_fabula_round"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data android:name="com.plajah.app.EXPERIENCE" android:value="fabula" />
+        </activity-alias>
+        <activity-alias
+            android:name=".launch.Pixels"
+            android:targetActivity=".MainActivity"
+            android:label="Pixels"
+            android:icon="@mipmap/ic_launch_pixels"
+            android:roundIcon="@mipmap/ic_launch_pixels_round"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data android:name="com.plajah.app.EXPERIENCE" android:value="pixels" />
+        </activity-alias>
+        <activity-alias
+            android:name=".launch.ChoraStudio"
+            android:targetActivity=".MainActivity"
+            android:label="Chora Studio"
+            android:icon="@mipmap/ic_launch_chora_studio"
+            android:roundIcon="@mipmap/ic_launch_chora_studio_round"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data android:name="com.plajah.app.EXPERIENCE" android:value="chora_studio" />
+        </activity-alias>
+        <activity-alias
+            android:name=".launch.Academia"
+            android:targetActivity=".MainActivity"
+            android:label="Academia"
+            android:icon="@mipmap/ic_launch_academia"
+            android:roundIcon="@mipmap/ic_launch_academia_round"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data android:name="com.plajah.app.EXPERIENCE" android:value="academia" />
+        </activity-alias>
 
         <!-- Native Jetpack Compose shell (opt-in "Native" mode). Not a launcher: the app
              always starts at MainActivity (the Capacitor web shell), which hands off here when
@@ -99,6 +234,7 @@
             android:foregroundServiceType="mediaPlayback"
             android:exported="true">
             <intent-filter>
+                <action android:name="androidx.media3.session.MediaLibraryService" />
                 <action android:name="androidx.media3.session.MediaSessionService" />
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
@@ -111,6 +247,15 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Android Auto descriptor -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+
+        <!-- Meta Horizon OS (Quest) spatial app compatibility -->
+        <meta-data android:name="com.oculus.vr.focusaware" android:value="true" />
+        <meta-data android:name="com.oculus.supportedPlatform" android:value="quest|quest2|questpro|quest3" />
 
         <!-- Google Cast receiver metadata (required by Cast SDK) -->
         <meta-data

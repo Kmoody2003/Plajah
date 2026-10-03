@@ -22,6 +22,7 @@ import {
   scoreStroke, effectiveStrictness, levelForStrictness, TUNING_LEVELS, DEFAULT_TUNING, pathLength,
   type HandwritingTuning, type Pt, type LetterModel, type LetterCategory, type AgeBandKey,
 } from '../services/handwritingFormEngine';
+import { useWindowsInk, type InkPoint } from '../hooks/useWindowsInk';
 import {
   loadHandwritingProgress, saveHandwritingProgress, awardHandwritingPoints, HANDWRITING_CATEGORIES,
 } from '../services/handwritingProgressService';
@@ -240,51 +241,62 @@ const HandwritingWorkshopView: React.FC<{
 
   useEffect(() => { if (mode === 'story') paintScene(); }, [mode, paintScene]);
 
-  // ── pointer capture ──
-  const onDown = (e: React.PointerEvent) => {
-    if (mode === 'practice' && done) return;
-    if (mode === 'story' && bookDone) return;
-    e.preventDefault(); padRef.current!.setPointerCapture(e.pointerId);
-    drawing.current = true;
-    const type = (e.pointerType as any) || 'mouse';
-    setPenKind(type === 'pen' ? 'pen' : type === 'touch' ? 'touch' : 'mouse');
-    const r = padRef.current!.getBoundingClientRect();
-    const p = { x: e.clientX - r.left, y: e.clientY - r.top };
-    raw.current = [C2N(p)]; last.current = p; draw();
-  };
-
-  const onMove = (e: React.PointerEvent) => {
-    if (!drawing.current) return; e.preventDefault();
-    const cvs = padRef.current!, ctx = cvs.getContext('2d')!;
-    const evs = (e.nativeEvent as any).getCoalescedEvents ? (e.nativeEvent as any).getCoalescedEvents() : [e.nativeEvent];
-    ctx.save(); ctx.strokeStyle = '#f4f4f2'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    const r = cvs.getBoundingClientRect();
-    for (const ne of evs) {
-      const p = { x: ne.clientX - r.left, y: ne.clientY - r.top };
-      const wpx = 3 + ((ne.pressure && ne.pressure > 0 && ne.pressure !== 0.5) ? ne.pressure : 0.5) * 8;
-      raw.current.push(C2N(p));
-      const lp = last.current || p;
-      ctx.lineWidth = wpx; ctx.beginPath(); ctx.moveTo(lp.x, lp.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+  // ── pointer capture with Windows Ink & Palm Rejection ──
+  const { pointerEvents } = useWindowsInk({
+    enablePalmRejection: true,
+    transformPoint: ({ x, y }) => ({ x, y }),
+    onStrokeStart: (point) => {
+      if (mode === 'practice' && done) return;
+      if (mode === 'story' && bookDone) return;
+      drawing.current = true;
+      const type = point.pointerType;
+      setPenKind(type === 'pen' ? 'pen' : type === 'touch' ? 'touch' : 'mouse');
+      const p = { x: point.x, y: point.y };
+      raw.current = [C2N(p)];
       last.current = p;
-    }
-    ctx.restore();
-  };
+      draw();
+    },
+    onStrokeMove: (points) => {
+      if (!drawing.current) return;
+      const cvs = padRef.current;
+      if (!cvs) return;
+      const ctx = cvs.getContext('2d')!;
+      ctx.save();
+      ctx.strokeStyle = '#f4f4f2';
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      for (const pt of points) {
+        const p = { x: pt.x, y: pt.y };
+        const wpx = 3 + ((pt.pressure && pt.pressure > 0 && pt.pressure !== 0.5) ? pt.pressure : 0.5) * 8;
+        raw.current.push(C2N(p));
+        const lp = last.current || p;
+        ctx.lineWidth = wpx;
+        ctx.beginPath();
+        ctx.moveTo(lp.x, lp.y);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+        last.current = p;
+      }
+      ctx.restore();
+    },
+    onStrokeEnd: () => {
+      if (!drawing.current) return;
+      drawing.current = false;
+      last.current = null;
+      if (raw.current.length < 3) { draw(); return; }
 
-  const onUp = () => {
-    if (!drawing.current) return; drawing.current = false; last.current = null;
-    if (raw.current.length < 3) { draw(); return; }
-
-    // fallback letters (no model): accept any reasonable stroke
-    if (isFallback) {
-      if (pathLength(raw.current) > 24) { setLastScore(100); acceptStroke(raw.current.slice()); }
-      else { setCoach({ text: `Write the letter ${storyChar}.`, tone: 'bad' }); flashFail(); }
-      return;
-    }
-    const res = scoreStroke(raw.current, activeLetter, strokeIndex, strictness);
-    setLastScore(res.score);
-    if (res.pass) acceptStroke(raw.current.slice());
-    else { setCoach({ text: coachFor(res), tone: 'bad' }); flashFail(); }
-  };
+      // fallback letters (no model): accept any reasonable stroke
+      if (isFallback) {
+        if (pathLength(raw.current) > 24) { setLastScore(100); acceptStroke(raw.current.slice()); }
+        else { setCoach({ text: `Write the letter ${storyChar}.`, tone: 'bad' }); flashFail(); }
+        return;
+      }
+      const res = scoreStroke(raw.current, activeLetter, strokeIndex, strictness);
+      setLastScore(res.score);
+      if (res.pass) acceptStroke(raw.current.slice());
+      else { setCoach({ text: coachFor(res), tone: 'bad' }); flashFail(); }
+    },
+  });
 
   const acceptStroke = (accepted: Pt[]) => {
     const nextIndex = strokeIndex + 1;
@@ -465,7 +477,7 @@ const HandwritingWorkshopView: React.FC<{
             )}
 
             <div className="relative rounded-2xl overflow-hidden border border-white/10" style={{ background: '#f6f7f2' }}>
-              <canvas ref={padRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+              <canvas ref={padRef} {...pointerEvents}
                 className="block w-full touch-none" style={{ height: 'min(52vh, 480px)', cursor: 'crosshair' }}
                 aria-label={mode === 'story' ? `Write the letter ${storyChar || ''}` : `Trace the letter ${activeLetter.glyph}`} />
               <span className="absolute top-3 left-3 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-black/8 text-black/50 border border-black/10">

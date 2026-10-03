@@ -1,0 +1,25 @@
+# med-anatomy: claims for expert review
+
+- l01: vertebral artery enters the transverse foramen "usually from C6 upward"; conus at "about L1-L2" (range varies); newborn conus at about L3 (question l01.q5).
+- l02: great radicular artery of Adamkiewicz "usually on the left" from a lower thoracic or upper lumbar level; conus vs cauda equina features stated in general terms.
+- l03: pleural reflection levels (ribs 8/10/12) and lung levels (6/8/10) are standard approximations.
+- l04: right dominance "about 80 percent"; SA node from RCA "in most people"; valve auscultation sites are conventional, not anatomical.
+- l05: arcuate line and rectus sheath description; inferior epigastric artery as external iliac branch.
+- l06: SAD PUCKER mnemonic only named; "Meckel 2 percent, 2 feet" rule of 2s; anterior vagal trunk from left vagus.
+- l07: IVC passes diaphragm at T8; right gonadal vein drains directly to IVC (usual pattern); nutcracker phenomenon wording.
+- l08: adrenal medulla preganglionic supply wording; renal artery levels L1-L2; lumbar plexus root values.
+- l09: pelvic floor innervation (S3-S4 plus pudendal branches) simplified; lymph drainage of ovary/testis to para-aortic nodes.
+- l10: anal canal length "about 4 cm"; horseshoe abscess via deep postanal space.
+- l11: dominant supply of femoral head (medial circumflex femoral artery) stated as the main source; hamstring part of adductor magnus.
+- l12: "unhappy triad" nuance (lateral meniscus tears more frequent in recent series); tarsal tunnel and ATFL statements.
+- l13: breast lymph "about 75 percent" to axillary nodes; clavicle fracture medial fragment pulled up by SCM.
+- l14: cord-level sensory/axon reflex statement for preganglionic injury; plexus branch lists simplified.
+- l15: ulnar paradox wording; muscle branch positions of radial nerve relative to spiral groove.
+- l16: nine tendons in carpal tunnel; scaphoid retrograde blood supply wording.
+- l17: foramina contents list; arterial supply of dura; berry aneurysm and polycystic kidney association.
+- l18: "false localising sign" for abducens; pupil sparing in diabetic third nerve palsy; recurrent laryngeal asymmetry.
+- l19: Erb point naming (used for both the neck nerve point and the plexus point); carotid bifurcation level C4; retropharyngeal space communication with posterior mediastinum (strictly via the danger space); cricothyrotomy comparison.
+- l20: angle of mandible supplied by C2-C3 (great auricular); lymph drainage of tongue tip and lateral tongue.
+- l21: vertebral level values for surface planes (T2-T3, T9, L2-L3 costal margin, T7 scapular angle) vary by person and book.
+- l22: midgut rotation "270 degrees counterclockwise"; horseshoe kidney trapped by IMA; Bochdalek on the left being commonest; VSD as most common congenital heart anomaly (membranous).
+- l23: heart border contributions on PA film; CT and MRI contrast conventions.

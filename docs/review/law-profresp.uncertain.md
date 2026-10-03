@@ -1,0 +1,28 @@
+# law-profresp: claims for expert review
+
+- l01: California's adoption of a Model-Rules-style structure (described as "recent"; believed effective Nov 2018). Date not stated in text.
+- l01: Scope statement that rule violations should not by themselves create civil causes of action (paraphrased from Scope para. 20).
+- l02: Togstad v. Vesely, Otto, Miller and Keefe (Minn. 1980) facts and holding (reliance-based relationship).
+- l02: Rule 1.18 screening/limited-intake cure wording.
+- l03: Mata v. Avianca (S.D.N.Y. 2023) description of sanctions basis (Rule 11 and inherent power). ABA Formal Op. 512 (2024) summary of duties.
+- l04: In re Cooperman (N.Y. 1994) as the non-refundable-retainer case; Fracasse v. Brent (Cal. 1972) quantum meruit payable on contingency.
+- l04: Rule 1.5(e) fee-division conditions and Rule 1.8(e) cost-advance exception, stated at outline level.
+- l05: Rule 1.6(b)(1)-(7) list; characterization that "several" states mandate disclosure and some exclude financial-fraud exceptions (not enumerated).
+- l06: United States v. Kovel (2d Cir. 1961); Swidler and Berlin (1998) and Zolin (1989) holdings; FRE 502 summary.
+- l07: Rule 1.13(b)-(g) paraphrase; SEC Part 205 summary (up-the-ladder steps); Upjohn facts.
+- l08: ABA Formal Opinions 477R (2017), 483 (2018), 498 (2021) subject matter and numbering; O'Hagan facts; Rule 4.4(b) scope; claim that bars have disciplined lawyers over online review responses.
+- l09: Hot potato doctrine described as majority approach (no authority cited); advance waiver enforceability standard.
+- l10: T.C. Theatre (S.D.N.Y. 1953) test paraphrase; Rule 1.10(a)(2) lateral-screen conditions; state variation on screening described generally.
+- l11: Rule 1.8(a)-(k) paraphrases, including 1.8(k) imputation excluding (j).
+- l12: Mickens v. Taylor (2002) holding stated at a high level; Holloway/Cuyler/Wheat holdings.
+- l13: Nix v. Whiteside facts and holding; statement that the Model Rules comment rejects the narrative approach; Rule 3.3 knowledge and criminal-defendant carve-out.
+- l14: Gentile v. State Bar of Nevada (1991) split holding; Chambers v. NASCO (1991); Rule 11(c)(2) 21-day safe harbor; Rule 4.2 organization-constituent test.
+- l15: SEC v. National Student Marketing (D.D.C. 1978) characterization; cannabis-advice state variation ("as of this writing"); noisy-withdrawal reference.
+- l16: Berger paraphrase; Bagley materiality; Kyles; Bordenkircher; Imbler/Buckley/Connick holdings; Rule 3.8(g)-(h) text; claim that ABA guidance says 3.8(d) is broader than Brady; the critics/defenders summary on prosecutor discipline.
+- l17: NextGen bar exam status ("as of this writing"); UBE portability; Schware and Konigsberg (1957, 1961) holdings; Rule 8.4(g) adoption status and First Amendment challenges; Keller holding.
+- l18: Arizona and Utah regulatory changes to Rule 5.4-type restrictions and D.C.'s long-standing allowance; Ohralik/Primus/Shapero/Went For It holdings (5-4 vote in Went For It).
+- l19: LSC justice-gap findings (direction only, no figures); Alabama v. Shelton; Turner v. Rogers; Velazquez; ABA excessive-caseload guidance (opinion number deliberately omitted); nonlawyer practitioner programs in Washington, Utah, Arizona.
+- l20: Attribution of ideas to Fried (1976), Wasserstrom (1975), Pepper (1986), Luban (1988), Simon (1998), Freedman (1966/1975); cab-rank rule description.
+- l21: Hazelden/ABA 2016 study characterization; Republican Party v. White, Caperton, Williams-Yulee (5-4) holdings; Adams/Boston Massacre example.
+- Answer keys on rule numbers (e.g. 1.16(a)(2), 3.8(f), 6.5) should be checked against the current ABA text.
+- Question editing: many distractors were lengthened with generic trailing phrases to balance option length; an editor should smooth these.

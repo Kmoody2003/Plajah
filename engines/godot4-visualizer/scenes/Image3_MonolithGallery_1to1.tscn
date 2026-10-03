@@ -1,0 +1,34 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Environment" path="res://default_env.tres" id="1_env"]
+[ext_resource type="Script" path="res://scripts/plajah_audio_bridge.gd" id="2_audio"]
+[ext_resource type="Script" path="res://scripts/image3_monolith_gallery_1to1.gd" id="3_controller"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_floor"]
+size = Vector2(48, 36)
+
+[node name="Image3_MonolithGallery_1to1" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = ExtResource("1_env")
+
+[node name="PlajahAudioBridge" type="Node" parent="."]
+script = ExtResource("2_audio")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.984808, 0.173648, 0, -0.173648, 0.984808, 0, 2.2, 11.5)
+current = true
+fov = 52.0
+
+[node name="DirectionalCeilingFill" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -0.258819, 0.965926, 0, -0.965926, -0.258819, 0, 16, 0)
+light_color = Color(0.08, 0.06, 0.12, 1)
+light_energy = 0.5
+
+[node name="MonolithGallerySystem" type="Node3D" parent="." node_paths=PackedStringArray("audio_bridge", "floor_mesh")]
+script = ExtResource("3_controller")
+audio_bridge = NodePath("../PlajahAudioBridge")
+floor_mesh = NodePath("FloorMesh")
+
+[node name="FloorMesh" type="MeshInstance3D" parent="MonolithGallerySystem"]
+mesh = SubResource("PlaneMesh_floor")

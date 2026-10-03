@@ -96,35 +96,41 @@ interface Props {
 
 // Plajah design-language deck identity. Four decks: A/C share the left channel,
 // B/D share the right channel (A/C and B/D swap via tabs — 2-channel, 4-deck).
-type DeckId = 'A' | 'B' | 'C' | 'D';
-const DECK_COLORS: Record<DeckId, string> = { A: '#00DAF3', B: '#D40055', C: '#8B5CF6', D: '#F59E0B' };
-// Performance-pad palette — eight distinct colours (hot cues + samples), none equal to a deck colour.
-const SAMPLE_COLORS = ['#FF5A5F', '#FFB020', '#FFD93D', '#6BCB77', '#2BE0A8', '#4D96FF', '#B980F0', '#FF6AD5'];
-// Beat-loop sizes offered in Loop pad mode (in beats).
-const BEAT_LOOPS = [0.125, 0.25, 0.5, 1, 2, 4, 8, 16];
-const beatLoopLabel = (b: number) => (b < 1 ? `1/${Math.round(1 / b)}` : String(b));
-type PadMode = 'cue' | 'loop' | 'sample';
-const DEFAULT_BPM = 128;
-const PITCH_RANGE = 6;
-const WAVEFORM_POINTS = 800;
+import {
+  type DeckId,
+  DECK_COLORS,
+  SAMPLE_COLORS,
+  BEAT_LOOPS,
+  beatLoopLabel,
+  type PadMode,
+  DEFAULT_BPM,
+  PITCH_RANGE,
+  WAVEFORM_POINTS,
+  PITCH_CLASS,
+  CAMELOT_MAJOR,
+  CAMELOT_MINOR,
+  toCamelot,
+  pitchToRate,
+  formatTime,
+} from '../services/djAudioCore';
 
-// ── Musical key → Camelot wheel (the readout working DJs harmonic-mix by) ───────
-const PITCH_CLASS: Record<string, number> = {
-  c: 0, 'c#': 1, db: 1, d: 2, 'd#': 3, eb: 3, e: 4, fb: 4, 'e#': 5, f: 5,
-  'f#': 6, gb: 6, g: 7, 'g#': 8, ab: 8, a: 9, 'a#': 10, bb: 10, b: 11, cb: 11,
+export {
+  type DeckId,
+  DECK_COLORS,
+  SAMPLE_COLORS,
+  BEAT_LOOPS,
+  beatLoopLabel,
+  type PadMode,
+  DEFAULT_BPM,
+  PITCH_RANGE,
+  WAVEFORM_POINTS,
+  PITCH_CLASS,
+  CAMELOT_MAJOR,
+  CAMELOT_MINOR,
+  toCamelot,
+  pitchToRate,
+  formatTime,
 };
-const CAMELOT_MAJOR = ['8B','3B','10B','5B','12B','7B','2B','9B','4B','11B','6B','1B'];
-const CAMELOT_MINOR = ['5A','12A','7A','2A','9A','4A','11A','6A','1A','8A','3A','10A'];
-function toCamelot(key?: string, scale?: string): string | null {
-  if (!key) return null;
-  const raw = key.trim().toLowerCase();
-  const m = raw.match(/^([a-g](?:#|b)?)/);
-  if (!m) return null;
-  const pc = PITCH_CLASS[m[1]];
-  if (pc === undefined) return null;
-  const minor = /min|minor|\bm\b|aeolian/.test(`${raw} ${(scale || '').toLowerCase()}`);
-  return (minor ? CAMELOT_MINOR : CAMELOT_MAJOR)[pc] ?? null;
-}
 
 // ── DJ audio engine ────────────────────────────────────────────────────────────
 // DJ mode builds its decks on the GLOBAL player's shared AudioContext (passed in via
@@ -151,7 +157,7 @@ const djDecodeKey = (t: { id?: string; url?: string }) => t.id || t.url || '';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function extractPeaks(buffer: AudioBuffer): Float32Array {
+export function extractPeaks(buffer: AudioBuffer): Float32Array {
   const ch = buffer.getChannelData(0);
   const step = Math.max(1, Math.floor(ch.length / WAVEFORM_POINTS));
   const peaks = new Float32Array(WAVEFORM_POINTS);
@@ -167,7 +173,7 @@ function extractPeaks(buffer: AudioBuffer): Float32Array {
   return peaks;
 }
 
-function estimateBPM(buffer: AudioBuffer): number {
+export function estimateBPM(buffer: AudioBuffer): number {
   try {
     const ch = buffer.getChannelData(0);
     const sr = buffer.sampleRate;
@@ -197,20 +203,8 @@ function estimateBPM(buffer: AudioBuffer): number {
   }
 }
 
-function pitchToRate(semitones: number): number {
-  return Math.pow(2, semitones / 12);
-}
-
-function formatTime(sec: number): string {
-  if (!isFinite(sec) || sec < 0) return '0:00.0';
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  const ms = Math.floor((sec % 1) * 10);
-  return `${m}:${String(s).padStart(2, '0')}.${ms}`;
-}
-
 // Generate simple reverb impulse response
-function createReverb(ctx: AudioContext, duration = 2.0): AudioBuffer {
+export function createReverb(ctx: AudioContext, duration = 2.0): AudioBuffer {
   const sr = ctx.sampleRate;
   const len = Math.floor(sr * duration);
   const buf = ctx.createBuffer(2, len, sr);
@@ -226,7 +220,7 @@ function createReverb(ctx: AudioContext, duration = 2.0): AudioBuffer {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 // Drag knob: vertical drag maps to value change
-const EQKnob: React.FC<{
+export const EQKnob: React.FC<{
   label: string;
   value: number;   // -1 to +1
   onChange: (v: number) => void;
@@ -273,7 +267,7 @@ const EQKnob: React.FC<{
   );
 };
 
-const WaveformCanvas: React.FC<{
+export const WaveformCanvas: React.FC<{
   peaks: Float32Array | null;
   progress: number;
   color: string;

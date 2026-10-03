@@ -1,0 +1,2017 @@
+{
+ "courseId": "med-pharm-systems",
+ "label": "Pharmacology: Drugs by System",
+ "lessons": [
+  {
+   "id": "med-pharm-systems.l01",
+   "title": "The RAAS and Diuretics: Core Antihypertensives",
+   "body": [
+    "Blood pressure is cardiac output times systemic vascular resistance, and every antihypertensive lowers one of those two terms, often by acting on the kidney or the sympathetic nervous system. The renin-angiotensin-aldosterone system (RAAS) is the largest target. Juxtaglomerular cells release renin when perfusion falls or beta-1 stimulation rises. Renin cleaves angiotensinogen to angiotensin I, angiotensin-converting enzyme (ACE, abundant in lung endothelium) converts that to angiotensin II, and angiotensin II acting on AT1 receptors constricts arterioles, constricts the efferent arteriole of the glomerulus, releases aldosterone and ADH, and promotes sodium retention and cardiac remodeling.",
+    "ACE inhibitors (lisinopril, enalapril, ramipril) block angiotensin II formation. ACE is also kininase II, which degrades bradykinin, so ACE inhibitors raise bradykinin and cause two characteristic class effects: a dry cough in a meaningful minority of patients and, rarely, angioedema. Other toxicities are hyperkalemia (less aldosterone), a rise in creatinine from efferent dilation, and first-dose hypotension in volume-depleted patients. They are contraindicated in pregnancy because second and third trimester exposure causes fetal renal injury and oligohydramnios, and caution is needed in bilateral renal artery stenosis, where glomerular filtration depends on angiotensin II constricting the efferent arteriole. Angiotensin receptor blockers (losartan, valsartan) block AT1 directly, do not raise bradykinin, and so avoid cough and mostly avoid angioedema, but share the hyperkalemia, pregnancy and renal cautions. Combining an ACE inhibitor with an ARB adds hyperkalemia and kidney injury without proven benefit, and ACE inhibitors must never be combined with sacubitril-valsartan because neprilysin inhibition plus ACE inhibition risks angioedema.",
+    "Diuretics are best learned by nephron segment. Loop diuretics (furosemide, bumetanide) block the Na-K-2Cl cotransporter in the thick ascending limb, are the most powerful natriuretics, and cause hypokalemia, metabolic alkalosis, hypocalcemia, hypomagnesemia and dose-related ototoxicity. Thiazides (hydrochlorothiazide, chlorthalidone) block the sodium-chloride cotransporter in the distal convoluted tubule, and uniquely reduce urinary calcium excretion, so they cause hypercalcemia and can help calcium kidney stones. Their other effects are hypokalemia, hyponatremia, hyperuricemia, hyperglycemia and hyperlipidemia. The ALLHAT trial supported thiazide-type diuretics as an excellent first-line choice. Potassium-sparing agents act on the collecting duct: amiloride and triamterene block the epithelial sodium channel, while spironolactone and eplerenone block the mineralocorticoid receptor. All raise potassium; spironolactone also blocks androgen and progesterone receptors, giving gynecomastia and menstrual irregularity that the more selective eplerenone largely avoids.",
+    "The 2025 AHA/ACC hypertension guideline (which replaced the 2017 version and uses the PREVENT risk equations to guide treatment) treats thiazide-type diuretics, ACE inhibitors, ARBs and long-acting dihydropyridine calcium channel blockers as first-line classes for most adults. Worked example: a patient with hypertension, type 2 diabetes and albuminuria is best served by an ACE inhibitor or ARB because blocking efferent constriction lowers glomerular pressure and slows nephropathy. If that patient develops a dry cough, switching to an ARB keeps the benefit while removing the bradykinin effect."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l02",
+   "title": "Calcium Channel Blockers, Beta Blockers, Vasodilators and Nitrates",
+   "body": [
+    "Calcium channel blockers inhibit L-type voltage-gated calcium channels, and the two subclasses differ in where they bind best. Dihydropyridines (amlodipine, nifedipine) prefer vascular smooth muscle, so they are potent arterial vasodilators with little effect on conduction. Their adverse effects follow from vasodilation: flushing, headache, reflex tachycardia (especially short-acting nifedipine) and peripheral edema that comes from precapillary dilation and does not respond to diuretics. The non-dihydropyridines (verapamil, diltiazem) prefer the heart: they slow sinoatrial and atrioventricular nodal conduction and reduce contractility, which makes them useful for rate control in atrial fibrillation and supraventricular tachycardia but dangerous in combination with beta blockers, in decompensated systolic heart failure and in advanced AV block. Verapamil classically causes constipation and inhibits CYP3A4 and P-glycoprotein, raising digoxin levels.",
+    "Beta blockers antagonize beta-adrenergic receptors. Beta-1 blockade lowers heart rate, contractility and renin release, which reduces myocardial oxygen demand; this is why they relieve angina and improve survival after myocardial infarction and in chronic heart failure with reduced ejection fraction. Cardioselective agents (metoprolol, atenolol, bisoprolol) are safer in asthma and diabetes than nonselective agents (propranolol, nadolol), whose beta-2 blockade can provoke bronchospasm, blunt recovery from hypoglycemia, and worsen peripheral vasoconstriction. Carvedilol and labetalol also block alpha-1 and so vasodilate; nebivolol adds nitric oxide-mediated vasodilation. Hallmark toxicities are bradycardia, AV block, fatigue, sleep disturbance, and in abrupt withdrawal a rebound surge of tachycardia and ischemia because receptors have upregulated. In cocaine toxicity, unopposed alpha stimulation is a theoretical concern with pure beta blockade. Beta blockers with intrinsic sympathomimetic activity are not preferred after infarction.",
+    "Direct vasodilators act on smooth muscle. Hydralazine opens arterioles through mechanisms involving nitric oxide and cyclic GMP, causing reflex tachycardia, fluid retention and a drug-induced lupus syndrome, especially in slow acetylators; it is used in hypertensive emergencies of pregnancy and, with isosorbide dinitrate, in heart failure in self-identified Black patients (A-HeFT). Minoxidil opens potassium channels, causes marked reflex tachycardia, salt retention and hypertrichosis. Nitrates (nitroglycerin, isosorbide mononitrate) are denitrated to release nitric oxide, raising cyclic GMP in vascular smooth muscle. They dilate veins far more than arteries at low doses, which reduces preload and wall tension, so oxygen demand falls; they also dilate epicardial coronary arteries. Toxicities are headache, hypotension and tolerance with continuous exposure, which is why a nitrate-free interval is built into schedules. Because sildenafil and other PDE5 inhibitors block cyclic GMP breakdown, combining them with nitrates can produce profound hypotension, a classic absolute contraindication.",
+    "Worked example: a man with stable angina takes a long-acting nitrate and is prescribed sildenafil. The two synergize on cyclic GMP and the result may be a precipitous fall in blood pressure and myocardial hypoperfusion. The correct decision is to avoid the combination, not to lower either dose."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l03",
+   "title": "Heart Failure Pharmacotherapy and Digoxin",
+   "body": [
+    "Heart failure with reduced ejection fraction (HFrEF) is a vicious cycle: a weak ventricle lowers perfusion, which activates the sympathetic nervous system and RAAS, which raises preload and afterload and drives remodeling and further pump failure. Drugs that interrupt this neurohormonal loop reduce mortality; drugs that only relieve congestion improve symptoms. The 2022 ACC/AHA/HFSA guideline organizes therapy around four foundational classes for HFrEF.",
+    "First, inhibition of the RAAS: ACE inhibitors or ARBs, and preferably the angiotensin receptor-neprilysin inhibitor sacubitril-valsartan, which beat enalapril in PARADIGM-HF. Neprilysin degrades natriuretic peptides and bradykinin, so blocking it raises vasodilatory natriuretic peptides; this is also why combining sacubitril with an ACE inhibitor is contraindicated, and why a washout is required when switching. Second, evidence-based beta blockers (carvedilol, metoprolol succinate, bisoprolol), started low in stable patients because acute negative inotropy can worsen decompensation. Third, mineralocorticoid receptor antagonists (spironolactone, eplerenone), shown to reduce mortality in RALES and EPHESUS, with hyperkalemia monitoring. Fourth, SGLT2 inhibitors (dapagliflozin, empagliflozin), which reduced heart failure hospitalization and cardiovascular death in DAPA-HF and EMPEROR-Reduced even in patients without diabetes, though the exact mechanism is still debated.",
+    "Loop diuretics treat congestion but have no demonstrated mortality benefit. Hydralazine plus isosorbide dinitrate is added in self-identified Black patients with persistent symptoms (A-HeFT) and in those who cannot take RAAS inhibitors. Ivabradine inhibits the funny current (If) in the sinus node, lowering heart rate without negative inotropy, and is used for patients in sinus rhythm with a persistently elevated rate despite a maximal beta blocker; its notable toxicities are visual phosphenes and bradycardia. Drugs to avoid in HFrEF include non-dihydropyridine calcium channel blockers, thiazolidinediones, which cause fluid retention, and most NSAIDs.",
+    "Digoxin inhibits the Na+/K+-ATPase of cardiac myocytes. Intracellular sodium rises, the sodium-calcium exchanger extrudes less calcium, and contractility increases; it also augments vagal tone, slowing AV conduction. It improves symptoms and lowers hospitalization but not mortality, and has a narrow therapeutic window. Toxicity produces nausea, visual changes with yellow-green halos, hyperkalemia in acute overdose, and arrhythmias including atrial tachycardia with block and ventricular ectopy. Hypokalemia, hypomagnesemia and hypercalcemia increase the risk. Interactions with quinidine, amiodarone, verapamil and clarithromycin raise levels because of P-glycoprotein inhibition and reduced renal clearance. Digoxin-specific antibody fragments are the antidote.",
+    "Worked example: an ejection fraction of 30 percent with edema and a heart rate of 90 in sinus rhythm calls for a loop diuretic for the congestion plus all four foundational classes titrated as tolerated. Adding digoxin is a later, symptom-driven option rather than a mortality strategy."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l04",
+   "title": "Antiarrhythmic Drugs",
+   "body": [
+    "Antiarrhythmic drugs change ion currents so as to suppress abnormal automaticity, triggered activity or reentry. The Vaughan Williams scheme sorts them by dominant effect on the cardiac action potential, and its central lesson is that nearly every drug that corrects one rhythm can provoke another, so drug choice depends on the substrate and on structural heart disease.",
+    "Class I drugs block fast sodium channels, slowing phase 0 depolarization and conduction. They are use-dependent, working more at fast rates. Class IA (quinidine, procainamide, disopyramide) also block potassium channels, prolonging the action potential and QT; they cause torsades de pointes, and procainamide causes drug-induced lupus. Class IB (lidocaine, mexiletine) bind preferentially to depolarized, ischemic tissue and shorten the action potential, so they are used for ventricular arrhythmias, especially after infarction or in digoxin toxicity, and cause neurotoxicity such as paresthesia and seizures. Class IC (flecainide, propafenone) are the strongest sodium blockers with little effect on repolarization; the CAST trial showed they increased mortality after myocardial infarction, so they are contraindicated in structural heart disease or ischemic heart disease.",
+    "Class II is beta blockade, which slows the sinus node and AV node and is useful for rate control and for reducing sudden death after infarction. Class III drugs block potassium channels and prolong repolarization and refractoriness: sotalol (also a nonselective beta blocker), dofetilide, ibutilide and amiodarone. Pure potassium channel blockers risk QT prolongation and torsades de pointes, and are therefore started in monitored settings with renal function in mind. Amiodarone is unusual because it also blocks sodium, calcium and beta receptors. It is highly effective but accumulates in tissue with an extremely long half-life, and its toxicities include pulmonary fibrosis, hepatotoxicity, hypo- or hyperthyroidism because of its iodine content, corneal microdeposits, photosensitivity with blue-gray skin discoloration, and bradycardia. It inhibits CYP enzymes and P-glycoprotein, raising warfarin and digoxin effects. Baseline and periodic thyroid, liver and pulmonary monitoring follow from this profile.",
+    "Class IV drugs are the non-dihydropyridine calcium channel blockers, which slow AV nodal conduction. Adenosine is outside the classification but is a first-line pharmacologic termination for AV nodal reentrant tachycardia: it activates A1 receptors and potassium conductance, producing a brief AV block. Its effect lasts seconds, and it can cause transient flushing, chest tightness and bronchospasm; methylxanthines such as caffeine and theophylline antagonize it, while dipyridamole potentiates it. Magnesium sulfate is the treatment for torsades de pointes, alongside correcting hypokalemia and stopping QT-prolonging drugs.",
+    "Worked example: a patient with prior myocardial infarction and scar develops frequent premature ventricular beats. Flecainide, though effective at suppressing the beats, is the wrong choice because ischemic and scarred myocardium turns sodium channel blockade into a substrate for fatal reentry."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l05",
+   "title": "Lipid-Lowering Agents",
+   "body": [
+    "Atherosclerosis is driven by apolipoprotein B-containing particles, chiefly LDL, retained in the arterial wall, so most lipid drugs aim to lower LDL cholesterol or, for triglycerides, to lower very-low-density lipoprotein production or speed its clearance. The hepatocyte is the key site: it makes cholesterol in a pathway whose rate-limiting step is HMG-CoA reductase, and it clears LDL from blood through LDL receptors that are recycled or degraded under control of the protein PCSK9.",
+    "Statins (atorvastatin, rosuvastatin, simvastatin, pravastatin) competitively inhibit HMG-CoA reductase. The fall in hepatic cholesterol activates SREBP-2, which upregulates LDL receptors, and LDL falls substantially. Statins reduced cardiovascular events and death in the Scandinavian Simvastatin Survival Study (4S) and many later trials, and the 2026 ACC/AHA dyslipidemia guideline (which replaced the 2018 cholesterol guideline) keeps them as the foundation of treatment, bases primary-prevention decisions on PREVENT-estimated risk, restores LDL cholesterol goals (below 70 mg/dL in high-risk patients and below 55 mg/dL for very-high-risk secondary prevention), and adds nonstatin drugs such as ezetimibe, bempedoic acid or a PCSK9 monoclonal antibody when goals are not reached. Their toxicities are myopathy (myalgias, sometimes rhabdomyolysis with creatine kinase elevation), dose-related transaminase elevation, and a small increase in new-onset diabetes. Most patients stop a statin once pregnancy is recognized, but the FDA removed the blanket pregnancy contraindication in 2021 so that very-high-risk patients can weigh benefit and risk individually; breastfeeding on a statin is still not advised. Interactions determine most serious muscle toxicity: simvastatin and lovastatin are cleared by CYP3A4, so strong inhibitors such as clarithromycin, azole antifungals, protease inhibitors",
+    "and large amounts of grapefruit juice raise levels; gemfibrozil inhibits statin glucuronidation and raises levels of several statins; cyclosporine inhibits the OATP1B1 uptake transporter. Pravastatin and rosuvastatin undergo little CYP metabolism.",
+    "Ezetimibe blocks the NPC1L1 sterol transporter at the intestinal brush border, lowering cholesterol absorption and adding a modest further LDL reduction; it is well tolerated. PCSK9 inhibitors (the monoclonal antibodies evolocumab and alirocumab, and the small interfering RNA inclisiran) prevent LDL receptor degradation, so more receptors recycle to the surface and LDL falls sharply; they are used in very high-risk patients or familial hypercholesterolemia not at goal on statins. Bempedoic acid inhibits ATP-citrate lyase upstream of HMG-CoA reductase and can raise uric acid and risk tendon rupture. Bile acid sequestrants (cholestyramine, colesevelam) bind bile acids in the gut, depleting hepatic cholesterol, but can raise triglycerides, cause bloating and bind other drugs, so they are given apart from them.",
+    "For triglyceride-predominant disease, fibrates (gemfibrozil, fenofibrate) activate PPAR-alpha, increasing lipoprotein lipase and lowering VLDL; they cause myopathy with statins (more with gemfibrozil) and gallstones. Niacin lowers LDL and triglycerides and raises HDL, causes prostaglandin-mediated flushing, hyperuricemia and hyperglycemia, and has not shown added cardiovascular benefit on top of statins in trials. Icosapent ethyl, a purified omega-3 ester, lowered events in REDUCE-IT in patients with elevated triglycerides on statins, but benefit is not shown for all omega-3 products.",
+    "Worked example: a man on simvastatin begins clarithromycin for pneumonia and develops dark urine and muscle pain. CYP3A4 inhibition has raised simvastatin exposure and rhabdomyolysis is likely, so the statin must be stopped and creatine kinase and renal function checked."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l06",
+   "title": "Antiplatelets, Anticoagulants and Fibrinolytics",
+   "body": [
+    "Thrombi in arteries are platelet-rich and are prevented mainly with antiplatelet drugs; thrombi in veins and the heart are fibrin-rich and are prevented mainly with anticoagulants. Knowing the target in each pathway predicts the toxicities, the monitoring and the antidote.",
+    "Aspirin irreversibly acetylates cyclooxygenase-1, preventing platelet thromboxane A2 synthesis for the platelet lifetime because platelets cannot make new enzyme. Toxicities include gastrointestinal bleeding, Reye syndrome in children with viral illness, and bronchospasm in aspirin-exacerbated respiratory disease. Clopidogrel, prasugrel and ticagrelor block the platelet P2Y12 ADP receptor. Clopidogrel and prasugrel are prodrugs: clopidogrel requires CYP2C19, so loss-of-function variants and strong inhibitors such as omeprazole can blunt its effect. Prasugrel is more potent but carries more bleeding and is avoided after prior stroke or transient ischemic attack. Ticagrelor is a reversible, direct-acting inhibitor whose characteristic adverse effects are dyspnea and bradyarrhythmias. Glycoprotein IIb/IIIa inhibitors (abciximab, eptifibatide) block the final common pathway of aggregation and cause bleeding and thrombocytopenia.",
+    "Unfractionated heparin binds antithrombin and accelerates inactivation of thrombin and factor Xa; effect is monitored by activated partial thromboplastin time, it is safe in renal failure and pregnancy, and protamine sulfate reverses it. Heparin-induced thrombocytopenia (HIT) is an immune reaction to platelet factor 4-heparin complexes, typically with platelet falls beginning around days 5 to 10 and a paradoxical prothrombotic state; heparin is stopped and a non-heparin anticoagulant such as argatroban is used. Low molecular weight heparins (enoxaparin) preferentially inhibit factor Xa, have predictable pharmacokinetics but renal clearance and incomplete protamine reversal. Fondaparinux is a pure indirect factor Xa inhibitor with very low HIT risk.",
+    "Warfarin inhibits vitamin K epoxide reductase (VKORC1), preventing gamma-carboxylation of factors II, VII, IX and X and proteins C and S. Because protein C has the shortest half-life, early therapy can cause a transient hypercoagulable state with skin necrosis, which is why it overlaps with heparin. It is monitored by the prothrombin time and INR, is teratogenic (warfarin embryopathy), and is affected by CYP2C9 and VKORC1 genetics, by diet vitamin K and by many interactions: inhibitors such as metronidazole, azoles and amiodarone raise the INR, while inducers such as rifampin and carbamazepine lower it. Reversal uses vitamin K, with prothrombin complex concentrate for life-threatening bleeding.",
+    "Direct oral anticoagulants include the factor Xa inhibitors (rivaroxaban, apixaban, edoxaban) and the direct thrombin inhibitor dabigatran. They have fixed dosing without routine monitoring and noninferior efficacy for stroke prevention in nonvalvular atrial fibrillation, with apixaban showing lower major bleeding than warfarin in ARISTOTLE. They are not appropriate in mechanical heart valves or typically in severe antiphospholipid syndrome. Idarucizumab reverses dabigatran; andexanet alfa or prothrombin complex concentrate reverses factor Xa inhibitors. Fibrinolytics such as alteplase convert plasminogen to plasmin, and cause hemorrhage; contraindications include prior intracranial hemorrhage, recent major surgery or stroke, and active bleeding. Tranexamic acid and aminocaproic acid inhibit plasminogen activation and reduce bleeding.",
+    "Worked example: a patient on warfarin starts metronidazole and develops bruising with an INR of 6. CYP2C9 inhibition reduced warfarin clearance, so the antibiotic raised exposure."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l07",
+   "title": "Drugs for Diabetes Mellitus",
+   "body": [
+    "Type 2 diabetes combines insulin resistance in liver and muscle with a progressive decline in beta-cell secretion, so drugs work by reducing hepatic glucose output, improving insulin sensitivity, increasing insulin release, mimicking incretins or wasting glucose in urine. Modern guidance, including the ADA Standards of Care, individualizes therapy and favors agents with proven cardiorenal benefit in patients with atherosclerotic disease, heart failure or chronic kidney disease, independent of glycemic control.",
+    "Metformin lowers hepatic gluconeogenesis, activating AMP-kinase and inhibiting mitochondrial complex I, and modestly improves peripheral sensitivity. It does not cause hypoglycemia on its own or weight gain, and the UKPDS supported its use in overweight patients. Toxicities are gastrointestinal upset, vitamin B12 deficiency with long use and, rarely, lactic acidosis, which is why it is held with severe renal impairment, hypoxia, sepsis or at the time of iodinated contrast in at-risk patients. Sulfonylureas (glipizide, glimepiride, glyburide) close the beta-cell ATP-sensitive potassium channel by binding SUR1, depolarizing the cell and releasing insulin. Hypoglycemia and weight gain are the hallmarks; glyburide is hazardous in older adults and renal impairment because its active metabolites persist. Meglitinides act on the same channel with shorter effect. Thiazolidinediones (pioglitazone) activate PPAR-gamma, improving sensitivity, but cause fluid retention and heart failure, fractures and weight gain, so are avoided in heart failure.",
+    "Incretin-based drugs exploit glucose-dependent insulin release. GLP-1 receptor agonists (semaglutide, liraglutide, dulaglutide) increase insulin and suppress glucagon in a glucose-dependent way, slow gastric emptying and reduce appetite. Nausea, vomiting and delayed gastric emptying are common, with gallbladder disease and a concern for pancreatitis; they carry a boxed warning for thyroid C-cell tumors and are contraindicated with a personal or family history of medullary thyroid carcinoma or MEN2. Liraglutide reduced major cardiovascular events in LEADER, and tirzepatide is a dual GIP and GLP-1 agonist. DPP-4 inhibitors (sitagliptin) block incretin breakdown, are weight-neutral and can cause pancreatitis, joint pain and, for some, heart failure signals.",
+    "SGLT2 inhibitors (empagliflozin, dapagliflozin, canagliflozin) block glucose reabsorption in the proximal tubule, causing glucosuria and osmotic diuresis. EMPA-REG OUTCOME showed reduced cardiovascular death and heart failure hospitalization, and later trials showed kidney protection. Adverse effects are genital mycotic infections, volume depletion, euglycemic diabetic ketoacidosis and rare necrotizing fasciitis of the perineum (Fournier gangrene); glycemic efficacy falls as eGFR falls, but cardiorenal benefits persist. Alpha-glucosidase inhibitors (acarbose) delay carbohydrate absorption and cause flatulence.",
+    "Insulin remains essential in type 1 diabetes and for advanced type 2 disease. Rapid analogs (lispro, aspart) cover meals, long-acting analogs (glargine, degludec) provide basal coverage. The dose-limiting toxicity is hypoglycemia, with weight gain, lipohypertrophy and, in intravenous therapy, hypokalemia as insulin shifts potassium into cells.",
+    "Worked example: a patient with type 2 diabetes, established coronary disease and an eGFR of 40 whose hemoglobin A1c is above goal on metformin benefits from adding an SGLT2 inhibitor or GLP-1 agonist for cardiovascular protection rather than another sulfonylurea."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l08",
+   "title": "Thyroid Drugs",
+   "body": [
+    "Thyroid hormone synthesis requires iodide uptake by the sodium-iodide symporter, oxidation and attachment to tyrosines on thyroglobulin by thyroid peroxidase (organification), coupling into thyroxine (T4) and triiodothyronine (T3), and release under thyroid-stimulating hormone. T4 is the main product, and peripheral deiodinases convert it to the more active T3. Each drug class interrupts or replaces one of these steps.",
+    "Levothyroxine, synthetic T4, is the standard for hypothyroidism because its long half-life gives stable levels and it converts to T3 as needed. It has a narrow therapeutic index and is monitored by TSH. Absorption is reduced by calcium, iron, aluminum antacids, bile acid sequestrants and, to a degree, proton pump inhibitors, so these are separated from it. Hepatic enzyme inducers such as rifampin and carbamazepine raise clearance, and estrogen raises thyroxine-binding globulin, increasing the replacement requirement in pregnancy and with oral estrogens. Overreplacement produces iatrogenic hyperthyroidism with palpitations, atrial fibrillation and bone loss, particularly in postmenopausal women and older adults. Liothyronine (T3) acts quickly but swings the level more.",
+    "Thionamides (methimazole, propylthiouracil) inhibit thyroid peroxidase, blocking organification and coupling. They do not stop release of preformed hormone, so effect takes weeks. Propylthiouracil additionally inhibits peripheral conversion of T4 to T3, giving a faster fall in T3 in thyroid storm. The most feared toxicity of both is agranulocytosis, which should prompt stopping the drug when fever or sore throat occurs; rash and arthralgia are common. Propylthiouracil carries a boxed warning for fulminant hepatotoxicity and is associated with ANCA-positive vasculitis, so methimazole is preferred except in the first trimester of pregnancy and in thyroid storm. Methimazole in early pregnancy is associated with congenital malformations, including aplasia cutis and choanal atresia. Radioactive iodine-131 is taken up by thyroid tissue and ablates it, producing hypothyroidism that needs replacement; it is avoided in pregnancy and requires caution in moderate-to-severe thyroid eye disease. Surgery is another definitive route.",
+    "Beta blockers (propranolol) control the adrenergic symptoms of thyrotoxicosis such as tremor and tachycardia, and propranolol additionally reduces peripheral T4-to-T3 conversion. Large doses of iodide transiently inhibit hormone release and synthesis through the Wolff-Chaikoff effect; potassium iodide is given only after a thionamide in thyroid storm so the iodine does not supply fresh substrate for hormone synthesis. Glucocorticoids also reduce conversion and treat storm.",
+    "Drug effects on the thyroid are common test material. Amiodarone, with high iodine content, can cause either hypothyroidism or hyperthyroidism. Lithium can cause hypothyroidism and goiter. Interferon alpha and immune checkpoint inhibitors may cause thyroiditis.",
+    "Worked example: a woman at eight weeks of pregnancy with Graves disease should generally receive propylthiouracil for the first trimester because of the fetal risk of methimazole, then transition to methimazole afterward to limit hepatotoxicity exposure."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l09",
+   "title": "Corticosteroids",
+   "body": [
+    "Glucocorticoids are lipophilic hormones that cross the cell membrane and bind the cytoplasmic glucocorticoid receptor. The complex moves to the nucleus, where it binds glucocorticoid response elements and changes gene transcription. Two effects matter most in therapy. Transrepression: the complex inhibits transcription factors such as NF-kappa B and AP-1, lowering production of cytokines, adhesion molecules and cyclooxygenase-2. Transactivation: it raises expression of anti-inflammatory proteins, including annexin A1 (lipocortin), which restrains phospholipase A2 and so the arachidonic acid cascade. Because they act on gene expression, effects take hours to appear and persist after the drug is cleared.",
+    "The therapeutic effects are broad: reduced inflammation, suppression of T-cell and antibody activity, and stabilization of vascular permeability. A useful laboratory signature is a rise in circulating neutrophils (demargination and reduced apoptosis) with falls in lymphocytes and eosinophils. Indications include asthma and COPD exacerbations, autoimmune and inflammatory disease, transplant rejection, cerebral edema from tumors, adrenal insufficiency, prevention of nausea in chemotherapy, and antenatal betamethasone or dexamethasone to accelerate fetal lung maturation before preterm delivery.",
+    "Potency and mineralocorticoid action differ by agent. Hydrocortisone is physiologic cortisol with appreciable mineralocorticoid effect. Prednisone is a prodrug converted by the liver to prednisolone, so prednisolone is used where hepatic conversion may be impaired. Methylprednisolone has little mineralocorticoid action. Dexamethasone is long-acting with the highest anti-inflammatory potency and virtually no mineralocorticoid effect. Fludrocortisone is used for its mineralocorticoid effect, to replace aldosterone in primary adrenal insufficiency, and acts through renal sodium retention and potassium and hydrogen ion excretion.",
+    "Toxicity follows from the metabolic and immunologic effects, and is mostly dose and duration related. Hyperglycemia and diabetes arise from gluconeogenesis and insulin resistance. Muscle wasting (proximal myopathy), thin skin, easy bruising, central fat redistribution, hypertension, edema and hypokalemic alkalosis reflect catabolic and mineralocorticoid effects. Osteoporosis and avascular necrosis of the femoral head are important, and bone protection is considered with long courses. Cataracts, raised intraocular pressure, mood changes ranging from euphoria to psychosis, insomnia, peptic ulcer risk especially with NSAIDs, and infection risk, including reactivation of latent tuberculosis, round out the list. Inhaled preparations carry local problems such as oral candidiasis and dysphonia, reduced by rinsing and spacers.",
+    "The most testable principle is adrenal suppression. Exogenous glucocorticoid suppresses hypothalamic CRH and pituitary ACTH through negative feedback, and the adrenal cortex atrophies. A patient who has taken a pharmacologic dose for more than a few weeks may not mount a cortisol response to stress, so therapy is tapered rather than stopped abruptly, and stress-dose coverage may be needed during surgery or severe illness. Abrupt withdrawal or serious stress can cause adrenal crisis with hypotension, hypoglycemia, hyponatremia and hyperkalemia. In secondary adrenal insufficiency from steroid use the renin-angiotensin-aldosterone axis remains intact, so mineralocorticoid replacement is not needed, unlike primary adrenal disease.",
+    "Worked example: a woman on prednisone for several months for an autoimmune disease stops it on her own and, a week later during influenza, collapses with low blood pressure and sodium. Suppression of the HPA axis explains the failure to produce cortisol in stress, and treatment is intravenous hydrocortisone with fluids."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l10",
+   "title": "Respiratory Drugs: Asthma and COPD",
+   "body": [
+    "Asthma and COPD are treated with drugs that relax airway smooth muscle, reduce inflammation, or block specific mediators. Airway smooth muscle tone is raised by parasympathetic muscarinic M3 signaling and lowered by beta-2 adrenergic receptor stimulation, which raises cyclic AMP. Eosinophilic airway inflammation, driven by interleukins 4, 5 and 13 and IgE, accounts for much of asthma.",
+    "Short-acting beta-2 agonists (albuterol) give rapid relief. Their adverse effects follow from systemic beta stimulation: tremor, tachycardia, palpitations, and hypokalemia as potassium shifts into cells. Long-acting beta agonists (salmeterol, formoterol) give prolonged bronchodilation but, when used alone in asthma, were linked to increased asthma-related deaths, so they are given only with an inhaled corticosteroid. Inhaled corticosteroids (budesonide, fluticasone) are the cornerstone of persistent asthma because they reduce inflammation, exacerbations and hyperresponsiveness; local effects are oral thrush and hoarseness. The GINA strategy now favors an anti-inflammatory reliever, low-dose inhaled corticosteroid with formoterol, in place of a short-acting beta agonist alone, reflecting the risk of treating symptoms without controlling inflammation.",
+    "Anticholinergic bronchodilators block M3 receptors: ipratropium (short-acting) and tiotropium and similar agents (long-acting, LAMA). They are central in COPD, where cholinergic tone is a prominent reversible component, and cause dry mouth, urinary retention and, rarely, angle-closure glaucoma. COPD maintenance usually combines a LAMA with a long-acting beta agonist, with inhaled corticosteroid added for patients with frequent exacerbations and higher eosinophil counts. Roflumilast, a phosphodiesterase-4 inhibitor, reduces exacerbations in severe COPD with chronic bronchitis and causes weight loss, nausea and psychiatric effects.",
+    "Leukotriene pathway agents block mediators made from arachidonic acid by 5-lipoxygenase. Montelukast and zafirlukast antagonize the cysteinyl leukotriene receptor, helping aspirin-exacerbated and exercise-induced asthma and allergic rhinitis; montelukast carries a boxed warning for neuropsychiatric events. Zileuton inhibits 5-lipoxygenase and is hepatotoxic. Theophylline inhibits phosphodiesterase and antagonizes adenosine; it has a narrow therapeutic window with nausea, tachyarrhythmias and seizures, and clearance is lowered by CYP1A2 inhibitors such as ciprofloxacin and raised by smoking. Cromolyn stabilizes mast cells and has little systemic effect.",
+    "Biologics are reserved for severe asthma and are phenotype-matched. Omalizumab binds free IgE and is used in allergic asthma, with a small risk of anaphylaxis. Mepolizumab and reslizumab block interleukin-5, and benralizumab targets its receptor, for eosinophilic asthma. Dupilumab blocks the shared interleukin-4 and interleukin-13 receptor subunit.",
+    "Cough preparations are lower yield: dextromethorphan is a central antitussive and an NMDA antagonist that is serotonergic at high doses, and benzonatate is a peripherally acting anesthetic of stretch receptors that is dangerous in pediatric ingestion.",
+    "Worked example: a patient with asthma who uses albuterol daily and wakes at night has inflammation not controlled by bronchodilation alone, so the best step is adding a regular inhaled corticosteroid, not increasing albuterol."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l11",
+   "title": "Gastrointestinal Drugs",
+   "body": [
+    "The parietal cell secretes acid when stimulated by histamine (H2 receptor), gastrin (CCK-B) and acetylcholine (M3), and the final common step is the hydrogen-potassium ATPase proton pump. Drugs reduce acid by blocking the receptors, the pump, or by neutralization.",
+    "Proton pump inhibitors (omeprazole, esomeprazole, pantoprazole) are prodrugs activated in acid that irreversibly bind the pump, so they are most effective when pumps are active, taken before meals. They are first-line for gastroesophageal reflux disease, peptic ulcer, erosive esophagitis, Zollinger-Ellison syndrome and gastroprotection in patients on NSAIDs. Long-term associations include Clostridioides difficile infection, community-acquired pneumonia, hypomagnesemia, vitamin B12 and iron malabsorption and fracture risk, and rebound acid hypersecretion on stopping. Omeprazole and esomeprazole inhibit CYP2C19, which can blunt clopidogrel activation. H2 blockers (famotidine, ranitidine formerly) are weaker and develop tachyphylaxis; cimetidine inhibits several CYP enzymes and has antiandrogen effects such as gynecomastia. Antacids neutralize acid and cause constipation (aluminum) or diarrhea (magnesium), and chelate other drugs. Sucralfate forms a protective barrier on ulcers in an acid environment and needs separation from other drugs. Misoprostol, a prostaglandin E1 analog, restores mucosal protection against NSAID injury, causes diarrhea and cramps, and is contraindicated in pregnancy because it causes uterine contractions.",
+    "Helicobacter pylori eradication relies on combining acid suppression with antibiotics. Because clarithromycin resistance is now common, the American College of Gastroenterology 2024 guideline favors bismuth quadruple therapy (a PPI, bismuth, tetracycline and a nitroimidazole) in many patients, and treatment success is confirmed by testing afterward.",
+    "Antiemetics are classified by receptor. Ondansetron blocks 5-HT3 receptors on vagal afferents and the chemoreceptor trigger zone, is first-line for chemotherapy-induced nausea, and causes constipation, headache and dose-related QT prolongation. Aprepitant and similar drugs block substance P at NK1 receptors for delayed chemotherapy nausea. Metoclopramide blocks D2 receptors and enhances acetylcholine release, so it is a prokinetic for gastroparesis; its boxed warning concerns tardive dyskinesia, and it also causes acute dystonia and akathisia. Phenothiazines such as prochlorperazine block D2 and H1 and add sedation and extrapyramidal effects. Scopolamine (antimuscarinic) and meclizine (H1) treat vestibular nausea.",
+    "For bowel disease, mesalamine (5-aminosalicylic acid) acts topically in ulcerative colitis, with rare interstitial nephritis. Loperamide is a peripheral mu-opioid agonist that slows motility with little central effect, but excessive doses can cause arrhythmia. Osmotic laxatives such as polyethylene glycol and lactulose draw water into the lumen; lactulose also acidifies colonic contents, trapping ammonia as ammonium, and treats hepatic encephalopathy, often with the poorly absorbed antibiotic rifaximin. Octreotide, a somatostatin analog, lowers splanchnic flow and is used in variceal bleeding and carcinoid syndrome.",
+    "Worked example: a patient on clopidogrel with a stent needs gastroprotection. A PPI with less CYP2C19 inhibition, such as pantoprazole, is preferred over omeprazole because it preserves clopidogrel activation."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l12",
+   "title": "NSAIDs, Acetaminophen and Gout Drugs",
+   "body": [
+    "Nonsteroidal anti-inflammatory drugs (NSAIDs) inhibit cyclooxygenase, blocking conversion of arachidonic acid to prostaglandins and thromboxane. COX-1 is constitutive, supporting gastric mucosal protection, platelet thromboxane and renal blood flow; COX-2 is induced at sites of inflammation and also contributes to renal and endothelial prostacyclin. Inhibition produces the therapeutic analgesic, antipyretic and anti-inflammatory effects, and explains the toxicities.",
+    "The gastrointestinal toxicity is dyspepsia, ulcers and bleeding because mucosal prostaglandins are lost. The renal toxicity matters: prostaglandins vasodilate the afferent arteriole, so NSAIDs in a patient depending on this compensation, such as someone with volume depletion, heart failure, cirrhosis or chronic kidney disease, cause acute kidney injury, sodium and water retention and hyperkalemia. The combination of an NSAID, a diuretic and an ACE inhibitor or ARB, the so-called triple whammy, is a classic cause of kidney injury. NSAIDs can raise blood pressure, antagonize antihypertensives, and increase cardiovascular thrombotic risk. They cause platelet dysfunction, can precipitate bronchospasm in aspirin-exacerbated respiratory disease, and are avoided in late pregnancy because they may close the ductus arteriosus. Ketorolac is potent and limited to short courses because of bleeding and kidney risk.",
+    "COX-2 selective inhibitors (celecoxib) were designed to spare gastric COX-1. They lower ulcer risk but still have renal effects, and rofecoxib was withdrawn in 2004 after increased cardiovascular events. In PRECISION, celecoxib was noninferior to ibuprofen and naproxen for cardiovascular safety. Celecoxib is a sulfonamide, so sulfonamide allergy is a caution, and its inhibition of prostacyclin without blocking platelet thromboxane gives the thrombotic concern. Aspirin has antiplatelet effects at low doses and can cause salicylate toxicity at high doses, with tinnitus, respiratory alkalosis followed by anion-gap acidosis.",
+    "Acetaminophen is analgesic and antipyretic with minimal anti-inflammatory action, probably through central COX inhibition. At therapeutic doses it is conjugated safely, but in overdose the saturated pathways shunt drug to CYP2E1, forming N-acetyl-p-benzoquinone imine (NAPQI), which glutathione normally detoxifies. When glutathione is depleted, NAPQI causes centrilobular hepatic necrosis. Chronic alcohol use and fasting increase risk. N-acetylcysteine replenishes glutathione and is the antidote, most effective when started early.",
+    "Gout is inflammation caused by monosodium urate crystals. Acute flares are treated with NSAIDs, colchicine or glucocorticoids. Colchicine binds tubulin, preventing microtubule assembly and neutrophil migration; toxicities are diarrhea, myopathy and marrow suppression, magnified by CYP3A4 and P-glycoprotein inhibitors such as clarithromycin. Long-term urate lowering uses allopurinol or febuxostat, xanthine oxidase inhibitors. Allopurinol can cause severe cutaneous hypersensitivity linked to HLA-B*58:01, raises levels of azathioprine and mercaptopurine because it blocks their breakdown, and is typically started at a low dose. Febuxostat carries a boxed warning for cardiovascular death from the CARES trial. Probenecid blocks renal urate reabsorption but is avoided in uric acid kidney stones. Pegloticase is an enzyme converting urate to allantoin for refractory gout. Starting urate-lowering therapy can provoke flares, so prophylaxis is given and the drug is not stopped during a flare.",
+    "Worked example: an older man on lisinopril and furosemide takes ibuprofen for back pain and presents with a rising creatinine. Loss of prostaglandin-mediated afferent dilation, combined with the other two drugs, reduced glomerular filtration."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l13",
+   "title": "Immunosuppressants and Biologic Agents",
+   "body": [
+    "Immunosuppressants prevent transplant rejection and treat autoimmune disease by disabling T cells, B cells or cytokine signaling. All raise the risk of infection and, with longer use, of certain cancers, so the principles of toxicity are shared: opportunistic infection, lymphoma and skin cancer, and drug-specific organ injury.",
+    "Calcineurin inhibitors are the backbone of transplant regimens. Cyclosporine binds cyclophilin and tacrolimus binds FKBP12; each complex inhibits calcineurin, a phosphatase that activates NFAT, so interleukin-2 transcription and T-cell activation fall. Both cause nephrotoxicity from afferent vasoconstriction, hypertension, hyperkalemia and neurotoxicity such as tremor; cyclosporine adds gingival hyperplasia and hirsutism, while tacrolimus more often causes new-onset diabetes. Both are metabolized by CYP3A4 and have narrow therapeutic windows, so inhibitors such as azole antifungals and macrolides raise toxicity while rifampin lowers levels and risks rejection. Sirolimus also binds FKBP12 but inhibits mTOR, blocking IL-2 signaling and T-cell proliferation; it is less nephrotoxic but causes hyperlipidemia, impaired wound healing, cytopenias and mouth ulcers, and is used in drug-eluting stents.",
+    "Antimetabolites interfere with lymphocyte proliferation. Mycophenolate mofetil is converted to mycophenolic acid, inhibiting inosine monophosphate dehydrogenase and so guanine nucleotide synthesis, which lymphocytes cannot bypass; its toxicities are gastrointestinal upset, marrow suppression and teratogenicity. Azathioprine is a prodrug of 6-mercaptopurine, which is inactivated by thiopurine methyltransferase (TPMT) and xanthine oxidase. TPMT deficiency causes severe myelosuppression, and allopurinol blocks xanthine oxidase and raises thiopurine toxicity, requiring a major dose reduction. Methotrexate inhibits dihydrofolate reductase, and in rheumatoid arthritis it is the anchor disease-modifying drug at low weekly dosing. Hazards are marrow suppression, hepatic fibrosis, pneumonitis, mucositis and teratogenicity; folic acid reduces some toxicities, and leucovorin rescues in high-dose overdose. Weekly rather than daily administration is a recognized safety issue. Cyclophosphamide, an alkylating agent used in vasculitis and lupus nephritis, causes hemorrhagic cystitis from acrolein, prevented with hydration and mesna.",
+    "Biologics target specific cytokines or cells. TNF-alpha inhibitors (infliximab, adalimumab, etanercept, certolizumab, golimumab) treat rheumatoid arthritis, inflammatory bowel disease, psoriasis and spondyloarthropathy. They impair granuloma maintenance, so latent tuberculosis can reactivate, and patients are screened for tuberculosis and hepatitis B before therapy; they are also associated with demyelination, drug-induced lupus and worsened advanced heart failure. Infliximab is a chimeric antibody and can cause infusion reactions and anti-drug antibodies. Rituximab depletes CD20-positive B cells, used in lymphoma and autoimmune disease, with hepatitis B reactivation and rarely progressive multifocal leukoencephalopathy. Tocilizumab blocks the interleukin-6 receptor and can raise lipids and transaminases and cause gastrointestinal perforation. Abatacept blocks T-cell costimulation. Basiliximab blocks the IL-2 receptor in transplant induction.",
+    "Janus kinase inhibitors such as tofacitinib block cytokine signaling inside the cell. In ORAL Surveillance, in patients with cardiovascular risk factors, tofacitinib showed higher rates of major cardiovascular events, malignancy and thrombosis than TNF inhibitors, leading to boxed warnings; they also raise zoster risk.",
+    "Worked example: a patient with rheumatoid arthritis starting adalimumab has a positive interferon-gamma release assay. Latent tuberculosis should be treated first, because TNF blockade could allow reactivation."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l14",
+   "title": "Cell Wall Antibiotics: Beta-Lactams and Glycopeptides",
+   "body": [
+    "Bacterial cells are protected by peptidoglycan, a mesh of sugar chains cross-linked by short peptides, and humans have no equivalent, which makes the wall an excellent selective target. Beta-lactam antibiotics mimic the D-alanyl-D-alanine terminus of the peptide chain and bind covalently to penicillin-binding proteins (PBPs), the transpeptidases that make the cross-links. The result is a weakened wall, autolysin activation and lysis of growing cells, so beta-lactams are time-dependent and bactericidal against actively dividing organisms.",
+    "Penicillins vary in spectrum. Penicillin G and V cover streptococci, many oral anaerobes and Treponema pallidum. Aminopenicillins (ampicillin, amoxicillin) add coverage of some gram-negative organisms and Enterococcus faecalis, but are hydrolyzed by beta-lactamases, so clavulanate, an inhibitor, is added. Antistaphylococcal penicillins (nafcillin, oxacillin, dicloxacillin) resist staphylococcal penicillinase. Antipseudomonal penicillins such as piperacillin, combined with tazobactam, cover many gram-negative bacilli and anaerobes. Cephalosporins are grouped in generations: first-generation agents (cefazolin) are strongest against gram-positive cocci and used for surgical prophylaxis; second-generation agents add some gram-negative and anaerobic activity; third-generation agents (ceftriaxone, cefotaxime) are strong against gram-negative bacilli and cross the blood-brain barrier for meningitis, with ceftazidime covering Pseudomonas; fourth-generation cefepime has broad antipseudomonal and gram-positive activity; and ceftaroline covers methicillin-resistant Staphylococcus aureus. Cephalosporins do not cover enterococci or Listeria. Carbapenems (meropenem, imipenem, ertapenem) have the broadest spectrum and resist most beta-lactamases, but not carbapenemases. Imipenem is given with cilastatin to block renal dehydropeptidase and can lower the seizure threshold. Aztreonam, a",
+    "monobactam, covers only aerobic gram-negative rods, is safe in most penicillin-allergic patients and shares a side chain with ceftazidime.",
+    "Toxicities are mostly hypersensitivity: rash, urticaria, anaphylaxis, and rarely interstitial nephritis, hemolytic anemia and serum sickness. Cross-reactivity between penicillins and cephalosporins is low and depends mainly on shared side chains, not the beta-lactam ring itself. Other effects include Clostridioides difficile infection from disrupting normal flora, ceftriaxone biliary sludge and its avoidance in neonates with hyperbilirubinemia and with calcium-containing intravenous solutions, and the prothrombin-time effects of agents with a methylthiotetrazole side chain such as cefotetan. Penicillin is renally cleared by tubular secretion, so probenecid prolongs its action.",
+    "Vancomycin is a glycopeptide, structurally different: it binds the D-Ala-D-Ala terminus of the peptidoglycan precursor itself, blocking transglycosylation and transpeptidation. It is active only against gram-positive organisms and is used intravenously for MRSA and orally only for C. difficile because it is not absorbed. Infusion reaction (vancomycin infusion reaction, formerly red man syndrome) is a histamine-release flush slowed by infusing more slowly; other toxicities are nephrotoxicity and, rarely, ototoxicity, and dosing is guided by exposure monitoring. Resistance in enterococci arises when D-Ala-D-Ala is replaced by D-Ala-D-lactate, lowering binding affinity. Daptomycin, a lipopeptide, depolarizes the membrane of gram-positive organisms and is inactivated by pulmonary surfactant, so it is not used for pneumonia; it can cause myopathy.",
+    "Worked example: a patient with a history of an itchy rash after amoxicillin needs surgical prophylaxis. Because the cross-reactivity with cefazolin depends on its distinct side chain, cefazolin is generally acceptable after a non-severe, remote reaction, and allergy assessment is useful."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l15",
+   "title": "Protein Synthesis, DNA-Targeting and Folate Antibacterials",
+   "body": [
+    "Bacterial ribosomes are 70S, built from 30S and 50S subunits, which differ from eukaryotic 80S ribosomes and give a selective target. Aminoglycosides (gentamicin, tobramycin, amikacin) bind the 30S subunit, cause misreading of mRNA and block initiation, and are uniquely bactericidal among ribosomal drugs. Their uptake requires oxygen-dependent transport, so they do not work against anaerobes. They show concentration-dependent killing with a postantibiotic effect, which supports once-daily dosing. Toxicities are nephrotoxicity, ototoxicity (cochlear and vestibular, partly irreversible) and neuromuscular blockade, and the risk rises with loop diuretics, vancomycin and prolonged use. Streptomycin is a classic aminoglycoside used in tuberculosis.",
+    "Tetracyclines (doxycycline, minocycline) block the 30S A site, preventing tRNA binding; they are bacteriostatic and chelate divalent cations, so dairy and iron reduce absorption. They cover rickettsiae, Chlamydia, Mycoplasma, Borrelia and many atypical organisms, and are avoided in pregnancy, and the older tetracyclines in children under eight, because they deposit in bone and teeth, causing staining and growth effects. Doxycycline is the exception: CDC and AAP advise it at any age for suspected rickettsial disease such as Rocky Mountain spotted fever, because short courses have not been shown to stain permanent teeth. They also cause photosensitivity and esophagitis. Macrolides (azithromycin, clarithromycin, erythromycin) bind the 50S subunit and block translocation; they treat atypical pneumonia pathogens, are bacteriostatic, and share GI upset and QT prolongation. Erythromycin and clarithromycin inhibit CYP3A4, creating major interactions with statins, colchicine, calcineurin inhibitors and warfarin; azithromycin has far less CYP effect. Clindamycin binds 50S, covers anaerobes and gram-positive cocci, and carries a notable risk of C. difficile infection. Linezolid is an oxazolidinone that blocks initiation complex formation at 50S, treats VRE and MRSA, causes myelosuppression with prolonged use and, because it weakly inhibits monoamine oxidase, can contribute to serotonin",
+    "syndrome with serotonergic drugs. Chloramphenicol causes dose-related marrow suppression, rare aplastic anemia and gray baby syndrome from immature glucuronidation.",
+    "Fluoroquinolones (ciprofloxacin, levofloxacin, moxifloxacin) inhibit DNA gyrase (topoisomerase II) in gram-negative organisms and topoisomerase IV in gram-positive organisms, giving concentration-dependent bactericidal action. They are active against many gram-negative infections and, with levofloxacin and moxifloxacin, respiratory pathogens. Boxed warnings include tendinopathy and rupture (greater with corticosteroids and in older adults), peripheral neuropathy, central nervous system effects and myasthenia gravis exacerbation; others are QT prolongation, cartilage concerns in children, dysglycemia and aortic aneurysm risk. They chelate cations and ciprofloxacin inhibits CYP1A2, raising theophylline and tizanidine levels.",
+    "Metronidazole forms reactive radicals in anaerobic organisms and protozoa that damage DNA; it covers anaerobes, Giardia, Trichomonas and C. difficile, and causes metallic taste, neuropathy and a disulfiram-like reaction with alcohol. Trimethoprim-sulfamethoxazole blocks two sequential steps of folate synthesis: sulfamethoxazole competes with PABA at dihydropteroate synthase, and trimethoprim inhibits bacterial dihydrofolate reductase. It treats urinary infections and Pneumocystis, and its toxicities are rash and Stevens-Johnson syndrome, hyperkalemia (trimethoprim blocks ENaC), creatinine rise, marrow suppression with folate deficiency and kernicterus risk in the newborn. Nitrofurantoin concentrates in urine for uncomplicated cystitis and is avoided with impaired renal function.",
+    "Rifampin inhibits bacterial DNA-dependent RNA polymerase and is a potent inducer of CYP enzymes, which lowers levels of warfarin, oral contraceptives, tacrolimus, many antiretrovirals and others, and colors body fluids orange. Isoniazid inhibits mycolic acid synthesis, is activated by KatG, causes hepatitis and, by depleting pyridoxine, peripheral neuropathy, so vitamin B6 is co-administered. Pyrazinamide causes hyperuricemia, ethambutol optic neuritis and red-green color loss, and tuberculosis therapy uses combinations to prevent resistance.",
+    "Worked example: a young woman taking an oral contraceptive starts rifampin for tuberculosis. Enzyme induction accelerates estrogen metabolism, so contraceptive failure is a risk and another method is advised."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l16",
+   "title": "Antiviral Drugs and HIV Therapy",
+   "body": [
+    "Viruses use host machinery, so antivirals target viral-specific enzymes or steps: entry, uncoating, nucleic acid polymerization, integration, protease processing and release. Many are nucleoside or nucleotide analogs that must be phosphorylated and then terminate chain elongation or inhibit the viral polymerase.",
+    "Herpesvirus agents illustrate selectivity. Acyclovir is a guanosine analog activated first by viral thymidine kinase, so it is concentrated in infected cells, then by host kinases; the triphosphate terminates viral DNA synthesis. It treats herpes simplex and varicella zoster infections, and its toxicity is crystal nephropathy if infused rapidly without hydration. Valacyclovir is a prodrug with better bioavailability. Ganciclovir is activated by the cytomegalovirus UL97 kinase and causes marrow suppression, especially neutropenia, and is teratogenic; valganciclovir is its oral prodrug. Foscarnet directly inhibits viral DNA polymerase without phosphorylation, so it works against thymidine-kinase-deficient acyclovir-resistant strains, and causes nephrotoxicity and electrolyte disturbances such as hypocalcemia. Cidofovir is nephrotoxic and given with probenecid. Influenza therapy includes the neuraminidase inhibitors oseltamivir and zanamivir, which block release of virions and work best when started early, and baloxavir, which inhibits cap-dependent endonuclease. Hepatitis C is now cured in most patients with direct-acting combinations that inhibit NS3/4A protease, NS5A, and NS5B polymerase (sofosbuvir is an NS5B nucleotide inhibitor); hepatitis B reactivation during treatment of hepatitis C in coinfected patients is a recognized hazard. Remdesivir is a nucleotide analog that",
+    "inhibits RNA-dependent RNA polymerase; nirmatrelvir inhibits the SARS-CoV-2 main protease and is given with ritonavir.",
+    "HIV therapy is combination antiretroviral therapy with at least two and usually three active drugs to suppress replication and avoid resistance. Major classes: nucleoside reverse transcriptase inhibitors (NRTIs: tenofovir, emtricitabine, lamivudine, abacavir, zidovudine) act as chain terminators lacking a 3-prime hydroxyl. Abacavir hypersensitivity is associated with HLA-B*57:01 and requires screening before use. Tenofovir disoproxil is associated with renal tubular injury and bone loss, and the alafenamide form less so; zidovudine causes anemia; older agents cause lactic acidosis and lipoatrophy, and lamivudine, emtricitabine and tenofovir also treat hepatitis B, so stopping them in coinfected patients can cause a flare. Non-nucleoside reverse transcriptase inhibitors (efavirenz, rilpivirine, doravirine) bind an allosteric site; efavirenz causes vivid dreams and neuropsychiatric effects. Integrase strand transfer inhibitors (dolutegravir, bictegravir, raltegravir) block insertion of viral DNA into host chromosomes; they are generally well tolerated, favored in first-line regimens in current guidelines, and chelate polyvalent cations, so antacids and iron are separated. Protease inhibitors (darunavir, atazanavir) block cleavage of viral polyproteins and are often pharmacologically boosted by ritonavir or cobicistat. Those boosters inhibit CYP3A4, creating large interactions",
+    "with statins such as simvastatin, certain steroids, sedatives and many others. Entry inhibitors include maraviroc, which blocks CCR5 and requires a tropism test, and fusion inhibitors. Immune reconstitution inflammatory syndrome can occur when therapy restores immunity and unmasks an opportunistic infection.",
+    "Worked example: a patient starting a ritonavir-boosted regimen takes simvastatin and develops rhabdomyolysis. CYP3A4 inhibition by ritonavir raised statin levels, so the statin should be switched to one not dependent on CYP3A4 such as rosuvastatin or pravastatin, with appropriate dosing."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l17",
+   "title": "Antifungal Drugs",
+   "body": [
+    "Fungi are eukaryotes, so selectivity depends on differences in the cell membrane and wall. The fungal membrane contains ergosterol rather than cholesterol, and the wall contains beta-1,3-glucan, which humans lack. Each class exploits one of these features.",
+    "Amphotericin B is a polyene that binds ergosterol and forms pores, causing leakage and death, so it is fungicidal against a broad range of yeasts and molds. It also binds human cholesterol to a lesser degree, which explains toxicities: infusion-related fever, chills and rigors (reduced by premedication and slower infusion), nephrotoxicity from afferent vasoconstriction and tubular injury with hypokalemia and hypomagnesemia and renal tubular acidosis, and anemia. Liposomal formulations are less nephrotoxic and, with flucytosine, form the induction regimen for cryptococcal meningitis. Nystatin is a topical polyene used for mucosal candidiasis. Flucytosine is converted by fungal cytosine deaminase into 5-fluorouracil, inhibiting DNA and RNA synthesis, causes marrow suppression, and is used in combination because resistance emerges quickly.",
+    "Azoles inhibit fungal lanosterol 14-alpha-demethylase, a cytochrome P450 enzyme, blocking ergosterol synthesis and giving a fungistatic effect against yeasts. Because they inhibit human CYP enzymes to varying degrees, drug interactions are central. Fluconazole penetrates the central nervous system and treats candidiasis and cryptococcal disease; it is teratogenic with high doses, prolongs QT and inhibits CYP2C9 and CYP3A4 moderately. Itraconazole needs gastric acid for oral absorption and is negatively inotropic, so it is avoided in heart failure. Voriconazole is first-line for invasive aspergillosis and causes transient visual disturbances, hallucinations and hepatotoxicity, with variable CYP2C19 metabolism. Posaconazole and isavuconazole extend coverage to Mucorales. Ketoconazole inhibits steroidogenesis, causing gynecomastia and adrenal suppression, and serious hepatotoxicity has limited systemic use. Many azoles are strong CYP3A4 inhibitors, and so interact with statins, calcineurin inhibitors, warfarin and QT-prolonging drugs.",
+    "Echinocandins (caspofungin, micafungin, anidulafungin) inhibit beta-1,3-glucan synthase, weakening the wall. They are fungicidal against Candida, fungistatic against Aspergillus, are first-line for invasive candidiasis, have few interactions, and cause infusion reactions and mild hepatic enzyme elevations; they lack activity against Cryptococcus. Terbinafine inhibits squalene epoxidase, causing toxic squalene accumulation and ergosterol depletion; it is used in dermatophyte and nail infections, with hepatotoxicity and taste disturbance. Griseofulvin disrupts microtubules in dermatophytes. Both topical and oral therapy for onychomycosis are monitored for hepatic effects.",
+    "Resistance to azoles occurs through efflux pumps, target gene mutation and overexpression, and Candida glabrata and Candida auris are of particular concern for reduced susceptibility, with C. auris often multidrug resistant. Echinocandin resistance arises from FKS mutations.",
+    "Worked example: a patient with HIV and cryptococcal meningitis receives liposomal amphotericin B with flucytosine for induction and then fluconazole for consolidation. Monitoring includes renal function, potassium and magnesium for amphotericin and blood counts for flucytosine."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l18",
+   "title": "Antimicrobial Resistance and Stewardship",
+   "body": [
+    "Antibiotic use exerts selective pressure. In any large bacterial population a few cells carry a resistance trait through mutation or acquired genes; the drug eliminates susceptible competitors and leaves resistant ones to expand. Resistance genes spread horizontally by conjugation of plasmids, transformation and transduction by bacteriophage, so resistance can cross species. Understanding mechanisms predicts which drugs fail and why.",
+    "Four mechanisms recur. Drug inactivation: beta-lactamases hydrolyze the beta-lactam ring, with extended-spectrum beta-lactamases (ESBLs) hydrolyzing penicillins, cephalosporins and aztreonam but not carbapenems, which are therefore the usual choice for serious ESBL infections. AmpC enzymes confer resistance to many cephalosporins and are induced during therapy in organisms such as Enterobacter, which is why cefepime or carbapenems are often preferred. Carbapenemases (KPC, NDM, OXA-48 and others) hydrolyze carbapenems, and newer beta-lactamase inhibitor combinations such as ceftazidime-avibactam cover some of them. Aminoglycoside-modifying enzymes act similarly. Target alteration: methicillin-resistant Staphylococcus aureus carries mecA, encoding PBP2a, a low-affinity penicillin-binding protein, so all beta-lactams except those specifically designed to bind it, such as ceftaroline, fail; vancomycin-resistant enterococci substitute D-Ala-D-lactate; fluoroquinolone resistance arises from gyrA and parC mutations; and macrolide resistance involves ribosomal methylation by erm genes, which also causes inducible clindamycin resistance. Reduced access and efflux: porin loss in gram-negative bacteria reduces carbapenem entry, and efflux pumps expel tetracyclines, macrolides and fluoroquinolones. Bypass pathways: bacteria acquire alternative folate enzymes insensitive to trimethoprim or sulfonamides.",
+    "Pharmacodynamics guide dosing logic. Beta-lactams and vancomycin kill best when drug concentrations stay above the minimum inhibitory concentration for a large fraction of the dosing interval (time-dependent killing), so frequent or extended dosing is rational. Aminoglycosides and fluoroquinolones show concentration-dependent killing, where the peak relative to the MIC (or the area under the curve over MIC for fluoroquinolones) predicts efficacy, so they use high, less frequent dosing. A postantibiotic effect extends suppression after levels fall.",
+    "Stewardship programs aim to give the right drug, for the right duration, with the narrowest effective spectrum. Core practices: obtain cultures before antibiotics where possible, start broad empiric therapy for serious infection but narrow when susceptibilities return (de-escalation), switch from intravenous to oral therapy when appropriate, use the shortest course supported by evidence, avoid treating colonization such as asymptomatic bacteriuria in most patients, and clarify penicillin allergy labels, since most patients labeled allergic tolerate penicillins. Antibiotics also drive Clostridioides difficile, and first-line treatment is oral vancomycin or fidaxomicin, with metronidazole reserved for specific situations; fecal microbiota products are used for recurrence. Infection control, vaccination and diagnostics complement stewardship. Combination therapy is used for tuberculosis and HIV to prevent resistance, and sometimes for synergy (a cell-wall agent plus an aminoglycoside in enterococcal endocarditis).",
+    "Worked example: a patient with an Enterobacter bloodstream infection improves on ceftriaxone, then relapses with resistance. Inducible chromosomal AmpC enzyme production was selected under cephalosporin pressure, so cefepime or a carbapenem would have been a better initial choice."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l19",
+   "title": "Antidepressants and Serotonin Syndrome",
+   "body": [
+    "Most antidepressants raise synaptic monoamine signaling by blocking reuptake transporters or monoamine oxidase, though clinical benefit takes several weeks, which implies downstream adaptation rather than a simple rise in transmitter. Selection among agents is largely driven by side-effect profile, comorbidity and interactions, since efficacy across classes is broadly similar, as the large STAR*D effectiveness study illustrated with its stepwise approach.",
+    "Selective serotonin reuptake inhibitors (sertraline, fluoxetine, escitalopram, citalopram, paroxetine) block the serotonin transporter and are first-line for depression, anxiety disorders and obsessive-compulsive disorder. Common effects are nausea and diarrhea early, sexual dysfunction, insomnia or somnolence, and weight change. They can cause hyponatremia through SIADH, particularly in older adults, and increase bleeding risk because platelets store serotonin, which matters with NSAIDs and anticoagulants. Citalopram has a dose-related QT effect. Paroxetine is the most anticholinergic and has the strongest discontinuation syndrome with short half-life, while fluoxetine has a very long half-life, so it self-tapers, and it inhibits CYP2D6, raising levels of metoprolol, tricyclics and tamoxifen activation is reduced. All antidepressants carry a boxed warning for increased suicidal thinking in children, adolescents and young adults, which calls for monitoring at initiation. Venlafaxine and duloxetine (serotonin-norepinephrine reuptake inhibitors) add noradrenergic effects, with dose-related blood pressure elevation for venlafaxine and benefit in neuropathic pain for duloxetine.",
+    "Tricyclic antidepressants (amitriptyline, nortriptyline, imipramine) block serotonin and norepinephrine reuptake but also muscarinic, histamine H1 and alpha-1 adrenergic receptors, and cardiac sodium channels. This gives anticholinergic effects (dry mouth, constipation, urinary retention, confusion), sedation, orthostatic hypotension and weight gain. In overdose, sodium channel blockade widens the QRS complex and causes arrhythmias, seizures and hypotension, and treatment includes intravenous sodium bicarbonate, which narrows the QRS by raising extracellular sodium and alkalinizing. Because of the narrow safety margin, they are used with caution in patients at risk of self-harm.",
+    "Monoamine oxidase inhibitors (phenelzine, tranylcypromine, selegiline patch) irreversibly inhibit MAO. Dietary tyramine, normally degraded by gut MAO-A, then enters the circulation and displaces norepinephrine from nerve terminals, causing a hypertensive crisis after aged cheeses and cured meats. Combining an MAOI with serotonergic drugs (SSRIs, meperidine, dextromethorphan, linezolid, tramadol) or sympathomimetics risks serotonin syndrome or hypertensive crisis. A washout of about two weeks separates an MAOI from other antidepressants, and about five weeks after fluoxetine because of its long active metabolite.",
+    "Atypical agents add flexibility. Bupropion inhibits norepinephrine and dopamine reuptake, lacks sexual dysfunction, assists smoking cessation, and lowers the seizure threshold, so it is contraindicated in seizure disorders, eating disorders and abrupt alcohol or benzodiazepine withdrawal. Mirtazapine blocks alpha-2 autoreceptors plus 5-HT2 and H1 receptors, causing sedation and weight gain, which can help in insomnia and cachexia. Trazodone is sedating and can cause priapism. Ketamine and its enantiomer esketamine, NMDA receptor antagonists, offer rapid effect in treatment-resistant depression with dissociation and blood pressure rise.",
+    "Serotonin syndrome is excess serotonergic stimulation, presenting with agitation, hyperthermia, diaphoresis, diarrhea, tremor, hyperreflexia and inducible or ocular clonus, usually within hours of a new drug or dose. It differs from neuroleptic malignant syndrome by rapid onset, hyperreflexia and clonus rather than lead-pipe rigidity with bradyreflexia. Treatment is to stop the agents, give benzodiazepines and supportive cooling, with cyproheptadine, a 5-HT2A antagonist, if needed.",
+    "Worked example: a patient on an SSRI is given tramadol after surgery and develops sweating, tremor and clonus with a temperature of 39 degrees. This is serotonin syndrome from additive serotonergic activity, not infection."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l20",
+   "title": "Antipsychotics and Lithium",
+   "body": [
+    "Antipsychotics reduce positive psychotic symptoms mainly by blocking dopamine D2 receptors in the mesolimbic pathway. The same blockade in other pathways produces the main adverse effects: in the nigrostriatal pathway, extrapyramidal symptoms; in the tuberoinfundibular pathway, hyperprolactinemia because dopamine normally inhibits prolactin; and in the chemoreceptor trigger zone, antiemetic effect. Receptors for histamine, muscarinic acetylcholine and alpha-1 adrenergic ligands add sedation and weight gain, anticholinergic effects and orthostasis.",
+    "First-generation agents (haloperidol, chlorpromazine, fluphenazine) are potent D2 blockers. High-potency agents like haloperidol cause more extrapyramidal effects; low-potency agents like chlorpromazine cause more sedation, anticholinergic effects and hypotension. Thioridazine causes QT prolongation and retinal deposits, and chlorpromazine causes corneal and skin pigment changes. The extrapyramidal syndromes have a timeline worth memorizing: acute dystonia occurs within hours to days and responds to anticholinergics such as benztropine or diphenhydramine; akathisia, a subjective restlessness, appears within days to weeks and is treated by lowering the dose, adding a beta blocker like propranolol or a benzodiazepine; parkinsonism appears over days to weeks and responds to anticholinergics; tardive dyskinesia, involuntary orofacial and limb movements, arises after months to years and is treated with VMAT2 inhibitors (valbenazine, deutetrabenazine) and by switching to a lower-risk agent. Neuroleptic malignant syndrome is a rare emergency of fever, severe lead-pipe rigidity, autonomic instability, altered mental status and raised creatine kinase, treated by stopping the drug, cooling, benzodiazepines, and dantrolene or bromocriptine in severe cases.",
+    "Second-generation agents block serotonin 5-HT2A receptors as well as D2 and generally cause fewer extrapyramidal effects, but carry metabolic risk (weight gain, dyslipidemia, diabetes), greatest for olanzapine and clozapine. Risperidone and paliperidone produce notable hyperprolactinemia. Quetiapine is sedating. Ziprasidone prolongs QT. Aripiprazole and brexpiprazole are D2 partial agonists, with akathisia as a typical effect. The CATIE trial found that second-generation agents had no striking efficacy advantage over perphenazine for most outcomes in chronic schizophrenia, and high discontinuation rates for all. All antipsychotics carry a boxed warning for increased mortality in older adults with dementia-related psychosis.",
+    "Clozapine is reserved for treatment-resistant schizophrenia and reduces suicidality. It is unique because of severe neutropenia and agranulocytosis, requiring regular absolute neutrophil count monitoring. The FDA removed the clozapine REMS program in 2025, but the boxed warning and the neutrophil monitoring schedule in the label remain; other risks are seizures, myocarditis early in therapy, orthostatic hypotension, sialorrhea and constipation that can progress to bowel obstruction, and metabolic effects. It is metabolized by CYP1A2, so smoking cessation raises levels and ciprofloxacin or fluvoxamine can cause toxicity.",
+    "Lithium is a mood stabilizer for bipolar disorder with a narrow therapeutic window. It is eliminated entirely by the kidney, handled like sodium in the proximal tubule, so sodium depletion, thiazide diuretics, ACE inhibitors, ARBs and NSAIDs raise lithium levels. Chronic toxicities include tremor, hypothyroidism, nephrogenic diabetes insipidus from reduced collecting duct response to ADH, weight gain and, in pregnancy, a risk of fetal cardiac malformation (Ebstein anomaly). Acute toxicity causes coarse tremor, vomiting, ataxia, confusion and seizures, and hemodialysis is used in severe poisoning. Valproate, carbamazepine and lamotrigine are alternative mood stabilizers.",
+    "Worked example: a young man given haloperidol develops sustained neck and eye deviation with painful muscle spasm two hours later. This is acute dystonia, and an intramuscular anticholinergic gives rapid relief."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l21",
+   "title": "Sedative-Hypnotics and Anxiolytics",
+   "body": [
+    "The main inhibitory neurotransmitter of the brain is GABA, acting at the GABA-A receptor, a pentameric chloride channel. Several sedative-hypnotics enhance its action at distinct sites, and the differences explain their safety. Benzodiazepines (diazepam, lorazepam, alprazolam, clonazepam, midazolam) bind between alpha and gamma subunits and increase the frequency of channel opening in the presence of GABA. Because they require endogenous GABA, they have a ceiling to their effect and a wide margin of safety when used alone. Barbiturates (phenobarbital, thiopental) bind a different site and increase the duration of channel opening, and at higher concentrations open the channel directly, so effect has no ceiling and overdose can cause fatal respiratory depression. Nonbenzodiazepine hypnotics (zolpidem, zaleplon, eszopiclone) act on the benzodiazepine site with selectivity for alpha-1 containing receptors, and can cause complex sleep behaviors such as sleepwalking and driving.",
+    "Benzodiazepines are used for anxiety, panic, insomnia, seizures and status epilepticus, alcohol withdrawal, muscle spasm, procedural sedation and as premedication. Adverse effects include sedation, anterograde amnesia, impaired psychomotor function and falls in the elderly, tolerance and dependence, and rebound or withdrawal syndromes on abrupt discontinuation that can include seizures, so they are tapered. Respiratory depression is modest alone but substantial when combined with opioids or alcohol, which led to a boxed warning on opioid-benzodiazepine co-use, and later class boxed warnings on abuse, misuse and dependence. Pharmacokinetics decide the clinical choice: diazepam and chlordiazepoxide have long-acting active metabolites that accumulate in the elderly and in liver disease. Lorazepam, oxazepam and temazepam are cleared by direct glucuronidation, bypassing the oxidative phase I step, so they are preferred in the elderly and in hepatic impairment. Midazolam is short-acting and used for sedation. Flumazenil is a competitive benzodiazepine-site antagonist that reverses benzodiazepine sedation, but may precipitate seizures in dependent patients or those who co-ingested pro-convulsant drugs such as tricyclics.",
+    "Buspirone is a partial agonist at 5-HT1A receptors, used for generalized anxiety. It is minimally sedating, has no abuse potential and no muscle relaxant or anticonvulsant action, and needs weeks to work, so it is unsuitable for acute panic. Ramelteon is a melatonin MT1 and MT2 agonist for sleep onset. Suvorexant and similar drugs block orexin receptors. Hydroxyzine is a sedating H1 antihistamine with anxiolytic effect. Propranolol blunts peripheral autonomic symptoms of performance anxiety. Antidepressants such as SSRIs are first-line for long-term treatment of most anxiety disorders, with benzodiazepines used as short-term bridges.",
+    "Alcohol withdrawal is clinically important: chronic ethanol exposure downregulates GABA-A and upregulates NMDA signaling, so abrupt abstinence causes tremor, hyperadrenergic features, seizures within roughly the first one to two days and delirium tremens later. Benzodiazepines are first-line treatment, and thiamine is given to prevent Wernicke encephalopathy.",
+    "Worked example: an older woman on a long-acting benzodiazepine for sleep falls and fractures her hip. Accumulation of active metabolites and impaired psychomotor function contributed, and a taper rather than abrupt cessation is needed."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l22",
+   "title": "Antiepileptic Drugs",
+   "body": [
+    "Seizures result from excessive synchronous neuronal firing, and antiepileptic drugs reduce excitability by one of a few mechanisms: blocking voltage-gated sodium channels in a use-dependent way, enhancing GABA-mediated inhibition, blocking T-type calcium channels, or modulating synaptic vesicle release. Agents are matched to seizure type, and many have major interactions and teratogenic risks.",
+    "Phenytoin and fosphenytoin block sodium channels. Phenytoin follows saturable (zero-order) metabolism at therapeutic levels, so a small dose increase can cause a disproportionate rise in concentration with nystagmus, ataxia and confusion. Chronic toxicity includes gingival hyperplasia, hirsutism, peripheral neuropathy, osteomalacia from vitamin D metabolism and megaloblastic anemia, and it induces CYP enzymes. Intravenous phenytoin can cause cardiac arrhythmias and hypotension and tissue injury, so fosphenytoin is preferred. Fetal hydantoin syndrome is a teratogenic effect. Carbamazepine also blocks sodium channels and is first-line for focal seizures and trigeminal neuralgia. Its toxicities are hyponatremia (SIADH), bone marrow suppression including aplastic anemia and agranulocytosis, hepatotoxicity, diplopia and ataxia; Stevens-Johnson syndrome is associated with HLA-B*15:02 in people of Asian ancestry, which requires screening. It is a strong CYP3A4 inducer, including induction of its own metabolism, and so lowers levels of oral contraceptives, warfarin and many other drugs.",
+    "Valproate raises GABA and blocks sodium and T-type calcium channels, and is the broad-spectrum choice for generalized epilepsies, including absence and myoclonic seizures. Its toxicities are hepatotoxicity (greater in young children with metabolic disease), pancreatitis, hyperammonemia, tremor, weight gain and thrombocytopenia, and it is a major teratogen causing neural tube defects and lower cognitive outcomes, so it is avoided in people who may become pregnant when alternatives exist. It inhibits metabolism of lamotrigine. Lamotrigine blocks sodium channels, is broad-spectrum and well tolerated, but life-threatening rash, including Stevens-Johnson syndrome, is minimized by very slow titration, and doses must be halved when combined with valproate. Estrogen-containing contraceptives reduce lamotrigine levels. Ethosuximide blocks thalamic T-type calcium channels and is first-line for absence epilepsy without other seizure types, with nausea and headache.",
+    "Levetiracetam binds synaptic vesicle protein SV2A, has few interactions, and causes irritability, mood changes and somnolence. Topiramate blocks sodium channels, enhances GABA and weakly inhibits carbonic anhydrase, so it causes metabolic acidosis, kidney stones, paresthesia, word-finding difficulty, weight loss and angle-closure glaucoma, and carries a risk of oral clefts. Gabapentin and pregabalin bind the alpha-2-delta subunit of calcium channels, useful for focal seizures and neuropathic pain with sedation and dizziness. Phenobarbital enhances GABA-A duration of opening and is inexpensive with broad CYP induction. Benzodiazepines act rapidly on status epilepticus.",
+    "Status epilepticus is an emergency treated first with a benzodiazepine (intravenous lorazepam, or intramuscular midazolam if no access), followed by a second-line antiseizure drug such as fosphenytoin, valproate or levetiracetam; ESETT found these three similarly effective for benzodiazepine-refractory status. Enzyme-inducing drugs (carbamazepine, phenytoin, phenobarbital) reduce the effect of oral contraceptives and increase vitamin D and folate needs. Antiepileptics carry a class warning for suicidal ideation and are tapered rather than stopped abruptly.",
+    "Worked example: a child with absence seizures only is best treated with ethosuximide because it targets T-type thalamic channels, whereas carbamazepine can worsen absence seizures."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l23",
+   "title": "Anesthetics and Neuromuscular Blockers",
+   "body": [
+    "General anesthesia produces unconsciousness, amnesia, immobility and analgesia, usually through balanced combinations. Inhaled agents (sevoflurane, isoflurane, desflurane, nitrous oxide) are characterized by two properties. Minimum alveolar concentration (MAC) is the concentration preventing movement in 50 percent of patients at incision, and inversely reflects potency. The blood:gas partition coefficient reflects solubility: a poorly soluble agent (desflurane, nitrous oxide) equilibrates quickly between alveoli and brain, giving fast induction and emergence, while a more soluble agent (halothane, isoflurane) acts more slowly. Volatile agents cause dose-dependent vasodilation, hypotension and respiratory depression. Nitrous oxide causes diffusion hypoxia at emergence, expands closed air spaces, and irreversibly oxidizes vitamin B12, impairing methionine synthase. Halothane can cause immune-mediated hepatitis. Sevoflurane is a favored induction agent, with a degradation product, compound A, of theoretical renal concern at low flows.",
+    "Malignant hyperthermia is a pharmacogenetic emergency, usually due to ryanodine receptor (RYR1) variants, triggered by volatile agents and succinylcholine. Uncontrolled calcium release from the sarcoplasmic reticulum causes hypermetabolism, with rising end-tidal carbon dioxide, rigidity, hyperthermia, tachycardia, acidosis, hyperkalemia and rhabdomyolysis. Dantrolene, which blocks the ryanodine receptor, is the antidote, and triggers are stopped.",
+    "Intravenous induction agents differ. Propofol enhances GABA-A function, gives rapid smooth induction and antiemetic effect, and causes hypotension and apnea; prolonged high-dose infusion can cause propofol infusion syndrome, and the lipid vehicle can support bacterial growth. Etomidate also acts on GABA-A, preserves hemodynamic stability but inhibits adrenal 11-beta-hydroxylase and so briefly suppresses cortisol, and can cause myoclonus and nausea. Ketamine antagonizes the NMDA receptor to produce dissociative anesthesia, with increased heart rate and blood pressure through catecholamine release, bronchodilation and emergence reactions with hallucinations; it is useful in hypotensive and asthmatic patients, with caution in raised intracranial pressure and coronary disease. Dexmedetomidine is an alpha-2 agonist for sedation without respiratory depression, with bradycardia and hypotension. Benzodiazepines such as midazolam provide anxiolysis and amnesia.",
+    "Local anesthetics block voltage-gated sodium channels from inside the neuron, in their open or inactivated state, so smaller, more rapidly firing fibers are blocked first, and pain and temperature fibers are blocked before pressure and motor. Amides (lidocaine, bupivacaine, ropivacaine; names contain two i) are hepatically metabolized, while esters (procaine, tetracaine, chloroprocaine) are broken down by plasma cholinesterase and produce the PABA metabolite that can cause allergy. Infected tissue is acidic, which raises the ionized fraction and reduces tissue penetration. Epinephrine causes vasoconstriction, prolonging the block and reducing systemic absorption. Systemic toxicity begins with perioral numbness, tinnitus and metallic taste, then seizures, followed by arrhythmias and cardiovascular collapse; bupivacaine is especially cardiotoxic, and intravenous lipid emulsion rescues local anesthetic toxicity.",
+    "Neuromuscular blockers allow intubation and relaxation. Succinylcholine is a depolarizing agent: it persistently activates nicotinic receptors, producing initial fasciculations then paralysis, and is hydrolyzed by plasma cholinesterase, so deficiency prolongs block. It can cause hyperkalemia in burns, crush injuries, denervation and prolonged immobility because of upregulated receptors, and is a malignant hyperthermia trigger. Nondepolarizing agents (rocuronium, vecuronium, cisatracurium) competitively antagonize the receptor. Cisatracurium undergoes Hofmann elimination, independent of organ function. Reversal uses acetylcholinesterase inhibitors such as neostigmine, given with an antimuscarinic like glycopyrrolate to prevent bradycardia, or sugammadex, which encapsulates rocuronium and vecuronium.",
+    "Worked example: a child with hyperthermia, rigidity and rising end-tidal carbon dioxide soon after induction with sevoflurane and succinylcholine has malignant hyperthermia, and dantrolene is the specific treatment."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l24",
+   "title": "Opioids and Their Antagonists",
+   "body": [
+    "Opioids act on G-protein-coupled receptors (mu, kappa and delta) in the brain, spinal cord and gut. The mu receptor mediates most analgesia and its toxicities. Through Gi/o signaling, it lowers cyclic AMP, opens potassium channels and closes presynaptic calcium channels, so neurons hyperpolarize and release less transmitter. Clinical effects are analgesia, euphoria, sedation, respiratory depression through reduced brainstem sensitivity to carbon dioxide, cough suppression, nausea through the chemoreceptor trigger zone, and miosis through the oculomotor nucleus, together with reduced gut motility and increased smooth muscle tone.",
+    "The overdose triad is depressed consciousness, respiratory depression and pinpoint pupils. Tolerance develops to analgesia, euphoria, sedation and respiratory depression, but little tolerance develops to miosis and constipation, so constipation is anticipated and treated with a stimulant or osmotic laxative alongside long-term use. Other effects include urinary retention, biliary spasm (sphincter of Oddi), histamine release causing flushing and itching, and hypotension, which is greater with morphine. Physical dependence produces a withdrawal syndrome of rhinorrhea, lacrimation, yawning, mydriasis, piloerection, diarrhea, abdominal cramping and myalgias, uncomfortable but not generally life-threatening, in contrast to alcohol and benzodiazepine withdrawal.",
+    "Individual agents have distinct features. Morphine is hydrophilic and metabolized to morphine-6-glucuronide, which is active and accumulates in renal failure. Fentanyl is highly lipophilic and potent, with rapid onset, and illicit fentanyl is the main driver of overdose deaths. Hydromorphone is a potent alternative in renal impairment. Oxycodone and hydrocodone are common oral agents. Codeine is a prodrug converted by CYP2D6 to morphine, so ultrarapid metabolizers risk toxicity and poor metabolizers get little analgesia; it is avoided in children after tonsillectomy and in breastfeeding. Meperidine produces a neurotoxic metabolite, normeperidine, which can cause seizures, and is serotonergic, so it is dangerous with monoamine oxidase inhibitors. Tramadol is a weak mu agonist and also inhibits serotonin and norepinephrine reuptake, with seizure and serotonin syndrome risk. Methadone, a long-acting full agonist and NMDA antagonist, treats pain and opioid use disorder; it prolongs QT, has a long and variable half-life that makes overdose risk highest during initiation, and interacts with CYP3A4 and CYP2B6 modulators.",
+    "Buprenorphine is a high-affinity partial agonist at the mu receptor, so it has a ceiling on respiratory depression and a better safety profile, and is used for opioid use disorder. Because it binds tightly but with limited activation, giving it to a patient with a full agonist on board can displace the full agonist and precipitate withdrawal. Naloxone is a competitive mu antagonist given intranasally or intravenously to reverse overdose; its duration of action is shorter than many opioids, particularly long-acting ones or fentanyl in large amounts, so renarcotization can occur and monitoring or repeat dosing is necessary. In a dependent patient, it precipitates withdrawal. Naltrexone is a long-acting oral or monthly injectable antagonist used for opioid use disorder after detoxification and for alcohol use disorder, with hepatic monitoring and a risk of precipitated withdrawal if opioids remain. Methadone and buprenorphine reduce mortality in opioid use disorder, and the CDC 2022 guideline emphasizes individualized, cautious prescribing for pain with attention to nonopioid options and not abruptly tapering patients on long-term therapy.",
+    "Worked example: a man found unresponsive with pinpoint pupils and slow breathing improves after intranasal naloxone, then becomes drowsy again 40 minutes later. The antagonist wore off before the long-acting opioid did, so observation and repeat dosing are needed."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l25",
+   "title": "Cytotoxic Chemotherapy Principles",
+   "body": [
+    "Cytotoxic drugs kill cells that are dividing, so rapidly renewing normal tissues are damaged alongside tumor: marrow, gut mucosa, hair follicles and gonads. This is why myelosuppression, mucositis, nausea and alopecia are shared toxicities, and why organ-specific toxicities define each drug class. The fractional kill hypothesis states that each cycle kills a constant fraction of tumor cells rather than a fixed number, so cure requires repeated cycles and combination regimens that use drugs with different mechanisms and non-overlapping toxicities to minimize resistance. Chemotherapy is given in cycles to allow normal marrow recovery.",
+    "Drugs are grouped by cell cycle effect. Cell-cycle-specific agents act in particular phases: antimetabolites (methotrexate, 5-fluorouracil, cytarabine, 6-mercaptopurine) in S phase, bleomycin in G2, and vinca alkaloids and taxanes in M phase. Alkylating agents and platinum compounds are cell-cycle nonspecific.",
+    "Alkylating agents add alkyl groups to DNA and cross-link strands. Cyclophosphamide and ifosfamide are prodrugs activated in the liver; their metabolite acrolein damages the bladder epithelium, causing hemorrhagic cystitis, which mesna binds and hydration reduces. Nitrosoureas cross the blood-brain barrier and cause delayed marrow suppression. Platinum agents also cross-link DNA: cisplatin causes nephrotoxicity (mitigated by hydration and amifostine), ototoxicity, peripheral neuropathy and severe emesis; carboplatin is more myelosuppressive and less nephrotoxic. Antimetabolites mimic substrates: methotrexate inhibits dihydrofolate reductase (rescued with leucovorin), 5-fluorouracil inhibits thymidylate synthase and causes mucositis, diarrhea and hand-foot syndrome, with severe toxicity in patients deficient in dihydropyrimidine dehydrogenase, and cytarabine causes cerebellar toxicity and myelosuppression. 6-Mercaptopurine is inactivated by TPMT and xanthine oxidase.",
+    "Anthracyclines (doxorubicin, daunorubicin) intercalate DNA, inhibit topoisomerase II and generate free radicals. The signature toxicity is cumulative, dose-dependent cardiomyopathy, which dexrazoxane, an iron chelator, can reduce; baseline and serial cardiac function monitoring is standard. Bleomycin causes dose-related pulmonary fibrosis, rare skin changes, and little marrow suppression, and is monitored with pulmonary function. Topoisomerase I inhibitors (irinotecan, topotecan) can cause diarrhea, and UGT1A1 variants reduce inactivation of the active metabolite of irinotecan. Etoposide inhibits topoisomerase II. Vinca alkaloids (vincristine, vinblastine) block microtubule assembly: vincristine causes peripheral neuropathy and constipation or ileus, with little marrow suppression, and is fatal if given intrathecally; vinblastine is more myelosuppressive. Taxanes (paclitaxel, docetaxel) stabilize microtubules and block disassembly, causing neuropathy, hypersensitivity reactions (hence premedication with a steroid and antihistamines), and neutropenia.",
+    "Supportive and rescue therapies form part of the pharmacology. Leucovorin rescues methotrexate. Mesna protects the bladder. Dexrazoxane limits anthracycline cardiotoxicity. Granulocyte colony-stimulating factor shortens neutropenia. Antiemetic regimens combine 5-HT3 antagonists, NK1 antagonists and dexamethasone. Tumor lysis syndrome follows rapid killing of bulky, chemosensitive tumors such as high-grade lymphomas and leukemias, releasing potassium, phosphate and nucleic acids, which produces hyperkalemia, hyperphosphatemia, hypocalcemia and hyperuricemia with acute kidney injury; prevention uses hydration, allopurinol, or rasburicase, which converts uric acid to allantoin and is contraindicated in G6PD deficiency because of hemolysis and methemoglobinemia.",
+    "Worked example: a patient treated for a germ cell tumor with bleomycin, etoposide and cisplatin develops hearing loss and rising creatinine after several cycles. These are cisplatin toxicities, which hydration and monitoring aim to limit, and later dyspnea or cough should prompt consideration of bleomycin lung injury."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l26",
+   "title": "Targeted, Hormonal and Immune Cancer Therapy",
+   "body": [
+    "Targeted therapy aims at molecular drivers that tumors depend on, which gives a different toxicity profile from cytotoxics and requires biomarker selection, because efficacy is tied to a specific alteration. The classic proof of principle is imatinib, which inhibits the BCR-ABL tyrosine kinase created by the Philadelphia chromosome in chronic myeloid leukemia; it also inhibits KIT, so it works in gastrointestinal stromal tumors. Resistance commonly arises from kinase domain mutations, prompting second- and third-generation inhibitors. Its toxicities include fluid retention, edema and myelosuppression. Epidermal growth factor receptor inhibitors (erlotinib, osimertinib) treat EGFR-mutant lung cancer with rash and diarrhea as typical effects, and BRAF inhibitors (vemurafenib, dabrafenib) treat BRAF V600E-mutant melanoma and are combined with MEK inhibitors to reduce resistance and the skin proliferative effects of paradoxical pathway activation.",
+    "Monoclonal antibodies exploit surface targets. Trastuzumab binds HER2 in HER2-positive breast and gastric cancers and can cause cardiomyopathy, which is reversible and not cumulative-dose related in the manner of anthracyclines, so it requires cardiac monitoring, particularly if combined with or following an anthracycline. Rituximab targets CD20 on B cells, causing infusion reactions and risk of hepatitis B reactivation. Bevacizumab neutralizes vascular endothelial growth factor, so it causes hypertension, proteinuria, bleeding, thromboembolism, gastrointestinal perforation and impaired wound healing. Cetuximab targets EGFR and is ineffective in tumors with RAS mutations. Antibody-drug conjugates combine an antibody with a cytotoxic payload to improve selectivity.",
+    "Endocrine therapy exploits hormone dependence. Tamoxifen is a selective estrogen receptor modulator, antagonizing the receptor in breast tissue while acting as an agonist in the endometrium and bone. This explains reduced breast cancer recurrence and preserved bone density, together with increased risk of endometrial cancer and thromboembolism and hot flashes. Its activation involves CYP2D6, so strong inhibitors such as fluoxetine and paroxetine can reduce efficacy. Aromatase inhibitors (anastrozole, letrozole) block estrogen synthesis in peripheral tissue and are used in postmenopausal women, causing arthralgia and bone loss. In premenopausal women ovarian suppression is needed first. In prostate cancer, GnRH agonists (leuprolide) first raise luteinizing hormone and cause a testosterone flare before suppression, so an antiandrogen is given first to blunt the flare; androgen receptor blockers (enzalutamide, bicalutamide) and abiraterone, a CYP17 inhibitor given with prednisone to prevent mineralocorticoid excess, extend therapy.",
+    "Immune checkpoint inhibitors release brakes on T cells. Antibodies against PD-1 (pembrolizumab, nivolumab), PD-L1 (atezolizumab) or CTLA-4 (ipilimumab) restore antitumor immunity and have transformed treatment of melanoma, lung cancer and many others, particularly in tumors with high mutational burden or microsatellite instability. Their toxicities are immune-related adverse events: colitis, pneumonitis, hepatitis, dermatitis, endocrinopathies such as thyroiditis, hypophysitis, adrenal insufficiency and diabetes, and rare myocarditis. These are managed by holding the drug and giving glucocorticoids, with permanent replacement for endocrine failure. Chimeric antigen receptor T-cell therapy can cause cytokine release syndrome, treated with tocilizumab, and neurotoxicity.",
+    "Worked example: a patient on pembrolizumab develops several weeks later profuse diarrhea and abdominal pain. Immune-mediated colitis is likely, and the approach is to hold therapy, exclude infection and treat with glucocorticoids, adding other immunosuppression if refractory."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l27",
+   "title": "Toxicology: Mechanisms and Antidotes",
+   "body": [
+    "Toxicology follows a consistent method: stabilize the airway, breathing and circulation; identify the toxidrome from the pattern of vital signs, pupils, skin and mental status; decontaminate or enhance elimination when this will help; and give a specific antidote when one exists. Many antidotes work by competing for a receptor, restoring a depleted cofactor, binding the toxin, or blocking formation of the toxic metabolite, so mechanism predicts the antidote.",
+    "Toxidromes are pattern recognition. Opioids give miosis, respiratory depression and coma. Sympathomimetics such as cocaine and amphetamines give agitation, mydriasis, tachycardia, hypertension and diaphoresis. Anticholinergics give mydriasis, dry skin, urinary retention, hyperthermia and delirium (\"dry as a bone, red as a beet, mad as a hatter\"). Cholinergic poisoning from organophosphates and carbamates gives salivation, lacrimation, urination, defecation, bronchorrhea, bradycardia, miosis and muscle fasciculations. Sedative-hypnotics give depressed consciousness with normal pupils and relatively normal vital signs. Serotonin syndrome gives clonus and hyperreflexia, and salicylate poisoning gives tinnitus, hyperventilation, fever and mixed acid-base disturbance.",
+    "Specific antidotes: Naloxone antagonizes opioids at the mu receptor, and flumazenil antagonizes benzodiazepines but can provoke seizures in dependent patients. N-acetylcysteine regenerates glutathione in acetaminophen poisoning. Organophosphates irreversibly inhibit acetylcholinesterase, so treatment is atropine, titrated to drying of bronchial secretions, plus pralidoxime, which reactivates the enzyme if given early before the inhibited enzyme \"ages\". Methanol and ethylene glycol are metabolized by alcohol dehydrogenase to formic acid and to glycolate and oxalate, respectively; fomepizole inhibits alcohol dehydrogenase, preventing formation of toxic metabolites, and dialysis removes the toxins and acid in severe cases. Methanol causes visual disturbance and ethylene glycol causes calcium oxalate crystals, an anion-gap acidosis and renal failure. Cyanide blocks cytochrome oxidase and halts aerobic metabolism; hydroxocobalamin binds cyanide, with sodium nitrite and thiosulfate as alternatives. Carbon monoxide binds hemoglobin with high affinity and shifts the oxygen dissociation curve left, so it is treated with 100 percent oxygen, and hyperbaric oxygen in selected cases; pulse oximetry is misleadingly normal. Methemoglobinemia, with oxidized iron that cannot carry oxygen, causes cyanosis unresponsive to oxygen and chocolate-colored blood; methylene blue reduces it, except in",
+    "G6PD deficiency. Iron poisoning is treated with deferoxamine, lead with succimer, calcium disodium EDTA or dimercaprol depending on severity, and arsenic and acute mercury with dimercaprol or related chelators. Digoxin toxicity is treated with digoxin-specific antibody fragments, heparin overdose with protamine, warfarin with vitamin K and prothrombin complex concentrate, and dabigatran with idarucizumab. Tricyclic antidepressant toxicity with wide QRS is treated with sodium bicarbonate. Beta blocker and calcium channel blocker overdose may need intravenous calcium, glucagon, high-dose insulin and vasopressors. Sulfonylurea-induced hypoglycemia that recurs after dextrose is treated with octreotide. Isoniazid-induced seizures respond to pyridoxine. Local anesthetic systemic toxicity responds to lipid emulsion. Physostigmine can reverse pure anticholinergic delirium but is avoided if tricyclics are involved because of seizure and cardiac risk.",
+    "Elimination can be enhanced in selected cases. Activated charcoal binds many drugs if given within about an hour and the airway is protected, but not alcohols, lithium, iron or metals. Urinary alkalinization with bicarbonate traps salicylate ions in urine and is paired with hemodialysis in severe cases. Hemodialysis is considered for lithium, salicylates, toxic alcohols and metformin-associated lactic acidosis.",
+    "Worked example: a farmer arrives with salivation, wheeze, bradycardia, pinpoint pupils and fasciculations. This is a cholinergic toxidrome from organophosphate poisoning, and atropine with pralidoxime addresses the muscarinic and nicotinic effects."
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l28",
+   "title": "Drug Interactions, Pharmacogenomics and Teratogens",
+   "body": [
+    "Drug interactions arise in two ways. Pharmacodynamic interactions occur when drugs act on the same or opposing pathways: additive sedation from opioids with benzodiazepines, additive QT prolongation from several antiarrhythmic, antibiotic and antipsychotic drugs, serotonin syndrome from combined serotonergic agents, hyperkalemia from an ACE inhibitor with a potassium-sparing diuretic, and bleeding from anticoagulants with antiplatelets or NSAIDs. Pharmacokinetic interactions alter absorption, distribution, metabolism or excretion, and the most important involve cytochrome P450 enzymes and drug transporters.",
+    "Induction increases enzyme synthesis over days to weeks and lowers substrate levels. Classic inducers: rifampin, phenytoin, carbamazepine, phenobarbital, St. John's wort, griseofulvin and chronic heavy alcohol use. They reduce effects of warfarin, oral contraceptives, many antiretrovirals, tacrolimus, cyclosporine and others, so toxicity risk reverses when the inducer is withdrawn. Inhibition acts within days and raises substrate levels. Common inhibitors: azole antifungals, macrolides (clarithromycin and erythromycin more than azithromycin), protease inhibitors and cobicistat, amiodarone, cimetidine, fluoroquinolones such as ciprofloxacin (CYP1A2), grapefruit juice (intestinal CYP3A4), isoniazid and fluoxetine or paroxetine (CYP2D6). Some drugs are prodrugs that need activation (clopidogrel by CYP2C19, codeine by CYP2D6, tamoxifen by CYP2D6), so inhibitors reduce efficacy instead. P-glycoprotein and OATP transporters add more interactions, as with digoxin and statins.",
+    "Protein binding displacement rarely matters clinically except for drugs with narrow indices and high binding, and the effect is usually transient. Warfarin is the prototype interaction drug: dietary vitamin K, CYP2C9 inhibitors and antibiotics that alter vitamin K-producing gut flora raise INR, while inducers lower it. Excretion interactions include lithium with NSAIDs, thiazides and ACE inhibitors, probenecid with penicillins, and methotrexate with NSAIDs and penicillins competing for tubular secretion.",
+    "Pharmacogenomic variation explains patient-specific effects. CYP2D6 poor metabolizers fail to activate codeine, and ultrarapid metabolizers risk morphine toxicity. CYP2C19 loss-of-function reduces clopidogrel activation. TPMT or NUDT15 deficiency raises thiopurine myelotoxicity, and dihydropyrimidine dehydrogenase deficiency causes severe fluoropyrimidine toxicity. UGT1A1 variants alter irinotecan clearance. HLA-B*57:01 predicts abacavir hypersensitivity, HLA-B*15:02 carbamazepine reactions and HLA-B*58:01 allopurinol reactions. Glucose-6-phosphate dehydrogenase deficiency makes red cells vulnerable to oxidant drugs such as primaquine, dapsone, rasburicase and nitrofurantoin, causing hemolysis. Slow N-acetylation increases risk of isoniazid neuropathy and drug-induced lupus from hydralazine and procainamide. Plasma cholinesterase variants prolong succinylcholine paralysis.",
+    "Teratogens are an essential list. Avoid in pregnancy: ACE inhibitors and ARBs (fetal renal injury), warfarin (embryopathy), isotretinoin (craniofacial, cardiac and central nervous system malformations, so strict contraception programs apply), thalidomide (limb defects), valproate (neural tube defects), phenytoin (fetal hydantoin syndrome), carbamazepine, methotrexate and mycophenolate, tetracyclines (teeth and bone), fluconazole at high dose, misoprostol, lithium (cardiac malformations), and androgens. Statins are usually stopped when pregnancy is recognized, but since 2021 the FDA no longer lists pregnancy as a contraindication, leaving the decision to individual benefit and risk. Folic acid supplementation lowers neural tube defect risk. Drug choices in pregnancy balance the dangers of untreated disease with fetal risk.",
+    "Worked example: a woman on carbamazepine and an oral contraceptive becomes pregnant. Carbamazepine induces CYP3A4, accelerating contraceptive hormone clearance and reducing efficacy, and carbamazepine itself is teratogenic, so counseling and an alternative method are needed."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-pharm-systems.l01.q1",
+   "lessonId": "med-pharm-systems.l01",
+   "kind": "mcq",
+   "prompt": "Which feature explains why ACE inhibitors, but not ARBs, commonly cause a dry cough?",
+   "choices": [
+    "Accumulation of bradykinin because ACE also degrades it",
+    "Direct blockade of AT1 receptors in bronchial smooth muscle",
+    "Increased aldosterone release causing airway sodium retention",
+    "Inhibition of neprilysin leading to natriuretic peptide excess"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l01.q2",
+   "lessonId": "med-pharm-systems.l01",
+   "kind": "mcq",
+   "prompt": "Which electrolyte profile is most characteristic of chronic thiazide diuretic therapy?",
+   "choices": [
+    "Hyperkalemia with hypercalcemia and hypomagnesemia",
+    "Hypokalemia with hypercalcemia and hyponatremia",
+    "Hyperkalemia with hypocalcemia and hypernatremia",
+    "Hypokalemia with hypocalcemia and hypomagnesemia"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l01.q3",
+   "lessonId": "med-pharm-systems.l01",
+   "kind": "mcq",
+   "prompt": "A pregnant woman at 14 weeks is taking lisinopril for hypertension. What is the main reason this needs to change?",
+   "choices": [
+    "It crosses poorly, so the fetus loses adequate drug cover",
+    "It increases maternal aldosterone and produces fluid overload",
+    "Second-trimester onward exposure risks fetal renal injury",
+    "It causes maternal angioedema in nearly all pregnant patients"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l01.q4",
+   "lessonId": "med-pharm-systems.l01",
+   "kind": "mcq",
+   "prompt": "A 63-year-old man with type 2 diabetes and albuminuria starts an ACE inhibitor. Two weeks later creatinine has risen 20 percent from baseline and potassium is 5.3 mEq/L; he is euvolemic and normotensive. Which explanation and action are best?",
+   "choices": [
+    "Afferent arteriolar constriction signals drug toxicity; stop and switch to an ARB immediately",
+    "Tubular necrosis from the drug is occurring; start a thiazide to increase flow",
+    "Bradykinin-mediated interstitial nephritis is present; add a potassium supplement",
+    "Efferent dilation lowers glomerular pressure; expected, so continue monitoring"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l01.q5",
+   "lessonId": "med-pharm-systems.l01",
+   "kind": "mcq",
+   "prompt": "A 58-year-old woman with heart failure takes furosemide and presents with ringing in the ears and hearing loss after a rapid intravenous dose, along with muscle cramps. Serum shows low calcium. Which drug change would NOT add to the hearing loss or the calcium loss?",
+   "choices": [
+    "Switching to a thiazide-type agent",
+    "Adding a second loop diuretic",
+    "Adding cisplatin chemotherapy",
+    "Combining furosemide with an aminoglycoside"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l02.q1",
+   "lessonId": "med-pharm-systems.l02",
+   "kind": "mcq",
+   "prompt": "Which calcium channel blocker subclass acts mainly on cardiac conduction rather than vascular smooth muscle?",
+   "choices": [
+    "Amlodipine and nifedipine",
+    "Nimodipine and felodipine",
+    "Isradipine and nicardipine",
+    "Verapamil and diltiazem"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l02.q2",
+   "lessonId": "med-pharm-systems.l02",
+   "kind": "mcq",
+   "prompt": "A hypertensive patient with asthma and diabetes needs a beta blocker after a myocardial infarction. Which choice is most appropriate and why?",
+   "choices": [
+    "Nadolol, because it is nonselective and so better for diabetic control",
+    "Pindolol, because intrinsic sympathomimetic activity improves post-infarct survival",
+    "Metoprolol, because beta-1 selectivity limits bronchospasm and hypoglycemia masking",
+    "Propranolol, because beta-2 blockade protects against asthma attacks"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l02.q3",
+   "lessonId": "med-pharm-systems.l02",
+   "kind": "mcq",
+   "prompt": "Why do nitrates relieve exertional angina at low doses?",
+   "choices": [
+    "Beta-1 receptor antagonism reduces renin and cardiac output",
+    "Venodilation lowers preload and wall tension, reducing myocardial oxygen demand",
+    "Selective arteriolar dilation sharply raises coronary perfusion pressure",
+    "Blockade of L-type calcium channels reduces heart rate and contractility"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l02.q4",
+   "lessonId": "med-pharm-systems.l02",
+   "kind": "mcq",
+   "prompt": "A 66-year-old man with angina and a heart rate of 48 is given diltiazem on top of metoprolol. An hour later he is dizzy with a BP of 80/50 and complete heart block on ECG. What best explains this event?",
+   "choices": [
+    "Additive suppression of AV nodal conduction by both drugs",
+    "Beta blocker withdrawal rebound from receptor upregulation",
+    "Reflex tachycardia following arteriolar dilation by a dihydropyridine",
+    "A CYP2D6 interaction that completely prevented diltiazem metabolism"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l02.q5",
+   "lessonId": "med-pharm-systems.l02",
+   "kind": "mcq",
+   "prompt": "A 52-year-old man has taken isosorbide dinitrate for angina and now reports an erectile dysfunction pill from an online source. Which counseling point is best?",
+   "choices": [
+    "It is safe because the two drugs act on unrelated pathways",
+    "Use it only if the nitrate is taken at least once weekly rather than daily",
+    "It is safe if the nitrate is switched to a calcium channel blocker for tolerance",
+    "Avoid it: PDE5 inhibition plus a nitrate may cause severe hypotension"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l03.q1",
+   "lessonId": "med-pharm-systems.l03",
+   "kind": "mcq",
+   "prompt": "Which drug class reduced mortality in HFrEF in the PARADIGM-HF trial compared with enalapril?",
+   "choices": [
+    "Cardiac glycoside",
+    "Funny-current inhibitor",
+    "Angiotensin receptor-neprilysin inhibitor",
+    "Loop diuretic"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l03.q2",
+   "lessonId": "med-pharm-systems.l03",
+   "kind": "mcq",
+   "prompt": "A patient with HFrEF is switched from lisinopril to sacubitril-valsartan. What is the key safety rule?",
+   "choices": [
+    "Add the ACE inhibitor at half dose for the first week for continuity",
+    "Stop the loop diuretic because natriuretic peptides will cause volume depletion",
+    "Check digoxin levels because neprilysin inhibition lowers digoxin clearance",
+    "Allow a washout of ACE inhibitor before starting because of angioedema risk"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l03.q3",
+   "lessonId": "med-pharm-systems.l03",
+   "kind": "mcq",
+   "prompt": "What is the principal mechanism by which digoxin increases myocardial contractility?",
+   "choices": [
+    "Na+/K+-ATPase inhibition raising intracellular calcium via the exchanger",
+    "Activation of beta-1 receptors leading to higher cyclic AMP",
+    "Inhibition of phosphodiesterase 3 in cardiac myocytes",
+    "Opening of cardiac potassium channels reducing action potential duration"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l03.q4",
+   "lessonId": "med-pharm-systems.l03",
+   "kind": "mcq",
+   "prompt": "A 72-year-old woman with HFrEF and atrial fibrillation on digoxin develops nausea, yellow-tinged vision and frequent premature ventricular beats. She recently started clarithromycin and her potassium is 3.1 mEq/L. Which contributing factors best explain the presentation?",
+   "choices": [
+    "Neprilysin inhibition producing excess natriuretic peptides and visual toxicity",
+    "Reduced digoxin clearance plus hypokalemia increasing pump binding",
+    "Beta blocker withdrawal and hyperkalemia that blocks conduction",
+    "Aldosterone antagonism causing hypercalcemia and increased digoxin binding"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l03.q5",
+   "lessonId": "med-pharm-systems.l03",
+   "kind": "mcq",
+   "prompt": "A 60-year-old man with HFrEF and an ejection fraction of 25 percent remains in sinus rhythm at 82 on maximal tolerated carvedilol, sacubitril-valsartan, spironolactone and a loop diuretic, without diabetes. Which addition is best supported for lowering cardiovascular death and hospitalization?",
+   "choices": [
+    "Verapamil to slow the heart rate",
+    "A long-acting dihydropyridine for afterload reduction",
+    "An SGLT2 inhibitor such as dapagliflozin",
+    "A thiazolidinedione to improve insulin sensitivity"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l04.q1",
+   "lessonId": "med-pharm-systems.l04",
+   "kind": "mcq",
+   "prompt": "Which antiarrhythmic class consists of potassium channel blockers that prolong repolarization?",
+   "choices": [
+    "Class IV",
+    "Class III",
+    "Class IB",
+    "Class II"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l04.q2",
+   "lessonId": "med-pharm-systems.l04",
+   "kind": "mcq",
+   "prompt": "Which toxicity is most characteristic of chronic amiodarone therapy?",
+   "choices": [
+    "Pulmonary fibrosis with thyroid dysfunction",
+    "Bone marrow suppression with ototoxicity",
+    "Hemolysis with peripheral neuropathy",
+    "Lupus-like syndrome with agranulocytosis"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l04.q3",
+   "lessonId": "med-pharm-systems.l04",
+   "kind": "mcq",
+   "prompt": "Why is flecainide avoided after myocardial infarction?",
+   "choices": [
+    "It blocks potassium channels and always prolongs the QT interval",
+    "It causes marked bradycardia through nodal beta blockade",
+    "It increases digoxin levels by inhibiting P-glycoprotein",
+    "CAST showed higher mortality with class IC drugs after infarction"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l04.q4",
+   "lessonId": "med-pharm-systems.l04",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman taking sotalol for atrial fibrillation starts a diuretic for edema and develops palpitations and syncope. ECG shows a long QT interval and polymorphic ventricular tachycardia that twists around the baseline. Which is the best immediate treatment?",
+   "choices": [
+    "Intravenous amiodarone to prolong repolarization further",
+    "Intravenous adenosine to produce transient AV block",
+    "Intravenous magnesium sulfate with correction of potassium",
+    "Intravenous procainamide to slow conduction"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l04.q5",
+   "lessonId": "med-pharm-systems.l04",
+   "kind": "mcq",
+   "prompt": "A 30-year-old man with a regular narrow-complex tachycardia of 190 is given a rapid intravenous drug that produces a few seconds of asystole followed by sinus rhythm and brief chest tightness. He had taken a large amount of caffeine earlier. If the same drug is repeated later, what would most likely reduce its efficacy?",
+   "choices": [
+    "Concurrent carbamazepine inducing metabolism of the drug",
+    "Methylxanthines such as caffeine competing at adenosine receptors",
+    "Concurrent dipyridamole potentiating adenosine breakdown",
+    "A raised serum potassium accelerating AV conduction"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l05.q1",
+   "lessonId": "med-pharm-systems.l05",
+   "kind": "mcq",
+   "prompt": "Which enzyme is the target of statins?",
+   "choices": [
+    "HMG-CoA reductase in hepatocytes",
+    "ATP-citrate lyase in the cytosol of adipocytes",
+    "Lipoprotein lipase on capillary endothelium",
+    "Acyl-CoA cholesterol acyltransferase in enterocytes"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l05.q2",
+   "lessonId": "med-pharm-systems.l05",
+   "kind": "mcq",
+   "prompt": "A patient well controlled on a statin and ezetimibe still has a very high LDL. Which add-on prevents LDL receptors from being degraded and so increases receptor recycling?",
+   "choices": [
+    "A nicotinic acid derivative that suppresses adipose lipolysis",
+    "A monoclonal antibody against PCSK9 such as evolocumab",
+    "A bile acid sequestrant that binds bile acids in the intestinal lumen",
+    "A fibrate that activates peroxisome proliferator-activated receptor alpha"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l05.q3",
+   "lessonId": "med-pharm-systems.l05",
+   "kind": "mcq",
+   "prompt": "Why is the combination of simvastatin and clarithromycin hazardous?",
+   "choices": [
+    "The two drugs compete for the NPC1L1 transporter and cause fat malabsorption",
+    "Clarithromycin raises LDL receptor degradation and reverses statin benefit",
+    "CYP3A4 inhibition raises simvastatin exposure and the risk of rhabdomyolysis",
+    "Clarithromycin induces CYP3A4 and cuts the statin effect while increasing liver injury"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l05.q4",
+   "lessonId": "med-pharm-systems.l05",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man on high-intensity atorvastatin has a triglyceride level of 700 mg/dL and a history of pancreatitis. A fibrate is chosen. Several weeks after adding gemfibrozil he has diffuse muscle pain and tea-colored urine, and creatine kinase is markedly elevated. What best explains the event?",
+   "choices": [
+    "Gemfibrozil activates CYP3A4, creating a toxic statin metabolite in the muscle",
+    "Atorvastatin blocks fibrate activation of PPAR-alpha, causing myofiber necrosis",
+    "Fibrates deplete bile acids, which leads to hepatic cholestasis and muscle breakdown",
+    "Gemfibrozil inhibits statin glucuronidation, raising statin levels"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l05.q5",
+   "lessonId": "med-pharm-systems.l05",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman with familial hypercholesterolemia has a persistently high LDL on the statin dose she can tolerate, because higher doses cause myalgias. She wants an add-on that lowers hepatic cholesterol synthesis upstream of HMG-CoA reductase. Which drug and key adverse effect pair is correct?",
+   "choices": [
+    "Bempedoic acid, with hyperuricemia and tendon rupture risk",
+    "Ezetimibe, with flushing from prostaglandin release",
+    "Colesevelam, with hypertriglyceridemia from reduced absorption of dietary fat",
+    "Niacin, with rhabdomyolysis from inhibition of mevalonate synthesis"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l06.q1",
+   "lessonId": "med-pharm-systems.l06",
+   "kind": "mcq",
+   "prompt": "How does aspirin inhibit platelet aggregation?",
+   "choices": [
+    "It reversibly blocks the P2Y12 receptor on the platelet surface",
+    "It binds antithrombin and speeds inactivation of factor Xa",
+    "It inhibits vitamin K epoxide reductase in the liver",
+    "It irreversibly acetylates COX-1, blocking thromboxane A2"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l06.q2",
+   "lessonId": "med-pharm-systems.l06",
+   "kind": "mcq",
+   "prompt": "A patient on clopidogrel after stent placement starts omeprazole for reflux. Why might this reduce antiplatelet efficacy?",
+   "choices": [
+    "Omeprazole binds clopidogrel in the stomach and blocks absorption",
+    "Omeprazole blocks the P2Y12 receptor and competes at the platelet surface",
+    "Omeprazole inhibits CYP2C19, which is needed to activate clopidogrel",
+    "Omeprazole induces glucuronidation and speeds clopidogrel clearance"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l06.q3",
+   "lessonId": "med-pharm-systems.l06",
+   "kind": "mcq",
+   "prompt": "Which agent is used to reverse the anticoagulant effect of dabigatran?",
+   "choices": [
+    "Andexanet alfa",
+    "Idarucizumab",
+    "Protamine sulfate",
+    "Phytonadione alone"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l06.q4",
+   "lessonId": "med-pharm-systems.l06",
+   "kind": "mcq",
+   "prompt": "A 62-year-old woman is on heparin after a knee replacement. On day 7 her platelet count falls from 250 to 90 thousand per microliter, and she develops a new deep vein thrombosis. Which is the best management and underlying mechanism?",
+   "choices": [
+    "Stop heparin, start argatroban; antibodies bind PF4-heparin complexes",
+    "Continue heparin at a higher dose; the fall reflects bone marrow suppression",
+    "Switch to enoxaparin; low molecular weight heparin does not carry the same immune risk",
+    "Give protamine and observe; the fall reflects direct toxicity to platelets"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l06.q5",
+   "lessonId": "med-pharm-systems.l06",
+   "kind": "mcq",
+   "prompt": "A 55-year-old man with a mechanical aortic valve and atrial fibrillation is on warfarin. The clinician considers switching to a direct oral anticoagulant for convenience. Which statement best guides the decision?",
+   "choices": [
+    "A factor Xa inhibitor is preferred because it has the fixed dose and no monitoring",
+    "Aspirin alone is preferred because mechanical valves clot through platelet activation",
+    "Any DOAC is acceptable because trial data in valvular disease match nonvalvular data",
+    "Warfarin remains preferred; dabigatran did worse in mechanical valves"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l07.q1",
+   "lessonId": "med-pharm-systems.l07",
+   "kind": "mcq",
+   "prompt": "Which antidiabetic drug class acts by closing the beta-cell ATP-sensitive potassium channel?",
+   "choices": [
+    "Thiazolidinediones",
+    "Alpha-glucosidase inhibitors",
+    "Sulfonylureas",
+    "Biguanides"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l07.q2",
+   "lessonId": "med-pharm-systems.l07",
+   "kind": "mcq",
+   "prompt": "A patient with type 2 diabetes and recurrent genital yeast infections is most likely taking which drug?",
+   "choices": [
+    "Sitagliptin",
+    "Pioglitazone",
+    "Glipizide",
+    "Empagliflozin"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l07.q3",
+   "lessonId": "med-pharm-systems.l07",
+   "kind": "mcq",
+   "prompt": "Which warning applies to GLP-1 receptor agonists such as semaglutide?",
+   "choices": [
+    "Contraindicated with personal or family history of medullary thyroid carcinoma or MEN2",
+    "Contraindicated in patients with any history of heart failure with reduced ejection fraction",
+    "Contraindicated in patients with eGFR below 60 because of lactic acidosis risk",
+    "Contraindicated in patients who take sulfonamide antibiotics because of cross-reactivity"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l07.q4",
+   "lessonId": "med-pharm-systems.l07",
+   "kind": "mcq",
+   "prompt": "A 67-year-old man with type 2 diabetes, coronary artery disease and an eGFR of 42 has an A1c of 8.5 percent on metformin. He has no history of pancreatitis or thyroid cancer. Which next step has the strongest evidence of cardiovascular benefit independent of glucose lowering?",
+   "choices": [
+    "Add a first-generation sulfonylurea to replace metformin altogether",
+    "Add an SGLT2 inhibitor or GLP-1 receptor agonist with proven outcomes",
+    "Add glyburide to increase insulin secretion by the beta cell",
+    "Add pioglitazone to improve insulin sensitivity in peripheral tissue"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l07.q5",
+   "lessonId": "med-pharm-systems.l07",
+   "kind": "mcq",
+   "prompt": "A 28-year-old woman with type 1 diabetes taking an SGLT2 inhibitor off-label presents with nausea, vomiting and rapid deep breathing after a prolonged fast. Glucose is 190 mg/dL, anion gap is high and ketones are positive. Which is the best explanation?",
+   "choices": [
+    "Hyperosmolar hyperglycemic state from volume depletion",
+    "Hypoglycemia caused by closure of beta-cell potassium channels",
+    "Euglycemic ketoacidosis from SGLT2 inhibition and insulin lack",
+    "Lactic acidosis from complex I inhibition by the drug"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l08.q1",
+   "lessonId": "med-pharm-systems.l08",
+   "kind": "mcq",
+   "prompt": "Which enzyme do methimazole and propylthiouracil inhibit?",
+   "choices": [
+    "Thyroglobulin protease",
+    "Thyroid peroxidase",
+    "Type 1 deiodinase only",
+    "The sodium-iodide symporter"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l08.q2",
+   "lessonId": "med-pharm-systems.l08",
+   "kind": "mcq",
+   "prompt": "A hypothyroid patient on stable levothyroxine begins taking calcium carbonate tablets with breakfast, and TSH rises. What is the best explanation?",
+   "choices": [
+    "Calcium binds levothyroxine in the gut and reduces its absorption",
+    "Calcium induces hepatic metabolism of thyroxine",
+    "Calcium raises thyroxine-binding globulin, lowering free hormone",
+    "Calcium inhibits peripheral conversion of T4 to T3"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l08.q3",
+   "lessonId": "med-pharm-systems.l08",
+   "kind": "mcq",
+   "prompt": "Which antithyroid drug is preferred in the first trimester of pregnancy, and why?",
+   "choices": [
+    "Methimazole, because propylthiouracil causes fetal aplasia cutis",
+    "Radioactive iodine, because it spares the fetal thyroid",
+    "Potassium iodide alone, because it carries no teratogenic risk",
+    "Propylthiouracil, since methimazole is teratogenic early"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l08.q4",
+   "lessonId": "med-pharm-systems.l08",
+   "kind": "mcq",
+   "prompt": "A 35-year-old woman taking an antithyroid drug for Graves disease develops fever and sore throat over two days. Which toxicity should be suspected and what is the best next step?",
+   "choices": [
+    "Thyroid storm; double the antithyroid dose and give iodide first",
+    "Drug-induced lupus; add hydroxychloroquine and continue the drug",
+    "Agranulocytosis; stop the drug and check the neutrophil count urgently",
+    "Fulminant hepatitis; start corticosteroids and continue the drug"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l08.q5",
+   "lessonId": "med-pharm-systems.l08",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man on long-term amiodarone for atrial fibrillation presents with weight loss, tremor, palpitations and a suppressed TSH. Which statement best describes the drug effect?",
+   "choices": [
+    "It binds thyroid hormone in plasma, which raises free T4",
+    "Its iodine load can cause hyper- or hypothyroidism",
+    "It blocks the thyroid TSH receptor and causes only hypothyroidism",
+    "It induces thyroid peroxidase, which increases hormone production"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l09.q1",
+   "lessonId": "med-pharm-systems.l09",
+   "kind": "mcq",
+   "prompt": "Which laboratory pattern is typical shortly after a patient starts systemic glucocorticoids?",
+   "choices": [
+    "Neutrophilia with lymphopenia and eosinopenia",
+    "Neutropenia with lymphocytosis and eosinophilia",
+    "Neutrophilia with lymphocytosis and thrombocytopenia",
+    "Neutropenia with lymphopenia and monocytosis"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l09.q2",
+   "lessonId": "med-pharm-systems.l09",
+   "kind": "mcq",
+   "prompt": "A man has taken prednisone daily for four months and now needs to stop. What is the main reason for tapering rather than stopping abruptly?",
+   "choices": [
+    "The drug is stored in adipose tissue and accumulates to toxic levels on stopping",
+    "HPA axis suppression may leave the adrenal glands unable to respond to stress",
+    "Rebound upregulation of glucocorticoid receptors causes autoimmune relapse",
+    "Abrupt cessation produces mineralocorticoid excess and severe hypertension"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l09.q3",
+   "lessonId": "med-pharm-systems.l09",
+   "kind": "mcq",
+   "prompt": "Which glucocorticoid has minimal mineralocorticoid activity and the longest duration of action?",
+   "choices": [
+    "Fludrocortisone",
+    "Prednisolone",
+    "Dexamethasone",
+    "Hydrocortisone"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l09.q4",
+   "lessonId": "med-pharm-systems.l09",
+   "kind": "mcq",
+   "prompt": "A 54-year-old woman has taken prednisone 20 mg daily for polymyalgia rheumatica for six months. She now has difficulty rising from a chair, a fasting glucose of 148 mg/dL, new central weight gain and a bone density T-score of -2.8. Which statement best explains these findings?",
+   "choices": [
+    "Mineralocorticoid excess has produced hypokalemic periodic paralysis and bone demineralization",
+    "Adrenal insufficiency is causing weakness, wasting and hyperglycemia from low cortisol",
+    "Hypothyroidism induced by the drug is producing myxedema and decreased bone formation",
+    "Chronic glucocorticoid excess: myopathy, insulin resistance, fat redistribution, bone loss"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l09.q5",
+   "lessonId": "med-pharm-systems.l09",
+   "kind": "mcq",
+   "prompt": "A 60-year-old man who has taken dexamethasone for months for a brain tumor undergoes emergency abdominal surgery and becomes hypotensive and hypoglycemic after induction, with sodium 128 and potassium 4.6 mEq/L. Which is the most likely mechanism and best treatment?",
+   "choices": [
+    "Secondary adrenal suppression; give intravenous hydrocortisone",
+    "Primary adrenal destruction with aldosterone loss; give fludrocortisone alone",
+    "Excess mineralocorticoid causing hypertension and alkalosis; give spironolactone",
+    "Pheochromocytoma crisis from catecholamine release; give alpha blockade first"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l10.q1",
+   "lessonId": "med-pharm-systems.l10",
+   "kind": "mcq",
+   "prompt": "Which receptor activation produces bronchodilation and is the target of albuterol?",
+   "choices": [
+    "Cysteinyl leukotriene receptor on airway epithelium",
+    "Alpha-1 adrenergic receptor on bronchial vessels",
+    "Beta-2 adrenergic receptor on airway smooth muscle",
+    "Muscarinic M3 receptor on airway smooth muscle"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l10.q2",
+   "lessonId": "med-pharm-systems.l10",
+   "kind": "mcq",
+   "prompt": "A COPD patient on tiotropium develops difficulty urinating and dry mouth. Which mechanism explains this?",
+   "choices": [
+    "Beta-2 receptor stimulation relaxing the bladder detrusor and salivary glands",
+    "Phosphodiesterase-4 inhibition reducing cyclic AMP in the urinary tract",
+    "Leukotriene antagonism reducing parasympathetic outflow to the bladder",
+    "Muscarinic receptor blockade reducing secretions and bladder contraction"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l10.q3",
+   "lessonId": "med-pharm-systems.l10",
+   "kind": "mcq",
+   "prompt": "Which interaction raises theophylline levels?",
+   "choices": [
+    "Ciprofloxacin inhibiting CYP1A2",
+    "Cigarette smoking inducing CYP1A2",
+    "Rifampin inducing hepatic CYP enzymes",
+    "Phenytoin inducing hepatic CYP enzymes"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l10.q4",
+   "lessonId": "med-pharm-systems.l10",
+   "kind": "mcq",
+   "prompt": "A 34-year-old woman with moderate asthma, using albuterol five times weekly and waking at night twice a month, also has nasal polyps and develops wheezing after taking ibuprofen. Which add-on is best matched to this pathophysiology as well as to her uncontrolled symptoms?",
+   "choices": [
+    "A long-acting muscarinic antagonist used alone as the only controller drug",
+    "An inhaled corticosteroid, considering a leukotriene antagonist",
+    "A regularly scheduled long-acting beta agonist used on its own without a steroid",
+    "Theophylline used alone as the only controller for her nocturnal symptoms"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l10.q5",
+   "lessonId": "med-pharm-systems.l10",
+   "kind": "mcq",
+   "prompt": "A 40-year-old man has severe asthma with frequent exacerbations on high-dose inhaled corticosteroid plus long-acting beta agonist. Blood eosinophils are 600 per microliter and total IgE is normal. Which biologic best matches the phenotype?",
+   "choices": [
+    "Montelukast, a monoclonal antibody against leukotriene D4",
+    "Roflumilast, a monoclonal antibody against phosphodiesterase-4",
+    "Mepolizumab, a monoclonal antibody against interleukin-5",
+    "Omalizumab, a monoclonal antibody against free IgE"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l11.q1",
+   "lessonId": "med-pharm-systems.l11",
+   "kind": "mcq",
+   "prompt": "Which drug class irreversibly inhibits the gastric H+/K+ ATPase?",
+   "choices": [
+    "H2 receptor antagonists",
+    "Prostaglandin E1 analogs",
+    "Muscarinic antagonists",
+    "Proton pump inhibitors"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l11.q2",
+   "lessonId": "med-pharm-systems.l11",
+   "kind": "mcq",
+   "prompt": "Why is misoprostol contraindicated in pregnancy?",
+   "choices": [
+    "It is a dopamine antagonist that causes fetal extrapyramidal toxicity",
+    "It is a serotonin antagonist that causes fetal bradycardia",
+    "It is a prostaglandin E1 analog that causes uterine contractions",
+    "It is a proton pump inhibitor that causes fetal hypomagnesemia"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l11.q3",
+   "lessonId": "med-pharm-systems.l11",
+   "kind": "mcq",
+   "prompt": "Which adverse effect carries a boxed warning for metoclopramide?",
+   "choices": [
+    "Agranulocytosis",
+    "Tardive dyskinesia",
+    "QT prolongation with torsades de pointes",
+    "Hepatic necrosis"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l11.q4",
+   "lessonId": "med-pharm-systems.l11",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man with cirrhosis presents with confusion, asterixis and a flapping tremor after a gastrointestinal bleed. Ammonia is elevated. Which treatment best explains its mechanism of lowering blood ammonia?",
+   "choices": [
+    "Lactulose, which acidifies colonic contents so ammonia becomes trapped as ammonium",
+    "Omeprazole, which reduces acid production and ammonia generation by gastric bacteria",
+    "Loperamide, which slows transit and increases bacterial urease activity",
+    "Octreotide, which reduces splanchnic blood flow and urea cycle activity"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l11.q5",
+   "lessonId": "med-pharm-systems.l11",
+   "kind": "mcq",
+   "prompt": "A 62-year-old woman with a coronary stent on clopidogrel has reflux and needs a PPI. Her cardiologist worries about reduced antiplatelet effect. Which statement best explains the concern and the response?",
+   "choices": [
+    "Omeprazole induces CYP3A4 and shortens clopidogrel half-life, so the PPI is given at night",
+    "All PPIs bind P2Y12 and block it, so an H2 blocker or a PPI must be avoided entirely",
+    "PPIs raise gastric pH and prevent clopidogrel from being absorbed, so the drug is given with food",
+    "Omeprazole inhibits CYP2C19, so a weaker inhibitor such as pantoprazole is preferred"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l12.q1",
+   "lessonId": "med-pharm-systems.l12",
+   "kind": "mcq",
+   "prompt": "What is the antidote for acetaminophen overdose?",
+   "choices": [
+    "N-acetylcysteine",
+    "Fomepizole",
+    "Flumazenil",
+    "Hydroxocobalamin"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l12.q2",
+   "lessonId": "med-pharm-systems.l12",
+   "kind": "mcq",
+   "prompt": "Why can NSAIDs precipitate acute kidney injury in a patient with heart failure on a diuretic?",
+   "choices": [
+    "Increased renin release raises glomerular perfusion beyond tolerance",
+    "Loss of prostaglandin-mediated afferent arteriolar dilation reduces glomerular filtration",
+    "Excess prostaglandin synthesis causes efferent arteriolar constriction and glomerulonephritis",
+    "Direct tubular crystal deposition by NSAID metabolites obstructs flow"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l12.q3",
+   "lessonId": "med-pharm-systems.l12",
+   "kind": "mcq",
+   "prompt": "A patient who is stable on allopurinol is started on azathioprine. What is the key concern?",
+   "choices": [
+    "Azathioprine blocks urate excretion and causes allopurinol failure",
+    "The pair causes severe hyperkalemia through ENaC blockade",
+    "Blocked thiopurine breakdown raises levels and marrow toxicity",
+    "Allopurinol induces TPMT and reduces azathioprine efficacy"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l12.q4",
+   "lessonId": "med-pharm-systems.l12",
+   "kind": "mcq",
+   "prompt": "A 48-year-old man with gout starts allopurinol and, three weeks later, has fever, a diffuse blistering rash with mucosal involvement and eosinophilia; he is of Han Chinese descent. Which genetic factor is most associated with this reaction?",
+   "choices": [
+    "HLA-B*57:01",
+    "HLA-B*15:02",
+    "CYP2C9*3",
+    "HLA-B*58:01"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l12.q5",
+   "lessonId": "med-pharm-systems.l12",
+   "kind": "mcq",
+   "prompt": "A 75-year-old man with gout and chronic kidney disease takes colchicine and is prescribed clarithromycin for pneumonia. Several days later he develops vomiting, diarrhea, muscle weakness and neutropenia. What best explains the toxicity?",
+   "choices": [
+    "CYP3A4 and P-glycoprotein inhibition raised colchicine exposure",
+    "Clarithromycin induced colchicine metabolism and caused unopposed urate crystal deposition",
+    "Colchicine inhibited xanthine oxidase and caused accumulation of the antibiotic",
+    "The antibiotic displaced colchicine from tubulin and prevented microtubule assembly"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l13.q1",
+   "lessonId": "med-pharm-systems.l13",
+   "kind": "mcq",
+   "prompt": "Which enzyme is inhibited by the cyclosporine-cyclophilin and tacrolimus-FKBP12 complexes?",
+   "choices": [
+    "Inosine monophosphate dehydrogenase",
+    "Calcineurin",
+    "mTOR",
+    "Dihydrofolate reductase"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l13.q2",
+   "lessonId": "med-pharm-systems.l13",
+   "kind": "mcq",
+   "prompt": "Which adverse effect is classically associated with cyclosporine but less with tacrolimus?",
+   "choices": [
+    "Gingival hyperplasia and hirsutism",
+    "New-onset diabetes mellitus",
+    "Impaired wound healing with hyperlipidemia",
+    "Pancytopenia with teratogenicity"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l13.q3",
+   "lessonId": "med-pharm-systems.l13",
+   "kind": "mcq",
+   "prompt": "Before starting a TNF-alpha inhibitor, which screening test is most important?",
+   "choices": [
+    "Measuring serum thiopurine methyltransferase activity",
+    "Checking HLA-B*58:01 status",
+    "Measuring serum cyclosporine trough",
+    "Testing for latent tuberculosis infection"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l13.q4",
+   "lessonId": "med-pharm-systems.l13",
+   "kind": "mcq",
+   "prompt": "A 41-year-old kidney transplant recipient on tacrolimus presents with a creatinine rise, tremor, potassium 5.6 mEq/L and hypertension after starting an antifungal for oral candidiasis. Which pair best explains the picture?",
+   "choices": [
+    "Antifungal-induced adrenal suppression causing hyperkalemia and hypotension",
+    "Tacrolimus-induced hemolysis from G6PD deficiency with pigment nephropathy",
+    "Azole CYP3A4 inhibition raising tacrolimus levels and nephrotoxicity",
+    "Azole induction of CYP3A4 lowering tacrolimus levels, with acute cellular rejection"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l13.q5",
+   "lessonId": "med-pharm-systems.l13",
+   "kind": "mcq",
+   "prompt": "A 36-year-old woman with rheumatoid arthritis on weekly methotrexate develops mouth ulcers, cough and a low white count after mistakenly taking it daily for a week. Which agent most directly counters high-dose methotrexate toxicity?",
+   "choices": [
+    "Vitamin K, which restores gamma-carboxylation of clotting factors",
+    "Leucovorin, which bypasses the blocked reductase step",
+    "Mesna, which binds acrolein and prevents hemorrhagic cystitis",
+    "Allopurinol, which blocks xanthine oxidase and raises purine salvage"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l14.q1",
+   "lessonId": "med-pharm-systems.l14",
+   "kind": "mcq",
+   "prompt": "What is the molecular target of beta-lactam antibiotics?",
+   "choices": [
+    "DNA gyrase that introduces negative supercoils into DNA",
+    "Dihydropteroate synthase in the bacterial folate pathway",
+    "Penicillin-binding proteins that cross-link peptidoglycan",
+    "The 30S ribosomal subunit that reads messenger RNA codons"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l14.q2",
+   "lessonId": "med-pharm-systems.l14",
+   "kind": "mcq",
+   "prompt": "Why is imipenem administered together with cilastatin?",
+   "choices": [
+    "Cilastatin binds carbapenemase enzymes and extends the spectrum to resistant organisms",
+    "Cilastatin blocks tubular secretion of imipenem so that urine levels become negligible",
+    "Cilastatin reduces the seizure threshold risk by acting on the GABA receptor",
+    "Cilastatin inhibits renal dehydropeptidase that inactivates imipenem"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l14.q3",
+   "lessonId": "med-pharm-systems.l14",
+   "kind": "mcq",
+   "prompt": "Which mechanism explains vancomycin resistance in vancomycin-resistant enterococci?",
+   "choices": [
+    "Replacement of D-Ala-D-Ala with D-Ala-D-lactate lowers drug binding affinity",
+    "Production of an extended-spectrum enzyme that hydrolyzes the glycopeptide",
+    "Acquisition of an altered PBP2a that no longer cross-links peptidoglycan",
+    "Methylation of 23S ribosomal RNA preventing binding at the 50S subunit"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l14.q4",
+   "lessonId": "med-pharm-systems.l14",
+   "kind": "mcq",
+   "prompt": "A 6-day-old preterm neonate with hyperbilirubinemia is treated for suspected meningitis with ceftriaxone while also receiving intravenous calcium-containing nutrition. Which concern is most important?",
+   "choices": [
+    "Ceftriaxone causes gray baby syndrome from immature glucuronidation",
+    "It displaces bilirubin and can precipitate with calcium, so avoid it",
+    "Ceftriaxone does not cross the blood-brain barrier, so treatment would fail",
+    "Ceftriaxone is metabolized by dehydropeptidase and loses efficacy in neonates"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l14.q5",
+   "lessonId": "med-pharm-systems.l14",
+   "kind": "mcq",
+   "prompt": "A 52-year-old man with MRSA bacteremia receives vancomycin by rapid infusion and develops flushing and pruritus over the face and upper trunk with mild hypotension, without wheeze or urticaria elsewhere. Which is the best explanation and response?",
+   "choices": [
+    "Vancomycin nephrotoxicity; switch to an aminoglycoside",
+    "Gray baby syndrome; add a glucuronidation cofactor",
+    "Rate-related histamine release; slow the infusion",
+    "IgE-mediated anaphylaxis; permanently discontinue and treat with epinephrine"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l15.q1",
+   "lessonId": "med-pharm-systems.l15",
+   "kind": "mcq",
+   "prompt": "Which antibiotic class binds the 30S ribosomal subunit and is bactericidal?",
+   "choices": [
+    "Macrolides",
+    "Tetracyclines",
+    "Oxazolidinones",
+    "Aminoglycosides"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l15.q2",
+   "lessonId": "med-pharm-systems.l15",
+   "kind": "mcq",
+   "prompt": "Which toxicity is characteristic of isoniazid, and what prevents it?",
+   "choices": [
+    "Hyperuricemia from reduced renal excretion, prevented by allopurinol",
+    "Orange discoloration of secretions, prevented by a drug holiday",
+    "Peripheral neuropathy from pyridoxine depletion, prevented by vitamin B6",
+    "Optic neuritis from mitochondrial effects, prevented by folic acid"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l15.q3",
+   "lessonId": "med-pharm-systems.l15",
+   "kind": "mcq",
+   "prompt": "Which adverse effect is a boxed warning for fluoroquinolones?",
+   "choices": [
+    "Disulfiram-like reaction and metallic taste",
+    "Tendon rupture and tendinopathy",
+    "Aplastic anemia and gray baby syndrome",
+    "Ototoxicity and nephrotoxicity"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l15.q4",
+   "lessonId": "med-pharm-systems.l15",
+   "kind": "mcq",
+   "prompt": "A 30-year-old woman with HIV on a trimethoprim-sulfamethoxazole regimen for Pneumocystis prophylaxis develops a serum potassium of 5.9 mEq/L and a rise in creatinine of modest degree, without a change in true glomerular filtration. Which mechanism best explains this?",
+   "choices": [
+    "Trimethoprim blocks collecting-duct ENaC and tubular creatinine secretion",
+    "Sulfamethoxazole causes crystalluria that obstructs the renal tubules and increases potassium",
+    "Trimethoprim inhibits Na+/K+-ATPase in the thick ascending limb and raises potassium",
+    "Sulfamethoxazole blocks aldosterone synthesis in the adrenal cortex"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l15.q5",
+   "lessonId": "med-pharm-systems.l15",
+   "kind": "mcq",
+   "prompt": "A 45-year-old man on theophylline for COPD starts ciprofloxacin for a urinary infection and develops palpitations, tremor and a generalized seizure. Which interaction is the best explanation?",
+   "choices": [
+    "Ciprofloxacin induces CYP1A2, causing excess production of a toxic theophylline metabolite",
+    "Ciprofloxacin displaces theophylline from tubulin and causes neurotoxicity",
+    "Ciprofloxacin blocks adenosine receptors and adds to the effect of theophylline",
+    "Ciprofloxacin inhibits CYP1A2, raising theophylline concentrations to toxic levels"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l16.q1",
+   "lessonId": "med-pharm-systems.l16",
+   "kind": "mcq",
+   "prompt": "Why is acyclovir selectively active in herpes-infected cells?",
+   "choices": [
+    "It is first phosphorylated by viral thymidine kinase",
+    "It is first phosphorylated by human thymidine kinase in all cells",
+    "It is first activated by the viral protease cleavage site",
+    "It binds the viral neuraminidase and prevents virion release"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l16.q2",
+   "lessonId": "med-pharm-systems.l16",
+   "kind": "mcq",
+   "prompt": "Which test should be performed before prescribing abacavir?",
+   "choices": [
+    "CCR5 tropism assay",
+    "HLA-B*57:01 genotype",
+    "HLA-B*58:01 genotype",
+    "Thiopurine methyltransferase activity"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l16.q3",
+   "lessonId": "med-pharm-systems.l16",
+   "kind": "mcq",
+   "prompt": "Which antiviral is activated by the cytomegalovirus UL97 kinase and has marrow suppression as a main toxicity?",
+   "choices": [
+    "Foscarnet",
+    "Oseltamivir",
+    "Ganciclovir",
+    "Acyclovir"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l16.q4",
+   "lessonId": "med-pharm-systems.l16",
+   "kind": "mcq",
+   "prompt": "A 38-year-old man with HIV and chronic hepatitis B stops his tenofovir-emtricitabine-containing regimen on his own. Two months later he has fatigue, jaundice and markedly raised aminotransferases. What is the most likely explanation?",
+   "choices": [
+    "Immune reconstitution against cytomegalovirus has caused drug-induced hepatitis",
+    "Tenofovir tubular toxicity has produced secondary hepatic congestion",
+    "Abacavir hypersensitivity has presented with delayed hepatitis",
+    "Stopping drugs active against hepatitis B allowed a viral flare"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l16.q5",
+   "lessonId": "med-pharm-systems.l16",
+   "kind": "mcq",
+   "prompt": "A 55-year-old man on a ritonavir-boosted HIV regimen is also taking simvastatin and begins to have severe muscle pain with dark urine. What mechanism explains the toxicity, and which change is best?",
+   "choices": [
+    "Ritonavir inhibits CYP3A4, raising statin levels; switch to pravastatin",
+    "CYP2D6 induction by ritonavir lowered simvastatin; add a second statin",
+    "P-glycoprotein induction by ritonavir caused toxin accumulation; add an H2 blocker",
+    "Integrase inhibition by ritonavir caused myositis; change to an NNRTI"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l17.q1",
+   "lessonId": "med-pharm-systems.l17",
+   "kind": "mcq",
+   "prompt": "Which cell component is the target of amphotericin B?",
+   "choices": [
+    "Lanosterol 14-alpha-demethylase in the ergosterol pathway",
+    "Ergosterol in the fungal cell membrane",
+    "Beta-1,3-glucan synthase in the fungal cell wall",
+    "Squalene epoxidase in the ergosterol pathway"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l17.q2",
+   "lessonId": "med-pharm-systems.l17",
+   "kind": "mcq",
+   "prompt": "A patient receiving amphotericin B develops hypokalemia, hypomagnesemia and rising creatinine. Which statement best explains this?",
+   "choices": [
+    "Afferent vasoconstriction and tubular injury cause renal potassium and magnesium wasting",
+    "Direct inhibition of Na+/K+-ATPase in the cardiac muscle causes hypokalemia",
+    "Blockade of the epithelial sodium channel causes potassium retention and magnesium loss",
+    "Inhibition of renal 11-beta hydroxysteroid dehydrogenase causes mineralocorticoid excess"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l17.q3",
+   "lessonId": "med-pharm-systems.l17",
+   "kind": "mcq",
+   "prompt": "Which antifungal class inhibits beta-1,3-glucan synthase and is first-line for invasive candidiasis?",
+   "choices": [
+    "Azoles",
+    "Polyenes",
+    "Allylamines",
+    "Echinocandins"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l17.q4",
+   "lessonId": "med-pharm-systems.l17",
+   "kind": "mcq",
+   "prompt": "A 60-year-old man with advanced heart failure and onychomycosis is prescribed oral itraconazole. Which concern is most important?",
+   "choices": [
+    "Inhibition of glucan synthesis causing cardiac fibrosis",
+    "Cytosine deaminase conversion to 5-fluorouracil causing arrhythmia",
+    "Negative inotropy plus CYP3A4 inhibition, so avoided here",
+    "Marked increase in squalene concentration producing hepatotoxicity"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l17.q5",
+   "lessonId": "med-pharm-systems.l17",
+   "kind": "mcq",
+   "prompt": "A 48-year-old man with HIV has headache, fever and a positive cerebrospinal fluid cryptococcal antigen. During induction with liposomal amphotericin plus a second agent, his neutrophil count falls. Which second agent is most likely responsible?",
+   "choices": [
+    "Terbinafine, which inhibits squalene epoxidase",
+    "Flucytosine, a pyrimidine antimetabolite",
+    "Fluconazole, which inhibits fungal glucan synthase",
+    "Caspofungin, which blocks ergosterol incorporation"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l18.q1",
+   "lessonId": "med-pharm-systems.l18",
+   "kind": "mcq",
+   "prompt": "Which gene encodes the altered penicillin-binding protein of methicillin-resistant Staphylococcus aureus?",
+   "choices": [
+    "gyrA",
+    "erm",
+    "mecA",
+    "vanA"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l18.q2",
+   "lessonId": "med-pharm-systems.l18",
+   "kind": "mcq",
+   "prompt": "Which dosing pattern follows from the time-dependent killing of beta-lactams?",
+   "choices": [
+    "Single large daily dosing maximizes peak concentration relative to the MIC",
+    "Doubling the dose each day regardless of interval increases the postantibiotic effect",
+    "Intermittent weekly dosing exploits an indefinitely long postantibiotic effect",
+    "More frequent or extended dosing keeps concentrations above the MIC for longer"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l18.q3",
+   "lessonId": "med-pharm-systems.l18",
+   "kind": "mcq",
+   "prompt": "Which antibiotic class is generally preferred for serious infections caused by extended-spectrum beta-lactamase producing Enterobacterales?",
+   "choices": [
+    "Carbapenems",
+    "Third-generation cephalosporins",
+    "Aminopenicillins alone",
+    "Aztreonam alone"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l18.q4",
+   "lessonId": "med-pharm-systems.l18",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man has an Enterobacter cloacae bloodstream infection that initially responded to ceftriaxone, then relapsed with cephalosporin resistance during therapy. Which mechanism best explains this course?",
+   "choices": [
+    "Mutation of gyrA reducing quinolone binding to DNA gyrase",
+    "Selection of mutants overproducing chromosomal AmpC beta-lactamase",
+    "Acquisition of the mecA gene encoding a low-affinity PBP",
+    "Replacement of D-Ala-D-Ala with D-Ala-D-lactate in the cell wall precursor"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l18.q5",
+   "lessonId": "med-pharm-systems.l18",
+   "kind": "mcq",
+   "prompt": "A 66-year-old woman hospitalized for pneumonia develops profuse watery diarrhea on day 6 of broad antibiotics; stool testing is positive for toxin-producing Clostridioides difficile. Which next step best reflects current principles?",
+   "choices": [
+    "Start oral metronidazole as the preferred first-line agent in all cases",
+    "Give intravenous vancomycin because oral vancomycin is absorbed poorly into stool",
+    "Stop the inciting antibiotic if possible and use oral vancomycin or fidaxomicin",
+    "Continue broad antibiotics unchanged and add loperamide to slow transit"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l19.q1",
+   "lessonId": "med-pharm-systems.l19",
+   "kind": "mcq",
+   "prompt": "Which adverse effect is most closely linked to tricyclic antidepressant overdose?",
+   "choices": [
+    "Hypertensive crisis from tyramine accumulation in the gut wall",
+    "Priapism from alpha-1 receptor stimulation in penile vessels",
+    "Pancreatitis from direct duct obstruction by the drug",
+    "QRS widening with arrhythmias and seizures from sodium channel blockade"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l19.q2",
+   "lessonId": "med-pharm-systems.l19",
+   "kind": "mcq",
+   "prompt": "A patient taking phenelzine eats aged cheese and cured meat at a party and develops a severe headache with a blood pressure of 220/120. What mechanism explains this?",
+   "choices": [
+    "Cheese-derived calcium potentiates alpha-2 receptor antagonism at the heart",
+    "Inhibition of CYP2D6 causes buildup of the drug and direct vasoconstriction",
+    "Tyramine escapes gut MAO-A breakdown and displaces norepinephrine from nerve terminals",
+    "Reuptake blockade causes serotonin to accumulate and constrict cerebral vessels"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l19.q3",
+   "lessonId": "med-pharm-systems.l19",
+   "kind": "mcq",
+   "prompt": "Which antidepressant lowers the seizure threshold and is contraindicated in patients with a seizure disorder or bulimia?",
+   "choices": [
+    "Escitalopram",
+    "Bupropion",
+    "Mirtazapine",
+    "Sertraline"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l19.q4",
+   "lessonId": "med-pharm-systems.l19",
+   "kind": "mcq",
+   "prompt": "A 35-year-old woman on sertraline is given tramadol after a dental procedure. Within hours she has agitation, diaphoresis, diarrhea, a temperature of 39.2 degrees Celsius, tremor and inducible ankle clonus with hyperreflexia. Which is the best next step and why?",
+   "choices": [
+    "Stop both drugs, give a benzodiazepine, cyproheptadine if needed",
+    "Give dantrolene for malignant hyperthermia and continue the sertraline",
+    "Give bromocriptine for neuroleptic malignant syndrome and increase the sertraline",
+    "Give atropine for anticholinergic toxicity and switch to a tricyclic"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l19.q5",
+   "lessonId": "med-pharm-systems.l19",
+   "kind": "mcq",
+   "prompt": "A 60-year-old man on fluoxetine for 6 months must switch to an MAOI for refractory depression. What is the most important consideration?",
+   "choices": [
+    "The MAOI can be started the next day because MAO inhibition is reversible",
+    "The washout is unnecessary if a tricyclic bridge is given at the same time",
+    "Only a one-day washout is needed because SSRIs are renally excreted unchanged",
+    "A washout of about five weeks because of the long-lived metabolite"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l20.q1",
+   "lessonId": "med-pharm-systems.l20",
+   "kind": "mcq",
+   "prompt": "Blockade of which dopamine pathway explains antipsychotic-induced hyperprolactinemia?",
+   "choices": [
+    "Mesolimbic pathway",
+    "Nigrostriatal pathway",
+    "Mesocortical pathway",
+    "Tuberoinfundibular pathway"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l20.q2",
+   "lessonId": "med-pharm-systems.l20",
+   "kind": "mcq",
+   "prompt": "A young man given haloperidol develops sustained eye deviation and neck spasm within hours. What is the best treatment?",
+   "choices": [
+    "A VMAT2 inhibitor such as valbenazine",
+    "Propranolol alone for the restlessness",
+    "An anticholinergic such as benztropine or diphenhydramine",
+    "Bromocriptine and cooling measures"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l20.q3",
+   "lessonId": "med-pharm-systems.l20",
+   "kind": "mcq",
+   "prompt": "Which monitoring is required for patients receiving clozapine?",
+   "choices": [
+    "Regular visual field testing to detect retinal toxicity",
+    "Regular absolute neutrophil counts to detect agranulocytosis",
+    "Regular serum lithium concentrations to detect toxicity",
+    "Regular serum phenytoin concentrations to detect saturation"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l20.q4",
+   "lessonId": "med-pharm-systems.l20",
+   "kind": "mcq",
+   "prompt": "A 28-year-old man starts haloperidol and 3 days later has fever of 40 degrees, lead-pipe rigidity, confusion, labile blood pressure and a creatine kinase of 12,000 U/L. His reflexes are normal and there is no clonus. Which management is most appropriate?",
+   "choices": [
+    "Stop the antipsychotic; cool, benzodiazepines, dantrolene if severe",
+    "Add cyproheptadine and continue haloperidol at a reduced dose",
+    "Give intravenous haloperidol to treat agitation and administer physostigmine",
+    "Start propranolol and increase haloperidol to control the psychosis"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l20.q5",
+   "lessonId": "med-pharm-systems.l20",
+   "kind": "mcq",
+   "prompt": "A 40-year-old man with bipolar disorder stable on lithium starts lisinopril and ibuprofen for hypertension and knee pain. Two weeks later he has coarse tremor, vomiting, ataxia and confusion. Which mechanism best explains this?",
+   "choices": [
+    "Induction of hepatic lithium metabolism caused toxic metabolite formation",
+    "Competition for plasma protein binding displaced lithium into the brain",
+    "Direct synergy at the serotonin transporter produced a serotonin syndrome",
+    "Reduced renal lithium clearance from the ACE inhibitor and NSAID raised serum lithium"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l21.q1",
+   "lessonId": "med-pharm-systems.l21",
+   "kind": "mcq",
+   "prompt": "How do benzodiazepines enhance GABA-A receptor function?",
+   "choices": [
+    "They block the chloride channel pore and prolong hyperpolarization",
+    "They inhibit GABA transaminase and raise synaptic GABA concentrations",
+    "They increase the frequency of chloride channel opening in the presence of GABA",
+    "They increase the duration of chloride channel opening and open it directly at high doses"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l21.q2",
+   "lessonId": "med-pharm-systems.l21",
+   "kind": "mcq",
+   "prompt": "Which benzodiazepines are preferred in elderly patients and in liver disease because they are cleared by direct glucuronidation?",
+   "choices": [
+    "Diazepam, chlordiazepoxide and flurazepam",
+    "Alprazolam, triazolam and midazolam",
+    "Clonazepam, clorazepate and prazepam",
+    "Lorazepam, oxazepam and temazepam"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l21.q3",
+   "lessonId": "med-pharm-systems.l21",
+   "kind": "mcq",
+   "prompt": "Which feature distinguishes buspirone from benzodiazepines?",
+   "choices": [
+    "It is a 5-HT1A partial agonist with minimal sedation and no dependence liability",
+    "It enhances GABA-A function but has a ceiling on respiratory depression",
+    "It antagonizes histamine receptors and produces strong sedation",
+    "It acts at orexin receptors and shortens sleep latency quickly"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l21.q4",
+   "lessonId": "med-pharm-systems.l21",
+   "kind": "mcq",
+   "prompt": "A 62-year-old man taking an opioid for chronic pain is also prescribed alprazolam. One evening he is found with slow shallow breathing and unrousable. Which statement best explains the risk?",
+   "choices": [
+    "Alprazolam causes a direct paradoxical bronchospasm in opioid-treated patients",
+    "Additive respiratory depression, hence the boxed warning on co-prescribing",
+    "Alprazolam raises opioid metabolism and creates a toxic morphine metabolite",
+    "The benzodiazepine antagonizes mu receptors and precipitates withdrawal and respiratory failure"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l21.q5",
+   "lessonId": "med-pharm-systems.l21",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman with a long history of heavy daily drinking stops abruptly and, 36 hours later, has a generalized tonic-clonic seizure. Which pharmacologic mechanism best explains alcohol withdrawal seizures and the first-line treatment?",
+   "choices": [
+    "Excess dopamine release in the mesolimbic pathway; haloperidol is first-line",
+    "Excess serotonin release in the raphe nuclei; cyproheptadine is first-line",
+    "Downregulated GABA-A and upregulated NMDA signaling; benzodiazepines restore inhibition",
+    "Upregulated GABA-A and downregulated NMDA signaling; flumazenil restores balance"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l22.q1",
+   "lessonId": "med-pharm-systems.l22",
+   "kind": "mcq",
+   "prompt": "Which antiepileptic is first-line for absence seizures alone and blocks T-type calcium channels?",
+   "choices": [
+    "Gabapentin",
+    "Ethosuximide",
+    "Carbamazepine",
+    "Phenytoin"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l22.q2",
+   "lessonId": "med-pharm-systems.l22",
+   "kind": "mcq",
+   "prompt": "Which HLA allele predicts carbamazepine-induced Stevens-Johnson syndrome in people of Asian ancestry?",
+   "choices": [
+    "HLA-B*15:02",
+    "HLA-B*57:01",
+    "HLA-B*58:01",
+    "HLA-DRB1*04"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l22.q3",
+   "lessonId": "med-pharm-systems.l22",
+   "kind": "mcq",
+   "prompt": "Why can small dose increases of phenytoin cause disproportionate rises in drug level and toxicity?",
+   "choices": [
+    "Renal excretion becomes saturated, producing first-order kinetics",
+    "Plasma protein binding becomes saturated, producing rapid elimination",
+    "Gut absorption becomes saturated, producing a plateau in levels",
+    "Hepatic metabolism becomes saturated, producing zero-order kinetics"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l22.q4",
+   "lessonId": "med-pharm-systems.l22",
+   "kind": "mcq",
+   "prompt": "A 24-year-old woman with generalized epilepsy is well controlled on valproate and plans pregnancy. Which counseling statement is best?",
+   "choices": [
+    "Valproate poses no teratogenic risk but causes maternal hypothyroidism",
+    "Valproate is safe in pregnancy if combined with a CYP-inducing agent",
+    "High teratogenic risk, so alternatives are considered",
+    "Valproate is the safest agent because it induces folate metabolism"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l22.q5",
+   "lessonId": "med-pharm-systems.l22",
+   "kind": "mcq",
+   "prompt": "A 32-year-old woman on lamotrigine is started on valproate for added control. Two weeks later she has fever and a spreading rash with oral mucosal erosions. What best explains this event?",
+   "choices": [
+    "Both drugs block T-type calcium channels, producing direct cutaneous toxicity",
+    "Valproate inhibits lamotrigine metabolism, raising levels and the risk of severe rash",
+    "Valproate induces lamotrigine metabolism, causing unopposed seizure activity and rash",
+    "Valproate displaces lamotrigine from albumin, lowering free drug and causing a hypersensitivity reaction"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l23.q1",
+   "lessonId": "med-pharm-systems.l23",
+   "kind": "mcq",
+   "prompt": "Which antidote treats malignant hyperthermia?",
+   "choices": [
+    "Dantrolene",
+    "Sugammadex",
+    "Flumazenil",
+    "Neostigmine"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l23.q2",
+   "lessonId": "med-pharm-systems.l23",
+   "kind": "mcq",
+   "prompt": "A volatile anesthetic with a low blood:gas partition coefficient will produce which effect?",
+   "choices": [
+    "Slow induction but rapid emergence",
+    "Rapid induction and rapid emergence",
+    "Slow induction and slow emergence",
+    "Rapid induction but prolonged emergence"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l23.q3",
+   "lessonId": "med-pharm-systems.l23",
+   "kind": "mcq",
+   "prompt": "Which local anesthetic feature explains why infected tissue is hard to anesthetize?",
+   "choices": [
+    "Increased plasma cholinesterase destroys the amide anesthetics before they act",
+    "Epinephrine in the tissue accelerates drug washout and shortens the block",
+    "The acidic environment increases the ionized fraction, which reduces tissue penetration",
+    "The alkaline environment increases the ionized fraction, which reduces tissue penetration"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l23.q4",
+   "lessonId": "med-pharm-systems.l23",
+   "kind": "mcq",
+   "prompt": "A 9-year-old boy is induced with sevoflurane and succinylcholine. Within 15 minutes he has masseter rigidity, tachycardia, a temperature of 39.5 degrees Celsius, rising end-tidal carbon dioxide and potassium of 6.2 mEq/L. Which underlying defect is most likely?",
+   "choices": [
+    "Plasma cholinesterase deficiency causing prolonged paralysis",
+    "An acetylcholine receptor upregulation from prior denervation injury",
+    "Impaired Hofmann elimination of the neuromuscular blocker",
+    "A ryanodine receptor variant causing uncontrolled calcium release"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l23.q5",
+   "lessonId": "med-pharm-systems.l23",
+   "kind": "mcq",
+   "prompt": "A hypotensive 50-year-old trauma patient needs emergency intubation. Which induction agent, with the cited reason, is most appropriate?",
+   "choices": [
+    "Ketamine, because catecholamine release supports blood pressure",
+    "Propofol, because it raises systemic vascular resistance and heart rate",
+    "Dexmedetomidine, because alpha-2 agonism raises blood pressure promptly",
+    "Thiopental, because it increases myocardial contractility"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l24.q1",
+   "lessonId": "med-pharm-systems.l24",
+   "kind": "mcq",
+   "prompt": "Which sign is part of the classic opioid overdose triad?",
+   "choices": [
+    "Dilated pupils",
+    "Tachypnea",
+    "Hyperthermia",
+    "Pinpoint pupils"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l24.q2",
+   "lessonId": "med-pharm-systems.l24",
+   "kind": "mcq",
+   "prompt": "Why is codeine unsafe in a child who is an ultrarapid CYP2D6 metabolizer?",
+   "choices": [
+    "Lack of conversion produces opioid withdrawal in the child",
+    "Excess conversion to naloxone antagonizes analgesia",
+    "Excess morphine formation causes toxicity",
+    "Excess conversion to normeperidine can cause seizures"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l24.q3",
+   "lessonId": "med-pharm-systems.l24",
+   "kind": "mcq",
+   "prompt": "A person on full-agonist opioids is given buprenorphine and develops sudden withdrawal symptoms. What is the mechanism?",
+   "choices": [
+    "Buprenorphine blocks naloxone binding and unmasks dependence",
+    "It displaces the full agonist but activates the receptor less",
+    "Buprenorphine increases opioid metabolism through CYP induction",
+    "Buprenorphine acts as a kappa agonist and causes dysphoria and withdrawal"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l24.q4",
+   "lessonId": "med-pharm-systems.l24",
+   "kind": "mcq",
+   "prompt": "A 36-year-old man is found unresponsive with a respiratory rate of 5 and pinpoint pupils. He becomes alert after intranasal naloxone, then 45 minutes later becomes drowsy with shallow breathing again. Which explanation and plan are best?",
+   "choices": [
+    "Naloxone wore off before the long-acting opioid; observe and repeat dosing",
+    "The first dose was inadequate and the diagnosis is incorrect; stop treatment",
+    "Naloxone induced tolerance to the opioid; give a higher dose of the opioid",
+    "Naloxone triggered serotonin syndrome; give cyproheptadine"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l24.q5",
+   "lessonId": "med-pharm-systems.l24",
+   "kind": "mcq",
+   "prompt": "A 41-year-old man with opioid use disorder is on methadone and starts an antibiotic and an antifungal; an ECG shows a QTc of 520 ms. Which statement best explains the hazard?",
+   "choices": [
+    "Methadone shortens QT and the antifungal prolongs it, creating a mismatch",
+    "Methadone induces CYP3A4 and causes loss of antibiotic effect",
+    "Methadone acts as a pure antagonist, so QT effects arise from withdrawal",
+    "Methadone prolongs QT and CYP inhibitors raise its levels"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l25.q1",
+   "lessonId": "med-pharm-systems.l25",
+   "kind": "mcq",
+   "prompt": "Which agent protects the bladder from cyclophosphamide-induced hemorrhagic cystitis?",
+   "choices": [
+    "Dexrazoxane, which chelates iron in cardiac myocytes",
+    "Amifostine, which scavenges platinum adducts in the kidney",
+    "Mesna, which binds the toxic metabolite acrolein",
+    "Leucovorin, which bypasses the blocked folate step"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l25.q2",
+   "lessonId": "med-pharm-systems.l25",
+   "kind": "mcq",
+   "prompt": "Which chemotherapy agent is most associated with cumulative dose-dependent cardiomyopathy?",
+   "choices": [
+    "Vincristine",
+    "Bleomycin",
+    "Cisplatin",
+    "Doxorubicin"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l25.q3",
+   "lessonId": "med-pharm-systems.l25",
+   "kind": "mcq",
+   "prompt": "Which treatment prevents or treats tumor lysis syndrome by converting uric acid to allantoin?",
+   "choices": [
+    "Rasburicase",
+    "Allopurinol",
+    "Probenecid",
+    "Febuxostat"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l25.q4",
+   "lessonId": "med-pharm-systems.l25",
+   "kind": "mcq",
+   "prompt": "A 32-year-old man with a germ cell tumor is treated with bleomycin, etoposide and cisplatin. After three cycles he has a dry cough, exertional dyspnea and bibasilar crackles with reduced diffusing capacity; he also reports ringing in the ears. Which statement best links the drugs to the toxicities?",
+   "choices": [
+    "Bleomycin causes cardiomyopathy and cisplatin causes hemorrhagic cystitis and nephrotoxicity",
+    "Bleomycin causes pulmonary fibrosis and cisplatin causes ototoxicity and nephrotoxicity",
+    "Cisplatin causes pulmonary fibrosis and etoposide causes ototoxicity and nephrotoxicity",
+    "Etoposide causes pulmonary fibrosis and bleomycin causes ototoxicity and nephrotoxicity"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l25.q5",
+   "lessonId": "med-pharm-systems.l25",
+   "kind": "mcq",
+   "prompt": "A 6-year-old receiving induction chemotherapy for acute lymphoblastic leukemia has a markedly elevated white count. After the first dose, she has potassium 6.4 mEq/L, phosphate 8.1 mg/dL, calcium 6.8 mg/dL, uric acid 14 mg/dL and creatinine rising. What is the best explanation and prevention approach?",
+   "choices": [
+    "Hemorrhagic cystitis from acrolein; give mesna and avoid hydration",
+    "Methotrexate toxicity; give leucovorin and restrict potassium intake",
+    "Tumor lysis syndrome; hydration plus rasburicase",
+    "Adrenal insufficiency from vincristine; give hydrocortisone and fludrocortisone"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l26.q1",
+   "lessonId": "med-pharm-systems.l26",
+   "kind": "mcq",
+   "prompt": "Which tyrosine kinase is inhibited by imatinib in chronic myeloid leukemia?",
+   "choices": [
+    "HER2",
+    "BCR-ABL",
+    "EGFR",
+    "BRAF"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l26.q2",
+   "lessonId": "med-pharm-systems.l26",
+   "kind": "mcq",
+   "prompt": "Why does tamoxifen increase the risk of endometrial cancer while protecting against breast cancer recurrence?",
+   "choices": [
+    "It is a partial agonist in the endometrium and an antagonist in breast tissue",
+    "It is an antagonist in the endometrium and an agonist in breast tissue",
+    "It inhibits aromatase in breast tissue but induces it in the uterus",
+    "It blocks GnRH release in the pituitary and raises endometrial estrogen"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l26.q3",
+   "lessonId": "med-pharm-systems.l26",
+   "kind": "mcq",
+   "prompt": "Which adverse effect is the main reason for cardiac monitoring with trastuzumab?",
+   "choices": [
+    "Torsades de pointes from QT prolongation",
+    "Hypertensive crisis from tyramine release",
+    "Coronary vasospasm during the infusion",
+    "Cardiomyopathy with reduced ejection fraction"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l26.q4",
+   "lessonId": "med-pharm-systems.l26",
+   "kind": "mcq",
+   "prompt": "A 64-year-old man with metastatic melanoma on pembrolizumab develops profuse watery diarrhea, abdominal pain and weight loss; stool studies are negative for infection. Which diagnosis and treatment are best?",
+   "choices": [
+    "Pseudomembranous colitis from irinotecan; give mesna and continue therapy",
+    "Carcinoid syndrome; give octreotide and increase the drug dose",
+    "Immune-mediated colitis; hold the drug and give glucocorticoids",
+    "Clostridioides difficile colitis; give rasburicase and continue therapy"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l26.q5",
+   "lessonId": "med-pharm-systems.l26",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man with prostate cancer is started on leuprolide. Two weeks later he has worsening bone pain and urinary retention from spinal metastasis. Which mechanism and prevention are best?",
+   "choices": [
+    "CYP17 inhibition lowers androgens too quickly and causes tumor lysis; rasburicase is given first",
+    "Initial rise in LH and testosterone causes a tumor flare; an antiandrogen is given first",
+    "Aromatase inhibition raises estrogen and causes tumor flare; a SERM is given first",
+    "Adrenal suppression causes cortisol deficiency; a glucocorticoid is given first"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l27.q1",
+   "lessonId": "med-pharm-systems.l27",
+   "kind": "mcq",
+   "prompt": "Which antidote is used for methanol or ethylene glycol poisoning to block formation of toxic metabolites?",
+   "choices": [
+    "Fomepizole",
+    "Hydroxocobalamin",
+    "Deferoxamine",
+    "Pralidoxime"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l27.q2",
+   "lessonId": "med-pharm-systems.l27",
+   "kind": "mcq",
+   "prompt": "A patient has a normal pulse oximetry reading but is dizzy and confused after sitting near a faulty heater; carboxyhemoglobin is elevated. What is the principal initial treatment?",
+   "choices": [
+    "Sodium bicarbonate",
+    "100 percent oxygen",
+    "Methylene blue",
+    "Hydroxocobalamin"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l27.q3",
+   "lessonId": "med-pharm-systems.l27",
+   "kind": "mcq",
+   "prompt": "Which pair correctly links an overdose to its antidote?",
+   "choices": [
+    "Heparin and vitamin K",
+    "Iron and N-acetylcysteine",
+    "Digoxin and digoxin-specific antibody fragments",
+    "Warfarin and protamine sulfate"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l27.q4",
+   "lessonId": "med-pharm-systems.l27",
+   "kind": "mcq",
+   "prompt": "A 45-year-old farm worker arrives with drooling, wheezing, bradycardia, small pupils and muscle twitching after spraying a pesticide. Which treatment pair best addresses this condition?",
+   "choices": [
+    "Physostigmine for muscarinic effects and neostigmine to reactivate cholinesterase",
+    "Naloxone for respiratory depression and flumazenil for fasciculations",
+    "Hydroxocobalamin for cellular hypoxia and sodium thiosulfate for bronchorrhea",
+    "Atropine for muscarinic effects and pralidoxime to reactivate cholinesterase"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l27.q5",
+   "lessonId": "med-pharm-systems.l27",
+   "kind": "mcq",
+   "prompt": "A 25-year-old woman presents with tinnitus, vomiting, deep rapid breathing and fever after an overdose of aspirin. Arterial blood gas shows pH 7.35, low bicarbonate and low PCO2. Which approach is best?",
+   "choices": [
+    "IV sodium bicarbonate to alkalinize urine, dialysis if severe",
+    "Intravenous N-acetylcysteine to regenerate glutathione stores",
+    "Activated charcoal alone and observation without further treatment",
+    "Intravenous flumazenil to reverse the central effects"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l28.q1",
+   "lessonId": "med-pharm-systems.l28",
+   "kind": "mcq",
+   "prompt": "Which drug is a strong inducer of cytochrome P450 enzymes?",
+   "choices": [
+    "Ciprofloxacin",
+    "Ketoconazole",
+    "Cimetidine",
+    "Rifampin"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l28.q2",
+   "lessonId": "med-pharm-systems.l28",
+   "kind": "mcq",
+   "prompt": "Which interaction explains reduced oral contraceptive efficacy in a woman taking carbamazepine?",
+   "choices": [
+    "Displacement from albumin lowers the free fraction of hormone",
+    "Competition for tubular secretion in the proximal tubule",
+    "Induction of hepatic CYP3A4 accelerates hormone metabolism",
+    "Inhibition of CYP2D6 reduces hormone activation"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l28.q3",
+   "lessonId": "med-pharm-systems.l28",
+   "kind": "mcq",
+   "prompt": "Which genetic deficiency predisposes to hemolysis with primaquine, dapsone and rasburicase?",
+   "choices": [
+    "Plasma cholinesterase deficiency",
+    "Glucose-6-phosphate dehydrogenase deficiency",
+    "Thiopurine methyltransferase deficiency",
+    "Dihydropyrimidine dehydrogenase deficiency"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l28.q4",
+   "lessonId": "med-pharm-systems.l28",
+   "kind": "mcq",
+   "prompt": "A 58-year-old woman on stable warfarin starts rifampin for tuberculosis. Which INR trend and mechanism are expected over the next weeks?",
+   "choices": [
+    "The INR falls because of enzyme induction, requiring higher warfarin doses",
+    "The INR rises because of enzyme inhibition, requiring lower warfarin doses",
+    "The INR rises because rifampin displaces warfarin from albumin permanently",
+    "The INR is unchanged because rifampin is renally eliminated only"
+   ]
+  },
+  {
+   "id": "med-pharm-systems.l28.q5",
+   "lessonId": "med-pharm-systems.l28",
+   "kind": "mcq",
+   "prompt": "A 29-year-old woman with severe cystic acne is prescribed isotretinoin; her physician requires two forms of contraception and monthly pregnancy tests. What best explains this requirement?",
+   "choices": [
+    "The drug causes neural tube defects by antagonizing folate metabolism",
+    "The drug causes limb defects by blocking angiogenesis",
+    "The drug causes fetal renal agenesis by blocking angiotensin receptors",
+    "The drug causes craniofacial, cardiac and central nervous system malformations"
+   ]
+  }
+ ]
+}

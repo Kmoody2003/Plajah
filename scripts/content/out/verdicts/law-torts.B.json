@@ -1,0 +1,1176 @@
+{
+  "courseId": "law-torts",
+  "verifier": "B",
+  "note": "Pass 2 complete. WebFetch hit a session rate limit midway; remaining pages were fetched with curl (browser UA). Self-defense retreat, release enforceability and hospital ostensible-agency claims remain unverifiable.",
+  "fetched": 53,
+  "questions": [
+    {
+      "id": "law-torts.l01.q1",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l01.q2",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l01.q3",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l01.q4",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l01.q5",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l02.q1",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l02.q2",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Hustler_Magazine_v._Falwell"
+      ]
+    },
+    {
+      "id": "law-torts.l02.q3",
+      "answer": 0,
+      "confidence": "medium",
+      "ambiguous": true,
+      "sources": [],
+      "note": "Under Restatement (Second) 218 a harmless brief use is not actionable trespass to chattels, so choice 3 (no claim) is also defensible; choice 0 hedges with \"at most\"."
+    },
+    {
+      "id": "law-torts.l02.q4",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l02.q5",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l03.q1",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l03.q2",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l03.q3",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l03.q4",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l03.q5",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l04.q1",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l04.q2",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l04.q3",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l04.q4",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l04.q5",
+      "answer": 0,
+      "confidence": "medium",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Thing_v._La_Chusa"
+      ],
+      "note": "Fact pattern is oddly worded: it is unclear whether Roth caused the crash or merely witnessed it, though the Thing analysis is unaffected."
+    },
+    {
+      "id": "law-torts.l05.q1",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l05.q2",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l05.q3",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l05.q4",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l05.q5",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l06.q1",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l06.q2",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l06.q3",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l06.q4",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l06.q5",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Ybarra_v._Spangard"
+      ]
+    },
+    {
+      "id": "law-torts.l07.q1",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l07.q2",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l07.q3",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Summers_v._Tice"
+      ]
+    },
+    {
+      "id": "law-torts.l07.q4",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://ideas.repec.org/p/hcx/wpaper/1512.html"
+      ]
+    },
+    {
+      "id": "law-torts.l07.q5",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l08.q1",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l08.q2",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l08.q3",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l08.q4",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l08.q5",
+      "answer": 0,
+      "confidence": "medium",
+      "ambiguous": false,
+      "sources": [],
+      "note": "Reasonable minds could debate foreseeability of the onlooker; choice 0 is the best fit for scope-of-risk analysis."
+    },
+    {
+      "id": "law-torts.l09.q1",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l09.q2",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l09.q3",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l09.q4",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l09.q5",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l10.q1",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l10.q2",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Contributory_negligence"
+      ]
+    },
+    {
+      "id": "law-torts.l10.q3",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l10.q4",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l10.q5",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l11.q1",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l11.q2",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l11.q3",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l11.q4",
+      "answer": 1,
+      "confidence": "medium",
+      "ambiguous": true,
+      "sources": [
+        "https://www.illinoiscourts.gov/resources/232dc2ac-5f47-4184-87b2-410a78bd7b75/file"
+      ],
+      "note": "Restatement (Second) 520B says a possessor is not strictly liable to one who intentionally or negligently trespasses on the land, so \"barred because the hiker trespassed\" (choice 2) is defensible on these facts (hiker entered through a fenced, signed boundary)."
+    },
+    {
+      "id": "law-torts.l11.q5",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l12.q1",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/MacPherson_v._Buick_Motor_Co."
+      ]
+    },
+    {
+      "id": "law-torts.l12.q2",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l12.q3",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l12.q4",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l12.q5",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l13.q1",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l13.q2",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l13.q3",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Gertz_v._Robert_Welch,_Inc."
+      ]
+    },
+    {
+      "id": "law-torts.l13.q4",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Section_230"
+      ]
+    },
+    {
+      "id": "law-torts.l13.q5",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l14.q1",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l14.q2",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l14.q3",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l14.q4",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Cox_Broadcasting_Corp._v._Cohn"
+      ]
+    },
+    {
+      "id": "law-torts.l14.q5",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l15.q1",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l15.q2",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l15.q3",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Boomer_v._Atlantic_Cement_Co."
+      ]
+    },
+    {
+      "id": "law-torts.l15.q4",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l15.q5",
+      "answer": 2,
+      "confidence": "medium",
+      "ambiguous": false,
+      "sources": [],
+      "note": "Many states have right-to-farm statutes that make an established farm operation a near-complete defense; the common-law majority answer is choice 2."
+    },
+    {
+      "id": "law-torts.l16.q1",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l16.q2",
+      "answer": 0,
+      "confidence": "medium",
+      "ambiguous": false,
+      "sources": [],
+      "note": "Choice 0 is awkwardly worded (\"knew the recipient would intend to benefit\") but is the closest paraphrase of 552(2)."
+    },
+    {
+      "id": "law-torts.l16.q3",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Ultramares_Corp._v._Touche"
+      ]
+    },
+    {
+      "id": "law-torts.l16.q4",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l16.q5",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l17.q1",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l17.q2",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l17.q3",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l17.q4",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l17.q5",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l18.q1",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l18.q2",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-torts.l18.q3",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/BMW_of_North_America,_Inc._v._Gore"
+      ]
+    },
+    {
+      "id": "law-torts.l18.q4",
+      "answer": 0,
+      "confidence": "medium",
+      "ambiguous": false,
+      "sources": [],
+      "note": "Premise is odd: punitive damages are generally unavailable at all for mere negligence, so a court might vacate rather than reduce; choice 0 is still the best."
+    },
+    {
+      "id": "law-torts.l18.q5",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [],
+      "note": "Choice 1 contradicts the stem (the stem says the plaintiff suffered injury)."
+    }
+  ],
+  "claims": [
+    {
+      "lessonId": "law-torts.l01",
+      "claim": "Vosburg v. Putney (Wisconsin 1891): light kick to shin of classmate with prior injury; liable for full unforeseen extent of injury.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Vosburg_v._Putney"
+      ],
+      "note": "Wisconsin Supreme Court, decided Nov. 17, 1891."
+    },
+    {
+      "lessonId": "law-torts.l01",
+      "claim": "Transferred intent applies among the five trespass-derived torts (assault, battery, false imprisonment, trespass to land, trespass to chattels).",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Transferred_intent"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l01",
+      "claim": "Shopkeeper's privilege permits detention of a suspected shoplifter for a reasonable time on reasonable grounds.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Shopkeeper%27s_privilege"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l02",
+      "claim": "Hustler Magazine v. Falwell (US 1988): public figure cannot recover for IIED from a parody without a false statement of fact made with actual malice.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Hustler_Magazine_v._Falwell"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l02",
+      "claim": "Snyder v. Phelps (US 2011): funeral picketing on public issues on public property protected from IIED liability.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Snyder_v._Phelps"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l02",
+      "claim": "Conversion: good faith is no defense; remedy is full value; replevin alternative.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Conversion_(law)"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l03",
+      "claim": "Katko v. Briney (Iowa 1971): spring gun in unoccupied farmhouse; owner liable to burglar.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Katko_v._Briney"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l03",
+      "claim": "Ploof v. Putnam (Vermont 1908): necessity justified mooring at dock in storm; owner could not unmoor.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Ploof_v._Putnam"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l03",
+      "claim": "Majority of states follow a no-retreat rule before deadly force; duty to retreat only where retreat is completely safe.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Not confirmed on an opened page; Restatement (Second) section 65 imposes a retreat duty before deadly force outside the dwelling, so the tort rule may differ from criminal stand-your-ground statutes."
+    },
+    {
+      "lessonId": "law-torts.l03",
+      "claim": "Vincent v. Lake Erie Transportation Co. (Minnesota 1910): ship owner liable for dock damage despite private necessity.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Vincent_v._Lake_Erie_Transportation_Co."
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l04",
+      "claim": "Palsgraf v. Long Island Railroad (NY Ct. App. 1928): Cardozo majority limited duty to foreseeable plaintiffs; Andrews dissent framed limit as proximate cause.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Palsgraf_v._Long_Island_Railroad_Co."
+      ],
+      "note": "Wikipedia notes many jurisdictions follow Andrews; the lesson hedges consistently."
+    },
+    {
+      "lessonId": "law-torts.l04",
+      "claim": "Dillon v. Legg (California 1968): bystander NIED factors of proximity, contemporaneous perception, close relationship.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Dillon_v._Legg"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l04",
+      "claim": "A minority of states have abolished entrant status categories in favour of general reasonable care.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Rowland_v._Christian"
+      ],
+      "note": "Rowland v. Christian (Cal. 1968); as of 2000 about nine other states plus DC had fully abandoned the categories."
+    },
+    {
+      "lessonId": "law-torts.l05",
+      "claim": "United States v. Carroll Towing Co. (2d Cir. 1947): negligent if B < P x L; absent bargee.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/United_States_v._Carroll_Towing_Co."
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l05",
+      "claim": "Brown v. Kendall (Massachusetts 1850): stick while separating fighting dogs; plaintiff must show lack of ordinary care.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Brown_v._Kendall"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l05",
+      "claim": "Mentally ill adults generally held to the reasonable person standard; children judged by reasonable child of like age except adult activities.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Reasonable_person"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l06",
+      "claim": "Byrne v. Boadle (Exchequer 1863): falling flour barrel, origin of res ipsa loquitur.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Byrne_v_Boadle"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l06",
+      "claim": "Ybarra v. Spangard (California 1944): appendectomy patient with shoulder injury may use res ipsa against all who controlled him.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Ybarra_v._Spangard"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l06",
+      "claim": "Martin v. Herzog (NY 1920, Cardozo): driving at night without lights in violation of statute is negligence itself.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Martin_v._Herzog"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l07",
+      "claim": "Summers v. Tice (California 1948): burden shifted to two negligent hunters; both liable absent exculpation.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Summers_v._Tice"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l07",
+      "claim": "Sindell v. Abbott Laboratories (California 1980): DES market-share liability.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Sindell_v._Abbott_Laboratories"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l07",
+      "claim": "Loss of chance has been adopted in \"some states\" with proportional damages; others reject it.",
+      "verdict": "supported",
+      "sources": [
+        "https://ideas.repec.org/p/hcx/wpaper/1512.html"
+      ],
+      "note": "Survey: 24 states adopted some version, 17 rejected, rest undecided; \"some\" understates that about half the states accept it."
+    },
+    {
+      "lessonId": "law-torts.l08",
+      "claim": "Wagon Mound No. 1 (Privy Council 1961) rejected the directness test; liability only for reasonably foreseeable kind of damage; fire unforeseeable, fouling foreseeable.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Overseas_Tankship_(UK)_Ltd_v_Morts_Dock_and_Engineering_Co_Ltd"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l08",
+      "claim": "Restatement (Third) section 29 risk rule: liability limited to harms that result from the risks that made the conduct tortious.",
+      "verdict": "supported",
+      "sources": [
+        "https://wakeforestlawreview.com/wp-content/uploads/2014/10/Robertson_LawReview_September2009.pdf"
+      ],
+      "note": "Article describes section 29 as the risk standard: whether the injury fell within the risks that made the conduct negligent."
+    },
+    {
+      "lessonId": "law-torts.l08",
+      "claim": "Foreseeable intervening causes do not break the causal chain; unforeseeable ones may supersede.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Intervening_cause"
+      ],
+      "note": "The specific medical-negligence example was not confirmed on the opened page."
+    },
+    {
+      "lessonId": "law-torts.l09",
+      "claim": "Thing v. La Chusa (California 1989): close relationship, presence and awareness at the scene, serious emotional distress.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Thing_v._La_Chusa"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l09",
+      "claim": "Economic loss rule bars negligence recovery for pure economic loss and for damage to the product itself in most US jurisdictions.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Pure_economic_loss"
+      ],
+      "note": "Majority rule (East River 1986); California, New Jersey and Alaska depart."
+    },
+    {
+      "lessonId": "law-torts.l09",
+      "claim": "Collateral source rule: no reduction for independent sources such as insurance; insurer subrogation; modified by statute in several states.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Collateral_source_rule"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l10",
+      "claim": "Contributory negligence survives only in Alabama, Maryland, North Carolina, Virginia and the District of Columbia.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Contributory_negligence"
+      ],
+      "note": "Pure rule in AL, MD, NC, VA; DC largely follows it, with statutory exceptions for pedestrians and cyclists in motor-vehicle cases."
+    },
+    {
+      "lessonId": "law-torts.l10",
+      "claim": "Li v. Yellow Cab (California 1975) judicially adopted pure comparative negligence.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Li_v._Yellow_Cab_Co."
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l10",
+      "claim": "Modified comparative fault uses 50 percent and 51 percent bar variants.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Comparative_negligence"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l10",
+      "claim": "Courts do not enforce releases covering gross negligence or recklessness.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Not checked against an opened page."
+    },
+    {
+      "lessonId": "law-torts.l11",
+      "claim": "Rylands v. Fletcher (House of Lords 1868): reservoir broke into old mine shafts; non-natural use; became Restatement (Second) 519-520 abnormally dangerous activities in US.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Rylands_v_Fletcher"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l11",
+      "claim": "Restatement (Third) section 20 two-part test: foreseeable and highly significant risk of physical harm even with reasonable care; not of common usage.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.colin-doyle.net/torts2023-material/slides/s13-strict/"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l11",
+      "claim": "Defenses: plaintiff's knowing and unreasonable encounter of risk is a defense; abnormal sensitivity may defeat the claim (R2d 523-524A).",
+      "verdict": "supported",
+      "sources": [
+        "https://wakeforestlawreview.com/wp-content/uploads/2014/10/Simmons_LawReview_December2009.pdf",
+        "https://www.illinoiscourts.gov/resources/232dc2ac-5f47-4184-87b2-410a78bd7b75/file"
+      ],
+      "note": "Lesson omits R2d 520B: no strict liability to intentional or negligent trespassers (makes question l11.q4 ambiguous)."
+    },
+    {
+      "lessonId": "law-torts.l12",
+      "claim": "MacPherson v. Buick (NY 1916, Cardozo) removed privity in negligence cases for products likely to be dangerous if negligently made.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/MacPherson_v._Buick_Motor_Co."
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l12",
+      "claim": "Greenman v. Yuba Power Products (California 1963) adopted strict liability for a defective power tool.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Greenman_v._Yuba_Power_Products,_Inc."
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l12",
+      "claim": "Restatement (Third) Products Liability section 2 defines manufacturing, design (reasonable alternative design) and warning defects.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.floridabar.org/the-florida-bar-journal/the-restatement-third-of-torts-products-liability-the-tension-between-product-design-and-product-warnings/"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l13",
+      "claim": "New York Times v. Sullivan (US 1964): actual malice = knowledge of falsity or reckless disregard.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/New_York_Times_Co._v._Sullivan"
+      ],
+      "note": "Clear-and-convincing (\"convincing clarity\") point not confirmed on the opened page."
+    },
+    {
+      "lessonId": "law-torts.l13",
+      "claim": "Gertz v. Robert Welch (US 1974): private figure recovers actual damages on at least negligence; presumed/punitive damages need actual malice.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Gertz_v._Robert_Welch,_Inc."
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l13",
+      "claim": "Section 230 shields providers/users of interactive computer services from being treated as publisher of third-party content; does not protect content creators.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Section_230"
+      ],
+      "note": "Still in force in 2026. Gonzalez v. Google / Twitter v. Taamneh (2023) did not reach it; Anderson v. TikTok (3d Cir. 2024) and 2026 social-media design verdicts narrow its reach for algorithmic and product-design claims, which the lesson does not mention."
+    },
+    {
+      "lessonId": "law-torts.l14",
+      "claim": "Cox Broadcasting v. Cohn (US 1975): no liability for truthful publication of rape victim's name from public court records.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Cox_Broadcasting_Corp._v._Cohn"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l14",
+      "claim": "A number of states, including some large ones, decline to recognise false light.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.hklaw.com/en/insights/publications/2009/02/florida-supreme-court-rejects-false-light-claim"
+      ],
+      "note": "Florida rejected it in Jews for Jesus v. Rapp (2008); New York and Texas also reject it (not confirmed on an opened page)."
+    },
+    {
+      "lessonId": "law-torts.l14",
+      "claim": "Four privacy torts traced to Prosser and collected in Restatement (Second) sections 652A-652E.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Privacy_laws_of_the_United_States"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l15",
+      "claim": "Boomer v. Atlantic Cement (NY 1970): over $45 million plant; injunction conditioned on permanent damages.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Boomer_v._Atlantic_Cement_Co."
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l15",
+      "claim": "Test that interference is actionable if harm is serious and the financial burden of compensating would not make continuation unfeasible is in Restatement section 829A.",
+      "verdict": "contradicted",
+      "sources": [
+        "https://matthewminer.name/law/outlines/1L/2nd+Semester/LAW+516-001+%E2%80%93+Property+II/R2T+%C2%A7+826"
+      ],
+      "note": "That test is Restatement (Second) section 826(b); section 829A is the separate rule on severe harm greater than the plaintiff should bear without compensation."
+    },
+    {
+      "lessonId": "law-torts.l15",
+      "claim": "Opioid public nuisance suits by governments have had mixed results on whether the theory extends to product sales.",
+      "verdict": "supported",
+      "sources": [
+        "https://law.justia.com/cases/oklahoma/supreme-court/2021/118474.html",
+        "https://www.courtnewsohio.gov/cases/2024/SCO/1210/231155.asp"
+      ],
+      "note": "Oklahoma Sup. Ct. (Nov. 2021) reversed a $465M J&J verdict; Ohio Sup. Ct. (Dec. 10, 2024) held the Ohio Product Liability Act bars product-sale public nuisance, undoing a $650M county judgment against pharmacies."
+    },
+    {
+      "lessonId": "law-torts.l16",
+      "claim": "Ultramares v. Touche (NY 1931, Cardozo): no negligence liability to unknown lender; fraud remains; indeterminate liability.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Ultramares_Corp._v._Touche"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l16",
+      "claim": "Restatement (Second) section 552 limits liability to a limited group for whose guidance the information is supplied, in an intended transaction.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.columbia.edu/~mr2651/ecommerce3/2nd/statutes/RestatementTorts.pdf"
+      ],
+      "note": "The Restatement (Third) Liability for Economic Harm (2020) now restates this tort; the lesson cites only the Second."
+    },
+    {
+      "lessonId": "law-torts.l16",
+      "claim": "Fraud must be pleaded with particularity under FRCP 9(b).",
+      "verdict": "supported",
+      "sources": [
+        "https://www.law.cornell.edu/rules/frcp/rule_9"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l17",
+      "claim": "Minor detour stays within scope; frolic (major personal departure) takes employee outside it.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Frolic_and_detour"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l17",
+      "claim": "Apparent/ostensible agency makes hospitals liable for ER independent-contractor physicians in many states.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Not checked against an opened page."
+    },
+    {
+      "lessonId": "law-torts.l17",
+      "claim": "Parents generally not vicariously liable at common law; statutes impose limited liability for wilful misconduct.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Vicarious_liability"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l18",
+      "claim": "BMW v. Gore (US 1996) three guideposts: reprehensibility, ratio/disparity, comparable civil penalties.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/BMW_of_North_America,_Inc._v._Gore"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l18",
+      "claim": "State Farm v. Campbell (US 2003): few awards exceeding single-digit ratio satisfy due process; 1:1 may be the limit when compensatory damages are substantial.",
+      "verdict": "supported",
+      "sources": [
+        "https://supreme.justia.com/cases/federal/us/538/408/"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-torts.l18",
+      "claim": "Punitive damages require outrageous conduct from evil motive or reckless indifference (Restatement section 908 standard), not mere negligence.",
+      "verdict": "supported",
+      "sources": [
+        "https://biotech.law.lsu.edu/books/lbb/x92.htm"
+      ],
+      "note": "Page quotes the outrageous / evil motive / reckless indifference standard but not the section number."
+    }
+  ]
+}

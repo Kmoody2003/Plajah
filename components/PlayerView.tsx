@@ -1639,30 +1639,49 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               })()}
             </div>
           ) : (
-            <div className="w-full h-full relative text-left block">
-              {isFlipped ? (
-                <div className="w-full h-full animate-in fade-in duration-500">
-                  <AnimatedSlideshow
-                    images={resolveSlideshowImages(album, currentTrack)}
-                    isPlaying={globalIsPlaying && isCurrentTrackGlobal}
-                    themeColor={album.themeColor}
-                  />
-                </div>
-              ) : gatefoldOn && choraNext.isNight ? (
-                /* Night Registry (mobile Gatefold): the Orrery replaces the cover —
-                   tracks orbit the album; tapping a node plays it. */
+            <div className="w-full h-full relative text-left block overflow-hidden">
+              {gatefoldStageMode === 'ORRERY' ? (
+                /* Orrery Stage on mobile */
                 <div
-                  className="w-full h-full flex items-center justify-center"
+                  className="w-full h-full flex items-center justify-center relative"
                   style={{ background: 'radial-gradient(90% 120% at 50% -20%, rgba(107,0,153,0.45), transparent 65%), radial-gradient(60% 80% at 85% 10%, rgba(0,218,243,0.12), transparent 60%), #060210' }}
                 >
                   <OrreryStage
                     album={album}
                     tracks={localTracks}
                     activeIndex={currentTrackIndex}
+                    isPlaying={globalIsPlaying && isCurrentTrackGlobal}
                     onPlayTrack={(t, i) => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }}
                   />
                 </div>
+              ) : (gatefoldStageMode === 'SLIDESHOW' || isFlipped) ? (
+                /* Embedded mobile Slideshow */
+                <div className="w-full h-full animate-in fade-in duration-500 relative">
+                  <AnimatedSlideshow
+                    key={`mobile-slide-${album.id}-${currentTrack?.id || 'album'}`}
+                    images={gatefoldSlides.length > 0 ? gatefoldSlides : resolveSlideshowImages(album, currentTrack)}
+                    startIndex={0}
+                    presentation="panel"
+                    isPlaying={globalIsPlaying && isCurrentTrackGlobal}
+                    themeColor={album.themeColor}
+                  />
+                </div>
+              ) : gatefoldStageMode === 'FX' ? (
+                /* FX Stage audio visualizer in mobile viewer */
+                <div className="w-full h-full animate-in fade-in duration-500 relative bg-black">
+                  <div className="absolute inset-0">
+                    {isPixelsEngine ? (
+                      <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
+                    ) : (
+                      <>
+                        <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} />
+                        {visualizerType === 'PAINT' && <div className="absolute inset-0"><PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} /></div>}
+                      </>
+                    )}
+                  </div>
+                </div>
               ) : (
+                /* Cover Art */
                 <img
                   src={thumb((currentTrack?.images?.[0]) || album.coverImage, THUMB.large) || undefined}
                   alt={currentTrack?.title || album.title}
@@ -1674,16 +1693,83 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none" />
               
-              <div className="absolute inset-0 flex items-center justify-center p-8">
-                {(!globalIsPlaying || !isCurrentTrackGlobal) && !(gatefoldOn && choraNext.isNight) && (
+              <div className="absolute inset-0 flex items-center justify-center p-8 pointer-events-none">
+                {(!globalIsPlaying || !isCurrentTrackGlobal) && gatefoldStageMode === 'ART' && !isFlipped && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); playTrack(album.tracks[0], album, 'LIBRARY'); setCurrentTrackIndex(0); }}
-                    className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center transform scale-100 opacity-100 transition-all duration-500 border border-white/30 shadow-2xl z-10"
+                    className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center transform scale-100 opacity-100 transition-all duration-500 border border-white/30 shadow-2xl z-10 pointer-events-auto"
                   >
                     <Play size={32} />
                   </button>
                 )}
               </div>
+
+              {/* Mobile Stage View Switcher Pills */}
+              <div 
+                className="absolute top-3 left-3 z-30 flex items-center gap-1 p-1 rounded-full bg-black/60 backdrop-blur-xl border border-white/15 max-w-[calc(100%-4.5rem)] overflow-x-auto no-scrollbar shadow-lg"
+                style={{ top: 'max(0.75rem, env(safe-area-inset-top))', left: 'max(0.75rem, env(safe-area-inset-left))' }}
+              >
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setIsFlipped(false); selectGatefoldStage('ART'); }}
+                  className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                    gatefoldStageMode === 'ART' && !isFlipped
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-white/60 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  Art
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setIsFlipped(false); selectGatefoldStage('SLIDESHOW'); }}
+                  className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                    gatefoldStageMode === 'SLIDESHOW' || isFlipped
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-white/60 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  Slideshow
+                </button>
+                {gatefoldOn && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setIsFlipped(false); selectGatefoldStage('ORRERY'); }}
+                    className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                      gatefoldStageMode === 'ORRERY'
+                        ? 'text-white font-black'
+                        : 'text-white/60 hover:text-white hover:bg-white/10'
+                    }`}
+                    style={gatefoldStageMode === 'ORRERY' ? { backgroundImage: 'var(--pj-grad-spatial, linear-gradient(135deg,#6B0099,#00DAF3))' } : {}}
+                  >
+                    Orrery
+                  </button>
+                )}
+                {canUseFxStage() && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setIsFlipped(false); selectGatefoldStage('FX'); }}
+                    className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 whitespace-nowrap ${
+                      gatefoldStageMode === 'FX'
+                        ? 'bg-small-orange/20 border border-small-orange/60 text-small-orange'
+                        : 'text-white/60 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <Activity size={10} /> FX
+                  </button>
+                )}
+                {gatefoldStageMode === 'FX' && canUseFxStage() && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setIsTvFxActive(true); }}
+                    title="Open Fullscreen FX Stage"
+                    className="px-2 py-1 rounded-full bg-small-orange text-black text-[9px] font-black uppercase tracking-wider flex items-center gap-0.5 hover:bg-white transition-all shadow-sm whitespace-nowrap"
+                  >
+                    <Maximize2 size={9} /> Full
+                  </button>
+                )}
+              </div>
+
               {/* Share icon overlaid on cover art */}
               <button
                 onClick={(e) => { e.stopPropagation(); setShowShareModal(true); }}
@@ -1691,26 +1777,6 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 style={{top:'max(1rem, env(safe-area-inset-top))', right:'max(1rem, env(safe-area-inset-right))'}}
               >
                 <Share2 size={16} />
-              </button>
-              {/* Flip cover ⇄ slideshow — small badge on the art (only when the album/track has extra images) */}
-              {(((currentTrack?.images?.length || 0) > 1) || ((album.slideshow?.length || 0) > 0)) && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); setIsFlipped(f => !f); }}
-                  title={isFlipped ? 'Show cover art' : 'Show slideshow'}
-                  className={`absolute top-4 left-4 z-20 w-10 h-10 rounded-xl backdrop-blur-md border flex items-center justify-center transition-all ${isFlipped ? 'bg-small-orange/30 border-small-orange/50 text-small-orange' : 'bg-black/50 border-white/20 text-white/60 hover:text-white hover:bg-black/70'}`}
-                  style={{top:'max(1rem, env(safe-area-inset-top))', left:'max(1rem, env(safe-area-inset-left))'}}
-                >
-                  <Layers size={16} />
-                </button>
-              )}
-              {/* FX Stage entry — audio-reactive visualizers on phone/tablet */}
-              <button
-                onClick={(e) => { e.stopPropagation(); setIsVisualizerLayout(true); }}
-                title="FX Stage — audio-reactive visualizers"
-                className="absolute bottom-4 left-4 z-20 flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/50 backdrop-blur-md border border-white/15 text-white/70 hover:text-white hover:border-small-orange/50 transition-all text-[9px] font-black uppercase tracking-widest"
-                style={{ bottom: 'max(1rem, env(safe-area-inset-bottom))', left: 'max(1rem, env(safe-area-inset-left))' }}
-              >
-                <Activity size={12} /> FX Stage
               </button>
               {/* Floating Track Info on Cover — Gatefold: sleeve credits (italic title,
                   gradient artist, live ember progress bar); classic keeps the old style */}
@@ -2050,6 +2116,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             text={`Check out ${t.title} by ${t.artist || album.artist} on Plajah.com`}
                             url={buildShareUrl('album', album.id, { track: t.id })}
                             imageUrl={album.coverImage}
+                            contentType="music"
+                            ctaText="▶ LISTEN LOSSLESS ON PLAJAH"
                             plajahLabel="Share to Plajah feed"
                             onPostToPlajah={async () => {
                               await createPost({
@@ -3725,6 +3793,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                        text={`Check out ${currentTrack?.title || album.title} by ${album.artist} on Plajah.com`}
                        url={buildShareUrl('album', album.id, { track: currentTrack?.id })}
                        imageUrl={album.coverImage}
+                       contentType="album"
+                       ctaText="▶ LISTEN LOSSLESS ON PLAJAH"
                        plajahLabel="Share to Plajah feed"
                        onPostToPlajah={async () => {
                          await createPost({

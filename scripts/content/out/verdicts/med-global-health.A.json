@@ -1,0 +1,1281 @@
+{
+ "courseId": "med-global-health",
+ "verifier": "A",
+ "note": "WebSearch worked; WebFetch not used (search result pages were the sources opened). Many stable-history claims left unverifiable rather than guessed. No option text appeared cut off; all 100 questions answered blind.",
+ "fetched": 19,
+ "questions": [
+  {
+   "id": "med-global-health.l01.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l01.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l01.q3",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "MDD is the clear DALY-over-deaths case; stem is fine.",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l01.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l02.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l02.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l02.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l03.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l03.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l03.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l03.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l04.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l04.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l04.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l04.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l05.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l05.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l05.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l05.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l06.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l06.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l06.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l07.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l07.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l07.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l07.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l08.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l08.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l08.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l09.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l09.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l09.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l09.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l10.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l10.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l10.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l11.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l11.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l11.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l12.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l12.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l12.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l13.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l13.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l13.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l13.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l14.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l14.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l14.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l15.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l15.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l15.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l15.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l16.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l16.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l16.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l17.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l17.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l17.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l17.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l18.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l18.q3",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Standard threshold is more than 1 death per 10,000 per day; option 3.",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l18.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l19.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l19.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l19.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l20.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l20.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l20.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-global-health.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-global-health.l01",
+   "claim": "Under-five deaths fell from ~12 million (1990) to under 5 million in recent estimates",
+   "verdict": "supported",
+   "sources": [
+    "https://data.unicef.org/resources/levels-and-trends-in-child-mortality-2024/"
+   ],
+   "note": "Search results report 4.8 million under-five deaths in 2023 (UN IGME); 1990 figure not separately opened."
+  },
+  {
+   "lessonId": "med-global-health.l01",
+   "claim": "NCDs account for roughly three quarters of deaths worldwide",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l01",
+   "claim": "DALY = YLL + YLD; modern GBD dropped age weighting",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l02",
+   "claim": "WHO CSDH 2008 Closing the Gap in a Generation; three overarching recommendations",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l02",
+   "claim": "Whitehall studies: mortality rose stepwise as grade fell",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l02",
+   "claim": "Ottawa Charter 1986",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l03",
+   "claim": "Omran epidemiologic transition 1971; concentration index ranges -1 to +1",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l03",
+   "claim": "Worked example: gap 80 before and after, ratio 2.3 to 5",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Arithmetic is correct (140-60, 100-20, 140/60, 100/20) but no page opened."
+  },
+  {
+   "lessonId": "med-global-health.l03",
+   "claim": "Negative concentration index means variable concentrated among the poor",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l04",
+   "claim": "SDG 3 targets: MMR under 70, U5MR 25 or less, NMR 12 or less by 2030",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l04",
+   "claim": "Maternal death within 42 days; Three Delays by Thaddeus and Maine",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l04",
+   "claim": "Magnesium sulfate prevents eclampsia; oxytocin and tranexamic acid for haemorrhage",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l05",
+   "claim": "Smallpox last natural case Somalia 1977, declared eradicated 1980; EPI 1974; Gavi 2000",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l05",
+   "claim": "Wild poliovirus type 1 endemic only in Afghanistan and Pakistan; types 2 and 3 certified eradicated",
+   "verdict": "supported",
+   "sources": [
+    "https://polioeradication.org/news/pakistan-and-afghanistan-unite-to-protect-millions-of-children-in-synchronized-polio-campaigns/"
+   ],
+   "note": "As of Sept 2026 WPV1 endemic only in Afghanistan (about 32 cases in 2026) and Pakistan (about 4); type 2/3 certification not separately opened."
+  },
+  {
+   "lessonId": "med-global-health.l05",
+   "claim": "Measles needs about 95 percent two-dose coverage; coverage and burden context",
+   "verdict": "supported",
+   "sources": [
+    "https://www.paho.org/en/news/28-11-2025-measles-deaths-down-88-2000-cases-surge"
+   ],
+   "note": "Global MCV1 84 percent and MCV2 76 percent in 2024, below 95; measles deaths about 95,000 in 2024. Canada lost elimination status Nov 2025."
+  },
+  {
+   "lessonId": "med-global-health.l06",
+   "claim": "Partial artemisinin resistance confirmed in parts of East Africa",
+   "verdict": "supported",
+   "sources": [
+    "https://targetmalaria.org/latest/news/world-malaria-report-2025/"
+   ],
+   "note": "World Malaria Report 2025: confirmed in Eritrea, Rwanda, Uganda, Tanzania; suspected in 4 more. 282M cases and 610,000 deaths in 2024, 95 percent of deaths in WHO African Region."
+  },
+  {
+   "lessonId": "med-global-health.l06",
+   "claim": "Tu Youyou Nobel 2015; RTS,S and R21 recommended by WHO",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l06",
+   "claim": "Primaquine/tafenoquine haemolysis risk in G6PD deficiency; five human species",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l07",
+   "claim": "TB leading cause of death from a single infectious agent per WHO",
+   "verdict": "supported",
+   "sources": [
+    "https://www.who.int/teams/global-programme-on-tuberculosis-and-lung-health/tb-reports/global-tuberculosis-report-2025/tb-disease-burden"
+   ],
+   "note": "Global TB Report 2025: 10.7 million ill and 1.23 million deaths in 2024; leading single-agent killer."
+  },
+  {
+   "lessonId": "med-global-health.l07",
+   "claim": "Xpert MTB/RIF endorsed by WHO 2010; MDR-TB = resistance to at least isoniazid and rifampicin",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l07",
+   "claim": "Six-month 2HRZE/4HR regimen; pyridoxine for isoniazid neuropathy; all-oral resistant regimens about six months",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l08",
+   "claim": "Twice-yearly injectable lenacapavir extends PrEP choices",
+   "verdict": "supported",
+   "sources": [
+    "https://www.theglobalfund.org/en/updates/2026/2026-04-14-us-global-fund-expand-commitment-long-acting-hiv-prevention-country-rollout-lenacapavir-accelerates/",
+    "https://www.prepwatch.org/products/lenacapavir-for-prep/"
+   ],
+   "note": "WHO guideline July 2025; WHO prequalification Oct 2025; rollout in nine African countries in 2026 via Global Fund/PEPFAR; generics about US$40/yr from 2027. Lesson current."
+  },
+  {
+   "lessonId": "med-global-health.l08",
+   "claim": "95-95-95 targets for 2025; many countries approached or reached them",
+   "verdict": "supported",
+   "sources": [
+    "https://www.unaids.org/sites/default/files/2025-07/2025-global-aids-update-JC3153_en.pdf"
+   ],
+   "note": "Per search summary of UNAIDS: 2025 global cascade 88-89-95; more countries meeting targets; world recommitting to 95-95-95 for 2030."
+  },
+  {
+   "lessonId": "med-global-health.l08",
+   "claim": "Global Fund created 2002, PEPFAR 2003; funding volatile and donor-dependent",
+   "verdict": "supported",
+   "sources": [
+    "https://www.theglobalfund.org/en/replenishment/"
+   ],
+   "note": "Global Fund 8th replenishment (Nov 2025) about US$11.34bn at summit versus 18bn need; Gavi 2026-2030 over 9bn versus 11.9bn target. Creation dates not separately opened."
+  },
+  {
+   "lessonId": "med-global-health.l09",
+   "claim": "2014-2016 Ebola: roughly 28,000 cases and 11,000 deaths",
+   "verdict": "supported",
+   "sources": [
+    "https://www.who.int/emergencies/situations/ebola-outbreak-2014-2016-West-Africa"
+   ],
+   "note": "Search results: 28,646 cases and 11,323 deaths."
+  },
+  {
+   "lessonId": "med-global-health.l09",
+   "claim": "2015 Guinea ring vaccination trial with rVSV-ZEBOV showed strong protection",
+   "verdict": "supported",
+   "sources": [
+    "https://journals.plos.org/plosntds/article?id=10.1371%2Fjournal.pntd.0005093"
+   ],
+   "note": "Henao-Restrepo et al: 100 percent efficacy (CI 74.7-100) in ring trial."
+  },
+  {
+   "lessonId": "med-global-health.l09",
+   "claim": "Ebola incubation 2 to 21 days; two monoclonal antibodies approved after the PALM trial",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l10",
+   "claim": "IHR 2024 amendments create pandemic emergency; in force for most states",
+   "verdict": "supported",
+   "sources": [
+    "https://www.who.int/news-room/questions-and-answers/item/international-health-regulations-amendments",
+    "https://www.ejiltalk.org/the-entry-into-force-of-the-amendments-to-whos-international-health-regulations/"
+   ],
+   "note": "Amendments entered into force 19 September 2025 (add pandemic emergency and National IHR Authorities). Lesson wording OK; could state the date."
+  },
+  {
+   "lessonId": "med-global-health.l10",
+   "claim": "Pandemic Agreement adopted 2025; PABS annex still under negotiation",
+   "verdict": "supported",
+   "sources": [
+    "https://www.who.int/news/item/01-05-2026-who-member-states-agree-to-extend-negotiations-on-pathogen-access-and-benefit-sharing-annex",
+    "https://www.who.int/news/item/20-07-2026-who-member-states-continue-negotiations-on-the-pathogen-access-and-benefit-sharing-annex"
+   ],
+   "note": "Adopted 20 May 2025 (WHA78); May 2026 deadline missed, extended; outcome due at WHA May 2027; IGWG8 14-18 Sept 2026."
+  },
+  {
+   "lessonId": "med-global-health.l10",
+   "claim": "Announced withdrawal of at least one major member (US); mpox PHEIC listed without end",
+   "verdict": "contradicted",
+   "sources": [
+    "https://geneva.usmission.gov/2026/01/22/termination-of-u-s-membership-in-the-who/",
+    "https://www.euronews.com/health/2026/01/23/the-united-states-has-officially-left-who-ending-a-year-of-controversial-health-reforms",
+    "https://www.statnews.com/2025/09/05/who-pheic-emergency-mpox-drc-africa/"
+   ],
+   "note": "Outdated: US withdrawal took effect 22 January 2026 and US funding ended. Also the 2024 mpox PHEIC was ended 5 Sept 2025."
+  },
+  {
+   "lessonId": "med-global-health.l11",
+   "claim": "COVAX, South Africa mRNA hub, CEPI 100 days, Pandemic Fund (World Bank, 2022) grants",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l11",
+   "claim": "PABS negotiations under the Pandemic Agreement are where access/benefit-sharing tension sits",
+   "verdict": "supported",
+   "sources": [
+    "https://www.who.int/news/item/28-03-2026-who-member-states-agree-to-extend-negotiations-on-key-annex-to-the-pandemic-agreement"
+   ],
+   "note": "Consistent with WHO: annex negotiations ongoing and extended."
+  },
+  {
+   "lessonId": "med-global-health.l11",
+   "claim": "Global Health Security Index 2019; high scores did not predict COVID outcomes",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l12",
+   "claim": "FCTC adopted 2003, in force 2005, first treaty negotiated under WHO Constitution",
+   "verdict": "supported",
+   "sources": [
+    "https://legal.un.org/avl/ha/whofctc/whofctc.html"
+   ],
+   "note": "Adopted 21 May 2003; in force 27 Feb 2005; first treaty under Article 19."
+  },
+  {
+   "lessonId": "med-global-health.l12",
+   "claim": "Cervical cancer targets: 90 percent girls vaccinated by 15, 70 screened, 90 treated by 2030",
+   "verdict": "supported",
+   "sources": [
+    "https://www.who.int/news-room/fact-sheets/detail/cervical-cancer"
+   ],
+   "note": "90-70-90 strategy adopted by WHA August 2020."
+  },
+  {
+   "lessonId": "med-global-health.l12",
+   "claim": "NCDs about three quarters of deaths; SDG one-third premature mortality reduction",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l13",
+   "claim": "Beveridge/NHS 1948; Bismarck 1880s; single-payer examples",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l13",
+   "claim": "Canada, Taiwan, South Korea as single-payer NHI",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l13",
+   "claim": "Netherlands and Switzerland regulated competing private insurers",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l14",
+   "claim": "Abuja Declaration 2001: 15 percent of budget to health",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l14",
+   "claim": "Thailand UCS 2002; Uganda abolished user fees 2001",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l14",
+   "claim": "SDG 3.8 is UHC; catastrophic thresholds 10 and 25 percent",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l15",
+   "claim": "WHO first Model List of Essential Medicines in 1977",
+   "verdict": "supported",
+   "sources": [
+    "https://www.who.int/groups/expert-committee-on-selection-and-use-of-essential-medicines/essential-medicines-lists",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC13123435/"
+   ],
+   "note": "Search results confirm 1977 first list, updated every two years."
+  },
+  {
+   "lessonId": "med-global-health.l15",
+   "claim": "TRIPS in force 1995, 20-year patents; Doha 2001; 2003 WTO decision made permanent",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l15",
+   "claim": "Medicines Patent Pool 2010 with Unitaid; Cipla 2001 triple therapy offer",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l16",
+   "claim": "Shortfall of roughly ten million health workers by 2030",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.who.int/news/item/12-05-2025-nursing-workforce-grows--but-inequities-threaten-global-health-goals"
+   ],
+   "note": "Mildly stale: WHO 2025 forecast is 11.1 million shortfall by 2030 (10 million was the older estimate). Recommend updating."
+  },
+  {
+   "lessonId": "med-global-health.l16",
+   "claim": "Alma-Ata 1978 Health for All by 2000; Astana 2018; Walsh and Warren 1979",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l16",
+   "claim": "WHO Global Code on recruitment adopted 2010, voluntary",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l17",
+   "claim": "Nuremberg 1947, Helsinki 1964, Belmont 1979 three principles",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l17",
+   "claim": "Zidovudine placebo-trial controversy (Lurie and Wolfe; 1994 076 trial)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l17",
+   "claim": "Helsinki allows placebo only where no proven intervention or compelling reasons with no added serious risk",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l18",
+   "claim": "Four humanitarian principles; Geneva Conventions 1949; 1951 Refugee Convention non-refoulement",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l18",
+   "claim": "Crude mortality rate emergency threshold above 1 per 10,000 per day",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l18",
+   "claim": "MSF founded 1971; Sphere Handbook; WHO leads health cluster",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page. Lesson text in claims file shows garbled characters (Medecins/temoignage)."
+  },
+  {
+   "lessonId": "med-global-health.l19",
+   "claim": "GRAM: about 1.27 million attributable and 4.95 million associated deaths in 2019",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/35065702/",
+    "https://www.ox.ac.uk/news/2022-01-20-estimated-12-million-people-died-2019-antibiotic-resistant-bacterial-infections"
+   ],
+   "note": "Confirmed."
+  },
+  {
+   "lessonId": "med-global-health.l19",
+   "claim": "2024 UNGA declaration: reduce AMR deaths 10 percent by 2030 vs 2019",
+   "verdict": "supported",
+   "sources": [
+    "https://sdg.iisd.org/news/countries-commit-to-increased-action-on-antimicrobial-resistance/",
+    "https://health.ec.europa.eu/latest-updates/unga-political-declaration-global-commitment-combat-antimicrobial-resistance-amr-2024-10-01_en"
+   ],
+   "note": "Adopted 26 Sept 2024; 10 percent reduction versus 4.95M baseline."
+  },
+  {
+   "lessonId": "med-global-health.l19",
+   "claim": "mcr-1 found 2015 in China; AWaRe Access/Watch/Reserve",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l20",
+   "claim": "ICESCR Art 12 (1966), General Comment 14 (2000), four features",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-global-health.l20",
+   "claim": "Abrupt donor funding cuts around 2025 disrupted programmes",
+   "verdict": "supported",
+   "sources": [
+    "https://www.theglobalfund.org/en/replenishment/",
+    "https://geneva.usmission.gov/2026/01/22/termination-of-u-s-membership-in-the-who/"
+   ],
+   "note": "Consistent: US left WHO Jan 2026; Gavi and Global Fund 2025 replenishments fell short of targets."
+  },
+  {
+   "lessonId": "med-global-health.l20",
+   "claim": "Paris Declaration on Aid Effectiveness 2005",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  }
+ ]
+}

@@ -14,6 +14,7 @@
  */
 
 import { drawScriptureGraphic } from './scriptureGraphic';
+import { publishAppOutput, onAppOutputStream } from './mediaEngine/bridge';
 
 export type SourceType =
   | 'CAMERA' | 'SCREEN' | 'MEDIA' | 'GRAPHIC' | 'COLOR' | 'BARS' | 'BLACK';
@@ -147,6 +148,10 @@ export class TVStudioEngine {
   private midiAccess: any = null; // MIDIAccess — typed as any; @types/webmidi not installed
   private onMidiCallback?: (cc: number, value: number, channel: number) => void;
 
+  private amboAudienceUnsub?: () => void;
+  private amboLowerThirdUnsub?: () => void;
+  private programStream?: MediaStream;
+
   onSourcesChanged?: () => void;
   onOverlaysChanged?: () => void;
   onProgramChanged?: (id: string | null) => void;
@@ -180,6 +185,9 @@ export class TVStudioEngine {
     // Add default sources
     this._addColorSource('black', 'Black', '#000000');
     this._addColorSource('bars', 'Color Bars', 'BARS');
+
+    // Subscribe to platform media bus for native Ambo feeds
+    this.listenToAmboFeeds();
   }
 
   // ── Source management ─────────────────────────────────────────────────────
@@ -203,6 +211,19 @@ export class TVStudioEngine {
     const src = this._makeSource(id, color === 'BARS' ? 'BARS' : 'COLOR', label);
     src.color = color; src.isReady = true;
     this.sources.set(id, src);
+  }
+
+  /** Listen to native Ambo outputs published over the virtual video bus */
+  listenToAmboFeeds(): void {
+    this.amboAudienceUnsub?.();
+    this.amboAudienceUnsub = onAppOutputStream('ambo:audience', (stream) => {
+      this.addStreamSourceWithId('ambo_audience', stream, 'Ambo Audience');
+    });
+
+    this.amboLowerThirdUnsub?.();
+    this.amboLowerThirdUnsub = onAppOutputStream('ambo:lower_third', (stream) => {
+      this.addStreamSourceWithId('ambo_lower_third', stream, 'Ambo Lower Third');
+    });
   }
 
   async addCameraSource(deviceId?: string): Promise<StudioSource | null> {
@@ -229,24 +250,43 @@ export class TVStudioEngine {
     } catch { return null; }
   }
 
+  /** Add or update a stream source with an explicit ID */
+  addStreamSourceWithId(id: string, stream: MediaStream, label: string): StudioSource {
+    let src = this.sources.get(id);
+    if (!src) {
+      src = this._makeSource(id, 'MEDIA', label);
+      this.sources.set(id, src);
+    } else {
+      src.label = label;
+    }
+    src.stream = stream;
+    if (!src.videoEl) {
+      const video = document.createElement('video');
+      video.autoplay = true;
+      video.muted = true;
+      video.playsInline = true;
+      src.videoEl = video;
+    }
+    src.videoEl.srcObject = stream;
+    src.videoEl.onloadeddata = () => { src!.isReady = true; this.onSourcesChanged?.(); };
+    src.videoEl.play?.().catch(() => {});
+    src.isReady = true;
+
+    const audioTrack = stream.getAudioTracks()[0];
+    if (audioTrack && src.gainNode) {
+      try {
+        const msSrc = this.audioCtx.createMediaStreamSource(new MediaStream([audioTrack]));
+        msSrc.connect(src.gainNode);
+      } catch { /* ignored */ }
+    }
+    this.onSourcesChanged?.();
+    return src;
+  }
+
   /** Add a source from an existing MediaStream — e.g. a REMOTE campus program feed
    *  pulled over the platform (multi-site master control). */
   addStreamSource(stream: MediaStream, label: string): StudioSource {
-    const id = `feed_${Date.now()}`;
-    const src = this._makeSource(id, 'CAMERA', label);
-    src.stream = stream;
-    const video = document.createElement('video');
-    video.srcObject = stream; video.autoplay = true; video.muted = true; video.playsInline = true;
-    video.onloadeddata = () => { src.isReady = true; this.onSourcesChanged?.(); };
-    video.play?.().catch(() => {});
-    src.videoEl = video;
-    const audioTrack = stream.getAudioTracks()[0];
-    if (audioTrack) {
-      try { const msSrc = this.audioCtx.createMediaStreamSource(new MediaStream([audioTrack])); msSrc.connect(src.gainNode!); } catch { /* */ }
-    }
-    this.sources.set(id, src);
-    this.onSourcesChanged?.();
-    return src;
+    return this.addStreamSourceWithId(`feed_${Date.now()}`, stream, label);
   }
 
   async addScreenSource(): Promise<StudioSource | null> {
@@ -579,6 +619,14 @@ export class TVStudioEngine {
     if (this.running) return;
     this.running = true;
     this.frameHandle = requestAnimationFrame(this._frame);
+
+    // Publish program output to platform virtual video bus
+    try {
+      if (!this.programStream) {
+        this.programStream = this.getProgramStream();
+      }
+      publishAppOutput('switcher:pgm', this.programStream, 'Switcher Program (PGM)');
+    } catch { /* ignored */ }
   }
 
   stop() {
@@ -807,6 +855,10 @@ ${events}
     const rafHandle = requestAnimationFrame(draw);
     this.auxBuses.set(id, { label, canvas, ctx, sourceId: null, rafHandle });
     this.onAuxBusesChanged?.();
+    try {
+      const auxStream = canvas.captureStream(30);
+      publishAppOutput(`switcher:${id.toLowerCase()}`, auxStream, `Switcher ${label}`);
+    } catch { /* ignored */ }
   }
 
   removeAuxBus(id: string): void {
@@ -875,13 +927,15 @@ ${events}
     return this.canvas.toDataURL('image/jpeg', 0.7);
   }
 
-  // ── NDI / AVB stubs ───────────────────────────────────────────────────────
-  // NDI and AVB require a native bridge. These methods emit the program stream
-  // over a WebSocket to a local NDI Bridge process (ndi-webrtc-peer-worker
-  // or OBS NDI plugin with WebSocket server mode enabled).
+  // ── NDI / OMT / SRT / AVB Broadcast & Hardware Transport ─────────────
+  // Supports native low-latency LAN (OMT, NDI), reliable internet WAN (SRT),
+  // and deterministic multi-channel network audio hardware (AVB/Milan).
 
   private ndiWs: WebSocket | null = null;
   private avbWs: WebSocket | null = null;
+  private omtActive = false;
+  private srtActive = false;
+  private avbNativeActive = false;
 
   connectNDI(wsUrl: string): void {
     if (this.ndiWs) this.ndiWs.close();
@@ -893,18 +947,83 @@ ${events}
   disconnectNDI(): void { this.ndiWs?.close(); this.ndiWs = null; }
   isNDIConnected(): boolean { return this.ndiWs?.readyState === WebSocket.OPEN; }
 
-  connectAVB(wsUrl: string): void {
-    if (this.avbWs) this.avbWs.close();
-    this.avbWs = new WebSocket(wsUrl);
-    this.avbWs.onopen = () => console.log('[TVStudio] AVB bridge connected');
+  async startNativeOmtBroadcast(streamName = 'Ambo Switcher PGM', port = 9998): Promise<boolean> {
+    try {
+      const { startOmtBroadcast } = await import('./mediaEngine/bridge');
+      const res = await startOmtBroadcast({ streamId: 'ambo_pgm_omt', name: streamName, port, width: 1920, height: 1080, fps: 60, audioChannels: 8, hasAlpha: true });
+      this.omtActive = !!res?.success;
+      return this.omtActive;
+    } catch { return false; }
   }
 
-  disconnectAVB(): void { this.avbWs?.close(); this.avbWs = null; }
-  isAVBConnected(): boolean { return this.avbWs?.readyState === WebSocket.OPEN; }
+  async stopNativeOmtBroadcast(): Promise<void> {
+    try {
+      const { stopOmtBroadcast } = await import('./mediaEngine/bridge');
+      await stopOmtBroadcast('ambo_pgm_omt');
+      this.omtActive = false;
+    } catch { /* */ }
+  }
+  isOMTConnected(): boolean { return this.omtActive; }
+
+  async startNativeSrtStream(mode: 'listener' | 'caller' = 'listener', endpoint = '0.0.0.0:9000', latencyMs = 120, passphrase?: string): Promise<boolean> {
+    try {
+      const { startSrtListener, connectSrtCaller } = await import('./mediaEngine/bridge');
+      if (mode === 'listener') {
+        const port = parseInt(endpoint.split(':')[1] || '9000', 10);
+        const res = await startSrtListener({ streamId: 'ambo_srt_feed', name: 'Ambo Program SRT', port, latencyMs, passphrase });
+        this.srtActive = !!res?.success;
+      } else {
+        const [host, portStr] = endpoint.split(':');
+        const res = await connectSrtCaller({ streamId: 'ambo_srt_feed', name: 'Ambo Program SRT', host: host || '127.0.0.1', port: parseInt(portStr || '9000', 10), latencyMs, passphrase });
+        this.srtActive = !!res?.success;
+      }
+      return this.srtActive;
+    } catch { return false; }
+  }
+
+  async stopNativeSrtStream(): Promise<void> {
+    try {
+      const { stopSrtStream } = await import('./mediaEngine/bridge');
+      await stopSrtStream('ambo_srt_feed');
+      this.srtActive = false;
+    } catch { /* */ }
+  }
+  isSRTConnected(): boolean { return this.srtActive; }
+
+  async connectAVB(wsUrlOrNative?: string): Promise<boolean> {
+    try {
+      const { configureAvbTalker, hasNativeEngine } = await import('./mediaEngine/bridge');
+      if (hasNativeEngine()) {
+        const res = await configureAvbTalker({ streamId: 'tvstudio_pgm_avb', name: 'TVStudio Master Out', channels: 8, sampleRate: 48000 });
+        this.avbNativeActive = !!res?.success;
+        return this.avbNativeActive;
+      }
+    } catch { /* */ }
+    if (wsUrlOrNative && wsUrlOrNative.startsWith('ws')) {
+      if (this.avbWs) this.avbWs.close();
+      this.avbWs = new WebSocket(wsUrlOrNative);
+      this.avbWs.onopen = () => console.log('[TVStudio] AVB bridge connected');
+      return true;
+    }
+    return false;
+  }
+
+  async disconnectAVB(): Promise<void> {
+    try {
+      const { stopAvbStream } = await import('./mediaEngine/bridge');
+      await stopAvbStream('tvstudio_pgm_avb');
+    } catch { /* */ }
+    this.avbWs?.close();
+    this.avbWs = null;
+    this.avbNativeActive = false;
+  }
+  isAVBConnected(): boolean { return this.avbNativeActive || this.avbWs?.readyState === WebSocket.OPEN; }
 
   destroy() {
     this.stop();
     this.recorder?.stop();
+    this.amboAudienceUnsub?.();
+    this.amboLowerThirdUnsub?.();
     this.sources.forEach(src => src.stream?.getTracks().forEach(t => t.stop()));
     this.auxBuses.forEach(b => cancelAnimationFrame(b.rafHandle));
     this.audioCueNodes.forEach(n => { try { n.stop(); } catch {} });

@@ -1,0 +1,1257 @@
+{
+ "courseId": "law-business-orgs",
+ "verifier": "B",
+ "note": "WebSearch/WebFetch hit a session limit; pages were opened with curl (Bing search plus direct fetch) instead.",
+ "fetched": 51,
+ "questions": [
+  {
+   "id": "law-business-orgs.l01.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l01.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": [
+    "https://www.law.cornell.edu/wex/apparent_authority"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l01.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l02.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": [
+    "https://www.law.cornell.edu/wex/respondeat_superior"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l02.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l02.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l03.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": [
+    "https://delcode.delaware.gov/title6/c015/sc02/index.html"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": [
+    "https://delcode.delaware.gov/title6/c015/sc03/index.html"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l03.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l03.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l03.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l04.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l04.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Limited_partnership"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l04.q3",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Choice wording ('bound only on apparent authority') is slightly awkward but it is the only defensible option."
+  },
+  {
+   "id": "law-business-orgs.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": [
+    "https://delcode.delaware.gov/title6/c018/sc11/index.html"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l04.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l05.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/26/1361"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l05.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/481/69"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l05.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l05.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l06.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l06.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": [
+    "https://en.wikipedia.org/wiki/De_facto_corporation_and_corporation_by_estoppel"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l06.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l07.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l07.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": [
+    "https://en.wikipedia.org/wiki/United_States_v._Bestfoods"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l07.q4",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Prompt says 'minimal insurance' while choice 2 says 'having insurance'; still the only defensible option."
+  },
+  {
+   "id": "law-business-orgs.l07.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l08.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l08.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc10/index.html"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l08.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l09.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l09.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Smith_v._Van_Gorkom"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l09.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc04/index.html"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l09.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l10.q1",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc04/index.html"
+   ],
+   "note": "Best choice, but since SB 21 (2025) DGCL 144(a) no longer speaks of voidability; a compliant transaction 'may not be the subject of equitable relief, or give rise to an award of damages'."
+  },
+  {
+   "id": "law-business-orgs.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l10.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l10.q5",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc04/index.html"
+   ],
+   "note": "Under current DGCL 144(a)(1), when a majority of the board is not disinterested, approval must come from a committee of 2+ disinterested directors, which this 1-disinterested-director board cannot supply; under pre-2025 text 1 of 1 disinterested directors could technically suffice, so choice wording is imprecise."
+  },
+  {
+   "id": "law-business-orgs.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Guth_v._Loft_Inc."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l11.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": [
+    "https://www.studicata.com/case-briefs/case/kahn-v-m-f-worldwide-corp"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l11.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc02/index.html"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l11.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Weinberger_v._UOP,_Inc."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l11.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Broz_v._Cellular_Information_Systems_Inc."
+   ],
+   "note": "Learning of it in an individual capacity is a Guth/Broz factor favouring the director, but line of business, expectancy and financial ability point to usurpation, so choice 0 is best."
+  },
+  {
+   "id": "law-business-orgs.l12.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": [
+    "https://www.studicata.com/case-briefs/case/stone-v-ritter"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc01/index.html"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l12.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc04/index.html"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": [
+    "https://www.studicata.com/case-briefs/case/marchand-v-barnhill"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l12.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc04/index.html"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l13.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l13.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l13.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": [
+    "https://www.studicata.com/case-briefs/case/schnell-v-chris-craft-industries-inc"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l13.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": [],
+   "note": "1000 x 1 / (5+1) + 1 = 167.67, i.e. 167 shares under the course's formula."
+  },
+  {
+   "id": "law-business-orgs.l14.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l14.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l14.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Zapata_Corp_v._Maldonado"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l15.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": [
+    "https://www.studicata.com/case-briefs/case/wilkes-v-springside-nursing-home-inc"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l15.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": [
+    "https://www.studicata.com/case-briefs/case/nixon-v-blackwell"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l15.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l15.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l16.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l16.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": [
+    "https://www.studicata.com/case-briefs/case/hariton-v-arco-electronics-inc"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc09/index.html"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l16.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l17.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Unocal_Corp._v._Mesa_Petroleum_Co."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l17.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Revlon,_Inc._v._MacAndrews_%26_Forbes_Holdings,_Inc."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": [
+    "https://www.studicata.com/case-briefs/case/unitrin-inc-v-american-general-corp"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l17.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": [
+    "https://www.studicata.com/case-briefs/case/omnicare-inc-v-ncs-healthcare-inc"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l17.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": [
+    "https://www.studicata.com/case-briefs/case/corwin-v-kkr-financial-holdings-llc"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l18.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/328/293"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l18.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": [
+    "https://www.ecfr.gov/api/renderer/v1/content/enhanced/current/title-17?part=230&section=230.506"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l18.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": [
+    "https://www.ecfr.gov/api/renderer/v1/content/enhanced/current/title-17?part=230&section=230.506"
+   ],
+   "note": "Correct under the rule; note SEC staff (March 2025 no-action guidance) now accepts high minimum-investment amounts plus written representations as reasonable verification steps, but 'no steps' still fails."
+  },
+  {
+   "id": "law-business-orgs.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/425/185"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l19.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l19.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/485/224"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l19.q4",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Safe-harbour prongs are disjunctive (meaningful cautionary language OR no actual knowledge), so the CEO's actual knowledge does not defeat the cautionary-language prong; choice 3's 'unless made with actual knowledge' merges the prongs imprecisely but is still the best answer."
+  },
+  {
+   "id": "law-business-orgs.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/421/723"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "law-business-orgs.l20.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/445/222"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l20.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/15-628"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l20.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/521/642"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": [
+    "https://www.sec.gov/newsroom/press-releases/2022-222"
+   ]
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-business-orgs.l01",
+   "claim": "Apparent authority rests on the principal's manifestations to the third party that lead the third party reasonably to believe the agent is authorised.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/wex/apparent_authority"
+   ],
+   "note": "U.S. common law (Restatement (Third) of Agency 2.03)."
+  },
+  {
+   "lessonId": "law-business-orgs.l01",
+   "claim": "Agency arises from the principal's manifestation of assent that the agent act on its behalf and subject to its control, with the agent's consent; no contract or consideration needed.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Matches Restatement (Third) 1.01 from memory; the Wex agency page opened does not state the control element."
+  },
+  {
+   "lessonId": "law-business-orgs.l01",
+   "claim": "Ratification requires knowledge of material facts and must cover the whole transaction; it relates back to the time of the act.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Consistent with Restatement (Third) 4.02, 4.06, 4.07 from memory; Wex ratification page returned no usable text."
+  },
+  {
+   "lessonId": "law-business-orgs.l02",
+   "claim": "Respondeat superior makes an employer liable for employee torts within the scope of employment.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/wex/respondeat_superior"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l02",
+   "claim": "A minor deviation (detour) remains within scope; a substantial personal errand (frolic) usually falls outside.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/wex/frolic_and_detour"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l02",
+   "claim": "A partially disclosed principal is bound and the agent is also a party to the contract.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Matches Restatement (Third) 6.02 from memory; no page opened."
+  },
+  {
+   "lessonId": "law-business-orgs.l03",
+   "claim": "Sharing profits gives rise to an inference of partnership, except when received as wages, rent, interest on a loan, or for goodwill.",
+   "verdict": "supported",
+   "sources": [
+    "https://delcode.delaware.gov/title6/c015/sc02/index.html"
+   ],
+   "note": "Checked against Delaware's RUPA-based 6 Del. C. 15-202(c)(3), which says 'presumed'; RUPA 1997 also says 'presumed', so 'prima facie evidence' is UPA 1914 phrasing but substantively close."
+  },
+  {
+   "lessonId": "law-business-orgs.l03",
+   "claim": "All partners are jointly and severally liable; a newly admitted partner is not personally liable for obligations incurred before admission.",
+   "verdict": "supported",
+   "sources": [
+    "https://delcode.delaware.gov/title6/c015/sc03/index.html"
+   ],
+   "note": "Delaware RUPA-based 15-306."
+  },
+  {
+   "lessonId": "law-business-orgs.l03",
+   "claim": "A person who holds himself out as a partner and induces reliance can be liable as a partner by estoppel.",
+   "verdict": "supported",
+   "sources": [
+    "https://delcode.delaware.gov/title6/c015/sc03/index.html"
+   ],
+   "note": "15-308 purported partner."
+  },
+  {
+   "lessonId": "law-business-orgs.l04",
+   "claim": "The 2001 Uniform Limited Partnership Act abandoned the control rule for limited partners.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Limited_partnership"
+   ],
+   "note": "ULPA (2001) section 303."
+  },
+  {
+   "lessonId": "law-business-orgs.l04",
+   "claim": "Delaware's LLC Act permits the operating agreement to expand, restrict or eliminate fiduciary duties but not the implied contractual covenant of good faith and fair dealing.",
+   "verdict": "supported",
+   "sources": [
+    "https://delcode.delaware.gov/title6/c018/sc11/index.html"
+   ],
+   "note": "6 Del. C. 18-1101(c)."
+  },
+  {
+   "lessonId": "law-business-orgs.l04",
+   "claim": "Most states' LLP statutes now shield partners from contract as well as tort obligations; early statutes covered only tort.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Limited_liability_partnership"
+   ],
+   "note": "A minority of states still give only a partial shield."
+  },
+  {
+   "lessonId": "law-business-orgs.l05",
+   "claim": "S corporations are limited to 100 shareholders, may not have nonresident alien shareholders, and may have only one class of stock.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/26/1361"
+   ],
+   "note": "26 U.S.C. 1361(b)(1)."
+  },
+  {
+   "lessonId": "law-business-orgs.l05",
+   "claim": "CTS Corp. v. Dynamics Corp. of America (1987) upheld Indiana's control-share statute and described the internal affairs doctrine as ensuring only one state governs a corporation's internal affairs.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/481/69"
+   ],
+   "note": "481 U.S. 69 (1987)."
+  },
+  {
+   "lessonId": "law-business-orgs.l05",
+   "claim": "Delaware's 2025 SB 21: 'the effects and constitutionality of those changes continue to be litigated and debated.'",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.reedsmith.com/our-insights/blogs/viewpoints/102mli5/delaware-supreme-court-upholds-constitutionality-of-sb-21/"
+   ],
+   "note": "Stale: on Feb 27, 2026 the Delaware Supreme Court (en banc) in Rutledge v. Clearway Energy Group LLC upheld the constitutionality of SB 21's DGCL 144 amendments."
+  },
+  {
+   "lessonId": "law-business-orgs.l06",
+   "claim": "A de facto corporation requires a statute permitting incorporation, a good-faith attempt to comply, and actual use of corporate privileges.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/De_facto_corporation_and_corporation_by_estoppel"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l06",
+   "claim": "In Delaware, preemptive rights exist only if the charter grants them.",
+   "verdict": "supported",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc01/index.html"
+   ],
+   "note": "8 Del. C. 102(b)(3)."
+  },
+  {
+   "lessonId": "law-business-orgs.l06",
+   "claim": "Under MBCA section 2.04, persons acting on behalf of a corporation knowing none has been formed are jointly and severally liable.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Matches MBCA 2.04 from memory; no page with the MBCA text was opened."
+  },
+  {
+   "lessonId": "law-business-orgs.l07",
+   "claim": "United States v. Bestfoods (1998): a parent is liable under CERCLA if the veil is pierced or the parent directly operated the facility, not merely because it is a parent.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/United_States_v._Bestfoods"
+   ],
+   "note": "524 U.S. 51 (1998)."
+  },
+  {
+   "lessonId": "law-business-orgs.l07",
+   "claim": "Walkovszky v. Carlton was a New York case decided in 1966.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Walkovszky_v._Carlton"
+   ],
+   "note": "18 N.Y.2d 414 (1966)."
+  },
+  {
+   "lessonId": "law-business-orgs.l07",
+   "claim": "'Courts are more willing to pierce in contract cases where a creditor was misled ... than in tort cases'; empirical work, 'however', shows piercing succeeds more often in contract cases.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Paragraph is internally muddled: the conventional doctrinal view is that courts say they are MORE willing to pierce for involuntary tort creditors, while Thompson's empirical study found more piercing in contract cases; the 'however' contrast is inverted. Not checked against an opened source."
+  },
+  {
+   "lessonId": "law-business-orgs.l08",
+   "claim": "Delaware permits dividends out of surplus, or if none, out of net profits for the current and/or preceding fiscal year.",
+   "verdict": "supported",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc05/index.html"
+   ],
+   "note": "8 Del. C. 170(a); director liability under 174 with subrogation against knowing recipients."
+  },
+  {
+   "lessonId": "law-business-orgs.l08",
+   "claim": "A sale of all or substantially all assets requires board action then approval by a majority of the outstanding voting stock in Delaware.",
+   "verdict": "supported",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc10/index.html"
+   ],
+   "note": "8 Del. C. 271(a)."
+  },
+  {
+   "lessonId": "law-business-orgs.l08",
+   "claim": "Dodge v. Ford Motor Co. was decided by the Michigan Supreme Court in 1919 and is cited for shareholder primacy.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Dodge_v._Ford_Motor_Co."
+   ],
+   "note": "204 Mich. 459 (1919)."
+  },
+  {
+   "lessonId": "law-business-orgs.l09",
+   "claim": "Smith v. Van Gorkom (Del. 1985) held Trans Union directors grossly negligent and prompted adoption of DGCL 102(b)(7).",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Smith_v._Van_Gorkom"
+   ],
+   "note": "488 A.2d 858 (Del. 1985)."
+  },
+  {
+   "lessonId": "law-business-orgs.l09",
+   "claim": "In re Walt Disney Co. Derivative Litigation (Del. 2006) found the directors not liable.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/In_re_Walt_Disney_Co._Derivative_Litigation"
+   ],
+   "note": "906 A.2d 27 (Del. June 8, 2006)."
+  },
+  {
+   "lessonId": "law-business-orgs.l09",
+   "claim": "Under DGCL 141(e), directors are fully protected in relying in good faith on reports of officers, committees and experts selected with reasonable care.",
+   "verdict": "supported",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc04/index.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l10",
+   "claim": "Modern statutes such as DGCL 144 say a conflicted transaction is not void or voidable solely because of the interest if it passes a cleansing mechanism (disinterested directors, shareholders, or fairness).",
+   "verdict": "contradicted",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc04/index.html"
+   ],
+   "note": "Describes pre-2025 text. Current 8 Del. C. 144(a) (as amended by SB 21, 2025) says a compliant transaction 'may not be the subject of equitable relief, or give rise to an award of damages'; stockholder approval is a majority of votes cast by disinterested stockholders; if a majority of the board is not disinterested, a committee of 2+ disinterested directors must approve; separate controller safe harbors in 144(b)-(c)."
+  },
+  {
+   "lessonId": "law-business-orgs.l10",
+   "claim": "Benihana of Tokyo, Inc. v. Benihana, Inc. was decided by the Delaware Supreme Court in 2005.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Benihana_of_Tokyo,_Inc._v._Benihana,_Inc."
+   ],
+   "note": "Delaware Supreme Court decision is 906 A.2d 114 (Del. 2006); the Chancery decision was 2005. Holding as described is correct."
+  },
+  {
+   "lessonId": "law-business-orgs.l10",
+   "claim": "SB 21's validity challenges 'are being worked out' and Delaware law is in transition.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.reedsmith.com/our-insights/blogs/viewpoints/102mli5/delaware-supreme-court-upholds-constitutionality-of-sb-21/"
+   ],
+   "note": "Delaware Supreme Court upheld SB 21's 144 amendments in Rutledge v. Clearway Energy Group LLC (Feb 27, 2026)."
+  },
+  {
+   "lessonId": "law-business-orgs.l11",
+   "claim": "Guth v. Loft, Inc. (Del. 1939) and Broz v. Cellular Information Systems (Del. 1996) set Delaware's corporate opportunity test.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Guth_v._Loft_Inc.",
+    "https://en.wikipedia.org/wiki/Broz_v._Cellular_Information_Systems_Inc."
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l11",
+   "claim": "DGCL 122(17) lets a corporation renounce in its charter any expectancy in specified business opportunities.",
+   "verdict": "supported",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc02/index.html"
+   ],
+   "note": "Also permits renunciation by board action."
+  },
+  {
+   "lessonId": "law-business-orgs.l11",
+   "claim": "Kahn v. M&F Worldwide (Del. 2014) gives business judgment review to controller buyouts conditioned ab initio on special committee and majority-of-minority approval; Weinberger v. UOP (Del. 1983).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.studicata.com/case-briefs/case/kahn-v-m-f-worldwide-corp",
+    "https://en.wikipedia.org/wiki/Weinberger_v._UOP,_Inc."
+   ],
+   "note": "88 A.3d 635 (Del. 2014); 457 A.2d 701 (Del. 1983). Note SB 21 (2025) now provides statutory controller safe harbors in DGCL 144(b)-(c) (non-going-private deals can be cleansed by committee OR disinterested-stockholder vote), upheld in Rutledge v. Clearway (Del. Feb 27, 2026); the lesson flags the change but not that it survived challenge."
+  },
+  {
+   "lessonId": "law-business-orgs.l12",
+   "claim": "Caremark (Del. Ch. 1996), Stone v. Ritter (Del. 2006) and Marchand v. Barnhill (Del. 2019) define oversight liability.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/In_re_Caremark_International_Inc._Derivative_Litigation",
+    "https://www.studicata.com/case-briefs/case/stone-v-ritter",
+    "https://www.studicata.com/case-briefs/case/marchand-v-barnhill"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l12",
+   "claim": "DGCL 102(b)(7) now extends exculpation to officers, but not in actions by or in the right of the corporation.",
+   "verdict": "supported",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc01/index.html"
+   ],
+   "note": "2022 amendment."
+  },
+  {
+   "lessonId": "law-business-orgs.l12",
+   "claim": "Under DGCL 145(c), a director or officer successful on the merits or otherwise must be indemnified for expenses; 145(b) limits indemnification in derivative suits.",
+   "verdict": "supported",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc04/index.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l13",
+   "claim": "In Delaware, cumulative voting exists only if the charter provides for it; directors are elected by plurality by default.",
+   "verdict": "supported",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc07/index.html"
+   ],
+   "note": "8 Del. C. 214, 216(3)."
+  },
+  {
+   "lessonId": "law-business-orgs.l13",
+   "claim": "Schnell v. Chris-Craft Industries (Del. 1971): inequitable action does not become permissible simply because it is legally possible.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.studicata.com/case-briefs/case/schnell-v-chris-craft-industries-inc"
+   ],
+   "note": "285 A.2d 437 (Del. 1971)."
+  },
+  {
+   "lessonId": "law-business-orgs.l13",
+   "claim": "Delaware amended section 220 in 2025 to define inspectable books and records more narrowly.",
+   "verdict": "supported",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc07/index.html"
+   ],
+   "note": "Current 220 lists specific records (e.g., minutes and consents for 3 years) and limits what Chancery may order beyond them."
+  },
+  {
+   "lessonId": "law-business-orgs.l14",
+   "claim": "Zapata Corp. v. Maldonado (Del. 1981) set the two-step review of special litigation committee dismissal motions.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Zapata_Corp_v._Maldonado"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l14",
+   "claim": "Auerbach v. Bennett (N.Y. 1979) adopted a more deferential SLC review.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.studicata.com/case-briefs/case/auerbach-v-bennett"
+   ],
+   "note": "47 N.Y.2d 619 (1979)."
+  },
+  {
+   "lessonId": "law-business-orgs.l14",
+   "claim": "United Food & Commercial Workers Union v. Zuckerberg (Del. 2021) consolidated Aronson and Rales into a director-by-director test; demand futile if at least half the board fails.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Consistent with my knowledge; no page opened (search rate-limited)."
+  },
+  {
+   "lessonId": "law-business-orgs.l15",
+   "claim": "Donahue v. Rodd Electrotype (Mass. 1975) and Wilkes v. Springside Nursing Home (Mass. 1976) set Massachusetts close-corporation fiduciary rules (legitimate business purpose / less harmful alternative).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.studicata.com/case-briefs/case/donahue-v-rodd-electrotype-co-of-new-england-inc",
+    "https://www.studicata.com/case-briefs/case/wilkes-v-springside-nursing-home-inc"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l15",
+   "claim": "Nixon v. Blackwell (Del. 1993) declined special judicial rules for non-statutory close corporations; McQuade v. Stoneham (N.Y. 1934), Clark v. Dodge (N.Y. 1936).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.studicata.com/case-briefs/case/nixon-v-blackwell",
+    "https://www.studicata.com/case-briefs/case/mcquade-v-stoneham",
+    "https://www.studicata.com/case-briefs/case/clark-v-dodge"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l15",
+   "claim": "MBCA section 14.30 permits dissolution for illegal, fraudulent or oppressive conduct toward the complaining shareholder.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Could not open MBCA text; check whether the current MBCA 14.30(a)(2)(ii) still lists 'oppressive' (wording has varied across editions)."
+  },
+  {
+   "lessonId": "law-business-orgs.l16",
+   "claim": "A short-form merger is available when a parent owns at least 90 percent of a subsidiary, with no minority vote (DGCL 253).",
+   "verdict": "supported",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc09/index.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l16",
+   "claim": "DGCL 262 appraisal has a market-out exception for listed/widely held shares receiving listed stock, with exceptions where cash is paid.",
+   "verdict": "supported",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc09/index.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l16",
+   "claim": "Farris v. Glen Alden (Pa. 1958) adopted de facto merger; Hariton v. Arco Electronics (Del. 1963) adopted independent legal significance.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.studicata.com/case-briefs/case/farris-v-glen-alden-corp",
+    "https://www.studicata.com/case-briefs/case/hariton-v-arco-electronics-inc"
+   ],
+   "note": "Hariton Chancery opinion is 1962; Delaware Supreme Court affirmed in 1963."
+  },
+  {
+   "lessonId": "law-business-orgs.l17",
+   "claim": "DGCL 203 bars business combinations with a 15 percent holder for three years unless conditions are met.",
+   "verdict": "supported",
+   "sources": [
+    "https://delcode.delaware.gov/title8/c001/sc06/index.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l17",
+   "claim": "Unocal (Del. 1985), Moran v. Household (Del. 1985), Revlon (Del. 1986), Unitrin (Del. 1995), Omnicare (Del. 2003), Corwin (Del. 2015).",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Unocal_Corp._v._Mesa_Petroleum_Co.",
+    "https://en.wikipedia.org/wiki/Moran_v._Household_International,_Inc.",
+    "https://en.wikipedia.org/wiki/Revlon,_Inc._v._MacAndrews_%26_Forbes_Holdings,_Inc.",
+    "https://www.studicata.com/case-briefs/case/unitrin-inc-v-american-general-corp",
+    "https://www.studicata.com/case-briefs/case/omnicare-inc-v-ncs-healthcare-inc",
+    "https://www.studicata.com/case-briefs/case/corwin-v-kkr-financial-holdings-llc"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l17",
+   "claim": "Paramount Communications v. QVC Network (Del. 1994) triggered Revlon on a sale of control.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Consistent with my knowledge (637 A.2d 34 (Del. 1994)); no page opened."
+  },
+  {
+   "lessonId": "law-business-orgs.l18",
+   "claim": "Accredited investor natural-person thresholds: $200,000 income ($300,000 joint) or net worth over $1 million excluding primary residence.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.sec.gov/resources-small-businesses/capital-raising-building-blocks/accredited-investors"
+   ],
+   "note": "Current as of 2026; not inflation-indexed."
+  },
+  {
+   "lessonId": "law-business-orgs.l18",
+   "claim": "Rule 506(b) allows up to 35 non-accredited purchasers without general solicitation; 506(c) requires reasonable steps to verify accredited status.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ecfr.gov/api/renderer/v1/content/enhanced/current/title-17?part=230&section=230.506"
+   ],
+   "note": "35-purchaser cap is per 90-calendar-day period."
+  },
+  {
+   "lessonId": "law-business-orgs.l18",
+   "claim": "Howey (1946), Ralston Purina (1953) and Gustafson v. Alloyd (1995) as described.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/328/293",
+    "https://www.law.cornell.edu/supremecourt/text/346/119",
+    "https://www.law.cornell.edu/supremecourt/text/513/561"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l19",
+   "claim": "Ernst & Ernst v. Hochfelder (1976) requires scienter; Blue Chip Stamps (1975) limits private suits to purchasers and sellers.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/425/185",
+    "https://www.law.cornell.edu/supremecourt/text/421/723"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l19",
+   "claim": "Basic Inc. v. Levinson (1988) adopted the fraud-on-the-market presumption and probability/magnitude materiality for merger talks.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/485/224"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l19",
+   "claim": "Morrison v. National Australia Bank (2010) limits 10(b) to securities listed on domestic exchanges and domestic transactions.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Cornell page 561/247 returned no usable text; consistent with my knowledge."
+  },
+  {
+   "lessonId": "law-business-orgs.l20",
+   "claim": "Chiarella (1980), Dirks (1983), O'Hagan (1997) and Salman (2016) as described.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/445/222",
+    "https://www.law.cornell.edu/supremecourt/text/463/646",
+    "https://www.law.cornell.edu/supremecourt/text/521/642",
+    "https://www.law.cornell.edu/supremecourt/text/15-628"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-business-orgs.l20",
+   "claim": "The SEC amended Rule 10b5-1 in 2022 to add cooling-off periods, good-faith conditions and disclosure requirements.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.sec.gov/newsroom/press-releases/2022-222"
+   ],
+   "note": "Adopted December 14, 2022."
+  },
+  {
+   "lessonId": "law-business-orgs.l20",
+   "claim": "Civil penalty for insider trading up to three times the profit gained or loss avoided.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/15/78u-1"
+   ],
+   "note": "Exchange Act 21A."
+  }
+ ]
+}

@@ -5,19 +5,37 @@ import {
   submitChurchPrayer, listenToChurchPrayers, toggleChurchPraying,
   markChurchPrayerAnswered, deleteChurchPrayer,
 } from '../services/organizationService';
-import { auth } from '../services/firebase';
+import { auth, db } from '../services/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import { onSnapshot } from '../services/safeSnapshot';
 import { TYPE } from '../src/lib/designSystem';
 
 // A real, persistent prayer wall for a church/org page. Members submit requests
 // (public or private-to-staff), tap "I'm praying," and staff mark answered.
-const ChurchPrayerWall: React.FC<{ orgId: string; isOwner?: boolean }> = ({ orgId, isOwner }) => {
-  const [prayers, setPrayers] = useState<ChurchPrayer[]>([]);
+// canSeePrivate = elevateCan(VIEW_PRAYER) (pastors, ministers, prayer warriors); canManage = MANAGE_PRAYER.
+// Everyone else sees the public wall plus their OWN private requests.
+const ChurchPrayerWall: React.FC<{ orgId: string; isOwner?: boolean; canSeePrivate?: boolean; canManage?: boolean }> = ({ orgId, isOwner, canSeePrivate, canManage }) => {
+  const seePrivate = canSeePrivate ?? !!isOwner;
+  const manage = canManage ?? !!isOwner;
+  const [pub, setPub] = useState<ChurchPrayer[]>([]);
+  const [mine, setMine] = useState<ChurchPrayer[]>([]);
+  const prayers = React.useMemo(() => {
+    const m = new Map<string, ChurchPrayer>();
+    [...pub, ...mine].forEach(p => m.set(p.id, p));
+    return Array.from(m.values()).sort((a, b) => b.timestamp - a.timestamp);
+  }, [pub, mine]);
   const [text, setText] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
   const [busy, setBusy] = useState(false);
   const uid = auth.currentUser?.uid;
 
-  useEffect(() => listenToChurchPrayers(orgId, setPrayers), [orgId]);
+  useEffect(() => listenToChurchPrayers(orgId, setPub, seePrivate), [orgId, seePrivate]);
+  // Non-staff still see their own private requests (rules allow the author).
+  useEffect(() => {
+    if (seePrivate || !uid) { setMine([]); return; }
+    return onSnapshot(query(collection(db, 'churchPrayers'), where('orgId', '==', orgId), where('authorId', '==', uid)),
+      snap => setMine(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChurchPrayer))), () => {});
+  }, [orgId, seePrivate, uid]);
 
   const submit = async () => {
     if (!text.trim() || busy) return;
@@ -28,7 +46,7 @@ const ChurchPrayerWall: React.FC<{ orgId: string; isOwner?: boolean }> = ({ orgI
   };
 
   // Non-staff see public prayers + their own private ones.
-  const visible = prayers.filter(p => !p.isPrivate || isOwner || p.authorId === uid);
+  const visible = prayers.filter(p => !p.isPrivate || seePrivate || p.authorId === uid);
 
   return (
     <section className="mt-10">
@@ -59,7 +77,7 @@ const ChurchPrayerWall: React.FC<{ orgId: string; isOwner?: boolean }> = ({ orgI
         <div className="space-y-3">
           {visible.map(p => {
             const praying = !!uid && p.prayingIds?.includes(uid);
-            const canManage = isOwner || p.authorId === uid;
+            const canDelete = manage || p.authorId === uid;
             return (
               <div key={p.id} className="rounded-2xl p-4 border" style={{ background: p.answered ? 'rgba(63,190,133,0.06)' : 'rgba(255,255,255,0.03)', borderColor: p.answered ? 'rgba(63,190,133,0.25)' : 'rgba(255,255,255,0.1)' }}>
                 <div className="flex items-center justify-between mb-1.5">
@@ -78,10 +96,10 @@ const ChurchPrayerWall: React.FC<{ orgId: string; isOwner?: boolean }> = ({ orgI
                     style={praying ? { background: '#FF8C00', color: '#000' } : { color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.12)' }}>
                     <HandHeart size={11} /> {p.prayingIds?.length || 0} praying
                   </button>
-                  {isOwner && !p.answered && (
+                  {manage && !p.answered && (
                     <button onClick={() => markChurchPrayerAnswered(p.id, true)} className={`tap ${TYPE.labelMd} font-black uppercase tracking-widest text-emerald-400/70 hover:text-emerald-400`}>Mark answered</button>
                   )}
-                  {canManage && (
+                  {canDelete && (
                     <button onClick={() => window.confirm('Delete this prayer request?') && deleteChurchPrayer(p.id)} className="tap ml-auto text-white/25 hover:text-rose-400 flex items-center justify-center"><Trash2 size={13} /></button>
                   )}
                 </div>

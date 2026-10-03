@@ -1,0 +1,1387 @@
+{
+ "courseId": "entertainment-finance",
+ "verifier": "B",
+ "note": "SAG-AFTRA, Apple, ASCAP, Kickstarter, Tax Policy Center pages returned 403/reset; some claims rest on WebSearch snippets only and list no sources. Arithmetic items recomputed by hand.",
+ "fetched": 15,
+ "questions": [
+  {
+   "id": "entertainment-finance.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l02.q3",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": true,
+   "sources": [],
+   "note": "Wording says profit share; 40% of 1,000,000 = 400,000."
+  },
+  {
+   "id": "entertainment-finance.l02.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l05.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l07.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l08.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l10.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l11.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l13.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l14.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l15.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l18.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l18.q3",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Answer False: audience shortfall is excluded; event cancellation cover is narrower."
+  },
+  {
+   "id": "entertainment-finance.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l18.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l19.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l19.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l20.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l20.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l20.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l21.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l21.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l21.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l21.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l21.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l22.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l22.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l22.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l22.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l22.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l23.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l23.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l23.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l23.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l23.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l24.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l24.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l24.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l24.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "entertainment-finance.l24.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "entertainment-finance.l01",
+   "claim": "Costs come before income in film/music/games financing",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "General knowledge; no page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l01",
+   "claim": "800k+600k+300k+300k=2,000,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l01",
+   "claim": "Tax incentives often paid after production, creating cash gaps",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l02",
+   "claim": "Debt repaid with interest regardless of success; equity paid only from profits",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard concept; no page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l02",
+   "claim": "400,000 at 10% simple for one year = 440,000; 40% of 1M = 400,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l02",
+   "claim": "Lenders senior to equity in order of payment",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l03",
+   "claim": "Presale/minimum guarantee: distributor pays for territory rights before film made, balance on delivery",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Wikipedia Pre-sale page 404; nothing confirming opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l03",
+   "claim": "3 x 300,000 = 900,000; 10% = 90,000 on signing; 25% x 1.2M = 300,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l03",
+   "claim": "Tax incentives vary by jurisdiction and often pay after cost audit",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No jurisdiction page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l04",
+   "claim": "Gap = 500,000; bridge interest 800,000 x 0.12 x 0.5 = 48,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l04",
+   "claim": "Completion guarantor can take over production",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Completion_guarantee"
+   ],
+   "note": "Page confirms takeover and hire/fire rights."
+  },
+  {
+   "lessonId": "entertainment-finance.l04",
+   "claim": "Completion bond fee is a small percentage of budget; illustrative 2% = 100,000",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Completion_guarantee"
+   ],
+   "note": "Page says typical fee is 3-5%; 2% is flagged illustrative but low (3-5% of 5M = 150k-250k). 2% x 5M = 100k is correct."
+  },
+  {
+   "lessonId": "entertainment-finance.l05",
+   "claim": "Slate: 12M - 8M = 4M = 50%",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l05",
+   "claim": "Crowdfunding fees 8% of 50,000 leaves 46,000; some forms offer investment shares",
+   "verdict": "supported",
+   "sources": [
+    "https://www.sec.gov/resources-small-businesses/exempt-offerings"
+   ],
+   "note": "SEC page confirms Regulation Crowdfunding (equity offerings up to 5M). Kickstarter fee page blocked (403)."
+  },
+  {
+   "lessonId": "entertainment-finance.l05",
+   "claim": "Many platforms release funds only if goal is met",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Kickstarter page blocked."
+  },
+  {
+   "lessonId": "entertainment-finance.l06",
+   "claim": "Variance = forecast minus budget: 950,000-900,000 = 50,000 over; reserve 50,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l06",
+   "claim": "Contingency commonly around a tenth of other costs",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l06",
+   "claim": "Forecast total = actuals + estimate to complete",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard EAC definition; no page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l07",
+   "claim": "400,000-250,000=150,000, then -100,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l07",
+   "claim": "Profitable projects can still run out of cash",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Conceptual; no page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l07",
+   "claim": "Update cash forecasts weekly in production",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Advice; no page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l08",
+   "claim": "Waterfall arithmetic: 1.5M to 1.2M to 1.1M to 770k to 170k; 85k each; investors 685k; low case 370k",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l08",
+   "claim": "Typical order: distribution fees/expenses, senior lenders, equity with premium, profit split",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l08",
+   "claim": "Waterfall is contractual and varies by deal",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l09",
+   "claim": "Net profit is contract-defined; deductions can include distribution fees, expenses, interest",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Hollywood_accounting"
+   ],
+   "note": "Page describes contract-defined net and fee/overhead deductions."
+  },
+  {
+   "lessonId": "entertainment-finance.l09",
+   "claim": "10M gross gives net 0 (5% of gross = 500,000); at 12M net 1.5M, 5 points = 75,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l09",
+   "claim": "Creators negotiate caps on fees/overhead; some take gross after a threshold",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l10",
+   "claim": "Residuals are reuse payments set by guild CBAs; distributors sign assumption agreements",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "SAG-AFTRA pages blocked (403); WebSearch snippets supported the definition but no page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l10",
+   "claim": "2% x 3M = 60,000; A 75% = 45,000; B 15,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l10",
+   "claim": "Guild contracts require pension and health contributions as a percentage on top of pay",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "SAG-AFTRA page blocked."
+  },
+  {
+   "lessonId": "entertainment-finance.l11",
+   "claim": "Advance recouped from royalties; artist generally not liable to repay if unrecouped",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; contracts vary (lesson hedges)."
+  },
+  {
+   "lessonId": "entertainment-finance.l11",
+   "claim": "200k-150k = 50k; 120k vs 150k leaves 30k unrecouped",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l11",
+   "claim": "Cross-collateralization lets a shortfall on one record be recouped from another",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Wikipedia page opened covers books/games, not recordings."
+  },
+  {
+   "lessonId": "entertainment-finance.l12",
+   "claim": "Writer share is half of performance income, paid directly to writer by a PRO",
+   "verdict": "supported",
+   "sources": [],
+   "note": "WebSearch snippets (ASCAP 50/50, writer share paid directly); ASCAP page 403 so no page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l12",
+   "claim": "Publisher handles mechanical, performance, sync income",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Music_publisher"
+   ],
+   "note": "Page confirms mechanical, performance and sync royalties."
+  },
+  {
+   "lessonId": "entertainment-finance.l12",
+   "claim": "Admin fee 15% of 100k = 15k; writer total 185k; typical admin fee 10-25%",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed; fee range not verified (hedged in lesson)."
+  },
+  {
+   "lessonId": "entertainment-finance.l13",
+   "claim": "20 x 1,500 x 50 = 1,500,000; net 300,000 = 25% of 1.2M",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l13",
+   "claim": "Agents commonly take around 10%",
+   "verdict": "supported",
+   "sources": [
+    "https://www.wga.org/employers/agencies/agency-agreements/franchised-agency-faq"
+   ],
+   "note": "WGA franchise agreements cap agency commission at 10%."
+  },
+  {
+   "lessonId": "entertainment-finance.l13",
+   "claim": "Managers commonly 15-20%",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l14",
+   "claim": "85% of net 70,000 = 59,500; promoter keeps 10,500; half sales gives 8,500 so guarantee applies",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l14",
+   "claim": "Guarantee versus percentage of net is a common structure",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l14",
+   "claim": "Ticket service fees and facility charges may be added",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l15",
+   "claim": "30% platform fee long a common headline rate; lower in some programs",
+   "verdict": "supported",
+   "sources": [],
+   "note": "WebSearch snippets: Apple 30% standard, 15% small business program; Apple page failed, none opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l15",
+   "claim": "10M - 3M - 5M = 2M; 1M each",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l15",
+   "claim": "Publisher advance recouped before developer paid; milestone payments",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l16",
+   "claim": "Average of 100k,120k,140k = 120k; x12 = 1,440,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l16",
+   "claim": "108,000/1.08 = 100,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l16",
+   "claim": "Multiples of several times to above ten times earnings have been discussed",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; hedged."
+  },
+  {
+   "lessonId": "entertainment-finance.l17",
+   "claim": "0.20 x 100,000 = 20,000; net of 15,000 cost = 5,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l17",
+   "claim": "Audit windows of a year or two common",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l17",
+   "claim": "Audit clause lets independent accountant inspect books",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l18",
+   "claim": "80,000-10,000 = 70,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l18",
+   "claim": "E&O covers infringement/defamation claims in finished works",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Wikipedia E&O page opened is generic professional liability; does not confirm media E&O."
+  },
+  {
+   "lessonId": "entertainment-finance.l18",
+   "claim": "Workers' compensation legally required in many places",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l19",
+   "claim": "U.S. federal corporate rate is 21%",
+   "verdict": "supported",
+   "sources": [],
+   "note": "WebSearch snippets (IRC s.11, TCJA 2017, flat 21%); IRS page opened did not state the rate; Tax Policy Center 403. Rate can change."
+  },
+  {
+   "lessonId": "entertainment-finance.l19",
+   "claim": "C corporation profits taxed again as dividends",
+   "verdict": "supported",
+   "sources": [
+    "https://www.irs.gov/businesses/small-businesses-self-employed/corporations"
+   ],
+   "note": "IRS page states profit taxed to corporation then to shareholders as dividends."
+  },
+  {
+   "lessonId": "entertainment-finance.l19",
+   "claim": "Default LLC is pass-through; dividends taxed at assumed 15%",
+   "verdict": "supported",
+   "sources": [
+    "https://www.irs.gov/faqs/small-business-self-employed-other-business/entities/entities-3",
+    "https://www.irs.gov/taxtopics/tc404"
+   ],
+   "note": "IRS: LLC defaults to disregarded entity/partnership; qualified dividends 0/15/20%. 21k, 79k, 11,850, 67,150 recomputed. Ignores NIIT; U.S. federal as of 2026."
+  },
+  {
+   "lessonId": "entertainment-finance.l20",
+   "claim": "Foreign tax credit offsets U.S. tax within limits",
+   "verdict": "supported",
+   "sources": [
+    "https://www.irs.gov/individuals/international-taxpayers/foreign-tax-credit"
+   ],
+   "note": "IRS page confirms credit with limits."
+  },
+  {
+   "lessonId": "entertainment-finance.l20",
+   "claim": "15% of 100,000 = 15,000, pay 85,000; EUR 1M at 1.10 = 1.1M, at 1.00 = 1.0M, loss 100k",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l20",
+   "claim": "Treaties can reduce withholding if paperwork filed",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l21",
+   "claim": "Expected value 250k+360k+600k = 1,210,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l21",
+   "claim": "Offering shares may be regulated as securities (U.S.)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.sec.gov/resources-small-businesses/exempt-offerings"
+   ],
+   "note": "SEC: every offer and sale of securities must be registered or exempt."
+  },
+  {
+   "lessonId": "entertainment-finance.l21",
+   "claim": "Never guarantee returns",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Advice; no page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l22",
+   "claim": "Pre-money 800k + 200k = post 1,000,000; investor owns 20%",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Pre-money_valuation"
+   ],
+   "note": "Page confirms post = pre + investment."
+  },
+  {
+   "lessonId": "entertainment-finance.l22",
+   "claim": "Later 500k/2M = 25%; first investor 20% x 0.75 = 15%",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Pre-money_valuation"
+   ],
+   "note": "Page confirms dilution concept; arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l22",
+   "claim": "Term sheets mostly non-binding except confidentiality/exclusivity",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "entertainment-finance.l23",
+   "claim": "Ponzi scheme pays earlier investors with later investors' money",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ponzi_scheme"
+   ],
+   "note": "Confirmed."
+  },
+  {
+   "lessonId": "entertainment-finance.l23",
+   "claim": "3 x 40% = 120%; 30% in six months ~60% a year",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l23",
+   "claim": "Red flags: guaranteed high returns, unlicensed sellers",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ponzi_scheme"
+   ],
+   "note": "Page lists SEC warning signs incl. high returns with little risk and unlicensed sellers."
+  },
+  {
+   "lessonId": "entertainment-finance.l24",
+   "claim": "10% of 500,000 = 50,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic recomputed."
+  },
+  {
+   "lessonId": "entertainment-finance.l24",
+   "claim": "Net-profit definitions criticized as opaque; studios defend deductions",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Hollywood_accounting"
+   ],
+   "note": "Page documents criticism and settlements."
+  },
+  {
+   "lessonId": "entertainment-finance.l24",
+   "claim": "Fair pay in streaming era is debated",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  }
+ ]
+}

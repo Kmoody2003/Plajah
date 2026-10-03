@@ -1,0 +1,815 @@
+{
+ "courseId": "lab-combat",
+ "label": "Combat Atlas: Martial Arts of the World",
+ "lessons": [
+  {
+   "id": "lab-combat.l01",
+   "title": "Tahtib: The Stick Dance of Egypt",
+   "body": [
+    "Tahtib is Egyptian stick fencing, often described as the oldest continuously visible martial art on Earth. Its roots reach back to ancient art: the Beni Hasan tomb murals (c. 2000 BCE) show hundreds of painted wrestlers in sequences, and the temple reliefs at Medinet Habu (c. 1180 BCE, the era of Ramesses III) show refereed stick-fencing matches with spectators.",
+    "Today tahtib survives in Upper Egypt as a folk art and a musical performance. Two practitioners use long cane or bamboo staves, roughly four feet, and exchange strikes, parries and evasive footwork. The emphasis is on clean, controlled contact, and the exchange follows musical rhythm, so the line between duel and dance blurs.",
+    "Culturally, tahtib belongs to weddings, festivals and harvest gatherings, performed to the mizmar (a reed instrument) and drum. The stick itself, called the asa, carries ideas of honour and manhood. Tahtib is living folklore: a village's shared choreography of pride. In 2016 it was inscribed on UNESCO's Intangible Cultural Heritage list.",
+    "When you study it, look at how respect and restraint are built in: bouts are public, rhythmic and bounded by tradition, which makes the art a celebration of community rather than simply a fight."
+   ]
+  },
+  {
+   "id": "lab-combat.l02",
+   "title": "Nguni Stick Fighting",
+   "body": [
+    "Nguni stick fighting comes from the Zulu, Xhosa and related Nguni peoples of South Africa. It began as a game among herd boys sparring while they tended cattle, and was formalised as martial training as the Zulu kingdom rose. Oral histories point to Amalandela around 1670 and to systematisation under Shaka and his successor Dingane.",
+    "Fighters traditionally carry the induku, a striking stick, and the longer ubhoko, a defensive staff, often with a small cowhide shield, the ihawu, bound to the defending arm. Bouts are refereed by an induna, a war captain, and points are scored for clean strikes to the body, head and limbs. A match may last for hours until a decisive blow, first blood or exhaustion.",
+    "The tradition is a rite of passage. At sixteen a Zulu boy traditionally cut his own stick from the forest with his father. Matches are held at weddings, where warriors of the bride's and groom's households get to know each other through combat, and the strongest earns the title Inkunzi, the Bull. Nelson Mandela practised stick fighting in his rural Xhosa youth.",
+    "Today it survives as sport, ceremony and heritage, and some programmes use it to steer young people away from gang violence."
+   ]
+  },
+  {
+   "id": "lab-combat.l03",
+   "title": "Laamb: Wrestling of Senegal",
+   "body": [
+    "Laamb is the wrestling tradition of the Serer and Wolof peoples of Senegal. It began as a harvest-end rite among the Serer of west-central Senegal that measured the strength of villages. Under colonial and post-colonial urbanisation it professionalised, and since 2018 its flagship venue has been the Arene Nationale at Pikine, a 20,000-seat arena. Champions rival footballers in fame.",
+    "Victory comes by grounding the opponent, meaning head, back, or both hands and knees touching the earth. The professional avec frappe code also permits bare-fist punches, which makes laamb a rare wrestling form with live striking. Training combines hard conditioning with dance rehearsal and rhythmic coordination.",
+    "No African combat art stages ritual more completely. There are marabout blessings, gris-gris amulets, protective baths and potions, the bakk praise-dance and griots drumming fighters into the arena. Wrestlers embody the Serer ideal of njom, composed and stoic bravery. Mohamed Ndao, nicknamed Tyson, is the modern icon whose rise made laamb a national obsession.",
+    "Laamb is the flagship of the wider Lutte Traditionnelle family found across Senegal, Niger, Burkina Faso, Mali and beyond. Notice how it blends sport, spirituality and entertainment into one public event."
+   ]
+  },
+  {
+   "id": "lab-combat.l04",
+   "title": "Engolo: The Inverted Art",
+   "body": [
+    "Engolo developed among pastoral communities, including the Nkhumbi, along Angola's Cunene River, before the 10th century. It is a circle game of inverted kicks, sweeps and evasions. It is linked to a Kongo-influenced cosmology in which the ancestral realm mirrors ours upside down, so kicks thrown from handstands are said to draw power from the ancestral world.",
+    "Its core vocabulary includes crescent kicks, push kicks, sweeps, cartwheels, handstand kicks and deceptive evasion instead of blocking. In Angola it is linked to the efiko initiation celebrations. It is played in a circle with music, song and handclaps.",
+    "Enslaved Central Africans, including Mbundu people of the Kingdom of Ndongo, carried this art to Brazil, where it became capoeira. The link was publicly reconnected in the 1950s when Angolan artist Albano Neves e Sousa recognised engolo in the capoeira of Bahia. Scholar T. J. Desch-Obi's work, including Fighting for Honor (2008), later mapped the technical continuity in detail.",
+    "Engolo is therefore one of the clearest documented origin-to-diaspora arcs in martial arts: the Cunene, then Ndongo, then Bahia, then the world. Look for the way a game disguised as dance can hold a whole culture's survival."
+   ]
+  },
+  {
+   "id": "lab-combat.l05",
+   "title": "Capoeira: Roda, Music and Memory",
+   "body": [
+    "Capoeira grew in Brazil among enslaved Africans and their free descendants. It was recorded in Rio in the 1820s by the painters Rugendas and Earle. After abolition the Penal Code of 1890 criminalised capoeiragem, driving it underground for about four decades.",
+    "Two Bahian masters shaped the modern art. In the 1930s Mestre Bimba created Capoeira Regional and opened an authorised academy, winning legal legitimacy. Mestre Pastinha institutionalised Capoeira Angola, the traditional, ritual-forward style, with his Salvador academy from 1941. Brazil declared the roda national heritage in 2008, and UNESCO inscribed the capoeira circle in 2014.",
+    "Everything starts with the ginga, a rocking base step that keeps the player in motion. Kicks, sweeps and escapes trade blocking for evasion, and play is a dialogue in which cunning (malicia) matters more than impact.",
+    "Capoeira happens in the roda, a human circle closed by the bateria: berimbaus, pandeiro, atabaque and agogo. The berimbau's rhythm sets the pace of the game, and songs comment on play, so the music is part of the safety and etiquette: it can slow a heated game or call players back. Capoeira is now practised in well over 150 countries."
+   ]
+  },
+  {
+   "id": "lab-combat.l06",
+   "title": "Shaolin: Chan and the Staff",
+   "body": [
+    "Shaolin Monastery, on Mount Song in Henan, China, was founded in 495 CE under the Northern Wei dynasty. A stele of 728 records its monks helping the Tang prince Li Shimin in 621, the earliest firm evidence of the temple's martial reputation. In the Ming dynasty Shaolin staff fighting became famous across the empire; the lay disciple Cheng Zongyou documented the staff method in the 1610s. Fist arts rose to prominence in the Qing dynasty. The temple was burned in 1928, and a revival boosted by the 1982 film Shaolin Temple restored it as a global centre.",
+    "The popular story that the Indian monk Bodhidharma (Damo) founded Shaolin's exercises is a later legend, not documented history.",
+    "The staff (gun) is the historic signature weapon. Empty-hand training centres on taolu, routines built from low stances and short-range power, with animal imagery in many sets. Conditioning and partner drills develop applied skill.",
+    "Philosophically, practice is framed by Chan (Zen) Buddhism: the saying chan wu he yi, Chan and martial arts are one, casts training as moving meditation within monastic discipline and precepts against aggression. The monastery is part of the Historic Monuments of Dengfeng, inscribed on the UNESCO World Heritage List in 2010."
+   ]
+  },
+  {
+   "id": "lab-combat.l07",
+   "title": "Kalaripayattu of Kerala",
+   "body": [
+    "Kalaripayattu is a martial tradition of Kerala, India, practised by Malayali communities and hereditary gurukkal lineages. Tradition links its codification to the medieval conflicts between the Chera and Chola powers around the 11th-12th centuries CE. British colonial authorities restricted arms-bearing and the art declined in the 19th century. A revival in the 1920s, led by teachers such as Kottakkal Kanaran Gurukkal and C. V. Narayanan Nair, re-established the kalari as a living institution. Meenakshi Amma, a gurukkal, received the Padma Shri in 2017.",
+    "Training happens in the kalari, a sunken earthen arena that is both school and shrine. Students begin with meippayattu body-conditioning sequences, animal-inspired postures (vadivu) and footwork before they touch weapons. Wooden weapons such as the long staff come before metal ones such as sword and shield and the urumi, a flexible whip-sword. Advanced study includes marma, knowledge of vital points, paired with uzhichil oil massage and a therapeutic tradition allied to Ayurveda.",
+    "Ritual matters. Practitioners enter right foot first, touch the earth and the guru's feet, and salute the poothara, a seven-tiered platform for the guardian deities. Its movement vocabulary also feeds Kerala's performing arts such as Theyyam and Kathakali."
+   ]
+  },
+  {
+   "id": "lab-combat.l08",
+   "title": "Judo: The Gentle Way",
+   "body": [
+    "Judo was founded in 1882 by the educator Kano Jigoro, trained in Tenjin Shin'yo-ryu and Kito-ryu jujutsu. He opened the Kodokan at Eisho-ji temple in Tokyo, turning older combat systems into a safe, principled discipline for modern education. Judo entered the Olympics for men at Tokyo 1964, and women's judo became a full Olympic event in 1992.",
+    "Kano's two guiding maxims are seiryoku zen'yo, maximum efficient use of energy, and jita kyoei, mutual welfare and benefit. Character training was as important to him as combat skill.",
+    "The core of the art is the throw: hand techniques (te-waza), hip techniques (koshi-waza) and foot techniques (ashi-waza), all based on kuzushi, breaking the opponent's balance before applying leverage. On the ground, pins, strangles and elbow locks are part of katame-waza. Training alternates randori, free practice against resisting partners, with kata, prearranged forms that preserve principles. Kano also devised the ranked belt system that became a template for many other arts.",
+    "Etiquette is central: bowing on entering the dojo, to partners before and after practice, and in competition. Learning to fall safely and to train with care for a partner is part of judo's safety culture."
+   ]
+  },
+  {
+   "id": "lab-combat.l09",
+   "title": "Karate: From Okinawa to the World",
+   "body": [
+    "Karate grew from Okinawan te, meaning hand, blended with Chinese quanfa carried across the East China Sea. It matured in the Ryukyu Kingdom in the 19th century as the regional streams of Shuri-te, Naha-te and Tomari-te. Anko Itosu brought the art into Okinawan schools around 1901, simplifying kata for physical education. His student Gichin Funakoshi demonstrated in Tokyo in 1922 and stayed; Chojun Miyagi founded Goju-ryu. In the 1930s the name was rewritten from Chinese hand to empty hand. Karate became an Olympic sport at Tokyo 2020.",
+    "Training rests on three pillars: kihon (fundamentals), kata (solo forms, unlocked through analysis called bunkai) and kumite (sparring). Okinawan tradition adds hojo undo conditioning with tools such as the makiwara striking post. Shotokan has long, dynamic lines, while Goju-ryu is a close-range blend of hard and soft.",
+    "The moral frame is restraint. Training opens and closes with seated bows, and Funakoshi taught that karate begins and ends with courtesy, with the corollary that there is no first attack in karate. Many schools recite the dojo kun, training precepts, and belt gradings mark progress."
+   ]
+  },
+  {
+   "id": "lab-combat.l10",
+   "title": "Muay Thai: The Art of Eight Limbs",
+   "body": [
+    "Muay Thai descends from muay boran, the bare-fisted boxing of Siam's soldiers and festival grounds, patronised by the court at Ayutthaya. The beloved story of Nai Khanomtom, a captive boxer who beat Burmese champions in 1774, is national legend rather than verifiable record. In the 1920s the art modernised: roped rings, gloves, weight classes and timed rounds replaced hemp-bound fists. Rajadamnern Stadium opened in 1945 and Lumpinee Stadium in 1956. The International Federation of Muaythai Associations gained full IOC recognition in 2021.",
+    "It is called the art of eight limbs because it uses fists, elbows, knees and shins. Fighters condition their shins for roundhouse kicks, use the teep (push kick) to manage distance and fight in the clinch, where knees and turning throws decide exchanges. Scoring rewards balance, composure and clean technique across five rounds.",
+    "Ritual is essential. Each traditional bout opens with the wai khru ram muay, a kneeling dance of homage to teachers and lineage, performed to live sarama music of oboe, drums and cymbals. Fighters wear the mongkhon headband and pra jiad armbands, often blessed by a teacher or monk. Gyms work like families under the khru, and these ceremonies remain compulsory in Thai stadium rules."
+   ]
+  },
+  {
+   "id": "lab-combat.l11",
+   "title": "Pankration: All Power at Olympia",
+   "body": [
+    "Pankration means all power. It entered the Olympic programme in 648 BCE as the Games' most demanding event, fusing boxing and wrestling into near-total combat in which only biting and eye-gouging were barred at Olympia. Judges enforced the two prohibitions with rods. It endured through the Roman era until the ancient games ended in the fourth century CE.",
+    "Its heroes became legends. Arrhichion of Phigalia died while winning his third Olympic crown in 564 BCE, when his opponent conceded just as he expired. Theagenes of Thasos, a fifth-century BCE boxer and pankratiast, is credited by ancient sources with over a thousand prizes.",
+    "Pankratiasts fought both upright (ano pankration) and on the ground (kato pankration), with no rounds and no time limit. Victory came by knockout or by submission, signalled with a single raised finger. Our main technical record is the iconography on Panathenaic prize amphorae, painted vases given to victors, filled with sacred olive oil.",
+    "Pankration lived inside Greek athletic religion: athletes trained in the palaistra under professional trainers and competed at festivals for gods such as Zeus at Olympia and Athena at the Panathenaia. Today it is often cited as the ancient ancestor of mixed martial arts."
+   ]
+  },
+  {
+   "id": "lab-combat.l12",
+   "title": "Glima: Wrestling of Iceland",
+   "body": [
+    "Glima is Iceland's national wrestling. It came with Norse settlers and appears in medieval sagas, among them Grettis saga, as fang, the wrestling of farmers, sailors and heroes. In 1906 it became Iceland's national sport with the founding of the Islandsglima championship for the Grettir's Belt, Iceland's oldest sporting trophy. Johannes Josefsson demonstrated glima at the 1908 London Olympics and later toured the United States.",
+    "Wrestlers take a fixed grip on each other's harness, one hand at the hip and the other at the thigh (brokartok, the trouser grip). They stand upright and circle clockwise in a stepping rhythm called stigandi. From this shared motion come the brogd, the named tricks: hip throws, leg hooks and heel-trips that rely on timing and leverage rather than strength. A fall is scored when an opponent touches the ground between elbow and knee.",
+    "Glima is wrapped in a code of drengskapur, sportsmanlike honour: upright posture, a handshake before the bout and a ban on brute-force stalling. The winner of the Islandsglima is crowned Glima King. A looser style, lausatok, has been revived abroad as combat glima.",
+    "Notice how etiquette and a shared rhythm make the contest a cooperative performance as much as a contest of strength."
+   ]
+  },
+  {
+   "id": "lab-combat.l13",
+   "title": "Armizare: Fiore and the Fight Book",
+   "body": [
+    "Armizare is the complete fighting art of Fiore dei Liberi, a Friulian master who claimed fifty years of study and who prepared students for at least five judicial duels. Around 1404 he composed the Fior di Battaglia, the Flower of Battle, for Niccolo III d'Este, Marquis of Ferrara. Four manuscript copies survive, including the lavishly illustrated Getty Ms. Ludwig XV 13 and the Pisani Dossi codex of 1409. Filippo Vadi's later treatise carried the tradition forward. It is the earliest substantially preserved Italian martial art.",
+    "Fiore builds everything from abrazare, wrestling, and flows from there to dagger, sword, poleaxe, spear and mounted combat, in and out of armour. Fencing is organised around poste (guards) and plays of wide and close play. His teaching is visual: masters wear crowns and students wear garters, so each illustrated play states a problem and its remedy.",
+    "His segno diagram assigns four virtues to animals: the lynx's prudence, the tiger's speed, the lion's audacity and the elephant's fortitude.",
+    "The manuscripts belong to late medieval court culture, where a presentation manuscript was itself a princely gift. Rediscovered in the modern era, they anchor the HEMA (historical European martial arts) revival, in which modern schools reconstruct the plays from the folios using protective equipment and careful safety rules."
+   ]
+  },
+  {
+   "id": "lab-combat.l14",
+   "title": "Pugilism and the Prize Ring",
+   "body": [
+    "Pugilism is English bare-knuckle boxing, 1719-1867. James Figg, England's first recognised champion, opened his London amphitheatre in 1719 and fought all comers with fist, cudgel and backsword. After an opponent died of injuries, champion Jack Broughton published boxing's first rules in 1743: a round ended with a knockdown, a thirty-second count applied and no one could hit a downed man. He also invented mufflers, an ancestor of the glove.",
+    "Daniel Mendoza, champion 1792-95, brought a scientific, defensive style that transformed technique. The London Prize Ring rules of 1838 refined the code, and the Queensberry rules of 1867 brought gloves and timed rounds, closing the bare-knuckle era.",
+    "Technically, the pugilist stood more upright than a modern boxer, fists low and vertical to spare fragile hands. Wrestling was part of the game, and a round lasted until a man fell, so endurance, or bottom, the ability to come up to scratch, mattered.",
+    "Prizefighting built its own culture: a roped square on turf, seconds, stakes and side-bets and the aristocratic followers called the Fancy, chronicled in Pierce Egan's Boxiana. The story shows how rules evolve from injury and public concern toward safety."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "lab-combat.l01.q1",
+   "lessonId": "lab-combat.l01",
+   "kind": "mcq",
+   "prompt": "In what year was Egyptian tahtib inscribed on UNESCO's Intangible Cultural Heritage list?",
+   "choices": [
+    "2016",
+    "2014",
+    "2011",
+    "2019"
+   ]
+  },
+  {
+   "id": "lab-combat.l01.q2",
+   "lessonId": "lab-combat.l01",
+   "kind": "mcq",
+   "prompt": "The Medinet Habu temple reliefs, showing refereed stick matches, date to about when?",
+   "choices": [
+    "c. 2000 BCE",
+    "c. 1180 BCE",
+    "c. 648 BCE",
+    "c. 495 CE"
+   ]
+  },
+  {
+   "id": "lab-combat.l01.q3",
+   "lessonId": "lab-combat.l01",
+   "kind": "mcq",
+   "prompt": "Two men with long bamboo staves trade controlled strikes to mizmar and drum at a village wedding in Upper Egypt. Which art is this?",
+   "choices": [
+    "Dambe",
+    "Nguni stick fighting",
+    "Tahtib",
+    "Kalaripayattu"
+   ]
+  },
+  {
+   "id": "lab-combat.l01.q4",
+   "lessonId": "lab-combat.l01",
+   "kind": "mcq",
+   "prompt": "Why do the Beni Hasan tomb murals matter to historians of martial arts?",
+   "choices": [
+    "They record the rules of Olympic pankration",
+    "They prove that all martial arts began in Egypt",
+    "They show the invention of the sword",
+    "They show sequential pairs in holds and counters, like a very early instruction record"
+   ]
+  },
+  {
+   "id": "lab-combat.l02.q1",
+   "lessonId": "lab-combat.l02",
+   "kind": "mcq",
+   "prompt": "What is the induku?",
+   "choices": [
+    "A cowhide shield",
+    "A ceremonial beer",
+    "A war captain",
+    "The striking stick"
+   ]
+  },
+  {
+   "id": "lab-combat.l02.q2",
+   "lessonId": "lab-combat.l02",
+   "kind": "mcq",
+   "prompt": "Who refereed traditional Nguni stick bouts?",
+   "choices": [
+    "An induna, or war captain",
+    "A griot",
+    "A marabout",
+    "The Inkunzi"
+   ]
+  },
+  {
+   "id": "lab-combat.l02.q3",
+   "lessonId": "lab-combat.l02",
+   "kind": "mcq",
+   "prompt": "At a wedding, warriors from the bride's and groom's households spar with sticks and shields, and the strongest is called the Bull. Which tradition?",
+   "choices": [
+    "Laamb",
+    "Nguni stick fighting",
+    "Capoeira",
+    "Glima"
+   ]
+  },
+  {
+   "id": "lab-combat.l02.q4",
+   "lessonId": "lab-combat.l02",
+   "kind": "mcq",
+   "prompt": "What does the practice of a boy cutting his own stick at sixteen suggest about the tradition?",
+   "choices": [
+    "It was only a commercial sport",
+    "It was banned for boys",
+    "It was mainly a rite of passage tied to family and community",
+    "It had no social meaning"
+   ]
+  },
+  {
+   "id": "lab-combat.l03.q1",
+   "lessonId": "lab-combat.l03",
+   "kind": "mcq",
+   "prompt": "In which country is laamb the national spectacle?",
+   "choices": [
+    "Nigeria",
+    "Egypt",
+    "Senegal",
+    "Angola"
+   ]
+  },
+  {
+   "id": "lab-combat.l03.q2",
+   "lessonId": "lab-combat.l03",
+   "kind": "mcq",
+   "prompt": "What name is given to the 20,000-seat arena that anchors professional laamb since 2018?",
+   "choices": [
+    "Rajadamnern",
+    "Kodokan",
+    "Lumpinee",
+    "Arene Nationale"
+   ]
+  },
+  {
+   "id": "lab-combat.l03.q3",
+   "lessonId": "lab-combat.l03",
+   "kind": "mcq",
+   "prompt": "In the professional avec frappe code, what is unusual about laamb compared with most wrestling?",
+   "choices": [
+    "It allows bare-fist punches",
+    "It uses weapons",
+    "It forbids touching the opponent",
+    "It is fought underwater"
+   ]
+  },
+  {
+   "id": "lab-combat.l03.q4",
+   "lessonId": "lab-combat.l03",
+   "kind": "mcq",
+   "prompt": "What do marabout blessings, gris-gris and the bakk praise-dance show about laamb?",
+   "choices": [
+    "That it has no rules",
+    "That ritual and spirituality are built into the sport",
+    "That it is only for tourists",
+    "That it was invented in the 21st century"
+   ]
+  },
+  {
+   "id": "lab-combat.l04.q1",
+   "lessonId": "lab-combat.l04",
+   "kind": "mcq",
+   "prompt": "Along which river did engolo develop?",
+   "choices": [
+    "Nile",
+    "Cunene",
+    "Niger",
+    "Zambezi"
+   ]
+  },
+  {
+   "id": "lab-combat.l04.q2",
+   "lessonId": "lab-combat.l04",
+   "kind": "mcq",
+   "prompt": "Which Angolan artist reconnected capoeira to engolo in the 1950s?",
+   "choices": [
+    "Mestre Pastinha",
+    "Mestre Bimba",
+    "Albano Neves e Sousa",
+    "T. J. Desch-Obi"
+   ]
+  },
+  {
+   "id": "lab-combat.l04.q3",
+   "lessonId": "lab-combat.l04",
+   "kind": "mcq",
+   "prompt": "A circle game where players throw kicks from handstands and evade rather than block is closest to which art?",
+   "choices": [
+    "Judo",
+    "Sumo",
+    "Tahtib",
+    "Engolo"
+   ]
+  },
+  {
+   "id": "lab-combat.l04.q4",
+   "lessonId": "lab-combat.l04",
+   "kind": "mcq",
+   "prompt": "Why is the engolo-to-capoeira story considered unusually well documented?",
+   "choices": [
+    "It has a clear chain of place, people and technique from Cunene to Ndongo to Bahia",
+    "No scholars have studied it",
+    "It was filmed in the 1500s",
+    "It is based on a single legend"
+   ]
+  },
+  {
+   "id": "lab-combat.l05.q1",
+   "lessonId": "lab-combat.l05",
+   "kind": "mcq",
+   "prompt": "Which year's Penal Code criminalised capoeiragem in Brazil?",
+   "choices": [
+    "1890",
+    "1930",
+    "1941",
+    "2014"
+   ]
+  },
+  {
+   "id": "lab-combat.l05.q2",
+   "lessonId": "lab-combat.l05",
+   "kind": "mcq",
+   "prompt": "Who created Capoeira Regional?",
+   "choices": [
+    "Mestre Pastinha",
+    "Mestre Bimba",
+    "Kano Jigoro",
+    "Fiore dei Liberi"
+   ]
+  },
+  {
+   "id": "lab-combat.l05.q3",
+   "lessonId": "lab-combat.l05",
+   "kind": "mcq",
+   "prompt": "A player rocks in a constant base step to keep moving and set up kicks and escapes. What is the step called?",
+   "choices": [
+    "Ladainha",
+    "Roda",
+    "Ginga",
+    "Mizmar"
+   ]
+  },
+  {
+   "id": "lab-combat.l05.q4",
+   "lessonId": "lab-combat.l05",
+   "kind": "mcq",
+   "prompt": "Why is the music (berimbau and songs) part of capoeira's etiquette as well as its atmosphere?",
+   "choices": [
+    "It only entertains tourists",
+    "It is required by Olympic rules",
+    "It replaces all movement",
+    "It sets the pace, can slow a heated game, and signals when players enter or leave"
+   ]
+  },
+  {
+   "id": "lab-combat.l06.q1",
+   "lessonId": "lab-combat.l06",
+   "kind": "mcq",
+   "prompt": "When was Shaolin Monastery founded?",
+   "choices": [
+    "1928",
+    "728 CE",
+    "1610",
+    "495 CE"
+   ]
+  },
+  {
+   "id": "lab-combat.l06.q2",
+   "lessonId": "lab-combat.l06",
+   "kind": "mcq",
+   "prompt": "Which weapon is Shaolin's historic signature?",
+   "choices": [
+    "The staff (gun)",
+    "Whip-sword",
+    "Cowhide shield",
+    "Bamboo shinai"
+   ]
+  },
+  {
+   "id": "lab-combat.l06.q3",
+   "lessonId": "lab-combat.l06",
+   "kind": "mcq",
+   "prompt": "Which statement about Bodhidharma is most accurate?",
+   "choices": [
+    "Records prove he founded Shaolin kung fu",
+    "The attribution is a later legend, not documented history",
+    "He designed the shinai",
+    "He wrote Exposition of the Original Shaolin Staff Method"
+   ]
+  },
+  {
+   "id": "lab-combat.l06.q4",
+   "lessonId": "lab-combat.l06",
+   "kind": "mcq",
+   "prompt": "What does the saying chan wu he yi suggest about Shaolin training?",
+   "choices": [
+    "Fighting must be the only goal",
+    "Weapons are forbidden",
+    "Training is moving meditation within Buddhist discipline",
+    "Chan means competition"
+   ]
+  },
+  {
+   "id": "lab-combat.l07.q1",
+   "lessonId": "lab-combat.l07",
+   "kind": "mcq",
+   "prompt": "In which Indian state did kalaripayattu develop?",
+   "choices": [
+    "Assam",
+    "Punjab",
+    "Kerala",
+    "Gujarat"
+   ]
+  },
+  {
+   "id": "lab-combat.l07.q2",
+   "lessonId": "lab-combat.l07",
+   "kind": "mcq",
+   "prompt": "What is the kalari?",
+   "choices": [
+    "A flexible whip-sword",
+    "A massage oil",
+    "A body-conditioning sequence",
+    "A sunken earthen training arena that is also a shrine"
+   ]
+  },
+  {
+   "id": "lab-combat.l07.q3",
+   "lessonId": "lab-combat.l07",
+   "kind": "mcq",
+   "prompt": "A student enters a training hall right foot first, touches the earth and the guru's feet and salutes a seven-tiered platform. Which art?",
+   "choices": [
+    "Kalaripayattu",
+    "Judo",
+    "Capoeira",
+    "Muay Thai"
+   ]
+  },
+  {
+   "id": "lab-combat.l07.q4",
+   "lessonId": "lab-combat.l07",
+   "kind": "mcq",
+   "prompt": "Why do kalaripayattu students use wooden weapons before metal ones?",
+   "choices": [
+    "Metal had not been invented",
+    "It builds skill and control progressively before more dangerous weapons are used",
+    "Wood is required by law",
+    "Metal is sacred"
+   ]
+  },
+  {
+   "id": "lab-combat.l08.q1",
+   "lessonId": "lab-combat.l08",
+   "kind": "mcq",
+   "prompt": "Who founded judo?",
+   "choices": [
+    "Funakoshi Gichin",
+    "Kano Jigoro",
+    "Miyamoto Musashi",
+    "Keiko Fukuda"
+   ]
+  },
+  {
+   "id": "lab-combat.l08.q2",
+   "lessonId": "lab-combat.l08",
+   "kind": "mcq",
+   "prompt": "What does seiryoku zen'yo mean?",
+   "choices": [
+    "Mutual welfare and benefit",
+    "No first attack",
+    "Maximum efficient use of energy",
+    "The way of the sword"
+   ]
+  },
+  {
+   "id": "lab-combat.l08.q3",
+   "lessonId": "lab-combat.l08",
+   "kind": "mcq",
+   "prompt": "A judoka breaks a partner's balance before applying a throw using leverage. Which principle is this?",
+   "choices": [
+    "Wai khru",
+    "Kiai",
+    "Ginga",
+    "Kuzushi"
+   ]
+  },
+  {
+   "id": "lab-combat.l08.q4",
+   "lessonId": "lab-combat.l08",
+   "kind": "mcq",
+   "prompt": "Why do judo dojos emphasise bowing and learning to fall?",
+   "choices": [
+    "They reflect Kano's educational aim of respect and safe training with partners",
+    "They are decoration only",
+    "They are required for Olympic scoring only",
+    "They replace throws"
+   ]
+  },
+  {
+   "id": "lab-combat.l09.q1",
+   "lessonId": "lab-combat.l09",
+   "kind": "mcq",
+   "prompt": "Where did karate develop before spreading to Tokyo?",
+   "choices": [
+    "Okinawa",
+    "Seoul",
+    "Bangkok",
+    "Beijing"
+   ]
+  },
+  {
+   "id": "lab-combat.l09.q2",
+   "lessonId": "lab-combat.l09",
+   "kind": "mcq",
+   "prompt": "Who demonstrated karate in Tokyo in 1922 and founded Shotokan?",
+   "choices": [
+    "Chojun Miyagi",
+    "Gichin Funakoshi",
+    "Kano Jigoro",
+    "Anko Itosu"
+   ]
+  },
+  {
+   "id": "lab-combat.l09.q3",
+   "lessonId": "lab-combat.l09",
+   "kind": "mcq",
+   "prompt": "A student performs a solo set of prearranged movements and later studies the applications behind it. Which two terms fit?",
+   "choices": [
+    "Ginga and roda",
+    "Randori and kuzushi",
+    "Kata and bunkai",
+    "Teep and clinch"
+   ]
+  },
+  {
+   "id": "lab-combat.l09.q4",
+   "lessonId": "lab-combat.l09",
+   "kind": "mcq",
+   "prompt": "What does the idea that there is no first attack in karate show about its moral frame?",
+   "choices": [
+    "That karate is purely competitive",
+    "That sparring is forbidden",
+    "That it has no techniques",
+    "That the art stresses restraint and courtesy"
+   ]
+  },
+  {
+   "id": "lab-combat.l10.q1",
+   "lessonId": "lab-combat.l10",
+   "kind": "mcq",
+   "prompt": "Why is muay thai called the art of eight limbs?",
+   "choices": [
+    "It uses eight weapons",
+    "It has eight rounds",
+    "It has eight ranks",
+    "It uses fists, elbows, knees and shins"
+   ]
+  },
+  {
+   "id": "lab-combat.l10.q2",
+   "lessonId": "lab-combat.l10",
+   "kind": "mcq",
+   "prompt": "What is the wai khru ram muay?",
+   "choices": [
+    "A ritual dance of homage before a bout",
+    "A headband",
+    "A kind of kick",
+    "A scoring rule"
+   ]
+  },
+  {
+   "id": "lab-combat.l10.q3",
+   "lessonId": "lab-combat.l10",
+   "kind": "mcq",
+   "prompt": "A fighter wears a blessed headband and armbands and performs a dance to oboe and drum music before the bout. Which art?",
+   "choices": [
+    "Kalaripayattu",
+    "Muay Thai",
+    "Judo",
+    "Armizare"
+   ]
+  },
+  {
+   "id": "lab-combat.l10.q4",
+   "lessonId": "lab-combat.l10",
+   "kind": "mcq",
+   "prompt": "Why does the lesson say the Nai Khanomtom story should be treated carefully?",
+   "choices": [
+    "It happened in the 1920s",
+    "It is fully documented",
+    "It is national legend rather than verifiable record",
+    "It describes judo"
+   ]
+  },
+  {
+   "id": "lab-combat.l11.q1",
+   "lessonId": "lab-combat.l11",
+   "kind": "mcq",
+   "prompt": "When did pankration enter the Olympic Games?",
+   "choices": [
+    "1180 BCE",
+    "564 BCE",
+    "648 BCE",
+    "1882 CE"
+   ]
+  },
+  {
+   "id": "lab-combat.l11.q2",
+   "lessonId": "lab-combat.l11",
+   "kind": "mcq",
+   "prompt": "Which two actions were barred at Olympia?",
+   "choices": [
+    "Kicks and throws",
+    "Wrestling and pinning",
+    "Punching and strangling",
+    "Biting and eye-gouging"
+   ]
+  },
+  {
+   "id": "lab-combat.l11.q3",
+   "lessonId": "lab-combat.l11",
+   "kind": "mcq",
+   "prompt": "How did a pankratiast signal submission?",
+   "choices": [
+    "Raising a single finger",
+    "Dropping to the knees",
+    "Throwing a towel",
+    "Shouting a word"
+   ]
+  },
+  {
+   "id": "lab-combat.l11.q4",
+   "lessonId": "lab-combat.l11",
+   "kind": "mcq",
+   "prompt": "Why are painted prize amphorae so important to historians of pankration?",
+   "choices": [
+    "They contain written rule books",
+    "They are the main technical record that survives",
+    "They were made in modern times",
+    "They show only chess games"
+   ]
+  },
+  {
+   "id": "lab-combat.l12.q1",
+   "lessonId": "lab-combat.l12",
+   "kind": "mcq",
+   "prompt": "Glima is the national sport of which country?",
+   "choices": [
+    "Norway",
+    "Iceland",
+    "Finland",
+    "Denmark"
+   ]
+  },
+  {
+   "id": "lab-combat.l12.q2",
+   "lessonId": "lab-combat.l12",
+   "kind": "mcq",
+   "prompt": "What are the named tricks in glima called?",
+   "choices": [
+    "Kata",
+    "Poste",
+    "Brogd",
+    "Kimarite"
+   ]
+  },
+  {
+   "id": "lab-combat.l12.q3",
+   "lessonId": "lab-combat.l12",
+   "kind": "mcq",
+   "prompt": "Wrestlers grip each other's harness at hip and thigh and circle clockwise. Which art?",
+   "choices": [
+    "Sumo",
+    "Laamb",
+    "Pugilism",
+    "Glima"
+   ]
+  },
+  {
+   "id": "lab-combat.l12.q4",
+   "lessonId": "lab-combat.l12",
+   "kind": "mcq",
+   "prompt": "What does the code of drengskapur add to glima?",
+   "choices": [
+    "Sportsmanlike honour, including upright posture and fair play",
+    "A ban on handshakes",
+    "Permission to strike",
+    "A rule of silence"
+   ]
+  },
+  {
+   "id": "lab-combat.l13.q1",
+   "lessonId": "lab-combat.l13",
+   "kind": "mcq",
+   "prompt": "What is the name of Fiore dei Liberi's treatise?",
+   "choices": [
+    "Fior di Battaglia",
+    "Boxiana",
+    "Book of Five Rings",
+    "Fighting for Honor"
+   ]
+  },
+  {
+   "id": "lab-combat.l13.q2",
+   "lessonId": "lab-combat.l13",
+   "kind": "mcq",
+   "prompt": "For whom did Fiore compose his Fior di Battaglia?",
+   "choices": [
+    "Ramesses III",
+    "Niccolo III d'Este, Marquis of Ferrara",
+    "Kano Jigoro",
+    "Shaka"
+   ]
+  },
+  {
+   "id": "lab-combat.l13.q3",
+   "lessonId": "lab-combat.l13",
+   "kind": "mcq",
+   "prompt": "A fight book teaches wrestling first, then dagger, sword, poleaxe and spear. Which system?",
+   "choices": [
+    "Kendo",
+    "Engolo",
+    "Armizare",
+    "Tahtib"
+   ]
+  },
+  {
+   "id": "lab-combat.l13.q4",
+   "lessonId": "lab-combat.l13",
+   "kind": "mcq",
+   "prompt": "Why do modern HEMA groups wear protective gear while reconstructing plays from the manuscripts?",
+   "choices": [
+    "The manuscripts require it",
+    "Because the plays were designed for armour only",
+    "Protective gear is illegal in Europe",
+    "They are reconstructing techniques from old texts and prioritise safety"
+   ]
+  },
+  {
+   "id": "lab-combat.l14.q1",
+   "lessonId": "lab-combat.l14",
+   "kind": "mcq",
+   "prompt": "Who published boxing's first rules in 1743?",
+   "choices": [
+    "Daniel Mendoza",
+    "James Figg",
+    "Pierce Egan",
+    "Jack Broughton"
+   ]
+  },
+  {
+   "id": "lab-combat.l14.q2",
+   "lessonId": "lab-combat.l14",
+   "kind": "mcq",
+   "prompt": "Which rules of 1867 introduced gloves and timed rounds?",
+   "choices": [
+    "Queensberry rules",
+    "London Prize Ring rules",
+    "Broughton's rules",
+    "Kodokan rules"
+   ]
+  },
+  {
+   "id": "lab-combat.l14.q3",
+   "lessonId": "lab-combat.l14",
+   "kind": "mcq",
+   "prompt": "A fighter in the 1790s is celebrated for a scientific, defensive style that transformed technique. Who is he?",
+   "choices": [
+    "James Figg",
+    "Daniel Mendoza",
+    "Jack Broughton",
+    "Shago"
+   ]
+  },
+  {
+   "id": "lab-combat.l14.q4",
+   "lessonId": "lab-combat.l14",
+   "kind": "tf",
+   "prompt": "Broughton's rules and mufflers show that boxing's rules developed partly in response to injury and danger.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  }
+ ]
+}

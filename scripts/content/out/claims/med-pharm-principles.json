@@ -1,0 +1,1452 @@
+{
+ "courseId": "med-pharm-principles",
+ "label": "Pharmacology: Principles",
+ "lessons": [
+  {
+   "id": "med-pharm-principles.l01",
+   "title": "Absorption, Routes and First-Pass Metabolism",
+   "body": [
+    "Pharmacokinetics is the study of what the body does to a drug over time: absorption, distribution, metabolism and excretion, usually abbreviated ADME. Absorption is the movement of drug from its site of administration into the circulation. Most drugs cross cell membranes by passive diffusion down a concentration gradient, and the main determinant is lipid solubility. Small, uncharged, lipophilic molecules cross easily; charged or very polar molecules cross poorly unless a carrier moves them. Carrier-mediated transport, including uptake transporters and efflux pumps such as P-glycoprotein, adds a layer of control: P-glycoprotein in the gut wall and at the blood-brain barrier pumps substrates back out, lowering absorption and limiting brain entry.",
+    "Many drugs are weak acids or weak bases, so their charge depends on pH. The Henderson-Hasselbalch relationship says a weak acid is mostly un-ionized, and therefore more membrane-permeant, when the surrounding pH is below its pKa, while a weak base is mostly un-ionized when the pH is above its pKa. A consequence is ion trapping: a weak base becomes more ionized in an acidic compartment and accumulates there, which is why urinary acidification increases the excretion of weak bases and alkalinization increases the excretion of weak acids such as salicylate.",
+    "Bioavailability (F) is the fraction of an administered dose that reaches the systemic circulation unchanged. By definition an intravenous dose has F of 1. For other routes it is estimated by comparing the area under the plasma concentration-time curve (AUC) after the route with the AUC after an intravenous dose. Bioavailability is lowered by incomplete dissolution, poor permeability, efflux, degradation by gastric acid or gut bacteria, and by first-pass metabolism.",
+    "First-pass metabolism describes loss of drug between gut lumen and systemic circulation. Drug absorbed from the intestine enters the portal vein, passes through the liver, and can be extensively metabolized before it ever reaches the rest of the body; the gut wall itself, rich in CYP3A4, adds to this. Drugs with high hepatic extraction, such as propranolol or lidocaine, show large differences between oral and intravenous exposure. Routes that bypass the portal circulation avoid first-pass loss: sublingual, buccal, transdermal, inhaled and parenteral routes (rectal only partly). Nitroglycerin is the classic example. Swallowed, it is almost entirely cleared by the liver, but held under the tongue it reaches the systemic veins directly and works within minutes.",
+    "Other factors change absorption rate. Food can slow gastric emptying, bind drug (tetracyclines chelate calcium), or increase absorption of lipophilic drugs. Formulation matters: enteric coatings resist stomach acid, and extended-release products flatten the peak. Note that the rate of absorption and the extent are separate ideas; two products with the same AUC but different peaks can have different effects and toxicity.",
+    "Worked example: a drug has an oral AUC of 20 units and an intravenous AUC of 100 units after equal doses. Its oral bioavailability is 0.2, so most of the dose is lost to poor absorption or first-pass extraction. Switching to a sublingual route that bypasses the liver could raise exposure severalfold, which is why conversion between routes always needs bioavailability to be considered."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l02",
+   "title": "Distribution, Volume and Protein Binding",
+   "body": [
+    "After reaching the blood a drug distributes into tissues. Distribution depends on blood flow, the permeability of capillaries and cell membranes, binding to plasma and tissue proteins, and the lipid solubility of the drug. Highly perfused organs such as the brain, heart, liver and kidney equilibrate first; muscle, fat and bone equilibrate later. This produces a characteristic biphasic fall in concentration after a rapid intravenous dose: a fast distribution phase as drug leaves plasma for tissues, followed by a slower elimination phase. The classic teaching example is a lipid-soluble anesthetic whose effect ends because drug redistributes from the brain to muscle and fat, not because it has been metabolized.",
+    "The volume of distribution (Vd) is the apparent volume that would be needed to contain the total amount of drug in the body at the same concentration as in plasma: Vd equals amount of drug in the body divided by plasma concentration. It is not a real anatomical space. A drug confined to plasma, such as a large protein-bound molecule, has a Vd near 3 litres in an adult; a drug that stays mainly in extracellular fluid has a Vd of roughly 15 litres; a drug that accumulates in tissues, such as amiodarone or chloroquine, can have a Vd of hundreds or thousands of litres because most of it sits outside the plasma. A large Vd means the drug is poorly removed by dialysis and takes a long time to leave the body.",
+    "Many drugs bind reversibly to plasma proteins, albumin for acidic drugs and alpha-1-acid glycoprotein for basic drugs. Only unbound drug can cross membranes, bind receptors and be cleared by most routes. Warfarin is roughly 99 percent albumin bound. Because the bound pool is a reservoir, displacing a small amount of drug from binding sites can double the free fraction of a highly bound drug. In practice protein-binding displacement interactions are usually clinically minor for most drugs, because the extra free drug is rapidly cleared and redistributed, and metabolic interactions are more important. Low albumin, as in nephrotic syndrome, cirrhosis or malnutrition, raises the free fraction of acidic drugs, and total concentration measurements can then underestimate drug activity.",
+    "Special barriers shape distribution. The blood-brain barrier is formed by tight junctions between brain capillary endothelial cells, astrocyte end-feet and efflux transporters; it admits lipid-soluble and actively transported drugs and excludes polar ones. Inflammation such as meningitis can open it. The placenta is a lipid barrier that permits many drugs to pass, which matters for pregnancy. Drugs can also be sequestered: tetracyclines deposit in bone and developing teeth, and lipophilic drugs partition into fat.",
+    "Worked example: a drug has 500 mg in the body and a plasma concentration of 5 mg per litre, so Vd is 100 litres. That figure exceeds total body water, which tells you the drug is concentrated in tissues rather than in blood, and anticipates a long half-life because only a small share is exposed to the eliminating organs at any time."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l03",
+   "title": "Metabolism, Phase I and II Reactions and the CYP450 System",
+   "body": [
+    "Metabolism, or biotransformation, converts drugs, mostly lipophilic ones, into more polar products that the kidney or bile can remove. The liver is the principal site, though gut wall, kidney, lung and plasma also contribute. A metabolite can be inactive, as with most drugs; active, as with morphine-6-glucuronide; more active than the parent, in the case of a prodrug such as codeine (converted to morphine) or clopidogrel; or toxic, as with the acetaminophen metabolite NAPQI.",
+    "Phase I reactions introduce or expose a functional group by oxidation, reduction or hydrolysis. The cytochrome P450 (CYP) superfamily of haem-containing enzymes carries out most oxidations. They sit in the endoplasmic reticulum of hepatocytes and enterocytes and are named by family, subfamily and gene, such as CYP3A4, CYP2D6, CYP2C9, CYP2C19 and CYP1A2. CYP3A4 handles the largest share of drugs, followed by CYP2D6 and the 2C family. Phase I products are often still active or are reactive intermediates.",
+    "Phase II reactions conjugate a polar group, such as glucuronic acid, sulfate, glutathione or an acetyl group, onto the drug or its phase I product, usually making it inactive and water soluble. Glucuronidation by UDP-glucuronosyltransferases is the commonest. A drug does not need phase I before phase II; lorazepam, oxazepam and temazepam go straight to glucuronidation, which is one reason they are preferred in liver disease and in older adults. The numbering reflects typical order, not a rule.",
+    "Extraction ratio explains how metabolism interacts with blood flow. For high-extraction drugs such as propranolol, liver clearance is limited by hepatic blood flow, so its systemic clearance after an intravenous dose falls in heart failure or with reduced liver perfusion and changes little with enzyme induction. Oral dosing is different: induction of gut-wall and liver enzymes increases first-pass extraction, so the bioavailability of an oral high-extraction drug can fall steeply (rifampin lowered the oral bioavailability of verapamil about 25-fold while its intravenous clearance changed only modestly). For low-extraction drugs such as warfarin, clearance depends on enzyme activity and the free fraction, so inducers and inhibitors alter it greatly.",
+    "Acetaminophen shows how a pathway can saturate. At therapeutic doses it is mostly glucuronidated and sulfated; a small fraction is oxidized by CYP2E1 and CYP3A4 to NAPQI, which glutathione neutralizes. In overdose the conjugation pathways saturate, more NAPQI is made, glutathione is depleted and NAPQI binds hepatocyte proteins, causing centrilobular necrosis. N-acetylcysteine replenishes glutathione and is the antidote. Chronic alcohol use and fasting deplete glutathione and increase risk.",
+    "Other factors change metabolism: genetics (CYP2D6, CYP2C19), age (immature in neonates, reduced in the elderly), liver disease, diet, smoking (induces CYP1A2) and other drugs. Not all metabolism is CYP-mediated: alcohol dehydrogenase, monoamine oxidase, esterases and xanthine oxidase also act, and a few drugs are excreted unchanged.",
+    "Worked example: a patient on a prodrug that needs CYP2D6 activation also takes a strong CYP2D6 inhibitor. Less active metabolite forms, so the expected effect is reduced even though levels of the parent may be higher."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l04",
+   "title": "Excretion: Renal Handling, Biliary Elimination and Ion Trapping",
+   "body": [
+    "Excretion removes drug from the body, either unchanged or as metabolites. The kidney is the major organ, with the biliary-faecal route second. Minor routes include the lungs for volatile anesthetics, sweat, saliva and breast milk.",
+    "Renal excretion is the sum of three processes. Glomerular filtration passes unbound drug of small size into the tubular fluid at a rate set by the glomerular filtration rate (GFR); protein-bound drug and large molecules are not filtered. Active tubular secretion in the proximal tubule moves drugs from blood into urine through transporters, one set for organic anions (penicillins, furosemide, many diuretics) and another for organic cations. Secretion can clear protein-bound drug because transporters pull drug off albumin. Passive tubular reabsorption moves lipid-soluble, un-ionized drug back into the blood as water is reabsorbed and urine is concentrated; polar and ionized drugs stay in the urine.",
+    "Because reabsorption depends on charge, urine pH matters. Alkalinizing urine with bicarbonate traps weak acids such as salicylate and phenobarbital in the tubule, increasing excretion. Acidifying urine favors excretion of weak bases such as amphetamine. This principle is used in some overdoses, although alkalinization is the more commonly used maneuver.",
+    "Competition at transporters creates interactions. Probenecid blocks organic anion secretion and was used to raise penicillin levels; it also raises levels of methotrexate for the same reason. Several drugs, including quinidine, reduce renal clearance of digoxin, which is eliminated mainly unchanged by the kidney, and in renal failure its half-life lengthens substantially, explaining digoxin toxicity in patients with falling GFR.",
+    "Biliary excretion favors larger, often conjugated molecules, especially anions; a molecular-weight threshold of roughly 500 daltons in humans is classically cited, though a more recent analysis put it nearer 475 for anions and found no clear threshold for cations. These molecules are pumped into bile by transporters. Once in the gut, a glucuronide can be hydrolyzed by bacterial enzymes and the free drug reabsorbed, a loop called enterohepatic circulation. It prolongs half-life and can produce secondary plasma peaks; interrupting it, for example with bile acid sequestrants for some drugs, shortens exposure. Antibiotics that reduce gut flora may alter such recycling.",
+    "Renal function drives dose adjustment. Creatinine clearance and estimated GFR are used to predict clearance of renally eliminated drugs; as nephron mass falls, clearance falls proportionally and half-life lengthens. The principle is that for drugs with a large renally excreted fraction, the dose or the interval must change. Active metabolites that accumulate in renal failure, such as morphine-6-glucuronide, add risk.",
+    "Worked example: a weak acid drug with pKa 3.5 is filtered, and the urine is made alkaline. More of the drug is ionized in the tubule, back-diffusion is reduced and clearance rises, even though the filtration rate has not changed."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l05",
+   "title": "Clearance, Half-Life and First-Order Elimination",
+   "body": [
+    "Clearance (CL) is the volume of plasma from which drug is completely removed per unit time. It is a property of the eliminating organs, not of the drug amount: the rate of elimination equals clearance multiplied by plasma concentration. Total body clearance is the sum of clearances by the kidney, the liver and any other route, so renal and hepatic clearance add together. Clearance is the best single measure of how efficiently the body removes a drug and is the parameter that determines the long-term dose needed to hold a given concentration.",
+    "For most drugs at therapeutic concentrations, elimination is first-order: the rate of removal is proportional to the concentration, so a constant fraction of the drug present is removed per unit time. Plotted on a log scale, concentration falls as a straight line. Under first-order kinetics the half-life (t1/2), the time for the plasma concentration to fall by half, is constant, independent of dose. A dose that is doubled doubles the plasma level but does not change the half-life.",
+    "Half-life is not independent of the other two quantities. It is a dependent variable: t1/2 equals 0.693 times Vd divided by CL. A larger volume of distribution lengthens the half-life because more drug is sitting out of reach of the eliminating organs, and a larger clearance shortens it. Therefore changes in half-life can arise from a change in either parameter, and half-life alone does not show whether clearance or volume changed. The elimination rate constant k equals CL divided by Vd, and also equals 0.693 divided by half-life.",
+    "The usual rules of thumb follow from the exponential. After one half-life, 50 percent of the dose is gone; after two, 75 percent; after three, 87.5 percent; after four, about 94 percent; and after five, about 97 percent. This is why a drug is considered effectively eliminated in roughly four to five half-lives.",
+    "The interplay is clinically important. Amiodarone has an enormous volume of distribution, so its half-life is measured in weeks, and effects and interactions persist for months after stopping. In renal failure, clearance of a renally excreted drug falls, so the half-life rises without any change in Vd. In heart failure, reduced hepatic blood flow reduces the clearance of high-extraction drugs such as lidocaine. In the elderly, the apparent Vd of lipophilic drugs may rise because body fat increases, lengthening the half-life of diazepam even when clearance is unchanged.",
+    "Worked example: drug A has Vd of 70 litres and CL of 7 litres per hour. Its t1/2 is 0.693 times 70 divided by 7, about 6.9 hours. If renal impairment halves CL to 3.5 litres per hour, the half-life doubles to about 13.9 hours even though Vd is unchanged, and steady-state concentration on the same regimen will double."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l06",
+   "title": "Repeated Dosing, Accumulation and Steady State",
+   "body": [
+    "When a drug is given repeatedly, each dose adds to the drug remaining from earlier doses. If the dosing interval is shorter than the time needed to clear a dose, the drug accumulates until the amount eliminated between doses equals the amount absorbed. That balance is steady state. At steady state, the average rate of input equals the rate of elimination, and the plasma concentration oscillates between a peak and a trough about a stable mean.",
+    "Three principles govern steady state. First, the time to reach it depends only on the half-life, not on the dose or the interval: about 90 percent of the plateau is reached after roughly 3.3 half-lives, and the plateau is practically reached by four to five half-lives. Second, the height of the plateau depends on the input rate relative to clearance. The average steady-state concentration equals the dosing rate, multiplied by bioavailability, divided by clearance. Doubling the dose rate doubles the plateau; halving clearance doubles it too. Third, the fluctuation between peak and trough depends on the dosing interval relative to the half-life. Shorter intervals or extended-release forms reduce the swing; long intervals relative to half-life create large peak-to-trough swings.",
+    "In a continuous intravenous infusion there are no peaks and troughs, and the same exponential approach applies. If the infusion rate is changed, the plasma concentration moves toward a new plateau with the same time course, again governed by the half-life. This is why one waits several half-lives after a dose change before judging its full effect or measuring a level for therapeutic drug monitoring, unless toxicity is suspected sooner.",
+    "Trough levels are the standard sample for many monitored drugs, taken just before the next dose when the concentration is at its lowest, because timing relative to dosing and the distribution phase affects interpretation. Digoxin levels, for example, are misleading if drawn during the distribution phase shortly after a dose, since tissue binding in the heart has not equilibrated.",
+    "The accumulation factor, the ratio of steady-state to first-dose concentration, grows as the dosing interval falls relative to half-life. When the interval equals the half-life, the accumulation factor is about two. Drugs with long half-lives relative to the interval accumulate considerably, which is why lithium and digoxin have narrow safety margins, especially when clearance falls.",
+    "Worked example: a drug with a 12-hour half-life is given once daily. Steady state will be reached after about 2 days (four half-lives), but because the interval is two half-lives, peak-to-trough fluctuation is large. Changing the dose will change the mean concentration proportionally, but not the time it takes to reach the new plateau."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l07",
+   "title": "Loading and Maintenance Doses: The Concepts",
+   "body": [
+    "A maintenance dose replaces the drug that is eliminated, so that the plateau concentration is held. A loading dose is a larger initial dose given to reach the target concentration quickly instead of waiting several half-lives. The logic is simple, and the two doses depend on different parameters.",
+    "The maintenance dose rate depends on clearance. At steady state, rate in equals rate out, so the dose rate (corrected for bioavailability) equals clearance multiplied by the target concentration. Therefore, if clearance falls, as in renal failure for a renally excreted drug, the maintenance dose rate must fall in proportion, either by reducing each dose or by lengthening the interval, to hold the same concentration.",
+    "The loading dose depends on the volume of distribution. To fill the apparent volume to the target concentration, the loading dose equals the target concentration multiplied by Vd, divided by bioavailability. A drug with a large Vd needs a large loading dose even if its clearance is small. Importantly, loading dose is not changed by renal or hepatic disease alone, because Vd is unchanged, unless the disease also changes the volume; a patient with renal failure and a longer half-life still needs the usual loading dose, but a reduced maintenance dose. This is a favorite exam distinction: loading dose follows Vd, maintenance dose follows CL.",
+    "Loading doses are used when a rapid effect matters and the half-life is long: examples include digoxin in some arrhythmias, amiodarone, some antiepileptics given intravenously, and certain antimicrobials. They are dangerous for narrow-therapeutic-index drugs if given too quickly, because the drug is initially concentrated in the central compartment, producing transient high levels at sites such as the heart or brain before it distributes. Hence loading doses are often divided or infused slowly.",
+    "Other cautions apply. Changes in protein binding or distribution volume in critical illness, obesity or edema may alter Vd and thus the loading requirement. Therapeutic drug monitoring supplements the calculation by checking measured levels against a target range, especially for drugs such as vancomycin, aminoglycosides, lithium, phenytoin, and digoxin.",
+    "This course does not give patient dosing; the principle is what matters. Consider two drugs with the same half-life but different volumes. The one with the larger Vd needs a larger load but, if its clearance is also larger, will need a correspondingly larger maintenance rate; the half-life remains the same. A common error is to reduce the loading dose in renal failure when the volume has not changed.",
+    "Worked example: a renally cleared drug has its clearance reduced to one third by kidney disease. The plateau on the usual maintenance rate would be threefold higher, so the maintenance rate should fall to about one third. The loading dose remains essentially the same because the apparent volume has not changed."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l08",
+   "title": "Zero-Order and Saturable Kinetics",
+   "body": [
+    "First-order kinetics assumes the enzymes and transporters that remove drug are far from saturated, so a constant fraction is removed per unit time. If the concentration rises until the enzymes are working at their maximal capacity, elimination turns into a constant amount per unit time regardless of concentration. This is zero-order, or saturable, kinetics, and it follows Michaelis-Menten behavior: at low concentration the process is effectively first-order, and at high concentration it approaches a fixed maximum rate.",
+    "The key features of zero-order elimination are different from the first-order case. Plasma concentration falls linearly, not exponentially. The half-life is not constant; it lengthens as the dose and concentration rise. Clearance falls as concentration rises, because the same maximal rate is divided by a larger concentration. Steady state is not reached smoothly: when a dose rate nears or exceeds the maximal elimination rate, the concentration rises without a plateau and can climb to toxic levels.",
+    "The clinical consequence is disproportionate accumulation. For a drug that exhibits saturable kinetics in its therapeutic range, such as phenytoin, a modest increase in dose can produce a much larger increase in plasma concentration, and the same small change in dose may move a patient from subtherapeutic to toxic. Phenytoin's main metabolizing enzyme (CYP2C9, with a contribution from CYP2C19) saturates near the therapeutic range, so levels are sensitive and must be monitored with small dose adjustments.",
+    "Ethanol is a standard example of zero-order elimination at the amounts typically consumed, because alcohol dehydrogenase is easily saturated; roughly a fixed amount of alcohol is cleared per hour regardless of how much was drunk. Aspirin shows a transition. At low doses salicylate elimination is first-order, but with higher doses the glycine conjugation and glucuronidation pathways saturate, so its half-life lengthens and toxicity rises disproportionately in overdose. Other drugs with saturable behavior include theophylline in some ranges.",
+    "Do not confuse zero-order elimination with zero-order input. A constant intravenous infusion is zero-order input, but the elimination can still be first-order. Also, saturable kinetics is not the same as being a drug with a long half-life; the difference is that half-life is dose-dependent here.",
+    "Worked example: a patient taking phenytoin has a level just below the target range. A moderate dose increase leads to a level far above range, with nystagmus and ataxia. The explanation is that metabolism is near saturation, so the extra drug could not be eliminated in proportion and the concentration rose more than the dose. Subsequent changes should be small and followed by levels once a new steady state is reached."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l09",
+   "title": "Receptors and Signal Transduction",
+   "body": [
+    "Pharmacodynamics is the study of what a drug does to the body: its mechanism of action and the relationship between drug concentration and effect. Most drugs act by binding a macromolecular target, usually a receptor, but also enzymes, ion channels, transporters and structural proteins. Binding follows the law of mass action: the fraction of receptors occupied depends on the drug concentration and the dissociation constant Kd, the concentration at which half of the receptors are occupied. A low Kd means high affinity.",
+    "There are four main receptor superfamilies. Ligand-gated ion channels, such as the nicotinic acetylcholine receptor and the GABA-A receptor, change ion flux within milliseconds when the ligand binds. G-protein-coupled receptors (GPCRs) have seven transmembrane domains and act through heterotrimeric G proteins in seconds. Gs stimulates adenylyl cyclase and raises cyclic AMP, as with beta-1 and beta-2 adrenergic receptors; Gi inhibits adenylyl cyclase, as with M2 muscarinic and alpha-2 receptors; Gq activates phospholipase C, producing IP3 and diacylglycerol and raising intracellular calcium, as with alpha-1 and M1/M3 receptors. Enzyme-linked receptors, such as the insulin receptor (a tyrosine kinase) and growth factor receptors, phosphorylate proteins over minutes. Intracellular receptors, including those for steroid hormones, thyroid hormone and vitamin D, are ligand-regulated transcription factors that change gene expression over hours.",
+    "Not all drugs use receptors. Some inhibit enzymes (angiotensin-converting enzyme inhibitors, statins), block channels (local anesthetics block voltage-gated sodium channels, calcium channel blockers), inhibit transporters (loop diuretics, SSRIs), or act by chemistry alone (antacids, chelators). Recognizing which kind of target a drug uses is the key to predicting effects and adverse effects.",
+    "Spare receptors, or receptor reserve, exist when a maximal response is produced with fewer than all receptors occupied. In a tissue with a large reserve, a full agonist reaches its maximum at low occupancy and its potency appears high. An irreversible antagonist reduces the number of available receptors; in a tissue with reserve this first shifts the curve to the right without lowering the maximum, and only after the reserve is used up does the maximum fall.",
+    "Receptors are regulated. Prolonged exposure to an agonist can cause desensitization, phosphorylation and internalization of receptors, and down-regulation with fewer receptors; prolonged exposure to an antagonist can cause up-regulation. Abrupt withdrawal of a long-term beta-blocker may produce rebound tachycardia and hypertension because up-regulated beta receptors are suddenly unopposed.",
+    "Worked example: salbutamol binds beta-2 receptors coupled to Gs in bronchial smooth muscle. Gs raises cyclic AMP and activates protein kinase A, which relaxes the muscle and produces bronchodilation, while action at beta-1 receptors in the heart explains tachycardia at high doses."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l10",
+   "title": "Agonists, Antagonists and Partial Agonists",
+   "body": [
+    "Two properties describe how a drug interacts with a receptor. Affinity is how tightly it binds. Intrinsic activity, or efficacy at the receptor, is the ability of the bound drug to change the receptor into its active state. An agonist has both and produces a response. A full agonist can produce the maximal response of the tissue; a partial agonist binds with affinity but produces a submaximal response even at full occupancy. An antagonist has affinity but no intrinsic activity, and blocks the action of agonists. An inverse agonist stabilizes the inactive receptor state and lowers the basal activity of receptors that have constitutive activity, an effect that distinguishes it from a neutral antagonist.",
+    "Competitive antagonism is reversible: the antagonist and agonist compete for the same site. Adding more agonist can overcome the block, so the dose-response curve shifts to the right in parallel with the same maximum, and the agonist potency appears lower. The size of the shift depends on the antagonist concentration and its affinity. Atropine blocking acetylcholine at muscarinic receptors and naloxone blocking morphine at opioid receptors are examples. Naloxone also has a shorter duration than many opioids, so the opioid effect can return after naloxone wears off, which is why monitoring continues after reversal.",
+    "Non-competitive antagonism, or insurmountable antagonism, reduces the maximum response, because the antagonist binds irreversibly at the same site or binds an allosteric site, so adding agonist cannot fully restore the effect. Phenoxybenzamine, which binds alpha-adrenergic receptors covalently, is a classic example. Physiological or functional antagonism is different again: two agonists act at different receptors with opposing effects, such as histamine causing bronchoconstriction and epinephrine reversing it through beta-2 receptors. Chemical antagonism involves direct binding of the drug, as with protamine neutralizing heparin or chelators binding metals.",
+    "Partial agonists have important clinical behavior. In the absence of a full agonist, a partial agonist stimulates the receptor modestly. In the presence of a full agonist, it competes for receptors and lowers the net response, acting as a functional antagonist. Buprenorphine, a partial agonist at mu opioid receptors with high affinity, provides a ceiling on respiratory depression and can precipitate withdrawal in a person who is dependent on a full agonist, because it displaces the full agonist while producing a smaller effect.",
+    "Another key idea: antagonists have effects only when there is agonist tone to block. Beta-blockers lower heart rate mostly because sympathetic stimulation is present; at rest in a transplant recipient with a denervated heart, effects would differ.",
+    "Worked example: a competitive antagonist at a fixed concentration is added to an agonist dose-response curve. The curve moves rightward with the same ceiling. If instead the curve shows a lower plateau, the antagonism is non-competitive or the antagonist is irreversible."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l11",
+   "title": "Dose-Response Relationships: Potency and Efficacy",
+   "body": [
+    "A graded dose-response curve plots the magnitude of an effect in one subject or tissue against drug dose or concentration. On a linear dose axis it is a hyperbola; on a logarithmic axis it is the familiar sigmoid, which allows a wide dose range to be shown and makes the middle section nearly linear. Two features of the curve define a drug. Potency is the position of the curve along the dose axis, measured by the EC50 (the concentration producing half the maximal effect) or ED50. A drug that reaches the same effect at a lower dose is more potent. Efficacy, or maximal efficacy (Emax), is the greatest effect a drug can produce regardless of dose.",
+    "The two properties are independent. A potent drug is not necessarily better, and potency is of little clinical importance beyond determining dose size, because a dose of a milligram is as convenient as a dose of ten. Efficacy is usually what matters: loop diuretics such as furosemide have a higher maximal diuresis than thiazides, which means they are more efficacious, even though thiazides can be more potent per milligram. Morphine and a weaker analgesic such as aspirin differ in efficacy for severe pain, because no dose of the weaker drug can match the maximal analgesia of the stronger one. Partial agonists have lower efficacy than full agonists at the same receptor.",
+    "It is a common error to equate potency with efficacy, or to say that a drug with a lower dose is more effective. A comparison requires both curves: parallel curves with different positions differ in potency; curves with different plateaus differ in efficacy; and a curve with a lower plateau and a leftward position can be both more potent and less efficacious.",
+    "A quantal dose-response curve plots the cumulative percentage of a population showing a defined all-or-none response against dose. It is the basis for population measures. The ED50 is the dose producing the response in 50 percent of subjects; the TD50 is the dose producing a toxic effect in 50 percent; and the LD50 is the lethal dose in 50 percent of animals. The spread of the curve reflects biological variation, so some individuals respond at much lower or higher doses than the median.",
+    "Variation arises from differences in pharmacokinetics, receptor number, disease, age, genetics and concurrent drugs, and the effect can also change over time through tolerance and tachyphylaxis. Dose-response curves also assume that the effect depends only on the drug at the receptor; in practice homeostatic reflexes may blunt or mask an effect.",
+    "Worked example: drug X has an EC50 of 1 mg and a maximal effect of 60 percent. Drug Y has an EC50 of 10 mg and a maximal effect of 100 percent. X is more potent; Y is more efficacious. If a clinical goal needs an 80 percent effect, only Y can achieve it, no matter how much X is given."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l12",
+   "title": "Therapeutic Index, Tolerance and Variability of Response",
+   "body": [
+    "The therapeutic index describes the margin between an effective dose and a harmful one. In animals it is the median toxic dose divided by the median effective dose, TD50/ED50 (or LD50/ED50 when lethality is used); in clinical practice it is expressed as a range of plasma concentrations between the minimum effective level and the level at which toxicity appears. A large index means a wide margin; a small index means that small changes in dose or clearance can move a patient from ineffective to toxic. Drugs with a narrow therapeutic index include warfarin, digoxin, lithium, phenytoin, theophylline, aminoglycosides and cyclosporine and tacrolimus, and they commonly need monitoring of levels or effect, such as the INR for warfarin.",
+    "The therapeutic index based on medians can be misleading, because the toxic and effective curves can overlap at their extremes. The certain safety factor (the dose lethal in 1 percent divided by the dose effective in 99 percent) is a more conservative measure. The principle is that an apparently comfortable median ratio may hide a population in which the toxic curve begins before the effective curve is complete.",
+    "Tolerance is a decreasing response to the same dose with repeated exposure, requiring a higher dose to produce the same effect. Mechanisms include pharmacokinetic tolerance, where enzyme induction raises clearance (barbiturates, ethanol), and pharmacodynamic tolerance, where receptors desensitize or down-regulate and compensatory homeostatic adaptations arise (opioids, nitrates). Tachyphylaxis is a rapid form, developing within minutes to hours after a few doses, as with indirect sympathomimetics that deplete stored transmitter. Cross-tolerance occurs between drugs acting on the same target. Notably, tolerance can be uneven: with opioids, tolerance to respiratory depression develops more slowly than tolerance to euphoria and analgesia, one reason why escalating doses carry risk, and tolerance to constipation and miosis is limited.",
+    "Dependence and withdrawal differ from tolerance. Physical dependence is an adaptation that produces a withdrawal syndrome when the drug is stopped or an antagonist given; addiction is a behavioral disorder of compulsive use despite harm. A patient can be physically dependent, as on a beta-blocker or a long-term opioid for pain, without addiction.",
+    "Variability in response has many sources: body size and composition, age, sex, genetics, disease of the liver, kidney or heart, other drugs and pregnancy, and also placebo and nocebo effects. Hyperreactive and hyporeactive individuals sit at the two ends of a quantal curve. An idiosyncratic reaction is a genetically determined abnormal response to a drug, such as hemolysis in G6PD deficiency, and is distinct from ordinary variation.",
+    "Worked example: a drug has an ED50 of 10 mg and a TD50 of 15 mg, so its index is only 1.5. Even with careful dosing, a modest rise in clearance or an interaction pushes concentrations toward toxicity, so close monitoring and avoidance of interacting drugs are required."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l13",
+   "title": "Enzyme Induction and Inhibition",
+   "body": [
+    "Many clinically important interactions occur because one drug changes the activity of the enzymes that metabolize another. The two directions are induction, which raises enzyme activity, and inhibition, which lowers it. The usual targets are cytochrome P450 enzymes, especially CYP3A4, CYP2D6, CYP2C9, CYP2C19 and CYP1A2, but conjugating enzymes and transporters such as P-glycoprotein are also affected.",
+    "Inducers increase transcription of enzyme genes, mostly through nuclear receptors such as the pregnane X receptor, the constitutive androstane receptor and the aryl hydrocarbon receptor. Because new protein must be made, induction is slow in onset, developing over days to a couple of weeks, and it takes a similar time to wear off after the inducer is stopped. Classic inducers are rifampin, carbamazepine, phenytoin, phenobarbital, and St John's wort (a herbal product acting on CYP3A4 and P-glycoprotein); chronic ethanol induces CYP2E1; and tobacco smoke, through polycyclic aromatic hydrocarbons, induces CYP1A2. The consequence is lower concentrations and loss of effect of substrate drugs, such as failure of hormonal contraception or reduced immunosuppressant levels. For a prodrug, induction can instead increase the active metabolite. For a high-extraction drug, induction changes systemic clearance after an intravenous dose little, because clearance is limited by blood flow; but after oral dosing, induction in the gut wall and liver raises first-pass extraction and can sharply lower bioavailability (rifampin and oral verapamil).",
+    "Inhibitors may act reversibly, by competing for the active site, or irreversibly (mechanism-based), by being converted to a reactive species that permanently inactivates the enzyme. Reversible inhibition begins quickly, within a few doses, once the inhibitor is present at the enzyme, and fades as the inhibitor is cleared. Mechanism-based inhibition persists until new enzyme is synthesized, so its effect can outlast the inhibitor. Strong CYP3A4 inhibitors include ketoconazole, itraconazole, clarithromycin, ritonavir and grapefruit juice (acting mainly on intestinal CYP3A4). CYP2D6 is inhibited by fluoxetine, paroxetine, quinidine and bupropion; CYP2C9 by fluconazole and amiodarone; and CYP1A2 by ciprofloxacin and fluvoxamine. Cimetidine inhibits several enzymes and is a historical example, while many newer acid suppressants do not. Inhibition raises substrate levels and risk of toxicity, as with simvastatin and strong CYP3A4 inhibitors causing myopathy, or tacrolimus levels rising with clarithromycin.",
+    "The size of an interaction depends on the fraction of the substrate's clearance that goes through the affected pathway. A drug cleared 90 percent by one enzyme is highly vulnerable to an inhibitor of that enzyme, while a drug with several parallel pathways is much less so. Narrow therapeutic index drugs are the main concern. Pharmacogenomic status interacts too: a person who lacks CYP2D6 activity gains nothing from adding an inhibitor, but a normal metabolizer may be converted to a phenotypic poor metabolizer, a phenomenon called phenoconversion.",
+    "Worked example: warfarin's active S-isomer is cleared by CYP2C9. Adding a strong CYP2C9 inhibitor raises warfarin levels and the INR within days, increasing bleeding risk, while adding rifampin lowers warfarin effect over about a week or two and, after rifampin is stopped, the effect drifts back over a similar period, risking over-anticoagulation if the dose was increased."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l14",
+   "title": "Drug-Drug and Drug-Food Interactions",
+   "body": [
+    "Interactions are classified by mechanism. Pharmacokinetic interactions change absorption, distribution, metabolism or excretion. Pharmacodynamic interactions change the effect at the target without changing drug levels, and can be additive, synergistic or antagonistic. Pharmaceutical interactions occur outside the body, for example when two intravenous drugs precipitate in the same line.",
+    "Pharmacokinetic examples cover each ADME step. Absorption: antacids and polyvalent cations chelate tetracyclines and fluoroquinolones; cholestyramine binds many drugs in the gut; drugs altering gastric pH change the absorption of agents that need acid. Distribution: displacement from albumin is usually minor in practice, though it may matter at the initiation of a highly bound drug. Metabolism: induction and inhibition as discussed in the last lesson. Excretion: competition for tubular secretion (probenecid with penicillin; many drugs with methotrexate), changes in urine pH, and effects on P-glycoprotein or other renal transporters (digoxin).",
+    "Pharmacodynamic interactions often involve combining drugs with similar effects. Central nervous system depressants such as opioids, benzodiazepines and alcohol add to produce sedation and respiratory depression, which explains the risk of combined use even when no kinetic interaction exists. Two QT-prolonging drugs add to the risk of torsades de pointes. Nonsteroidal anti-inflammatory drugs blunt the effect of antihypertensives and, combined with ACE inhibitors and diuretics, raise the risk of kidney injury. Potassium-sparing diuretics plus ACE inhibitors raise the risk of hyperkalemia. Serotonergic drugs, including SSRIs, monoamine oxidase inhibitors, tramadol and linezolid, can combine to cause serotonin syndrome, whose features are hyperthermia, clonus, hyperreflexia, agitation and autonomic instability.",
+    "Drug-food interactions are among the best-known exam topics. Grapefruit juice inhibits intestinal CYP3A4 and raises bioavailability of felodipine and some statins. Tyramine-rich foods (aged cheese, cured meats, fermented products) can precipitate hypertensive crisis in people taking non-selective monoamine oxidase inhibitors, since tyramine is normally broken down by gut and liver MAO and, if not, displaces norepinephrine from nerve terminals. Foods rich in vitamin K, such as leafy greens, reduce the effect of warfarin when intake changes markedly, so the lesson is consistency rather than avoidance. Dairy and calcium reduce absorption of tetracyclines. High-fat meals can raise absorption of some lipophilic drugs, and some drugs must be taken fasting. Alcohol with metronidazole has been associated with disulfiram-like reactions in the traditional teaching, though the evidence is debated.",
+    "Herbal products matter because patients rarely report them. St John's wort induces CYP3A4 and P-glycoprotein and can lower levels of many drugs, and with SSRIs may contribute to serotonin toxicity.",
+    "Worked example: a patient taking an MAOI eats aged cheese. Without gut MAO, absorbed tyramine releases norepinephrine from sympathetic nerve endings, producing severe headache and a hypertensive crisis. This is a pharmacodynamic consequence of an enzyme inhibition rather than a drug-level interaction."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l15",
+   "title": "Adverse Drug Reactions and Toxicology Principles",
+   "body": [
+    "An adverse drug reaction is a harmful, unintended response to a drug at doses normally used for prevention, diagnosis or treatment. It differs from an overdose, which is toxicity from excessive dose, and from a medication error. A side effect is a predictable secondary pharmacological effect, which may be harmful or merely unwanted.",
+    "The common classification divides reactions into type A and type B. Type A (augmented) reactions are predictable from the drug's pharmacology, dose-related, common, and rarely fatal; examples include bleeding with anticoagulants, hypoglycemia with insulin, bradycardia with beta-blockers and sedation with antihistamines. They are managed by reducing the dose or adjusting for the cause of exposure. Type B (bizarre) reactions are unpredictable, not obviously dose-related, uncommon, and more often serious. They include immunological hypersensitivity and idiosyncratic reactions. Extended schemes add chronic effects (type C, such as adrenal suppression with long-term corticosteroids), delayed effects (type D, such as carcinogenicity or teratogenicity), and withdrawal (type E).",
+    "Hypersensitivity reactions follow the Gell and Coombs scheme. Type I is IgE-mediated and immediate, as in penicillin anaphylaxis with urticaria, bronchospasm and hypotension. Type II involves antibodies against cell-bound antigens, such as drug-induced hemolytic anemia. Heparin-induced thrombocytopenia is antibody-mediated (IgG against platelet factor 4 and heparin complexes that activate platelets) and is often grouped with type II, but its prothrombotic platelet activation does not fit the scheme cleanly, so classification varies. Type III involves immune complexes, such as serum sickness. Type IV is delayed T-cell-mediated, as in contact dermatitis and many drug rashes, and severe cutaneous reactions including Stevens-Johnson syndrome and toxic epidermal necrolysis. Some of these have genetic links, as seen in the next lesson. Pseudoallergic (anaphylactoid) reactions, such as opioid-induced histamine release or vancomycin infusion reaction, mimic allergy without IgE.",
+    "Toxicity can also be organ-directed: nephrotoxicity (aminoglycosides, NSAIDs, contrast), hepatotoxicity (acetaminophen overdose, isoniazid), ototoxicity (aminoglycosides, loop diuretics, cisplatin), cardiotoxicity (anthracyclines) and others. Teratogenicity is covered in the lesson on special populations.",
+    "The management logic of poisoning is general: stabilize the patient, reduce absorption where it still helps (activated charcoal for early presentation after ingestion of an adsorbable agent), enhance elimination where it makes sense (urinary alkalinization for salicylate, hemodialysis for agents with a small Vd and low protein binding), and give a specific antidote when one exists. Antidotes act by different mechanisms: receptor antagonism (naloxone for opioids, flumazenil for benzodiazepines), replenishing a depleted substrate (N-acetylcysteine for acetaminophen), binding the toxin (digoxin immune fab, chelators), restoring function (atropine and pralidoxime for organophosphates), or blocking toxic metabolism (fomepizole for methanol and ethylene glycol).",
+    "Causality assessment weighs timing, dechallenge (improvement after stopping), rechallenge, alternative causes and biological plausibility. Pharmacovigilance systems, such as FDA MedWatch and the FDA Adverse Event Reporting System, collect post-marketing reports to detect rare reactions that trials could not.",
+    "Worked example: a patient on a new antibiotic develops a diffuse rash at day 9 with no breathing difficulty. The delay suggests a T-cell-mediated (type IV) process rather than IgE-mediated anaphylaxis, which usually appears within minutes to an hour."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l16",
+   "title": "Pharmacogenomics",
+   "body": [
+    "Pharmacogenomics studies how inherited differences in genes alter drug response. Variants can change pharmacokinetics (enzymes and transporters) or pharmacodynamics (targets and immune molecules), and they explain part of the variation seen in the same dose given to different people. A genetic polymorphism is a variant present in at least 1 percent of a population. Many are described by a star (*) allele nomenclature, with alleles classified by function as normal, decreased or no function, and the pair of alleles forms a genotype from which a phenotype is inferred.",
+    "For the enzymes, the metabolizer categories are poor, intermediate, normal (extensive) and rapid or ultrarapid. CYP2D6 is the textbook example because its activity varies widely and it activates codeine and tramadol. A poor metabolizer gets little analgesia from codeine since little morphine is made, while an ultrarapid metabolizer makes excess morphine, which can cause serious toxicity, and for this reason the FDA (2017) made codeine contraindicated in children under 12, warned against it in adolescents with obesity, sleep apnea or severe lung disease, and recommended against breastfeeding while taking it, and it is avoided after tonsillectomy in children. CYP2C19 activates the prodrug clopidogrel; carriers of loss-of-function alleles form less active metabolite and may have reduced antiplatelet effect, with a higher risk of stent thrombosis in some settings, so alternatives may be chosen. CYP2C9 and VKORC1 variants affect warfarin sensitivity: CYP2C9 reduced-function alleles slow warfarin clearance and VKORC1 variants alter target sensitivity.",
+    "Non-oxidative enzymes matter as well. Thiopurine methyltransferase (TPMT) and NUDT15 variants lower inactivation of azathioprine and mercaptopurine, causing severe myelosuppression if the dose is not reduced. Dihydropyrimidine dehydrogenase (DPYD) deficiency impairs fluoropyrimidine breakdown and causes severe toxicity from fluorouracil and capecitabine. Slow acetylators by NAT2 are at greater risk of isoniazid neuropathy and drug-induced lupus with hydralazine or procainamide. UGT1A1*28 reduces irinotecan inactivation and raises the risk of neutropenia, and affects bilirubin conjugation in Gilbert syndrome. Plasma pseudocholinesterase variants prolong paralysis after succinylcholine, and G6PD deficiency predisposes to hemolysis with oxidant drugs such as primaquine and rasburicase.",
+    "Immunogenetic variants can predict hypersensitivity. HLA-B*57:01 predicts abacavir hypersensitivity, and testing before treatment is standard. HLA-B*15:02, especially in people of Han Chinese and some Southeast Asian ancestry, predicts carbamazepine-induced Stevens-Johnson syndrome and toxic epidermal necrolysis, and HLA-B*58:01 predicts allopurinol severe cutaneous reactions.",
+    "Targeted therapy depends on tumor genetics rather than inherited variants: examples include HER2 for trastuzumab and BRAF V600E for BRAF inhibitors. This is somatic, not germline, pharmacogenomics, and the two should not be confused.",
+    "Limits are important. A genotype predicts a phenotype imperfectly, because ancestry-specific allele frequencies, drug interactions, age and disease also matter. Consortia such as the Clinical Pharmacogenetics Implementation Consortium publish guidelines for how to act on a result; testing is most useful when a clear action follows.",
+    "Worked example: a patient on a CYP2C19-activated prodrug is genotyped as a poor metabolizer. Less active drug forms, so an alternative that does not depend on CYP2C19 may be considered, since a higher dose of the prodrug is not guaranteed to restore effect."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l17",
+   "title": "Autonomic Pharmacology Foundations",
+   "body": [
+    "The autonomic nervous system controls involuntary functions through two divisions. In both, a preganglionic neuron releases acetylcholine (ACh) onto nicotinic (Nn) receptors on the postganglionic neuron in an autonomic ganglion. The parasympathetic postganglionic neuron then releases ACh onto muscarinic receptors on the target organ. The sympathetic postganglionic neuron usually releases norepinephrine onto adrenergic receptors. Two exceptions are classic: sweat glands receive sympathetic cholinergic fibers acting on muscarinic receptors, and the adrenal medulla is innervated directly by preganglionic fibers and releases epinephrine, with some norepinephrine, into the blood.",
+    "Norepinephrine is made from tyrosine: tyrosine hydroxylase (rate-limiting) forms DOPA, DOPA decarboxylase forms dopamine, dopamine is taken into vesicles and converted by dopamine beta-hydroxylase to norepinephrine, and in the adrenal medulla phenylethanolamine N-methyltransferase makes epinephrine. Release is calcium-dependent. The signal is ended chiefly by reuptake through the norepinephrine transporter, and then breakdown by monoamine oxidase (MAO) and catechol-O-methyltransferase (COMT). Cocaine and tricyclic antidepressants block reuptake and so potentiate norepinephrine. ACh is made by choline acetyltransferase, released, and destroyed within milliseconds by acetylcholinesterase, so inhibiting that enzyme raises ACh at all cholinergic synapses.",
+    "Receptor subtypes predict function. Alpha-1 receptors (Gq) cause vascular smooth muscle contraction, pupil dilation and sphincter contraction. Alpha-2 receptors (Gi) are largely presynaptic and inhibit norepinephrine release, and their stimulation in the brainstem lowers sympathetic outflow. Beta-1 receptors (Gs) increase heart rate, contractility and renin release. Beta-2 receptors (Gs) relax bronchial and vascular smooth muscle in skeletal muscle beds and promote glycogenolysis. Muscarinic M3 receptors (Gq) contract smooth muscle, constrict the pupil and stimulate glands; M2 receptors (Gi) slow the heart. Dopamine D1 receptors dilate renal and mesenteric vessels. Nicotinic receptors at the neuromuscular junction (Nm) differ from the ganglionic type (Nn).",
+    "This allows prediction. Atropine blocks muscarinic receptors, so it produces tachycardia, dry mouth, mydriasis, urinary retention and constipation, and is used for bradycardia and in organophosphate poisoning. Neostigmine and physostigmine inhibit acetylcholinesterase, raising ACh: neostigmine (quaternary, does not enter the brain) treats myasthenia gravis and reverses neuromuscular block, while physostigmine, a tertiary amine that does cross the blood-brain barrier, can treat severe central anticholinergic toxicity. Organophosphates irreversibly inhibit the enzyme, causing the cholinergic picture of salivation, lacrimation, urination, diarrhea, bronchospasm and miosis, with paralysis from excess nicotinic stimulation.",
+    "Adrenergic drugs differ by receptor. Epinephrine acts on alpha and beta receptors and is first-line in anaphylaxis, where it reverses vasodilation and bronchospasm. Norepinephrine is mostly alpha-1 and beta-1, raising blood pressure; phenylephrine is a selective alpha-1 agonist and can cause reflex bradycardia. Selective beta-1 blockers reduce heart rate with less bronchoconstriction than non-selective drugs.",
+    "Because baroreceptor reflexes counter changes in pressure, the heart rate response depends on the drug. Worked example: a pure vasoconstrictor raises blood pressure and, through the vagal reflex, slows the heart, whereas a drug that also stimulates beta-1 receptors can raise heart rate despite the pressure rise."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l18",
+   "title": "Drug Development and the FDA Approval Pathway",
+   "body": [
+    "A new drug begins with target identification and the discovery of candidate molecules, followed by preclinical studies in vitro and in animals that examine pharmacology, pharmacokinetics and toxicity, including safety pharmacology and genotoxicity. Studies supporting human trials follow good laboratory practice. When preclinical data justify human exposure, the sponsor files an Investigational New Drug (IND) application with the Food and Drug Administration (FDA) under 21 CFR Part 312. Unless the FDA places a clinical hold, the trial can proceed after a 30-day review, and an institutional review board must approve each trial and ensure informed consent. Trials follow Good Clinical Practice, an international standard in the ICH E6 guideline.",
+    "Clinical development is divided into phases. Phase 1 gives the drug to a small number of subjects, often 20 to 100, usually healthy volunteers, to assess safety, tolerability, pharmacokinetics and the dose range; in oncology and for very toxic drugs, patients are used instead. Phase 2 enrolls up to several hundred patients with the target condition to look for preliminary efficacy, find the dose, and further define safety. Phase 3 enrolls hundreds to thousands in randomized, usually controlled and blinded trials that confirm efficacy and detect common adverse effects; two adequate trials, or one with confirmatory evidence, have traditionally supported approval. Phase 4 is post-marketing study after approval.",
+    "The sponsor then files a New Drug Application (NDA) for a small-molecule drug, or a Biologics License Application (BLA) for a biological product, containing all the data on chemistry, manufacturing, nonclinical and clinical results and proposed labeling. The standard FDA review goal is about 10 months from filing and a priority review goal is about 6 months, under timelines set by the Prescription Drug User Fee Act. The FDA may convene an advisory committee, though it is not bound by its vote. The outcome is approval or a complete response letter listing deficiencies. The legal basis is the Federal Food, Drug, and Cosmetic Act; the 1962 Kefauver-Harris Amendments, passed after the thalidomide tragedy, added the requirement that a drug be shown to be effective, not only safe, before marketing.",
+    "Several programs speed development for serious conditions: fast track, breakthrough therapy designation, accelerated approval (based on a surrogate endpoint reasonably likely to predict benefit, with required confirmatory trials), and priority review. Orphan drug designation gives incentives for rare diseases. Generic drugs are approved through an Abbreviated New Drug Application, which relies on the brand drug's safety and efficacy and requires demonstration of pharmaceutical equivalence and bioequivalence, meaning comparable rate and extent of absorption. Biosimilars follow a separate abbreviated pathway for biological products.",
+    "Post-marketing surveillance matters because trials are limited in size, duration and population: they may miss rare reactions (an adverse effect with an incidence of 1 in 10,000 is unlikely to be seen in a trial of 3,000 patients), delayed reactions, and effects in groups excluded from trials such as pregnant women and the elderly. Tools include spontaneous reporting (MedWatch), the FAERS database, the Sentinel system, mandated Phase 4 studies, and Risk Evaluation and Mitigation Strategies (REMS), which can restrict distribution. Labeling can be changed, with boxed warnings added, or a drug withdrawn.",
+    "Other regions have analogous systems, such as the European Medicines Agency, but this lesson concerns US law.",
+    "Worked example: a drug for a serious disease shows a large effect on a biomarker in a small trial. It may receive accelerated approval, but the sponsor must complete confirmatory trials that show clinical benefit, and the approval can be withdrawn if they fail."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l19",
+   "title": "Pregnancy, Lactation and Children",
+   "body": [
+    "In pregnancy, a drug can affect the mother, the fetus, or both, and the effect depends on the timing of exposure as much as on the drug. Most drugs cross the placenta by passive diffusion, favoring small, lipophilic, un-ionized molecules; large molecules such as heparin and insulin cross poorly. Maternal physiology changes the kinetics: plasma volume and body water rise, albumin falls, renal clearance increases, and some enzyme activities change, so levels of some drugs, such as certain antiepileptics, can fall as pregnancy advances.",
+    "Timing defines the type of harm. In the first two weeks after conception the effect is largely all-or-none: the embryo either is lost or recovers. From about the third to the eighth week, during organogenesis, exposure to a teratogen can cause major structural malformations. In the second and third trimesters the main risks are functional and growth effects and toxicity to organs that continue to develop, and exposure near delivery can cause neonatal effects such as withdrawal or respiratory depression. A teratogen is an agent that produces a structural or functional abnormality in the fetus. Effects depend on dose, timing and genetic susceptibility.",
+    "Well-established teratogens or fetotoxic drugs include thalidomide (limb defects, the event that led to the 1962 amendments), isotretinoin and other retinoids (craniofacial, cardiac and central nervous system defects, so a strict risk-management program is required), valproate (neural tube defects and neurodevelopmental effects), warfarin (embryopathy and fetal bleeding), methotrexate and mycophenolate (pregnancy loss and malformations), and ACE inhibitors and angiotensin receptor blockers in the second and third trimesters (fetal renal injury, oligohydramnios). Tetracyclines can stain developing teeth and affect bone. Alcohol causes fetal alcohol spectrum disorder. Folate antagonists increase the risk of neural tube defects, which is why folic acid supplementation is advised before conception.",
+    "Labeling used to use letter categories A, B, C, D and X. These were replaced by the FDA Pregnancy and Lactation Labeling Rule, which since 2015 requires narrative summaries of risk, clinical considerations and data, because the letters oversimplified decisions. Treating a mother's illness often protects the fetus, so the aim is a balanced decision rather than reflexive avoidance; untreated epilepsy or severe depression carries its own risks.",
+    "Drugs pass into breast milk by diffusion, and the infant dose is usually a small fraction of the maternal dose. Features that raise transfer include low molecular weight, lipid solubility, low protein binding and weak-base ionization in the more acidic milk. Infants with immature clearance are at greater risk.",
+    "Children differ by age. Neonates have a higher proportion of body water, lower albumin, immature glucuronidation and renal function, and a more permeable blood-brain barrier. Chloramphenicol, which depends on glucuronidation, caused gray baby syndrome in neonates, and sulfonamides can displace bilirubin and risk kernicterus. Hepatic metabolism then matures, and young children can clear some drugs faster than adults on a weight basis. Dosing is therefore based on weight, body surface area or age rather than by scaling down the adult dose. Additional age-specific cautions include aspirin and Reye syndrome in viral illness, tetracycline-related tooth discoloration, and the risk of codeine in ultrarapid metabolizers.",
+    "Worked example: a woman on an ACE inhibitor for hypertension learns she is pregnant. Because of the risk of fetal renal toxicity in later pregnancy, the usual approach is to review the treatment promptly with her clinician, not to assume that stopping all drugs is always safe."
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l20",
+   "title": "Older Adults, Renal and Hepatic Impairment",
+   "body": [
+    "Older adults have more adverse drug events for several reasons: physiological change, multiple diseases, and many medications. Absorption changes little. Distribution changes more: total body water and lean mass fall and body fat rises, so the volume of distribution of lipophilic drugs such as diazepam increases and of hydrophilic drugs such as digoxin and lithium falls, and albumin tends to be lower. Hepatic mass and blood flow decline, reducing first-pass metabolism and the clearance of high-extraction drugs. Renal function falls with age, and serum creatinine can be misleading in the frail because low muscle mass keeps it deceptively normal, so estimating clearance is better than reading creatinine alone. Pharmacodynamic sensitivity also changes: the older brain is more sensitive to benzodiazepines, opioids and anticholinergics, baroreflexes are blunted so orthostatic hypotension is more likely, and falls and delirium follow.",
+    "Polypharmacy, commonly defined as the use of five or more medicines, multiplies interaction risk. A prescribing cascade occurs when an adverse effect is misread as a new disease and treated with another drug, such as a calcium channel blocker causing edema that is then treated with a diuretic. Anticholinergic burden accumulates across drugs and contributes to confusion, constipation, urinary retention and falls. The American Geriatrics Society Beers Criteria list drugs that are potentially inappropriate in older adults, such as long-acting benzodiazepines, first-generation antihistamines and some anticholinergics; they inform judgement rather than replace it. A useful principle is to start low, go slow, review often, and deprescribe drugs without a continuing indication.",
+    "Renal impairment reduces clearance of drugs and active metabolites that depend on the kidney. The principle is to estimate renal function using creatinine-based estimates of glomerular filtration rate or creatinine clearance (the Cockcroft-Gault equation is used in many drug labels) and, for drugs with a significant renally eliminated fraction, to reduce the dose or lengthen the interval, with monitoring for narrow-index drugs such as aminoglycosides, vancomycin, digoxin and lithium. A loading dose is often unchanged because Vd is unchanged. Nephrotoxic drugs should be avoided where possible, and NSAIDs, ACE inhibitors and diuretics together can precipitate acute kidney injury. Metabolites can accumulate: morphine-6-glucuronide in kidney disease can cause prolonged sedation, and meperidine's metabolite normeperidine can cause seizures. Some drugs are removed by dialysis, particularly small, water-soluble, poorly protein-bound drugs with small Vd.",
+    "Hepatic impairment is harder to quantify, because no single test predicts drug clearance as creatinine does for the kidney. The Child-Pugh score grades severity of cirrhosis and is used in labels. Effects include reduced metabolism, reduced first-pass extraction (so oral bioavailability of high-extraction drugs such as propranolol or morphine rises sharply when portal shunting is present), low albumin that raises the free fraction of bound drugs, impaired synthesis of clotting factors that increases warfarin sensitivity, and ascites that enlarges the volume of distribution of hydrophilic drugs. The brain is more sensitive to sedatives, which can precipitate hepatic encephalopathy. Drugs cleared by glucuronidation, such as lorazepam, are relatively preserved in cirrhosis compared with oxidized drugs such as diazepam.",
+    "Worked example: an older woman with low muscle mass has a normal creatinine but a clearly reduced estimated clearance. A renally cleared antibiotic with a narrow margin dosed for a young adult would accumulate. The reasoning, rather than a particular number, is what the prescriber needs: identify the elimination route, estimate function, adjust, and monitor."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-pharm-principles.l01.q1",
+   "lessonId": "med-pharm-principles.l01",
+   "kind": "mcq",
+   "prompt": "Which term describes the fraction of an administered dose that reaches the systemic circulation unchanged?",
+   "choices": [
+    "Volume of distribution",
+    "Clearance",
+    "Extraction ratio of the kidney",
+    "Bioavailability"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l01.q2",
+   "lessonId": "med-pharm-principles.l01",
+   "kind": "mcq",
+   "prompt": "Why does sublingual nitroglycerin avoid most first-pass metabolism?",
+   "choices": [
+    "Saliva binds the drug so that hepatic enzymes cannot recognize it once it has been swallowed and reached the liver",
+    "Absorption from the oral mucosa is slower than from the gut and so gives the liver less time to act on each dose",
+    "Its drainage reaches the systemic circulation without passing through the portal vein and liver",
+    "The drug is converted by enzymes in the mouth into a more stable active metabolite that then survives later hepatic metabolism"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l01.q3",
+   "lessonId": "med-pharm-principles.l01",
+   "kind": "mcq",
+   "prompt": "A weak acid with pKa 4 is in a compartment at pH 2. Compared with plasma at pH 7.4, which statement is correct?",
+   "choices": [
+    "The drug is fully ionized at that pH and so accumulates in that compartment by ion trapping, unable to cross back",
+    "A larger fraction is un-ionized and the drug crosses membranes more easily",
+    "A larger fraction is ionized in that compartment, so the drug crosses membranes less easily than it does from plasma",
+    "Ionization is identical in both compartments because the pKa of a drug does not depend on the pH of its surroundings"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l01.q4",
+   "lessonId": "med-pharm-principles.l01",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man starts a new oral drug. Its oral AUC is 15 percent of its intravenous AUC. A sublingual dose of the same size gives an exposure close to the intravenous value. Which mechanism most likely explains the oral shortfall?",
+   "choices": [
+    "Extensive hepatic and gut-wall extraction before the drug reaches the systemic circulation",
+    "Complete excretion of the absorbed drug unchanged in the urine before it can be measured as systemic exposure after oral dosing",
+    "High plasma protein binding that traps the absorbed drug in the plasma and so lowers the measured concentration of free drug",
+    "A very large volume of distribution that lowers plasma concentrations after the drug has been absorbed from the gut lumen"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l01.q5",
+   "lessonId": "med-pharm-principles.l01",
+   "kind": "mcq",
+   "prompt": "A 30-year-old woman takes a tetracycline antibiotic with a calcium-rich dairy meal and her blood levels are far lower than expected, although the drug is fully dissolved in the stomach. What best explains this?",
+   "choices": [
+    "Induction of CYP3A4 by dairy products increases first-pass metabolism",
+    "Dairy alkalinizes plasma and raises the renal excretion of the drug",
+    "Calcium displaces the drug from albumin and increases its volume of distribution",
+    "Chelation with calcium reduces the amount of drug available for absorption"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l02.q1",
+   "lessonId": "med-pharm-principles.l02",
+   "kind": "mcq",
+   "prompt": "A drug has a volume of distribution much larger than total body water. What does that imply?",
+   "choices": [
+    "It is extensively distributed or sequestered in tissues outside the plasma",
+    "It is confined almost entirely to the plasma compartment, because it is highly bound to circulating albumin and cannot leave the blood",
+    "It is excreted extremely quickly by the kidney, so that very little drug remains in the body to be measured in the plasma",
+    "It is completely unbound to tissue proteins and distributes only in the extracellular fluid, so tissue stores are negligible"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l02.q2",
+   "lessonId": "med-pharm-principles.l02",
+   "kind": "mcq",
+   "prompt": "Which fraction of a plasma-bound drug can cross membranes and bind receptors?",
+   "choices": [
+    "The fraction bound to alpha-1-acid glycoprotein",
+    "The unbound (free) fraction",
+    "The albumin-bound fraction",
+    "Total drug divided by plasma volume"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l02.q3",
+   "lessonId": "med-pharm-principles.l02",
+   "kind": "mcq",
+   "prompt": "After a rapid intravenous dose of a highly lipid-soluble anesthetic, the patient wakes in minutes although drug is still present in the blood. The best explanation is:",
+   "choices": [
+    "Complete hepatic metabolism of the whole dose within a few minutes, which removes the drug before it can reach the brain again",
+    "Binding of the anaesthetic to plasma albumin, which removes its action by making the whole dose unavailable to brain tissue",
+    "Redistribution from the brain to muscle and fat lowers brain concentration",
+    "Rapid renal clearance of the whole dose, which removes the anaesthetic from the blood within a few minutes of the injection"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l02.q4",
+   "lessonId": "med-pharm-principles.l02",
+   "kind": "mcq",
+   "prompt": "A 62-year-old woman with cirrhosis and a low serum albumin takes an acidic, highly protein-bound drug. Her total drug level is within the usual range but she has signs of excess effect. Which explanation fits best?",
+   "choices": [
+    "A reduced volume of distribution has concentrated more of the drug at the receptor site despite the unchanged total plasma level",
+    "Increased renal tubular reabsorption has lengthened the half-life and so raised the free concentration above the measured total level",
+    "Increased CYP induction has produced an excess of the active metabolite, which is not reflected in the measured parent drug level",
+    "A raised free fraction increases the active concentration at the same total level"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l02.q5",
+   "lessonId": "med-pharm-principles.l02",
+   "kind": "mcq",
+   "prompt": "A 45-year-old man has meningitis. A polar antibiotic that usually reaches the cerebrospinal fluid poorly produces adequate levels this time. What is the most likely reason?",
+   "choices": [
+    "Inflammation has loosened the blood-brain barrier tight junctions",
+    "The antibiotic is now more lipid soluble because of fever",
+    "Efflux transporters in the barrier have been induced by infection",
+    "Plasma albumin has fallen so that all drug becomes bound"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l03.q1",
+   "lessonId": "med-pharm-principles.l03",
+   "kind": "mcq",
+   "prompt": "Which enzyme family metabolizes the largest share of marketed drugs?",
+   "choices": [
+    "Monoamine oxidase B",
+    "CYP3A4",
+    "Alcohol dehydrogenase",
+    "Xanthine oxidase"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l03.q2",
+   "lessonId": "med-pharm-principles.l03",
+   "kind": "mcq",
+   "prompt": "Phase II reactions typically:",
+   "choices": [
+    "Conjugate the drug with a polar group such as glucuronic acid, making it more water soluble",
+    "Oxidize the drug to expose a hydroxyl group that later allows a conjugation reaction to make the product more water soluble",
+    "Cleave esters in the plasma and the liver to release the active drug from an inactive ester prodrug that was administered",
+    "Convert hydrophilic drugs into lipophilic ones that cross cell membranes more easily and so reach their intracellular targets"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l03.q3",
+   "lessonId": "med-pharm-principles.l03",
+   "kind": "mcq",
+   "prompt": "A drug with high hepatic extraction has its clearance primarily determined by:",
+   "choices": [
+    "Enzyme induction by other drugs",
+    "The unbound fraction in plasma",
+    "The pH of the urine",
+    "Hepatic blood flow"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l03.q4",
+   "lessonId": "med-pharm-principles.l03",
+   "kind": "mcq",
+   "prompt": "A 24-year-old man presents several hours after an intentional acetaminophen overdose. Which mechanism underlies the liver injury expected over the next days?",
+   "choices": [
+    "Excessive glucuronide formation that obstructs the biliary canaliculi and causes a cholestatic pattern of injury at therapeutic doses",
+    "Immune-mediated hepatitis caused by a haptenated acetaminophen sulfate that triggers a delayed hypersensitivity reaction in the liver",
+    "Saturation of conjugation leading to NAPQI formation that depletes glutathione and binds hepatocyte proteins",
+    "Direct inhibition of CYP3A4 by the drug that causes accumulation of the unmetabolized parent compound and a predictable dose-dependent liver injury"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l03.q5",
+   "lessonId": "med-pharm-principles.l03",
+   "kind": "mcq",
+   "prompt": "A 35-year-old woman receives a prodrug that requires CYP2D6 for activation and is also started on a strong CYP2D6 inhibitor. Which outcome is most likely?",
+   "choices": [
+    "Increased renal excretion of the parent drug through induced tubular secretion, which lowers the plasma level and shortens its action",
+    "Reduced formation of the active metabolite and diminished therapeutic effect",
+    "Increased formation of the active metabolite and an enhanced therapeutic effect, since the inhibited enzyme normally clears the prodrug",
+    "No change in effect because phase II reactions compensate fully for the inhibited enzyme and restore the usual level of the metabolite"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l04.q1",
+   "lessonId": "med-pharm-principles.l04",
+   "kind": "mcq",
+   "prompt": "Which of these is NOT filtered at the glomerulus to a significant degree?",
+   "choices": [
+    "Unbound polar metabolites",
+    "Ionized small unbound drug",
+    "Drug bound to albumin",
+    "Unbound small-molecule drug"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l04.q2",
+   "lessonId": "med-pharm-principles.l04",
+   "kind": "mcq",
+   "prompt": "Enterohepatic circulation of a drug usually has what effect?",
+   "choices": [
+    "It shortens the half-life by increasing faecal loss",
+    "It lowers bioavailability by increasing first-pass extraction",
+    "It abolishes biliary excretion",
+    "It prolongs the half-life and can produce secondary plasma peaks"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l04.q3",
+   "lessonId": "med-pharm-principles.l04",
+   "kind": "mcq",
+   "prompt": "Alkalinizing the urine increases the renal excretion of a weak acid because:",
+   "choices": [
+    "More of the acid is ionized in tubular fluid and cannot diffuse back into the blood",
+    "More of the acid is un-ionized in tubular fluid and is actively secreted by transporters back into the lumen for faster excretion",
+    "Alkalinization raises the glomerular filtration rate and so increases the amount of filtered acid that leaves in the urine",
+    "The acid becomes more lipophilic in alkaline urine and so enters the bile instead of being excreted by the kidney"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l04.q4",
+   "lessonId": "med-pharm-principles.l04",
+   "kind": "mcq",
+   "prompt": "A 72-year-old woman with chronic kidney disease takes digoxin. After starting a new drug that competes for renal tubular secretion, she develops nausea and visual disturbances. Which mechanism best explains her symptoms?",
+   "choices": [
+    "Greater urinary alkalinization increases tubular reabsorption of digoxin",
+    "Reduced renal clearance of digoxin raises its plasma concentration",
+    "Induction of CYP3A4 increases conversion of digoxin to a toxic metabolite",
+    "Increased protein binding lowers digoxin clearance by the liver"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l04.q5",
+   "lessonId": "med-pharm-principles.l04",
+   "kind": "mcq",
+   "prompt": "A 19-year-old college student is brought in after an aspirin (salicylate) overdose. Which intervention exploits ion trapping to increase elimination?",
+   "choices": [
+    "Probenecid to block the tubular secretion of salicylate and so increase the urinary concentration of the unchanged drug",
+    "Furosemide to lower the glomerular filtration rate and thereby trap the salicylate in the plasma for later hepatic clearance",
+    "Intravenous sodium bicarbonate to alkalinize the urine",
+    "Ammonium chloride to acidify the urine, because weak acids are excreted faster when the tubular fluid is acidic"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l05.q1",
+   "lessonId": "med-pharm-principles.l05",
+   "kind": "mcq",
+   "prompt": "Which equation correctly links half-life to the other pharmacokinetic parameters?",
+   "choices": [
+    "Half-life equals clearance divided by 0.693 times volume of distribution",
+    "Half-life equals 0.693 times clearance divided by volume of distribution",
+    "Half-life equals volume of distribution divided by 0.693 times clearance",
+    "Half-life equals 0.693 times volume of distribution divided by clearance"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l05.q2",
+   "lessonId": "med-pharm-principles.l05",
+   "kind": "mcq",
+   "prompt": "After how many half-lives is a first-order drug about 94 percent eliminated?",
+   "choices": [
+    "Three",
+    "Six",
+    "Four",
+    "Two"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l05.q3",
+   "lessonId": "med-pharm-principles.l05",
+   "kind": "mcq",
+   "prompt": "A drug has a Vd of 100 L and a clearance of 10 L per hour. Which half-life is closest to the correct value?",
+   "choices": [
+    "About 10 hours",
+    "About 7 hours",
+    "About 14 hours",
+    "About 3.5 hours"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l05.q4",
+   "lessonId": "med-pharm-principles.l05",
+   "kind": "mcq",
+   "prompt": "A 68-year-old man with advanced chronic kidney disease takes a drug that is eliminated mainly unchanged by the kidney. Compared with a healthy adult, which pair of changes is expected?",
+   "choices": [
+    "Lower clearance and longer half-life with no change in volume of distribution",
+    "Lower clearance and shorter half-life with a higher volume of distribution",
+    "Unchanged clearance and longer half-life because the volume has increased",
+    "Higher clearance and shorter half-life because of compensatory tubular secretion"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l05.q5",
+   "lessonId": "med-pharm-principles.l05",
+   "kind": "mcq",
+   "prompt": "A 75-year-old woman has a lipophilic benzodiazepine whose hepatic clearance is unchanged by age, yet her half-life is far longer than her 30-year-old daughter's on the same drug. Which explanation best fits?",
+   "choices": [
+    "A reduced plasma protein binding increases the unbound clearance and so prolongs the half-life, because more free drug reaches the liver",
+    "A reduced absorption rate lengthens the elimination half-life directly, because slower input delays removal of the drug from the body",
+    "A larger hepatic clearance from enzyme induction prolongs the half-life, because more drug is removed in each pass through the liver",
+    "A larger volume of distribution from relatively greater body fat prolongs the half-life"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l06.q1",
+   "lessonId": "med-pharm-principles.l06",
+   "kind": "mcq",
+   "prompt": "What determines how long it takes a repeatedly dosed drug to reach steady state?",
+   "choices": [
+    "Its elimination half-life",
+    "The length of the dosing interval alone",
+    "The peak concentration after the first dose",
+    "The size of each individual dose"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l06.q2",
+   "lessonId": "med-pharm-principles.l06",
+   "kind": "mcq",
+   "prompt": "If the maintenance dose rate is doubled and clearance is unchanged, the average steady-state concentration will:",
+   "choices": [
+    "Double only after twice as many half-lives",
+    "Double",
+    "Remain unchanged",
+    "Increase by about 50 percent"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l06.q3",
+   "lessonId": "med-pharm-principles.l06",
+   "kind": "mcq",
+   "prompt": "A drug is given at an interval equal to its half-life. Approximately what is the ratio of steady-state to first-dose concentration (accumulation factor)?",
+   "choices": [
+    "About 1",
+    "About 4",
+    "About 2",
+    "About 10"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l06.q4",
+   "lessonId": "med-pharm-principles.l06",
+   "kind": "mcq",
+   "prompt": "A 55-year-old woman on a long-term renally cleared drug has her dose increased, and a trough drawn two days later is well below the range expected at the new dose. The half-life of the drug is 36 hours. What is the best interpretation?",
+   "choices": [
+    "The drug is not being absorbed from the formulation she takes, so the dose should be kept the same and the formulation changed",
+    "She has developed enzyme induction that lowers the eventual plateau, so the level will fall again over the coming weeks",
+    "Her volume of distribution has risen since the dose change, so the loading dose should be repeated to restore the target level",
+    "Steady state has not been reached after the dose change, so the level will keep rising"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l06.q5",
+   "lessonId": "med-pharm-principles.l06",
+   "kind": "mcq",
+   "prompt": "A 44-year-old man receives an extended-release formulation in place of an immediate-release product with the same daily dose and bioavailability. Which change would be expected at steady state?",
+   "choices": [
+    "Unchanged average concentration with a smaller peak-to-trough swing",
+    "A higher average concentration with a smaller swing",
+    "A lower average concentration with an equal swing",
+    "A longer time to steady state because of the formulation"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l07.q1",
+   "lessonId": "med-pharm-principles.l07",
+   "kind": "mcq",
+   "prompt": "Which parameter mainly determines the size of a loading dose?",
+   "choices": [
+    "Clearance",
+    "Volume of distribution",
+    "Elimination half-life",
+    "Renal blood flow"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l07.q2",
+   "lessonId": "med-pharm-principles.l07",
+   "kind": "mcq",
+   "prompt": "Which parameter mainly determines the maintenance dose rate?",
+   "choices": [
+    "Clearance",
+    "Volume of distribution",
+    "Protein binding alone",
+    "The loading dose given"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l07.q3",
+   "lessonId": "med-pharm-principles.l07",
+   "kind": "mcq",
+   "prompt": "A patient has severe renal failure and needs a renally cleared drug that has a normal Vd. Which approach follows the principles?",
+   "choices": [
+    "Lower both loading dose and maintenance rate to the same degree",
+    "Give the usual maintenance rate and lower the loading dose",
+    "Raise the loading dose to offset the longer half-life",
+    "Give the usual loading dose and lower the maintenance rate"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l07.q4",
+   "lessonId": "med-pharm-principles.l07",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man has reduced renal perfusion from heart failure, so the clearance of a renally eliminated drug with a narrow safety margin is markedly reduced, while its volume of distribution is unchanged. Which pair of recommendations best applies the pharmacokinetic principles?",
+   "choices": [
+    "Usual loading dose given rapidly, and a usual maintenance rate with levels checked weekly, because clearance does not affect the first dose",
+    "Increased loading dose to offset the lower clearance, with a maintenance rate reduced in proportion, because the target level is unchanged",
+    "Usual loading dose given slowly, and a maintenance rate reduced in proportion to the fall in clearance",
+    "Reduced loading dose given rapidly, and a usual maintenance rate with extra monitoring, because the volume of distribution is normal"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l07.q5",
+   "lessonId": "med-pharm-principles.l07",
+   "kind": "mcq",
+   "prompt": "A 36-year-old woman with severe edema and a larger than normal volume of distribution needs rapid achievement of a target concentration of a hydrophilic drug. Compared with a person of normal fluid status, what would be expected to change?",
+   "choices": [
+    "The loading dose is unchanged because only clearance determines it, and the larger volume affects the half-life alone and not the dose",
+    "The loading dose requirement rises because more volume must be filled",
+    "The loading dose requirement falls because the drug is diluted in the larger volume and so reaches a lower concentration per unit dose",
+    "The maintenance rate rises because the half-life is shorter, and the loading dose is unchanged because it depends only on the clearance"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l08.q1",
+   "lessonId": "med-pharm-principles.l08",
+   "kind": "mcq",
+   "prompt": "Which statement is characteristic of zero-order elimination?",
+   "choices": [
+    "Half-life is constant regardless of the dose",
+    "Clearance is constant regardless of the concentration",
+    "A constant amount of drug is eliminated per unit time",
+    "A constant fraction of drug is eliminated per unit time"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l08.q2",
+   "lessonId": "med-pharm-principles.l08",
+   "kind": "mcq",
+   "prompt": "For which of these drugs is saturable metabolism classically important in the therapeutic range?",
+   "choices": [
+    "Penicillin G",
+    "Lisinopril",
+    "Gentamicin",
+    "Phenytoin"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l08.q3",
+   "lessonId": "med-pharm-principles.l08",
+   "kind": "mcq",
+   "prompt": "As the plasma concentration of a drug with saturable elimination increases, which change occurs?",
+   "choices": [
+    "Clearance falls and apparent half-life lengthens",
+    "Clearance rises and apparent half-life shortens",
+    "Clearance and half-life both stay constant",
+    "Clearance falls and apparent half-life shortens"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l08.q4",
+   "lessonId": "med-pharm-principles.l08",
+   "kind": "mcq",
+   "prompt": "A 29-year-old man with epilepsy has a phenytoin level just below the target range. His dose is increased by a small amount, and two weeks later he has nystagmus, ataxia and a markedly high level. Which mechanism best explains the disproportionate rise?",
+   "choices": [
+    "Enhanced renal tubular reabsorption secondary to urinary acidification, which gradually lengthens the half-life as the dose is increased",
+    "Saturation of the metabolizing enzyme, so a small dose rise exceeds the maximal elimination rate",
+    "Induction of hepatic enzymes that reduces the clearance of the drug as the dose is raised, so concentrations climb faster than the dose",
+    "A sudden fall in the volume of distribution that concentrates the drug in the plasma and so produces a disproportionate rise at higher doses"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l08.q5",
+   "lessonId": "med-pharm-principles.l08",
+   "kind": "mcq",
+   "prompt": "A 22-year-old man drinks several alcoholic drinks and a blood alcohol concentration is measured twice, two hours apart. The fall in concentration is the same each hour. What does this indicate?",
+   "choices": [
+    "Absorption is still the rate-limiting step for the decline in blood alcohol, so the concentration falls as the stomach slowly empties",
+    "Alcohol is distributed into a very large volume of fat, so the concentration in the blood falls only as the tissue stores are released",
+    "Elimination is saturated and proceeding at a constant rate regardless of concentration",
+    "Elimination is first-order with a constant half-life, so the concentration falls by a fixed fraction in each successive hour"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l09.q1",
+   "lessonId": "med-pharm-principles.l09",
+   "kind": "mcq",
+   "prompt": "Which receptor family couples to Gq and raises intracellular calcium through IP3 and diacylglycerol?",
+   "choices": [
+    "Beta-1 adrenergic receptors",
+    "Alpha-2 adrenergic receptors",
+    "Beta-2 adrenergic receptors",
+    "Alpha-1 adrenergic receptors"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l09.q2",
+   "lessonId": "med-pharm-principles.l09",
+   "kind": "mcq",
+   "prompt": "Which type of receptor mediates the slowest effect, taking hours, by altering gene transcription?",
+   "choices": [
+    "G-protein-coupled receptor",
+    "Receptor tyrosine kinase",
+    "Intracellular steroid hormone receptor",
+    "Ligand-gated ion channel"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l09.q3",
+   "lessonId": "med-pharm-principles.l09",
+   "kind": "mcq",
+   "prompt": "In a tissue with a large receptor reserve, a low dose of an irreversible antagonist first produces which change in the agonist dose-response curve?",
+   "choices": [
+    "No change until all receptors are blocked",
+    "A rightward shift with the maximum unchanged",
+    "A lower maximum with the position unchanged",
+    "A leftward shift with the maximum unchanged"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l09.q4",
+   "lessonId": "med-pharm-principles.l09",
+   "kind": "mcq",
+   "prompt": "A 52-year-old man with hypertension has taken a beta-blocker for years and stops it abruptly. He develops palpitations, tachycardia and elevated blood pressure within days. Which mechanism best explains this?",
+   "choices": [
+    "Up-regulated beta receptors respond strongly to circulating catecholamines once the blockade is removed",
+    "Down-regulated beta receptors rapidly recover and overshoot their baseline number, so the heart responds excessively to catecholamines once the drug is stopped",
+    "Accumulation of an active metabolite that stimulates alpha receptors and so raises the blood pressure and heart rate after the dose is withdrawn",
+    "Induction of hepatic enzymes that lowers the plasma level of other antihypertensives the patient takes, so that blood pressure rebounds"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l09.q5",
+   "lessonId": "med-pharm-principles.l09",
+   "kind": "mcq",
+   "prompt": "A 27-year-old asthmatic uses an inhaled beta-2 agonist and describes a rapid heartbeat and tremor when taking a high dose. What is the best explanation?",
+   "choices": [
+    "Gi-coupled receptors in the heart are activated by the high dose, which increases the heart rate and causes tremor in skeletal muscle",
+    "Competitive blockade of muscarinic receptors in the sinoatrial node by the high dose removes vagal tone, which speeds the heart rate",
+    "Inhibition of phosphodiesterase in cardiac tissue by the high dose raises the level of cyclic GMP, which causes tachycardia and tremor",
+    "Loss of beta-2 selectivity at high concentrations leads to stimulation of cardiac beta-1 receptors and skeletal muscle beta-2 receptors"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l10.q1",
+   "lessonId": "med-pharm-principles.l10",
+   "kind": "mcq",
+   "prompt": "Which property distinguishes an antagonist from an agonist?",
+   "choices": [
+    "Binding only to intracellular targets",
+    "Affinity for the receptor without intrinsic activity",
+    "Intrinsic activity without any affinity for the receptor",
+    "Affinity for the receptor with maximal intrinsic activity"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l10.q2",
+   "lessonId": "med-pharm-principles.l10",
+   "kind": "mcq",
+   "prompt": "A competitive antagonist changes an agonist dose-response curve by:",
+   "choices": [
+    "Shifting it to the right in parallel without changing the maximum",
+    "Lowering the maximum without changing the position of the curve, because the antagonist removes receptors from the response permanently",
+    "Shifting it to the left in parallel, because the antagonist raises the apparent potency of the agonist at the receptor",
+    "Making it steeper and lowering the maximum, because the antagonist changes the number of receptors that are available to the agonist"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l10.q3",
+   "lessonId": "med-pharm-principles.l10",
+   "kind": "mcq",
+   "prompt": "Protamine neutralizes heparin by direct binding, with no action on a receptor. This is best classified as:",
+   "choices": [
+    "Competitive antagonism",
+    "Physiological antagonism",
+    "Partial agonism",
+    "Chemical antagonism"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l10.q4",
+   "lessonId": "med-pharm-principles.l10",
+   "kind": "mcq",
+   "prompt": "A 34-year-old man dependent on a full opioid agonist is given a high-affinity partial agonist at the same receptor. Within an hour he develops sweating, agitation and abdominal cramps. Which mechanism best accounts for this?",
+   "choices": [
+    "Enzyme induction by the partial agonist accelerates the metabolism of the full agonist and so lowers its concentration at the receptor",
+    "Physiological antagonism through the activation of excitatory alpha receptors that oppose the effect produced at the original receptor",
+    "Displacement of the full agonist with lower intrinsic activity produces a net fall in receptor stimulation",
+    "Irreversible covalent binding of the partial agonist destroys the available receptors and so lowers the response that the full agonist can produce"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l10.q5",
+   "lessonId": "med-pharm-principles.l10",
+   "kind": "mcq",
+   "prompt": "A 41-year-old woman is given naloxone for opioid overdose and wakes. Forty minutes later she becomes sedated with slow breathing again. The long-acting opioid is still present. What principle explains this?",
+   "choices": [
+    "The antagonist redistributed into fat and so increased the opioid level in the blood, which restored respiratory depression",
+    "The antagonist has a shorter duration of action than the agonist it was reversing",
+    "The antagonist converted to an active agonist metabolite in the liver, which added further opioid effect as the antagonist wore off",
+    "Tolerance to the antagonist developed because of receptor down-regulation, so its effect fell below that needed to hold the receptors"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l11.q1",
+   "lessonId": "med-pharm-principles.l11",
+   "kind": "mcq",
+   "prompt": "On a graded dose-response curve, potency is best described by:",
+   "choices": [
+    "The EC50, the concentration giving half the maximal effect",
+    "The maximum effect the drug can produce at any dose",
+    "The slope of the curve at the highest dose studied",
+    "The ratio of toxic dose to effective dose"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l11.q2",
+   "lessonId": "med-pharm-principles.l11",
+   "kind": "mcq",
+   "prompt": "Which statement about potency and efficacy is correct?",
+   "choices": [
+    "They describe the same property and differ only in the units in which the dose or the concentration of the drug is expressed",
+    "They are independent, so a more potent drug is not necessarily more efficacious",
+    "The more potent drug always has the greater maximal effect, because a lower EC50 means more receptors are activated at the maximum",
+    "The less potent drug always has the greater maximal effect, because it must be given at a higher dose to reach any response"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l11.q3",
+   "lessonId": "med-pharm-principles.l11",
+   "kind": "mcq",
+   "prompt": "Drug P has an EC50 of 2 mg and a maximal effect of 40 percent. Drug Q has an EC50 of 20 mg and a maximal effect of 90 percent. Which conclusion is correct?",
+   "choices": [
+    "P is more potent and more efficacious",
+    "Q is more potent and more efficacious",
+    "P is more potent and Q is more efficacious",
+    "Q is more potent and P is more efficacious"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l11.q4",
+   "lessonId": "med-pharm-principles.l11",
+   "kind": "mcq",
+   "prompt": "A 60-year-old man with pulmonary edema receives a diuretic at increasing doses. The thiazide-type agent at a very high dose still produces less urine output than a loop diuretic at its maximum. Which property does this describe?",
+   "choices": [
+    "The loop diuretic has greater potency per milligram",
+    "The thiazide has lower affinity but higher efficacy",
+    "The thiazide has a lower therapeutic index",
+    "The loop diuretic has greater maximal efficacy"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l11.q5",
+   "lessonId": "med-pharm-principles.l11",
+   "kind": "mcq",
+   "prompt": "In a quantal dose-response experiment, 50 percent of animals show the intended effect at 5 mg, and the curve is very steep. What does a steep curve imply about the population?",
+   "choices": [
+    "Responsiveness is relatively uniform, with little variation between individuals",
+    "Responsiveness varies greatly, with some individuals needing far higher doses than the average patient to reach the same effect",
+    "The drug has high efficacy but low potency in the population, so a large dose is needed in every individual to reach any response",
+    "The drug has a wide therapeutic index in every individual, so the dose can be raised without any risk of toxicity at all"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l12.q1",
+   "lessonId": "med-pharm-principles.l12",
+   "kind": "mcq",
+   "prompt": "The therapeutic index in animal studies is calculated as:",
+   "choices": [
+    "ED50 divided by TD50",
+    "EC50 divided by Emax",
+    "The dose divided by the half-life",
+    "TD50 divided by ED50"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l12.q2",
+   "lessonId": "med-pharm-principles.l12",
+   "kind": "mcq",
+   "prompt": "Which of these drugs has a narrow therapeutic index?",
+   "choices": [
+    "Cetirizine",
+    "Atorvastatin",
+    "Lithium",
+    "Amoxicillin"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l12.q3",
+   "lessonId": "med-pharm-principles.l12",
+   "kind": "mcq",
+   "prompt": "Which feature distinguishes pharmacokinetic from pharmacodynamic tolerance?",
+   "choices": [
+    "Pharmacodynamic tolerance arises from reduced bioavailability, whereas pharmacokinetic tolerance arises from desensitised receptors in neurons",
+    "Pharmacokinetic tolerance arises from increased drug clearance, for example enzyme induction",
+    "Pharmacokinetic tolerance arises from receptor down-regulation, whereas pharmacodynamic tolerance arises from enzyme induction in the liver",
+    "Pharmacodynamic tolerance arises from increased drug clearance, whereas pharmacokinetic tolerance arises from altered receptor signalling"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l12.q4",
+   "lessonId": "med-pharm-principles.l12",
+   "kind": "mcq",
+   "prompt": "A 49-year-old man on chronic opioid therapy for cancer pain has escalated his dose because pain relief has waned. His pain is partly controlled, but his respiratory rate is low and his pupils are small. Which statement best describes the underlying problem?",
+   "choices": [
+    "Tolerance has developed unevenly, so the risk of respiratory depression rises with escalating doses while analgesic benefit wanes",
+    "Complete cross-tolerance has abolished all opioid effects, so that a larger dose of any opioid can now be given safely without risk",
+    "Opioid receptor up-regulation has made him hypersensitive to low doses, so that analgesia is now achieved with smaller amounts",
+    "Rapid tachyphylaxis has stopped the drug from reaching the brain, so that neither analgesia nor respiratory depression can occur"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l12.q5",
+   "lessonId": "med-pharm-principles.l12",
+   "kind": "mcq",
+   "prompt": "A 31-year-old man develops hemolytic anemia after taking an antimalarial drug that most people tolerate. Testing shows G6PD deficiency. How should this reaction be classified?",
+   "choices": [
+    "A predictable dose-dependent extension of the pharmacological effect",
+    "Pharmacokinetic tolerance from enzyme induction",
+    "A physiological antagonism between the drug and red cell enzymes",
+    "An idiosyncratic reaction from a genetic difference in response"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l13.q1",
+   "lessonId": "med-pharm-principles.l13",
+   "kind": "mcq",
+   "prompt": "Why does the effect of an enzyme inducer take days to develop?",
+   "choices": [
+    "Existing enzyme is activated by phosphorylation within minutes",
+    "Plasma albumin must rise to bind the inducer",
+    "New enzyme protein must be synthesized after increased gene transcription",
+    "The inducer must first be metabolized into an active metabolite"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l13.q2",
+   "lessonId": "med-pharm-principles.l13",
+   "kind": "mcq",
+   "prompt": "Which of these is a recognized strong inducer of CYP3A4?",
+   "choices": [
+    "Ketoconazole",
+    "Cimetidine",
+    "Fluoxetine",
+    "Rifampin"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l13.q3",
+   "lessonId": "med-pharm-principles.l13",
+   "kind": "mcq",
+   "prompt": "A drug with high hepatic extraction, cleared mainly according to blood flow, is taken by mouth with an enzyme inducer such as rifampin. What is the expected result?",
+   "choices": [
+    "Little change in clearance after intravenous dosing, but a marked fall in oral bioavailability",
+    "A large rise in intravenous clearance in proportion to the induction, with oral bioavailability unchanged",
+    "A large fall in clearance from competition for the enzyme, with a rise in oral bioavailability",
+    "Little change in clearance and in oral bioavailability, because blood flow limits both of them"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l13.q4",
+   "lessonId": "med-pharm-principles.l13",
+   "kind": "mcq",
+   "prompt": "A 38-year-old woman taking an oral contraceptive starts rifampin for tuberculosis and conceives 6 weeks later. Which mechanism best explains the contraceptive failure?",
+   "choices": [
+    "Reduced gastric pH impaired the dissolution of the tablet",
+    "CYP3A4 induction lowered plasma concentrations of the contraceptive steroids",
+    "Competition for albumin displaced the steroids and increased their clearance",
+    "CYP3A4 inhibition caused accumulation of a metabolite that blocks ovulation"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l13.q5",
+   "lessonId": "med-pharm-principles.l13",
+   "kind": "mcq",
+   "prompt": "A 66-year-old man on a stable simvastatin dose is started on clarithromycin and develops muscle pain and dark urine a week later. Which mechanism most likely explains the muscle toxicity?",
+   "choices": [
+    "Competition for tubular secretion reduced the renal clearance of simvastatin",
+    "Reduced absorption of simvastatin increased the proportion that reached muscle",
+    "Inhibition of CYP3A4 raised simvastatin concentrations and the risk of myopathy",
+    "Induction of CYP3A4 increased formation of a toxic simvastatin metabolite"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l14.q1",
+   "lessonId": "med-pharm-principles.l14",
+   "kind": "mcq",
+   "prompt": "Which food or drink inhibits intestinal CYP3A4 and can increase the bioavailability of some drugs?",
+   "choices": [
+    "Milk",
+    "Grapefruit juice",
+    "Leafy green vegetables",
+    "Aged cheese"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l14.q2",
+   "lessonId": "med-pharm-principles.l14",
+   "kind": "mcq",
+   "prompt": "Which combination is most likely to cause serotonin syndrome?",
+   "choices": [
+    "An SSRI with a monoamine oxidase inhibitor",
+    "An ACE inhibitor with a thiazide diuretic",
+    "A statin with a calcium channel blocker",
+    "A proton pump inhibitor with an antacid"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l14.q3",
+   "lessonId": "med-pharm-principles.l14",
+   "kind": "mcq",
+   "prompt": "A person taking warfarin starts eating much more spinach than before. What effect is expected?",
+   "choices": [
+    "A higher INR because vitamin K inhibits metabolism of warfarin",
+    "No change because vitamin K acts only in the liver",
+    "A higher INR because spinach displaces warfarin from albumin",
+    "A lower INR because vitamin K opposes warfarin"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l14.q4",
+   "lessonId": "med-pharm-principles.l14",
+   "kind": "mcq",
+   "prompt": "A 47-year-old man who takes phenelzine, a non-selective MAOI, eats aged cheese and cured meats at a party. An hour later he has a severe headache, flushing and a blood pressure of 220/120 mm Hg. Which mechanism best explains this?",
+   "choices": [
+    "Cheese induces CYP3A4 and creates a pressor metabolite of phenelzine",
+    "Calcium in the cheese blocks the renal excretion of the drug",
+    "Tyramine is not broken down by gut MAO and releases norepinephrine from sympathetic nerve terminals",
+    "Phenelzine is displaced from albumin by the fat in the meal and acts as an alpha agonist"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l14.q5",
+   "lessonId": "med-pharm-principles.l14",
+   "kind": "mcq",
+   "prompt": "A 73-year-old woman takes lisinopril, spironolactone and ibuprofen for chronic knee pain. She develops weakness and a serum potassium of 6.4 mEq/L. Which statement best describes the interaction?",
+   "choices": [
+    "Lisinopril inhibits CYP3A4 and raises levels of spironolactone",
+    "Additive pharmacodynamic effects on potassium and renal function from the three drugs",
+    "Ibuprofen displaces lisinopril from albumin and raises its renal clearance",
+    "Spironolactone induces the metabolism of ibuprofen and shortens its effect"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l15.q1",
+   "lessonId": "med-pharm-principles.l15",
+   "kind": "mcq",
+   "prompt": "Which description fits a type A adverse drug reaction?",
+   "choices": [
+    "Predictable from the drug's pharmacology, dose-related and common",
+    "Unpredictable, unrelated to dose and uncommon",
+    "Occurring only after prolonged use as a delayed effect",
+    "Due to an immune response against a hapten"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l15.q2",
+   "lessonId": "med-pharm-principles.l15",
+   "kind": "mcq",
+   "prompt": "Which antidote works by replenishing glutathione stores in acetaminophen poisoning?",
+   "choices": [
+    "Pralidoxime",
+    "N-acetylcysteine",
+    "Flumazenil",
+    "Fomepizole"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l15.q3",
+   "lessonId": "med-pharm-principles.l15",
+   "kind": "mcq",
+   "prompt": "A rash appearing 10 days after starting an antibiotic, without wheeze or hypotension, most likely reflects which mechanism?",
+   "choices": [
+    "Immune complex deposition (type III) within minutes",
+    "A predictable dose-related pharmacological effect",
+    "Delayed T-cell-mediated (type IV) hypersensitivity",
+    "Immediate IgE-mediated (type I) hypersensitivity"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l15.q4",
+   "lessonId": "med-pharm-principles.l15",
+   "kind": "mcq",
+   "prompt": "A 56-year-old woman receiving heparin for 7 days has a platelet count fall from 250 to 90 x 10^9/L and a new deep venous thrombosis. Which mechanism best explains this?",
+   "choices": [
+    "IgE binding to heparin triggers mast cell degranulation and platelet loss",
+    "Direct marrow toxicity of heparin reduces platelet production",
+    "Heparin competes with warfarin and induces a prothrombotic state",
+    "Antibodies against heparin-platelet factor 4 complexes activate platelets and cause thrombosis"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l15.q5",
+   "lessonId": "med-pharm-principles.l15",
+   "kind": "mcq",
+   "prompt": "A 25-year-old man is found drowsy with pinpoint pupils and a respiratory rate of 6 per minute after a suspected opioid overdose. Which approach best follows the logic of antidotal therapy?",
+   "choices": [
+    "Support ventilation and give a competitive receptor antagonist, with monitoring for return of toxicity",
+    "Give a replenisher of glutathione because most overdoses deplete it",
+    "Alkalinize the urine because opioids are weak acids that are trapped in the tubule",
+    "Give a single dose of an antagonist and discharge because opioid effects are brief"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l16.q1",
+   "lessonId": "med-pharm-principles.l16",
+   "kind": "mcq",
+   "prompt": "Which genetic variant predicts hypersensitivity to abacavir?",
+   "choices": [
+    "HLA-B*15:02",
+    "CYP2D6 poor metabolizer",
+    "TPMT deficiency",
+    "HLA-B*57:01"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l16.q2",
+   "lessonId": "med-pharm-principles.l16",
+   "kind": "mcq",
+   "prompt": "TPMT or NUDT15 deficiency increases the risk of which toxicity with mercaptopurine?",
+   "choices": [
+    "Hemolytic anemia",
+    "Prolonged paralysis",
+    "Severe myelosuppression",
+    "Peripheral neuropathy"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l16.q3",
+   "lessonId": "med-pharm-principles.l16",
+   "kind": "mcq",
+   "prompt": "A patient who is a CYP2C19 poor metabolizer takes the prodrug clopidogrel. What is the expected effect?",
+   "choices": [
+    "Greater renal excretion of the parent drug raises levels",
+    "Less active metabolite is formed and antiplatelet effect may be reduced",
+    "More active metabolite is formed and bleeding risk rises",
+    "No change because clopidogrel is activated by CYP2D6"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l16.q4",
+   "lessonId": "med-pharm-principles.l16",
+   "kind": "mcq",
+   "prompt": "A 5-year-old child recovering from tonsillectomy receives codeine and develops profound sedation and slow breathing. Which genotype most plausibly explains this?",
+   "choices": [
+    "CYP2D6 ultrarapid metabolizer producing excess morphine",
+    "CYP2D6 poor metabolizer producing excess parent codeine",
+    "NAT2 slow acetylator producing excess morphine glucuronide",
+    "UGT1A1*28 carrier with impaired morphine conjugation"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l16.q5",
+   "lessonId": "med-pharm-principles.l16",
+   "kind": "mcq",
+   "prompt": "A 62-year-old man of Han Chinese ancestry is about to start carbamazepine for neuralgia. Which pre-treatment test is most relevant to predicting a severe cutaneous reaction?",
+   "choices": [
+    "G6PD activity assay",
+    "DPYD genotyping",
+    "CYP2C9 genotyping",
+    "HLA-B*15:02 genotyping"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l17.q1",
+   "lessonId": "med-pharm-principles.l17",
+   "kind": "mcq",
+   "prompt": "Which neurotransmitter is released by sympathetic postganglionic fibers to sweat glands?",
+   "choices": [
+    "Dopamine acting on D1 receptors",
+    "Norepinephrine acting on alpha-1 receptors",
+    "Acetylcholine acting on muscarinic receptors",
+    "Epinephrine acting on beta-2 receptors"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l17.q2",
+   "lessonId": "med-pharm-principles.l17",
+   "kind": "mcq",
+   "prompt": "What is the rate-limiting enzyme in catecholamine synthesis?",
+   "choices": [
+    "Dopamine beta-hydroxylase",
+    "DOPA decarboxylase",
+    "Phenylethanolamine N-methyltransferase",
+    "Tyrosine hydroxylase"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l17.q3",
+   "lessonId": "med-pharm-principles.l17",
+   "kind": "mcq",
+   "prompt": "Phenylephrine, a selective alpha-1 agonist, raises blood pressure. What is the expected heart rate response in a person with intact reflexes?",
+   "choices": [
+    "A reflex fall in heart rate through the baroreceptor reflex",
+    "A rise in heart rate because of the direct vagal withdrawal",
+    "No change because the sinoatrial node lacks adrenergic receptors",
+    "A rise in heart rate from direct beta-1 stimulation"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l17.q4",
+   "lessonId": "med-pharm-principles.l17",
+   "kind": "mcq",
+   "prompt": "A 44-year-old farm worker is brought in after exposure to an insecticide. He has drooling, tearing, wheezing, diarrhea, small pupils, slow heart rate and muscle fasciculations. Which mechanism best explains this?",
+   "choices": [
+    "Inhibition of monoamine oxidase that causes catecholamine accumulation",
+    "Irreversible inhibition of acetylcholinesterase that causes acetylcholine accumulation",
+    "Blockade of muscarinic receptors that causes cholinergic excess",
+    "Inhibition of norepinephrine reuptake that causes sympathetic excess"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l17.q5",
+   "lessonId": "med-pharm-principles.l17",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man receives a drug before surgery and develops dry mouth, flushed warm skin, dilated pupils, urinary retention and a heart rate of 120. Which drug class is most likely responsible?",
+   "choices": [
+    "Cholinesterase inhibitor",
+    "Beta-1 receptor antagonist",
+    "Muscarinic receptor antagonist",
+    "Alpha-1 receptor antagonist"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l18.q1",
+   "lessonId": "med-pharm-principles.l18",
+   "kind": "mcq",
+   "prompt": "Which phase of clinical development is mainly designed to assess safety, tolerability and pharmacokinetics in a small group, often healthy volunteers?",
+   "choices": [
+    "Phase 4",
+    "Phase 1",
+    "Phase 2",
+    "Phase 3"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l18.q2",
+   "lessonId": "med-pharm-principles.l18",
+   "kind": "mcq",
+   "prompt": "What application must a sponsor file before starting human trials in the United States?",
+   "choices": [
+    "An Investigational New Drug application",
+    "A New Drug Application",
+    "An Abbreviated New Drug Application",
+    "A Biologics License Application"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l18.q3",
+   "lessonId": "med-pharm-principles.l18",
+   "kind": "mcq",
+   "prompt": "A generic version of an approved tablet is submitted for approval. Which type of evidence is the central requirement?",
+   "choices": [
+    "Long-term cardiovascular outcomes data",
+    "A new randomized pediatric safety trial",
+    "Two new phase 3 efficacy trials",
+    "Bioequivalence to the reference product"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l18.q4",
+   "lessonId": "med-pharm-principles.l18",
+   "kind": "mcq",
+   "prompt": "A 3,000-patient phase 3 program for a new antihypertensive shows no case of a serious liver reaction. After two years of marketing and one million exposures, spontaneous reports describe liver failure in about 1 in 20,000 users. What best explains the discovery?",
+   "choices": [
+    "The adverse event must be caused by manufacturing changes rather than the drug",
+    "Spontaneous reports prove causation and replace the need for further study",
+    "Pre-approval trials lack the size to detect rare adverse events that post-marketing surveillance can find",
+    "Trials usually run long enough to detect delayed reactions that surveillance cannot"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l18.q5",
+   "lessonId": "med-pharm-principles.l18",
+   "kind": "mcq",
+   "prompt": "A drug for a serious rare cancer receives approval based on tumor shrinkage in a small single-arm trial, with a requirement for a later randomized trial of survival. Which pathway is this?",
+   "choices": [
+    "Approval by an advisory committee vote that binds the FDA",
+    "Accelerated approval based on a surrogate endpoint",
+    "Standard approval with two adequate controlled trials",
+    "Approval of a generic through bioequivalence"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l19.q1",
+   "lessonId": "med-pharm-principles.l19",
+   "kind": "mcq",
+   "prompt": "During which period of pregnancy is exposure to a teratogen most likely to cause major structural malformations?",
+   "choices": [
+    "Organogenesis, from about the third to the eighth week after conception",
+    "The first week after conception before implantation is complete",
+    "The last four weeks before delivery",
+    "The period of labor and delivery itself"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l19.q2",
+   "lessonId": "med-pharm-principles.l19",
+   "kind": "mcq",
+   "prompt": "Which drug class is associated with fetal renal injury and oligohydramnios when used in the second and third trimesters?",
+   "choices": [
+    "Unfractionated heparin",
+    "ACE inhibitors and angiotensin receptor blockers",
+    "Penicillins and cephalosporins",
+    "Low-dose inhaled corticosteroids"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l19.q3",
+   "lessonId": "med-pharm-principles.l19",
+   "kind": "mcq",
+   "prompt": "Why is chloramphenicol hazardous in neonates?",
+   "choices": [
+    "Neonates have excessive CYP induction that produces toxic metabolites",
+    "The drug is activated by hepatic enzymes that are overactive in infancy",
+    "Immature glucuronidation causes accumulation and toxicity such as gray baby syndrome",
+    "Neonates have higher albumin, which traps the drug in plasma"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l19.q4",
+   "lessonId": "med-pharm-principles.l19",
+   "kind": "mcq",
+   "prompt": "A 28-year-old woman with epilepsy takes valproate and asks about pregnancy. Which fetal risk is most firmly associated with first-trimester valproate exposure?",
+   "choices": [
+    "Fetal renal agenesis from reduced glomerular pressure",
+    "Staining of developing teeth",
+    "Fetal bleeding from vitamin K antagonism alone",
+    "Neural tube defects and later neurodevelopmental effects"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l19.q5",
+   "lessonId": "med-pharm-principles.l19",
+   "kind": "mcq",
+   "prompt": "A 3-week-old infant is given a sulfonamide while jaundiced and develops signs of bilirubin encephalopathy. Which mechanism best explains this?",
+   "choices": [
+    "Displacement of bilirubin from albumin raises free bilirubin that crosses the immature blood-brain barrier",
+    "Induction of UGT enzymes lowers the level of conjugated bilirubin in plasma",
+    "Inhibition of renal tubular secretion causes the sulfonamide to accumulate",
+    "Rapid redistribution of the drug into fat raises its brain level"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l20.q1",
+   "lessonId": "med-pharm-principles.l20",
+   "kind": "mcq",
+   "prompt": "Why can serum creatinine be misleading in a frail older adult?",
+   "choices": [
+    "Low muscle mass lowers creatinine production, so a normal value may hide reduced clearance",
+    "Creatinine is actively reabsorbed in the elderly, which lowers its level",
+    "Older kidneys secrete more creatinine, which hides the filtration decline",
+    "Creatinine rises with age even when the kidney is healthy"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l20.q2",
+   "lessonId": "med-pharm-principles.l20",
+   "kind": "mcq",
+   "prompt": "A prescribing cascade is best described as:",
+   "choices": [
+    "The release of several metabolites from one prodrug",
+    "An adverse effect misread as a new condition and treated with another drug",
+    "A sequence of enzyme induction events across several drugs",
+    "The stepwise escalation of a dose to reach steady state"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l20.q3",
+   "lessonId": "med-pharm-principles.l20",
+   "kind": "mcq",
+   "prompt": "In severe renal failure, a renally cleared drug that has a normal Vd and no active metabolite is started. Which element should be reduced?",
+   "choices": [
+    "The volume of distribution of the drug",
+    "Both the loading and maintenance doses equally",
+    "The maintenance dose rate, through smaller doses or a longer interval",
+    "The loading dose, in proportion to the fall in clearance"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l20.q4",
+   "lessonId": "med-pharm-principles.l20",
+   "kind": "mcq",
+   "prompt": "A 78-year-old woman with cirrhosis and portal-systemic shunting takes an oral drug with a high first-pass extraction. She develops excess effect on a dose that was well tolerated before her liver disease. Which mechanism best explains this?",
+   "choices": [
+    "Increased CYP induction raises the level of an active metabolite",
+    "Increased renal tubular reabsorption has lengthened the half-life",
+    "Greater plasma albumin binding has raised the free concentration",
+    "Reduced first-pass extraction raises the oral bioavailability of the drug"
+   ]
+  },
+  {
+   "id": "med-pharm-principles.l20.q5",
+   "lessonId": "med-pharm-principles.l20",
+   "kind": "mcq",
+   "prompt": "A 82-year-old man with advanced kidney disease receives repeated morphine for pain and becomes profoundly sedated, although his dose has not changed. Which mechanism best accounts for this?",
+   "choices": [
+    "Accumulation of the active metabolite morphine-6-glucuronide when renal clearance falls",
+    "Induction of conjugating enzymes that produce more morphine from the parent",
+    "Enhanced first-pass metabolism that lowers the effective dose",
+    "Increased protein binding that lengthens the duration of action"
+   ]
+  }
+ ]
+}

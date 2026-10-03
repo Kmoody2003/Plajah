@@ -1,0 +1,824 @@
+{
+ "courseId": "art-masters",
+ "label": "Art Masters",
+ "lessons": [
+  {
+   "id": "art-masters.l01",
+   "title": "Leonardo da Vinci",
+   "body": [
+    "Leonardo da Vinci (1452-1519) was an Italian painter of the High Renaissance and is often called the archetype of the Renaissance mind. His curiosity ran from painting to anatomy, engineering and nature, and each field fed the others.",
+    "His best-known works include the Mona Lisa, The Last Supper, the drawing Vitruvian Man and the portrait Lady with an Ermine. In each, the figure feels alive rather than flat.",
+    "Three techniques are worth learning to spot. Sfumato is the smoke-soft blending of tones, with no hard outline, so that edges melt into shadow; look at the corners of the Mona Lisa's mouth and eyes. Anatomical dissection informed his understanding of muscle, bone and gesture, making his bodies convincing. Aerial perspective uses haze and cooler, paler colours in the distance to suggest depth in a landscape.",
+    "When you view a Leonardo, notice how little is outlined and how much is modelled by gentle gradations of light. Ask what the sitter might be thinking: the psychology of the face is as important as its likeness. His notebooks and drawings show that he treated painting as a form of research."
+   ]
+  },
+  {
+   "id": "art-masters.l02",
+   "title": "Michelangelo and Raphael",
+   "body": [
+    "Michelangelo (1475-1564) and Raphael (1483-1520) were contemporaries who shaped the High Renaissance in Italy in contrasting ways.",
+    "Michelangelo was a painter and sculptor. Legend says he saw the angel in the marble and carved until he set it free. His monumental frescoes cover the Sistine Chapel ceiling, including The Creation of Adam, and he later painted The Last Judgment. His style is marked by terribilita, a sense of awe and force in the figure, and by heroic anatomy: muscular bodies that seem to carry great spiritual weight.",
+    "Raphael is remembered for grace, clarity and perfect balance. His works include The School of Athens, the Sistine Madonna and The Transfiguration. He used harmonious composition, idealised beauty and a mastery of perspective in fresco, arranging dozens of figures in a calm, open architectural space.",
+    "To compare them, ask what each wants you to feel. Michelangelo's twisting, powerful figures create tension and awe; Raphael's balanced groups create harmony and calm. Both men worked in fresco, painting into wet plaster on walls and ceilings, which required careful planning because corrections were difficult."
+   ]
+  },
+  {
+   "id": "art-masters.l03",
+   "title": "Caravaggio and Tenebrism",
+   "body": [
+    "Caravaggio (1571-1610) was an Italian painter of the Baroque who dragged the sacred into the street and lit it like theatre. Instead of idealised saints, he painted ordinary people, often from life, with dirty feet and worn clothes. That radical realism shocked and thrilled his audience.",
+    "His signature technique is tenebrism: violent light against deep dark. A single beam cuts through a shadowy room and picks out a face, a hand or a gesture, creating a moment of drama like a stage spotlight. This is more extreme than chiaroscuro, the general play of light and dark, because the shadows are enormous and almost black.",
+    "Key works include The Calling of St Matthew, Judith Beheading Holofernes and Bacchus. In The Calling of St Matthew, light enters from the side and falls on the tax collector, marking the instant of his call.",
+    "When you see a dark background, sharp spotlighting and figures who seem to burst out of the picture, think of Caravaggio. His influence on later painters across Europe, including Rembrandt's use of light, was enormous."
+   ]
+  },
+  {
+   "id": "art-masters.l04",
+   "title": "Rembrandt and Vermeer",
+   "body": [
+    "The Dutch Golden Age produced two very different masters of light. Rembrandt (1606-1669) is the poet of light and shadow, and of the human face. His works include The Night Watch, The Anatomy Lesson of Dr. Tulp and a lifelong series of self-portraits. He used chiaroscuro, dramatic contrast between light and dark, and impasto, thick sculptural paint that catches real light on the surface. His portraits are psychological: they show age, doubt and compassion.",
+    "Johannes Vermeer (1632-1675) painted quiet rooms lit by a window. His works include Girl with a Pearl Earring, The Milkmaid and View of Delft. He is known for luminous natural light and pointille highlights, tiny dots of bright paint that sparkle on surfaces. Some scholars think he may have used a camera obscura, an optical device, though this remains a question.",
+    "Compare them. Rembrandt builds emotion through warm, golden pools of light surrounded by darkness and loose, thick paint. Vermeer builds calm through cool, even daylight and precise, smooth surfaces. Both turned everyday life and ordinary people into subjects worthy of serious art."
+   ]
+  },
+  {
+   "id": "art-masters.l05",
+   "title": "Goya: From Court to Nightmare",
+   "body": [
+    "Francisco Goya (1746-1828) was a Spanish painter in the Romantic era who began as a court painter and became a prophet of the modern nightmare. His long life spanned war, revolution and political upheaval, and his art grew darker and more personal.",
+    "His famous works include The Third of May 1808, which shows an execution by firing squad during the Napoleonic occupation, with a lantern lighting the victim in a white shirt. Saturn Devouring His Son and the group known as the Black Paintings show his fears and inner torment, painted in a rough, direct style.",
+    "Goya's techniques include expressive, loose brushwork that suggests rather than describes, and aquatint etching, a printmaking method that produces soft tonal areas, ideal for dark, atmospheric prints. His interest in psychological darkness opened the way for later expressive art.",
+    "When you look at his work, ask where the viewer is standing: in The Third of May, we face the soldiers' backs and the victim's terror, and there is no glory in the scene. Goya turned history painting into a protest against cruelty, which is why he is often seen as a bridge to modern art."
+   ]
+  },
+  {
+   "id": "art-masters.l06",
+   "title": "Hokusai and the Floating World",
+   "body": [
+    "Katsushika Hokusai (1760-1849) was a Japanese painter and printmaker of the Edo period. He called himself the old man mad about drawing, and he kept learning and changing his style well into old age.",
+    "He worked in ukiyo-e, the woodblock printing tradition of the floating world, where an artist's drawing is cut into wooden blocks and printed in colour in many copies. His most famous works are The Great Wave off Kanagawa and the series Thirty-six Views of Mount Fuji. Mount Fuji appears in each, sometimes huge and sometimes tiny in the distance, while ordinary people work, travel and struggle in the foreground.",
+    "Hokusai is known for dynamic composition, with a strong diagonal and curling shapes that give a sense of motion, and for Prussian-blue landscapes. Prussian blue was an imported synthetic pigment that gave deep, stable blues.",
+    "In The Great Wave, notice how the wave towers over the boats and Fuji sits small and calm in the background. The contrast of human fragility and natural power is a central theme. Hokusai's prints later inspired European artists, helping to shape ideas about flat colour and bold cropping in modern art."
+   ]
+  },
+  {
+   "id": "art-masters.l07",
+   "title": "Monet and Impressionism",
+   "body": [
+    "Claude Monet (1840-1926) was a French painter of Impressionism who painted the light, and the thing beneath it dissolved. The movement takes its name from his work Impression, Sunrise.",
+    "Three ideas define his method. First, broken colour: instead of blending pigments, he placed separate touches of colour side by side so that the eye mixes them. Second, plein-air painting: working outdoors, in front of the subject, to capture a passing moment. Third, series: painting the same subject again and again under different conditions to study changing light. The best-known series are Haystacks, the Rouen Cathedral paintings and the late Water Lilies.",
+    "When you study a Monet, step back and forth. Close up, you see patches and dashes of paint; from a distance, they resolve into water, haze or stone. Edges are soft and shadows are coloured instead of grey or black.",
+    "Impressionism changed what painting was for. Rather than telling a story or showing an ideal, the artist recorded how things appear to the eye at a specific time of day, which opened the door to many modern movements."
+   ]
+  },
+  {
+   "id": "art-masters.l08",
+   "title": "Van Gogh and Cezanne",
+   "body": [
+    "Post-Impressionism describes artists who built on Impressionism but wanted more feeling or more structure.",
+    "Vincent van Gogh (1853-1890), Dutch, made feeling visible in each burning stroke. His works include The Starry Night, Sunflowers, The Bedroom and Wheatfield with Crows. His techniques were expressive impasto, thick paint applied so that brushstrokes stand out, complementary colour tension such as blue against orange, and rhythmic, directional brushwork that makes skies and fields seem to move.",
+    "Paul Cezanne (1839-1906), French, sought structure. In The Card Players, the Mont Sainte-Victoire series and The Basket of Apples, he used constructive brushstrokes, built form from patches of colour, and reduced nature to the cylinder, the sphere and the cone. He also used shifting perspective, showing objects from slightly different viewpoints in a single image. Picasso and Matisse are said to have called him the father of us all.",
+    "Compare them: Van Gogh pushes colour and line to express emotion; Cezanne analyses how forms sit in space. Together they pointed toward Expressionism and Cubism, the next steps in modern art."
+   ]
+  },
+  {
+   "id": "art-masters.l09",
+   "title": "Picasso and Matisse",
+   "body": [
+    "Pablo Picasso (1881-1973), Spanish, and Henri Matisse (1869-1954), French, are the two giants of early twentieth-century modernism.",
+    "Picasso shattered the single viewpoint. He was a co-founder of Cubism, in which an object is shown from several angles at once, and he used collage, gluing real materials into the picture. His works include Les Demoiselles d'Avignon, Guernica and The Weeping Woman. His career was restless: he reinvented his style across many periods.",
+    "Matisse treated colour as pure, singing feeling. He led Fauvism, which uses wild, non-natural colour, for example a green stripe down a face. He painted flattened, decorative space in works like The Dance and The Red Studio. In his late years, he worked in papiers decoupes, paper cut-outs, producing the book Jazz.",
+    "To tell them apart, look at the main problem each solves. Picasso breaks form apart and reassembles it; Matisse simplifies shape and lets colour carry the emotion. They were friendly rivals who each admired the other, and both drew inspiration from Cezanne, whom they regarded as a founder of their art."
+   ]
+  },
+  {
+   "id": "art-masters.l10",
+   "title": "Surrealism: Dali and Kahlo",
+   "body": [
+    "Surrealism explored the unconscious, dreams and the irrational. Two artists linked with it are very different.",
+    "Salvador Dali (1904-1989), Spanish, was the showman of the unconscious. His works include The Persistence of Memory, with its melting watches, and The Metamorphosis of Narcissus. He painted hyper-real dream imagery with a technique close to academic realism, so that impossible things look convincing. He called his approach the paranoiac-critical method and often used double images, in which one shape can be read as two different things.",
+    "Frida Kahlo (1907-1954), Mexican, painted her own reality of pain, identity and myth. Her works include The Two Fridas, Self-Portrait with Thorn Necklace and The Broken Column. She used symbolic self-portraiture, drew on Mexican folk traditions such as retablo painting, and told her autobiography without flinching.",
+    "To compare: Dali invented dream worlds to astonish the viewer; Kahlo used symbols from her life to speak about experience. When looking at either, ask what is real, what is imagined and what the objects stand for. In Kahlo's work, nearly every plant, animal and wound has a meaning."
+   ]
+  },
+  {
+   "id": "art-masters.l11",
+   "title": "American Modernists to Basquiat",
+   "body": [
+    "American art in the twentieth century moved from precise modernism to big gestures and then to street energy.",
+    "Georgia O'Keeffe (1887-1986) is called the mother of American modernism. Works such as Jimson Weed, Black Iris and Ram's Head, White Hollyhock show magnified natural forms, precise and sensuous abstraction, and the light of New Mexico.",
+    "Abstract Expressionism followed. Jackson Pollock (1912-1956) took the canvas off the easel and onto the floor, using drip or action painting, an all-over composition and gesture as the subject, as in No. 5, 1948, Autumn Rhythm and Blue Poles. Mark Rothko (1903-1970) made colour fields: luminous floating rectangles of thin, layered washes, as in No. 61 (Rust and Blue) and the Seagram Murals, which ask the viewer to stand still and feel.",
+    "Jean-Michel Basquiat (1960-1988) moved from subway walls, where he wrote as SAMO, to museums. His neo-expressionist works, such as Untitled (Skull) and Dustheads, collide text and image with urgency.",
+    "Compare the energy: Pollock's is physical and gestural, Rothko's is quiet and meditative, and Basquiat's is coded, raw and electric."
+   ]
+  },
+  {
+   "id": "art-masters.l12",
+   "title": "Sculptors: Rodin to Bourgeois",
+   "body": [
+    "Sculpture changed dramatically across the late nineteenth and twentieth centuries.",
+    "Auguste Rodin (1840-1917), French, is the father of modern sculpture. The Thinker, The Kiss, The Gates of Hell and The Burghers of Calais show expressive, unfinished (non finito) surfaces, emotional realism and the fragment as a complete work.",
+    "Constantin Brancusi (1876-1957), Romanian, carved toward the essence. Bird in Space, The Kiss and Endless Column show radical abstraction, direct carving and polished, reflective bronze.",
+    "Henry Moore (1898-1986), British, made the void as expressive as the mass. His Reclining Figure series and Large Two Forms use the pierced form, with holes through the body, biomorphic abstraction and monumental public bronze.",
+    "Louise Bourgeois (1911-2010), French-American, turned memory, the body and the mother into steel and thread. Maman, the giant spider, Cells and Femme Maison show psychologically charged installation, diverse materials and autobiographical symbolism.",
+    "To analyse them, ask what each removes. Rodin leaves roughness in the surface, Brancusi removes detail until only the essence remains, Moore opens the figure with space, and Bourgeois transforms memory into an environment you can enter."
+   ]
+  },
+  {
+   "id": "art-masters.l13",
+   "title": "Photographers as Artists",
+   "body": [
+    "Photography is light written directly, and its masters turned it into an art with a point of view.",
+    "Ansel Adams (1902-1984) made the American wilderness monumental, with Moonrise, Hernandez and Clearing Winter Storm. He developed the Zone System with Fred Archer and used large-format cameras and rich tonal printing.",
+    "Dorothea Lange (1895-1965) gave the Great Depression a human face, most famously in Migrant Mother, using empathetic portraiture and field captions as testimony.",
+    "Henri Cartier-Bresson (1908-2004), French, sought the decisive moment, the instant when form and meaning align. He used a Leica 35mm camera and co-founded Magnum Photos.",
+    "Vivian Maier (1926-2009) was a nanny who photographed the streets of Chicago and New York with a Rolleiflex, and was discovered only after her death.",
+    "Gordon Parks (1912-2006) used the photo-essay in Life magazine to document race and poverty, and also worked as a filmmaker.",
+    "Compare their aims: Adams revered nature, Lange and Parks documented social conditions, Cartier-Bresson caught fleeting geometry, and Maier quietly recorded city life. Ask what each chooses to include, and whom the photograph is for."
+   ]
+  },
+  {
+   "id": "art-masters.l14",
+   "title": "Architects as Artists",
+   "body": [
+    "Some architects are treated as artists because their buildings work as sculpture and as ideas.",
+    "Antoni Gaudi (1852-1926) built as nature builds, in curves and colour. The Sagrada Familia, Casa Batllo, Park Guell and Casa Mila use catenary hanging-chain models, trencadis mosaic and biomimetic organic form.",
+    "Frank Lloyd Wright (1867-1959) wedded architecture to its landscape. Fallingwater, the Guggenheim Museum, Robie House and Taliesin show organic architecture, Prairie-style horizontality and open flowing interiors.",
+    "Le Corbusier (1887-1965) declared a house a machine for living in. Villa Savoye, Notre-Dame du Haut and the Unite d'Habitation use the Five Points of Architecture, pilotis, free plan and the Modulor proportional system.",
+    "Ludwig Mies van der Rohe (1886-1969) said less is more. The Barcelona Pavilion, Farnsworth House and Seagram Building show steel-and-glass minimalism and flexible space, with God in the details.",
+    "Zaha Hadid (1950-2016) bent the straight line until buildings seemed to move. The Heydar Aliyev Center, MAXXI Museum and London Aquatics Centre use parametric design, and she was the first woman to win the Pritzker Prize.",
+    "Compare the arc: from organic curves through machine-age order to computed fluid form."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "art-masters.l01.q1",
+   "lessonId": "art-masters.l01",
+   "kind": "mcq",
+   "prompt": "Which technique uses smoke-soft transitions with no visible outline?",
+   "choices": [
+    "Sfumato",
+    "Tenebrism",
+    "Impasto",
+    "Collage"
+   ]
+  },
+  {
+   "id": "art-masters.l01.q2",
+   "lessonId": "art-masters.l01",
+   "kind": "mcq",
+   "prompt": "Which of these works is by Leonardo da Vinci?",
+   "choices": [
+    "The Night Watch",
+    "The Last Supper",
+    "The Third of May 1808",
+    "The Starry Night"
+   ]
+  },
+  {
+   "id": "art-masters.l01.q3",
+   "lessonId": "art-masters.l01",
+   "kind": "mcq",
+   "prompt": "A landscape's distant mountains are paler and bluer than the foreground. Which Leonardo technique is this?",
+   "choices": [
+    "Fauvism",
+    "Pointille",
+    "Aerial perspective",
+    "Action painting"
+   ]
+  },
+  {
+   "id": "art-masters.l01.q4",
+   "lessonId": "art-masters.l01",
+   "kind": "mcq",
+   "prompt": "How did dissecting bodies help Leonardo as a painter?",
+   "choices": [
+    "It let him paint faster",
+    "It was required for fresco",
+    "It taught him to mix pigments",
+    "It gave him an understanding of muscle and gesture that made figures convincing"
+   ]
+  },
+  {
+   "id": "art-masters.l02.q1",
+   "lessonId": "art-masters.l02",
+   "kind": "mcq",
+   "prompt": "Which painting is on the Sistine Chapel ceiling?",
+   "choices": [
+    "The School of Athens",
+    "Sistine Madonna",
+    "The Transfiguration",
+    "The Creation of Adam"
+   ]
+  },
+  {
+   "id": "art-masters.l02.q2",
+   "lessonId": "art-masters.l02",
+   "kind": "mcq",
+   "prompt": "Which artist painted The School of Athens?",
+   "choices": [
+    "Raphael",
+    "Leonardo",
+    "Michelangelo",
+    "Caravaggio"
+   ]
+  },
+  {
+   "id": "art-masters.l02.q3",
+   "lessonId": "art-masters.l02",
+   "kind": "mcq",
+   "prompt": "A fresco shows muscular twisting figures that radiate awe and force. Which quality is this?",
+   "choices": [
+    "Sfumato",
+    "Terribilita",
+    "Pointille",
+    "Plein-air"
+   ]
+  },
+  {
+   "id": "art-masters.l02.q4",
+   "lessonId": "art-masters.l02",
+   "kind": "mcq",
+   "prompt": "Which comparison of Michelangelo and Raphael is most accurate?",
+   "choices": [
+    "Both worked only in oil on small panels",
+    "Michelangelo painted only landscapes; Raphael only portraits",
+    "Michelangelo stresses tension and heroic anatomy; Raphael stresses harmony and idealised beauty",
+    "Raphael was the sculptor and Michelangelo the architect only"
+   ]
+  },
+  {
+   "id": "art-masters.l03.q1",
+   "lessonId": "art-masters.l03",
+   "kind": "mcq",
+   "prompt": "What is tenebrism?",
+   "choices": [
+    "Flat decorative colour",
+    "Painting with tiny dots",
+    "Violent light against deep dark",
+    "Drip painting"
+   ]
+  },
+  {
+   "id": "art-masters.l03.q2",
+   "lessonId": "art-masters.l03",
+   "kind": "mcq",
+   "prompt": "Which painting is by Caravaggio?",
+   "choices": [
+    "Water Lilies",
+    "Blue Poles",
+    "The Dance",
+    "The Calling of St Matthew"
+   ]
+  },
+  {
+   "id": "art-masters.l03.q3",
+   "lessonId": "art-masters.l03",
+   "kind": "mcq",
+   "prompt": "A painting shows a dark room, a beam of light and a figure with dirty feet in a sacred scene. Whose style is this?",
+   "choices": [
+    "Caravaggio",
+    "Vermeer",
+    "Matisse",
+    "Raphael"
+   ]
+  },
+  {
+   "id": "art-masters.l03.q4",
+   "lessonId": "art-masters.l03",
+   "kind": "mcq",
+   "prompt": "How does tenebrism differ from general chiaroscuro?",
+   "choices": [
+    "It uses no light at all",
+    "It is much more extreme, with huge, near-black shadows",
+    "It uses only primary colours",
+    "It is only for sculpture"
+   ]
+  },
+  {
+   "id": "art-masters.l04.q1",
+   "lessonId": "art-masters.l04",
+   "kind": "mcq",
+   "prompt": "Who painted Girl with a Pearl Earring?",
+   "choices": [
+    "Rembrandt",
+    "Johannes Vermeer",
+    "Goya",
+    "Caravaggio"
+   ]
+  },
+  {
+   "id": "art-masters.l04.q2",
+   "lessonId": "art-masters.l04",
+   "kind": "mcq",
+   "prompt": "Which technique means thick, sculptural paint?",
+   "choices": [
+    "Sfumato",
+    "Aquatint",
+    "Impasto",
+    "Collage"
+   ]
+  },
+  {
+   "id": "art-masters.l04.q3",
+   "lessonId": "art-masters.l04",
+   "kind": "mcq",
+   "prompt": "A portrait emerges from a dark background with warm light and thick, loose paint, showing deep psychological insight. Which artist?",
+   "choices": [
+    "Rothko",
+    "Vermeer",
+    "Monet",
+    "Rembrandt"
+   ]
+  },
+  {
+   "id": "art-masters.l04.q4",
+   "lessonId": "art-masters.l04",
+   "kind": "tf",
+   "prompt": "Vermeer is known for dramatic chiaroscuro and thick impasto, while Rembrandt is known for cool, even light and pointille highlights.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "art-masters.l05.q1",
+   "lessonId": "art-masters.l05",
+   "kind": "mcq",
+   "prompt": "Which painting by Goya shows an execution during the Napoleonic occupation?",
+   "choices": [
+    "The Third of May 1808",
+    "Saturn Devouring His Son",
+    "The Night Watch",
+    "Guernica"
+   ]
+  },
+  {
+   "id": "art-masters.l05.q2",
+   "lessonId": "art-masters.l05",
+   "kind": "mcq",
+   "prompt": "Which printmaking technique did Goya use for soft tonal areas?",
+   "choices": [
+    "Woodblock",
+    "Aquatint etching",
+    "Lithograph",
+    "Silkscreen"
+   ]
+  },
+  {
+   "id": "art-masters.l05.q3",
+   "lessonId": "art-masters.l05",
+   "kind": "mcq",
+   "prompt": "A painting with loose, expressive brushwork shows a nightmarish scene of a figure devouring his child. Which work?",
+   "choices": [
+    "The Dance",
+    "Water Lilies",
+    "Saturn Devouring His Son",
+    "Sunflowers"
+   ]
+  },
+  {
+   "id": "art-masters.l05.q4",
+   "lessonId": "art-masters.l05",
+   "kind": "mcq",
+   "prompt": "Why is Goya often seen as a bridge to modern art?",
+   "choices": [
+    "He painted only flowers",
+    "He used photography",
+    "He introduced Cubism",
+    "He turned subjects of history and fear into personal, psychological expression"
+   ]
+  },
+  {
+   "id": "art-masters.l06.q1",
+   "lessonId": "art-masters.l06",
+   "kind": "mcq",
+   "prompt": "Which print is by Hokusai?",
+   "choices": [
+    "Bird in Space",
+    "Moonrise, Hernandez",
+    "The Persistence of Memory",
+    "The Great Wave off Kanagawa"
+   ]
+  },
+  {
+   "id": "art-masters.l06.q2",
+   "lessonId": "art-masters.l06",
+   "kind": "mcq",
+   "prompt": "What printing tradition did Hokusai work in?",
+   "choices": [
+    "Ukiyo-e woodblock printing",
+    "Etching",
+    "Daguerreotype",
+    "Offset lithography"
+   ]
+  },
+  {
+   "id": "art-masters.l06.q3",
+   "lessonId": "art-masters.l06",
+   "kind": "mcq",
+   "prompt": "A print shows a giant curling wave in deep blue with a small distant mountain. Which pigment gave the characteristic blue?",
+   "choices": [
+    "Vermilion",
+    "Prussian blue",
+    "Ochre",
+    "Gold leaf"
+   ]
+  },
+  {
+   "id": "art-masters.l06.q4",
+   "lessonId": "art-masters.l06",
+   "kind": "mcq",
+   "prompt": "What contrast does The Great Wave emphasise?",
+   "choices": [
+    "Day and night",
+    "Summer and winter",
+    "The fragility of people against the power of nature",
+    "City and country"
+   ]
+  },
+  {
+   "id": "art-masters.l07.q1",
+   "lessonId": "art-masters.l07",
+   "kind": "mcq",
+   "prompt": "Which Monet painting gave Impressionism its name?",
+   "choices": [
+    "Water Lilies",
+    "Haystacks",
+    "Impression, Sunrise",
+    "Rouen Cathedral"
+   ]
+  },
+  {
+   "id": "art-masters.l07.q2",
+   "lessonId": "art-masters.l07",
+   "kind": "mcq",
+   "prompt": "What does plein-air painting mean?",
+   "choices": [
+    "Painting from memory",
+    "Painting on glass",
+    "Painting with air-brushes",
+    "Painting outdoors in front of the subject"
+   ]
+  },
+  {
+   "id": "art-masters.l07.q3",
+   "lessonId": "art-masters.l07",
+   "kind": "mcq",
+   "prompt": "An artist paints the same cathedral at dawn, noon and dusk to show how light changes. What is this approach?",
+   "choices": [
+    "A series study",
+    "Cubism",
+    "Collage",
+    "Tenebrism"
+   ]
+  },
+  {
+   "id": "art-masters.l07.q4",
+   "lessonId": "art-masters.l07",
+   "kind": "mcq",
+   "prompt": "Why do Monet's paintings seem to dissolve up close and cohere from a distance?",
+   "choices": [
+    "He used photographs",
+    "He placed separate touches of broken colour so the eye blends them",
+    "He painted very small canvases",
+    "He used only black and white"
+   ]
+  },
+  {
+   "id": "art-masters.l08.q1",
+   "lessonId": "art-masters.l08",
+   "kind": "mcq",
+   "prompt": "Which artist painted The Starry Night?",
+   "choices": [
+    "Paul Cezanne",
+    "Vincent van Gogh",
+    "Claude Monet",
+    "Henri Matisse"
+   ]
+  },
+  {
+   "id": "art-masters.l08.q2",
+   "lessonId": "art-masters.l08",
+   "kind": "mcq",
+   "prompt": "Cezanne reduced nature to which basic shapes?",
+   "choices": [
+    "Spirals",
+    "Triangle only",
+    "Cylinder, sphere and cone",
+    "Grids of dots"
+   ]
+  },
+  {
+   "id": "art-masters.l08.q3",
+   "lessonId": "art-masters.l08",
+   "kind": "mcq",
+   "prompt": "A painting of an apple still life shows the table tilted from slightly different viewpoints and built from patches of colour. Who is it?",
+   "choices": [
+    "Van Gogh",
+    "Dali",
+    "Pollock",
+    "Cezanne"
+   ]
+  },
+  {
+   "id": "art-masters.l08.q4",
+   "lessonId": "art-masters.l08",
+   "kind": "mcq",
+   "prompt": "How do Van Gogh and Cezanne differ in aim?",
+   "choices": [
+    "Van Gogh used colour and line for emotion; Cezanne analysed form and structure",
+    "Van Gogh painted only portraits; Cezanne only skies",
+    "Both avoided colour",
+    "Cezanne was a sculptor; Van Gogh a photographer"
+   ]
+  },
+  {
+   "id": "art-masters.l09.q1",
+   "lessonId": "art-masters.l09",
+   "kind": "mcq",
+   "prompt": "Which movement did Picasso co-found?",
+   "choices": [
+    "Cubism",
+    "Fauvism",
+    "Impressionism",
+    "Pop art"
+   ]
+  },
+  {
+   "id": "art-masters.l09.q2",
+   "lessonId": "art-masters.l09",
+   "kind": "mcq",
+   "prompt": "Which technique is Matisse known for in his late years?",
+   "choices": [
+    "Drip painting",
+    "Papiers decoupes (paper cut-outs)",
+    "Etching",
+    "Photomontage"
+   ]
+  },
+  {
+   "id": "art-masters.l09.q3",
+   "lessonId": "art-masters.l09",
+   "kind": "mcq",
+   "prompt": "A portrait with a green stripe down the face and flat, wild colour. Which movement?",
+   "choices": [
+    "Cubism",
+    "Surrealism",
+    "Fauvism",
+    "Realism"
+   ]
+  },
+  {
+   "id": "art-masters.l09.q4",
+   "lessonId": "art-masters.l09",
+   "kind": "mcq",
+   "prompt": "Which comparison is correct?",
+   "choices": [
+    "Picasso used only colour fields",
+    "Matisse painted Guernica, Picasso The Dance",
+    "Both were Impressionists",
+    "Picasso fragments form and viewpoint, while Matisse simplifies shape and lets colour carry feeling"
+   ]
+  },
+  {
+   "id": "art-masters.l10.q1",
+   "lessonId": "art-masters.l10",
+   "kind": "mcq",
+   "prompt": "Which painting contains melting watches?",
+   "choices": [
+    "The Two Fridas",
+    "Guernica",
+    "The Broken Column",
+    "The Persistence of Memory"
+   ]
+  },
+  {
+   "id": "art-masters.l10.q2",
+   "lessonId": "art-masters.l10",
+   "kind": "mcq",
+   "prompt": "Frida Kahlo drew on which Mexican folk tradition?",
+   "choices": [
+    "Retablo painting",
+    "Ukiyo-e",
+    "Fresco secco",
+    "Cubism"
+   ]
+  },
+  {
+   "id": "art-masters.l10.q3",
+   "lessonId": "art-masters.l10",
+   "kind": "mcq",
+   "prompt": "An image that can be read as two different things at once is called what, in Dali's practice?",
+   "choices": [
+    "A collage",
+    "A double image",
+    "A cut-out",
+    "A triptych"
+   ]
+  },
+  {
+   "id": "art-masters.l10.q4",
+   "lessonId": "art-masters.l10",
+   "kind": "tf",
+   "prompt": "Kahlo's paintings mostly invent dream worlds unrelated to her own life.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "art-masters.l11.q1",
+   "lessonId": "art-masters.l11",
+   "kind": "mcq",
+   "prompt": "Which artist is known for drip or action painting?",
+   "choices": [
+    "Georgia O'Keeffe",
+    "Mark Rothko",
+    "Jackson Pollock",
+    "Jean-Michel Basquiat"
+   ]
+  },
+  {
+   "id": "art-masters.l11.q2",
+   "lessonId": "art-masters.l11",
+   "kind": "mcq",
+   "prompt": "Which artist is known for luminous floating rectangles of colour?",
+   "choices": [
+    "Pollock",
+    "Basquiat",
+    "O'Keeffe",
+    "Mark Rothko"
+   ]
+  },
+  {
+   "id": "art-masters.l11.q3",
+   "lessonId": "art-masters.l11",
+   "kind": "mcq",
+   "prompt": "A huge close-up of a flower that becomes almost abstract, in the light of New Mexico. Which artist?",
+   "choices": [
+    "Georgia O'Keeffe",
+    "Rothko",
+    "Pollock",
+    "Picasso"
+   ]
+  },
+  {
+   "id": "art-masters.l11.q4",
+   "lessonId": "art-masters.l11",
+   "kind": "mcq",
+   "prompt": "Which pair correctly contrasts the energy of two artists?",
+   "choices": [
+    "Pollock's is meditative; Rothko's is gestural",
+    "Pollock's is physical and gestural; Rothko's is quiet and meditative",
+    "Both are photorealistic",
+    "Rothko used graffiti only"
+   ]
+  },
+  {
+   "id": "art-masters.l12.q1",
+   "lessonId": "art-masters.l12",
+   "kind": "mcq",
+   "prompt": "Which sculptor is called the father of modern sculpture?",
+   "choices": [
+    "Henry Moore",
+    "Auguste Rodin",
+    "Constantin Brancusi",
+    "Louise Bourgeois"
+   ]
+  },
+  {
+   "id": "art-masters.l12.q2",
+   "lessonId": "art-masters.l12",
+   "kind": "mcq",
+   "prompt": "Which work is by Louise Bourgeois?",
+   "choices": [
+    "Bird in Space",
+    "The Kiss by Rodin",
+    "Maman",
+    "Large Two Forms"
+   ]
+  },
+  {
+   "id": "art-masters.l12.q3",
+   "lessonId": "art-masters.l12",
+   "kind": "mcq",
+   "prompt": "A large bronze reclining figure with holes through the body. Which sculptor?",
+   "choices": [
+    "Bourgeois",
+    "Brancusi",
+    "Rodin",
+    "Henry Moore"
+   ]
+  },
+  {
+   "id": "art-masters.l12.q4",
+   "lessonId": "art-masters.l12",
+   "kind": "mcq",
+   "prompt": "Which description best captures Brancusi's goal?",
+   "choices": [
+    "Distilling a subject to its pure, essential form",
+    "Rough, unfinished surfaces",
+    "Capturing a fleeting moment",
+    "Building large installations from fabric"
+   ]
+  },
+  {
+   "id": "art-masters.l13.q1",
+   "lessonId": "art-masters.l13",
+   "kind": "mcq",
+   "prompt": "Who photographed Migrant Mother?",
+   "choices": [
+    "Dorothea Lange",
+    "Ansel Adams",
+    "Vivian Maier",
+    "Annie Leibovitz"
+   ]
+  },
+  {
+   "id": "art-masters.l13.q2",
+   "lessonId": "art-masters.l13",
+   "kind": "mcq",
+   "prompt": "Which phrase is associated with Henri Cartier-Bresson?",
+   "choices": [
+    "The Zone System",
+    "The decisive moment",
+    "Social documentary",
+    "Pointille"
+   ]
+  },
+  {
+   "id": "art-masters.l13.q3",
+   "lessonId": "art-masters.l13",
+   "kind": "mcq",
+   "prompt": "A photographer worked as a nanny and shot thousands of street photos with a Rolleiflex, discovered after her death. Who?",
+   "choices": [
+    "Gordon Parks",
+    "Steve McCurry",
+    "Vivian Maier",
+    "Ansel Adams"
+   ]
+  },
+  {
+   "id": "art-masters.l13.q4",
+   "lessonId": "art-masters.l13",
+   "kind": "mcq",
+   "prompt": "Which pairing best matches photographer and aim?",
+   "choices": [
+    "Cartier-Bresson: studio still lifes",
+    "Adams: Great Depression portraits; Lange: wilderness",
+    "Maier: celebrity portraits; Leibovitz: hidden street work",
+    "Adams: making wilderness monumental; Parks: documenting race and poverty"
+   ]
+  },
+  {
+   "id": "art-masters.l14.q1",
+   "lessonId": "art-masters.l14",
+   "kind": "mcq",
+   "prompt": "Which architect said less is more?",
+   "choices": [
+    "Gaudi",
+    "Wright",
+    "Hadid",
+    "Mies van der Rohe"
+   ]
+  },
+  {
+   "id": "art-masters.l14.q2",
+   "lessonId": "art-masters.l14",
+   "kind": "mcq",
+   "prompt": "Who was the first woman to win the Pritzker Prize?",
+   "choices": [
+    "Zaha Hadid",
+    "Louise Bourgeois",
+    "Georgia O'Keeffe",
+    "Frida Kahlo"
+   ]
+  },
+  {
+   "id": "art-masters.l14.q3",
+   "lessonId": "art-masters.l14",
+   "kind": "mcq",
+   "prompt": "A house cantilevered over a waterfall with open flowing interiors. Which architect?",
+   "choices": [
+    "Le Corbusier",
+    "Frank Lloyd Wright",
+    "Gaudi",
+    "Mies"
+   ]
+  },
+  {
+   "id": "art-masters.l14.q4",
+   "lessonId": "art-masters.l14",
+   "kind": "mcq",
+   "prompt": "What do Gaudi's catenary models and Le Corbusier's Modulor have in common?",
+   "choices": [
+    "Both were photographic processes",
+    "Both were paint pigments",
+    "Both were methods to determine form through a system, one structural, one proportional",
+    "Both were mosaic styles"
+   ]
+  }
+ ]
+}

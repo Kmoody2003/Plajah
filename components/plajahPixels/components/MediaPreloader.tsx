@@ -13,8 +13,8 @@ const HIDDEN: React.CSSProperties = {
   left: -9999, top: -9999,
 };
 
-const MediaPreloader: React.FC<{ layers: LauncherLayer[] }> = ({ layers }) => {
-  // Unique media URLs (skip blob: — those are already in-memory and same-doc).
+const MediaPreloader: React.FC<{ layers: LauncherLayer[]; upcomingCol?: number | null }> = ({ layers, upcomingCol }) => {
+  // Unique media URLs (proactively include upcoming column media even if blob: so decoders stay warm)
   const { videos, images } = useMemo(() => {
     const vids = new Set<string>();
     const imgs = new Set<string>();
@@ -25,8 +25,17 @@ const MediaPreloader: React.FC<{ layers: LauncherLayer[] }> = ({ layers }) => {
         (clip.mediaType === 'image' ? imgs : vids).add(clip.mediaUrl);
       }
     }
+    // Proactively pre-buffer upcoming column media
+    if (upcomingCol != null) {
+      for (const layer of layers) {
+        const clip = layer.clips[upcomingCol];
+        if (clip && clip.type === 'media' && clip.mediaUrl) {
+          (clip.mediaType === 'image' ? imgs : vids).add(clip.mediaUrl);
+        }
+      }
+    }
     return { videos: [...vids], images: [...imgs] };
-  }, [layers]);
+  }, [layers, upcomingCol]);
 
   if (!videos.length && !images.length) return null;
 

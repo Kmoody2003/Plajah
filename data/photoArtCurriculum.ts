@@ -921,7 +921,13 @@ Size and quality. Fifteen to twenty-five images, all excellent. Every image belo
 
 The portfolio should also show the work you want, not only the work you have had. Nobody can hire you for a job you have never demonstrated, so produce personal work that looks exactly like the commissions you are chasing. Self-directed projects are the primary marketing tool in commercial photography, not a hobby.
 
-Getting seen: a fast, simple website that loads on a phone and puts images first; a clear statement of what you do and where; contact details on every page; and direct outreach to specific named commissioners rather than broadcast. Personal recommendation and repeat clients dominate this industry — which means how you behave on a job is marketing.
+Getting seen:
+- a fast, simple website that loads on a phone and puts images first
+- a clear statement of what you do and where
+- contact details on every page
+- and direct outreach to specific named commissioners rather than broadcast.
+
+Personal recommendation and repeat clients dominate this industry — which means how you behave on a job is marketing.
 
 Rates of response are low and that is normal. Follow up once, keep a list, show up consistently over years. The photographers who succeed are frequently not the best ones; they are the ones who were still visible in year five.`,
           assignment: photoTask('Cut your portfolio to twenty images in a single genre and post the sequence. Every frame must be one you want to be hired to repeat.'),
@@ -1193,7 +1199,12 @@ Two errors dominate beginner shading. The first is outlining then filling — re
 
 Edges carry as much information as values. A hard edge reads as a sharp turn or a near object; a soft edge as a gradual turn, a distant object, or something out of focus. Controlling edges is what separates rendering from colouring in.
 
-Techniques: hatching and cross-hatching build value with line and keep the drawing alive; blending is smooth and can go dead if overused; stippling is slow and luminous. Choose based on the surface you are describing.
+Techniques:
+- hatching and cross-hatching build value with line and keep the drawing alive
+- blending is smooth and can go dead if overused
+- stippling is slow and luminous.
+
+Choose based on the surface you are describing.
 
 Draw the same sphere, cube, cylinder and cone under one raking light until it is automatic. Every complex object is those four wearing a disguise.`,
           assignment: lookTask('Draw a sphere, cube, cylinder and cone from life under a single strong lamp, rendering all six parts of the light anatomy. Post the sheet under #artschool.'),
@@ -1298,7 +1309,12 @@ Subtractive colour is pigment. Each pigment absorbs some wavelengths and reflect
 
 The red-yellow-blue wheel taught in schools is a historical artefact — a workable approximation from before we understood the physics. It is why mixing "blue and yellow" gives a dull green while cyan and yellow give a vivid one. Painters still use RYB successfully because paint is not ideal pigment and experience compensates, but knowing it is an approximation explains a lot of failed mixes.
 
-Vocabulary: hue is the colour family; value is lightness (ae-3); saturation or chroma is purity, from grey to full intensity. A tint is a hue plus white, a shade is a hue plus black, a tone is a hue plus grey. Most colours in a good painting are tones — full-saturation colour used everywhere is exhausting, and it makes your actual accents impossible.`,
+Vocabulary:
+- hue is the colour family
+- value is lightness (ae-3)
+- saturation or chroma is purity, from grey to full intensity.
+
+A tint is a hue plus white, a shade is a hue plus black, a tone is a hue plus grey. Most colours in a good painting are tones — full-saturation colour used everywhere is exhausting, and it makes your actual accents impossible.`,
           assignment: lookTask('Mix or sample a nine-step scale from one pure hue to grey. Write 150 words on where the useful colours were — they will not be at the saturated end.'),
           resources: [
             { label: 'Handprint — comprehensive colour theory', url: 'https://www.handprint.com/HP/WCL/wcolor.html' },
@@ -1336,7 +1352,10 @@ A grey square on a dark ground looks lighter than the identical grey on a light 
 
 Josef Albers built an entire pedagogy on this in Interaction of Color (1963), whose central demonstration is that one colour can be made to look like two, and two different colours can be made to look identical. His conclusion is the practical one: never choose a colour in isolation. Judge it in place, against its actual neighbours, at its actual size.
 
-Related effects: after-images (stare at red, look away, see cyan), which is why surgical scrubs are green; the Bezold effect, where changing one colour in a pattern alters the appearance of all of them; and optical mixing, where small dots of pure colour blend in the eye rather than on the surface — the operating principle of Pointillism, of halftone printing, and of every screen you own.
+Related effects:
+- after-images (stare at red, look away, see cyan), which is why surgical scrubs are green
+- the Bezold effect, where changing one colour in a pattern alters the appearance of all of them
+- and optical mixing, where small dots of pure colour blend in the eye rather than on the surface — the operating principle of Pointillism, of halftone printing, and of every screen you own.
 
 The working consequence for both painters and photographers: colour decisions made on a swatch, a slider or an isolated crop will be wrong in context.`,
           assignment: lookTask('Place the same mid-grey against a light ground and a dark ground, then against red and against green. Photograph the result and write 150 words on what you saw versus what you knew was true.'),
@@ -1744,7 +1763,13 @@ An artist statement should say what you make, how you make it and what you are a
 
 Wall text and captions have a different job: give the viewer what they cannot see for themselves — date, material, context, one fact that changes the looking — and then get out of the way.
 
-Critique is a skill, and it is the one this school ends on because it is the one that improves other people. The functional structure: describe what you actually see before evaluating anything; identify what is working and be specific about why, because vague praise is useless; identify the single biggest opportunity rather than listing fifteen small ones; and address the work's own goals, not the work you would have made. Say "the eye goes to the bright corner instead of the face" rather than "the composition is off."
+Critique is a skill, and it is the one this school ends on because it is the one that improves other people. The functional structure:
+- describe what you actually see before evaluating anything
+- identify what is working and be specific about why, because vague praise is useless
+- identify the single biggest opportunity rather than listing fifteen small ones
+- and address the work's own goals, not the work you would have made.
+
+Say "the eye goes to the bright corner instead of the face" rather than "the composition is off."
 
 Receiving critique: do not explain or defend during the feedback. If a viewer misread the work, that is information — you cannot stand next to it forever explaining. Take notes, thank people, and decide later what to act on. Not all feedback is right, and you do not have to sort that out in the room.`,
           assignment: writeTask('Write your own 250-word artist statement in plain language, then give a structured critique on someone else’s posted work under #photoschool or #artschool using the four-step method.'),

@@ -1,0 +1,338 @@
+{
+ "courseId": "med-clin-fm",
+ "verifier": "A",
+ "note": "PARTIAL: tool session limit hit. Only lessons l01-l05 and questions l01-l05 q1-q5 (25 of 90) covered. Lessons l06-l18 and 65 questions NOT verified.",
+ "fetched": 13,
+ "questions": [
+  {
+   "id": "med-clin-fm.l01.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l01.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l01.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l01.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l01.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l02.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l02.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l02.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l02.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l02.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l03.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l03.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l03.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l03.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l03.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l04.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l04.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l04.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l04.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l04.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l05.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l05.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l05.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l05.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-fm.l05.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-clin-fm.l02",
+   "claim": "2024 USPSTF: biennial mammography ages 40-74, grade B; insufficient evidence for supplemental US/MRI in dense breasts",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/breast-cancer-screening"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l02",
+   "claim": "2018 cervical recommendation: cytology q3y 21-29; 30-65 cytology q3y, hrHPV q5y or cotest q5y",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/cervical-cancer-screening"
+   ],
+   "note": "Still the final rec as of fetch, but page says an update is in progress (draft exists); may change."
+  },
+  {
+   "lessonId": "med-clin-fm.l02",
+   "claim": "2021 colorectal: 45-49 B, 50-75 A, 76-85 selective",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/colorectal-cancer-screening"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l03",
+   "claim": "2022 statin: age 40-75, >=1 risk factor, 10-year risk >=10% B; 7.5-<10% C; >=76 insufficient",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/statin-use-in-adults-preventive-medication"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l03",
+   "claim": "2022 aspirin: 40-59 with >=10% risk grade C; initiating at 60+ grade D",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/aspirin-to-prevent-cardiovascular-disease-preventive-medication"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l03",
+   "claim": "2021 hypertension screening adults 18+ with out-of-office confirmation; 2021 diabetes screening 35-70 with overweight/obesity; 2019 AAA men 65-75 ever smoked B, women never smoked D, women ever smoked I",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/hypertension-in-adults-screening",
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/screening-for-prediabetes-and-type-2-diabetes",
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/abdominal-aortic-aneurysm-screening"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l02",
+   "claim": "2021 lung: annual LDCT age 50-80, >=20 pack-years, current or quit within 15 years",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/lung-cancer-screening"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l02",
+   "claim": "2018 prostate: 55-69 individual decision (C), 70+ not recommended (D)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/prostate-cancer-screening"
+   ],
+   "note": "Still the current final rec, but an update (draft) is in progress and could change grades."
+  },
+  {
+   "lessonId": "med-clin-fm.l04",
+   "claim": "Recombinant zoster vaccine 2 doses for adults 50+; RSV vaccine 75+ universal, 50-74 shared decision making (as of CDC adult schedule updated July 2, 2025)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/vaccines/hcp/imz-schedules/adult-age.html"
+   ],
+   "note": "Lesson RSV wording is vague (\"older adults\"); the 50-74 shared-decision tier and 75+ universal are the current schedule text."
+  },
+  {
+   "lessonId": "med-clin-fm.l04",
+   "claim": "Childhood schedule and ACIP recommendations stated as established/changing; COVID guidance flagged as changing",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Search results (not opened pages) report: Jan 2026 CDC revised childhood schedule, stayed by D. Mass. court 16 Mar 2026, appealed 29 Apr 2026; ACIP appointments after June 2025 and votes stayed. Could not open source (tool limit). Lesson already tells readers to check current schedule; recommend adding legal/policy status caveat."
+  },
+  {
+   "lessonId": "med-clin-fm.l04",
+   "claim": "Catch-up series not restarted; live vaccines contraindicated in pregnancy; Tdap each pregnancy 27-36 weeks",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-fm.l05",
+   "claim": "2019 HIV screening ages 15-65 grade A, plus pregnant people",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/human-immunodeficiency-virus-hiv-infection-screening"
+   ],
+   "note": "Page notes an update is in progress (draft)."
+  },
+  {
+   "lessonId": "med-clin-fm.l05",
+   "claim": "2020 hepatitis C one-time screening ages 18-79",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/hepatitis-c-screening"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l05",
+   "claim": "2021 chlamydia/gonorrhea women <=24 and older at risk; insufficient evidence in men; 2023 folic acid 0.4-0.8 mg",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/chlamydia-and-gonorrhea-screening",
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/folic-acid-for-the-prevention-of-neural-tube-defects-preventive-medication"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-fm.l05",
+   "claim": "Latent TB: IGRA preferred after BCG; 3HP and 4R preferred over 9 months isoniazid",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened (tool limit)."
+  },
+  {
+   "lessonId": "med-clin-fm.l01",
+   "claim": "Starfield four pillars (first contact, continuity, comprehensiveness, coordination)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Search failed (tool limit)."
+  },
+  {
+   "lessonId": "med-clin-fm.l01",
+   "claim": "Cauda equina red flags: urinary retention and saddle anesthesia need urgent evaluation",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-fm.l01",
+   "claim": "Pretest probability lower in primary care; low prevalence yields low PPV",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard epidemiology, not checked against an opened page."
+  }
+ ]
+}

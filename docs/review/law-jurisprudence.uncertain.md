@@ -1,0 +1,23 @@
+# law-jurisprudence: claims for expert review
+
+- l01: The three-way division of the field (analytical, normative, adjudication/critical) is a pedagogical choice, not a standard taxonomy.
+- l02: Attribution of the "unjust law is no law" slogan to Augustine and the strong/moderate reading split; Cicero source texts.
+- l03: Hart's remark about poisoners needing techniques (a paraphrase, not a quote); details of the post-war informer prosecution (court reasoning); Radbruch formula wording; claim that German courts invoked it in border-guard cases (described cautiously); Finnis's list of basic goods; Speluncean Explorers date (1949).
+- l04: Bentham's "nonsense upon stilts" attribution (Anarchical Fallacies); Hart's critique points of the command theory.
+- l05: Hart's three defects of a pre-legal society and the five contingent facts of the minimum content; Postscript published posthumously (1994).
+- l06: Kelsen editions (1934, 1960); Raz service conception; Coleman and Waluchow as inclusive positivists; Shapiro, Legality (2011).
+- l07: Riggs v. Palmer (N.Y. 1889) and Henningsen v. Bloomfield Motors (N.J. 1960) as used by Dworkin; the "right answer" thesis statement.
+- l08: Langdell as formalist and the Lochner "formalism" caveat; Holmes Lochner dissent paraphrase; Llewellyn and Frank dates and Frank as fact-skeptic; attitudinal-model summary.
+- l09: Bostock majority and dissent both text-based; Heller both sides using history; Strauss, Breyer, Posner characterizations; Hart and Sacks legal process materials.
+- l10: Date and place of the 1977 Wisconsin conference; list of CLS figures; Unger's "deviationist doctrine" and "superliberalism" terms; Kennedy 1976 article.
+- l11: Bell 1980 interest-convergence article and its Cold War claim; Crenshaw 1989 description of the employment case; Kennedy (1989) and Farber-Sherry critiques; description of state laws on teaching race (varies; litigation ongoing); Griggs holding.
+- l12: Reed, Meritor, Virginia holdings; Gilligan, West, MacKinnon, Harris, Okin works and dates; Hudnut (7th Cir. 1985).
+- l13: Boomer v. Atlantic Cement characterization; Carroll Towing formula as B < PL; Dworkin 1980 "Is Wealth a Value?"; Jolls-Sunstein-Thaler 1998.
+- l14: Raz's list of principles (summary level); Bingham's eight principles; Hayek works; World Justice Project index factors.
+- l15: Kant island example; Hegel characterization; Moore and Duff attributions; Furman/Gregg/Atkins/Roper/Kennedy holdings; statement about states and countries on abolition (general); empirical claim that certainty deters more than severity.
+- l16: Rawls's two principles wording; Harsanyi's average-utility reply; Law of Peoples (1999); property-owning democracy mention.
+- l17: Nozick's taxation-as-forced-labor claim; G. A. Cohen's critique; Sen's flute example details; Nussbaum's capability list items; Weinrib and Coleman as corrective-justice theorists; Walzer 1983.
+- l18: Wolfenden Report 1957 recommendations; Devlin 1959 lecture claims; Hart 1963; Feinberg volumes 1984-88; Bowers/Lawrence; Walker v. Birmingham (5-4); King letter citing Augustine and Aquinas; Wolff and Raz on obedience.
+- l19: Hohfeld article dates (1913, 1917); will/interest theory attributions (including Savigny and Ihering); Rights as Trumps date (1984); MacIntyre unicorn remark paraphrase; UDHR and 1966 Covenants status.
+- l20: Statement that German courts used Radbruch-style reasoning after reunification; Harlan "color-blind" language in Plessy dissent (paraphrased); Atkins reasoning summary; Roper dissent characterization; Brown social-science point.
+- Question editing: many distractors were lengthened with generic trailing phrases to balance option length; an editor should smooth these.

@@ -1,0 +1,1401 @@
+{
+ "courseId": "music-theory-elementary",
+ "label": "Music Theory (Grades 3-5)",
+ "lessons": [
+  {
+   "id": "music-theory-elementary.l01",
+   "title": "The Staff and the Clefs",
+   "body": [
+    "Imagine a ladder lying on its side. Music is written on something like that: the staff. A staff has five lines and four spaces between them. A note can sit on a line or in a space. The higher the note sits on the staff, the higher it sounds.",
+    "A staff by itself does not say which pitches the lines stand for. A clef does. A clef is the fancy symbol at the very beginning of each staff.",
+    "The treble clef is used for higher sounds. Flutes, violins, trumpets and the right hand of a piano often read it. It is also called the G clef, because its curl circles the line where the note G sits.",
+    "The bass clef is used for lower sounds. Cellos, tubas, bassoons and the left hand of a piano often read it. It is also called the F clef.",
+    "When a tune goes too high or too low for the five lines, we add short extra lines called ledger lines.",
+    "Try this: hum a low note, then a high note. Now draw two dots on a staff, a low one and a high one, and say which belongs higher up. The staff is just a picture of high and low sounds, with a clef acting as the key that unlocks the names."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l02",
+   "title": "Note Names in the Treble Clef",
+   "body": [
+    "Music uses only seven letter names: A, B, C, D, E, F and G. After G, the alphabet starts over at A, but higher.",
+    "On the treble staff, count the lines from the bottom: line one, line two, and so on up to line five. The notes on the lines are E, G, B, D and F. A popular memory sentence is Every Good Boy Does Fine. You can invent your own, such as Every Green Bus Drives Fast.",
+    "The notes in the four spaces, from bottom to top, are F, A, C and E. They spell the word FACE, which is easy to remember.",
+    "Notice the pattern. Moving from a line to the next space above, or from a space to the next line above, takes you to the next letter of the musical alphabet. So the bottom line is E, the first space is F, the second line is G, and so on.",
+    "Middle C is special. In treble clef it sits on a little ledger line just below the staff. It is called middle C because on a piano it is near the middle of the keyboard.",
+    "Practise by pointing at each line and saying its letter, bottom to top, then doing the same for the spaces."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l03",
+   "title": "The Bass Clef and the Grand Staff",
+   "body": [
+    "The bass clef has different note names from the treble clef. On the bass staff, the notes on the lines, from bottom to top, are G, B, D, F and A. A memory sentence is Good Boys Do Fine Always.",
+    "The notes in the spaces, from bottom to top, are A, C, E and G. One sentence for these is All Cows Eat Grass.",
+    "Piano music uses two staves joined by a brace. This is called the grand staff. The treble staff is on top and is usually played by the right hand. The bass staff is on the bottom and is usually played by the left hand.",
+    "Where is middle C? It sits on its own little ledger line between the two staves. Looking from the treble side, it is just below the treble staff. Looking from the bass side, it is just above the bass staff. It is the same note, written in two ways.",
+    "Because the letters repeat in order, you can step from one staff to the other by counting letters. The top line of the bass staff is A. The next note up is B, and the one after that is middle C on its ledger line.",
+    "Try saying the line names of both staves out loud to feel the difference."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l04",
+   "title": "Note Values and Rests",
+   "body": [
+    "The beat is the steady pulse you tap your foot to. Notes are written in different shapes to show how many beats they last.",
+    "A whole note lasts four beats. It is an open oval with no stem. A half note lasts two beats: an open oval with a stem. A quarter note lasts one beat: a filled-in oval with a stem. An eighth note lasts half a beat: it is filled in, has a stem, and has a flag. Two eighth notes are often joined by a beam, and together they make one beat. A sixteenth note lasts a quarter of a beat.",
+    "Each size is half as long as the one before it. Two half notes equal one whole note. Two quarter notes equal one half note. Two eighth notes equal one quarter note.",
+    "Silence is part of music too. A rest is a symbol for silence, and each note value has its own rest. A quarter rest means one beat of silence. A half rest means two beats of silence, and a whole rest means a full measure of silence in most simple time signatures.",
+    "Clap four beats and count aloud: one, two, three, four. Then try clapping only on beats one and three, and resting on two and four."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l05",
+   "title": "Time Signatures: 2/4, 3/4 and 4/4",
+   "body": [
+    "Beats are grouped into measures, which are separated by vertical lines called bar lines. A time signature at the start of the music tells you how the beats are grouped. It looks like a fraction but has no line.",
+    "The top number tells you how many beats are in each measure. The bottom number tells you which kind of note counts as one beat. When the bottom number is 4, a quarter note gets the beat.",
+    "In 2/4 there are two quarter-note beats in each measure. You count: one, two, one, two. It feels like marching, left, right.",
+    "In 3/4 there are three beats in each measure. You count: one, two, three, one, two, three. This is the swaying feel of a waltz.",
+    "In 4/4 there are four beats in each measure. You count: one, two, three, four. It is the most common time signature, and it is sometimes shown with a letter C and called common time.",
+    "The first beat of every measure is usually the strongest. Try this: say the words \"ONE two three\" over and over for 3/4, putting a little extra push on ONE.",
+    "The time signature does not change how fast the music goes. It only tells you how the beats are grouped."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l06",
+   "title": "Dotted Notes and Ties",
+   "body": [
+    "Sometimes a note needs to last longer than a basic note value. There are two simple tools for that.",
+    "The first is a dot. A dot placed after a note adds half of that note value. A half note is two beats, and half of two is one, so a dotted half note lasts 2 + 1 = 3 beats. A quarter note is one beat, so a dotted quarter note lasts 1 + one half = one and a half beats. A dotted whole note would last 4 + 2 = 6 beats.",
+    "A dotted half note fills a whole measure of 3/4. In 4/4, a dotted half note and one quarter note fill the measure, because 3 + 1 = 4.",
+    "The second tool is a tie. A tie is a curved line that joins two notes of the same pitch. You play the first note and hold it for the length of both notes, without playing the second one again. A half note tied to a quarter note lasts 2 + 1 = 3 beats, the same as a dotted half note.",
+    "Ties are useful because they can connect notes across a bar line, so a long sound can start in one measure and finish in the next.",
+    "Practise by adding: write the beats for a dotted quarter and an eighth. They make exactly two beats."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l07",
+   "title": "Reading and Writing Rhythms",
+   "body": [
+    "Reading a rhythm is like solving a small puzzle: every measure must add up to the right number of beats.",
+    "Start by looking at the time signature. In 4/4, each measure must contain four quarter-note beats. That might be four quarter notes, or two half notes, or a half note and two quarter notes, or a whole note.",
+    "To count eighth notes, say the beat numbers and say \"and\" between them: one-and, two-and, three-and, four-and. Each number and each \"and\" is one eighth note, so a measure of 4/4 holds eight eighth notes. A measure of 2/4 holds four.",
+    "Rests count too. If a measure of 4/4 has a quarter note, a quarter rest and a half note, you play on beat one, stay silent on beat two, and play the half note on beat three and hold it through beat four.",
+    "When you write your own rhythm, follow three steps. First, pick a time signature. Second, write notes and rests until the beats add up exactly. Third, draw a bar line, and begin the next measure.",
+    "Try this: tap a four-beat pattern using quarter notes and one pair of eighth notes. Then write it down and add it up to check."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l08",
+   "title": "Whole Steps, Half Steps and the C Major Scale",
+   "body": [
+    "A scale is a ladder of notes going up or down in order. The distance between two neighbouring piano keys, black or white, is a half step. Two half steps make a whole step.",
+    "A major scale has eight notes, counting the starting note again at the top. It always follows the same pattern of steps: whole, whole, half, whole, whole, whole, half. You can remember it as W W H W W W H.",
+    "Start on C and use only white keys. C to D is a whole step, because there is a black key between them. D to E is a whole step too. E to F is a half step, because there is no black key between E and F. Then F to G, G to A and A to B are all whole steps, and B to C is a half step.",
+    "So the C major scale is C, D, E, F, G, A, B, C. It has no sharps or flats.",
+    "The notes of a scale are numbered from one to eight, and these numbers are called scale degrees. In C major, C is degree one, D is degree two, and so on.",
+    "The sound of the major scale is the familiar do-re-mi sound. Try singing it up and down, listening for the two half steps, between degrees three and four, and seven and eight."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l09",
+   "title": "Major Scales with One or Two Sharps or Flats",
+   "body": [
+    "If you start a major scale on a different note, the step pattern stays the same, but some notes must be changed with sharps or flats to keep the pattern right.",
+    "G major is G, A, B, C, D, E, F-sharp, G. The pattern needs the seventh note to be a half step below the top G, so F must be raised to F-sharp. G major has one sharp.",
+    "D major is D, E, F-sharp, G, A, B, C-sharp, D. It needs two sharps: F-sharp and C-sharp.",
+    "Now flats. F major is F, G, A, B-flat, C, D, E, F. A flat lowers a note by a half step. F major has one flat: B-flat. Without it, the half step would land in the wrong place.",
+    "B-flat major is B-flat, C, D, E-flat, F, G, A, B-flat. It has two flats: B-flat and E-flat.",
+    "A handy summary: C major has none, G has one sharp, D has two sharps, F has one flat, and B-flat has two flats.",
+    "You can check any scale by counting its steps. Write the notes, then test for whole, whole, half, whole, whole, whole, half. If a step is the wrong size, a sharp or flat is needed.",
+    "Try playing G major on a piano and listen for the black key F-sharp near the end."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l10",
+   "title": "Key Signatures",
+   "body": [
+    "Writing a sharp or flat beside every note would be tiring. Instead, music uses a key signature: the sharps or flats are written once, right after the clef at the start of each staff. They then apply to every note with that letter name, in every octave, for the whole piece.",
+    "The key signature tells you the key, which is the home scale of the music. A tune in the key of G major uses the notes of the G major scale.",
+    "Here are the ones for this level. No sharps or flats means C major. One sharp, F-sharp, means G major. Two sharps, F-sharp and C-sharp, means D major. One flat, B-flat, means F major. Two flats, B-flat and E-flat, means B-flat major.",
+    "Sharps and flats always appear in a fixed order. The order of sharps starts with F, then C, then G. That is why the first sharp in any key signature is F-sharp and the second is C-sharp. The order of flats starts with B, then E, then A.",
+    "If a note appears with a sharp, flat, or natural sign that is not part of the key signature, it is called an accidental, and it lasts only until the end of that measure.",
+    "Try this: look at a piece with one sharp on the top line and check that every F is played as F-sharp."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l11",
+   "title": "Intervals by Number",
+   "body": [
+    "An interval is the distance between two notes. At this level, we name intervals by number. To find the number, count the letter names from the lower note to the upper note, including both of them.",
+    "Start on C. The same note, C to C, is a unison, or a 1st. C to D is a 2nd, because you count C, D. C to E is a 3rd: C, D, E. C to F is a 4th. C to G is a 5th. C to A is a 6th. C to B is a 7th. C up to the next C is an octave, or an 8th.",
+    "On the staff, there is a quick trick. Notes on neighbouring positions, such as a line and the space just above it, make a 2nd. Notes that skip one position, such as one line and the next line up, or one space and the next space up, make a 3rd.",
+    "The same counting works from any starting note. D up to A is D, E, F, G, A, so it is a 5th.",
+    "Intervals can be played one after the other, which is a melodic interval, or at the same time, which is a harmonic interval.",
+    "Try this: sing the first two notes of any tune you know, and work out which interval they make by counting their letter names."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l12",
+   "title": "Tonic and Dominant",
+   "body": [
+    "Each degree of a scale has a job and a name. Two of the most important are the tonic and the dominant.",
+    "The tonic is the first note of the scale. It is the home note. In C major, the tonic is C; in G major, it is G. A song in a major key often ends on the tonic, and that is why it feels finished, like walking back through your front door.",
+    "The dominant is the fifth note of the scale. It is the note a 5th above the tonic. In C major, count C, D, E, F, G: the dominant is G. In G major, count G, A, B, C, D: the dominant is D. In F major, the dominant is C.",
+    "The tonic and dominant are strongly linked. Chords built on these two notes are used again and again in music, and moving from the dominant back to the tonic gives a strong sense of arriving home.",
+    "You can try this on a piano. Play the C major scale, stop on G and listen. The sound feels unfinished. Then play C, and the music settles.",
+    "When you name the key of a piece, look at the last note of the melody. Very often it is the tonic."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l13",
+   "title": "Dynamics: Loud and Soft",
+   "body": [
+    "Dynamics tell the performer how loud or soft to play. Many of the words we use are Italian, because Italian became the common language for musical directions long ago.",
+    "Piano means soft. Forte means loud. The keyboard instrument we call the piano got its name from the older name pianoforte, soft-loud, because it could play both softly and loudly depending on how hard the keys were pressed.",
+    "Dynamics are usually written with letters. The letter p stands for piano, and pp means pianissimo, very soft. The letter f stands for forte, and ff means fortissimo, very loud. The word mezzo means medium, so mp is mezzo piano, medium soft, and mf is mezzo forte, medium loud.",
+    "From softest to loudest, the common order is pp, p, mp, mf, f, ff.",
+    "Music can also change gradually. A crescendo means gradually getting louder. A diminuendo, also called a decrescendo, means gradually getting softer. On the page, these are often drawn as long hairpin shapes opening or closing.",
+    "Dynamics give music feeling. A soft lullaby and a thundering march might use exactly the same notes, but the dynamics change the story.",
+    "Try singing a short song three ways: pp, mf, and ff. Notice how the mood changes."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l14",
+   "title": "Tempo Terms in Italian",
+   "body": [
+    "Tempo means the speed of the beat. It can be written as a number of beats per minute, or with an Italian word at the start of the music.",
+    "Here are common words, from slow to fast. Largo means slow and broad. Adagio means slow. Andante means at a walking pace. Moderato means at a moderate speed. Allegro means fast and lively. Presto means very fast.",
+    "There are also words for changing speed. Ritardando, often shortened to rit., means gradually slowing down. Accelerando means gradually speeding up. A tempo means to go back to the original speed after a change.",
+    "A fermata is a curved symbol with a dot, placed over a note or rest. It means to hold that note or rest longer than its written length.",
+    "Tempo in beats per minute gives an exact number. If a piece is at 60 beats per minute, each beat takes one second. At 120 beats per minute, there are two beats every second, so each beat lasts half a second.",
+    "Metronomes are devices that click at a steady tempo, and they help musicians practise.",
+    "Try tapping a steady beat, then walk to it. That is about andante. Then try jogging to the beat, and you are moving closer to allegro."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l15",
+   "title": "The Four Instrument Families",
+   "body": [
+    "Instruments in the orchestra are sorted into four families, based on how they make their sound.",
+    "The strings make sound when strings vibrate, usually by drawing a bow across them. The main orchestral strings are the violin, viola, cello and double bass. The violin is the smallest and highest, and the double bass is the largest and lowest. The harp is also a stringed instrument, but its strings are plucked.",
+    "The woodwinds make sound when air is blown across an opening or against a reed. The flute and piccolo are woodwinds, and so are the oboe, clarinet and bassoon. The flute is a woodwind even though it is usually made of metal, because it is grouped by how it makes sound, not by its material.",
+    "The brass family has players buzz their lips into a metal mouthpiece. It includes the trumpet, French horn, trombone and tuba. The tuba is the lowest of these.",
+    "The percussion family is played by striking, shaking or scraping. It includes timpani, snare drum, cymbals, triangle and xylophone.",
+    "Listen to a piece and try to pick out the families: a singing violin is a string sound, a bright trumpet is brass, and a booming timpani is percussion."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l16",
+   "title": "Orchestra Seating",
+   "body": [
+    "An orchestra is arranged so that the players can see the conductor and hear each other. The conductor stands at the front, on a small platform called a podium, and the players sit in a half-circle fan facing them.",
+    "The strings sit nearest the front, in a curve around the conductor. In a common arrangement, the first violins usually sit on the audience left side of the conductor. The second violins sit next to them, then the violas and cellos, and the double basses sit toward the back of the string section.",
+    "The woodwinds sit in the middle of the stage, behind the strings. You will usually find flutes and oboes in one row, with clarinets and bassoons behind or beside them.",
+    "The brass sit further back, behind the woodwinds, because their sound is so powerful. Trumpets, trombones and tubas are often found here, and the French horns sit nearby.",
+    "The percussion sit at the very back. This is where you will find the timpani, which are large kettledrums, along with the other drums and cymbals.",
+    "The exact arrangement can vary between orchestras and pieces, but the idea stays the same: families sit together, the quieter ones are close to the front, and the loudest are further back.",
+    "Try drawing the stage with the conductor at the bottom and label each family."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l17",
+   "title": "Simple Forms: AB, ABA, Rondo and Variations",
+   "body": [
+    "Form is the plan or shape of a piece. We use letters to show the plan. A letter stands for a section of music. When a section comes back, it gets the same letter.",
+    "AB form, sometimes called binary form, has two different sections. The first is A and the second is B, which contrasts with it, for example by sounding higher, softer or in a different mood.",
+    "ABA form, called ternary form, has three sections. It begins with A, moves to a contrasting B, then returns to A. It is like a sandwich: the same bread on both sides. A good example of the feeling is going away from home and coming back.",
+    "A rondo brings the main tune A back again and again, with different music between. A simple rondo pattern is ABACA: the A section appears three times, and B and C are the contrasting sections.",
+    "In theme and variations, a composer begins with a theme, which is a short, memorable tune. Then the tune is played again and again, but each time it is changed. The changes might be a different speed, a new rhythm, higher or lower notes, or a different mood.",
+    "Listen to a favourite short piece and try to label it with letters. Each time something new arrives, give it a new letter."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l18",
+   "title": "Composer Profiles: Bach, Mozart and Beethoven",
+   "body": [
+    "Johann Sebastian Bach was a German composer who lived from 1685 to 1750. He worked in the Baroque period. He was a skilled organist, and he wrote many pieces for the organ, as well as pieces for orchestra, such as the Brandenburg Concertos.",
+    "Wolfgang Amadeus Mozart was born in 1756 in Salzburg, which is now in Austria. He was a child prodigy, which means he showed amazing musical ability very young, and he travelled around Europe performing as a child. He worked in the Classical period and wrote symphonies, piano music and operas, including The Magic Flute. He died in Vienna in 1791, at the age of 35.",
+    "Ludwig van Beethoven was born in 1770 in Bonn, in Germany, and died in 1827. He is known for bridging the Classical period and the Romantic period. He wrote nine symphonies, and his ninth symphony includes singers as well as the orchestra. As an adult, Beethoven gradually lost his hearing, yet he kept composing.",
+    "All three composers wrote music that people still play today. They show how different musical periods have their own styles, but each of them used the same musical tools you are learning now: scales, keys, rhythm and form.",
+    "Try finding a short recording of each composer and notice the differences."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l19",
+   "title": "Composer Profiles: Clara Schumann, Joplin and Tchaikovsky",
+   "body": [
+    "Clara Schumann lived from 1819 to 1896. She was a brilliant pianist who started performing as a young girl and kept giving concerts across Europe for many years. She was also a composer, and she wrote songs and piano music. She married the composer Robert Schumann, and she played and promoted his music as well as her own.",
+    "Scott Joplin was an American composer and pianist who died in 1917. He is best known for ragtime, a lively piano style that uses syncopation, which means placing accents on weak beats or between the beats. Two of his well-known pieces are Maple Leaf Rag and The Entertainer. Ragtime influenced later American music, including jazz.",
+    "Pyotr Ilyich Tchaikovsky was a Russian composer who lived from 1840 to 1893. He is famous for his ballets, including Swan Lake, The Sleeping Beauty and The Nutcracker. His music has memorable melodies and bright orchestral colours, and his Nutcracker music is often played at holiday time.",
+    "These three composers lived in different places and wrote in different styles, but they all show how a composer can have a distinct voice.",
+    "Try clapping a syncopated rhythm: tap lightly on the beat, then add an accent between two beats. That off-beat push is the heart of ragtime."
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l20",
+   "title": "Composing Your Own Music",
+   "body": [
+    "Composing means making up your own music. You already have the tools; now you can put them to use.",
+    "Step one: choose a key and a time signature. For example, pick C major and 4/4. This gives you the notes to use and the number of beats in each measure.",
+    "Step two: write a rhythm first. A four-bar rhythm in 4/4 has 16 beats in total. Fill each measure exactly, with a mix of quarter notes, half notes and perhaps one pair of eighth notes. Include a rest if you like.",
+    "Step three: add pitches. Give each rhythm note a letter name from your scale. Move mostly by steps, with a few small jumps, because this is easy to sing.",
+    "Step four: end well. Finish on the tonic, the first note of your key, on a long note. Your listeners will feel that the tune has come home.",
+    "Step five: add expression. Choose a tempo word such as andante or allegro, and write dynamics such as mp or f.",
+    "For a bigger project, try an ABA form. Write a four-bar A section, a contrasting four-bar B section that starts on a higher note, and then repeat A.",
+    "Always play your tune and listen. Change anything that does not sound the way you want."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "music-theory-elementary.l01.q1",
+   "lessonId": "music-theory-elementary.l01",
+   "kind": "tf",
+   "prompt": "A music staff has five lines.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l01.q2",
+   "lessonId": "music-theory-elementary.l01",
+   "kind": "mcq",
+   "prompt": "Which clef is also called the G clef and is used for higher sounds?",
+   "choices": [
+    "Octave clef",
+    "Treble clef",
+    "Bass clef",
+    "Dotted clef"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l01.q3",
+   "lessonId": "music-theory-elementary.l01",
+   "kind": "tf",
+   "prompt": "The higher a note sits on the staff, the lower it sounds.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l01.q4",
+   "lessonId": "music-theory-elementary.l01",
+   "kind": "mcq",
+   "prompt": "How many spaces are there between the lines of a staff?",
+   "choices": [
+    "5",
+    "3",
+    "6",
+    "4"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l01.q5",
+   "lessonId": "music-theory-elementary.l01",
+   "kind": "mcq",
+   "prompt": "Which instrument usually reads the bass clef?",
+   "choices": [
+    "Cello",
+    "Flute",
+    "Violin",
+    "Piccolo"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l02.q1",
+   "lessonId": "music-theory-elementary.l02",
+   "kind": "mcq",
+   "prompt": "Which letters name the lines of the treble staff, from bottom to top?",
+   "choices": [
+    "F A C E",
+    "G B D F A",
+    "A C E G",
+    "E G B D F"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l02.q2",
+   "lessonId": "music-theory-elementary.l02",
+   "kind": "mcq",
+   "prompt": "Which word do the treble-clef space notes spell, from bottom to top?",
+   "choices": [
+    "FACE",
+    "EGBDF",
+    "CAFE",
+    "BEAD"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l02.q3",
+   "lessonId": "music-theory-elementary.l02",
+   "kind": "mcq",
+   "prompt": "What is the name of the note on the bottom line of the treble staff?",
+   "choices": [
+    "D",
+    "E",
+    "F",
+    "G"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l02.q4",
+   "lessonId": "music-theory-elementary.l02",
+   "kind": "mcq",
+   "prompt": "What is the note in the second space from the bottom of the treble staff?",
+   "choices": [
+    "F",
+    "E",
+    "A",
+    "C"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l02.q5",
+   "lessonId": "music-theory-elementary.l02",
+   "kind": "tf",
+   "prompt": "Middle C is written on a short ledger line just below the treble staff.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l03.q1",
+   "lessonId": "music-theory-elementary.l03",
+   "kind": "mcq",
+   "prompt": "Which letters name the lines of the bass staff, from bottom to top?",
+   "choices": [
+    "A C E G",
+    "F A C E",
+    "G B D F A",
+    "E G B D F"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l03.q2",
+   "lessonId": "music-theory-elementary.l03",
+   "kind": "mcq",
+   "prompt": "What is the note in the bottom space of the bass staff?",
+   "choices": [
+    "G",
+    "C",
+    "E",
+    "A"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l03.q3",
+   "lessonId": "music-theory-elementary.l03",
+   "kind": "mcq",
+   "prompt": "What is the note in the top space of the bass staff?",
+   "choices": [
+    "G",
+    "A",
+    "F",
+    "B"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l03.q4",
+   "lessonId": "music-theory-elementary.l03",
+   "kind": "tf",
+   "prompt": "Piano music uses a grand staff made of a treble staff and a bass staff joined together.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l03.q5",
+   "lessonId": "music-theory-elementary.l03",
+   "kind": "mcq",
+   "prompt": "Where is middle C written on the grand staff?",
+   "choices": [
+    "On the bottom line of the treble staff",
+    "In the top space of the treble staff",
+    "On a short ledger line between the treble and bass staves",
+    "On the top line of the bass staff"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l04.q1",
+   "lessonId": "music-theory-elementary.l04",
+   "kind": "mcq",
+   "prompt": "How many beats does a whole note get?",
+   "choices": [
+    "3",
+    "4",
+    "2",
+    "1"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l04.q2",
+   "lessonId": "music-theory-elementary.l04",
+   "kind": "tf",
+   "prompt": "A quarter rest means one beat of silence in 4/4.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l04.q3",
+   "lessonId": "music-theory-elementary.l04",
+   "kind": "mcq",
+   "prompt": "How many eighth notes equal one half note?",
+   "choices": [
+    "2",
+    "8",
+    "3",
+    "4"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l04.q4",
+   "lessonId": "music-theory-elementary.l04",
+   "kind": "mcq",
+   "prompt": "Which pair of notes together lasts 3 beats?",
+   "choices": [
+    "A half note and a quarter note",
+    "Two quarter notes",
+    "A whole note",
+    "Four eighth notes"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l04.q5",
+   "lessonId": "music-theory-elementary.l04",
+   "kind": "tf",
+   "prompt": "A sixteenth note lasts longer than an eighth note.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l05.q1",
+   "lessonId": "music-theory-elementary.l05",
+   "kind": "mcq",
+   "prompt": "How many beats are in each measure of 3/4?",
+   "choices": [
+    "3",
+    "4",
+    "2",
+    "6"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l05.q2",
+   "lessonId": "music-theory-elementary.l05",
+   "kind": "mcq",
+   "prompt": "In 4/4, what does the bottom number 4 tell you?",
+   "choices": [
+    "A whole note gets one beat",
+    "A quarter note gets one beat",
+    "There are four measures",
+    "The music is very fast"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l05.q3",
+   "lessonId": "music-theory-elementary.l05",
+   "kind": "tf",
+   "prompt": "In 2/4 there are two quarter-note beats in each measure.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l05.q4",
+   "lessonId": "music-theory-elementary.l05",
+   "kind": "mcq",
+   "prompt": "Which time signature has the swaying feel of a waltz?",
+   "choices": [
+    "2/4",
+    "4/4",
+    "1/4",
+    "3/4"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l05.q5",
+   "lessonId": "music-theory-elementary.l05",
+   "kind": "mcq",
+   "prompt": "A 4/4 measure contains a half note and one quarter note. How many beats are still needed to fill it?",
+   "choices": [
+    "1",
+    "2",
+    "3",
+    "0"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l06.q1",
+   "lessonId": "music-theory-elementary.l06",
+   "kind": "mcq",
+   "prompt": "What does a dot after a note do?",
+   "choices": [
+    "Doubles the note value",
+    "Makes the note silent",
+    "Subtracts half the note value",
+    "Adds half the note value"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l06.q2",
+   "lessonId": "music-theory-elementary.l06",
+   "kind": "mcq",
+   "prompt": "How many beats does a dotted half note get in 4/4?",
+   "choices": [
+    "3",
+    "2",
+    "4",
+    "1"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l06.q3",
+   "lessonId": "music-theory-elementary.l06",
+   "kind": "mcq",
+   "prompt": "How many beats does a dotted quarter note get?",
+   "choices": [
+    "3",
+    "1 1/2",
+    "2",
+    "1"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l06.q4",
+   "lessonId": "music-theory-elementary.l06",
+   "kind": "tf",
+   "prompt": "A tie joins two notes of the same pitch into one longer sound.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l06.q5",
+   "lessonId": "music-theory-elementary.l06",
+   "kind": "mcq",
+   "prompt": "A quarter note tied to a half note lasts how many beats?",
+   "choices": [
+    "2",
+    "4",
+    "1",
+    "3"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l07.q1",
+   "lessonId": "music-theory-elementary.l07",
+   "kind": "mcq",
+   "prompt": "A measure of 3/4 has a half note. Which note fills the rest of the measure?",
+   "choices": [
+    "A whole note",
+    "An eighth note",
+    "A quarter note",
+    "A half note"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l07.q2",
+   "lessonId": "music-theory-elementary.l07",
+   "kind": "tf",
+   "prompt": "Eighth notes are often counted as \"1 and 2 and\".",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l07.q3",
+   "lessonId": "music-theory-elementary.l07",
+   "kind": "mcq",
+   "prompt": "How many eighth notes fit in one measure of 2/4?",
+   "choices": [
+    "4",
+    "2",
+    "8",
+    "6"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l07.q4",
+   "lessonId": "music-theory-elementary.l07",
+   "kind": "mcq",
+   "prompt": "A 4/4 measure has a quarter note, a quarter rest, then a half note. On which beats do you start playing a note?",
+   "choices": [
+    "1, 2 and 3",
+    "1 and 3",
+    "1 and 2",
+    "2 and 3"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l07.q5",
+   "lessonId": "music-theory-elementary.l07",
+   "kind": "tf",
+   "prompt": "A whole note fits inside one measure of 3/4.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l08.q1",
+   "lessonId": "music-theory-elementary.l08",
+   "kind": "mcq",
+   "prompt": "What is the pattern of steps in a major scale?",
+   "choices": [
+    "Whole, whole, whole, half, whole, whole, half",
+    "Whole, whole, half, whole, whole, whole, half",
+    "Half, half, whole, half, half, half, whole",
+    "Whole, half, whole, half, whole, half, whole"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l08.q2",
+   "lessonId": "music-theory-elementary.l08",
+   "kind": "mcq",
+   "prompt": "Which notes make up the C major scale?",
+   "choices": [
+    "C D Eb F G A Bb C",
+    "C E G C E G C E",
+    "C D E F G A B C",
+    "C D E F# G A B C"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l08.q3",
+   "lessonId": "music-theory-elementary.l08",
+   "kind": "tf",
+   "prompt": "A major scale has eight notes if you count the starting note again at the top.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l08.q4",
+   "lessonId": "music-theory-elementary.l08",
+   "kind": "mcq",
+   "prompt": "Between which pairs of notes in C major are the half steps?",
+   "choices": [
+    "E to F and B to C",
+    "C to D and D to E",
+    "F to G and G to A",
+    "A to B and B to C"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l08.q5",
+   "lessonId": "music-theory-elementary.l08",
+   "kind": "mcq",
+   "prompt": "Which note is a whole step above C?",
+   "choices": [
+    "D-flat",
+    "D",
+    "C-sharp",
+    "E"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l09.q1",
+   "lessonId": "music-theory-elementary.l09",
+   "kind": "mcq",
+   "prompt": "Which sharp does the G major scale have?",
+   "choices": [
+    "F-sharp",
+    "C-sharp",
+    "G-sharp",
+    "B-sharp"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l09.q2",
+   "lessonId": "music-theory-elementary.l09",
+   "kind": "mcq",
+   "prompt": "Which sharps does D major have?",
+   "choices": [
+    "B-flat and E-flat",
+    "F-sharp and C-sharp",
+    "F-sharp only",
+    "C-sharp and G-sharp"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l09.q3",
+   "lessonId": "music-theory-elementary.l09",
+   "kind": "mcq",
+   "prompt": "Which flat does the F major scale have?",
+   "choices": [
+    "A-flat",
+    "F-flat",
+    "B-flat",
+    "E-flat"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l09.q4",
+   "lessonId": "music-theory-elementary.l09",
+   "kind": "tf",
+   "prompt": "B-flat major has two flats, B-flat and E-flat.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l09.q5",
+   "lessonId": "music-theory-elementary.l09",
+   "kind": "mcq",
+   "prompt": "What is the third note of the D major scale?",
+   "choices": [
+    "F-sharp",
+    "F",
+    "G",
+    "E"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l10.q1",
+   "lessonId": "music-theory-elementary.l10",
+   "kind": "tf",
+   "prompt": "A key signature is written at the start of the staff, right after the clef.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l10.q2",
+   "lessonId": "music-theory-elementary.l10",
+   "kind": "mcq",
+   "prompt": "A key signature with one sharp (F-sharp) means which major key?",
+   "choices": [
+    "G major",
+    "D major",
+    "F major",
+    "C major"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l10.q3",
+   "lessonId": "music-theory-elementary.l10",
+   "kind": "mcq",
+   "prompt": "A key signature with one flat (B-flat) means which major key?",
+   "choices": [
+    "D major",
+    "F major",
+    "B-flat major",
+    "G major"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l10.q4",
+   "lessonId": "music-theory-elementary.l10",
+   "kind": "mcq",
+   "prompt": "A key signature with two flats (B-flat and E-flat) means which major key?",
+   "choices": [
+    "D major",
+    "E-flat major",
+    "B-flat major",
+    "F major"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l10.q5",
+   "lessonId": "music-theory-elementary.l10",
+   "kind": "tf",
+   "prompt": "In a key signature, the first sharp is F-sharp and the second is C-sharp.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l11.q1",
+   "lessonId": "music-theory-elementary.l11",
+   "kind": "mcq",
+   "prompt": "What interval is C up to E?",
+   "choices": [
+    "A 4th",
+    "A 5th",
+    "A 3rd",
+    "A 2nd"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l11.q2",
+   "lessonId": "music-theory-elementary.l11",
+   "kind": "mcq",
+   "prompt": "What interval is C up to G?",
+   "choices": [
+    "A 4th",
+    "A 6th",
+    "A 3rd",
+    "A 5th"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l11.q3",
+   "lessonId": "music-theory-elementary.l11",
+   "kind": "mcq",
+   "prompt": "What is the interval from C up to the next C?",
+   "choices": [
+    "An octave",
+    "A 7th",
+    "A unison",
+    "A 6th"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l11.q4",
+   "lessonId": "music-theory-elementary.l11",
+   "kind": "tf",
+   "prompt": "C up to D is a 2nd.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l11.q5",
+   "lessonId": "music-theory-elementary.l11",
+   "kind": "mcq",
+   "prompt": "What interval is D up to A?",
+   "choices": [
+    "A 6th",
+    "A 3rd",
+    "A 5th",
+    "A 4th"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l12.q1",
+   "lessonId": "music-theory-elementary.l12",
+   "kind": "mcq",
+   "prompt": "Which scale degree is the tonic?",
+   "choices": [
+    "The seventh",
+    "The first",
+    "The second",
+    "The fifth"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l12.q2",
+   "lessonId": "music-theory-elementary.l12",
+   "kind": "mcq",
+   "prompt": "Which scale degree is the dominant?",
+   "choices": [
+    "The fourth",
+    "The third",
+    "The fifth",
+    "The first"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l12.q3",
+   "lessonId": "music-theory-elementary.l12",
+   "kind": "mcq",
+   "prompt": "What is the dominant note in C major?",
+   "choices": [
+    "F",
+    "E",
+    "D",
+    "G"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l12.q4",
+   "lessonId": "music-theory-elementary.l12",
+   "kind": "mcq",
+   "prompt": "What is the dominant note in G major?",
+   "choices": [
+    "D",
+    "C",
+    "E",
+    "A"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l12.q5",
+   "lessonId": "music-theory-elementary.l12",
+   "kind": "tf",
+   "prompt": "Many tunes in a major key end on the tonic, which gives a feeling of rest.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l13.q1",
+   "lessonId": "music-theory-elementary.l13",
+   "kind": "mcq",
+   "prompt": "What does forte mean?",
+   "choices": [
+    "Loud",
+    "Soft",
+    "Fast",
+    "Slow"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l13.q2",
+   "lessonId": "music-theory-elementary.l13",
+   "kind": "mcq",
+   "prompt": "What does piano mean as a dynamic?",
+   "choices": [
+    "Detached",
+    "Soft",
+    "Loud",
+    "Fast"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l13.q3",
+   "lessonId": "music-theory-elementary.l13",
+   "kind": "tf",
+   "prompt": "A crescendo means gradually getting louder.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l13.q4",
+   "lessonId": "music-theory-elementary.l13",
+   "kind": "mcq",
+   "prompt": "Which list is in order from softest to loudest?",
+   "choices": [
+    "ff, f, mf, p",
+    "mf, pp, ff, p",
+    "p, pp, f, ff",
+    "pp, p, mf, ff"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l13.q5",
+   "lessonId": "music-theory-elementary.l13",
+   "kind": "mcq",
+   "prompt": "What does diminuendo mean?",
+   "choices": [
+    "Gradually getting softer",
+    "Gradually getting louder",
+    "Suddenly very loud",
+    "Gradually slowing down"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l14.q1",
+   "lessonId": "music-theory-elementary.l14",
+   "kind": "mcq",
+   "prompt": "What does allegro mean?",
+   "choices": [
+    "Slow",
+    "Very soft",
+    "Walking pace",
+    "Fast and lively"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l14.q2",
+   "lessonId": "music-theory-elementary.l14",
+   "kind": "mcq",
+   "prompt": "What does adagio mean?",
+   "choices": [
+    "Slow",
+    "Very fast",
+    "Loud",
+    "Gradually faster"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l14.q3",
+   "lessonId": "music-theory-elementary.l14",
+   "kind": "mcq",
+   "prompt": "Which word means very fast?",
+   "choices": [
+    "Moderato",
+    "Presto",
+    "Largo",
+    "Andante"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l14.q4",
+   "lessonId": "music-theory-elementary.l14",
+   "kind": "mcq",
+   "prompt": "What does ritardando (rit.) mean?",
+   "choices": [
+    "Return to the original speed",
+    "Hold the note longer",
+    "Gradually slowing down",
+    "Gradually speeding up"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l14.q5",
+   "lessonId": "music-theory-elementary.l14",
+   "kind": "tf",
+   "prompt": "At 60 beats per minute, each beat lasts one second.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l15.q1",
+   "lessonId": "music-theory-elementary.l15",
+   "kind": "mcq",
+   "prompt": "Which instrument family does the trumpet belong to?",
+   "choices": [
+    "Strings",
+    "Percussion",
+    "Brass",
+    "Woodwinds"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l15.q2",
+   "lessonId": "music-theory-elementary.l15",
+   "kind": "mcq",
+   "prompt": "Which of these is a woodwind instrument?",
+   "choices": [
+    "Trumpet",
+    "Cello",
+    "Timpani",
+    "Oboe"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l15.q3",
+   "lessonId": "music-theory-elementary.l15",
+   "kind": "tf",
+   "prompt": "The violin, viola, cello and double bass are all in the string family.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l15.q4",
+   "lessonId": "music-theory-elementary.l15",
+   "kind": "mcq",
+   "prompt": "Which is the largest and lowest of the bowed string instruments?",
+   "choices": [
+    "Cello",
+    "Double bass",
+    "Violin",
+    "Viola"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l15.q5",
+   "lessonId": "music-theory-elementary.l15",
+   "kind": "tf",
+   "prompt": "The flute is a brass instrument because it is made of metal.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l16.q1",
+   "lessonId": "music-theory-elementary.l16",
+   "kind": "mcq",
+   "prompt": "Which family sits nearest the front of the orchestra?",
+   "choices": [
+    "Woodwinds",
+    "Strings",
+    "Brass",
+    "Percussion"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l16.q2",
+   "lessonId": "music-theory-elementary.l16",
+   "kind": "tf",
+   "prompt": "The percussion section usually sits at the back of the orchestra.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l16.q3",
+   "lessonId": "music-theory-elementary.l16",
+   "kind": "mcq",
+   "prompt": "Who stands at the front of the orchestra to lead the players?",
+   "choices": [
+    "The timpanist",
+    "The tuba player",
+    "The harpist",
+    "The conductor"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l16.q4",
+   "lessonId": "music-theory-elementary.l16",
+   "kind": "mcq",
+   "prompt": "Where do the woodwinds usually sit?",
+   "choices": [
+    "In the middle, behind the strings",
+    "At the very front",
+    "At the very back",
+    "Beside the conductor on the podium"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l16.q5",
+   "lessonId": "music-theory-elementary.l16",
+   "kind": "mcq",
+   "prompt": "Which instrument would you most likely find at the very back of an orchestra?",
+   "choices": [
+    "Viola",
+    "Timpani",
+    "Violin",
+    "Flute"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l17.q1",
+   "lessonId": "music-theory-elementary.l17",
+   "kind": "mcq",
+   "prompt": "Which letters show the form of a song that begins with a section, changes, and then repeats the first section?",
+   "choices": [
+    "ABA",
+    "AAB",
+    "ABB",
+    "ABC"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l17.q2",
+   "lessonId": "music-theory-elementary.l17",
+   "kind": "tf",
+   "prompt": "AB form has two different, contrasting sections.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l17.q3",
+   "lessonId": "music-theory-elementary.l17",
+   "kind": "mcq",
+   "prompt": "Which pattern is a simple rondo?",
+   "choices": [
+    "AABB",
+    "ABCD",
+    "ABACA",
+    "ABAB"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l17.q4",
+   "lessonId": "music-theory-elementary.l17",
+   "kind": "mcq",
+   "prompt": "What happens in theme and variations?",
+   "choices": [
+    "Two unrelated tunes are mixed",
+    "Each section is played louder",
+    "The tune is played once only",
+    "A tune is repeated, changed each time"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l17.q5",
+   "lessonId": "music-theory-elementary.l17",
+   "kind": "mcq",
+   "prompt": "A piece has the form ABA. Counting the first and last, how many times do we hear the A section in all?",
+   "choices": [
+    "2",
+    "1",
+    "3",
+    "0"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l18.q1",
+   "lessonId": "music-theory-elementary.l18",
+   "kind": "mcq",
+   "prompt": "Which composer was born in Salzburg?",
+   "choices": [
+    "Bach",
+    "Beethoven",
+    "Tchaikovsky",
+    "Mozart"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l18.q2",
+   "lessonId": "music-theory-elementary.l18",
+   "kind": "mcq",
+   "prompt": "Which composer wrote nine symphonies and gradually lost his hearing?",
+   "choices": [
+    "Beethoven",
+    "Bach",
+    "Mozart",
+    "Joplin"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l18.q3",
+   "lessonId": "music-theory-elementary.l18",
+   "kind": "tf",
+   "prompt": "Bach was a German composer from the Baroque period.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l18.q4",
+   "lessonId": "music-theory-elementary.l18",
+   "kind": "mcq",
+   "prompt": "Who composed the Brandenburg Concertos?",
+   "choices": [
+    "Beethoven",
+    "Clara Schumann",
+    "Bach",
+    "Mozart"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l18.q5",
+   "lessonId": "music-theory-elementary.l18",
+   "kind": "tf",
+   "prompt": "Mozart lived to be over 80 years old.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l19.q1",
+   "lessonId": "music-theory-elementary.l19",
+   "kind": "mcq",
+   "prompt": "Which composer is famous for ragtime pieces such as Maple Leaf Rag?",
+   "choices": [
+    "Bach",
+    "Mozart",
+    "Scott Joplin",
+    "Tchaikovsky"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l19.q2",
+   "lessonId": "music-theory-elementary.l19",
+   "kind": "mcq",
+   "prompt": "Which Russian composer wrote the ballet The Nutcracker?",
+   "choices": [
+    "Beethoven",
+    "Joplin",
+    "Clara Schumann",
+    "Tchaikovsky"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l19.q3",
+   "lessonId": "music-theory-elementary.l19",
+   "kind": "tf",
+   "prompt": "Clara Schumann was both a pianist and a composer.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l19.q4",
+   "lessonId": "music-theory-elementary.l19",
+   "kind": "mcq",
+   "prompt": "Which composer was Clara Schumann married to?",
+   "choices": [
+    "Franz Liszt",
+    "Robert Schumann",
+    "Johannes Brahms",
+    "Ludwig van Beethoven"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l19.q5",
+   "lessonId": "music-theory-elementary.l19",
+   "kind": "mcq",
+   "prompt": "Which feature is a hallmark of ragtime?",
+   "choices": [
+    "No melody",
+    "Only soft dynamics",
+    "Syncopation",
+    "Only slow tempos"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l20.q1",
+   "lessonId": "music-theory-elementary.l20",
+   "kind": "mcq",
+   "prompt": "What is a good first step when composing a short melody?",
+   "choices": [
+    "Play as fast as possible",
+    "Choose a key and a time signature",
+    "Write the last note only",
+    "Choose the dynamics only"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l20.q2",
+   "lessonId": "music-theory-elementary.l20",
+   "kind": "tf",
+   "prompt": "A four-measure melody in 4/4 contains 16 quarter-note beats.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l20.q3",
+   "lessonId": "music-theory-elementary.l20",
+   "kind": "mcq",
+   "prompt": "You write 2 measures in 4/4. How many quarter-note beats must you fill?",
+   "choices": [
+    "4",
+    "6",
+    "16",
+    "8"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l20.q4",
+   "lessonId": "music-theory-elementary.l20",
+   "kind": "mcq",
+   "prompt": "Which ending note most strongly makes a tune in C major sound finished?",
+   "choices": [
+    "C, the tonic",
+    "A note outside the key",
+    "B, the seventh note",
+    "A long rest before the end"
+   ]
+  },
+  {
+   "id": "music-theory-elementary.l20.q5",
+   "lessonId": "music-theory-elementary.l20",
+   "kind": "mcq",
+   "prompt": "A 3/4 measure contains a dotted half note. How many more beats are needed to fill it?",
+   "choices": [
+    "3",
+    "0",
+    "1",
+    "2"
+   ]
+  }
+ ]
+}

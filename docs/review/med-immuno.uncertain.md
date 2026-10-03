@@ -1,0 +1,23 @@
+# med-immuno: claims for expert review
+
+- l02: complement regulators and the statement that eculizumab raises meningococcal risk and needs vaccination first (well established, but check current labeling/REMS wording).
+- l02: C1 inhibitor deficiency "low C4" between attacks (true for most type I/II HAE; confirm phrasing).
+- l03: CGD "most often X-linked CYBB"; list of catalase-positive organisms (Nocardia, Serratia, Burkholderia) as typical.
+- l04: colchicine/anakinra/canakinumab as examples for inflammasome-related autoinflammation (generic statement, no dosing); NOD2-Crohn association.
+- l05: MHC class II peptide length "about 13 to 25"; HLA-DR3/DR4 type 1 diabetes, HLA-DQ2/DQ8 celiac, HLA-B*57:01 abacavir associations; beta-2 microglobulin on chromosome 15.
+- l06: cortical vs medullary location of negative selection (taught as "largely corticomedullary junction and medulla"); statement that Omenn syndrome is hypomorphic RAG.
+- l07: Th subset cytokine/transcription-factor assignments (Th17 induction by TGF-beta, IL-6, IL-23 simplified); CD45RA/CD45RO marker simplification; IL-7 and self-MHC homeostatic survival of naive T cells.
+- l08: IL-4 driving IgG4 switching and IFN-gamma driving IgG subclass switching (simplified); "IgM best complement activator".
+- l09: JAK inhibitor safety wording (zoster, cardiovascular and thrombotic risk) should be checked against current labels; dupilumab described as IL-4 receptor alpha blocker; tofacitinib indications.
+- l10: statement that anergic B cells have a shortened life span; sympathetic ophthalmia as example of sequestered-antigen tolerance loss.
+- l11: late-phase reaction description; IgE-independent (anaphylactoid) mast cell activation by opioids and contrast (naming of anaphylactoid vs non-IgE-mediated varies); omalizumab mechanism.
+- l12: Arthus reaction after too-frequent tetanus boosters; HLA-B*15:02 with carbamazepine in Han Chinese ancestry; claim that type IV reactions "cannot be transferred by serum".
+- l13: PTPN22/CTLA4 genetic associations; antiphospholipid antibodies prolonging aPTT in vitro; ANCA subtype associations (EGPA is only variably ANCA positive).
+- l14: CVID age of presentation and cancer risk (lymphoma, gastric); washed-cell or IgA-deficient donor advice; oral polio vaccine avoidance wording (OPV is no longer used in the US).
+- l15: ADA-SCID given as T-B-NK-; ATM-related raised AFP and low IgA (variable); STAT3 hyper-IgE features; Chediak-Higashi features; "gene therapy in selected types".
+- l16: CD4 thresholds for opportunistic infections are approximate; "treatment for all people with HIV regardless of CD4" and anchor to DHHS 2024 guideline (verify current edition); fourth-generation assay algorithm wording; U=U statement.
+- l17: HLA-A/B/DR matching emphasis for kidney; C4d staining use in antibody-mediated rejection; azathioprine-allopurinol interaction; belatacept and basiliximab mechanisms.
+- l18: list of checkpoint inhibitor indications is partial and changes quickly (as of this writing); CAR-T toxicity list; BCG intravesical therapy.
+- l19: herd immunity "threshold higher for measles"; mRNA vaccine one-line description; CDC ACIP schedule anchor year 2026 (verify the schedule edition); live-attenuated intranasal influenza vaccine classification.
+- l20: Western blot role in HIV confirmation described as historical; free light chain assay sensitivity statement; "low C3 with normal C4 suggests alternative pathway" simplification.
+- Questions: l11.q5 (Rh D sensitization in second pregnancy; first pregnancy can also be affected rarely), l12.q5 (IGRA not affected by BCG), l16.q5 (asplenia and encapsulated organisms in autosplenectomy) are standard but deserve a quick check.

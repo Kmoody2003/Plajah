@@ -1,0 +1,1882 @@
+{
+ "courseId": "lit-studies-early",
+ "label": "Literature Deep Study I: Antiquity to 1800",
+ "lessons": [
+  {
+   "id": "lit-studies-early.l01",
+   "title": "How to Read Closely",
+   "body": [
+    "Close reading is the practice of paying careful attention to how a text says what it says. Instead of asking only \"What happens?\", you ask \"Why did the writer choose these words, in this order, here?\" Every text is a set of choices: which word, which image, which sentence length, which detail to include and which to leave out.",
+    "A simple method has three moves. First, notice: read a short passage slowly, ideally twice, and mark anything that stands out, such as a repeated word, an odd image, a sudden change of tone, or a question. Second, wonder: ask what each noticed detail might do. Does the repetition build tension? Does the image make an abstract idea concrete? Third, argue: form a claim and support it with evidence from the passage itself.",
+    "Take the opening of Shakespeare's Sonnet 18, \"Shall I compare thee to a summer's day?\" The poem begins with a question, so the speaker seems to be thinking aloud. By line 3 the line \"Rough winds do shake the darling buds of May\" begins to list what is wrong with summer: roughness, shaking, and a season that is short. A noticing reader sees that the poem starts as a comparison but quickly turns into a list of summer's flaws. A claim might be: the poem builds its praise by showing that the beloved is steadier than nature.",
+    "Good close reading stays tied to the text. Quote briefly, point to specific words, and say what they do. Opinions are welcome, but a claim that no passage could support is only a guess."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l02",
+   "title": "Genre: Reading With the Right Expectations",
+   "body": [
+    "A genre is a family of works that share conventions, meaning habits that writers use and readers expect. Genre works like a contract: when you open a mystery you expect a puzzle, and when you open a love poem you expect feeling rather than a courtroom argument. Knowing the genre tells you which questions are fair to ask.",
+    "The major families for this course are epic, lyric, drama and narrative prose. An epic is a long narrative poem about heroes and large events, usually told in an elevated style. A lyric is a shorter poem that expresses a speaker's thought or feeling, often in a compressed, musical form. Drama is writing meant to be performed, where characters speak for themselves and the author is mostly absent. Prose narrative, including the novel, tells a story in ordinary sentences rather than lines of verse. Within these families are smaller kinds, such as tragedy, comedy, satire, romance and essay.",
+    "Genres also change over time. Writers imitate, combine and break conventions. Miguel de Cervantes wrote Don Quixote partly by imitating, and gently mocking, the chivalric romances that his hero has read too much of. That joke only works if the reader already knows what a romance is supposed to do.",
+    "When you meet a new work, ask: What genre does it claim to be? What conventions does it follow? Where does it surprise me? A convention that is followed tells you the tradition; a convention that is broken is often where the writer is saying something new."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l03",
+   "title": "Narrative Voice and Point of View",
+   "body": [
+    "Every story has a narrator, the voice that delivers it, and that voice is not the same as the author. A narrator is a created speaker with a position, a range of knowledge and sometimes a motive. Learning to ask \"Who is telling this, and why should I believe them?\" is one of the most useful close-reading skills.",
+    "Point of view describes the narrator's position. In first person, a character says \"I\" and tells the story from inside it, so we only know what that person knows or admits. In third person, a voice outside the characters tells what happens. An omniscient third-person narrator can enter any mind and know the past and future; a limited third-person narrator stays close to one character.",
+    "A narrator can be reliable or unreliable. A reliable narrator gives an account we can trust; an unreliable one may be mistaken, biased or deceptive, and the reader must read around the account. Narration can also be nested: one character tells a story inside another story, a structure called a frame narrative.",
+    "Consider Daniel Defoe's Robinson Crusoe (1719), which opens \"I was born in the year 1632.\" The first-person voice makes the book feel like a true memoir, and it keeps readers inside Crusoe's own interpretation of events. Compare Geoffrey Chaucer's Canterbury Tales, where a character called Chaucer the pilgrim narrates, often praising people with an innocence that invites readers to see more than he says.",
+    "When you read, mark the \"I\" or the voice, and ask what it can and cannot see."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l04",
+   "title": "Theme, Symbol and Imagery",
+   "body": [
+    "A topic is what a work is about, such as war, love or death. A theme is what the work suggests about that topic. \"Death\" is a topic; \"People cope with death by making things that last longer than they do\" is a theme. A theme is a full sentence, and it is an interpretation, so it needs evidence.",
+    "Evidence comes from patterns. Imagery means language that appeals to the senses, such as sights, sounds or textures. A motif is an image, phrase or idea that recurs. A symbol is a concrete thing that stands for something beyond itself, such as a journey standing for a life. Symbols and motifs matter because repetition is how a text points readers toward what it cares about.",
+    "Consider the Epic of Gilgamesh, a Mesopotamian poem. Gilgamesh, king of Uruk, loses his friend Enkidu to death, travels in terror to find eternal life, and fails to gain it. At the end he returns home and the poem draws attention to the walls of Uruk. Walls appear near the beginning and the end of the story, which makes them a motif. A reader can argue that the walls suggest what a mortal can leave behind: lasting work. That reading can be tested against the poem: is there other evidence, such as the framing of the story as something carved or recorded, that supports it?",
+    "Strong theme-statements are specific, arguable and supported by multiple passages. If you can find evidence against your claim, revise the claim rather than ignoring the evidence."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l05",
+   "title": "Gilgamesh: Friendship, Death and Memory",
+   "body": [
+    "The Epic of Gilgamesh is among the oldest surviving literary works. It comes from ancient Mesopotamia and was written in cuneiform on clay tablets. Several Sumerian poems about Gilgamesh come earlier; the most complete version is a later Akkadian poem usually called the Standard Babylonian version, traditionally linked to a scribe named Sin-leqi-unninni. Much of the text we have was recovered from the library at Nineveh in the nineteenth century, and gaps remain where tablets are broken.",
+    "Gilgamesh is king of Uruk, powerful and restless. The gods create Enkidu, a wild man, as his equal. After a struggle they become close friends and undertake adventures, including the defeat of the monster Humbaba in the Cedar Forest. When Enkidu dies, Gilgamesh is overwhelmed by grief and fear of his own death. He travels far to ask Utnapishtim, a survivor of a great flood, how to live forever. He does not gain immortality, and returns to Uruk.",
+    "For close reading, the key choice is how the poem handles its hero's failure. The ending is not a victory over death; it points to the city's walls and the human work that outlasts one life. Notice also the weight placed on friendship, the repeated journey structure, and the way Enkidu's civilizing and dying mirror Gilgamesh's own change.",
+    "Reading approach: trace the movement from ambition to grief to acceptance, and ask which images carry that change. Because the text is fragmentary, remember that every translation involves scholarly choices about gaps."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l06",
+   "title": "The Iliad: Anger, Honor and Loss",
+   "body": [
+    "The Iliad is a Greek epic traditionally attributed to Homer, composed in dactylic hexameter and set in the tenth year of the Trojan War. Scholars debate who Homer was and how the poems reached written form, since they grew out of a long oral tradition. The poem does not tell the whole war. It begins with a single theme, the anger of Achilles, a word that is usually translated \"wrath\" and that opens the poem in Greek.",
+    "Achilles withdraws from fighting after the Greek leader Agamemnon takes away Briseis, a captive woman who had been awarded to him as a prize. Without Achilles the Greeks suffer. When his close friend Patroclus is killed by the Trojan prince Hector, Achilles returns to fight, kills Hector, and mistreats his body. In the last book Priam, Hector's father and king of Troy, comes to Achilles to ask for his son's body, and the two grieve together.",
+    "Oral poetry leaves visible marks. Fixed phrases called epithets, such as \"swift-footed\" for Achilles, helped singers compose and help readers recognize characters. Extended similes compare battle to nature or farm life and briefly widen the picture beyond the battlefield.",
+    "Reading approach: ask what the poem values (honor, glory among one's peers) and what it counts as the cost. Notice that the poem treats Trojans with real sympathy and ends not with victory but with a funeral, so a close reader can argue that grief, not triumph, is its final emphasis."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l07",
+   "title": "The Odyssey: Return, Cunning and Recognition",
+   "body": [
+    "The Odyssey, also attributed to Homer, follows Odysseus, a Greek hero of the Trojan War, as he struggles to get home to Ithaca after ten years of fighting and ten more years of wandering. Where the Iliad centers on a battlefield, the Odyssey centers on a household and a journey: his wife Penelope, his son Telemachus, and suitors who have settled in his home.",
+    "The poem's structure is unusual. It begins late, with Telemachus searching for news of his father, and it delivers Odysseus's famous adventures, including the Cyclops Polyphemus, in a long flashback told by Odysseus himself to a Phaeacian audience. This is a frame narrative with a first-person narrator, so close readers should ask how Odysseus shapes the story. The poem's description of him as a man of many turns points to his cleverness and his habit of disguise.",
+    "Recognition is a central technique. Odysseus returns home disguised as a beggar and is recognized by gradual signs: his old nurse sees a scar, his dog knows him, and Penelope tests him with a secret about their bed. These scenes show that identity depends on memory and shared knowledge, not only on appearance.",
+    "Reading approach: compare the two epics. Where the Iliad prizes glory won in battle, the Odyssey prizes survival, intelligence and homecoming. Ask how hospitality, a code of welcoming strangers, becomes a moral measure of each character the hero meets."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l08",
+   "title": "Sophocles and Greek Tragedy",
+   "body": [
+    "Greek tragedy was performed in Athens in the fifth century BCE as part of religious festivals, notably the City Dionysia, in honor of the god Dionysus. Three tragic poets are mostly preserved: Aeschylus, Sophocles and Euripides. A play had actors and a chorus, a group that sang, danced and commented on the action. The stories came from myth that the audience already knew, so the interest lay in how the story was told.",
+    "Sophocles wrote Oedipus the King and Antigone, among other surviving plays. In Oedipus, a king of Thebes sets out to find the cause of a plague, and as he investigates he learns that he himself is the one responsible, having unknowingly killed his father and married his mother. The audience knows the myth, while the character does not, which produces dramatic irony: the audience understands the words more fully than the speaker. When Oedipus announces that he will track down the guilty person, every line carries a double meaning.",
+    "In Antigone, Creon, ruler of Thebes, forbids burial of a rebel brother, and Antigone buries him anyway. The play is not a simple contest of right and wrong. Both characters appeal to something valuable, loyalty to family and religious duty on one side, order in the city on the other.",
+    "Reading approach: identify the moment of recognition, the chorus's role, and the speeches in which characters justify themselves. Ask whether each character is making a reasoned choice, and what the play suggests about knowledge, responsibility and limits."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l09",
+   "title": "Euripides: Tragedy That Questions",
+   "body": [
+    "Euripides, the third of the great Athenian tragedians, wrote dozens of plays, of which a good number survive, including Medea, The Trojan Women and The Bacchae. Compared with Sophocles, Euripides often puts women, foreigners and the defeated at the centre, and he often questions the assumptions of the society watching.",
+    "Medea was first performed in 431 BCE. Medea is a woman from a foreign land who helped Jason win the Golden Fleece, left her homeland for him, and is then abandoned when he arranges a more advantageous marriage. Her revenge, which includes the killing of her own children, is shocking and the play does not make it easy to judge. She speaks about the position of women and about being a stranger without protection, so the audience understands her pain even as they recoil from her act. The play lets us ask both \"What was done to her?\" and \"What does she do?\"",
+    "The Trojan Women shows the aftermath of the fall of Troy from the viewpoint of the women who will be enslaved. Rather than celebrating the victors, it dwells on loss.",
+    "Reading approach: pay attention to the debates, called agon, in which characters argue opposing positions, and ask who has the best argument and who has the better outcome. Euripides also sometimes ends plays with a god appearing to settle matters, which can feel abrupt; consider whether that ending resolves the human problem or exposes it."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l10",
+   "title": "Aristotle's Poetics: The First Theory of Tragedy",
+   "body": [
+    "Aristotle, the Greek philosopher of the fourth century BCE, wrote the Poetics, a short and influential work of literary theory. It survives in a compressed form that reads like notes. Its main subject is tragedy, which Aristotle describes as an imitation (mimesis) of a serious action that is complete and of a certain size.",
+    "He divides tragedy into six parts: plot, character, thought, diction, melody and spectacle. Plot (mythos) ranks first because it is the arrangement of the events, and he wants plots with a beginning, middle and end linked by probability or necessity. Two terms for plot turns are especially useful. Peripeteia is a reversal, when events turn to the opposite of what was expected. Anagnorisis is recognition, a move from ignorance to knowledge. Aristotle admires plots in which the two coincide, and he uses Sophocles's Oedipus the King as his example.",
+    "Several terms are debated. Catharsis, the effect tragedy has on pity and fear, has been read as purging, purifying or clarifying emotion. Hamartia, the error that leads to a downfall, is sometimes translated \"tragic flaw\", but many scholars prefer \"mistake\" or \"error\".",
+    "A common myth is that Aristotle laid down three \"unities\" of time, place and action. He stresses unity of action; the rest were codified by later critics.",
+    "Reading approach: use Aristotle as a lens, not a rulebook. Apply his terms to a play and ask where they fit, and where the play does something his categories do not describe."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l11",
+   "title": "Virgil's Aeneid: Epic for Rome",
+   "body": [
+    "Virgil, a Roman poet who lived in the first century BCE, composed the Aeneid in Latin in the years before his death in 19 BCE, during the rule of Augustus. Its first words, \"arma virumque cano,\" announce its subject: arms and the man. The man is Aeneas, a Trojan survivor who flees the fallen city of Troy and journeys to Italy, where his descendants will eventually found Rome.",
+    "Virgil writes in conscious conversation with Homer. Traditionally the first half is said to echo the Odyssey, with a wandering hero, and the second half the Iliad, with war in Italy. Learning to spot allusion, the borrowing and reworking of earlier work, is a core skill here. Aeneas is not driven by personal glory but by pietas, a Roman idea of dutiful devotion to family, gods and homeland.",
+    "That duty has costs. In Book 4, Aeneas stays in Carthage and loves Dido, its queen, but the gods command him to leave, and Dido, abandoned, takes her own life. In Book 6 he visits the underworld and sees a procession of future Roman heroes. The poem ends abruptly with Aeneas killing a defeated enemy, Turnus, in anger.",
+    "Scholars debate whether the Aeneid celebrates Augustan Rome or quietly questions the price of empire, and many readers find both.",
+    "Reading approach: weigh the poem's praise of destiny against its moments of grief. Ask which characters the poem makes us feel for, and what that suggests."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l12",
+   "title": "The Bible as Literature",
+   "body": [
+    "For billions of people, the Bible is sacred scripture, and a literary reading does not replace or judge that faith. A literary approach describes how the texts are written: their genres, techniques and influence. This lesson takes that descriptive approach with respect for readers of every belief.",
+    "The Bible is a library, not a single book. The Hebrew Bible, called the Old Testament in Christian tradition, includes narrative (Genesis, Exodus, Samuel), law, prophecy, poetry (Psalms, Song of Songs) and wisdom writing (Proverbs, Job, Ecclesiastes). The New Testament includes four gospels, the Acts of the Apostles, letters and the Book of Revelation. Each genre invites different reading habits. A psalm is a poem meant to be sung or prayed; a proverb is a compact saying; a prophetic book often uses vivid, symbolic language.",
+    "Biblical narrative is famously spare. It often gives few details of motive or appearance and leaves gaps for readers to fill. Biblical poetry commonly uses parallelism, in which a second line repeats, extends or contrasts the first. Psalm 23 opens \"The Lord is my shepherd; I shall not want\" in the King James Version, and its shepherd image illustrates how metaphor carries meaning.",
+    "The King James Version, published in 1611, had large influence on English style, and many everyday phrases come through it.",
+    "Reading approach: identify the genre first, then ask how form shapes meaning. Note which translation you are reading, since each makes choices, and keep the question of what a text means to believers separate from the question of how it is built."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l13",
+   "title": "The Quran as Literature",
+   "body": [
+    "For Muslims, the Quran is the word of God as revealed to the Prophet Muhammad, and it is regarded as unique and inimitable. A literary approach does not question that belief. It describes features of the text that readers and scholars of every background notice, and it does so respectfully.",
+    "The Quran is arranged in 114 chapters called surahs, made of verses called ayat. Surahs are not ordered by date of revelation or chronology; broadly, longer surahs come earlier in the book and shorter ones later. According to Muslim tradition, the revelation came over about twenty-three years. The Quran is understood as being primarily an oral text: it is recited aloud, and its sound is central to how it is experienced. Verse endings often share a rhyme-like pattern, and repetition and refrain create a distinctive rhythm. In Surah 55 (Ar-Rahman), a refrain returns again and again, asking which of the Lord's favors one will deny.",
+    "The Quran contains many modes: oaths, commands, parables, prayers, laws and stories of earlier prophets. Surah 12, the story of Yusuf (Joseph), is told as one continuous narrative, unlike many other surahs, and describes itself as the best of stories.",
+    "Reading approach: remember that translations are interpretations and cannot reproduce the Arabic's sound. Ask how form matches content, such as short, forceful surahs and long legal ones, and keep the text's own self-descriptions distinct from outside commentary."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l14",
+   "title": "The Mahabharata and the Ramayana",
+   "body": [
+    "The Mahabharata and the Ramayana are the two great Sanskrit epics of India. They have been retold for centuries across South and Southeast Asia in many languages, in performance, and in art, and they remain living texts for many Hindus.",
+    "The Mahabharata is traditionally attributed to the sage Vyasa and is among the longest poems in the world, traditionally counted at around 100,000 verses. Its central story is a conflict between two branches of a royal family, the Pandavas and the Kauravas, culminating in a great war at Kurukshetra. The epic is a vast container: stories nested inside stories, teachings on duty (dharma), and the Bhagavad Gita, a philosophical dialogue between the warrior Arjuna and Krishna set just before the battle. Its moral world is deliberately complex; heroes make troubling choices, and the war's costs are shown.",
+    "The Ramayana is traditionally attributed to the poet Valmiki. It tells of Rama, a prince sent into forest exile, the abduction of his wife Sita by the demon king Ravana, and the rescue aided by the devoted Hanuman. It is often read as an account of ideals of duty and loyalty, though later retellings and readers have also debated how Sita is treated.",
+    "Both works grew over a long period, so scholars see layers of composition rather than a single author.",
+    "Reading approach: pay attention to nested narration and to the central question that recurs: what does duty require when duties conflict? Compare how different retellings answer it."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l15",
+   "title": "Confucian Texts: The Analects and the Art of the Short Saying",
+   "body": [
+    "Confucius, a thinker of ancient China, is traditionally dated to 551 to 479 BCE. The Analects (Lunyu) is a collection of sayings and brief conversations attributed to him and his disciples, compiled by followers after his lifetime. It is not a treatise with a single argument; it is a sequence of short scenes, and that form is itself a literary choice.",
+    "Because the text is brief, it demands slow reading. A typical passage gives a question from a student or ruler and a short reply, often without full context. Readers must fill the gaps by comparing passages, which is why the book rewards rereading and why commentaries accumulated over many centuries. Teachers in this tradition expected students to apply sayings to life rather than merely memorize them.",
+    "Key ideas recur across the book. Ren, often translated \"humaneness\" or \"goodness,\" is a central virtue. Li, \"ritual\" or \"proper conduct,\" concerns how respect is expressed in practice. Filial devotion, learning, and virtue in rulers also matter. One passage is often compared to a version of the golden rule: do not impose on others what you would not want for yourself.",
+    "Notice the style: Confucius often answers different students differently, which suggests that the best answer depends on the person. Reading approach: collect passages on one term, such as learning or ren, and ask how the meaning shifts between contexts. Resist turning a short saying into a slogan; ask what situation might have prompted it, and what the teacher expected the listener to do."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l16",
+   "title": "Tang Poetry: Compression, Image and Feeling",
+   "body": [
+    "The Tang dynasty (618 to 907) is often called a golden age of Chinese poetry. Its best-known poets include Li Bai and Du Fu, both of the eighth century. Many Tang poems were written in strict forms, with a fixed number of syllables per line, a set number of lines, and rules about tone and parallelism. Most of that music is lost in translation, so readers of English translations should remember that they see an image-based skeleton.",
+    "Li Bai's \"Quiet Night Thought\" is a four-line poem. The speaker sees bright moonlight by his bed and wonders for a moment whether it is frost on the ground. He looks up at the moon, then lowers his head and thinks of home. A reader can notice the swift shift from the eyes to the heart: the image of moonlight is a way to carry homesickness without naming it.",
+    "Du Fu's \"Spring View\" was written during a period of civil war. Its opening line contrasts a broken state with mountains and rivers that remain, so nature's continuity sharpens the sense of human loss. Du Fu is often associated with a more historical, concerned voice, while Li Bai is often associated with a freer, more imaginative one, though such labels are generalizations.",
+    "Reading approach: ask what each image is doing, what is left unsaid, and how a poem's final line changes the first. In compressed poetry, a missing word is often a decision, and the reader completes the meaning."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l17",
+   "title": "The Tale of Genji: Court Life and the Novel Form",
+   "body": [
+    "The Tale of Genji was written in Japanese in the early eleventh century by Murasaki Shikibu, a woman of the imperial court during the Heian period. It is widely described as one of the earliest major works of prose fiction in the world, though what counts as a \"novel\" is a matter of definition, and the label should be used with care.",
+    "The story follows Hikaru Genji, an emperor's son, and then the generation after him. It is long and episodic, concerned with courtship, rivalry, loss and the shifting fortunes of court families. Much of what we call plot is carried in small scenes: a glimpse through a screen, a letter, a poem exchanged.",
+    "Poetry is woven into the prose. The characters often speak in waka, short poems of five lines, and the choice of paper, handwriting and season of the poem is part of what is communicated. A character who replies badly, or late, reveals something about herself. For a reader today, this means that the point of many scenes is social and emotional nuance rather than action.",
+    "A later critic, Motoori Norinaga in the eighteenth century, described the work's central quality with the phrase mono no aware, a sensitivity to the fleeting beauty of things. It is useful as one reading, not the only one.",
+    "Reading approach: pay attention to tone, to what is implied, and to the way impermanence shapes the mood. Ask how the narrator, who seems to stand close to the court, shapes sympathy for each character."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l18",
+   "title": "Arabic Poetry and One Thousand and One Nights",
+   "body": [
+    "Poetry held a central place in Arabic culture long before the rise of Islam. The classical pre-Islamic ode, the qasida, was recited orally and followed a recognizable arc: it often opens by remembering a lost love at an abandoned campsite, moves to a description of a journey or an animal, and closes with praise, boast or reflection. A group of famous early odes is known as the Mu'allaqat, and poets such as Imru' al-Qays are among their best-known names. Reading them, notice the balance of nostalgia and pride, and the way landscape images carry feeling.",
+    "One Thousand and One Nights, also called the Arabian Nights, is a collection of tales whose frame story is the heart of its design. King Shahryar, betrayed, decides to marry and execute a new wife each day. Shahrazad volunteers, and each night she begins a story and leaves it unfinished, so that he lets her live to finish it. Stories nest inside stories, so storytelling becomes a means of survival.",
+    "The collection took shape over many centuries from sources across the Middle East and beyond. Its contents vary by manuscript. Antoine Galland's French translation in the early 1700s helped popularize it in Europe, and some of the tales best known today, such as Aladdin, are not found in the earliest Arabic manuscripts.",
+    "Reading approach: identify the frame and ask how each story reflects it. Ask what storytelling does for Shahrazad, and how repeated cliffhangers shape the reader's attention."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l19",
+   "title": "Beowulf: Old English Verse and the Heroic World",
+   "body": [
+    "Beowulf is the longest surviving heroic poem in Old English, the language of early medieval England. It survives in a single manuscript from around the year 1000; scholars debate when the poem itself was composed. The setting is Scandinavia, not England: the hero Beowulf, a warrior of the Geats, travels to Denmark to help King Hrothgar, whose hall is attacked by the monster Grendel.",
+    "Its poetic form is alliterative. Rather than rhyme, lines are built from two halves divided by a pause called a caesura, with stressed words sharing initial sounds. The poem opens with the word \"Hwaet,\" often translated \"Listen\" or \"So,\" a call to attention that suggests an oral performance. Kennings are compound metaphors for familiar things, such as \"whale-road\" for the sea.",
+    "The plot has three parts: the fights with Grendel, with Grendel's mother, and, decades later, with a dragon, which proves fatal to the aged king Beowulf. The poem repeatedly steps aside to mention other stories and past feuds, and the effect is to suggest a world in which heroic glory is temporary.",
+    "The poem also mixes worlds. Its characters live in a pre-Christian past, but the poet, almost certainly Christian, reflects on fate and God, and critics debate how these views fit.",
+    "Reading approach: attend to the digressions and to the gloomy moments, such as the funeral at the end. Ask how the poem balances celebration of strength with awareness that every hero dies."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l20",
+   "title": "Medieval Romance and the Quest",
+   "body": [
+    "Medieval romance is a narrative genre that flourished from the twelfth century onward, first in French and then across Europe. The word \"romance\" originally referred to works written in a vernacular Romance language rather than Latin. Where an epic like Beowulf concerns a hero's duty to a people, romance is more often about an individual knight's adventure, with themes of love, honor and the tests of chivalry.",
+    "Chretien de Troyes, a French poet of the twelfth century, wrote some of the earliest major Arthurian romances. They tell of knights of King Arthur's court who set out on a quest, meet marvels, and learn something about themselves. Typical features include a journey away from court, a series of trials, a moral or romantic test, and a return. Courtly love, in which a knight serves a lady in devoted, often secret, devotion, appears in many romances, though scholars debate how far it reflected real life.",
+    "Sir Gawain and the Green Knight is a late fourteenth-century Middle English romance by an anonymous poet. A mysterious green challenger offers a beheading game at Arthur's court, and Gawain takes the challenge. Later he is tested by a host's wife and is given a magic girdle. The poem shows how romance can examine the gap between the ideal of chivalry and the frailty of a person.",
+    "Reading approach: note what the quest tests, such as honesty or courage, and where the hero falls short. Ask whether the marvelous elements are decoration or a way of externalizing the hero's inner life."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l21",
+   "title": "Dante's Divine Comedy: A Journey in Three Parts",
+   "body": [
+    "The Divine Comedy, completed by the Italian poet Dante Alighieri shortly before his death in 1321, is one of the central works of world literature. It follows a narrator named Dante through the Christian afterlife: Inferno (Hell), Purgatorio (Purgatory) and Paradiso (Heaven). Each part has thirty-three cantos, with one extra opening canto, for a total of one hundred.",
+    "It begins, in Longfellow's English version, \"Midway upon the journey of our life,\" with the speaker lost in a dark wood. The Roman poet Virgil, honored by Dante as a master, guides him through Hell and Purgatory. Beatrice, a figure from Dante's life and imagination, leads him through Paradise.",
+    "Form is meaning here. The poem is written in terza rima, a rhyme scheme linking three-line stanzas in the pattern aba, bcb, cdc, and the number three recurs throughout the structure. Dante also wrote in the Tuscan vernacular, not Latin, a decision that raised the status of Italian as a literary language.",
+    "In Inferno, sinners are punished in ways that reflect their sins, a principle often called contrapasso. These punishments allow Dante to comment on politics and morality, including figures of his own time.",
+    "Close reading requires distinguishing Dante the poet, who arranges the story, from Dante the pilgrim, who is shown learning and sometimes pitying the sinners. Ask what the pilgrim understands at each stage, and how the poet's design shapes the reader's reactions."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l22",
+   "title": "Chaucer's Canterbury Tales: Many Voices, One Frame",
+   "body": [
+    "Geoffrey Chaucer wrote The Canterbury Tales in Middle English in the late fourteenth century, and he left it unfinished. A group of pilgrims on the way to the shrine at Canterbury agree to tell stories to pass the time. In the General Prologue the narrator plans for each pilgrim to tell more tales than were eventually written, so we have a collection with gaps and uncertain order.",
+    "The poem opens, \"Whan that Aprille with his shoures soote,\" a springtime scene that sets the pilgrimage in motion. The frame narrative lets Chaucer assemble many types of people, including a knight, a miller, a prioress and the Wife of Bath, and many styles of storytelling: romance, fable, fabliau (a comic, often bawdy tale), sermon and more.",
+    "Voice is central. Chaucer the pilgrim, the narrator, is a created figure who describes others with apparent admiration, even when details suggest faults. The gap between what the narrator says and what the details show is a source of irony and humor. The tales also characterize their tellers: the Wife of Bath's Prologue speaks at length about marriage and experience, and the quarrels between pilgrims show that the tales respond to each other.",
+    "Chaucer's verse is mainly in rhymed couplets of roughly ten syllables.",
+    "Reading approach: for any tale, ask how it fits its teller, what the frame adds, and where the narrator's praise and the details disagree."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l23",
+   "title": "Shakespeare's Sonnets: Argument in Fourteen Lines",
+   "body": [
+    "A sonnet is a fourteen-line poem, usually in iambic pentameter, which means lines of ten syllables in an alternating weak-strong beat. The form came to English from Italy, where Petrarch popularized it. William Shakespeare's sonnets, 154 in number, were published in 1609. The usual Shakespearean pattern is three quatrains of four lines, rhymed abab cdcd efef, and a closing couplet, gg.",
+    "Structure suggests argument. The quatrains typically develop an idea or image, and a turn, often called the volta, shifts direction, frequently at the couplet. In Sonnet 18, the first lines propose a comparison with a summer's day, the middle quatrains explain why summer falls short, and the couplet claims that the poem itself will keep the beloved alive.",
+    "Shakespeare also plays with convention. Petrarchan poets often praised a beloved with stock comparisons to the sun, coral and roses. Sonnet 130 opens \"My mistress' eyes are nothing like the sun,\" and it lists ways she does not match those clichés. The couplet reveals that the speaker loves her nonetheless, and claims that this love is more honest than exaggerated praise. The poem is both a parody and a love poem.",
+    "Reading approach: map the rhyme scheme, find the turn, and note how each quatrain advances the claim. Ask what the poem proposes, and whether the couplet confirms, complicates or reverses what came before. Remember that the speaker is a constructed voice, not necessarily the poet."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l24",
+   "title": "Shakespeare's Plays: Soliloquy, Verse and Ambiguity",
+   "body": [
+    "Shakespeare's plays were written for performance in the late sixteenth and early seventeenth centuries. About half of them were first printed after his death in the First Folio of 1623. A reader meets a script: the page needs to be imagined on a stage with an audience, gestures and pauses.",
+    "Most of the language is in blank verse, unrhymed iambic pentameter, which sounds close to natural speech but has a steady rhythm. Characters of lower rank often speak in prose, and a shift between verse and prose can mark a change of mood or status. Rhymed couplets often signal a scene's end.",
+    "A soliloquy is a speech in which a character, alone on stage, voices thoughts for the audience. In Hamlet, written around 1600, the prince's famous \"To be, or not to be\" is a speech in which he weighs action against inaction. Close readers notice how it moves between questions and general statements, and avoids stating his plan; Shakespeare gives us a mind in motion, not an announcement.",
+    "Macbeth gives a later, bleak example. After a loss, Macbeth says \"Tomorrow, and tomorrow, and tomorrow,\" and the repeated word enacts the dull passing of time. Here form and meaning meet.",
+    "Shakespeare's plays also treat ambiguity as a feature. Hamlet delays, and critics have offered many reasons; the text supports several without settling it.",
+    "Reading approach: ask who is listening, whether a speech is private or public, and how the rhythm and repetition show feeling. Compare a printed text with at least one staging idea."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l25",
+   "title": "Cervantes' Don Quixote: Reality, Fiction and Reading",
+   "body": [
+    "Miguel de Cervantes published the first part of Don Quixote in 1605 and the second part in 1615. It tells of a Spanish gentleman who has read so many chivalric romances that he decides to become a knight-errant. He renames himself Don Quixote, recruits a farmer named Sancho Panza as his squire, and sets out to right wrongs. Famously, he mistakes windmills for giants and attacks them.",
+    "The book is a parody, but a generous one. It mocks the conventions of romance while taking seriously the human need for ideals. The contrast between Quixote's idealism and Sancho's earthy common sense is a source of comedy and of change: as the story goes on, Sancho becomes more imaginative and Quixote more doubtful.",
+    "Cervantes also experiments with narration. He presents the story as if drawn from a history by an Arab author, Cide Hamete Benengeli, so the narrator is unreliable by design. In Part 2, characters have read Part 1, and they react to Quixote as a celebrity. Such self-reference, called metafiction, makes the book a landmark of narrative technique. It is often called the first modern novel, though that claim depends on definition and is debated.",
+    "Reading approach: for any episode, ask what is real, what is Quixote's interpretation, and who is creating the scene. Notice how others use his fantasy for their amusement, and whether the book invites us to laugh at him, with him, or at ourselves."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l26",
+   "title": "Milton's Paradise Lost: Epic, Argument and Ambiguity",
+   "body": [
+    "John Milton, an English poet and political writer, published Paradise Lost in 1667 in ten books and revised it to twelve in 1674. By then he was blind and composed the poem by dictation. It retells the biblical story of the fall of humankind, with Satan's rebellion and expulsion from heaven, and the temptation of Adam and Eve in the Garden of Eden. It is a Christian epic in English, deliberately modelled on Homer and Virgil.",
+    "The poem is written in blank verse, which Milton defended as free from the \"bondage\" of rhyme. It begins with the traditional epic gestures of stating a theme, \"Of Man's first disobedience,\" and invoking a muse, and it announces a purpose: to \"justify the ways of God to men.\"",
+    "How the poem handles Satan is the most famous interpretive question. Satan's speeches in the early books are bold and persuasive, as when he declares it \"Better to reign in Hell, than serve in Heaven.\" Some readers think the poem makes him attractive; others argue that the poem steadily exposes the self-deception behind his rhetoric. Both readings use evidence from the text, which makes it a good test case for close reading.",
+    "Milton also writes from experience of civil war and political controversy in seventeenth-century England, and questions of freedom, obedience and authority run through the poem.",
+    "Reading approach: track how a speaker's rhetoric changes across the poem, and ask whether an eloquent voice is the same as a reliable one."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l27",
+   "title": "The Essay and the Rise of the Novel",
+   "body": [
+    "The word \"essay\" comes from the French essai, meaning an attempt or trial. Michel de Montaigne, a French writer, published his first Essays in 1580, writing in a personal voice about topics such as friendship, education and himself, with frank admission of doubt. In England, Francis Bacon published his first Essays in 1597 in a more compact, aphoristic style. In the early eighteenth century, Joseph Addison and Richard Steele's periodical The Spectator (1711) made essay-writing about manners and morals a public habit. The essay is thus a form in which thinking happens on the page.",
+    "The novel developed in the same period. Daniel Defoe's Robinson Crusoe (1719) imitated a first-person memoir so closely that it reads as documentary. Samuel Richardson's Pamela (1740) was told through letters, a technique called epistolary narration that places the reader inside a character's private thoughts. Henry Fielding's Tom Jones (1749) answered with an intrusive, witty narrator. Frances Burney's Evelina (1778) used letters to follow a young woman entering society and was an influence on later women novelists.",
+    "These experiments are precursors to the fiction of Jane Austen, who published from 1811. Her use of a narrator who slips close to a character's thoughts builds on this earlier work.",
+    "Reading approach: for an essay, trace how the argument moves rather than only its conclusion. For an early novel, ask what the chosen narrative technique makes possible, whether authenticity, intimacy or irony."
+   ]
+  },
+  {
+   "id": "lit-studies-early.l28",
+   "title": "Enlightenment Satire: Swift and Voltaire",
+   "body": [
+    "Satire is writing that uses humor, irony and exaggeration to criticize people, institutions or ideas. It works through a gap between what is said and what is meant, so a reader must decide who is speaking and what the author wants us to see. The Enlightenment, a European movement of the seventeenth and eighteenth centuries that stressed reason and critique, made satire a favorite weapon.",
+    "Jonathan Swift published Gulliver's Travels in 1726. Lemuel Gulliver, a plain-speaking ship's surgeon, travels to lands of tiny people, giants, and others. By altering scale, Swift lets readers see human politics and pride as strange. Swift's A Modest Proposal (1729) is narrated by a calm, reasonable voice who suggests that poor Irish families sell their children as food. The proposal is monstrous; the author's real target is the indifference of policy toward poverty. The literal speaker and the real author are separate, a technique called persona, and misreading that gap is the classic mistake.",
+    "Voltaire's Candide (1759) follows a young man taught by the philosopher Pangloss that this is \"the best of all possible worlds.\" Candide's experiences of war, earthquake and cruelty contradict this teaching. The book ends on the modest call to cultivate one's garden, which readers have taken as practical wisdom, as retreat, or both.",
+    "Reading approach: identify the speaker, the target, and the technique of exaggeration. Ask what the satirist wants us to do, and whether a positive alternative is offered."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "lit-studies-early.l01.q1",
+   "lessonId": "lit-studies-early.l01",
+   "kind": "tf",
+   "prompt": "Close reading asks why a writer chose particular words, not only what happens in the story.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l01.q2",
+   "lessonId": "lit-studies-early.l01",
+   "kind": "mcq",
+   "prompt": "Which sequence matches the three-move method in this lesson?",
+   "choices": [
+    "Skim, guess, finish",
+    "Notice, wonder, argue",
+    "Argue, summarize, forget",
+    "Summarize, memorize, quote"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l01.q3",
+   "lessonId": "lit-studies-early.l01",
+   "kind": "mcq",
+   "prompt": "A reader says a poem \"feels sad\" but points to no words in it. What is missing?",
+   "choices": [
+    "A biography of the poet",
+    "A different opinion",
+    "Evidence from the text",
+    "A longer poem"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l01.q4",
+   "lessonId": "lit-studies-early.l01",
+   "kind": "tf",
+   "prompt": "In Sonnet 18, the poem begins as a comparison but soon lists the flaws of summer.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l01.q5",
+   "lessonId": "lit-studies-early.l01",
+   "kind": "mcq",
+   "prompt": "Which is the strongest close-reading statement about a repeated word in a passage?",
+   "choices": [
+    "The repetition builds tension, as shown by the word recurring in each line",
+    "The word is repeated because the writer ran out of ideas",
+    "Repetition is always a flaw",
+    "Repeated words have no meaning"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l02.q1",
+   "lessonId": "lit-studies-early.l02",
+   "kind": "tf",
+   "prompt": "A genre is a family of works that share conventions readers expect.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l02.q2",
+   "lessonId": "lit-studies-early.l02",
+   "kind": "mcq",
+   "prompt": "Which genre is described as a long narrative poem about heroes and large events?",
+   "choices": [
+    "Epic",
+    "Lyric",
+    "Essay",
+    "Satire"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l02.q3",
+   "lessonId": "lit-studies-early.l02",
+   "kind": "mcq",
+   "prompt": "Why does the joke in Don Quixote about romances work best for a reader who knows romances?",
+   "choices": [
+    "The hero never reads anything",
+    "The book plays against conventions the reader already recognizes",
+    "The book is written only for scholars",
+    "Romances are never read today"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l02.q4",
+   "lessonId": "lit-studies-early.l02",
+   "kind": "mcq",
+   "prompt": "Which is a lyric poem?",
+   "choices": [
+    "A long novel in chapters",
+    "A history of a war",
+    "A short poem expressing a speaker's thought or feeling",
+    "A play with a chorus"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l02.q5",
+   "lessonId": "lit-studies-early.l02",
+   "kind": "tf",
+   "prompt": "When a writer breaks a genre convention, it can be a clue that the writer is saying something new.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l03.q1",
+   "lessonId": "lit-studies-early.l03",
+   "kind": "tf",
+   "prompt": "A narrator and the author of a work are always the same person.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l03.q2",
+   "lessonId": "lit-studies-early.l03",
+   "kind": "mcq",
+   "prompt": "In first-person narration, the story is told by",
+   "choices": [
+    "A voice outside the story who knows everything",
+    "The reader",
+    "A narrator who never appears",
+    "A character using \"I\""
+   ]
+  },
+  {
+   "id": "lit-studies-early.l03.q3",
+   "lessonId": "lit-studies-early.l03",
+   "kind": "mcq",
+   "prompt": "What is an unreliable narrator?",
+   "choices": [
+    "One whose account may be mistaken, biased or deceptive",
+    "One who tells the story in verse",
+    "One who speaks to the audience",
+    "One who is the hero"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l03.q4",
+   "lessonId": "lit-studies-early.l03",
+   "kind": "mcq",
+   "prompt": "Which structure places a story told by one character inside another story?",
+   "choices": [
+    "A rhyme scheme",
+    "A frame narrative",
+    "A sonnet",
+    "A soliloquy"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l03.q5",
+   "lessonId": "lit-studies-early.l03",
+   "kind": "tf",
+   "prompt": "Chaucer the pilgrim may praise people in a way that invites readers to notice more than he says.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l04.q1",
+   "lessonId": "lit-studies-early.l04",
+   "kind": "mcq",
+   "prompt": "Which is a theme rather than only a topic?",
+   "choices": [
+    "Friendship",
+    "People cope with death by making things that outlast them",
+    "Death",
+    "War"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l04.q2",
+   "lessonId": "lit-studies-early.l04",
+   "kind": "tf",
+   "prompt": "A motif is an image or idea that recurs in a work.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l04.q3",
+   "lessonId": "lit-studies-early.l04",
+   "kind": "mcq",
+   "prompt": "What is a symbol?",
+   "choices": [
+    "A rhyme at the end of lines",
+    "A change of narrator",
+    "A line of dialogue",
+    "A concrete thing that stands for something beyond itself"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l04.q4",
+   "lessonId": "lit-studies-early.l04",
+   "kind": "tf",
+   "prompt": "A good interpretation of a theme should be tested against other passages in the work.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l04.q5",
+   "lessonId": "lit-studies-early.l04",
+   "kind": "mcq",
+   "prompt": "You find a passage that contradicts your theme claim. What should you do?",
+   "choices": [
+    "Drop the text",
+    "Revise the claim to account for it",
+    "Ignore the passage",
+    "Quote only agreeing lines"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l05.q1",
+   "lessonId": "lit-studies-early.l05",
+   "kind": "tf",
+   "prompt": "The Epic of Gilgamesh comes from ancient Mesopotamia and was written in cuneiform on clay tablets.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l05.q2",
+   "lessonId": "lit-studies-early.l05",
+   "kind": "mcq",
+   "prompt": "What event drives Gilgamesh to seek eternal life?",
+   "choices": [
+    "A dream about a flood",
+    "The death of his friend Enkidu",
+    "The loss of his crown",
+    "A war with Troy"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l05.q3",
+   "lessonId": "lit-studies-early.l05",
+   "kind": "mcq",
+   "prompt": "How does the poem end for Gilgamesh's quest for immortality?",
+   "choices": [
+    "He rules Troy forever",
+    "He becomes a god",
+    "He does not gain it and returns to Uruk",
+    "He gains it from Utnapishtim"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l05.q4",
+   "lessonId": "lit-studies-early.l05",
+   "kind": "tf",
+   "prompt": "Because some tablets are broken, every translation of Gilgamesh involves scholarly choices about gaps.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l05.q5",
+   "lessonId": "lit-studies-early.l05",
+   "kind": "mcq",
+   "prompt": "A reader argues that the walls of Uruk suggest lasting human work. Which kind of evidence supports this best?",
+   "choices": [
+    "The walls appear near both the beginning and the end of the poem",
+    "The walls are made of brick",
+    "The poem is old",
+    "Uruk was a city"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l06.q1",
+   "lessonId": "lit-studies-early.l06",
+   "kind": "mcq",
+   "prompt": "What is the central subject that opens the Iliad?",
+   "choices": [
+    "The journey home of Odysseus",
+    "The founding of Rome",
+    "The fall of Troy in one night",
+    "The anger of Achilles"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l06.q2",
+   "lessonId": "lit-studies-early.l06",
+   "kind": "tf",
+   "prompt": "The Iliad covers the entire ten years of the Trojan War from start to finish.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l06.q3",
+   "lessonId": "lit-studies-early.l06",
+   "kind": "mcq",
+   "prompt": "Why does Achilles return to fight?",
+   "choices": [
+    "The war has ended",
+    "His friend Patroclus has been killed by Hector",
+    "He is ordered by Priam",
+    "He wants Briseis back"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l06.q4",
+   "lessonId": "lit-studies-early.l06",
+   "kind": "mcq",
+   "prompt": "What is an epithet like \"swift-footed\" for Achilles?",
+   "choices": [
+    "A kind of simile",
+    "A stage direction",
+    "A fixed descriptive phrase used with a character",
+    "A rhyme scheme"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l06.q5",
+   "lessonId": "lit-studies-early.l06",
+   "kind": "tf",
+   "prompt": "The poem ends with Hector's funeral after Priam asks Achilles for his body, which supports reading grief as a key emphasis.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l07.q1",
+   "lessonId": "lit-studies-early.l07",
+   "kind": "mcq",
+   "prompt": "Where is Odysseus trying to return?",
+   "choices": [
+    "Athens",
+    "Rome",
+    "Ithaca",
+    "Troy"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l07.q2",
+   "lessonId": "lit-studies-early.l07",
+   "kind": "tf",
+   "prompt": "Odysseus himself tells the story of many of his adventures to the Phaeacians.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l07.q3",
+   "lessonId": "lit-studies-early.l07",
+   "kind": "mcq",
+   "prompt": "Which is a recognition scene in the poem?",
+   "choices": [
+    "The old nurse sees his scar",
+    "The poem's first line",
+    "The catalogue of ships",
+    "A funeral"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l07.q4",
+   "lessonId": "lit-studies-early.l07",
+   "kind": "mcq",
+   "prompt": "Which values does the Odyssey stress compared with the Iliad?",
+   "choices": [
+    "Divine kingship",
+    "Survival, intelligence and homecoming",
+    "Only glory in battle",
+    "Conquest of cities"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l07.q5",
+   "lessonId": "lit-studies-early.l07",
+   "kind": "mcq",
+   "prompt": "Why can hospitality serve as a moral measure in the poem?",
+   "choices": [
+    "Only gods practice it",
+    "It appears only once",
+    "How hosts and guests treat strangers shows their character",
+    "Hospitality is a plot device with no meaning"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l08.q1",
+   "lessonId": "lit-studies-early.l08",
+   "kind": "tf",
+   "prompt": "Greek tragedies were performed at religious festivals in honor of Dionysus.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l08.q2",
+   "lessonId": "lit-studies-early.l08",
+   "kind": "mcq",
+   "prompt": "What is dramatic irony?",
+   "choices": [
+    "The play is funny",
+    "The chorus sings",
+    "The audience understands more than the speaker does",
+    "A character lies to the audience"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l08.q3",
+   "lessonId": "lit-studies-early.l08",
+   "kind": "mcq",
+   "prompt": "What discovery does Oedipus make in Sophocles' play?",
+   "choices": [
+    "Creon is guilty",
+    "The plague is a lie",
+    "The gods are absent",
+    "He himself is the cause of the trouble in Thebes"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l08.q4",
+   "lessonId": "lit-studies-early.l08",
+   "kind": "mcq",
+   "prompt": "Why is Antigone not a simple contest of right versus wrong?",
+   "choices": [
+    "Both Creon and Antigone appeal to real values",
+    "Creon has no argument",
+    "Antigone is not on stage",
+    "The play has no conflict"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l08.q5",
+   "lessonId": "lit-studies-early.l08",
+   "kind": "tf",
+   "prompt": "Because the audience knew the myth already, the interest in a Greek tragedy lay mainly in how it was told.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l09.q1",
+   "lessonId": "lit-studies-early.l09",
+   "kind": "mcq",
+   "prompt": "Which play is by Euripides?",
+   "choices": [
+    "Medea",
+    "Antigone",
+    "Oedipus the King",
+    "The Aeneid"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l09.q2",
+   "lessonId": "lit-studies-early.l09",
+   "kind": "tf",
+   "prompt": "Euripides often puts women, foreigners or the defeated at the center of his plays.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l09.q3",
+   "lessonId": "lit-studies-early.l09",
+   "kind": "mcq",
+   "prompt": "What does Medea's speech about her position do for the audience?",
+   "choices": [
+    "It ends the play",
+    "It praises Jason",
+    "It helps them understand her pain even as they recoil from her act",
+    "It proves she is innocent"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l09.q4",
+   "lessonId": "lit-studies-early.l09",
+   "kind": "mcq",
+   "prompt": "What is an agon in Greek drama?",
+   "choices": [
+    "A solo song",
+    "A prop",
+    "The final bow",
+    "A formal debate between opposing positions"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l09.q5",
+   "lessonId": "lit-studies-early.l09",
+   "kind": "tf",
+   "prompt": "The Trojan Women celebrates the victors of the war without showing the losses of the defeated.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l10.q1",
+   "lessonId": "lit-studies-early.l10",
+   "kind": "mcq",
+   "prompt": "Which philosopher wrote the Poetics?",
+   "choices": [
+    "Homer",
+    "Virgil",
+    "Sophocles",
+    "Aristotle"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l10.q2",
+   "lessonId": "lit-studies-early.l10",
+   "kind": "mcq",
+   "prompt": "Which part of tragedy does Aristotle rank first?",
+   "choices": [
+    "Plot",
+    "Spectacle",
+    "Melody",
+    "Diction"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l10.q3",
+   "lessonId": "lit-studies-early.l10",
+   "kind": "tf",
+   "prompt": "Peripeteia means a reversal, in which events turn to the opposite of what was expected.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l10.q4",
+   "lessonId": "lit-studies-early.l10",
+   "kind": "mcq",
+   "prompt": "Which unity does Aristotle clearly stress?",
+   "choices": [
+    "Unity of time",
+    "Unity of costume",
+    "Unity of action",
+    "Unity of place"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l10.q5",
+   "lessonId": "lit-studies-early.l10",
+   "kind": "mcq",
+   "prompt": "Why is it wise to use the Poetics as a lens, not a rulebook?",
+   "choices": [
+    "It is entirely wrong",
+    "It covers only comedies",
+    "It is a modern text",
+    "Its terms are debated and many plays do things it does not describe"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l11.q1",
+   "lessonId": "lit-studies-early.l11",
+   "kind": "tf",
+   "prompt": "Virgil's Aeneid tells of a Trojan survivor whose descendants will found Rome.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l11.q2",
+   "lessonId": "lit-studies-early.l11",
+   "kind": "mcq",
+   "prompt": "What does \"pietas\" mean in the poem?",
+   "choices": [
+    "Love of battle",
+    "Fear of the sea",
+    "Love of travel",
+    "Dutiful devotion to family, gods and homeland"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l11.q3",
+   "lessonId": "lit-studies-early.l11",
+   "kind": "mcq",
+   "prompt": "What happens to Dido in Book 4?",
+   "choices": [
+    "She is abandoned by Aeneas and takes her own life",
+    "She marries him in Italy",
+    "She founds Rome",
+    "She fights Turnus"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l11.q4",
+   "lessonId": "lit-studies-early.l11",
+   "kind": "mcq",
+   "prompt": "What is allusion?",
+   "choices": [
+    "A character's name",
+    "Borrowing and reworking earlier work",
+    "A direct quotation",
+    "A kind of rhyme"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l11.q5",
+   "lessonId": "lit-studies-early.l11",
+   "kind": "tf",
+   "prompt": "Scholars agree that the Aeneid is only a celebration of Augustus and contains no questioning of empire.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l12.q1",
+   "lessonId": "lit-studies-early.l12",
+   "kind": "mcq",
+   "prompt": "Why is the Bible described as a library?",
+   "choices": [
+    "It is shorter than a pamphlet",
+    "It contains many books of different genres",
+    "It has one author",
+    "It is only poetry"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l12.q2",
+   "lessonId": "lit-studies-early.l12",
+   "kind": "tf",
+   "prompt": "A literary reading of the Bible aims to describe how its texts are built, not to replace religious readings.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l12.q3",
+   "lessonId": "lit-studies-early.l12",
+   "kind": "mcq",
+   "prompt": "Which feature is common in biblical poetry?",
+   "choices": [
+    "Strict rhyme",
+    "Footnotes",
+    "Dramatic stage directions",
+    "Parallelism, in which a line repeats, extends or contrasts another"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l12.q4",
+   "lessonId": "lit-studies-early.l12",
+   "kind": "mcq",
+   "prompt": "What is notable about much biblical narrative?",
+   "choices": [
+    "It is spare and leaves motives for readers to infer",
+    "It is full of detailed descriptions of faces",
+    "It is written in rhyme",
+    "It never uses dialogue"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l12.q5",
+   "lessonId": "lit-studies-early.l12",
+   "kind": "tf",
+   "prompt": "The King James Version of 1611 influenced English style.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l13.q1",
+   "lessonId": "lit-studies-early.l13",
+   "kind": "tf",
+   "prompt": "The Quran is arranged in 114 chapters called surahs.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l13.q2",
+   "lessonId": "lit-studies-early.l13",
+   "kind": "mcq",
+   "prompt": "Why is sound central to the Quran?",
+   "choices": [
+    "It is a silent text",
+    "It is primarily recited aloud",
+    "It is written only in prose",
+    "It is never read"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l13.q3",
+   "lessonId": "lit-studies-early.l13",
+   "kind": "mcq",
+   "prompt": "How does Surah 12 differ from many other surahs?",
+   "choices": [
+    "It is a legal list",
+    "It is a single sentence",
+    "It tells one continuous story, of Yusuf",
+    "It has no verses"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l13.q4",
+   "lessonId": "lit-studies-early.l13",
+   "kind": "mcq",
+   "prompt": "How are surahs generally ordered?",
+   "choices": [
+    "By date of revelation",
+    "Alphabetically",
+    "Randomly",
+    "Roughly by length, with longer ones earlier"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l13.q5",
+   "lessonId": "lit-studies-early.l13",
+   "kind": "tf",
+   "prompt": "A translation of the Quran can fully reproduce the Arabic's sound.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l14.q1",
+   "lessonId": "lit-studies-early.l14",
+   "kind": "mcq",
+   "prompt": "Which are the two great Sanskrit epics of India?",
+   "choices": [
+    "The Iliad and the Odyssey",
+    "The Analects and Genji",
+    "The Aeneid and Beowulf",
+    "The Mahabharata and the Ramayana"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l14.q2",
+   "lessonId": "lit-studies-early.l14",
+   "kind": "tf",
+   "prompt": "The Bhagavad Gita is a dialogue between Arjuna and Krishna set before a battle in the Mahabharata.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l14.q3",
+   "lessonId": "lit-studies-early.l14",
+   "kind": "mcq",
+   "prompt": "Who is the Ramayana traditionally attributed to?",
+   "choices": [
+    "Virgil",
+    "Valmiki",
+    "Vyasa",
+    "Homer"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l14.q4",
+   "lessonId": "lit-studies-early.l14",
+   "kind": "mcq",
+   "prompt": "What does a layered, nested structure suggest about these epics?",
+   "choices": [
+    "They have no characters",
+    "They are histories only",
+    "They grew over long periods, with stories inside stories",
+    "They were written in a single year"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l14.q5",
+   "lessonId": "lit-studies-early.l14",
+   "kind": "tf",
+   "prompt": "The Mahabharata shows heroes making troubling choices and the costs of war.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l15.q1",
+   "lessonId": "lit-studies-early.l15",
+   "kind": "mcq",
+   "prompt": "What is the Analects?",
+   "choices": [
+    "A play",
+    "A travel diary",
+    "A collection of sayings and conversations attributed to Confucius and disciples",
+    "A long epic poem"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l15.q2",
+   "lessonId": "lit-studies-early.l15",
+   "kind": "tf",
+   "prompt": "The Analects is a single continuous argument written by Confucius.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l15.q3",
+   "lessonId": "lit-studies-early.l15",
+   "kind": "mcq",
+   "prompt": "What does \"ren\" usually mean?",
+   "choices": [
+    "Humaneness or goodness",
+    "Ritual",
+    "Poetry",
+    "War"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l15.q4",
+   "lessonId": "lit-studies-early.l15",
+   "kind": "mcq",
+   "prompt": "Why might Confucius answer different students differently?",
+   "choices": [
+    "He had one rule",
+    "The best answer depends on the person",
+    "He forgot his earlier answers",
+    "He wanted to avoid questions"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l15.q5",
+   "lessonId": "lit-studies-early.l15",
+   "kind": "mcq",
+   "prompt": "What is a good strategy for reading a short saying?",
+   "choices": [
+    "Ignore it",
+    "Memorize it only",
+    "Compare it with other passages and imagine its context",
+    "Treat it as a slogan"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l16.q1",
+   "lessonId": "lit-studies-early.l16",
+   "kind": "tf",
+   "prompt": "The Tang dynasty is often called a golden age of Chinese poetry.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l16.q2",
+   "lessonId": "lit-studies-early.l16",
+   "kind": "mcq",
+   "prompt": "Which two poets are named in the lesson?",
+   "choices": [
+    "Dante and Chaucer",
+    "Milton and Swift",
+    "Li Bai and Du Fu",
+    "Homer and Virgil"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l16.q3",
+   "lessonId": "lit-studies-early.l16",
+   "kind": "mcq",
+   "prompt": "In \"Quiet Night Thought,\" what feeling does the moonlight image carry?",
+   "choices": [
+    "Anger at a ruler",
+    "Joy at a feast",
+    "Fear of war",
+    "Homesickness"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l16.q4",
+   "lessonId": "lit-studies-early.l16",
+   "kind": "tf",
+   "prompt": "In Du Fu's \"Spring View,\" the enduring landscape contrasts with a broken state.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l16.q5",
+   "lessonId": "lit-studies-early.l16",
+   "kind": "mcq",
+   "prompt": "Why should readers of translations remember that they see only part of the poem?",
+   "choices": [
+    "Only the title is translated",
+    "Much of the music and form of the Chinese is lost",
+    "Translations add rhyme",
+    "Chinese poems have no images"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l17.q1",
+   "lessonId": "lit-studies-early.l17",
+   "kind": "mcq",
+   "prompt": "Who wrote The Tale of Genji?",
+   "choices": [
+    "Murasaki Shikibu",
+    "Du Fu",
+    "Chaucer",
+    "Valmiki"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l17.q2",
+   "lessonId": "lit-studies-early.l17",
+   "kind": "tf",
+   "prompt": "Characters in Genji often exchange short poems called waka.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l17.q3",
+   "lessonId": "lit-studies-early.l17",
+   "kind": "mcq",
+   "prompt": "Why is calling Genji a \"novel\" something to handle with care?",
+   "choices": [
+    "It is a play",
+    "It was written in Latin",
+    "What counts as a novel depends on definition",
+    "It is not fiction"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l17.q4",
+   "lessonId": "lit-studies-early.l17",
+   "kind": "mcq",
+   "prompt": "What does mono no aware refer to, according to Motoori Norinaga?",
+   "choices": [
+    "A war strategy",
+    "A poetic meter",
+    "A court rank",
+    "Sensitivity to the fleeting beauty of things"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l17.q5",
+   "lessonId": "lit-studies-early.l17",
+   "kind": "tf",
+   "prompt": "In Genji, much of the meaning of a scene can lie in social and emotional nuance rather than action.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l18.q1",
+   "lessonId": "lit-studies-early.l18",
+   "kind": "mcq",
+   "prompt": "What is a qasida?",
+   "choices": [
+    "A frame story",
+    "A play",
+    "A sonnet",
+    "A classical Arabic ode"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l18.q2",
+   "lessonId": "lit-studies-early.l18",
+   "kind": "tf",
+   "prompt": "In One Thousand and One Nights, Shahrazad tells stories to stay alive.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l18.q3",
+   "lessonId": "lit-studies-early.l18",
+   "kind": "mcq",
+   "prompt": "Which is a typical movement in a pre-Islamic qasida?",
+   "choices": [
+    "A sermon on trade",
+    "Remembering a lost love, a journey, then praise or boast",
+    "A courtroom debate",
+    "A series of riddles only"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l18.q4",
+   "lessonId": "lit-studies-early.l18",
+   "kind": "mcq",
+   "prompt": "Who helped popularize the Nights in Europe with a translation in the early 1700s?",
+   "choices": [
+    "Voltaire",
+    "Cervantes",
+    "Antoine Galland",
+    "Dante"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l18.q5",
+   "lessonId": "lit-studies-early.l18",
+   "kind": "tf",
+   "prompt": "Every tale now associated with the Nights, including Aladdin, appears in the earliest Arabic manuscripts.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l19.q1",
+   "lessonId": "lit-studies-early.l19",
+   "kind": "mcq",
+   "prompt": "In what language was Beowulf written?",
+   "choices": [
+    "Greek",
+    "French",
+    "Old English",
+    "Latin"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l19.q2",
+   "lessonId": "lit-studies-early.l19",
+   "kind": "tf",
+   "prompt": "Beowulf is set in Scandinavia, not England.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l19.q3",
+   "lessonId": "lit-studies-early.l19",
+   "kind": "mcq",
+   "prompt": "What is a kenning?",
+   "choices": [
+    "A compound metaphor such as \"whale-road\"",
+    "A rhyme at line end",
+    "A narrator's name",
+    "A battle"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l19.q4",
+   "lessonId": "lit-studies-early.l19",
+   "kind": "mcq",
+   "prompt": "How does the poem treat heroic glory through its digressions?",
+   "choices": [
+    "It mocks heroes",
+    "It suggests glory is temporary",
+    "It says glory lasts forever",
+    "It ignores glory"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l19.q5",
+   "lessonId": "lit-studies-early.l19",
+   "kind": "tf",
+   "prompt": "The poem mixes a pre-Christian setting with reflections that seem Christian.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l20.q1",
+   "lessonId": "lit-studies-early.l20",
+   "kind": "mcq",
+   "prompt": "What does \"romance\" originally refer to?",
+   "choices": [
+    "Biography",
+    "Writing in a vernacular Romance language rather than Latin",
+    "Only love poems",
+    "Greek epic"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l20.q2",
+   "lessonId": "lit-studies-early.l20",
+   "kind": "tf",
+   "prompt": "Typical medieval romances include a journey, trials and a test of the hero.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l20.q3",
+   "lessonId": "lit-studies-early.l20",
+   "kind": "mcq",
+   "prompt": "Who wrote some of the earliest major Arthurian romances?",
+   "choices": [
+    "Homer",
+    "Virgil",
+    "Defoe",
+    "Chretien de Troyes"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l20.q4",
+   "lessonId": "lit-studies-early.l20",
+   "kind": "mcq",
+   "prompt": "What does Gawain's acceptance of a magic girdle reveal in Sir Gawain and the Green Knight?",
+   "choices": [
+    "A gap between chivalric ideals and human weakness",
+    "His wish to be king",
+    "His skill at the beheading game",
+    "His magical origin"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l20.q5",
+   "lessonId": "lit-studies-early.l20",
+   "kind": "tf",
+   "prompt": "Courtly love in romance is a topic about which scholars debate how closely it matched real life.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l21.q1",
+   "lessonId": "lit-studies-early.l21",
+   "kind": "mcq",
+   "prompt": "What are the three parts of the Divine Comedy?",
+   "choices": [
+    "Inferno, Purgatorio, Paradiso",
+    "Iliad, Odyssey, Aeneid",
+    "Genesis, Exodus, Psalms",
+    "Ren, Li, Dao"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l21.q2",
+   "lessonId": "lit-studies-early.l21",
+   "kind": "tf",
+   "prompt": "Dante wrote the poem in the Tuscan vernacular rather than in Latin.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l21.q3",
+   "lessonId": "lit-studies-early.l21",
+   "kind": "mcq",
+   "prompt": "Which rhyme scheme is terza rima?",
+   "choices": [
+    "aabb ccdd",
+    "abcd abcd",
+    "aba bcb cdc",
+    "abab cdcd efef gg"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l21.q4",
+   "lessonId": "lit-studies-early.l21",
+   "kind": "mcq",
+   "prompt": "Who guides Dante through Hell and most of Purgatory?",
+   "choices": [
+    "Homer",
+    "Chaucer",
+    "Aristotle",
+    "Virgil"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l21.q5",
+   "lessonId": "lit-studies-early.l21",
+   "kind": "mcq",
+   "prompt": "Why is it important to separate Dante the poet from Dante the pilgrim?",
+   "choices": [
+    "The poet arranges the story while the pilgrim is learning inside it",
+    "They are different historical people",
+    "The pilgrim writes the poem",
+    "The poet is a character in Hell"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l22.q1",
+   "lessonId": "lit-studies-early.l22",
+   "kind": "mcq",
+   "prompt": "What is the frame of The Canterbury Tales?",
+   "choices": [
+    "A war",
+    "A royal court",
+    "A school",
+    "A pilgrimage in which travelers tell stories"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l22.q2",
+   "lessonId": "lit-studies-early.l22",
+   "kind": "tf",
+   "prompt": "The Canterbury Tales was left unfinished.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l22.q3",
+   "lessonId": "lit-studies-early.l22",
+   "kind": "mcq",
+   "prompt": "What is a fabliau?",
+   "choices": [
+    "A prologue",
+    "A comic, often bawdy tale",
+    "A kind of sermon",
+    "A sonnet"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l22.q4",
+   "lessonId": "lit-studies-early.l22",
+   "kind": "mcq",
+   "prompt": "What creates irony in the General Prologue?",
+   "choices": [
+    "The tales are all serious",
+    "The narrator is absent",
+    "The narrator praises people while details suggest their faults",
+    "The poem is in prose"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l22.q5",
+   "lessonId": "lit-studies-early.l22",
+   "kind": "tf",
+   "prompt": "Chaucer the pilgrim is a created narrator and not simply the poet speaking.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l23.q1",
+   "lessonId": "lit-studies-early.l23",
+   "kind": "mcq",
+   "prompt": "How many lines does a sonnet have?",
+   "choices": [
+    "Ten",
+    "Sixteen",
+    "Fourteen",
+    "Twelve"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l23.q2",
+   "lessonId": "lit-studies-early.l23",
+   "kind": "tf",
+   "prompt": "Shakespeare's sonnets were published in 1609.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l23.q3",
+   "lessonId": "lit-studies-early.l23",
+   "kind": "mcq",
+   "prompt": "What is the Shakespearean rhyme scheme?",
+   "choices": [
+    "abab cdcd efef gg",
+    "aba bcb cdc",
+    "aabb ccdd eeff gg",
+    "abba abba cde cde"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l23.q4",
+   "lessonId": "lit-studies-early.l23",
+   "kind": "mcq",
+   "prompt": "What does the volta do?",
+   "choices": [
+    "Gives the title",
+    "Shifts the direction of the poem",
+    "Ends the rhyme",
+    "Names the speaker"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l23.q5",
+   "lessonId": "lit-studies-early.l23",
+   "kind": "mcq",
+   "prompt": "What does Sonnet 130 do with Petrarchan clichés?",
+   "choices": [
+    "Praises the sun",
+    "Attacks the reader",
+    "Lists how the mistress does not match them, yet affirms love",
+    "Repeats them without change"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l24.q1",
+   "lessonId": "lit-studies-early.l24",
+   "kind": "tf",
+   "prompt": "A soliloquy is a speech in which a character alone on stage voices thoughts.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l24.q2",
+   "lessonId": "lit-studies-early.l24",
+   "kind": "mcq",
+   "prompt": "What is blank verse?",
+   "choices": [
+    "Free prose",
+    "A ballad",
+    "Unrhymed iambic pentameter",
+    "Rhymed couplets only"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l24.q3",
+   "lessonId": "lit-studies-early.l24",
+   "kind": "mcq",
+   "prompt": "What can a shift from verse to prose signal?",
+   "choices": [
+    "The end of the play",
+    "A printing error",
+    "Nothing",
+    "A change of mood or status"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l24.q4",
+   "lessonId": "lit-studies-early.l24",
+   "kind": "mcq",
+   "prompt": "What does the repetition in \"Tomorrow, and tomorrow, and tomorrow\" enact?",
+   "choices": [
+    "The dull passing of time",
+    "A joyful celebration",
+    "A battle cry",
+    "A prayer"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l24.q5",
+   "lessonId": "lit-studies-early.l24",
+   "kind": "tf",
+   "prompt": "The text of Hamlet settles the reason for Hamlet's delay with a single clear answer.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l25.q1",
+   "lessonId": "lit-studies-early.l25",
+   "kind": "mcq",
+   "prompt": "What does Don Quixote mistake for giants?",
+   "choices": [
+    "Windmills",
+    "Castles",
+    "Ships",
+    "Mountains"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l25.q2",
+   "lessonId": "lit-studies-early.l25",
+   "kind": "tf",
+   "prompt": "Don Quixote was published in two parts, in 1605 and 1615.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l25.q3",
+   "lessonId": "lit-studies-early.l25",
+   "kind": "mcq",
+   "prompt": "What does Sancho Panza represent in contrast to Quixote?",
+   "choices": [
+    "Royal power",
+    "Magic",
+    "Earthy common sense",
+    "Idealism"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l25.q4",
+   "lessonId": "lit-studies-early.l25",
+   "kind": "mcq",
+   "prompt": "What is metafiction?",
+   "choices": [
+    "A kind of rhyme",
+    "A true history",
+    "A prologue",
+    "Fiction that refers to itself as fiction"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l25.q5",
+   "lessonId": "lit-studies-early.l25",
+   "kind": "tf",
+   "prompt": "Calling Don Quixote the first modern novel depends on how the term is defined.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l26.q1",
+   "lessonId": "lit-studies-early.l26",
+   "kind": "mcq",
+   "prompt": "When was Paradise Lost first published?",
+   "choices": [
+    "1567",
+    "1767",
+    "1867",
+    "1667"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l26.q2",
+   "lessonId": "lit-studies-early.l26",
+   "kind": "tf",
+   "prompt": "Milton composed Paradise Lost after he had become blind.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l26.q3",
+   "lessonId": "lit-studies-early.l26",
+   "kind": "mcq",
+   "prompt": "What verse form does Paradise Lost use?",
+   "choices": [
+    "Sonnets",
+    "Blank verse",
+    "Terza rima",
+    "Alliterative verse"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l26.q4",
+   "lessonId": "lit-studies-early.l26",
+   "kind": "mcq",
+   "prompt": "What is the central debate about Satan in the poem?",
+   "choices": [
+    "Whether he speaks Latin",
+    "Whether he is a woman",
+    "Whether his speeches are attractive or exposed as self-deceiving",
+    "Whether he appears at all"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l26.q5",
+   "lessonId": "lit-studies-early.l26",
+   "kind": "mcq",
+   "prompt": "What reading skill does Satan's speech teach?",
+   "choices": [
+    "Poetry is always true",
+    "Rhetoric has no effect",
+    "Speakers never lie",
+    "An eloquent voice is not necessarily a reliable one"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l27.q1",
+   "lessonId": "lit-studies-early.l27",
+   "kind": "mcq",
+   "prompt": "What does \"essai\" mean?",
+   "choices": [
+    "A poem",
+    "A play",
+    "An attempt or trial",
+    "A story"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l27.q2",
+   "lessonId": "lit-studies-early.l27",
+   "kind": "tf",
+   "prompt": "Montaigne published his first Essays in 1580.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l27.q3",
+   "lessonId": "lit-studies-early.l27",
+   "kind": "mcq",
+   "prompt": "Which technique does Richardson's Pamela use?",
+   "choices": [
+    "Letters, called epistolary narration",
+    "A chorus",
+    "Blank verse",
+    "A frame of pilgrims"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l27.q4",
+   "lessonId": "lit-studies-early.l27",
+   "kind": "mcq",
+   "prompt": "Which work first appeared in 1719 as a fictional memoir?",
+   "choices": [
+    "Pamela",
+    "Robinson Crusoe",
+    "Evelina",
+    "Tom Jones"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l27.q5",
+   "lessonId": "lit-studies-early.l27",
+   "kind": "tf",
+   "prompt": "The early novelists experimented with narrative techniques that Jane Austen later built on.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l28.q1",
+   "lessonId": "lit-studies-early.l28",
+   "kind": "mcq",
+   "prompt": "What is satire?",
+   "choices": [
+    "A prayer",
+    "Writing that uses humor and irony to criticize",
+    "A kind of rhyme",
+    "A true biography"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l28.q2",
+   "lessonId": "lit-studies-early.l28",
+   "kind": "tf",
+   "prompt": "In A Modest Proposal, the speaker's calm voice is the same as Swift's own view.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l28.q3",
+   "lessonId": "lit-studies-early.l28",
+   "kind": "mcq",
+   "prompt": "Which work features Lemuel Gulliver?",
+   "choices": [
+    "Candide",
+    "Evelina",
+    "Don Quixote",
+    "Gulliver's Travels"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l28.q4",
+   "lessonId": "lit-studies-early.l28",
+   "kind": "mcq",
+   "prompt": "What does Pangloss teach Candide?",
+   "choices": [
+    "That this is the best of all possible worlds",
+    "That the world is hopeless",
+    "That money is everything",
+    "That war is good"
+   ]
+  },
+  {
+   "id": "lit-studies-early.l28.q5",
+   "lessonId": "lit-studies-early.l28",
+   "kind": "mcq",
+   "prompt": "What is the best first step for reading satire?",
+   "choices": [
+    "Ignore exaggeration",
+    "Identify the speaker and the target",
+    "Take every statement literally",
+    "Skip the ending"
+   ]
+  }
+ ]
+}

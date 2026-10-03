@@ -233,7 +233,10 @@ The professional reading habit: never take the headline alone. Read it with part
           blurb: 'Three jobs, no intrinsic value, and why we accept it anyway.',
           minutes: 20,
           standardIds: ['CEE.ECON.11.8'],
-          body: `Money is defined by what it does rather than what it is made of. It does three jobs: it is a medium of exchange, so trade does not require finding someone who wants exactly what you have; a unit of account, so values can be compared on one scale; and a store of value, so purchasing power can be carried into the future.
+          body: `Money is defined by what it does rather than what it is made of. It does three jobs:
+- it is a medium of exchange, so trade does not require finding someone who wants exactly what you have
+- a unit of account, so values can be compared on one scale
+- and a store of value, so purchasing power can be carried into the future.
 
 Barter fails on the first job. It requires a double coincidence of wants — you must find someone who has what you want *and* wants what you have — and the difficulty of that grows with the number of goods. Money removes the constraint, and the gain in possible trades is enormous.
 

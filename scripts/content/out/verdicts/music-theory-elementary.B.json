@@ -1,0 +1,1128 @@
+{
+ "courseId": "music-theory-elementary",
+ "verifier": "B",
+ "questions": [
+  {
+   "id": "music-theory-elementary.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l03.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l05.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l06.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l07.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l10.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l11.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l14.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l15.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l18.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l18.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l18.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l19.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l19.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l19.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-elementary.l20.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "music-theory-elementary.l01",
+   "claim": "Treble clef is the G clef; bass clef is the F clef",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l01",
+   "claim": "A staff has five lines and four spaces",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l01",
+   "claim": "Ledger lines extend the staff",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l02",
+   "claim": "Treble lines E G B D F; spaces F A C E; middle C on ledger line below staff",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l02",
+   "claim": "Bottom line E, first space F, second line G (letter progression)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l02",
+   "claim": "Seven letter names A-G",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l03",
+   "claim": "Bass lines G B D F A; spaces A C E G",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l03",
+   "claim": "Grand staff: treble top, bass bottom, joined by brace",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l03",
+   "claim": "Middle C on ledger line between staves; top bass line A, then B, then C",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l04",
+   "claim": "Whole=4, half=2, quarter=1, eighth=1/2, sixteenth=1/4 beats",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l04",
+   "claim": "Whole rest = full measure in most simple time signatures",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l04",
+   "claim": "Two eighths beamed = one beat",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l05",
+   "claim": "Top number = beats per measure, bottom = note getting the beat",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l05",
+   "claim": "4/4 shown as C is called common time",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l05",
+   "claim": "3/4 is waltz time",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l06",
+   "claim": "Dot adds half the value; dotted half=3, dotted quarter=1.5, dotted whole=6",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l06",
+   "claim": "Tie joins same-pitch notes, can cross barlines",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l06",
+   "claim": "Dotted quarter + eighth = 2 beats",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l07",
+   "claim": "4/4 holds eight eighth notes, 2/4 holds four",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l07",
+   "claim": "Eighth-note counting 'one-and, two-and'",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l07",
+   "claim": "Quarter, quarter rest, half note in 4/4 sounds on beats 1 and 3",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l08",
+   "claim": "Major scale step pattern W W H W W W H",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l08",
+   "claim": "C major has no sharps/flats; half steps E-F and B-C",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l08",
+   "claim": "Half steps lie between degrees 3-4 and 7-8",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l09",
+   "claim": "G major has F-sharp; D major has F# and C#",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l09",
+   "claim": "F major has B-flat; B-flat major has B-flat and E-flat",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l09",
+   "claim": "Spellings of the four scales as listed",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l10",
+   "claim": "Order of sharps starts F, C, G; order of flats B, E, A",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l10",
+   "claim": "Key signature to key mapping for 0-2 sharps and 1-2 flats",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l10",
+   "claim": "Accidental lasts until end of measure",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l11",
+   "claim": "Interval number by counting letter names inclusive",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l11",
+   "claim": "C-G is a 5th, D-A is a 5th, C-B a 7th",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l11",
+   "claim": "Melodic vs harmonic interval definitions",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l12",
+   "claim": "Tonic = 1st degree, dominant = 5th degree",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l12",
+   "claim": "Dominant of C is G, of G is D, of F is C",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l12",
+   "claim": "Melody often ends on tonic",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l13",
+   "claim": "Piano=soft, forte=loud; pp/p/mp/mf/f/ff order",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l13",
+   "claim": "Piano named from pianoforte",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l13",
+   "claim": "Diminuendo/decrescendo = gradually softer",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l14",
+   "claim": "Largo, adagio, andante, moderato, allegro, presto meanings and slow-to-fast order",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l14",
+   "claim": "60 BPM = 1 s per beat; 120 BPM = 0.5 s",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l14",
+   "claim": "Fermata means hold longer",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l15",
+   "claim": "Four families; flute is woodwind despite metal",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l15",
+   "claim": "Double bass largest/lowest bowed string; harp plucked",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l15",
+   "claim": "Brass produced by buzzing lips; tuba lowest",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l16",
+   "claim": "First violins on conductor's left (audience left) in usual layout",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l16",
+   "claim": "Strings front, woodwinds middle, brass behind, percussion at back",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l16",
+   "claim": "Timpani are kettledrums at back",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l17",
+   "claim": "AB binary, ABA ternary, rondo ABACA",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l17",
+   "claim": "Theme and variations definition",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l17",
+   "claim": "Rondo A returns with contrasting episodes",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l18",
+   "claim": "Bach 1685-1750, German, Baroque, Brandenburg Concertos",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l18",
+   "claim": "Mozart b. 1756 Salzburg, d. 1791 Vienna aged 35; Magic Flute",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l18",
+   "claim": "Beethoven b. 1770 Bonn, d. 1827, nine symphonies, deaf",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l19",
+   "claim": "Clara Schumann 1819-1896, pianist/composer, married Robert Schumann",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l19",
+   "claim": "Scott Joplin d. 1917; Maple Leaf Rag, The Entertainer; ragtime",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l19",
+   "claim": "Tchaikovsky 1840-1893 Russian; Swan Lake, Sleeping Beauty, Nutcracker",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l20",
+   "claim": "4 bars of 4/4 = 16 beats",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l20",
+   "claim": "Ending on tonic gives closure",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  },
+  {
+   "lessonId": "music-theory-elementary.l20",
+   "claim": "ABA form structure",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard reference knowledge; no live fetch performed."
+  }
+ ]
+}

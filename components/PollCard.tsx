@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { BarChart2, Clock, Check } from 'lucide-react';
-import { doc, updateDoc, arrayUnion, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '../services/backendService';
 
 export interface PollData {
@@ -11,6 +11,8 @@ export interface PollData {
   durationHours: number;
   createdAt: number;
   votes?: Record<string, string[]>; // optionIndex → [uid, ...]
+  vizKind?: string; // e.g. 'BAR' | 'DONUT' | 'RADAR' | 'GAUGE' | 'FUNNEL' | 'WATERFALL' | 'AREA' | 'BAR_3D'
+  vizStyle?: string; // e.g. 'PLAJAH' | 'NEON' | 'SWISS' | 'BAUHAUS' | 'EDITORIAL' | 'GLASS' | 'SPORTS' | 'BROADCAST' | 'MONO' | 'FUTURIST'
 }
 
 interface PollCardProps {
@@ -39,6 +41,22 @@ const PollCard: React.FC<PollCardProps> = ({ postId, poll, compact = false }) =>
   const [hasVoted, setHasVoted] = useState(false);
 
   const isExpired = Date.now() > poll.createdAt + poll.durationHours * 3_600_000;
+
+  // Real-time sync for votes as results come in across the platform
+  useEffect(() => {
+    if (!postId) return;
+    const unsub = onSnapshot(doc(db, 'posts', postId), snap => {
+      if (snap.exists()) {
+        const d = snap.data();
+        if (d?.poll?.votes) {
+          setVotes(d.poll.votes);
+        }
+      }
+    }, err => {
+      console.warn('[PollCard] Real-time sync warning:', err);
+    });
+    return () => unsub();
+  }, [postId]);
 
   // Check if current user already voted
   useEffect(() => {

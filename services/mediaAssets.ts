@@ -41,6 +41,7 @@ const statusFor = (a: any): string =>
 const originForAlbum = (al: Album): string => {
   if (al.type === 'VIDEO' && (al.subType === 'MOVIE' || al.subType === 'TV_SERIES')) return buildShareUrl('movie', al.id);
   if (al.type === 'BOOK') return buildShareUrl('book', al.id);
+  if (al.subType === 'MIX') return buildShareUrl('mix', al.id);
   return buildShareUrl('album', al.id);
 };
 

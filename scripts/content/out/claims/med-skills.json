@@ -1,0 +1,1292 @@
+{
+ "courseId": "med-skills",
+ "label": "Clinical Reasoning and Physical Diagnosis",
+ "lessons": [
+  {
+   "id": "med-skills.l01",
+   "title": "The Structure of the Medical Interview",
+   "body": [
+    "The interview is the most productive diagnostic tool in medicine. In many series of undiagnosed presentations, the history alone points to the final diagnosis most of the time, and physical examination and testing mostly refine or confirm it. A good interview has a predictable structure: preparation and greeting, setting the agenda, eliciting the story, gathering the detailed history, examination, explanation and planning, and closure.",
+    "The opening matters. Introduce yourself and your role, confirm the patient's name, ensure privacy and comfort, and begin with an open-ended question such as asking what brings the patient in. Then let the patient speak without interruption for the first minute or so; studies of clinic visits find physicians interrupt within seconds, and most patients finish their opening statement quickly when allowed. Agenda setting follows: ask what else the patient wants to discuss, then repeat the list (\"anything else?\") until it is complete, and negotiate priorities. This prevents the \"doorknob\" complaint, a major concern raised only at the end of the visit.",
+    "The chief complaint is the reason for the visit in the patient's words. The history of present illness (HPI) is a chronological narrative of that problem. A standard framework for characterizing a symptom is often remembered by mnemonics such as OLDCARTS: onset, location, duration, character, aggravating and alleviating factors, radiation, timing and severity. For chest pain, for example, the clinician asks whether it began suddenly or gradually, where it is felt, whether it spreads to the arm or jaw, whether it is pressure or sharp, what brings it on (exertion, breathing, swallowing) and what relieves it, and what else accompanies it, such as shortness of breath or sweating. Pertinent positives and negatives, the symptoms present or absent that help discriminate between diagnoses, are recorded.",
+    "Questioning technique moves from open to closed. Open-ended questions invite narrative; focused questions narrow; closed yes-or-no questions confirm specific details. Leading questions suggest an answer and can bias the history. Useful skills include facilitation (nodding, \"go on\"), silence, reflection, clarification of vague terms (what does the patient mean by dizzy: spinning, faint or unsteady?), summarizing and transitions. Avoid jargon, ask one question at a time, and use the patient's words. Interviewing is also about understanding the patient's perspective: their ideas about the cause, their worries, their expectations and the effect on function, which is often called exploring the illness experience as distinct from the disease.",
+    "Worked example: a patient says that he feels dizzy. A clinician who clarifies whether the room spins (vertigo), whether he nearly faints (presyncope) or feels unsteady on his feet moves toward very different differentials, vestibular, cardiovascular or neurological."
+   ]
+  },
+  {
+   "id": "med-skills.l02",
+   "title": "Past, Family and Social History, and the Review of Systems",
+   "body": [
+    "After the HPI, the interview fills out the rest of the history. The past medical history covers chronic illnesses, hospitalizations, surgeries, injuries, childhood illnesses and immunizations, and reproductive history where relevant. Medications must be recorded with names, doses, frequency and adherence, including over-the-counter drugs, supplements and herbal products, because many presentations are adverse effects or interactions. Medication reconciliation compares what the patient actually takes with what is on file, and is a recognized patient safety measure at transitions of care. Allergies should be recorded with the reaction, since an intolerance such as nausea differs from an immune-mediated reaction such as hives or anaphylaxis.",
+    "The family history identifies conditions with heritable risk, such as early coronary disease, cancers, diabetes and psychiatric illness. A three-generation pedigree is a standard tool, noting age at onset and cause of death. Age at onset is especially informative: a first-degree relative with a myocardial infarction at a young age carries more weight than one at an advanced age.",
+    "The social history is not a formality. It includes occupation and exposures, living situation, education, relationships and safety, diet, exercise, tobacco, alcohol and other substance use, sexual history, travel and military service. Quantifying matters: pack-years for smoking are packs per day multiplied by years smoked. Screening questions such as the CAGE questions for alcohol (cut down, annoyed, guilty, eye-opener) or validated tools such as AUDIT-C identify risky use. Sexual history is taken with a nonjudgmental framework covering partners, practices, protection and past infections. Social determinants such as food insecurity, housing instability and violence affect both illness and treatment, and asking about them helps tailor plans. Intimate partner violence screening is part of routine practice for appropriate populations.",
+    "The review of systems (ROS) is a systematic checklist of symptoms by organ system, used to find problems the patient did not mention. It is not a repetition of the HPI. Pertinent items related to the main problem are included in the HPI, and a broad ROS can reveal unexpected clues, such as weight loss, night sweats or fatigue. Constitutional, cardiovascular, respiratory, gastrointestinal, genitourinary, neurological, musculoskeletal, skin, endocrine, psychiatric and hematologic questions are typical.",
+    "Taking a history with sensitive content calls for normalizing language, explaining why a question is asked, and offering confidentiality while explaining its limits. With adolescents, a portion of the visit is commonly conducted alone.",
+    "Worked example: a patient with new fatigue lists only a daily multivitamin. A thorough medication history uncovers a recently started over-the-counter sleep aid and a weekly herbal tea, shifting the differential toward a drug effect."
+   ]
+  },
+  {
+   "id": "med-skills.l03",
+   "title": "Empathy, Communication and Interpreters",
+   "body": [
+    "Communication skills are clinical skills. Good communication improves diagnostic accuracy, patient satisfaction, adherence and, in some studies, outcomes, and poor communication is a frequent theme in complaints. Empathy has cognitive, emotional and behavioral parts: understanding the patient's perspective, feeling concern, and expressing that understanding in words and actions. A widely taught tool for responding to emotion is the NURSE statement set: naming the emotion, understanding, respecting, supporting and exploring. For example, a clinician might say \"this news sounds frightening\" and then pause. Empathic responses work best when they are brief, followed by silence, and directed at the emotion that was expressed. Premature reassurance (\"it'll be fine\") often shuts the conversation down because it ignores what the patient feels.",
+    "Nonverbal communication matters. Sitting at eye level, facing the patient, and limiting screen time convey attention. Active listening involves reflecting back content and feeling. Teach-back checks understanding without implying the patient is at fault: the clinician asks the patient to explain the plan in their own words. Health literacy, the capacity to obtain, process and understand health information, is limited in a substantial share of adults regardless of education, so plain language, short sentences, written aids and avoiding jargon are recommended for everyone, a practice called universal precautions for health literacy.",
+    "Shared decision making is a collaborative process in which the clinician explains options, benefits, harms and uncertainty, and the patient contributes values and preferences. It is especially appropriate for preference-sensitive decisions, where reasonable people with the same facts would choose differently, such as some screening and elective surgery decisions. It differs from the paternalistic model, where the clinician decides, and from the informative model, where the clinician simply supplies facts. The goal is an informed choice consistent with the patient's values, and the clinician still gives a recommendation when asked.",
+    "When the patient and clinician do not share a language, a qualified medical interpreter, in person, by video or by phone, should be used. Ad hoc interpreters, such as family members and especially children, are discouraged because of errors, omissions, confidentiality concerns and the burden on the family. Good practice includes a short pre-session briefing, speaking directly to the patient rather than to the interpreter, using short sentences, avoiding idioms and allowing time for interpretation. In the United States, Title VI of the Civil Rights Act (which bars national-origin discrimination in federally funded programs) and Section 1557 of the Affordable Care Act are the legal bases for language access. The Section 1557 regulation, 45 CFR 92.201, requires covered health programs to take reasonable steps to give each person with limited English proficiency meaningful access, with free, accurate and timely language assistance from qualified interpreters; it bars requiring patients to bring their own interpreter, and bars using minor children to interpret except briefly in an emergency. Current status: that rule remains codified, but the wider federal language-access guidance is in flux, since a 2025 executive order (EO 14224) designated English the official language and the Justice Department suspended its lep.gov guidance site pending review, so check the current rule and the policy of your institution.",
+    "Cultural humility is a lifelong stance of self-reflection, asking about the patient's own beliefs and practices instead of assuming them from group membership.",
+    "Worked example: a patient says that she is worried about the biopsy result. Replying that this must be hard, and then waiting, is likelier to reveal her real fear than quickly moving on to explain the procedure."
+   ]
+  },
+  {
+   "id": "med-skills.l04",
+   "title": "Difficult Conversations: Bad News, Error and Capacity",
+   "body": [
+    "Some conversations carry high emotional stakes, and structured approaches help. The SPIKES protocol for breaking bad news has six steps: Setting (privacy, sitting down, asking who the patient wants present, silencing the phone), Perception (asking what the patient already understands), Invitation (asking how much information the patient wants), Knowledge (sharing the information in small pieces with a warning shot such as \"I'm afraid the news is serious\", without jargon), Emotions (responding to feelings with empathy) and Strategy and Summary (agreeing on next steps and checking understanding). The order matters: sharing a large amount of information before assessing perception and readiness often leaves patients unable to take it in.",
+    "Goals-of-care conversations explore what matters most to a patient with serious illness. Useful questions ask about their understanding of the illness, their hopes, their worries, what trade-offs they would accept and what their family should know. Advance care planning documents the answers: a health care proxy or durable power of attorney for health care names a surrogate, and a living will states preferences. Code status is a specific decision, and a do-not-resuscitate order applies to cardiopulmonary resuscitation only, not to other treatments. A recommendation from a clinician, framed around the patient's goals, is more helpful than a menu of options without guidance.",
+    "Disclosing medical errors honestly is an ethical expectation and is supported by professional bodies. Key elements include telling the patient promptly and clearly what happened, taking responsibility without speculating on blame, expressing regret, explaining what will be done to prevent recurrence, and ensuring follow-up. Many jurisdictions have apology laws that limit the admissibility of expressions of sympathy; local rules and institutional processes govern the details.",
+    "Decision-making capacity is a clinical judgment that a patient can make a particular decision at a particular time. It is decision-specific and can fluctuate. The commonly taught elements are the ability to communicate a choice, to understand relevant information, to appreciate how it applies to oneself, and to reason with it. Capacity is not the same as competence, which is a legal determination made by a court. A diagnosis of dementia or psychiatric illness does not by itself remove capacity, and a disagreement with the clinician's advice is not evidence of incapacity. When a patient lacks capacity, a previously designated proxy or the next of kin under local law decides according to the patient's known wishes (substituted judgment) or, if unknown, best interests.",
+    "Worked example: an 80-year-old declines surgery. She explains the risks accurately, says that she values staying at home over a longer life, and her reasoning is consistent. She has capacity, and her refusal is respected even if the clinician disagrees."
+   ]
+  },
+  {
+   "id": "med-skills.l05",
+   "title": "Vital Signs",
+   "body": [
+    "Vital signs are the quickest objective summary of physiology: temperature, heart rate, respiratory rate, blood pressure and oxygen saturation, with pain often recorded as a fifth. They should be interpreted in context, as a trend over time, and not as isolated numbers. Normal ranges below are approximate and vary by age, lab and source.",
+    "Heart rate in a resting adult is roughly 60 to 100 beats per minute. Tachycardia is above 100 and bradycardia below 60, though well-conditioned people can have a normal heart rate in the 50s. The pulse is assessed for rate, rhythm, volume and character; an irregularly irregular rhythm suggests atrial fibrillation. Respiratory rate is roughly 12 to 20 breaths per minute in adults; it is best counted for a full minute without the patient noticing, since awareness alters breathing. Tachypnea is often the earliest and most sensitive sign of serious illness, and a rate that creeps up in hospitalized patients is a recognized warning of deterioration. Normal oral temperature is about 37 degrees Celsius with a range of roughly 36.1 to 37.2, lower in the morning and higher in the evening; fever is commonly defined as 38.0 degrees or higher. Different sites give different readings, and core measures are higher than skin or axillary readings.",
+    "Blood pressure is measured with the patient seated, back supported, feet flat, arm at heart level, after about five minutes of rest, with a cuff of the correct size whose bladder encircles most of the arm. A cuff that is too small gives falsely high readings, and a cuff that is too large gives falsely low ones. Systolic pressure is the first Korotkoff sound and diastolic is its disappearance. The 2025 AHA/ACC guideline, which replaced the 2017 guideline and kept its categories and its 130/80 threshold, defines normal as below 120/80, elevated as systolic 120 to 129 with diastolic below 80, stage 1 hypertension as 130 to 139 or 80 to 89, and stage 2 as 140/90 or above, with diagnosis based on average readings on two or more occasions; other bodies use somewhat different thresholds. Home or ambulatory monitoring helps identify white-coat and masked hypertension. A large difference between arms, or lower leg than arm pressures, prompts consideration of vascular disease such as aortic coarctation or subclavian stenosis.",
+    "Orthostatic hypotension is a fall of at least 20 mm Hg systolic or 10 mm Hg diastolic within three minutes of standing, with a heart rate that rises appropriately in volume depletion but not in autonomic failure or when beta-blockers are used. Pulse oximetry estimates oxygen saturation, normally 95 percent or higher at sea level. It can be misleading with poor perfusion, nail polish, carbon monoxide poisoning (which reads falsely normal) and darker skin pigmentation, in which readings can overestimate true saturation.",
+    "Worked example: a patient with sepsis may have a normal temperature but a respiratory rate of 28 and a heart rate of 118. The tachypnea and tachycardia are the signal, and a clinician who looks only at the temperature may miss it."
+   ]
+  },
+  {
+   "id": "med-skills.l06",
+   "title": "General Inspection, Head, Neck and Skin",
+   "body": [
+    "The examination begins with general inspection from the moment the patient enters. Does the patient look well or ill, comfortable or in distress, alert, well nourished? Gait, posture, breathing effort, speech, hygiene and affect all provide data. Many diagnoses are suggested at the doorway, such as the pallor of anemia, the mask-like face and shuffling gait of Parkinson disease, or a patient leaning forward to breathe.",
+    "In the head and neck, the eyes offer several windows. Scleral icterus indicates elevated bilirubin, generally above about 2 to 3 mg/dL. Conjunctival pallor suggests anemia. Pupils are tested for size, symmetry, direct and consensual light response and accommodation; a relative afferent pupillary defect, in which the affected pupil appears to dilate when the light swings to it, indicates optic nerve or severe retinal disease. Fundoscopy can reveal papilledema (swollen disc margins with raised intracranial pressure), hypertensive changes such as arteriovenous nicking, and diabetic retinopathy with microaneurysms and hemorrhages. Oral examination looks for thrush, leukoplakia, dental disease and tonsillar enlargement or exudates. Ear examination with an otoscope assesses the tympanic membrane, where a bulging, erythematous drum with loss of landmarks points toward acute otitis media.",
+    "The neck contains the thyroid, lymph nodes and vessels. The thyroid is examined by inspection and palpation while the patient swallows; a diffusely enlarged gland suggests goiter and a discrete firm nodule requires further evaluation. Lymph node examination notes size, consistency, tenderness, mobility and location. Tender, soft, mobile nodes are typically reactive to infection, while firm, hard, fixed or matted nodes raise concern for malignancy. A hard, painless left supraclavicular node, sometimes called Virchow node, is classically associated with abdominal malignancy. Jugular venous pressure reflects right atrial pressure and is assessed at 45 degrees; the height of the pulsation above the sternal angle, with the patient reclined, estimates central venous pressure, and elevation is seen in heart failure, tamponade and fluid overload. Carotid bruits suggest atherosclerotic stenosis but are an imperfect predictor.",
+    "The skin is the largest organ and is examined for color, moisture, temperature, texture, lesions and nails. Cyanosis indicates desaturated hemoglobin, jaundice the bilirubin deposition, and erythema inflammation. Describe lesions using standard terms: macule, papule, plaque, vesicle, pustule, nodule, ulcer. For pigmented lesions, the ABCDE criteria (asymmetry, border irregularity, color variation, diameter above about 6 mm, evolution) flag possible melanoma. Clubbing of the nails, a loss of the angle between nail and nail bed, accompanies conditions such as lung cancer, bronchiectasis and cyanotic congenital heart disease.",
+    "Worked example: a 60-year-old man has a firm, painless, nontender 2 cm node above the left clavicle. This is not a normal reactive node, and it points to a search for an intrathoracic or abdominal malignancy."
+   ]
+  },
+  {
+   "id": "med-skills.l07",
+   "title": "The Cardiovascular Examination",
+   "body": [
+    "The cardiovascular examination combines inspection, palpation, percussion in limited form, and auscultation. Inspection looks for jugular distension, edema and chest wall deformity. Palpation finds the point of maximal impulse, normally at the fifth intercostal space at the mid-clavicular line; a laterally displaced or sustained apex suggests ventricular enlargement or hypertrophy. A thrill is a palpable murmur, and a heave is a sustained impulse over the right ventricle. Peripheral pulses are graded for symmetry, and delayed or absent femoral pulses raise concern for coarctation.",
+    "Auscultation uses the diaphragm for high-pitched sounds such as S1, S2, ejection murmurs and regurgitant murmurs, and the bell, applied lightly, for low-pitched sounds such as S3, S4 and the diastolic rumble of mitral stenosis. The first heart sound S1 marks closure of the mitral and tricuspid valves at the start of systole and is loudest at the apex. The second sound S2 marks closure of the aortic and pulmonic valves. Normal inspiratory splitting of S2 results from increased venous return delaying pulmonic closure. A fixed split suggests atrial septal defect, and paradoxical splitting, in which the split narrows on inspiration, suggests left bundle branch block or severe aortic stenosis. An S3, early diastolic and heard in rapid ventricular filling, is normal in young people but in older adults suggests volume overload and systolic heart failure. An S4, a late diastolic sound just before S1, reflects atrial contraction against a stiff ventricle and is often heard in hypertrophy.",
+    "Murmurs are described by timing, location, radiation, intensity (grade 1 to 6), pitch and quality, and how they change with maneuvers. Systolic ejection murmurs are crescendo-decrescendo; aortic stenosis produces a harsh murmur at the right upper sternal border that radiates to the carotids, with a soft or single S2 and delayed, small-volume pulses (pulsus parvus et tardus) when severe. Holosystolic murmurs begin with S1 and continue through systole, as in mitral regurgitation (apex, radiating to the axilla) and ventricular septal defect (left lower sternal border). Aortic regurgitation causes a high-pitched early diastolic decrescendo murmur along the left sternal border, with a wide pulse pressure. Mitral stenosis gives an opening snap followed by a low-pitched diastolic rumble at the apex. Hypertrophic cardiomyopathy produces a systolic murmur that increases with Valsalva maneuver or standing, which reduce venous return, and decreases with squatting. Most other murmurs, such as aortic stenosis, decrease with Valsalva.",
+    "Signs of right heart failure include elevated jugular venous pressure, peripheral edema, hepatomegaly and ascites; left heart failure produces pulmonary crackles, an S3 and orthopnea. Pericardial rub, a scratchy sound at three components, accompanies pericarditis, and muffled heart sounds with hypotension and elevated jugular venous pressure (Beck triad) suggest tamponade.",
+    "Worked example: a 72-year-old man with exertional syncope has a harsh crescendo-decrescendo systolic murmur at the right upper sternal border radiating to the carotids and a soft S2. The most likely lesion is severe aortic stenosis."
+   ]
+  },
+  {
+   "id": "med-skills.l08",
+   "title": "The Respiratory Examination",
+   "body": [
+    "The respiratory examination follows the same four steps. Inspection notes respiratory rate and effort, use of accessory muscles, retractions, pursed-lip breathing, posture (a tripod position suggests severe airway obstruction), chest shape (barrel chest in chronic obstructive disease), and cyanosis or clubbing. Palpation checks chest expansion, tenderness and tactile fremitus, the vibration felt as the patient speaks. Fremitus is increased over consolidated lung because solid tissue conducts sound better, and decreased over pleural fluid, pneumothorax or hyperinflated lung. Percussion produces a note that depends on what is beneath: resonant over normal lung, hyperresonant over air in the pleural space or emphysema, and dull over consolidation or fluid, with a stony dull note over pleural effusion.",
+    "Auscultation begins with normal vesicular breath sounds, soft and heard through inspiration with brief expiration. Bronchial breath sounds are louder and higher-pitched with a pause between inspiration and expiration and expiration as long as inspiration; they are heard over the trachea normally and over consolidation abnormally. Adventitious sounds add information. Crackles (rales) are brief, discontinuous sounds from the sudden opening of small airways or fluid in alveoli; fine late-inspiratory crackles are classic for pulmonary fibrosis and heart failure, and coarse crackles for bronchiectasis and secretions. Wheezes are continuous, high-pitched sounds from narrowed airways, typical of asthma and chronic obstructive disease. Rhonchi are low-pitched continuous sounds from secretions in larger airways that often clear with a cough. Stridor, a harsh inspiratory sound heard over the neck, suggests upper airway obstruction and is an emergency. A pleural friction rub is a creaking sound of inflamed pleural surfaces. Special tests include egophony, in which spoken E sounds like A over consolidation, and whispered pectoriloquy, in which whispers are heard clearly over consolidation.",
+    "Patterns help separate diseases. Lobar pneumonia produces dullness, increased fremitus, bronchial breath sounds and egophony over the affected area. A large pleural effusion produces dullness, decreased fremitus and decreased breath sounds, with bronchial breathing often at its upper margin and trachea shifting away from a large effusion. A pneumothorax produces hyperresonance, decreased fremitus and decreased breath sounds, and a tension pneumothorax, a clinical emergency, adds tracheal deviation away from the affected side, distended neck veins and hypotension. Asthma gives diffuse expiratory wheeze with a prolonged expiratory phase. Atelectasis produces dullness, decreased breath sounds and tracheal deviation toward the affected side.",
+    "Worked example: a 55-year-old smoker with fever and cough has dullness to percussion, increased tactile fremitus and bronchial breath sounds at the right base. This triad indicates consolidation, most consistent with lobar pneumonia rather than effusion, in which fremitus is reduced."
+   ]
+  },
+  {
+   "id": "med-skills.l09",
+   "title": "The Abdominal Examination",
+   "body": [
+    "The abdominal examination uses the order inspection, auscultation, percussion and palpation; auscultation comes before palpation because touch can alter bowel sounds. Position the patient supine with the abdomen exposed, knees slightly bent, and begin palpation away from the area of pain. Describe location with the four quadrants or nine regions, which helps organize the differential diagnosis.",
+    "Inspection notes distension, scars, hernias, visible peristalsis, masses and skin changes. Distension is often remembered as the five Fs: fat, fluid, flatus, feces and fetus. Caput medusae, dilated periumbilical veins, and spider angiomata suggest portal hypertension and chronic liver disease. Bowel sounds are assessed by listening for a minute or more; their absence in a quiet abdomen suggests ileus or peritonitis, while high-pitched tinkling and rushes suggest mechanical obstruction. Bruits over the aorta or renal arteries suggest vascular disease. Percussion identifies tympany over gas-filled bowel, dullness over solid organs and masses, and shifting dullness, in which the border of dullness moves when the patient rolls onto one side, supports ascites. Liver span can be estimated by percussion, with a normal span around 6 to 12 cm in the mid-clavicular line, varying with body size.",
+    "Palpation begins lightly and proceeds deeply, noting tenderness, masses, organomegaly and guarding, which is voluntary or involuntary tensing of the abdominal wall. Involuntary rigidity and rebound tenderness, pain on release of pressure, are signs of peritoneal inflammation and often indicate surgical disease. Gentle percussion or a light jolt provoking pain also indicates peritoneal irritation and is better tolerated than rebound.",
+    "Several named signs assist. Murphy sign, an inspiratory pause when the examiner presses under the right costal margin, suggests acute cholecystitis. McBurney point tenderness, at a point one third from the anterior superior iliac spine to the umbilicus on the right, and Rovsing sign, in which pressure in the left lower quadrant causes pain in the right, suggest appendicitis; the psoas sign (pain on extending the right hip) and the obturator sign (pain on internal rotation of the flexed hip) suggest an inflamed appendix lying against those muscles. Courvoisier sign is a palpable nontender gallbladder with jaundice, suggesting malignant obstruction of the common bile duct such as pancreatic cancer rather than gallstones. A pulsatile expansile midline mass raises concern for an abdominal aortic aneurysm. Costovertebral angle tenderness suggests pyelonephritis. A hernia is assessed standing and with a cough or Valsalva strain.",
+    "A rectal examination, where indicated, assesses tone, masses, prostate and stool for occult blood. In women, the pelvic examination is selective and guided by symptoms and screening needs.",
+    "Worked example: a 22-year-old with periumbilical pain that migrated to the right lower quadrant, anorexia and fever, with maximal tenderness at McBurney point and rebound, is likely to have acute appendicitis and needs urgent surgical assessment."
+   ]
+  },
+  {
+   "id": "med-skills.l10",
+   "title": "The Neurological Examination",
+   "body": [
+    "The neurological examination answers two questions: is there a lesion, and where is it? It has several components, and a screening version is tailored to the complaint. Mental status covers level of consciousness (alert, drowsy, stuporous, comatose), orientation, attention, memory, language and mood. Language errors localize to the dominant hemisphere, and neglect of one side of space suggests a nondominant parietal lesion. Delirium is an acute, fluctuating disturbance in attention and awareness, usually from a medical cause, while dementia is a chronic decline that does not fluctuate in the same way.",
+    "The twelve cranial nerves are tested in order. Visual acuity and fields test II; pupillary reflex tests II and III; extraocular movements test III, IV and VI (the lateral rectus is supplied by VI and the superior oblique by IV, so a down-and-out eye with ptosis and a dilated pupil indicates III palsy); facial sensation tests V; facial movement tests VII, where an upper motor neuron lesion spares the forehead because of bilateral cortical input, and a lower motor neuron lesion such as Bell palsy affects the forehead as well. Hearing tests VIII with Weber and Rinne tests, taste and swallow IX and X, shoulder shrug and head turn XI, and tongue protrusion XII, where the tongue deviates toward the side of a lower motor neuron lesion.",
+    "Motor testing assesses bulk, tone and power on a scale of 0 to 5. Upper motor neuron lesions give spasticity (a velocity-dependent increase in tone), hyperreflexia, clonus, weakness in a pyramidal pattern and an upgoing plantar response (Babinski sign). Lower motor neuron lesions give flaccidity, atrophy, fasciculations, hyporeflexia and weakness in the distribution of the nerve or root. Reflexes are graded 0 to 4, with the biceps (C5, C6), brachioradialis (C6), triceps (C7), patellar (L3, L4) and Achilles (S1) reflexes tested. Sensory testing covers light touch, pinprick and temperature (spinothalamic pathway) and vibration and proprioception (dorsal columns). A stocking-glove loss suggests a peripheral polyneuropathy, such as that of diabetes.",
+    "Coordination is assessed with finger-to-nose, heel-to-shin and rapid alternating movements; cerebellar lesions cause ataxia, intention tremor and dysdiadochokinesia on the same side as the lesion for hemispheric damage. Gait gives a lot of information: a wide-based ataxic gait suggests cerebellar disease, a shuffling gait with reduced arm swing suggests parkinsonism, a high-stepping gait suggests foot drop, and a circumducting gait suggests spastic hemiparesis. The Romberg test, in which a patient who is steady with eyes open sways or falls with eyes closed, indicates loss of proprioception (a sensory ataxia) rather than a cerebellar lesion.",
+    "Localization uses the pattern. A lesion in the right internal capsule produces left-sided weakness of face, arm and leg. A brainstem lesion produces crossed signs, with ipsilateral cranial nerve deficits and contralateral body deficits. Spinal cord hemisection (Brown-Sequard) gives ipsilateral weakness and loss of vibration and proprioception, and contralateral loss of pain and temperature below the lesion.",
+    "Worked example: a patient with left facial droop that spares neither the forehead nor the eye closure has a peripheral facial nerve lesion, as in Bell palsy, whereas drooping limited to the lower face with a spared forehead points toward a central lesion such as stroke."
+   ]
+  },
+  {
+   "id": "med-skills.l11",
+   "title": "The Musculoskeletal and Extremity Examination",
+   "body": [
+    "The musculoskeletal examination follows a consistent routine for each joint: look, feel, move, then perform special tests, and compare with the opposite side. Inspection looks for swelling, deformity, erythema, muscle wasting and skin changes. Palpation notes warmth, tenderness, effusion and crepitus. Range of motion is tested actively (the patient moves) and passively (the examiner moves). Pain with both active and passive movement suggests a joint problem such as arthritis, whereas pain mainly with active movement and weakness suggests a muscle or tendon problem. Strength is graded 0 to 5, and neurovascular status, including pulses, capillary refill and sensation, is always checked distal to an injury.",
+    "A critical distinction is between inflammatory and mechanical or degenerative joint disease. Inflammatory arthritis, such as rheumatoid arthritis, features prolonged morning stiffness lasting more than an hour that eases with use, symmetric small joint involvement of the hands (metacarpophalangeal and proximal interphalangeal joints, sparing the distal joints), warmth, soft swelling and systemic features such as fatigue. Osteoarthritis causes pain worsened by use and relieved by rest, brief morning stiffness, bony enlargement and crepitus, and involves the distal interphalangeal joints (Heberden nodes), proximal interphalangeal joints (Bouchard nodes), the first carpometacarpal joint, hips, knees and spine. A single acutely hot, swollen, exquisitely painful joint is a septic arthritis until proven otherwise and requires joint aspiration; crystal arthritis such as gout (urate crystals, negatively birefringent needles) and pseudogout (calcium pyrophosphate, positively birefringent rhomboids) can mimic it, and the two can coexist.",
+    "Common special tests have defined meanings. In the shoulder, the painful arc and impingement tests assess the rotator cuff. In the knee, the anterior drawer and Lachman tests assess the anterior cruciate ligament, with the Lachman test being more sensitive; valgus and varus stress test the medial and lateral collateral ligaments; the McMurray test assesses meniscal tears. In the hand, Phalen and Tinel tests assess carpal tunnel syndrome from median nerve compression at the wrist, which causes numbness of the thumb, index and middle fingers with thenar weakness in advanced cases. In the back, straight leg raise reproducing radiating leg pain below the knee suggests a lumbar nerve root irritation, commonly from a disc herniation. Red flags in back pain include fever, unexplained weight loss, a history of cancer, trauma, progressive neurological deficit, saddle anesthesia, and new bowel or bladder dysfunction; the last two suggest cauda equina syndrome, a surgical emergency.",
+    "The extremity examination also checks for edema and vascular status. Unilateral calf swelling raises concern for deep vein thrombosis, and the examination alone is insensitive, so clinical prediction rules and imaging are used. Pitting edema that is bilateral and dependent suggests a systemic cause such as heart failure, renal disease or hypoalbuminemia.",
+    "Worked example: a 38-year-old woman has two hours of morning stiffness and swollen, warm metacarpophalangeal joints in both hands, with sparing of the distal joints. The pattern favors rheumatoid arthritis over osteoarthritis."
+   ]
+  },
+  {
+   "id": "med-skills.l12",
+   "title": "Building a Differential Diagnosis",
+   "body": [
+    "A differential diagnosis is a ranked list of conditions that could explain the patient's problem. Experienced clinicians do not generate it by exhaustive recall. They build a problem representation, a one-sentence summary that translates the case into abstract terms using semantic qualifiers such as acute versus chronic, unilateral versus bilateral, continuous versus intermittent, and young versus old. A patient with \"chest pain\" becomes \"a 58-year-old man with acute exertional substernal pressure and diabetes\". The abstract form retrieves illness scripts, which are stored mental patterns of the typical risk factors, pathophysiology, presentation, course and findings of a disease. Matching a case to a script is pattern recognition, fast and efficient when the case is typical, and it is the main mode of expert reasoning.",
+    "Two cognitive modes are commonly described. System 1 thinking is fast, intuitive and pattern-based. System 2 is slow, analytic and deliberate. Hypothetico-deductive reasoning, in which the clinician generates a few early hypotheses from the first data and then tests them with targeted questions, examination and tests, is a System 2 process used when the case is unfamiliar or the pattern does not fit. Clinicians move between both, and expertise comes from the number and quality of illness scripts stored.",
+    "A useful differential is organized, not merely long. One approach is to prioritize by three questions: what is most likely, what is most dangerous (the cannot-miss diagnoses that need urgent action), and what is most treatable. For acute chest pain, the cannot-miss list includes acute coronary syndrome, pulmonary embolism, aortic dissection, tension pneumothorax, esophageal rupture and pericardial tamponade, even if musculoskeletal pain is statistically the most common cause. Anatomic, physiological or pathological frameworks organize the list, for instance by organ system, by mechanism (vascular, infectious, neoplastic, autoimmune, metabolic, traumatic, congenital) or, for anemia, by whether the mean corpuscular volume is low, normal or high.",
+    "Each item gets evidence for and against. A finding that is typical of one diagnosis and unusual in others carries more weight, and a finding that is expected in every candidate does not discriminate. Pertinent negatives matter: a diagnosis that requires a feature that is absent becomes less likely. The principle of parsimony, often called Occam razor, suggests that one diagnosis should explain all findings, whereas Hickam dictum reminds us that patients can have as many diseases as they please, and this becomes more common with age and multimorbidity. Rare diseases remain rare, but they are more likely when the common explanations fail to account for the findings. The saying that common things are common reflects base rates, which are shaped by setting: the same symptom has a different likely cause in a primary care clinic and a tertiary referral center.",
+    "The differential is revised as data arrive and should be written down and updated. Reassessing the working diagnosis when the patient does not respond to treatment as expected is part of good practice.",
+    "Worked example: a 24-year-old with three days of fever, a stiff neck and photophobia. The problem representation is an acute febrile illness with meningeal signs. Even though viral meningitis is more likely, bacterial meningitis is the cannot-miss diagnosis, so it drives urgent testing and treatment."
+   ]
+  },
+  {
+   "id": "med-skills.l13",
+   "title": "Probabilistic Reasoning: Pretest Probability and Likelihood Ratios",
+   "body": [
+    "Diagnosis is probability revision. Before a test, the clinician has a pretest probability, an estimate of how likely the disease is from the history, examination and prevalence in the setting. The test result then updates this to a posttest probability. Bayes theorem is the formal rule, and clinicians use a simplified version with likelihood ratios.",
+    "Sensitivity is the proportion of people with the disease who test positive, and specificity is the proportion of people without it who test negative. They are properties of the test (given a defined population and threshold) and, in principle, do not change with prevalence. A highly sensitive test has few false negatives, so a negative result helps rule out disease (SnNOut), and a highly specific test has few false positives, so a positive result helps rule it in (SpPIn). Positive predictive value (PPV) is the proportion of positive tests that are true positives, and negative predictive value (NPV) is the proportion of negative tests that are true negatives. These depend strongly on prevalence: when disease is rare, even a good test yields many false positives, and PPV is low.",
+    "Likelihood ratios combine sensitivity and specificity into one number that works directly with pretest odds. The positive likelihood ratio is sensitivity divided by one minus specificity, and the negative likelihood ratio is one minus sensitivity divided by specificity. A positive likelihood ratio above about 10 or a negative likelihood ratio below about 0.1 produces large, often conclusive changes in probability; values between 2 and 5, or 0.2 and 0.5, give small to moderate shifts, and values near 1 are nearly useless. The calculation is: convert the pretest probability to odds (probability divided by one minus probability), multiply by the likelihood ratio to obtain posttest odds, and convert back to probability (odds divided by one plus odds).",
+    "The worked numbers illustrate the principle. A test has 90 percent sensitivity and 90 percent specificity, so the positive likelihood ratio is 9. If the pretest probability is 1 percent (odds about 0.01), the posttest odds are about 0.09, or about 8 percent. Most positive results are still false positives. If the pretest probability is 50 percent (odds 1), the posttest odds are 9, or 90 percent. The same test and the same positive result lead to very different conclusions, which is why testing everyone without a reason to suspect disease produces misleading results.",
+    "Threshold thinking links probability to action. The test threshold is the probability below which no test is needed, and the treatment threshold is the probability above which treatment should begin without further testing; testing is most valuable when the pretest probability lies between them. Thresholds are lowered when the disease is dangerous and treatment is safe, as with pulmonary embolism, and raised when treatment is risky. Clinical prediction rules, such as Wells criteria for deep vein thrombosis, use structured findings to assign pretest probability. Screening tests are applied to unselected populations where prevalence is low, so PPV is modest and follow-up testing is required. Lead-time and length bias can make screening look better than it is, which is why outcome trials are preferred to survival statistics.",
+    "Worked example: a clinician with a low pretest probability for pulmonary embolism uses a sensitive D-dimer test. A negative result with a low likelihood ratio lowers the probability enough to stop the workup, while a positive result is only a reason to test further because the test is not specific."
+   ]
+  },
+  {
+   "id": "med-skills.l14",
+   "title": "Cognitive Bias and Diagnostic Error",
+   "body": [
+    "Diagnostic error is a missed, wrong or delayed diagnosis. Studies of malpractice claims and case reviews suggest that cognitive factors, errors in thinking, contribute to most diagnostic errors, usually combined with system factors such as poor handoffs, missing information and interruptions. The point is not that clinicians are careless but that fast pattern-based thinking, which is usually right, has predictable failure modes.",
+    "Anchoring is locking onto the first impression and failing to adjust when new information contradicts it. Premature closure is accepting a diagnosis before it has been verified and ceasing to consider alternatives; in a landmark study of 100 internal-medicine diagnostic errors (Graber 2005), it was the single most common cognitive cause. Anchoring and premature closure frequently travel together. Confirmation bias is seeking and over-weighting findings that support the working diagnosis while discounting those that do not. Availability bias judges likelihood by how easily examples come to mind, so a recent vivid case makes a diagnosis seem more likely, while a rarely seen diagnosis is under-considered. Representativeness restraint is the failure to consider atypical presentations, since patients do not always read the textbook; women and older adults, for example, may have myocardial infarction without classic chest pain. Base-rate neglect ignores prevalence. Framing effect refers to being influenced by how a case is presented, for example a handoff that labels a patient \"just anxious\". Diagnostic momentum is the way a label, once attached, tends to be passed along without being questioned. Search satisficing is stopping the search after finding one abnormality (a second fracture or a second pathology can be missed). Search satisficing is called satisfaction of search in",
+    "radiology, where one finding ends the hunt for a second. Overconfidence is excess certainty without feedback. Triage cueing and psych-out error, in which a patient with a psychiatric history has a physical complaint attributed to the psychiatric illness, are recognized patterns.",
+    "Strategies to reduce error focus on slowing down at key moments instead of trying to remove bias from thinking. A diagnostic time-out asks what else it could be and what must not be missed. Generating a differential before looking at test results, listing findings that do not fit, and asking what would change the plan work against anchoring. Checklists, decision support, second opinions and structured handoffs support the individual. Reflecting on cases with feedback, including following up on outcomes, improves calibration. Metacognition, thinking about one's own thinking, is the common thread. Shared decision making with patients includes inviting them to say if something does not fit, because patients often notice discrepancies, and a note that explicitly says \"reassess if not improving\" builds safety into the plan. Cultures that allow open discussion of error, such as blame-free case reviews, improve learning.",
+    "Worked example: a 52-year-old woman with a history of anxiety presents with palpitations and shortness of breath. The triage note reads \"anxiety attack\". The clinician, framed by that label, orders no ECG, and later she is found to have atrial fibrillation with a rapid rate. The labeling, framing and psych-out errors combined to delay diagnosis."
+   ]
+  },
+  {
+   "id": "med-skills.l15",
+   "title": "Ordering and Interpreting Tests",
+   "body": [
+    "Every test should be ordered to answer a question that will change management. Before ordering, a clinician asks what the pretest probability is, what the result could show, how it would alter what is done, and what the harms and costs are. Tests serve to diagnose, to stage or risk-stratify, to monitor therapy, to screen, and to reassure, and the last is the weakest justification. A test whose result would not change the plan is generally not worth doing.",
+    "Reference ranges are usually defined to include the central 95 percent of a healthy reference population. By construction, about 5 percent of healthy people fall outside the range for any single test, and for a panel of twenty independent tests, the chance that at least one is abnormal in a healthy person is substantial, roughly 64 percent. This is why ordering many tests without a hypothesis generates false alarms. A mildly abnormal result is interpreted in light of the clinical picture, the trend and the patient's own baseline, and repeating a test can show regression to the mean. Ranges vary with age, sex, pregnancy, ethnicity in some analytes, lab method and units, and the values in the lesson text are approximate.",
+    "Some frequently ordered tests show typical interpretive logic. A complete blood count with a low hemoglobin leads to the mean corpuscular volume to classify anemia as microcytic, normocytic or macrocytic. A basic metabolic panel gives sodium, potassium, chloride, bicarbonate, urea, creatinine and glucose; creatinine is used to estimate glomerular filtration rate and lags behind acute changes. Troponin is a sensitive marker of myocardial injury, which is not the same as myocardial infarction: a rise can occur in myocarditis, sepsis, pulmonary embolism and renal failure, so interpretation needs the clinical picture and a rising or falling pattern. Thyrotropin is the first test for thyroid dysfunction. A urinalysis is interpreted with the symptoms because asymptomatic bacteriuria is common, especially in older women, and treating it usually does harm without benefit. Imaging choices follow the question: plain radiographs for bone and pneumonia, ultrasound for gallbladder, pelvis and fluid without radiation, computed tomography for rapid structural detail at the cost of radiation, magnetic resonance imaging for soft tissue and nervous system detail. Contrast agents carry risks such as allergy-like reactions and kidney injury in vulnerable patients.",
+    "Testing also has downsides. False positives lead to cascades of follow-up tests, anxiety and procedures. Incidental findings, such as a small adrenal or thyroid nodule found on imaging for another reason, are common, usually benign, and their evaluation follows guidelines to avoid overdiagnosis, the detection of disease that would never have caused symptoms. Overuse also drains resources, and campaigns such as Choosing Wisely list tests that offer little value in specific situations, for example routine imaging for uncomplicated low back pain without red flags. Results must be followed up, and unreviewed results are a recognized safety hazard.",
+    "Worked example: a healthy 30-year-old gets a 20-test panel and one value falls just outside the range. Repeating it often returns it to normal, and a clinician should not launch a chain of investigations from an isolated, slightly abnormal result without clinical context."
+   ]
+  },
+  {
+   "id": "med-skills.l16",
+   "title": "The SOAP Note and Clinical Documentation",
+   "body": [
+    "The medical record is a working tool for the care team, a legal document and a source of data. The SOAP note is the most widely taught structure for a focused encounter or a progress note: Subjective, Objective, Assessment and Plan. Each section has a distinct job, and mixing them is the most common beginner mistake.",
+    "Subjective contains what the patient tells you: the chief complaint, the history of present illness, relevant past, medication, family and social history, and the review of systems. In a progress note it includes interval events and how the patient feels today. Write the patient's symptoms as reported, and use quotes sparingly where the exact words matter. Objective contains what you observe and measure: vital signs, examination findings, laboratory results, imaging and other data. A finding belongs in Objective even if the patient described it; a patient saying that her ankle is swollen is subjective, and measured pitting edema on examination is objective. Report pertinent negatives, avoid vague phrases such as \"normal exam\" without specifics, and give numbers with units and dates.",
+    "Assessment is your synthesis. It begins with a one-line summary of the patient (the problem representation), then states the working diagnosis or the leading differential with reasoning that links findings to conclusions. It is not a repetition of the data and should say why a diagnosis is favored and what is still uncertain. Plan lists what will be done for each problem: further diagnostic tests, treatments, consultations, patient education, follow-up and contingency instructions, including the return precautions that tell the patient when to seek urgent care. A problem-based plan, with a numbered list in which each problem has its own assessment and plan, is easier to read than a single paragraph, and it prioritizes the most urgent problem first.",
+    "Good documentation is accurate, specific, timely and legible. Note the source and time of information, avoid copy-forward errors in which an old statement is carried into a new note without checking it, and distinguish what you did from what was done by others. Do not alter a record to hide an error: corrections are made as dated, signed addenda that preserve the original. Avoid stigmatizing language, and describe behaviors and facts rather than labels (a patient who \"declined\" a medication, not one who is \"noncompliant\" or \"refuses\"). Patients in many jurisdictions have rights to read their notes, which is a further reason to write respectfully and precisely. Records contain protected health information, so access follows the minimum necessary principle and privacy laws such as HIPAA in the United States. Templates and copy-paste speed work but can propagate error and fill notes with irrelevant detail, so the writer remains responsible for the content.",
+    "Worked example: \"Patient reports headache\" is subjective. \"BP 168/102, no papilledema\" is objective. \"Likely tension-type headache; hypertension is elevated, unclear if sustained\" is assessment. \"Recheck BP in one week, home log, return if visual change or weakness\" is plan."
+   ]
+  },
+  {
+   "id": "med-skills.l17",
+   "title": "The Oral Case Presentation",
+   "body": [
+    "An oral presentation is a spoken argument for a diagnosis and a plan. Its purpose is to transfer the essential information to a colleague quickly so that the team can act and teach. It differs from the written note: it is shorter, selective and ordered to persuade. Reading the note aloud is the typical error of novices.",
+    "A standard full presentation opens with an identifying statement, the one-liner, which gives age, sex, relevant background and the reason for the encounter, in a sentence such as \"a 62-year-old man with hypertension and a 40 pack-year smoking history who presents with three days of progressive dyspnea and productive cough\". The history of present illness follows in chronological order, with the pertinent positives and negatives that bear on the differential. Past history, medications, allergies, family and social history are given only as relevant. Then come vital signs, pertinent examination findings and key data. The assessment starts with a summary statement, then names the leading diagnosis and the main alternatives, with the reason for each, and the plan is organized by problem. Practice ending with a clear ask, such as what you want the supervisor to confirm or decide.",
+    "Presentations vary by setting. A new-patient presentation on admission is full. A daily inpatient presentation is brief and focused on interval events, overnight developments, the current vital signs and examination, new data and the plan for the day, organized by problem or by system. An emergency presentation is a very short, high-priority summary that leads with the main problem and its urgency. A consult presentation opens with the question asked. In an outpatient setting, a focused two-minute presentation covers the visit reason, the key findings and the plan.",
+    "Good habits include knowing the patient before speaking, practicing, speaking at a measured pace, using terms that match the audience, keeping numbers precise and avoiding filler. Do not report an examination you did not do, and say plainly when something was not assessed. Admit uncertainty rather than guessing, and flag unstable findings first.",
+    "Handoffs are a related spoken skill with a safety focus. The I-PASS tool structures them as illness severity, patient summary, action list, situational awareness with contingency planning, and synthesis by receiver, in which the person receiving the handoff restates the key points. Structured handoffs have been associated with fewer preventable adverse events in studies of resident handoffs.",
+    "Worked example: a presenter who says \"the abdomen is soft, nontender, nondistended, with normal bowel sounds\" for a patient admitted with abdominal pain gives the listener the pertinent negatives that decrease the odds of peritonitis or obstruction, and does it in one breath."
+   ]
+  },
+  {
+   "id": "med-skills.l18",
+   "title": "Basic Procedure Concepts: Consent, Asepsis and Safety",
+   "body": [
+    "Before any procedure the clinician asks whether it is indicated, whether the benefit outweighs the risk, whether the patient has agreed and whether it is safe to do here and now. Informed consent is the ethical and legal process by which a capacitated patient authorizes an intervention after receiving adequate information. The elements are disclosure of the nature of the procedure, its material risks and benefits, the reasonable alternatives including doing nothing, and an opportunity to ask questions, followed by a voluntary decision. It is a conversation, not a signature on a form. Emergencies in which delay would risk life or serious harm and the patient cannot consent are covered by implied consent.",
+    "Infection control rests on a few principles. Standard precautions treat all blood and body fluids as potentially infectious and include hand hygiene, gloves, and masks, gowns and eye protection when splashes are likely. Hand hygiene before and after patient contact, at the five moments defined by the World Health Organization, is the single most effective measure. Transmission-based precautions add contact, droplet and airborne measures for specific organisms. Clean technique is used for many routine tasks, and aseptic or sterile technique is required when entering a normally sterile space, as in central line placement, lumbar puncture, joint aspiration and surgery. Sterile technique involves sterile gloves and gown, a sterile field, skin antisepsis with an agent such as chlorhexidine in alcohol that is allowed to dry, and avoiding contact between sterile and non-sterile items. Sharps are handled with care, never recapped by hand where avoidable, and discarded in a sharps container immediately; a needlestick requires prompt washing and reporting for post-exposure assessment.",
+    "The Universal Protocol, used for procedures and surgery, has three parts: preprocedure verification of the patient, procedure and consent, marking the site where laterality or levels are involved, and a time-out immediately before the start in which the team stops and confirms the patient, procedure and site. Checklists have been associated with reductions in complications. Anyone on the team may speak up if something seems wrong.",
+    "Common bedside procedures follow shared logic. Venipuncture and intravenous cannulation depend on tourniquet use, vein selection, antisepsis and gentle insertion. Local anesthesia with lidocaine blocks sodium channels; the clinician should know the maximum dose and avoid intravascular injection, and the signs of local anesthetic toxicity include perioral numbness, tinnitus and seizures. A lumbar puncture is performed below the conus medullaris, typically at L3-L4 or L4-L5, and is preceded by assessment for contraindications such as a mass lesion with raised intracranial pressure, a bleeding disorder or skin infection at the site. When bacterial meningitis is suspected and imaging must come first, blood cultures are drawn and empiric antibiotics are started without waiting for the scan or the lumbar puncture. Arterial blood sampling carries a risk of hematoma and requires pressure afterwards. Thoracentesis is done above the rib to avoid the neurovascular bundle on the lower edge of the rib. Ultrasound guidance improves the safety of many procedures. Complications are anticipated, monitored for and explained to the patient, and the procedure is documented with indication, consent, technique, findings, complications and post-procedure plan.",
+    "Worked example: a clinician about to drain a pleural effusion confirms the side on the imaging, marks the site, and pauses for a time-out in which the nurse notes that the consent form lists the opposite side. The error is caught before the needle goes in, which is the purpose of the protocol."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-skills.l01.q1",
+   "lessonId": "med-skills.l01",
+   "kind": "mcq",
+   "prompt": "Which approach best begins a medical interview after greetings?",
+   "choices": [
+    "Ask a series of closed questions about the main symptom to save time and keep the visit on schedule",
+    "Use an open-ended question and let the patient speak without interruption",
+    "Review the chart aloud and ask the patient to correct any errors",
+    "Begin with the review of systems so that no problem is overlooked"
+   ]
+  },
+  {
+   "id": "med-skills.l01.q2",
+   "lessonId": "med-skills.l01",
+   "kind": "mcq",
+   "prompt": "Which element of OLDCARTS describes whether chest pain spreads to the jaw or arm?",
+   "choices": [
+    "Radiation, which describes whether the symptom travels to other areas",
+    "Character, which describes the quality of the symptom such as pressure",
+    "Timing, which describes how often the symptom comes and for how long",
+    "Onset, which describes when and how the symptom began over time"
+   ]
+  },
+  {
+   "id": "med-skills.l01.q3",
+   "lessonId": "med-skills.l01",
+   "kind": "mcq",
+   "prompt": "A patient says that he has been dizzy. Which follow-up question best clarifies the symptom?",
+   "choices": [
+    "Is it vertigo that is caused by a problem in your inner ear or balance nerve?",
+    "Have you been told that you have low blood pressure in the past?",
+    "Does the dizziness occur only when you stand up from lying down?",
+    "Do you feel the room spinning, nearly faint, or unsteady on your feet?"
+   ]
+  },
+  {
+   "id": "med-skills.l01.q4",
+   "lessonId": "med-skills.l01",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman comes for fatigue. As the visit ends, with her hand on the door, she says she has been having thoughts of hurting herself. Which earlier step would most likely have surfaced this concern sooner?",
+   "choices": [
+    "Completing the physical examination before beginning the history",
+    "Beginning with a detailed review of systems before taking her main story",
+    "Setting an agenda early by asking what else she wanted to discuss",
+    "Asking only closed questions about the character of her fatigue"
+   ]
+  },
+  {
+   "id": "med-skills.l01.q5",
+   "lessonId": "med-skills.l01",
+   "kind": "mcq",
+   "prompt": "A 62-year-old man reports chest discomfort. He says it comes on when climbing stairs, feels like a heavy pressure, and goes away within five minutes of resting. He also says it does not change when he presses on his chest or takes a deep breath. Which feature of the history most strongly favors a cardiac cause?",
+   "choices": [
+    "The absence of any reproduction of pain when the chest is pressed",
+    "Relief at rest with onset on exertion, a pattern typical of angina",
+    "Its association with stair climbing, which also strains the chest wall",
+    "The pressure quality alone, which is never present in any other cause"
+   ]
+  },
+  {
+   "id": "med-skills.l02.q1",
+   "lessonId": "med-skills.l02",
+   "kind": "mcq",
+   "prompt": "What is the purpose of medication reconciliation at transitions of care?",
+   "choices": [
+    "To count the pills that remain in each bottle to measure adherence",
+    "To replace the earlier medication list with the newest prescriptions only",
+    "To compare what the patient actually takes against the recorded list and resolve differences",
+    "To confirm that the pharmacy has dispensed every drug at its lowest cost"
+   ]
+  },
+  {
+   "id": "med-skills.l02.q2",
+   "lessonId": "med-skills.l02",
+   "kind": "mcq",
+   "prompt": "A patient smoked one and a half packs per day for 20 years. How many pack-years is this?",
+   "choices": [
+    "40 pack-years, found by doubling the number of years smoked",
+    "1.5 pack-years, found by counting only the daily quantity",
+    "21 pack-years, found by adding the packs per day and the years",
+    "30 pack-years, found by multiplying packs per day by years"
+   ]
+  },
+  {
+   "id": "med-skills.l02.q3",
+   "lessonId": "med-skills.l02",
+   "kind": "mcq",
+   "prompt": "Which is the best use of the review of systems?",
+   "choices": [
+    "To screen for symptoms the patient may not have mentioned across organ systems",
+    "To replace the physical examination when the patient is acutely ill",
+    "To establish the patient social supports and living arrangement",
+    "To repeat the details of the main complaint in a standard order so that nothing is omitted"
+   ]
+  },
+  {
+   "id": "med-skills.l02.q4",
+   "lessonId": "med-skills.l02",
+   "kind": "mcq",
+   "prompt": "A 70-year-old woman presents with confusion and constipation. Her chart lists amlodipine and metformin only. A careful history reveals that she began an over-the-counter sleep aid containing an anticholinergic antihistamine two weeks ago. Which step in the history was most important for identifying this?",
+   "choices": [
+    "Family history, because confusion in the elderly is often inherited",
+    "Medication history including over-the-counter products, asked specifically",
+    "Social history, because the use of sleep aids relates to living arrangement",
+    "Review of systems, because constipation is a gastrointestinal complaint"
+   ]
+  },
+  {
+   "id": "med-skills.l02.q5",
+   "lessonId": "med-skills.l02",
+   "kind": "mcq",
+   "prompt": "A 16-year-old girl comes with her mother for abdominal pain. The clinician wants to ask about sexual activity and safety at home. What is the most appropriate approach?",
+   "choices": [
+    "Ask these questions in the mother presence so that she can correct any errors",
+    "Skip these topics, since adolescents rarely answer sensitive questions honestly",
+    "Explain confidentiality and its limits, then ask part of the history with the patient alone",
+    "Have the mother answer on her behalf to avoid embarrassing the teenager"
+   ]
+  },
+  {
+   "id": "med-skills.l03.q1",
+   "lessonId": "med-skills.l03",
+   "kind": "mcq",
+   "prompt": "Who is generally preferred as an interpreter in clinical encounters?",
+   "choices": [
+    "A friend of the patient who speaks both languages fairly well",
+    "Any staff member who happens to know some of the language",
+    "A bilingual child of the patient who is already present in the room",
+    "A qualified medical interpreter, in person, by video or by phone"
+   ]
+  },
+  {
+   "id": "med-skills.l03.q2",
+   "lessonId": "med-skills.l03",
+   "kind": "mcq",
+   "prompt": "Which response best shows empathy to a patient who says she is terrified about her test result?",
+   "choices": [
+    "Many patients feel this way before results come back, so this is perfectly normal.",
+    "Try not to worry, since most results like this turn out to be fine.",
+    "This sounds frightening. Can you tell me more about what worries you most?",
+    "We will go through the numbers now so that you understand them better."
+   ]
+  },
+  {
+   "id": "med-skills.l03.q3",
+   "lessonId": "med-skills.l03",
+   "kind": "mcq",
+   "prompt": "The teach-back method is used to:",
+   "choices": [
+    "Give the patient a written copy of the discharge instructions to read carefully at home",
+    "Check understanding by having the patient restate the plan in their own words",
+    "Teach medical students by asking them to repeat the attending plan",
+    "Remind the patient about the earlier visit by repeating the old advice"
+   ]
+  },
+  {
+   "id": "med-skills.l03.q4",
+   "lessonId": "med-skills.l03",
+   "kind": "mcq",
+   "prompt": "A 55-year-old man with a small, slow-growing prostate abnormality is weighing options that each have different harms and benefits, and he says he is unsure what matters most. Which approach is best?",
+   "choices": [
+    "List the options, explain benefits, harms and uncertainty, and explore his values",
+    "Give him a pamphlet and let him decide alone without discussion",
+    "Recommend whichever option the most recent trial favors without discussing it",
+    "Choose the standard treatment for him based on guidelines and inform him afterwards"
+   ]
+  },
+  {
+   "id": "med-skills.l03.q5",
+   "lessonId": "med-skills.l03",
+   "kind": "mcq",
+   "prompt": "During a visit using a telephone interpreter, a clinician keeps looking at the phone and asks the interpreter, \"Does she take her medicine?\" Which correction is most appropriate?",
+   "choices": [
+    "Speak only to the interpreter to prevent interrupting the patient",
+    "Use idioms freely, since the interpreter will always translate them accurately",
+    "Ask long multi-part questions so that the interpreter can summarize them",
+    "Speak directly to the patient in short sentences and let the interpreter relay them"
+   ]
+  },
+  {
+   "id": "med-skills.l04.q1",
+   "lessonId": "med-skills.l04",
+   "kind": "mcq",
+   "prompt": "In the SPIKES protocol, what does the P stand for?",
+   "choices": [
+    "Perception, in which the patient understanding of the situation is assessed",
+    "Prognosis, in which the expected survival is given in numbers",
+    "Privacy, in which the room and the people present are arranged",
+    "Plan, in which the next treatment steps are and the follow-up schedule are laid out in full detail"
+   ]
+  },
+  {
+   "id": "med-skills.l04.q2",
+   "lessonId": "med-skills.l04",
+   "kind": "mcq",
+   "prompt": "A do-not-resuscitate order applies to which intervention?",
+   "choices": [
+    "All aggressive treatments, including antibiotics and intravenous fluids",
+    "Cardiopulmonary resuscitation only, in the event of cardiac arrest",
+    "Admission to an intensive care unit for any reason whatsoever",
+    "Pain medication that could in theory suppress breathing"
+   ]
+  },
+  {
+   "id": "med-skills.l04.q3",
+   "lessonId": "med-skills.l04",
+   "kind": "mcq",
+   "prompt": "Which statement about decision-making capacity is correct?",
+   "choices": [
+    "It is absent whenever the patient refuses the clinician recommendation",
+    "It is determined by a court and applies to all decisions the patient makes",
+    "It is a clinical judgment that is specific to a decision and a time",
+    "It is lost automatically when a patient receives a diagnosis of dementia"
+   ]
+  },
+  {
+   "id": "med-skills.l04.q4",
+   "lessonId": "med-skills.l04",
+   "kind": "mcq",
+   "prompt": "A 38-year-old man in the clinic is told that his scan shows a mass. He looks stunned and asks, \"Is it cancer?\" The clinician has not yet learned what he understands. What is the most appropriate next step?",
+   "choices": [
+    "Reassure him that the mass is probably benign until more tests return",
+    "Tell him that it is not appropriate to discuss the matter until all tests return",
+    "Explain that the mass is most likely malignant and outline the surgery",
+    "Ask what he understands about the scan and how much he wants to know"
+   ]
+  },
+  {
+   "id": "med-skills.l04.q5",
+   "lessonId": "med-skills.l04",
+   "kind": "mcq",
+   "prompt": "A 76-year-old woman with mild dementia is offered a feeding tube after a stroke. She tells the team she understands that the tube would help her get nutrition, that without it she may weaken, and that she does not want it because she wants natural death. She repeats this consistently. Her daughter wants the tube placed. What is the best action?",
+   "choices": [
+    "Respect her refusal, since she shows understanding, appreciation and reasoning",
+    "Seek a court order, since the daughter disagrees with the patient choice",
+    "Defer to the daughter, since family wishes outweigh those of the patient",
+    "Place the tube, since a diagnosis of dementia means that she cannot decide for herself"
+   ]
+  },
+  {
+   "id": "med-skills.l05.q1",
+   "lessonId": "med-skills.l05",
+   "kind": "mcq",
+   "prompt": "A blood pressure cuff that is too small for the patient arm will most likely produce which result?",
+   "choices": [
+    "A falsely low reading, because compression of the artery is incomplete at normal pressures",
+    "A falsely high reading, because more pressure is needed to occlude the artery",
+    "An accurate reading, because the cuff is applied directly to the skin",
+    "An unreliable reading in either direction with no predictable pattern"
+   ]
+  },
+  {
+   "id": "med-skills.l05.q2",
+   "lessonId": "med-skills.l05",
+   "kind": "mcq",
+   "prompt": "Which vital sign is often the earliest and most sensitive sign of acute deterioration?",
+   "choices": [
+    "Respiratory rate, which rises in many serious illnesses before others",
+    "Oxygen saturation, which falls in every disorder before breathing rate",
+    "Oral temperature, which rises with infection earlier than other signs",
+    "Systolic blood pressure, which falls before the heart rate changes"
+   ]
+  },
+  {
+   "id": "med-skills.l05.q3",
+   "lessonId": "med-skills.l05",
+   "kind": "mcq",
+   "prompt": "Which condition can give a falsely normal pulse oximetry reading despite severe tissue hypoxia?",
+   "choices": [
+    "Methemoglobinemia, in which the reading drifts toward 85 percent",
+    "Pulmonary embolism, in which oxygen exchange falls across the lungs",
+    "Anemia with low hemoglobin but normally saturated blood in the vessels that remain perfused",
+    "Carbon monoxide poisoning, in which carboxyhemoglobin is read as oxygenated"
+   ]
+  },
+  {
+   "id": "med-skills.l05.q4",
+   "lessonId": "med-skills.l05",
+   "kind": "mcq",
+   "prompt": "A 68-year-old man on a beta-blocker and an alpha-blocker for prostate symptoms feels faint on standing. Supine BP is 138/82 with HR 66. After three minutes standing, BP is 108/70 with HR 70. Which interpretation is best?",
+   "choices": [
+    "White-coat hypertension, since the supine reading is higher than the standing one",
+    "Isolated tachycardia, since a drop in pressure must raise the pulse by 30",
+    "Orthostatic hypotension, with a minimal rise in heart rate that suggests a blunted reflex",
+    "Normal postural change, since the standing diastolic reading is still above 60"
+   ]
+  },
+  {
+   "id": "med-skills.l05.q5",
+   "lessonId": "med-skills.l05",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman has a clinic reading of 148/94 on two visits, but home averages of 122/76 over a week. Which term describes this?",
+   "choices": [
+    "Masked hypertension, with normal office readings and elevated home readings",
+    "White-coat hypertension, with elevated office readings and normal home readings",
+    "Secondary hypertension, with a clear underlying organ cause such as renal artery disease",
+    "Pseudohypertension, with falsely high readings from stiff arteries"
+   ]
+  },
+  {
+   "id": "med-skills.l06.q1",
+   "lessonId": "med-skills.l06",
+   "kind": "mcq",
+   "prompt": "Scleral icterus indicates elevation of which substance?",
+   "choices": [
+    "Hemoglobin, the oxygen-carrying protein of red blood cells",
+    "Melanin, the pigment that is produced by melanocytes",
+    "Bilirubin, the pigment released from heme breakdown",
+    "Carotene, the pigment found in some vegetables and fruit"
+   ]
+  },
+  {
+   "id": "med-skills.l06.q2",
+   "lessonId": "med-skills.l06",
+   "kind": "mcq",
+   "prompt": "Which lymph node finding is most concerning for malignancy?",
+   "choices": [
+    "A small, mobile node in the inguinal area of a healthy adult",
+    "A node that becomes smaller after a course of antibiotics",
+    "A soft, tender, mobile node that has enlarged during a sore throat",
+    "A hard, painless, fixed node that has persisted for many weeks"
+   ]
+  },
+  {
+   "id": "med-skills.l06.q3",
+   "lessonId": "med-skills.l06",
+   "kind": "mcq",
+   "prompt": "Clubbing of the fingernails is associated with which condition?",
+   "choices": [
+    "Lung cancer and other chronic hypoxic conditions of the lungs",
+    "Hypothyroidism, which causes brittle nails and slow growth",
+    "Psoriasis, which causes pitting and separation of the nail",
+    "Iron deficiency anemia, which causes spoon-shaped nails and brittle ridging"
+   ]
+  },
+  {
+   "id": "med-skills.l06.q4",
+   "lessonId": "med-skills.l06",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man reports severe headache and blurred vision. Fundoscopy shows swollen optic discs with blurred margins in both eyes. Which condition does this most strongly suggest?",
+   "choices": [
+    "Acute otitis media, which produces a bulging tympanic membrane",
+    "Raised intracranial pressure, which produces bilateral papilledema",
+    "Central retinal artery occlusion, which produces a cherry-red macula",
+    "Diabetic retinopathy, which produces dot hemorrhages and exudates"
+   ]
+  },
+  {
+   "id": "med-skills.l06.q5",
+   "lessonId": "med-skills.l06",
+   "kind": "mcq",
+   "prompt": "A 34-year-old woman has a 1.5 cm firm thyroid nodule that moves with swallowing. She is clinically euthyroid. Which next step best fits standard evaluation?",
+   "choices": [
+    "Immediate surgery to remove the gland without further diagnostic tests",
+    "Radioactive iodine treatment before any measurement of thyroid function",
+    "Thyroid ultrasound and measurement of thyrotropin, then further tests as findings dictate",
+    "Reassurance only, since thyroid nodules are always benign and need no tests"
+   ]
+  },
+  {
+   "id": "med-skills.l07.q1",
+   "lessonId": "med-skills.l07",
+   "kind": "mcq",
+   "prompt": "Which heart sound is heard in early diastole and often suggests volume overload in an older adult?",
+   "choices": [
+    "S4, a late diastolic sound from atrial contraction",
+    "S1, the closure of the atrioventricular valves at the start of systole",
+    "S2, the closure of the semilunar valves at the end of systole",
+    "S3, a low-pitched sound of rapid ventricular filling"
+   ]
+  },
+  {
+   "id": "med-skills.l07.q2",
+   "lessonId": "med-skills.l07",
+   "kind": "mcq",
+   "prompt": "A holosystolic murmur at the apex radiating to the axilla is most characteristic of:",
+   "choices": [
+    "Aortic regurgitation, with a decrescendo sound heard early in diastole",
+    "Aortic stenosis, with radiation toward the carotid arteries",
+    "Mitral regurgitation, with backflow of blood into the left atrium",
+    "Mitral stenosis, with a rumbling sound heard during diastole"
+   ]
+  },
+  {
+   "id": "med-skills.l07.q3",
+   "lessonId": "med-skills.l07",
+   "kind": "mcq",
+   "prompt": "Which maneuver decreases the murmur of aortic stenosis but increases the murmur of hypertrophic cardiomyopathy?",
+   "choices": [
+    "Squatting, which raises venous return and afterload to the heart",
+    "Valsalva strain, which reduces venous return to the heart",
+    "Handgrip, which increases afterload against the left ventricle",
+    "Leg elevation, which increases venous return to the right heart"
+   ]
+  },
+  {
+   "id": "med-skills.l07.q4",
+   "lessonId": "med-skills.l07",
+   "kind": "mcq",
+   "prompt": "A 70-year-old woman has exertional dyspnea and orthopnea. Examination shows jugular venous distension, bibasilar crackles, an S3, and a laterally displaced apex impulse. Which diagnosis best explains these findings?",
+   "choices": [
+    "Heart failure with ventricular dilation, with elevated filling pressure",
+    "Pneumothorax, with absent breath sounds and a hyperresonant percussion note",
+    "Pulmonary fibrosis, with fine crackles but a normal cardiac impulse",
+    "Chronic obstructive pulmonary disease, with hyperinflation and wheezing"
+   ]
+  },
+  {
+   "id": "med-skills.l07.q5",
+   "lessonId": "med-skills.l07",
+   "kind": "mcq",
+   "prompt": "A 25-year-old man has fever, sharp chest pain that eases when he sits forward, and a scratchy three-component sound over the left sternal border. Blood pressure is normal and jugular veins are not distended. Which diagnosis fits?",
+   "choices": [
+    "Cardiac tamponade, with muffled sounds and hypotension and distended veins",
+    "Aortic regurgitation, with a decrescendo murmur and wide pulse pressure",
+    "Mitral stenosis, with an opening snap and low-pitched diastolic rumble",
+    "Pericarditis, with a friction rub from inflamed pericardial layers"
+   ]
+  },
+  {
+   "id": "med-skills.l08.q1",
+   "lessonId": "med-skills.l08",
+   "kind": "mcq",
+   "prompt": "Percussion over a large pleural effusion typically gives which note?",
+   "choices": [
+    "Stony dull, as over fluid filling the pleural space",
+    "Tympanitic, as over a gas-filled loop of bowel",
+    "Hyperresonant, as over air trapped in the pleural space",
+    "Resonant, as over normal air-filled lung tissue"
+   ]
+  },
+  {
+   "id": "med-skills.l08.q2",
+   "lessonId": "med-skills.l08",
+   "kind": "mcq",
+   "prompt": "Tactile fremitus is most increased over:",
+   "choices": [
+    "An emphysematous lung, which is hyperinflated and poorly conductive",
+    "Consolidated lung, which conducts vibrations better than air",
+    "A pleural effusion, which separates lung from the chest wall",
+    "A pneumothorax, which places air between pleura and chest wall"
+   ]
+  },
+  {
+   "id": "med-skills.l08.q3",
+   "lessonId": "med-skills.l08",
+   "kind": "mcq",
+   "prompt": "Diffuse high-pitched continuous expiratory sounds with a prolonged expiratory phase are typical of:",
+   "choices": [
+    "Stridor from upper airway obstruction, a sound heard on inspiration",
+    "A pleural friction rub from inflamed pleural surfaces",
+    "Wheezing from narrowed airways, as in asthma or COPD",
+    "Fine crackles from alveolar opening, as in pulmonary fibrosis"
+   ]
+  },
+  {
+   "id": "med-skills.l08.q4",
+   "lessonId": "med-skills.l08",
+   "kind": "mcq",
+   "prompt": "A 22-year-old tall thin man develops sudden left chest pain and breathlessness. The left chest is hyperresonant with decreased breath sounds and the trachea is central. His blood pressure and neck veins are normal. Which diagnosis is most likely?",
+   "choices": [
+    "Pleural effusion, with stony dullness and reduced breath sounds",
+    "Asthma, with diffuse expiratory wheeze and a normal percussion note",
+    "Lobar pneumonia, with dullness to percussion and bronchial breath sounds on listening",
+    "Spontaneous pneumothorax, with hyperresonance and diminished breath sounds"
+   ]
+  },
+  {
+   "id": "med-skills.l08.q5",
+   "lessonId": "med-skills.l08",
+   "kind": "mcq",
+   "prompt": "A 60-year-old man after a fall has severe respiratory distress, absent breath sounds on the right, hyperresonance, distended neck veins, hypotension and a trachea deviated to the left. What is the best immediate action?",
+   "choices": [
+    "Perform needle decompression or finger thoracostomy without waiting for imaging",
+    "Start intravenous diuretics for presumed acute heart failure",
+    "Give nebulized bronchodilators for presumed severe airway obstruction",
+    "Obtain a chest radiograph and wait for the radiologist report before taking any further action"
+   ]
+  },
+  {
+   "id": "med-skills.l09.q1",
+   "lessonId": "med-skills.l09",
+   "kind": "mcq",
+   "prompt": "Why is auscultation performed before palpation in the abdominal examination?",
+   "choices": [
+    "Bowel sounds are only present before the abdomen has been touched",
+    "Palpation can alter bowel sounds and give a misleading impression",
+    "Auscultation is more sensitive for appendicitis than any other step",
+    "Percussion cannot be done until the stethoscope has been used"
+   ]
+  },
+  {
+   "id": "med-skills.l09.q2",
+   "lessonId": "med-skills.l09",
+   "kind": "mcq",
+   "prompt": "Pain provoked by pressing the left lower quadrant and felt in the right lower quadrant is called:",
+   "choices": [
+    "Rovsing sign, which suggests inflammation of the appendix",
+    "Courvoisier sign, which suggests obstruction by pancreatic cancer",
+    "Psoas sign, which suggests irritation of the iliopsoas muscle",
+    "Murphy sign, which suggests inflammation of the gallbladder"
+   ]
+  },
+  {
+   "id": "med-skills.l09.q3",
+   "lessonId": "med-skills.l09",
+   "kind": "mcq",
+   "prompt": "Shifting dullness on abdominal percussion suggests which finding?",
+   "choices": [
+    "Bowel obstruction, with gas distending loops of the bowel",
+    "Splenomegaly, with an enlarged spleen below the costal margin",
+    "Hepatomegaly, with extension of the liver edge below the ribs",
+    "Ascites, with free fluid moving to the dependent side"
+   ]
+  },
+  {
+   "id": "med-skills.l09.q4",
+   "lessonId": "med-skills.l09",
+   "kind": "mcq",
+   "prompt": "A 68-year-old woman has jaundice, weight loss and a palpable, nontender gallbladder. Which diagnosis is most strongly suggested?",
+   "choices": [
+    "Hepatitis A infection with a tender and enlarged liver",
+    "Acute cholecystitis from a gallstone impacted in the cystic duct, with fever and tenderness",
+    "Malignant obstruction of the common bile duct, as in pancreatic cancer",
+    "Chronic cholecystitis with a shrunken and fibrotic gallbladder"
+   ]
+  },
+  {
+   "id": "med-skills.l09.q5",
+   "lessonId": "med-skills.l09",
+   "kind": "mcq",
+   "prompt": "A 24-year-old man has fever and right lower quadrant pain. He has pain on passively rotating the flexed right hip inward, and rebound tenderness at McBurney point. Which interpretation fits best?",
+   "choices": [
+    "A positive Murphy sign, supporting acute cholecystitis in the right upper quadrant",
+    "A positive obturator sign, supporting an inflamed appendix near the pelvic wall",
+    "A positive psoas sign, supporting a kidney stone near the right ureter",
+    "A negative Rovsing sign, which rules out appendicitis completely"
+   ]
+  },
+  {
+   "id": "med-skills.l10.q1",
+   "lessonId": "med-skills.l10",
+   "kind": "mcq",
+   "prompt": "A lower motor neuron lesion typically produces which finding?",
+   "choices": [
+    "Rigidity and bradykinesia with a resting tremor in the hand",
+    "Intention tremor with impaired coordination on the same side",
+    "Spasticity with hyperreflexia, clonus and an upgoing plantar response on stroking",
+    "Flaccid weakness with atrophy, fasciculations and reduced reflexes"
+   ]
+  },
+  {
+   "id": "med-skills.l10.q2",
+   "lessonId": "med-skills.l10",
+   "kind": "mcq",
+   "prompt": "A patient with a right facial droop that spares the forehead most likely has:",
+   "choices": [
+    "A lesion of the right oculomotor nerve affecting the eyelid",
+    "A right lower motor neuron lesion of the facial nerve, such as Bell palsy",
+    "A left upper motor neuron lesion, such as a stroke affecting the cortex",
+    "A lesion of the right trigeminal nerve affecting facial sensation"
+   ]
+  },
+  {
+   "id": "med-skills.l10.q3",
+   "lessonId": "med-skills.l10",
+   "kind": "mcq",
+   "prompt": "A positive Romberg test, in which the patient is steady with eyes open but falls with eyes closed, indicates:",
+   "choices": [
+    "A cerebellar hemisphere lesion causing ataxia whether the eyes are open or closed",
+    "Loss of proprioceptive input, a sensory ataxia from dorsal column disease",
+    "A frontal lobe lesion with impaired motor planning of gait",
+    "A basal ganglia disorder causing a shuffling gait with small steps"
+   ]
+  },
+  {
+   "id": "med-skills.l10.q4",
+   "lessonId": "med-skills.l10",
+   "kind": "mcq",
+   "prompt": "A 65-year-old man has sudden left-sided weakness of the face, arm and leg with hyperreflexia and an upgoing left plantar response. Which lesion best explains this?",
+   "choices": [
+    "A lesion in the right internal capsule affecting corticospinal fibers",
+    "A lesion of the left peripheral nerve root at the cervical level",
+    "A lesion of the right cerebellar hemisphere affecting coordination",
+    "A lesion in the left cerebral hemisphere, which would affect the right body"
+   ]
+  },
+  {
+   "id": "med-skills.l10.q5",
+   "lessonId": "med-skills.l10",
+   "kind": "mcq",
+   "prompt": "A 30-year-old man has loss of vibration sense and weakness in the right leg, and loss of pain and temperature sensation in the left leg, both starting below the level of T10. Which lesion is most consistent?",
+   "choices": [
+    "Left hemisection of the cord at about T10, a Brown-Sequard pattern",
+    "Anterior spinal artery infarct, which spares vibration and position sense",
+    "Complete transection of the spinal cord at T10, causing bilateral loss",
+    "Right hemisection of the cord at about T10, a Brown-Sequard pattern"
+   ]
+  },
+  {
+   "id": "med-skills.l11.q1",
+   "lessonId": "med-skills.l11",
+   "kind": "mcq",
+   "prompt": "Which feature best favors inflammatory arthritis over osteoarthritis?",
+   "choices": [
+    "Crepitus on movement of the knee with a brief morning stiffness",
+    "Pain that worsens with use and improves with rest later in the day",
+    "Morning stiffness lasting more than an hour that improves with use",
+    "Bony enlargement of the distal interphalangeal joints of the hands"
+   ]
+  },
+  {
+   "id": "med-skills.l11.q2",
+   "lessonId": "med-skills.l11",
+   "kind": "mcq",
+   "prompt": "The Lachman test is used to assess the integrity of which structure?",
+   "choices": [
+    "The medial collateral ligament, which resists a valgus stress",
+    "The rotator cuff of the shoulder, which is tested by arc of motion",
+    "The medial meniscus of the knee, which is tested by rotation of the flexed knee",
+    "The anterior cruciate ligament, which restrains forward tibial shift"
+   ]
+  },
+  {
+   "id": "med-skills.l11.q3",
+   "lessonId": "med-skills.l11",
+   "kind": "mcq",
+   "prompt": "A single acutely hot, swollen, painful knee should first prompt:",
+   "choices": [
+    "Arthrocentesis to exclude septic arthritis and to look for crystals",
+    "Repeat examination in one week to see whether the swelling resolves",
+    "A radiograph, followed by physiotherapy for presumed osteoarthritis",
+    "Reassurance and an anti-inflammatory drug for presumed gout"
+   ]
+  },
+  {
+   "id": "med-skills.l11.q4",
+   "lessonId": "med-skills.l11",
+   "kind": "mcq",
+   "prompt": "A 45-year-old man with back pain has new urinary retention, numbness over the perineum and bilateral leg weakness. Which is the most appropriate next step?",
+   "choices": [
+    "Prescribe analgesics and physiotherapy with outpatient follow-up in two weeks",
+    "Arrange urgent MRI of the spine for suspected cauda equina syndrome",
+    "Order plain radiographs of the lumbar spine and review the results next week",
+    "Reassure him that these symptoms are common in simple muscular back strain"
+   ]
+  },
+  {
+   "id": "med-skills.l11.q5",
+   "lessonId": "med-skills.l11",
+   "kind": "mcq",
+   "prompt": "A 50-year-old woman has nocturnal numbness of the thumb, index and middle fingers, relieved by shaking her hand. Tapping over the wrist reproduces the tingling. Which diagnosis is most likely?",
+   "choices": [
+    "Rheumatoid arthritis, with symmetric swelling of the small hand joints",
+    "Cubital tunnel syndrome, with ulnar nerve involvement of the little finger",
+    "Carpal tunnel syndrome, with median nerve compression at the wrist",
+    "Cervical radiculopathy at C8, with weakness of the grip and little finger"
+   ]
+  },
+  {
+   "id": "med-skills.l12.q1",
+   "lessonId": "med-skills.l12",
+   "kind": "mcq",
+   "prompt": "What is a problem representation in clinical reasoning?",
+   "choices": [
+    "A complete list of every possible cause of the presenting symptom, ranked by likelihood",
+    "A one-sentence abstract summary of the case using semantic qualifiers",
+    "A transcript of the history in the exact words used by the patient",
+    "A table of every laboratory value and imaging result obtained so far"
+   ]
+  },
+  {
+   "id": "med-skills.l12.q2",
+   "lessonId": "med-skills.l12",
+   "kind": "mcq",
+   "prompt": "Which list contains only diagnoses that must not be missed in acute chest pain?",
+   "choices": [
+    "Aortic dissection, pulmonary embolism and acute coronary syndrome in the emergency setting",
+    "Herpes zoster, muscle strain and rib contusion, which are painful but not dangerous",
+    "Pleurisy, bronchitis and viral pericarditis, which are self-limited conditions",
+    "Costochondritis, gastroesophageal reflux and anxiety, which are common causes and are usually benign and self-limited"
+   ]
+  },
+  {
+   "id": "med-skills.l12.q3",
+   "lessonId": "med-skills.l12",
+   "kind": "mcq",
+   "prompt": "Hickam dictum, in contrast with Occam razor, reminds clinicians that:",
+   "choices": [
+    "The most common disease is always the most likely explanation",
+    "Rare diseases should be excluded before any common diagnosis",
+    "A single diagnosis should always be sought to explain all findings",
+    "Patients may have several unrelated diseases at the same time"
+   ]
+  },
+  {
+   "id": "med-skills.l12.q4",
+   "lessonId": "med-skills.l12",
+   "kind": "mcq",
+   "prompt": "A 22-year-old woman has acute fever, headache, neck stiffness and photophobia. A resident says that viral meningitis is far more common than bacterial meningitis and proposes discharge with fluids. Which reasoning is most appropriate?",
+   "choices": [
+    "Disagree, since viral meningitis is always more dangerous than the bacterial form",
+    "Agree, since the most likely diagnosis should guide the decision about management",
+    "Disagree, since bacterial meningitis is a cannot-miss diagnosis needing urgent evaluation",
+    "Agree, since young adults never develop bacterial meningitis"
+   ]
+  },
+  {
+   "id": "med-skills.l12.q5",
+   "lessonId": "med-skills.l12",
+   "kind": "mcq",
+   "prompt": "A 67-year-old man has new anemia with MCV of 72 fL, fatigue and weight loss. A trainee lists vitamin B12 deficiency first. Which comment best improves the reasoning?",
+   "choices": [
+    "Normal MCV values should have been expected, so the laboratory value is likely wrong",
+    "Microcytosis suggests iron deficiency, so a source of blood loss should be sought",
+    "Macrocytosis suggests B12 deficiency, so this order is appropriate",
+    "The MCV is irrelevant, so the differential should be built on weight loss alone"
+   ]
+  },
+  {
+   "id": "med-skills.l13.q1",
+   "lessonId": "med-skills.l13",
+   "kind": "mcq",
+   "prompt": "Which expression gives the positive likelihood ratio?",
+   "choices": [
+    "Sensitivity divided by one minus specificity",
+    "One minus sensitivity divided by specificity",
+    "Specificity divided by one minus sensitivity",
+    "Sensitivity multiplied by specificity of the test"
+   ]
+  },
+  {
+   "id": "med-skills.l13.q2",
+   "lessonId": "med-skills.l13",
+   "kind": "mcq",
+   "prompt": "When the prevalence of a disease in the tested population falls, with sensitivity and specificity held constant, what happens?",
+   "choices": [
+    "Sensitivity falls while specificity rises to preserve accuracy",
+    "Positive predictive value falls and negative predictive value rises",
+    "Positive predictive value rises and negative predictive value falls",
+    "Both predictive values rise because the test is applied more widely in the population"
+   ]
+  },
+  {
+   "id": "med-skills.l13.q3",
+   "lessonId": "med-skills.l13",
+   "kind": "mcq",
+   "prompt": "A test with sensitivity 95 percent and specificity 60 percent has a negative likelihood ratio closest to:",
+   "choices": [
+    "2.4, since sensitivity divided by one minus specificity is large",
+    "0.40, since it equals one minus the specificity of the test",
+    "0.08, since one minus sensitivity divided by specificity is small",
+    "0.60, since it equals the specificity of the test itself"
+   ]
+  },
+  {
+   "id": "med-skills.l13.q4",
+   "lessonId": "med-skills.l13",
+   "kind": "mcq",
+   "prompt": "A 35-year-old woman with a very low pretest probability of a rare disease (about 1 in 1000) tests positive on a test with positive likelihood ratio 10. Which statement is most accurate?",
+   "choices": [
+    "The posttest probability is about 50 percent, so treatment should begin at once",
+    "The result is uninformative, since likelihood ratios do not change a low pretest probability",
+    "She almost certainly has the disease, since the likelihood ratio is above 10",
+    "The posttest probability is still low, about 1 percent, so most positives are false"
+   ]
+  },
+  {
+   "id": "med-skills.l13.q5",
+   "lessonId": "med-skills.l13",
+   "kind": "mcq",
+   "prompt": "A 40-year-old man with chest pain after a flight has a low Wells score for pulmonary embolism. A high-sensitivity D-dimer is negative. What is the best interpretation?",
+   "choices": [
+    "Pulmonary embolism is essentially excluded, and imaging is not needed",
+    "Pulmonary embolism is likely, since a negative D-dimer is not informative",
+    "The test should be repeated daily until the result becomes positive",
+    "Imaging is required regardless, since D-dimer has no role in diagnosis"
+   ]
+  },
+  {
+   "id": "med-skills.l14.q1",
+   "lessonId": "med-skills.l14",
+   "kind": "mcq",
+   "prompt": "Locking onto the first diagnosis and failing to adjust to new data is called:",
+   "choices": [
+    "Availability, which judges likelihood by how easily cases come to mind",
+    "Framing, which is influenced by how the case is presented",
+    "Base-rate neglect, which ignores the prevalence of the condition",
+    "Anchoring, which leaves the first impression unrevised despite evidence"
+   ]
+  },
+  {
+   "id": "med-skills.l14.q2",
+   "lessonId": "med-skills.l14",
+   "kind": "mcq",
+   "prompt": "A patient with schizophrenia presents with abdominal pain and the pain is attributed to his psychiatric illness without examination. This error is best described as:",
+   "choices": [
+    "Overconfidence, in which certainty exceeds accuracy without feedback",
+    "Representativeness restraint, in which atypical presentations are not considered",
+    "Psych-out error, in which a physical complaint is attributed to mental illness",
+    "Search satisficing, in which the search stops after a first abnormality is found"
+   ]
+  },
+  {
+   "id": "med-skills.l14.q3",
+   "lessonId": "med-skills.l14",
+   "kind": "mcq",
+   "prompt": "Which strategy is most directly aimed at reducing premature closure?",
+   "choices": [
+    "Making the final diagnosis as early as possible to avoid wasted time on other options",
+    "A diagnostic time-out asking what else it could be and what is not fitting",
+    "Relying on the first impression since it is usually correct",
+    "Ordering a broad panel of tests with no particular question in mind"
+   ]
+  },
+  {
+   "id": "med-skills.l14.q4",
+   "lessonId": "med-skills.l14",
+   "kind": "mcq",
+   "prompt": "A 60-year-old man with a recent leg fracture develops shortness of breath. The resident, who saw three pneumonia cases that week, diagnoses pneumonia and orders antibiotics. A chest radiograph is clear and the patient is hypoxic and tachycardic. Which two biases are most evident?",
+   "choices": [
+    "Availability and anchoring, with a recent case and a first impression driving the plan",
+    "Hindsight and framing, with an outcome seeming obvious after it is known",
+    "Overconfidence and diagnostic momentum, with a label passed along unquestioned",
+    "Search satisficing and triage cueing, with the search ending after a first finding"
+   ]
+  },
+  {
+   "id": "med-skills.l14.q5",
+   "lessonId": "med-skills.l14",
+   "kind": "mcq",
+   "prompt": "A handoff describes a 28-year-old as the drug seeker in bed 4 who has abdominal pain. The night physician does not examine him. He is later found to have appendicitis. Which pair of contributors is most appropriate?",
+   "choices": [
+    "Hindsight bias and the availability heuristic, with outcome knowledge shaping views",
+    "Base-rate neglect and search satisficing, with prevalence ignored in the search",
+    "Anchoring on a lab value and premature closure with no label involved",
+    "Framing and diagnostic momentum, with a label carried forward without questioning"
+   ]
+  },
+  {
+   "id": "med-skills.l15.q1",
+   "lessonId": "med-skills.l15",
+   "kind": "mcq",
+   "prompt": "Reference ranges for laboratory tests are typically defined to include:",
+   "choices": [
+    "Only the values that indicate no disease in any patient",
+    "The values of patients with the disease being tested for",
+    "The central 95 percent of values in a healthy reference population",
+    "All of the values ever found in healthy people of any age"
+   ]
+  },
+  {
+   "id": "med-skills.l15.q2",
+   "lessonId": "med-skills.l15",
+   "kind": "mcq",
+   "prompt": "Why can a rise in troponin not be equated with myocardial infarction on its own?",
+   "choices": [
+    "Troponin always remains normal during the first day of an infarction",
+    "Troponin is released by skeletal muscle and signals only muscle injury",
+    "Troponin is not specific to the heart and is raised only in cases of myocardial infarction",
+    "Troponin indicates myocardial injury, which has several non-infarction causes"
+   ]
+  },
+  {
+   "id": "med-skills.l15.q3",
+   "lessonId": "med-skills.l15",
+   "kind": "mcq",
+   "prompt": "Overdiagnosis is best defined as:",
+   "choices": [
+    "Detecting a disease that would never have caused symptoms or harm",
+    "Making a diagnosis more than once in the same patient",
+    "Diagnosing a disease with a test that has low sensitivity",
+    "Assigning more than one diagnosis to explain a single symptom"
+   ]
+  },
+  {
+   "id": "med-skills.l15.q4",
+   "lessonId": "med-skills.l15",
+   "kind": "mcq",
+   "prompt": "A healthy 28-year-old with no symptoms has a 20-test panel as part of a wellness visit, and one result is slightly outside the range. Which action is most appropriate?",
+   "choices": [
+    "Order MRI and urgent specialist referral to investigate the single abnormal value",
+    "Interpret in context, consider chance and repeat the test if it is relevant",
+    "Begin treatment for the condition suggested by the abnormal value",
+    "Disregard every value outside the range as a laboratory error"
+   ]
+  },
+  {
+   "id": "med-skills.l15.q5",
+   "lessonId": "med-skills.l15",
+   "kind": "mcq",
+   "prompt": "A 35-year-old man with 10 days of low back pain after lifting, with no fever, trauma history, weight loss or neurological deficit, requests an MRI. Which response is most consistent with high-value care?",
+   "choices": [
+    "Refuse any further discussion until the pain has lasted at least six months",
+    "Order MRI, since imaging is the only way to reassure a worried patient",
+    "Explain the usually benign course and defer imaging while no red flags are present",
+    "Order MRI and an extensive blood panel in order to exclude rare causes"
+   ]
+  },
+  {
+   "id": "med-skills.l16.q1",
+   "lessonId": "med-skills.l16",
+   "kind": "mcq",
+   "prompt": "In a SOAP note, where does a measured blood pressure belong?",
+   "choices": [
+    "Subjective, since the patient participated in the measurement",
+    "Objective, since it is a finding measured by the clinician",
+    "Assessment, since it is used to interpret the cause of symptoms",
+    "Plan, since it determines which treatment will be started"
+   ]
+  },
+  {
+   "id": "med-skills.l16.q2",
+   "lessonId": "med-skills.l16",
+   "kind": "mcq",
+   "prompt": "Which entry belongs in the Assessment section?",
+   "choices": [
+    "Likely stable angina given exertional pressure and risk factors, with ACS less likely",
+    "Start aspirin, order a stress test and review the results at the next visit",
+    "Heart rate 82, blood pressure 146/88, clear lungs and no murmurs on examination",
+    "Pain is worse on climbing stairs and eased by rest within about five minutes, as the patient describes it"
+   ]
+  },
+  {
+   "id": "med-skills.l16.q3",
+   "lessonId": "med-skills.l16",
+   "kind": "mcq",
+   "prompt": "A clinician realizes that a prior note contained a wrong medication dose. What is the correct way to fix it?",
+   "choices": [
+    "Overwrite the old dose and backdate the change to the original time",
+    "Leave the record unchanged and inform the patient verbally only",
+    "Delete the original entry and enter the correct dose with no other comment",
+    "Add a dated and signed addendum that preserves the original entry"
+   ]
+  },
+  {
+   "id": "med-skills.l16.q4",
+   "lessonId": "med-skills.l16",
+   "kind": "mcq",
+   "prompt": "A progress note for a 70-year-old with pneumonia on day 3 repeats the admission exam and states the patient is afebrile, but the temperature chart shows 38.4 degrees overnight. This most likely resulted from:",
+   "choices": [
+    "Correct use of pertinent negatives to narrow a differential",
+    "Appropriate use of the subjective section to summarize the patient report",
+    "Copy-forward of old text without verification of current data",
+    "A properly formed problem-based plan with contingencies listed"
+   ]
+  },
+  {
+   "id": "med-skills.l16.q5",
+   "lessonId": "med-skills.l16",
+   "kind": "mcq",
+   "prompt": "A note reads: patient is noncompliant and refuses to take his insulin. On review, the patient says he cannot afford the supplies. Which revision best fits good documentation?",
+   "choices": [
+    "The patient is uncooperative about insulin and needs counseling on adherence",
+    "The patient has not been taking insulin because of cost, and options will be explored",
+    "The patient is a poor historian about medication and needs a social worker only",
+    "The patient refuses insulin and has been advised of the risks of doing so"
+   ]
+  },
+  {
+   "id": "med-skills.l17.q1",
+   "lessonId": "med-skills.l17",
+   "kind": "mcq",
+   "prompt": "What is the usual first element of an oral case presentation?",
+   "choices": [
+    "A one-liner giving age, sex, background and reason for the encounter",
+    "The final plan and the expected date of discharge",
+    "A detailed account of the physical examination by system",
+    "The full list of the laboratory values and imaging obtained since admission"
+   ]
+  },
+  {
+   "id": "med-skills.l17.q2",
+   "lessonId": "med-skills.l17",
+   "kind": "mcq",
+   "prompt": "Which is the best approach for a daily inpatient presentation?",
+   "choices": [
+    "Read the full admission note aloud in the same order in which it was originally written",
+    "Focus on interval events, current findings, new data and a plan by problem",
+    "List every system in the review of systems regardless of relevance",
+    "Present only the diagnosis and omit the findings supporting it"
+   ]
+  },
+  {
+   "id": "med-skills.l17.q3",
+   "lessonId": "med-skills.l17",
+   "kind": "mcq",
+   "prompt": "In the I-PASS handoff tool, the final S stands for:",
+   "choices": [
+    "Situational severity, in which the acuity of the patient is rated",
+    "Summary by sender, in which the sender repeats the entire chart to the receiver",
+    "Synthesis by receiver, in which the receiver restates the key points",
+    "Safety check by supervisor, in which the attending signs the form"
+   ]
+  },
+  {
+   "id": "med-skills.l17.q4",
+   "lessonId": "med-skills.l17",
+   "kind": "mcq",
+   "prompt": "A student presents a 55-year-old with abdominal pain and says, \"the abdomen is soft.\" The attending asks whether he checked for rebound or guarding. He had not examined for either. What should the student have done?",
+   "choices": [
+    "Skip mentioning the abdomen since it was not asked about",
+    "Report rebound and guarding as absent to complete the pattern",
+    "Report the abdomen as normal to avoid appearing uncertain",
+    "State plainly that rebound and guarding were not assessed"
+   ]
+  },
+  {
+   "id": "med-skills.l17.q5",
+   "lessonId": "med-skills.l17",
+   "kind": "mcq",
+   "prompt": "A senior resident hands off a patient with a possible bleed overnight, saying only that the patient is stable and will need a repeat hemoglobin. The night resident does not ask questions. Which element would most improve the handoff?",
+   "choices": [
+    "A contingency plan with what to do if the hemoglobin drops or bleeding recurs",
+    "A longer account of the patient hospital course since the day of admission",
+    "The patient complete family history, to be read aloud from the chart",
+    "A list of every medication, regardless of whether it affects the bleed"
+   ]
+  },
+  {
+   "id": "med-skills.l18.q1",
+   "lessonId": "med-skills.l18",
+   "kind": "mcq",
+   "prompt": "Which is NOT a required element of informed consent?",
+   "choices": [
+    "Disclosure of material risks and benefits of the procedure",
+    "Discussion of reasonable alternatives including no treatment",
+    "A voluntary decision by a patient who has capacity",
+    "A guarantee from the clinician that no complications will occur"
+   ]
+  },
+  {
+   "id": "med-skills.l18.q2",
+   "lessonId": "med-skills.l18",
+   "kind": "mcq",
+   "prompt": "The purpose of the time-out before a procedure is to:",
+   "choices": [
+    "Allow the clinician to rest between preparation and the first incision",
+    "Record the time at which the sterile field was first prepared",
+    "Confirm the patient, procedure and site with the whole team just before starting",
+    "Give the patient a short break to reconsider his earlier consent"
+   ]
+  },
+  {
+   "id": "med-skills.l18.q3",
+   "lessonId": "med-skills.l18",
+   "kind": "mcq",
+   "prompt": "Why is thoracentesis performed just above the upper border of a rib?",
+   "choices": [
+    "The pleural space is widest at the level of the upper rib border",
+    "The neurovascular bundle runs along the lower edge of each rib",
+    "The lung is thinner above the rib so the needle meets less resistance",
+    "The diaphragm attaches at the upper border of the rib"
+   ]
+  },
+  {
+   "id": "med-skills.l18.q4",
+   "lessonId": "med-skills.l18",
+   "kind": "mcq",
+   "prompt": "A 28-year-old man with severe headache, fever and neck stiffness needs a lumbar puncture. He has new confusion and a unilateral dilated pupil. Which step is most appropriate before the procedure?",
+   "choices": [
+    "Obtain head CT first, and start empiric antibiotics without waiting for the scan",
+    "Cancel any investigation and observe him for several days without antibiotics",
+    "Perform the puncture at a higher spinal level to avoid the conus medullaris",
+    "Perform the lumbar puncture immediately, since any delay increases the risk of harm"
+   ]
+  },
+  {
+   "id": "med-skills.l18.q5",
+   "lessonId": "med-skills.l18",
+   "kind": "mcq",
+   "prompt": "A 45-year-old man is brought unconscious after a crash with severe hemorrhage and no family reachable. The surgeon proceeds to emergency surgery. Which principle justifies this?",
+   "choices": [
+    "Therapeutic privilege, allowing the withholding of information from patients",
+    "Advance directive, since the patient had signed a form in earlier years",
+    "Substituted judgment, since a relative has chosen on his behalf in the waiting room",
+    "Implied consent in an emergency where delay would risk life or serious harm"
+   ]
+  }
+ ]
+}

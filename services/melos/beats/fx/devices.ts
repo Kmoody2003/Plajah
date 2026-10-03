@@ -125,13 +125,21 @@ const ABS_CURVE = (() => { const n = 1024, c = new Float32Array(n); for (let i =
 /** A soft-clip curve that brickwalls to ±ceil (linear) with a `hardness`-controlled knee. Paired with a
  *  4× WaveShaper oversample it catches inter-sample peaks — true-peak safety. Normalised so full-scale
  *  input maps exactly to ceil. */
+// Unity gain below the knee, then a tanh approach to the ceiling (slope 1 at
+// the knee, so no kink). The previous curve, ceil·tanh(d·x/ceil)/norm, had a
+// small-signal gain of ~d (≈5.8× on Transparent): every quiet signal was
+// boosted and squashed toward the ceiling — a saturator, not a limiter.
+// Harder = later knee (more of the signal untouched, a firmer wall).
 function ceilingClipCurve(ceil: number, hardness: number, n = 4096): Float32Array {
   const c = new Float32Array(n);
-  const d = 1 + hardness * 8;
-  const norm = Math.tanh(d / Math.max(0.05, ceil));
+  const ceiling = Math.max(0.05, Math.min(1, ceil));
+  const knee = ceiling * (0.6 + Math.max(0, Math.min(1, hardness)) * 0.35);
+  const span = ceiling - knee;
   for (let i = 0; i < n; i++) {
     const x = (i / (n - 1)) * 2 - 1;
-    c[i] = (ceil * Math.tanh((d * x) / Math.max(0.05, ceil))) / norm;
+    const a = Math.abs(x);
+    const y = a <= knee ? a : knee + span * Math.tanh((a - knee) / span);
+    c[i] = Math.sign(x) * y;
   }
   return c;
 }
@@ -1292,10 +1300,18 @@ class LimiterDevice extends FxBase {
     let release = Math.max(0.01, (p.release ?? 80) / 1000);
     if (character === 1) release *= 1.8; else if (character === 2) release *= 0.4;
     this.comp.release.value = release;
-    this.ceilingG.gain.value = dbToGain(Math.min(0, ceiling));
+    // Unity below the threshold. Two corrections, both measured:
+    //  · DynamicsCompressorNode adds its own automatic makeup gain,
+    //    ≈ 0.6 × |output level at 0 dBFS| (Chromium) — +0.57 dB at a −1 dB
+    //    ceiling — so cancel it here;
+    //  · the old code scaled everything by the ceiling, turning the whole
+    //    programme down by |ceiling| dB even far below it.
+    const outAt0 = ceiling + (0 - ceiling) / this.comp.ratio.value; // dB, ≤ 0
+    this.ceilingG.gain.value = dbToGain(0.6 * outAt0);
     // True-peak-safe brickwall: soft-clip to the ceiling, 4× oversampled so inter-sample peaks are
     // caught (a plain sample-domain limiter overshoots them). Harder knee = louder/more aggressive.
-    const ceilLin = dbToGain(ceiling);
+    // 0.16 dB of margin absorbs the oversampling filter's ringing (measured +0.15 dB at the wall).
+    const ceilLin = dbToGain(ceiling - 0.16);
     const hardness = character === 2 ? 0.9 : character === 1 ? 0.35 : 0.6;
     this.clip.curve = ceilingClipCurve(ceilLin, hardness);
   }

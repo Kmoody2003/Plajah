@@ -1,0 +1,20 @@
+# med-clin-obgyn: claims for expert review
+
+- l01: Hormonal values (blood volume +40-50%, cardiac output +30-50%, GFR +50%); hCG discriminatory zone (1,500-3,500 mIU/mL, varies by centre); visit schedule; ACOG 2023 prenatal care guideline cited loosely; RSV and COVID-19 vaccine statements in pregnancy are time-sensitive; IOM 2009 weight-gain reference.
+- l02: ACOG PB 226 (2020) summary; cfDNA detection rate "above 99 percent" for trisomy 21; amniocentesis loss risk range (1 in 500 to 1 in 1000 or lower); hCG rise thresholds not given as exact numbers.
+- l03: Active labor at 6 cm (ACOG/SMFM 2014); Bishop score of 8 as favourable; ACOG PB 106 (2009) was later replaced by newer fetal monitoring guidance (2010 and later); verify citation.
+- l04: Arrest-of-labor timings (4 and 6 hours; 2 to 3 hours second-stage pushing); EFW thresholds for elective cesarean (5,000 g, 4,500 g); ECV success "about half"; TOLAC success 60-80% and rupture 0.5-1%; ARRIVE (2018) conclusions and ACOG position statement date; induction timing 41 0/7 to 42 0/7.
+- l05: ACOG PB 234 (2021) citation and progesterone recommendations (cervical length cutoff 25 mm); withdrawal of 17-OHPC in 2023; steroids window 24-34 weeks; PPROM management at 34 weeks; latency antibiotic regimen described generically.
+- l06: Definition of PPH (1,000 mL) per ACOG 2017; WOMAN trial; uterine inversion management wording; timing of planned delivery for accreta (34-36 weeks) and previa (36-37 weeks).
+- l07: Delivery thresholds (37 weeks, 34 weeks); severe feature cutoffs; CHAP trial (2022) described as target below 140/90; postpartum preeclampsia up to 6 weeks.
+- l08: GDM thresholds (Carpenter-Coustan; one-step values); glycemic targets; delivery timing windows; HbA1c preconception target "under about 6.5 percent"; "about 50 percent or more" lifetime type 2 risk; metformin/glyburide statements (ACOG 2018 vs later ADA position).
+- l09: Percent rise in hCG (35 to 53 percent); methotrexate eligibility; partial mole karyotype; cholestasis delivery timing 36-39 weeks.
+- l10: ACOG CO 736 timings; zuranolone approval for postpartum depression; incidence figures (1 in 7 depression; 1 in 1,000 psychosis); "W" mnemonic is a teaching device.
+- l11: Typical-use failure rates (approximate); US MEC 2024 category lists simplified; implant duration "about 3 years" (labelling now extends in some products); IUD durations (copper up to 10 years); emergency contraception effectiveness by BMI.
+- l12: Dobbs (2022) holding and state-law summary (state laws change quickly; litigation ongoing and unsettled for EMTALA, telehealth, shield laws); FDA v. Alliance for Hippocratic Medicine (2024) held plaintiffs lacked standing; mifepristone approved 2000 through 10 weeks; effectiveness 95-98 percent; NASEM 2018 safety conclusions; the Hyde Amendment summary; descriptions of positions are intended to be balanced and should be reviewed for fairness.
+- l13: FIGO PALM-COEIN; 2023 PCOS guideline (AMH as alternative to ultrasound; letrozole first-line); amenorrhoea age thresholds; adenomyosis description.
+- l14: ASRM definition of infertility (2023 update adds patient-focused language); WHO semen reference values (2021); NAMS 2022 position; fezolinetant approval (2023); DXA at 65.
+- l15: CDC 2021 regimens (doxycycline now first-line for chlamydia; metronidazole in PID); fibroid epidemiology; Doppler sensitivity in torsion.
+- l16: USPSTF 2018 intervals; ACS 2020 start at 25; self-collected HPV testing (approved 2024; USPSTF and HRSA updates in progress, may have changed); ASCCP 2019 details simplified; HPV vaccine age rules per ACIP; the FIGO 2018 staging statement.
+- l17: Lifetime ovarian risk for BRCA1/2 (about 40 percent and 15 to 20 percent); risk-reducing surgery timing; ACOG CO 734 (4 mm threshold); molecular classification of endometrial cancer; tumour marker associations.
+- l18: USPSTF 2024 mammography; ACS 2023 and ACOG positions summarised; forensic evidence window 72 to 120 hours varies by jurisdiction; STI prophylaxis regimen per CDC 2021; HIV PEP within 72 hours; mandatory reporting laws vary.

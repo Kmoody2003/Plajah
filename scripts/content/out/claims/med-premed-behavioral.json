@@ -1,0 +1,1288 @@
+{
+ "courseId": "med-premed-behavioral",
+ "label": "Behavior, Mind and Society",
+ "lessons": [
+  {
+   "id": "med-premed-behavioral.l01",
+   "title": "Biological Bases of Behavior",
+   "body": [
+    "Behavior is produced by a nervous system that communicates in two ways: fast electrical signaling along neurons and chemical signaling across synapses. A neurotransmitter is released from the presynaptic terminal, crosses the cleft, and binds receptors on the next cell. Whether it excites or inhibits depends on the receptor, not on the molecule alone. Glutamate is the main excitatory transmitter in the brain and GABA the main inhibitory one. Dopamine is central to reward prediction and movement, serotonin to mood, appetite and sleep regulation, norepinephrine to arousal and vigilance, and acetylcholine to muscle contraction, attention and memory. Many psychiatric drugs act by changing how long a transmitter stays in the synapse, for example by blocking reuptake.",
+    "The brain is organized into regions with characteristic roles, though no function lives in a single spot. The brainstem handles breathing, heart rate and arousal. The cerebellum coordinates movement and timing. The thalamus relays most sensory information to the cortex. The hypothalamus regulates hunger, thirst, temperature and the hormonal output of the pituitary. Within the limbic system, the amygdala tags stimuli with emotional significance, especially threat, and the hippocampus is needed to form new declarative memories. The frontal lobes support planning, impulse control and judgment, and the prefrontal cortex in particular matures into the mid-twenties. The parietal lobes integrate touch and spatial information, the occipital lobes process vision, and the temporal lobes process hearing and contribute to language and memory.",
+    "The cerebral hemispheres are connected by the corpus callosum. In most right-handed people language is lateralized to the left hemisphere, with Broca area in the frontal lobe supporting speech production and Wernicke area in the temporal lobe supporting comprehension. Damage to Broca area produces effortful, halting speech with relatively preserved understanding. Damage to Wernicke area produces fluent speech that makes little sense and poor comprehension.",
+    "The endocrine system works more slowly than neurons. Hormones travel in blood and act for minutes to hours. The adrenal glands release epinephrine quickly during acute stress and cortisol more slowly. Because behavior and biology interact in both directions, researchers use lesion studies, electroencephalography, functional MRI and PET to link structure to function, each with different strengths in spatial and temporal resolution.",
+    "Worked example: a patient who can still recognize faces and speak, but cannot form any memory of events from the past hour after bilateral hippocampal damage, shows that the hippocampus is critical for encoding new declarative memories while older learned skills and language remain intact."
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l02",
+   "title": "Sensation",
+   "body": [
+    "Sensation is the process by which sensory receptors detect physical energy and convert it into neural signals. That conversion is called transduction. In the eye, photoreceptors in the retina transduce light: rods work in dim light and give no color, while cones work in bright light and give color and fine detail, concentrated in the fovea. In the ear, hair cells in the cochlea transduce vibration. Taste and smell receptors respond to chemicals, and the skin contains mechanoreceptors, thermoreceptors and nociceptors. Smell is unusual because olfactory signals reach the olfactory cortex and limbic structures without first passing through the thalamus.",
+    "A threshold is the minimum stimulus needed for detection. The absolute threshold is the smallest intensity detected half the time. The difference threshold, or just noticeable difference, is the smallest change a person can detect, and Weber law says it is a constant proportion of the original stimulus: you notice one candle added to a dark room but not to a stadium of lights. Signal detection theory explains why thresholds are not fixed. Performance depends on sensitivity and also on response bias. A radiologist who is told a missed tumor is very costly adopts a liberal criterion and will produce more hits but also more false alarms. Sensitivity is how well signal is separated from noise, while criterion is how much evidence the observer demands before saying yes.",
+    "Sensory adaptation is a decrease in response to a constant stimulus, which is why you stop noticing a smell or the feel of your clothing. Adaptation frees attention for changes, which are usually more informative than steady background. It differs from habituation, a learned decline in response to a repeated, harmless stimulus.",
+    "Vision follows a pathway from the retina through the optic nerve to the optic chiasm, where fibers from the nasal half of each retina cross, then to the thalamus and the visual cortex. Because of this crossing, a lesion of the right optic tract causes loss of the left visual field in both eyes. Hearing separates pitch, determined mainly by frequency and the place of maximal vibration along the basilar membrane, from loudness, determined by amplitude. Pain is modulated in the spinal cord and brain, and the gate control theory proposes that non-painful input and descending signals can reduce pain transmission.",
+    "Worked example: two lifeguards watch a pool. One shouts at every ripple and the other only at obvious trouble. If they are equally sensitive, the difference lies in response bias, not in how well they detect real drowning."
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l03",
+   "title": "Perception",
+   "body": [
+    "Perception is the brain interpreting and organizing sensation into meaningful experience. Bottom-up processing starts with the raw features of a stimulus, such as edges, colors and motion, and builds toward recognition. Top-down processing uses expectations, context and prior knowledge to interpret ambiguous input. Both operate together: you read a badly handwritten word easily because context supplies what the letters do not. Perceptual set and expectation explain why people see what they are primed to see, and why the same sentence can be heard differently depending on what is anticipated.",
+    "Gestalt psychologists described principles by which the brain groups elements into wholes. Proximity groups things that are near each other. Similarity groups things that look alike. Continuity favors smooth, uninterrupted lines. Closure fills in gaps to perceive a complete shape. Figure-ground organization separates an object from its background. The slogan is that the whole is different from the sum of its parts.",
+    "Depth perception relies on binocular cues, such as retinal disparity (the slight difference between the images in each eye) and convergence, and monocular cues, such as relative size, linear perspective, interposition and texture gradient. Perceptual constancies keep our experience stable as input changes. Size constancy lets a receding friend appear to stay the same size even though the retinal image shrinks. Shape, brightness and color constancy work similarly. Illusions such as the Muller-Lyer figure show that these inference mechanisms can be fooled.",
+    "Attention is the selective focus of limited processing resources. Selective attention can lead to inattentional blindness, failing to notice a salient but unexpected object when attention is elsewhere, and change blindness, failing to notice a change in a scene. The cocktail party effect shows that even while attending to one conversation, personally relevant information such as your own name can capture attention. Divided attention is limited, which is why talking on a phone while driving degrades performance even when hands-free.",
+    "Two visual streams are often distinguished: a ventral stream running to the temporal lobe that supports recognizing what an object is, and a dorsal stream running to the parietal lobe that supports where it is and how to act on it. Damage to the ventral route can leave a person unable to name an object they can still reach for accurately.",
+    "Worked example: a physician reading an ECG who expects atrial fibrillation may overlook a subtle pause, an everyday case of top-down expectation shaping perception."
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l04",
+   "title": "Learning",
+   "body": [
+    "Learning is a relatively lasting change in behavior or knowledge produced by experience. The simplest forms are nonassociative. Habituation is a decrease in response to a repeated harmless stimulus, and sensitization is an increase in response after a strong or noxious one. Associative learning links events. In classical conditioning, studied by Pavlov, a neutral stimulus paired repeatedly with an unconditioned stimulus (food) that naturally produces an unconditioned response (salivation) becomes a conditioned stimulus that produces a conditioned response. Acquisition is the learning phase. Extinction is the weakening of the response when the conditioned stimulus appears without the unconditioned one, and spontaneous recovery is its brief return after a rest. Generalization is responding to stimuli similar to the conditioned one, while discrimination is responding only to the trained stimulus. The Little Albert study by Watson and Rayner showed how a fear response could be conditioned, though it is now regarded as ethically unacceptable.",
+    "In operant conditioning, developed by Thorndike and Skinner, behavior is shaped by its consequences. Reinforcement increases a behavior and punishment decreases it. Positive means adding a stimulus and negative means removing one. So a treat given for sitting is positive reinforcement, ending a loud alarm when a seat belt is fastened is negative reinforcement (not punishment, because the behavior increases), a ticket for speeding is positive punishment, and taking away a privilege is negative punishment. Schedules of reinforcement matter. Fixed-ratio schedules reward after a set number of responses, variable-ratio after an unpredictable number (producing high, steady, extinction-resistant rates, as in slot machines), fixed-interval after a set time (producing a scalloped pattern), and variable-interval after unpredictable time. Shaping reinforces successive approximations of a target behavior.",
+    "Observational learning, emphasized by Bandura, occurs by watching a model, and the Bobo doll experiments showed children imitate aggression they see rewarded. Learning depends on attention, retention, reproduction and motivation. Mirror neurons are often discussed as a possible mechanism, though their role in humans is still debated. Biological preparedness, such as the ease of learning taste aversions after a single pairing, shows that not all associations are equally easy to form. Garcia effect work demonstrated that nausea is readily linked to taste but not to a light or sound.",
+    "Worked example: a patient feels nauseated at the sight of the clinic after chemotherapy. The clinic is a conditioned stimulus and the nausea a conditioned response, a classical conditioning explanation."
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l05",
+   "title": "Memory",
+   "body": [
+    "Memory involves encoding, storing and retrieving information. In the classic multi-store model, sensory memory holds a brief trace of input, short-term or working memory holds a small amount of information for seconds to minutes, and long-term memory holds information for far longer. Working memory has limited capacity, often summarized as about seven items plus or minus two, and chunking increases effective capacity by grouping items into meaningful units. Rehearsal keeps items active, and deeper, meaning-based processing produces stronger encoding than shallow, sound-based or appearance-based processing, a finding known as the levels of processing effect.",
+    "Long-term memory has two broad divisions. Explicit or declarative memory is consciously recalled and includes episodic memory (events from your life) and semantic memory (facts and concepts). It depends on the hippocampus and surrounding medial temporal structures for formation, with storage distributed across the cortex. Implicit or nondeclarative memory expresses itself in performance and includes procedural skills (supported by the cerebellum and basal ganglia), priming and conditioned responses. A patient with severe hippocampal damage can learn a new motor skill without remembering having practiced it.",
+    "On the cellular level, long-term potentiation is a lasting strengthening of synapses after high-frequency stimulation, and it depends on NMDA glutamate receptors. It is a leading model of how experience changes neural connections. Consolidation is the process by which new memories become stable, and sleep contributes to it.",
+    "Retrieval is aided by cues. The serial position effect shows better recall for early items (primacy, reflecting transfer to long-term memory) and late items (recency, reflecting working memory). Encoding specificity says recall is best when retrieval conditions match encoding conditions, including context and mood. Forgetting arises from decay, interference, and retrieval failure. Proactive interference is old learning disrupting new, and retroactive interference is new learning disrupting old. Memory is reconstructive, not a recording. Loftus showed that leading questions can alter eyewitness reports, and misinformation can produce false memories. Source monitoring errors confuse where information was learned.",
+    "Amnesia comes in two directions. Retrograde amnesia is loss of memories from before an injury and anterograde amnesia is inability to form new ones. In Korsakoff syndrome, caused by thiamine deficiency, usually with chronic alcohol use, anterograde amnesia is prominent and patients may confabulate. Alzheimer disease typically begins with impaired new learning.",
+    "Worked example: a student studying while mildly caffeinated recalls more on an exam taken under the same conditions, an instance of encoding specificity."
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l06",
+   "title": "Cognition and Problem Solving",
+   "body": [
+    "Cognition is the mental activity of knowing: forming concepts, reasoning, deciding and solving problems. Piaget described cognitive development in children and Information-processing models describe adult thinking as a flow of operations on represented information. Concepts are mental categories, often organized around prototypes, the best examples of a category, so a robin is a more typical bird than a penguin. Schemas are organized frameworks of knowledge that guide interpretation. Assimilation fits new information into an existing schema, and accommodation changes the schema to fit the information.",
+    "Problem solving uses algorithms, which are step-by-step procedures that guarantee a solution, and heuristics, which are fast rules of thumb that usually work but can fail. Common obstacles include functional fixedness, seeing an object only in its customary use, and mental set, persisting with a strategy that worked before. Insight is sudden restructuring of a problem.",
+    "Heuristics produce predictable biases. The availability heuristic judges probability by how easily examples come to mind, so vivid plane crashes seem more common than car crashes. The representativeness heuristic judges by resemblance to a prototype and neglects base rates. Anchoring adjusts insufficiently from an initial number. Confirmation bias seeks and favors evidence supporting existing beliefs. Overconfidence is excess certainty in one's own judgments, and hindsight bias is the feeling after an outcome that it was predictable. The framing effect shows that people choose differently depending on whether the same outcome is described as a gain or a loss. Dual-process theories distinguish fast, automatic, intuitive thinking from slow, effortful, analytic thinking. Physicians are not immune, which is why clinical reasoning courses teach cognitive biases explicitly.",
+    "Intelligence is the ability to learn, reason and adapt. Spearman proposed a general factor g, Gardner proposed multiple intelligences, and Sternberg proposed analytic, creative and practical components. Fluid intelligence, solving novel problems, tends to decline with age, while crystallized intelligence, accumulated knowledge, holds up or grows. Intelligence tests must be reliable (consistent) and valid (measuring what they claim) and are standardized on a normative sample. Scores are shaped by both genes and environment, and group differences cannot be interpreted without accounting for test bias, education and opportunity.",
+    "Worked example: a clinician sees a young patient with chest pain and dismisses cardiac causes because heart disease usually affects older people, ignoring that a specific risk factor changes the odds. That is a representativeness error that overlooks base rates."
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l07",
+   "title": "Language",
+   "body": [
+    "Language is a system of symbols and rules for combining them to communicate an unlimited number of meanings. Its components are phonemes (the smallest units of sound that change meaning), morphemes (the smallest units of meaning, such as a root or the plural ending), semantics (meaning), syntax (the rules for ordering words) and pragmatics (the social rules for using language appropriately, including tone, turn-taking and context). A sentence can have correct syntax and still be meaningless, as in a famous example about colorless green ideas.",
+    "Children follow a predictable sequence. Infants coo at about two months, babble consonant-vowel strings at around six months, say their first words around the first birthday, combine two words around 18 to 24 months, and then produce increasingly grammatical sentences. Comprehension runs ahead of production. Children also overregularize rules, saying that they goed, which shows they are applying a rule rather than merely copying.",
+    "Theories explain acquisition differently. Behaviorist accounts, associated with Skinner, emphasize imitation and reinforcement. Nativist accounts, associated with Chomsky, propose an innate language acquisition device or universal grammar, supported by how fast children learn and their errors. Interactionist accounts emphasize that biological readiness and social interaction work together. A sensitive or critical period for language is suggested by cases of children deprived of language early who never fully acquired grammar, and by the fact that learning a second language is generally easier in childhood, especially for accent. Deaf children who learn sign language follow a timeline resembling that of spoken language.",
+    "The linguistic relativity hypothesis, or Sapir-Whorf hypothesis, holds that language influences thought. The strong version, that language determines thought, is not supported, but weaker versions have some evidence: for example, speakers of languages that divide a color range into more named categories may discriminate those colors a little faster.",
+    "In the brain, language relies mainly on the left hemisphere. Aphasia is language impairment from brain damage. Broca aphasia is nonfluent with intact comprehension, Wernicke aphasia is fluent with impaired comprehension, and conduction aphasia, from damage to the arcuate fasciculus linking the two areas, features poor repetition with relatively preserved comprehension and fluency.",
+    "Worked example: a toddler who says that she holded the doll shows overregularization, evidence that she has learned the past-tense rule and extended it."
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l08",
+   "title": "Emotion and Stress",
+   "body": [
+    "Emotion has three components: physiological arousal, subjective experience and behavioral expression. Theories differ on their order. The James-Lange theory says that bodily arousal comes first and the feeling is our interpretation of it, so we are afraid because we tremble. The Cannon-Bard theory says arousal and the emotional experience occur simultaneously, triggered by the thalamus. The Schachter-Singer two-factor theory says that arousal must be labeled with a cognitive appraisal of the situation. Lazarus emphasized appraisal as primary, and LeDoux described a fast route to the amygdala that produces fear before conscious evaluation. The amygdala is central to fear and threat detection, while the prefrontal cortex modulates emotional responses. Paul Ekman argued that certain facial expressions, such as happiness, sadness, fear, anger, surprise and disgust, are recognized across cultures, though display rules govern when expressing them is acceptable.",
+    "Stress is the response to demands that tax coping resources. A stressor is the event, and appraisal determines how threatening it feels. Hans Selye described the general adaptation syndrome in three phases: alarm, resistance and exhaustion. In the alarm phase the sympathetic nervous system and the adrenal medulla release epinephrine and norepinephrine, raising heart rate and blood pressure. With persistent stress the hypothalamic-pituitary-adrenal axis produces cortisol, which mobilizes glucose and suppresses inflammation and immune function in the short term. Chronic activation contributes to hypertension, impaired immunity, impaired memory through hippocampal effects, depression and anxiety. Allostatic load is the cumulative wear on the body from repeated activation.",
+    "Coping can be problem-focused, which tackles the source, or emotion-focused, which manages feelings about it. Neither is always better; problem-focused coping is generally better when something can be changed, and emotion-focused coping is useful when it cannot. Social support, a sense of control, exercise and adequate sleep buffer stress. The Yerkes-Dodson law describes an inverted U between arousal and performance, with optimal arousal lower for complex tasks than for simple ones. Type A behavior, especially hostility, has been linked with cardiovascular risk.",
+    "Worked example: a person who feels a racing heart before a speech and decides it means she is excited rather than afraid illustrates the role of cognitive appraisal in labeling arousal."
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l09",
+   "title": "Motivation",
+   "body": [
+    "Motivation is the set of processes that start, direct and sustain behavior. Several theories explain it. Instinct theory holds that behavior arises from innate, species-typical patterns, and it has limited power to explain flexible human behavior. Drive-reduction theory says that a physiological need creates an uncomfortable drive, such as hunger, and behavior aims to reduce it and restore homeostasis. It cannot explain why people seek stimulation, so arousal theory proposes that people seek an optimal level of arousal, linked by the Yerkes-Dodson law to performance. Incentive theory says that behavior is pulled by external rewards as well as pushed by internal needs, and the dopamine system is closely tied to wanting and reward anticipation.",
+    "Maslow arranged needs in a hierarchy: physiological needs first, then safety, belonging and love, esteem, and finally self-actualization. Lower needs are generally prioritized when unmet, although the strict ordering has not been well supported in cross-cultural research. Self-determination theory proposes three basic psychological needs: autonomy, competence and relatedness. It distinguishes intrinsic motivation, doing something because it is inherently satisfying, from extrinsic motivation, doing it for external rewards. The overjustification effect occurs when an external reward for an activity already enjoyed reduces later intrinsic interest. Expectancy and goal-setting theories add that specific, challenging goals with feedback raise performance, and that people act when they expect effort to lead to success and value the outcome. Achievement motivation differs across people, and self-efficacy, the belief in one's ability to succeed, predicts persistence.",
+    "Hunger has biological regulation. The lateral hypothalamus promotes eating and the ventromedial hypothalamus promotes satiety. Ghrelin from the stomach stimulates hunger, and leptin from fat cells and insulin signal long-term energy stores and suppress appetite. Eating is also shaped by learning, culture and food cues. Obesity is multifactorial, involving genes, environment, sleep, stress and social conditions.",
+    "Sexual motivation involves hormones and context. The human sexual response cycle described by Masters and Johnson includes excitement, plateau, orgasm and resolution. Sexual orientation is a stable pattern of attraction and is not a disorder, and current evidence suggests it arises from a combination of biological and environmental factors, not from a single cause or from choice.",
+    "Worked example: a child who loves drawing is promised a prize for each picture and afterward draws less when the prizes stop. This is the overjustification effect, in which an extrinsic reward undermines intrinsic motivation."
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l10",
+   "title": "Personality",
+   "body": [
+    "Personality is the enduring pattern of thoughts, feelings and behaviors that characterizes a person across situations. Theories are grouped into perspectives. The psychoanalytic perspective, from Freud, proposes that unconscious conflict shapes behavior. The mind is divided into the id (instinctual impulses operating by the pleasure principle), the ego (mediating with reality) and the superego (internalized moral standards). Defense mechanisms, such as repression, denial, projection, displacement, reaction formation, rationalization and sublimation, protect the ego from anxiety. Freud proposed psychosexual stages, and Erikson later emphasized psychosocial stages. Psychoanalytic ideas have been influential but many specific claims are difficult to test and are not well supported empirically.",
+    "Humanistic theories, from Rogers and Maslow, emphasize growth, free will and self-actualization. Rogers stressed unconditional positive regard and a gap between the real self and the ideal self as a source of distress. Trait theories describe stable dimensions. The five-factor model, often remembered as OCEAN, lists openness, conscientiousness, extraversion, agreeableness and neuroticism, and it has strong cross-cultural support and predicts outcomes such as job performance and health. Conscientiousness predicts longevity. Eysenck described extraversion and neuroticism as basic dimensions.",
+    "Social-cognitive theories, from Bandura, emphasize reciprocal determinism, in which personal factors, behavior and environment influence one another, and self-efficacy. Locus of control, from Rotter, distinguishes people who believe outcomes are determined by their own actions (internal) from those who believe outcomes depend on luck or others (external). The person-situation debate asks how consistent behavior is across settings, and the current view is that both matter: traits predict average behavior over time better than single behaviors.",
+    "Twin and adoption studies indicate that traits have a substantial heritable component, often around 40 to 50 percent, with shared family environment usually contributing less than the unique environment of each person. Heritability is a population statistic and does not mean a trait is fixed in an individual.",
+    "Personality assessment includes self-report inventories, such as the Minnesota Multiphasic Personality Inventory (MMPI), which is empirically derived and has validity scales, and projective tests such as the Rorschach inkblot test and the Thematic Apperception Test, whose reliability and validity are debated. Personality disorders are enduring, inflexible patterns that cause impairment and are classified in the DSM.",
+    "Worked example: a person who blames a neighbor for his own hostility is using projection, attributing his own unacceptable feeling to someone else."
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l11",
+   "title": "Development Across the Lifespan",
+   "body": [
+    "Development is change across the lifespan, and it raises questions about nature and nurture, continuity and stages, and critical or sensitive periods. Prenatal development is vulnerable to teratogens such as alcohol, which can cause fetal alcohol spectrum disorders. Newborns have reflexes, including rooting, sucking, grasping and the Moro startle reflex, and many fade as the cortex matures. Motor development follows a cephalocaudal (head to toe) and proximodistal (center outward) pattern, and milestones such as sitting, crawling and walking appear in a typical sequence with wide normal variation.",
+    "Piaget proposed four cognitive stages. In the sensorimotor stage (birth to about two years) infants learn through senses and actions and gain object permanence. In the preoperational stage (about two to seven) children use symbols and language but show egocentrism and fail conservation tasks. In the concrete operational stage (about seven to eleven) they reason logically about concrete events and grasp conservation. In the formal operational stage (from about eleven or twelve) they can reason abstractly and hypothetically. Later research suggests children are more capable earlier than Piaget thought and that stages are less rigid. Vygotsky emphasized the zone of proximal development, the range of tasks a child can do with help but not yet alone.",
+    "Attachment, studied by Bowlby and by Ainsworth with the Strange Situation, can be secure, avoidant, ambivalent or disorganized. Secure children use the caregiver as a base, are upset by separation and are readily comforted on return. Harlow's monkeys showed that contact comfort mattered more than feeding. Erikson proposed eight psychosocial crises, from trust versus mistrust in infancy to integrity versus despair in late life, with identity versus role confusion in adolescence. Kohlberg described moral reasoning at preconventional, conventional and postconventional levels, focusing on the reasoning rather than the decision. Critics, notably Gilligan, argued that his model underweights care-based moral reasoning.",
+    "Adolescence brings puberty, rapid brain remodeling and a prefrontal cortex that is still maturing, which helps explain risk-taking. Adulthood brings gradual physical decline, and in aging, processing speed and fluid intelligence decline while knowledge holds. Normal aging does not include dementia. Kubler-Ross described five reactions to dying, denial, anger, bargaining, depression and acceptance, but they are not a fixed sequence that everyone follows.",
+    "Worked example: a four-year-old who says the taller, thinner glass holds more juice has not yet acquired conservation, consistent with the preoperational stage."
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l12",
+   "title": "Psychological Disorders: An Overview",
+   "body": [
+    "A psychological disorder is a pattern of thoughts, feelings or behaviors that is clinically significant, reflects dysfunction in psychological, biological or developmental processes, and causes distress or impairment. Statistical rarity or social deviance alone does not qualify, and the Diagnostic and Statistical Manual of Mental Disorders (DSM-5-TR, published 2022) lists criteria for diagnosis, while the International Classification of Diseases is used widely elsewhere. Explanations draw on a biopsychosocial model, in which biology, psychology and social context interact, and a diathesis-stress model, in which a vulnerability combines with a stressor to produce illness.",
+    "Major groups can be summarized briefly. Anxiety disorders involve excessive fear and avoidance: generalized anxiety disorder, panic disorder (recurrent panic attacks with worry about further attacks), specific phobias and social anxiety disorder. Obsessive-compulsive disorder involves obsessions and compulsions, and posttraumatic stress disorder involves intrusion, avoidance, negative changes in mood and thought, and hyperarousal after a trauma. Depressive disorders include major depressive disorder, with depressed mood or loss of interest plus other symptoms for at least two weeks. Bipolar disorder includes episodes of mania, a distinct period of elevated or irritable mood with increased energy and reduced need for sleep. Schizophrenia involves psychosis, with positive symptoms (hallucinations, delusions, disorganized speech) and negative symptoms (flat affect, reduced speech, lack of motivation) and cognitive impairment; it usually emerges in late adolescence or early adulthood, and the dopamine hypothesis, though incomplete, links positive symptoms to dopamine signaling.",
+    "Other categories include eating disorders such as anorexia nervosa and bulimia nervosa, substance use disorders, neurodevelopmental disorders such as autism spectrum disorder and attention-deficit hyperactivity disorder, and personality disorders. Neurocognitive disorders such as Alzheimer disease involve acquired decline in cognition.",
+    "Biological models point to genes, neurotransmitters such as serotonin, norepinephrine and dopamine, and brain structure. Psychological models point to learned patterns and cognition: for example, Beck cognitive theory describes negative views of self, world and future in depression. Social models emphasize adversity, discrimination, isolation and poverty. Treatment includes psychotherapy, such as cognitive behavioral therapy, and medication, and often both. Stigma remains a barrier, and most people with a mental disorder are not violent.",
+    "Worked example: a person with several weeks of low mood, loss of interest, poor sleep and guilt, with no history of mania, meets the pattern of major depressive disorder rather than bipolar disorder."
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l13",
+   "title": "Social Thinking and Influence",
+   "body": [
+    "Social psychology studies how the real or imagined presence of others shapes thought and behavior. Attribution theory asks how people explain behavior. A dispositional attribution points to the person's traits, and a situational attribution points to circumstances. The fundamental attribution error is overestimating dispositions and underestimating situations when explaining other people's behavior, so we assume a late colleague is careless rather than stuck in traffic. The actor-observer difference adds that we tend to explain our own behavior situationally. The self-serving bias credits successes to ourselves and blames failures on circumstances.",
+    "Attitudes have three components: affective (feelings), behavioral (tendencies to act) and cognitive (beliefs), sometimes summarized as the ABC model. Attitudes predict behavior better when they are strong, specific and relevant. The relationship also runs in reverse. Festinger's cognitive dissonance theory holds that holding inconsistent beliefs or acting against one's beliefs creates discomfort that people reduce by changing an attitude, changing behavior, or adding a justification. In the classic study, people paid a small amount to tell others a boring task was fun came to like it more than those paid a large amount, because the small payment left them needing an internal justification. The elaboration likelihood model describes two persuasion routes. The central route uses careful consideration of arguments and works with motivated, able listeners. The peripheral route uses cues such as speaker attractiveness, credibility or number of arguments and works when attention is low. The foot-in-the-door technique gets agreement to a small request first to make a larger one likelier.",
+    "Conformity is changing behavior to match a group. In Asch line-judgment studies, a substantial fraction of people gave obviously wrong answers when confederates did, and conformity fell sharply when even one other person dissented. Normative influence is the wish to be accepted, and informational influence is the belief that others know better. Obedience was studied by Milgram, in whom a majority of participants delivered what they believed were severe shocks when instructed by an authority, and obedience dropped when the authority was remote or when others refused. Zimbardo's prison study is widely taught for the power of roles, though it has been criticized methodologically. These findings led to the modern ethical rules for human research.",
+    "Social facilitation describes better performance on simple or well-practiced tasks in the presence of others, and worse performance on difficult ones. Social loafing is reduced effort in a group when individual contributions cannot be identified.",
+    "Worked example: a nurse who sees a bystander fail to wash hands and concludes that the person is lazy, without considering that the sink was out of order, shows the fundamental attribution error."
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l14",
+   "title": "Groups, Prejudice and Social Behavior",
+   "body": [
+    "Groups change behavior in predictable ways. Group polarization is the strengthening of members' initial leanings after discussion, so a group of moderately cautious people may end up more cautious. Groupthink is the pursuit of harmony at the expense of realistic appraisal, producing poor decisions when dissent is suppressed. Deindividuation is the loss of self-awareness and restraint in a crowd or when anonymous. The bystander effect is the reduced chance that any one person helps when others are present, explained by diffusion of responsibility and pluralistic ignorance, the false belief that others' calm means no emergency. It fits the case of Kitty Genovese, though the original press account of that case has been corrected by later reporting. Helping increases when a person is directly asked and when the emergency is clearly defined.",
+    "Prejudice, stereotypes and discrimination are distinct. A stereotype is a cognitive generalization about a group, prejudice is a negative attitude toward people because of group membership, and discrimination is unequal treatment of them. Implicit bias refers to automatic associations that can influence behavior without awareness, and the scientific community debates how well such measures predict individual behavior. Explanations of prejudice include in-group favoritism, the tendency to favor members of one's own group, and out-group homogeneity, the sense that out-group members are all alike. Realistic conflict theory ties prejudice to competition for resources, as in Sherif's Robbers Cave study, where cooperation toward shared goals reduced hostility. The contact hypothesis, from Allport, says contact reduces prejudice under conditions of equal status, shared goals, cooperation and institutional support. Stereotype threat is the finding that awareness of a negative stereotype about one's group can impair performance, though the size of the effect has been questioned in replications.",
+    "Prejudice differs from structural discrimination, which is built into policies and institutions and does not depend on individual intent. Self-fulfilling prophecy, as in the Pygmalion effect, describes expectations that shape outcomes, with teacher expectations affecting student performance in some studies.",
+    "Aggression and prosocial behavior are both studied. Frustration-aggression says that frustration increases aggression, and social learning says it is learned by modeling. Altruism is helping without expected reward, and reciprocity norms and kin selection are proposed explanations. Attraction is shaped by proximity, similarity, familiarity (the mere exposure effect) and reciprocal liking.",
+    "Worked example: in an emergency room waiting area, a person collapses and nobody moves for a minute because each assumes someone else will act, showing diffusion of responsibility."
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l15",
+   "title": "Social Structure and Inequality",
+   "body": [
+    "Sociology looks at the patterns of society, not at individuals alone. Three classic theories supply different lenses. Functionalism, associated with Durkheim, sees society as a system of parts, such as family, school and health care, that each serve functions that maintain stability. Conflict theory, associated with Marx and Weber, sees society as shaped by competition among groups for resources and power, so inequality persists because dominant groups benefit. Symbolic interactionism, associated with Mead and Blumer, studies how meaning is built through everyday interaction and symbols. Social constructionism holds that many categories, including some aspects of illness and race, are shaped by social agreement, though that does not make their effects unreal. Rational choice and exchange theories treat actions as cost-benefit decisions.",
+    "Social institutions include family, education, religion, government, economy and medicine. Medicine can itself be analyzed sociologically. Parsons described the sick role, which exempts a person from normal duties but obliges him to want to get well and seek care. Medicalization is the process of treating a condition as a medical problem that was not previously considered one.",
+    "Stratification is the ranking of people into hierarchies. Social class involves income, wealth, education and occupational prestige, which together make up socioeconomic status. Weber distinguished class (economic position), status (prestige) and party (political power). Social mobility is movement between positions and can be intergenerational or intragenerational. Social capital is the benefit of social networks and trust, and cultural capital, from Bourdieu, is knowledge and habits that confer advantage. Poverty can be absolute or relative, and the Gini coefficient is a common measure of inequality ranging from zero (perfect equality) to one.",
+    "Race and ethnicity are social categories: race is a socially defined grouping often tied to perceived physical traits, with no valid biological subdivision of humans into discrete races, and ethnicity refers to shared culture, ancestry and language. Racism can operate through institutions. Segregation and redlining, for example, shaped where people live and their access to resources. Sex refers to biological characteristics and gender to the social roles and identities attached to them, and gender inequality shows up in pay, caregiving and health care. Demographic measures include fertility and mortality rates, and demographic transition describes the shift from high birth and death rates to low ones as societies industrialize. Urbanization, migration and aging populations shape health systems.",
+    "Worked example: when a patient from a low-wage job cannot take time off for a clinic visit, a conflict-theory reading focuses on unequal power and resources while a functionalist reading focuses on how institutions are designed to work."
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l16",
+   "title": "Health Disparities and Social Determinants",
+   "body": [
+    "A health disparity is a difference in health outcomes or in access to care that is closely linked with social, economic or environmental disadvantage. A health inequity is a disparity judged to be unfair and avoidable. Health equity is the aim of removing those avoidable differences. The terms matter because a difference in the rate of a disease between groups can have biological, behavioral or social sources, and treating all of it as innate or as personal choice can hide the real cause.",
+    "The social determinants of health are the conditions in which people are born, grow, work, live and age, and the wider forces shaping the conditions of daily life. Commonly listed domains include income and wealth, education, employment and working conditions, housing, neighborhood and physical environment, food access, transportation, social support, and access to and quality of health care. Public health also stresses upstream causes, meaning the social and policy conditions that produce risk, in contrast with downstream care for disease after it develops. A famous finding, the Whitehall studies of British civil servants, showed a social gradient: the lower the employment grade, the higher the mortality, even in a population with stable jobs and access to care. This graded pattern suggests that health is affected across the whole range of status, not only by absolute poverty, and that control over one's work may matter.",
+    "Pathways include material conditions such as unsafe housing or lead exposure, psychosocial stress that increases allostatic load, health behaviors shaped by constrained choices, and access to care. Neighborhood segregation, residential history and exposure to violence or pollution all affect outcomes. Chronic exposure to discrimination is itself associated with stress-related illness. Racial and ethnic differences in outcomes such as maternal mortality or hypertension cannot be explained by genetics alone and are strongly tied to social conditions, so race is better treated as a social category than as a biological explanation. Intersectionality, a concept from Crenshaw, notes that overlapping identities, such as race and gender together, can produce experiences that are not captured by looking at each separately.",
+    "Access to care depends on insurance coverage, cost, transportation, language and trust. Language barriers call for qualified interpreters. Health literacy, the ability to obtain and understand health information, affects adherence and outcomes. Historical abuses in research, such as the Tuskegee syphilis study, contributed to mistrust among some communities, and trust is rebuilt through transparency and consistent conduct. Equity-oriented responses range from clinic-level screening for social needs to policy changes in housing, income support and education.",
+    "Worked example: two neighborhoods in the same city differ in life expectancy by many years. The difference tracks housing quality, air pollution and access to groceries and clinics, so an explanation that blames individual choices alone is incomplete."
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l17",
+   "title": "Health Behavior and Behavior Change",
+   "body": [
+    "Many leading causes of illness are shaped by behavior, including tobacco use, diet, physical inactivity, alcohol and medication adherence. Behavioral models describe why people do or do not act. The health belief model says that a person is likelier to act if they believe they are susceptible, that the condition is serious, that action has benefits that outweigh barriers, and if they receive a cue to action and have self-efficacy. The theory of planned behavior holds that behavior follows intention, which is shaped by attitude, subjective norms and perceived behavioral control. Social cognitive theory stresses self-efficacy and observational learning. None of these models guarantees that a belief becomes an action, and the gap between intention and behavior is a recurring problem.",
+    "The transtheoretical model describes stages of change: precontemplation (not intending to change), contemplation (considering it), preparation (planning), action (making the change), and maintenance (sustaining it for months), with relapse a common part of the process rather than a failure. The best match between intervention and stage matters. Giving an action plan to someone in precontemplation is likely to fail, while exploring ambivalence works better. Motivational interviewing is a collaborative, patient-centered style that elicits the patient's own reasons for change, using open questions, affirmations, reflective listening and summaries, and it avoids arguing or confronting. Resistance is treated as information, and the clinician expresses empathy and supports self-efficacy.",
+    "Adherence is the extent to which a person follows an agreed treatment, and non-adherence has many causes: cost, side effects, complexity, forgetting, misunderstanding, mistrust, lack of symptoms and beliefs about illness. Asking nonjudgmentally, simplifying regimens and using teach-back, in which the patient restates the plan in their own words, all help. Habit formation and implementation intentions, specific if-then plans, improve follow-through. Nudges change the choice environment, for example by making a healthy default easier.",
+    "The placebo effect is improvement attributable to the expectation and context of treatment and not to a specific active ingredient, and it is stronger for subjective outcomes such as pain. The nocebo effect is the opposite, with harm arising from negative expectations. Both are why trials use placebo controls. Conditioning and expectancy both contribute, and a therapeutic relationship can amplify them.",
+    "Worked example: a patient says he knows smoking is harmful but is not ready to stop. He is in contemplation, so the clinician explores his mixed feelings rather than handing him a quit date."
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l18",
+   "title": "Research Methods in the Behavioral Sciences",
+   "body": [
+    "Behavioral science uses several designs, each with its own strengths. Experiments manipulate an independent variable and measure its effect on a dependent variable, and random assignment places participants in conditions by chance so that groups are comparable, which supports causal claims. A control group provides a comparison, and blinding keeps participants, and in double-blind designs also researchers, from knowing who gets which condition. Correlational studies measure how variables relate without manipulating them, and a correlation coefficient ranges from minus one to plus one, with the sign showing direction and the size showing strength. Correlation does not show causation: a third variable may explain the link, or the direction may be reversed. Observational designs include cohort studies, which follow groups forward in time, case-control studies, which compare people with and without an outcome, and cross-sectional surveys, which measure at one moment. Surveys can suffer from social desirability bias and question wording effects, and case studies give depth but little generality.",
+    "A population is the whole group of interest and a sample is the subset studied. Random sampling gives every member a known chance of selection and supports generalization, while convenience samples, such as undergraduates, may not represent others. Selection bias, nonresponse bias and attrition (dropout) threaten results. Internal validity is the confidence that the observed effect was caused by the manipulation and not by confounds, and external validity is how far results generalize. Reliability is consistency of measurement, and validity is whether the measure captures the intended concept; a scale that gives the same wrong weight each time is reliable but not valid. Experimenter bias and demand characteristics, in which participants guess the aim and behave accordingly, are mitigated by blinding.",
+    "Descriptive statistics summarize data using measures of central tendency (mean, median, mode) and spread (range, standard deviation). The median resists outliers, so it is preferred for skewed data such as income. Inferential statistics test whether results could be due to chance. A p-value is the probability of data at least as extreme as observed if the null hypothesis were true, not the probability that the hypothesis is true. A Type I error is rejecting a true null hypothesis, and a Type II error is failing to reject a false one. Statistical significance is not the same as practical importance, so effect size and confidence intervals matter. Replication has been a concern in psychology, which is why preregistration and larger samples are increasingly encouraged.",
+    "Research ethics rest on informed consent, minimizing risk, confidentiality, voluntary participation and debriefing after any deception. Institutional review boards oversee studies. Principles drawn from the Belmont Report are respect for persons, beneficence and justice.",
+    "Worked example: a study finds that people who drink more coffee have more heart problems. Smoking may be associated with both, so it is a confound, and only a randomized or well-controlled design can address it."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-premed-behavioral.l01.q1",
+   "lessonId": "med-premed-behavioral.l01",
+   "kind": "mcq",
+   "prompt": "Which neurotransmitter is the primary inhibitory transmitter of the brain?",
+   "choices": [
+    "Acetylcholine, which acts at the neuromuscular junction and in attention",
+    "Glutamate, which mediates most fast excitatory signaling in the cortex",
+    "Gamma-aminobutyric acid, which opens chloride channels to hyperpolarize cells",
+    "Dopamine, which signals reward prediction and modulates movement"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l01.q2",
+   "lessonId": "med-premed-behavioral.l01",
+   "kind": "mcq",
+   "prompt": "A patient has halting, effortful speech with short phrases but understands questions well. Which area is most likely damaged?",
+   "choices": [
+    "Wernicke area in the left temporal lobe, which supports comprehension of language",
+    "The primary visual cortex in the occipital lobe, which processes visual input",
+    "The right parietal lobe, which supports attention to space and body awareness",
+    "Broca area in the left inferior frontal lobe, which supports speech production"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l01.q3",
+   "lessonId": "med-premed-behavioral.l01",
+   "kind": "mcq",
+   "prompt": "Which structure relays most sensory information to the cerebral cortex?",
+   "choices": [
+    "The thalamus, which acts as a relay station for most sensory pathways",
+    "The hypothalamus, which regulates temperature, hunger and pituitary hormones",
+    "The cerebellum, which coordinates timing and fine control of movement",
+    "The medulla, which controls breathing and heart rate at the brainstem"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l01.q4",
+   "lessonId": "med-premed-behavioral.l01",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man has a stroke. Afterward he is fluent and speaks quickly, but his sentences are meaningless and he cannot follow commands, although he seems unaware of a problem. Which lesion best explains this?",
+   "choices": [
+    "Left inferior frontal gyrus, the region that programs the motor plan for speech",
+    "Left posterior superior temporal gyrus, the region needed for understanding speech",
+    "Right parietal cortex, the region that supports attention to the left side of space",
+    "Corpus callosum, the bundle that connects the two hemispheres across the midline"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l01.q5",
+   "lessonId": "med-premed-behavioral.l01",
+   "kind": "mcq",
+   "prompt": "A 30-year-old woman after bilateral medial temporal lobe damage can recite her childhood address and ride a bicycle but cannot recall what she ate an hour ago. Which structure is most critical to this deficit?",
+   "choices": [
+    "Amygdala, because it attaches emotional value to events as they are experienced",
+    "Cerebellum, because it stores learned motor skills needed for procedural memory",
+    "Hippocampus, because it is needed to consolidate new declarative memories",
+    "Hypothalamus, because it coordinates hormonal responses to stress and arousal"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l02.q1",
+   "lessonId": "med-premed-behavioral.l02",
+   "kind": "mcq",
+   "prompt": "What is the term for converting physical energy into neural signals at a receptor?",
+   "choices": [
+    "Adaptation, the decline in response that follows a constant stimulus",
+    "Transduction, the conversion of energy into an electrical neural signal",
+    "Habituation, the learned decrease in response to a harmless stimulus",
+    "Accommodation, the change in lens shape that focuses near objects"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l02.q2",
+   "lessonId": "med-premed-behavioral.l02",
+   "kind": "mcq",
+   "prompt": "According to Weber law, which is true of the just noticeable difference?",
+   "choices": [
+    "It is a constant proportion of the starting stimulus intensity",
+    "It is a fixed absolute amount regardless of the starting intensity",
+    "It shrinks steadily as the starting stimulus becomes more intense",
+    "It depends only on the observer response bias and not on intensity"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l02.q3",
+   "lessonId": "med-premed-behavioral.l02",
+   "kind": "mcq",
+   "prompt": "Rods differ from cones in that rods are:",
+   "choices": [
+    "Responsible for the first synapse onto the lateral geniculate nucleus",
+    "Concentrated in the fovea and responsible for fine color discrimination",
+    "Active mainly in bright light and tuned to three wavelength ranges",
+    "Sensitive in dim light, absent from the fovea, and not color-selective"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l02.q4",
+   "lessonId": "med-premed-behavioral.l02",
+   "kind": "mcq",
+   "prompt": "A radiologist is told that missing a cancer will carry severe consequences, and over the next month she reports many more suspicious nodules, most of which prove benign. Her ability to tell cancers from normal tissue is unchanged. According to signal detection theory, what changed?",
+   "choices": [
+    "Her sensitivity, because her image-reading skill improved with practice",
+    "Her absolute threshold, because her retinal receptors became more responsive",
+    "Her response criterion, because she now requires less evidence to say yes",
+    "Her sensory adaptation, because repeated images reduced receptor response"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l02.q5",
+   "lessonId": "med-premed-behavioral.l02",
+   "kind": "mcq",
+   "prompt": "A 45-year-old man has a tumor pressing on the right optic tract after the chiasm. Which visual field defect is expected?",
+   "choices": [
+    "Loss of the entire right visual field in the right eye only",
+    "Loss of the left visual field in both eyes, a left homonymous hemianopia",
+    "Loss of both temporal fields, a bitemporal hemianopia from chiasm compression",
+    "Loss of the whole visual field in the left eye from optic nerve damage"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l03.q1",
+   "lessonId": "med-premed-behavioral.l03",
+   "kind": "mcq",
+   "prompt": "Processing that begins with raw sensory features and builds toward a whole percept is called:",
+   "choices": [
+    "Bottom-up processing driven by the features of the stimulus itself",
+    "Perceptual set driven by prior experience and a current motivation",
+    "Parallel processing driven by simultaneous analysis of several features",
+    "Top-down processing driven by context and expectation about the scene"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l03.q2",
+   "lessonId": "med-premed-behavioral.l03",
+   "kind": "mcq",
+   "prompt": "Seeing a circle with a small gap as a complete circle illustrates which Gestalt principle?",
+   "choices": [
+    "Similarity, the grouping of elements that share a visual feature",
+    "Closure, the tendency to fill in missing parts of a familiar shape",
+    "Figure-ground, the separation of an object from its background",
+    "Proximity, the grouping of nearby elements into one perceived unit"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l03.q3",
+   "lessonId": "med-premed-behavioral.l03",
+   "kind": "mcq",
+   "prompt": "Retinal disparity is an example of which kind of cue?",
+   "choices": [
+    "A constancy cue that keeps apparent size stable at any distance",
+    "A monocular depth cue that works with one eye closed",
+    "A binocular depth cue based on slightly different images in each eye",
+    "A motion cue based on the rate at which an object expands"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l03.q4",
+   "lessonId": "med-premed-behavioral.l03",
+   "kind": "mcq",
+   "prompt": "A 34-year-old driver following GPS looks directly at a stopped motorcycle ahead but does not register it until braking is too late. He has normal vision. Which concept best explains this?",
+   "choices": [
+    "Retinal disparity, in which images in the two eyes fail to converge on a single target",
+    "Sensory adaptation, in which receptors stop responding to a constant visual input",
+    "Size constancy, in which an object is perceived at an unchanged size despite distance",
+    "Inattentional blindness, in which an unexpected object goes unnoticed while attention is elsewhere"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l03.q5",
+   "lessonId": "med-premed-behavioral.l03",
+   "kind": "mcq",
+   "prompt": "A 62-year-old woman after a stroke cannot name or describe a key shown to her, but can accurately reach out and grasp it when asked. Which pathway is most likely damaged?",
+   "choices": [
+    "The ventral stream to the temporal lobe, which supports object recognition",
+    "The optic chiasm, which sorts retinal fibers by visual hemifield",
+    "The retinal rods, which support vision under low illumination",
+    "The dorsal stream to the parietal lobe, which guides action in space"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l04.q1",
+   "lessonId": "med-premed-behavioral.l04",
+   "kind": "mcq",
+   "prompt": "In Pavlov experiments, the bell after training is best described as a:",
+   "choices": [
+    "Conditioned response that appears when a dog hears a bell sound",
+    "Neutral stimulus that continues to produce no response in the dog",
+    "Unconditioned stimulus that naturally produces salivation in a dog",
+    "Conditioned stimulus that produces a learned response of salivation"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l04.q2",
+   "lessonId": "med-premed-behavioral.l04",
+   "kind": "mcq",
+   "prompt": "A child cleans her room to stop her parent from nagging. Her cleaning increases. This is:",
+   "choices": [
+    "Negative punishment, because a pleasant stimulus is removed",
+    "Positive reinforcement, because a pleasant stimulus is added",
+    "Negative reinforcement, because an unpleasant stimulus is removed",
+    "Positive punishment, because an unpleasant stimulus is added"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l04.q3",
+   "lessonId": "med-premed-behavioral.l04",
+   "kind": "mcq",
+   "prompt": "Which reinforcement schedule produces the high steady response rate that is most resistant to extinction?",
+   "choices": [
+    "Variable-interval, rewarding the first response after an unpredictable time",
+    "Variable-ratio, rewarding after an unpredictable number of responses",
+    "Fixed-interval, rewarding the first response after a set period of time",
+    "Fixed-ratio, rewarding responses after a set number have been made"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l04.q4",
+   "lessonId": "med-premed-behavioral.l04",
+   "kind": "mcq",
+   "prompt": "A 6-year-old receives a shot from a nurse in a white coat. Weeks later he cries when he sees any white coat, including a pharmacist at a store. Which process explains the crying at the pharmacist?",
+   "choices": [
+    "Stimulus generalization of a conditioned fear to similar white-coated people",
+    "Negative reinforcement of crying that removed the aversive injection earlier",
+    "Spontaneous recovery of a response that had been fully extinguished earlier",
+    "Discrimination between a conditioned stimulus and similar neutral stimuli"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l04.q5",
+   "lessonId": "med-premed-behavioral.l04",
+   "kind": "mcq",
+   "prompt": "A 9-year-old watches a classmate receive praise for sharing and begins to share more often, though no one has praised him. Which concept best accounts for this change?",
+   "choices": [
+    "Classical conditioning in which sharing was paired with an unconditioned stimulus",
+    "Operant shaping in which successive approximations of sharing were reinforced",
+    "Sensitization in which a strong stimulus increased responsiveness to later ones",
+    "Observational learning in which behavior is acquired by watching a rewarded model"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l05.q1",
+   "lessonId": "med-premed-behavioral.l05",
+   "kind": "mcq",
+   "prompt": "Which type of long-term memory is responsible for knowing how to ride a bicycle?",
+   "choices": [
+    "Episodic memory, which holds personally experienced events and their settings",
+    "Semantic memory, which holds general facts and the meanings of words",
+    "Procedural memory, which holds learned skills expressed through performance",
+    "Sensory memory, which holds a very brief trace of recent perceptual input"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l05.q2",
+   "lessonId": "med-premed-behavioral.l05",
+   "kind": "mcq",
+   "prompt": "Learning a new phone number makes it harder to recall your old number. This is:",
+   "choices": [
+    "Anterograde amnesia, in which new memories cannot be formed after injury",
+    "Encoding failure, in which information was never stored in the first place",
+    "Proactive interference, in which older learning disrupts newer learning",
+    "Retroactive interference, in which newer learning disrupts older learning"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l05.q3",
+   "lessonId": "med-premed-behavioral.l05",
+   "kind": "mcq",
+   "prompt": "A student recalls the first and last items in a long list best. The recency effect is attributed to:",
+   "choices": [
+    "Items from the end of the list still being active in working memory",
+    "Retrieval cues linked to the context in which the list was studied",
+    "Proactive interference that weakens the middle portion of the list",
+    "Transfer of the earliest items into stable long-term storage by rehearsal"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l05.q4",
+   "lessonId": "med-premed-behavioral.l05",
+   "kind": "mcq",
+   "prompt": "A 56-year-old man with long-standing heavy alcohol use is confused, ataxic and cannot form new memories. He fills gaps with fluent but false stories about his day. A thiamine deficiency is suspected. Which memory finding is the hallmark of the chronic phase?",
+   "choices": [
+    "Retrograde amnesia only, with new learning remaining fully intact",
+    "Anterograde amnesia with confabulation, with immediate repetition preserved",
+    "Loss of procedural skills, with episodic memory remaining preserved",
+    "Isolated impairment of semantic memory, with new events well retained"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l05.q5",
+   "lessonId": "med-premed-behavioral.l05",
+   "kind": "mcq",
+   "prompt": "A witness to a car crash is asked how fast the cars were going when they smashed into each other. A week later she reports seeing broken glass that was not at the scene. Which idea best explains this error?",
+   "choices": [
+    "Sensory adaptation, in which a constant stimulus loses its force over time",
+    "Primacy, in which early parts of an event are remembered best of all",
+    "Reconstructive memory altered by the wording of a leading question",
+    "Procedural memory in which a skill is expressed without recollection"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l06.q1",
+   "lessonId": "med-premed-behavioral.l06",
+   "kind": "mcq",
+   "prompt": "Which heuristic estimates likelihood by how easily examples come to mind?",
+   "choices": [
+    "Representativeness heuristic, which relies on resemblance to a prototype",
+    "Availability heuristic, which relies on ease of recalling instances",
+    "Anchoring heuristic, which relies on an initial number as a starting point",
+    "Hindsight heuristic, which relies on a feeling that an outcome was obvious"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l06.q2",
+   "lessonId": "med-premed-behavioral.l06",
+   "kind": "mcq",
+   "prompt": "A child has a schema for dog and calls a cat a dog, then learns it is a different animal and creates a new category. This change is:",
+   "choices": [
+    "Accommodation, the revision of a schema to fit new information",
+    "Conservation, the knowledge that quantity persists across changes",
+    "Object permanence, the knowledge that hidden objects still exist",
+    "Assimilation, the fitting of a new object into an existing schema"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l06.q3",
+   "lessonId": "med-premed-behavioral.l06",
+   "kind": "mcq",
+   "prompt": "Using a screwdriver only to turn screws and never thinking to use it as a lever is an example of:",
+   "choices": [
+    "Confirmation bias, in which supporting evidence is favored over contrary evidence",
+    "Overconfidence, in which one judgment is held with excessive certainty",
+    "Mental set, in which a previously successful strategy is repeated",
+    "Functional fixedness, in which an object is seen only in its usual use"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l06.q4",
+   "lessonId": "med-premed-behavioral.l06",
+   "kind": "mcq",
+   "prompt": "A 27-year-old woman with sharp pleuritic chest pain after a long flight is told by a resident that it is probably musculoskeletal, since the previous five similar patients had that diagnosis. The resident does not consider pulmonary embolism. Which bias is most clearly shown?",
+   "choices": [
+    "Framing, because the same risk is described as a gain rather than a loss",
+    "Functional fixedness, because an object is perceived only in its customary use",
+    "Availability, because recent similar cases make one diagnosis feel most likely",
+    "Hindsight, because the outcome seems predictable after it has been learned"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l06.q5",
+   "lessonId": "med-premed-behavioral.l06",
+   "kind": "mcq",
+   "prompt": "A 70-year-old retired engineer scores lower than he did at 30 on a timed test of novel puzzles but higher on a vocabulary and general knowledge test. Which pattern does this reflect?",
+   "choices": [
+    "A lower general factor g that explains both of the test results equally",
+    "Fluid intelligence declining while crystallized intelligence is maintained",
+    "Crystallized intelligence declining while fluid intelligence is maintained",
+    "Both forms of intelligence declining at the same rate with advancing age"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l07.q1",
+   "lessonId": "med-premed-behavioral.l07",
+   "kind": "mcq",
+   "prompt": "The smallest unit of sound that can change the meaning of a word is a:",
+   "choices": [
+    "Phoneme, the smallest unit of sound that distinguishes meaning",
+    "Syntax rule, a convention for ordering words within a sentence",
+    "Pragmatic cue, a social convention that guides use of language",
+    "Morpheme, the smallest unit of meaning such as a prefix or root"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l07.q2",
+   "lessonId": "med-premed-behavioral.l07",
+   "kind": "mcq",
+   "prompt": "A two-year-old says that she goed to the park. This best illustrates:",
+   "choices": [
+    "Holophrastic speech, which uses a single word to express a whole thought",
+    "Overregularization, which shows application of a learned rule too widely",
+    "Telegraphic speech, which omits small words such as articles and prepositions",
+    "Babbling, which strings together consonant and vowel sounds without meaning"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l07.q3",
+   "lessonId": "med-premed-behavioral.l07",
+   "kind": "mcq",
+   "prompt": "Which theorist proposed that humans have an innate capacity for language acquisition, often called universal grammar?",
+   "choices": [
+    "Piaget, who argued that language emerges from sensorimotor schemas",
+    "Skinner, who argued that language is learned through reinforcement",
+    "Chomsky, who argued that humans are biologically prepared for grammar",
+    "Whorf, who argued that language strongly shapes habitual thought"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l07.q4",
+   "lessonId": "med-premed-behavioral.l07",
+   "kind": "mcq",
+   "prompt": "A 64-year-old woman after a stroke speaks fluently with normal grammar and comprehends instructions, but cannot repeat the phrase no ifs, ands or buts and substitutes wrong sounds. Which structure is most likely damaged?",
+   "choices": [
+    "Primary auditory cortex, which receives basic information about sound",
+    "Broca area, which programs the production of speech sounds",
+    "Wernicke area, which supports comprehension of spoken language",
+    "Arcuate fasciculus, which links the receptive and expressive regions"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l07.q5",
+   "lessonId": "med-premed-behavioral.l07",
+   "kind": "mcq",
+   "prompt": "A researcher finds that speakers of a language with two separate words for light blue and dark blue sort blue shades into groups slightly faster than speakers of a language with one word. Which interpretation fits best?",
+   "choices": [
+    "Language may influence perception modestly, a weak form of linguistic relativity",
+    "Language is unrelated to thought, so the finding is a statistical accident",
+    "Language is innate and universal, so word categories cannot vary at all",
+    "Language determines thought completely, so other speakers cannot see the difference"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l08.q1",
+   "lessonId": "med-premed-behavioral.l08",
+   "kind": "mcq",
+   "prompt": "Which phase of Selye general adaptation syndrome involves sustained resistance with elevated cortisol?",
+   "choices": [
+    "Exhaustion phase, with depleted resources and increased vulnerability",
+    "Recovery phase, with a return to baseline once the stressor has ended",
+    "Alarm phase, with rapid sympathetic activation after a stressor appears",
+    "Resistance phase, with continued coping and persistent hormonal elevation"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l08.q2",
+   "lessonId": "med-premed-behavioral.l08",
+   "kind": "mcq",
+   "prompt": "According to the James-Lange theory, a person who sees a bear and then runs feels fear because:",
+   "choices": [
+    "The amygdala evaluates the threat before any bodily change occurs",
+    "The thalamus triggers arousal and feeling at the same moment",
+    "The body responds first and the feeling follows from perceiving it",
+    "A cognitive label is applied to ambiguous arousal in the situation"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l08.q3",
+   "lessonId": "med-premed-behavioral.l08",
+   "kind": "mcq",
+   "prompt": "A person facing a layoff cannot change the decision and chooses to talk with friends and exercise to manage distress. This is:",
+   "choices": [
+    "Problem-focused coping, which targets the source of the stressor",
+    "Emotion-focused coping, which manages the feelings the stressor causes",
+    "Denial, which refuses to accept that a stressful event has occurred",
+    "Displacement, which redirects feelings toward a safer or weaker target"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l08.q4",
+   "lessonId": "med-premed-behavioral.l08",
+   "kind": "mcq",
+   "prompt": "A 44-year-old man with years of caregiving strain has hypertension, frequent infections and trouble recalling recent conversations. Which mechanism best links his chronic stress to these findings?",
+   "choices": [
+    "Sustained cortisol and allostatic load that impair immunity and hippocampal function",
+    "Selective loss of parasympathetic neurons that lowers blood pressure and heart rate",
+    "Reduced thalamic relay of sensory input that blunts the detection of threats",
+    "Brief sympathetic surges that strengthen immune defenses and protect memory"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l08.q5",
+   "lessonId": "med-premed-behavioral.l08",
+   "kind": "mcq",
+   "prompt": "A volunteer given an injection of epinephrine is placed with a confederate acting cheerful and reports feeling euphoric, while another volunteer with a hostile confederate reports anger. Which theory does this support?",
+   "choices": [
+    "James-Lange, which says that each emotion has a unique pattern of arousal",
+    "Cannon-Bard, which says that feeling and arousal arise independently",
+    "LeDoux, which says that threat responses precede any conscious evaluation",
+    "Schachter-Singer, which says arousal is labeled by cognitive appraisal of context"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l09.q1",
+   "lessonId": "med-premed-behavioral.l09",
+   "kind": "mcq",
+   "prompt": "Which theory says behavior is motivated by a need to reduce internal tension created by unmet physiological needs?",
+   "choices": [
+    "Instinct theory, which stresses innate, species-typical response patterns",
+    "Incentive theory, which stresses the pull of external rewards on behavior",
+    "Drive-reduction theory, which stresses restoring physiological balance",
+    "Arousal theory, which stresses seeking an optimal level of stimulation"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l09.q2",
+   "lessonId": "med-premed-behavioral.l09",
+   "kind": "mcq",
+   "prompt": "In Maslow hierarchy, which need is addressed immediately after physiological and safety needs?",
+   "choices": [
+    "Self-actualization, which includes realizing creative and personal potential",
+    "Cognitive needs, which include curiosity, knowledge and understanding",
+    "Esteem, which includes achievement, recognition and respect from others",
+    "Belonging and love, which includes friendship, intimacy and community"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l09.q3",
+   "lessonId": "med-premed-behavioral.l09",
+   "kind": "mcq",
+   "prompt": "Which hormone, released by fat cells, signals long-term energy stores and suppresses appetite?",
+   "choices": [
+    "Leptin, released by adipose tissue to signal that energy is adequate",
+    "Cortisol, released by the adrenal cortex in response to stress",
+    "Insulin, released by the pancreas, which rises only after glucose intake",
+    "Ghrelin, released by the stomach to stimulate hunger before a meal"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l09.q4",
+   "lessonId": "med-premed-behavioral.l09",
+   "kind": "mcq",
+   "prompt": "A teacher gives stickers for reading to children who already read for pleasure. After the program ends, those children read less in free time than before. Which concept best explains this outcome?",
+   "choices": [
+    "Drive reduction, in which behavior stops once a physiological need is met",
+    "The overjustification effect, in which a reward lowers intrinsic interest",
+    "Arousal, in which performance falls when stimulation becomes too intense",
+    "Self-actualization, in which basic needs must be met before growth begins"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l09.q5",
+   "lessonId": "med-premed-behavioral.l09",
+   "kind": "mcq",
+   "prompt": "A 22-year-old woman with a gradual onset of rapid weight gain and constant hunger is found to have a lesion near the base of the brain. Damage to which hypothalamic region best explains the overeating?",
+   "choices": [
+    "Supraoptic nucleus, which produces antidiuretic hormone for the pituitary",
+    "Lateral hypothalamus, which promotes eating when it is active",
+    "Ventromedial hypothalamus, which promotes satiety when it is active",
+    "Suprachiasmatic nucleus, which sets the circadian timing of sleep"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l10.q1",
+   "lessonId": "med-premed-behavioral.l10",
+   "kind": "mcq",
+   "prompt": "In Freud model, which part of personality operates by the pleasure principle?",
+   "choices": [
+    "The id, which seeks immediate gratification of instinctual impulses",
+    "The ego, which mediates between impulses, reality and conscience",
+    "The superego, which holds internalized parental and social standards",
+    "The preconscious, which holds material that can easily be recalled"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l10.q2",
+   "lessonId": "med-premed-behavioral.l10",
+   "kind": "mcq",
+   "prompt": "A man furious at his boss comes home and snaps at his wife instead. This defense mechanism is:",
+   "choices": [
+    "Projection, which attributes one own unacceptable feeling to another person",
+    "Displacement, which redirects feeling from a threatening to a safer target",
+    "Reaction formation, which expresses the opposite of an unacceptable impulse",
+    "Sublimation, which channels an impulse into a socially valued activity"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l10.q3",
+   "lessonId": "med-premed-behavioral.l10",
+   "kind": "mcq",
+   "prompt": "Which Big Five trait best predicts longevity and academic and job performance?",
+   "choices": [
+    "Openness, a tendency toward curiosity and interest in novel experience",
+    "Extraversion, a tendency toward sociability and positive emotional energy",
+    "Conscientiousness, a tendency toward organization, diligence and self-discipline",
+    "Agreeableness, a tendency toward cooperation, trust and concern for others"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l10.q4",
+   "lessonId": "med-premed-behavioral.l10",
+   "kind": "mcq",
+   "prompt": "A 35-year-old woman believes that her promotions result from effort and planning, and that a failed project was due to her own mistakes that she can correct. This pattern most closely reflects:",
+   "choices": [
+    "A projective defense, with unwanted traits attributed to coworkers",
+    "Reciprocal determinism, with traits fixed regardless of environment",
+    "An external locus of control, with outcomes attributed to luck or others",
+    "An internal locus of control, with outcomes attributed to her own actions"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l10.q5",
+   "lessonId": "med-premed-behavioral.l10",
+   "kind": "mcq",
+   "prompt": "A clinician wants an objective personality test whose items were selected because they separated diagnostic groups, with scales to detect inconsistent or defensive responding. Which instrument fits?",
+   "choices": [
+    "The Minnesota Multiphasic Personality Inventory, a validity-scaled self-report",
+    "A sentence completion task, which interprets endings supplied by the patient",
+    "The Rorschach inkblot test, which interprets responses to ambiguous stimuli",
+    "The Thematic Apperception Test, which interprets stories told about pictures"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l11.q1",
+   "lessonId": "med-premed-behavioral.l11",
+   "kind": "mcq",
+   "prompt": "In Piaget theory, understanding that an object continues to exist when out of sight is called:",
+   "choices": [
+    "Conservation, knowing that quantity remains the same despite appearance",
+    "Object permanence, knowing that hidden things still continue to exist",
+    "Egocentrism, difficulty taking the perspective of another person",
+    "Assimilation, fitting new experience into an existing mental schema"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l11.q2",
+   "lessonId": "med-premed-behavioral.l11",
+   "kind": "mcq",
+   "prompt": "A toddler explores a playroom, checks back with her mother, is upset when she leaves and is quickly comforted when she returns. This pattern indicates which attachment style?",
+   "choices": [
+    "Secure attachment, with the caregiver used as a base and easy comfort",
+    "Avoidant attachment, with little distress and indifference at return",
+    "Ambivalent attachment, with distress that is not easily soothed on return",
+    "Disorganized attachment, with contradictory and confused behavior"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l11.q3",
+   "lessonId": "med-premed-behavioral.l11",
+   "kind": "mcq",
+   "prompt": "Which of Erikson psychosocial crises characterizes adolescence?",
+   "choices": [
+    "Intimacy versus isolation, centered on forming close adult relationships",
+    "Generativity versus stagnation, centered on contributing to later generations",
+    "Industry versus inferiority, centered on competence in school-age tasks",
+    "Identity versus role confusion, centered on forming a coherent sense of self"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l11.q4",
+   "lessonId": "med-premed-behavioral.l11",
+   "kind": "mcq",
+   "prompt": "A 5-year-old watches water poured from a short wide glass into a tall narrow one and insists the tall glass holds more. A 9-year-old shown the same task says it is the same amount because nothing was added or removed. Which explanation fits the difference?",
+   "choices": [
+    "The older child is in the formal operational stage and reasons about hypotheses",
+    "The younger child shows secure attachment, which delays conservation tasks",
+    "The older child reached the concrete operational stage and grasps conservation",
+    "The younger child reached the sensorimotor stage and lacks object permanence"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l11.q5",
+   "lessonId": "med-premed-behavioral.l11",
+   "kind": "mcq",
+   "prompt": "A 16-year-old with normal intelligence repeatedly takes dangerous risks in groups but reasons well about risk in a quiet interview. Which developmental factor best explains the gap?",
+   "choices": [
+    "Complete maturity of the prefrontal cortex that makes impulse control automatic",
+    "Ongoing prefrontal maturation and heightened reward sensitivity in social settings",
+    "Loss of all concrete operations that were present earlier in childhood",
+    "Persistent preoperational thought that blocks reasoning about consequences"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l12.q1",
+   "lessonId": "med-premed-behavioral.l12",
+   "kind": "mcq",
+   "prompt": "Hallucinations and delusions in schizophrenia are classified as:",
+   "choices": [
+    "Mood symptoms, which reflect sustained elevation or depression of affect",
+    "Negative symptoms, which reflect a loss or reduction of normal function",
+    "Positive symptoms, which reflect an excess or distortion of normal function",
+    "Cognitive symptoms, which reflect impaired attention and memory"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l12.q2",
+   "lessonId": "med-premed-behavioral.l12",
+   "kind": "mcq",
+   "prompt": "Which feature distinguishes bipolar disorder from major depressive disorder?",
+   "choices": [
+    "A depressed mood lasting at least two weeks with loss of interest",
+    "The presence of poor sleep, low energy and difficulty concentrating",
+    "Feelings of worthlessness or guilt that are out of proportion to events",
+    "A history of at least one manic episode of elevated or irritable mood"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l12.q3",
+   "lessonId": "med-premed-behavioral.l12",
+   "kind": "mcq",
+   "prompt": "The diathesis-stress model proposes that disorders arise from:",
+   "choices": [
+    "A vulnerability, often genetic, combined with an environmental stressor",
+    "A single gene that guarantees illness regardless of experience or setting",
+    "A purely environmental cause that acts on people with no vulnerability",
+    "A failure of the superego to restrain impulses from the unconscious mind"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l12.q4",
+   "lessonId": "med-premed-behavioral.l12",
+   "kind": "mcq",
+   "prompt": "A 24-year-old graduate student after a car accident has nightmares, avoids driving, is startled by loud sounds, and feels detached from friends. The symptoms have lasted three months. Which diagnosis best fits?",
+   "choices": [
+    "Generalized anxiety disorder, with worry about many everyday matters",
+    "Posttraumatic stress disorder, with intrusion, avoidance and hyperarousal",
+    "Panic disorder, with unexpected attacks and fear of further attacks",
+    "Specific phobia, with fear restricted to a single object or situation"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l12.q5",
+   "lessonId": "med-premed-behavioral.l12",
+   "kind": "mcq",
+   "prompt": "A 20-year-old man over eight months has become withdrawn, speaks little, shows a flat face, and says that neighbors broadcast his thoughts. He has no mood episodes. Which diagnosis fits best?",
+   "choices": [
+    "Bipolar I disorder, with a manic episode followed by psychotic features",
+    "Generalized anxiety disorder, with excess worry and some social avoidance",
+    "Schizophrenia, with both positive and negative symptoms for over six months",
+    "Major depressive disorder, with a mood episode and psychotic features"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l13.q1",
+   "lessonId": "med-premed-behavioral.l13",
+   "kind": "mcq",
+   "prompt": "Overestimating personality and underestimating the situation when explaining others behavior is called the:",
+   "choices": [
+    "Actor-observer difference, explaining own actions by situations",
+    "Confirmation bias, favoring evidence that fits what is already believed",
+    "Self-serving bias, crediting success to self and failure to circumstances",
+    "Fundamental attribution error, favoring dispositions over situations"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l13.q2",
+   "lessonId": "med-premed-behavioral.l13",
+   "kind": "mcq",
+   "prompt": "A man who smokes but believes smoking is harmful feels uncomfortable and decides that the health risks are exaggerated. This is best explained by:",
+   "choices": [
+    "Social facilitation, with improved performance in the presence of others",
+    "Informational influence, with a belief that others have better knowledge",
+    "Cognitive dissonance, with an attitude changed to match the behavior",
+    "The peripheral route, with persuasion by superficial cues of the message"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l13.q3",
+   "lessonId": "med-premed-behavioral.l13",
+   "kind": "mcq",
+   "prompt": "In Asch studies, conformity dropped sharply when:",
+   "choices": [
+    "The group was made larger and all of its members agreed with each other",
+    "One confederate disagreed with the rest of the group and gave a different answer",
+    "The participant was asked to record the response privately for the group",
+    "The task was made extremely difficult and the correct answer unclear"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l13.q4",
+   "lessonId": "med-premed-behavioral.l13",
+   "kind": "mcq",
+   "prompt": "A hospital wants staff to adopt a new hand hygiene protocol. A busy resident who skims a poster is more persuaded by a famous surgeon smiling in the image than by the data table beside it. Which route to persuasion is operating?",
+   "choices": [
+    "The peripheral route, with persuasion by cues such as speaker status",
+    "The foot-in-the-door route, with agreement to a small request first",
+    "The informational route, with conformity because others are better informed",
+    "The central route, with careful evaluation of the strength of the arguments"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l13.q5",
+   "lessonId": "med-premed-behavioral.l13",
+   "kind": "mcq",
+   "prompt": "A study asks volunteers to do a dull task and then tell the next person it was enjoyable. One group is paid $1 and another $20. Later, the $1 group rates the task as more enjoyable. Which explanation fits?",
+   "choices": [
+    "The $20 group experienced overjustification and lost all interest in the task",
+    "The $1 group conformed to the majority in a normative influence situation",
+    "The $20 group displayed a self-serving bias that credited success to ability",
+    "The $1 group had insufficient external justification and shifted their attitude"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l14.q1",
+   "lessonId": "med-premed-behavioral.l14",
+   "kind": "mcq",
+   "prompt": "The reduced likelihood that any one person helps when others are present is the:",
+   "choices": [
+    "Bystander effect, tied to diffusion of responsibility among observers",
+    "Social loafing effect, tied to lowered effort in a group task",
+    "Groupthink effect, tied to the suppression of dissenting opinions",
+    "Halo effect, tied to a general impression shaping specific judgments"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l14.q2",
+   "lessonId": "med-premed-behavioral.l14",
+   "kind": "mcq",
+   "prompt": "Which is an example of discrimination rather than prejudice?",
+   "choices": [
+    "A landlord privately believes that families with children are noisy",
+    "A landlord refuses to rent to a family because of its ethnic background",
+    "A tenant assumes that landlords generally prefer older tenants",
+    "A tenant feels uneasy and anxious around people who are unfamiliar"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l14.q3",
+   "lessonId": "med-premed-behavioral.l14",
+   "kind": "mcq",
+   "prompt": "Which condition is NOT part of Allport contact hypothesis for reducing prejudice?",
+   "choices": [
+    "Pursuit of shared goals through active cooperation between the groups",
+    "Support from authorities, law or custom for the contact between groups",
+    "Competition between the groups for scarce resources and rewards",
+    "Equal status between members of the groups who are in contact"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l14.q4",
+   "lessonId": "med-premed-behavioral.l14",
+   "kind": "mcq",
+   "prompt": "After a team reviews a case, each member leaves more extreme in the initial cautious view than before the meeting, and a junior member who disagreed said nothing. Which pairing of concepts best explains this?",
+   "choices": [
+    "Deindividuation and the bystander effect, with a loss of self-awareness",
+    "Stereotype threat and the self-fulfilling prophecy, with impaired performance",
+    "Social facilitation and the mere exposure effect, with better performance",
+    "Group polarization and groupthink, with strengthened views and suppressed dissent"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l14.q5",
+   "lessonId": "med-premed-behavioral.l14",
+   "kind": "mcq",
+   "prompt": "A hospital sets a policy under which patients without a permanent address are never scheduled for follow-up, though no staff member holds any ill will toward them. Which concept does this best illustrate?",
+   "choices": [
+    "Structural discrimination, unequal treatment built into policy and practice",
+    "Implicit bias, an automatic association operating outside of awareness",
+    "Stereotype threat, impaired performance that stems from awareness of a stereotype",
+    "Individual prejudice, a negative attitude held by an individual person"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l15.q1",
+   "lessonId": "med-premed-behavioral.l15",
+   "kind": "mcq",
+   "prompt": "Which sociological theory views society as a system of interdependent parts that each serve a function?",
+   "choices": [
+    "Rational choice theory, as developed by economists and sociologists",
+    "Functionalism, as developed by Durkheim and later by Parsons",
+    "Conflict theory, as developed by Marx and later by Weber",
+    "Symbolic interactionism, as developed by Mead and later by Blumer"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l15.q2",
+   "lessonId": "med-premed-behavioral.l15",
+   "kind": "mcq",
+   "prompt": "A person who grew up in a poor family and becomes a physician has experienced:",
+   "choices": [
+    "Intergenerational upward mobility, a higher position than that of parents",
+    "Intragenerational downward mobility, a fall in position within a lifetime",
+    "Horizontal mobility, a change in job without a change in social rank",
+    "Social reproduction, the transmission of the same position to children"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l15.q3",
+   "lessonId": "med-premed-behavioral.l15",
+   "kind": "mcq",
+   "prompt": "Bourdieu cultural capital refers to:",
+   "choices": [
+    "Networks of relationships and trust that provide support and access",
+    "Official credentials granted by institutions after formal training",
+    "Money and property that can be converted into other forms of power",
+    "Knowledge, skills and habits that confer advantage in social settings"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l15.q4",
+   "lessonId": "med-premed-behavioral.l15",
+   "kind": "mcq",
+   "prompt": "A sociologist studies how a hospital ward constructs the meaning of a good patient through everyday talk between nurses and patients, and how labels shape the way people are treated. Which perspective is she using?",
+   "choices": [
+    "Functionalism, which asks how each part supports social stability",
+    "Conflict theory, which asks how groups compete for power and resources",
+    "Symbolic interactionism, which asks how shared meaning arises in interaction",
+    "Demographic transition theory, which asks how birth and death rates change"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l15.q5",
+   "lessonId": "med-premed-behavioral.l15",
+   "kind": "mcq",
+   "prompt": "A 54-year-old man with diabetes lives in a neighborhood shaped decades earlier by lending practices that denied mortgages to residents based on race. The area has few grocery stores and clinics. Which concept most directly links history to his current health risk?",
+   "choices": [
+    "Medicalization, the framing of an ordinary condition as a medical one",
+    "Institutional racism, with policies that shaped neighborhood resources",
+    "The sick role, with obligations to seek care that are placed on patients",
+    "Demographic transition, with a shift to low birth and death rates"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l16.q1",
+   "lessonId": "med-premed-behavioral.l16",
+   "kind": "mcq",
+   "prompt": "A health inequity is best defined as a difference in health that is:",
+   "choices": [
+    "Limited to differences in the quality of care within a single hospital",
+    "Present between any two groups regardless of the cause of the difference",
+    "Unfair and avoidable, linked to social or economic disadvantage",
+    "Explained entirely by genetic variation that differs between populations"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l16.q2",
+   "lessonId": "med-premed-behavioral.l16",
+   "kind": "mcq",
+   "prompt": "The Whitehall studies of British civil servants found that mortality:",
+   "choices": [
+    "Was highest in the top grades because of the demands of leadership",
+    "Differed only between the very poorest group and everyone else",
+    "Was similar across grades because all of the workers had stable jobs",
+    "Rose with each step down in employment grade, a social gradient"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l16.q3",
+   "lessonId": "med-premed-behavioral.l16",
+   "kind": "mcq",
+   "prompt": "Which term describes overlapping social identities that together produce experiences not captured by each identity alone?",
+   "choices": [
+    "Intersectionality, a framework for overlapping identities and systems",
+    "Acculturation, the cultural change that results from sustained contact",
+    "Social reproduction, the passing of status from one generation to the next",
+    "Medicalization, the treatment of ordinary conditions as medical problems"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l16.q4",
+   "lessonId": "med-premed-behavioral.l16",
+   "kind": "mcq",
+   "prompt": "A clinic notes that Black women in its catchment area have higher rates of severe pregnancy complications than white women of the same insurance status. A trainee proposes that genetic differences explain the gap. Which response is most consistent with current evidence?",
+   "choices": [
+    "Agree, since race corresponds to distinct biological subtypes of humans",
+    "Disagree, since racial gaps are tied to chronic stress, care quality and exposure",
+    "Agree, since the same insurance status removes every non-genetic explanation",
+    "Disagree, since pregnancy complications have no relationship to social factors"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l16.q5",
+   "lessonId": "med-premed-behavioral.l16",
+   "kind": "mcq",
+   "prompt": "A hospital adds screening for housing and food insecurity to its visits and connects patients to resources. In public health terms, this is best described as:",
+   "choices": [
+    "An evaluation of internal validity in a randomized clinical trial",
+    "A strictly downstream measure that treats disease after it appears",
+    "An effort to address social needs, a step toward upstream causes",
+    "A measure of health literacy by means of a standardized test"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l17.q1",
+   "lessonId": "med-premed-behavioral.l17",
+   "kind": "mcq",
+   "prompt": "In the transtheoretical model, a patient who is not planning to change in the next six months is in:",
+   "choices": [
+    "Preparation, with a plan to act in the very near future",
+    "Maintenance, with sustained change continuing for many months",
+    "Contemplation, with a serious consideration of change in the near future",
+    "Precontemplation, with no current intention to change the behavior"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l17.q2",
+   "lessonId": "med-premed-behavioral.l17",
+   "kind": "mcq",
+   "prompt": "Which technique asks a patient to restate the treatment plan in his own words to check understanding?",
+   "choices": [
+    "Shaping, which reinforces successive approximations of a behavior",
+    "Implementation intentions, which are specific if-then plans for action",
+    "Teach-back, which confirms that information was understood correctly",
+    "Reflective listening, which mirrors the feelings expressed by the patient"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l17.q3",
+   "lessonId": "med-premed-behavioral.l17",
+   "kind": "mcq",
+   "prompt": "A core stance of motivational interviewing toward patient resistance is to:",
+   "choices": [
+    "Confront the patient directly with the risks of continuing the behavior",
+    "Treat resistance as information and explore ambivalence with empathy",
+    "Offer a detailed action plan immediately to move the patient to action",
+    "Ask the patient to leave the visit until he has decided to change"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l17.q4",
+   "lessonId": "med-premed-behavioral.l17",
+   "kind": "mcq",
+   "prompt": "A 52-year-old man with hypertension says that he skips his pill because he feels fine and the pills make him tired, and he does not think his blood pressure is a serious problem. Which health belief model constructs are most directly involved?",
+   "choices": [
+    "Low perceived severity and perceived barriers, since symptoms are absent and side effects exist",
+    "Perceived benefits only, since he believes that treatment is entirely useless",
+    "Social norms only, since his friends do not take medicine for high pressure",
+    "Cue to action and self-efficacy, since he lacks a reminder and confidence"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l17.q5",
+   "lessonId": "med-premed-behavioral.l17",
+   "kind": "mcq",
+   "prompt": "In a trial of a pain drug, participants given an inert tablet that they believe is an analgesic report meaningful pain relief, and some in the inert group report side effects. Which pair of effects is illustrated?",
+   "choices": [
+    "Nocebo effect for the relief and placebo effect for the side effects",
+    "Hawthorne effect for the relief and social loafing for the side effects",
+    "Demand characteristics for the relief and extinction for the side effects",
+    "Placebo effect for the relief and nocebo effect for the side effects"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l18.q1",
+   "lessonId": "med-premed-behavioral.l18",
+   "kind": "mcq",
+   "prompt": "Which feature of an experiment most directly supports causal inference?",
+   "choices": [
+    "Random assignment of participants to the conditions of the study",
+    "A high correlation between the independent and dependent variables",
+    "A survey instrument with questions that are worded very clearly",
+    "A large sample that is drawn from a single convenient setting"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l18.q2",
+   "lessonId": "med-premed-behavioral.l18",
+   "kind": "mcq",
+   "prompt": "A scale always reads 2 kilograms too heavy, giving the same value each time. This scale is:",
+   "choices": [
+    "Neither reliable nor valid, because it does not report true weight",
+    "Reliable but not valid, because it is consistent but wrong",
+    "Valid but not reliable, because it is accurate but inconsistent",
+    "Both reliable and valid, because the error is perfectly systematic"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l18.q3",
+   "lessonId": "med-premed-behavioral.l18",
+   "kind": "mcq",
+   "prompt": "Which measure of central tendency is least affected by a few extremely high incomes in a sample?",
+   "choices": [
+    "The standard deviation, which summarizes how widely values spread",
+    "The mean, which weights every value and shifts with outliers",
+    "The median, which is the middle value and resists outliers",
+    "The range, which is the gap between the highest and lowest value"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l18.q4",
+   "lessonId": "med-premed-behavioral.l18",
+   "kind": "mcq",
+   "prompt": "A study of 400 adults finds that those who sleep less than six hours also report more depressive symptoms (r = 0.35). A journalist writes that short sleep causes depression. Which critique is most valid?",
+   "choices": [
+    "Random assignment was used so cause is established but cannot be generalized",
+    "The result has high internal validity but low reliability of measurement",
+    "The correlation is too small to be statistically significant at any sample size",
+    "The design cannot show direction or exclude confounds, so cause is not established"
+   ]
+  },
+  {
+   "id": "med-premed-behavioral.l18.q5",
+   "lessonId": "med-premed-behavioral.l18",
+   "kind": "mcq",
+   "prompt": "A trial reports p = 0.03 for a drug that lowers a symptom score by an amount too small for patients to notice. Which interpretation is most accurate?",
+   "choices": [
+    "The result is statistically significant but may lack practical importance",
+    "There is a 3 percent probability that the null hypothesis is true",
+    "The result proves the drug works because the p-value is below 0.05",
+    "The drug is clinically important because the result is statistically significant"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,1226 @@
+{
+ "courseId": "law-intl-humanitarian-criminal",
+ "verifier": "A",
+ "note": "WebFetch returned 403 for icc-cpi.int, ohchr.org and icrc.org; fell back to curl with a browser User-Agent, which worked for OHCHR treaty texts, Yale Avalon Hague IV, UN Charter, RS-Eng.pdf (older text lacking the 2019 NIAC starvation provision) and the ECCC summary of judgement; ICRC database was blocked by a bot page. Several case claims were checked only against WebSearch excerpts, so sources arrays omit those pages. No option text was cut off mid-sentence.",
+ "fetched": 32,
+ "questions": [
+  {
+   "id": "law-intl-humanitarian-criminal.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l02.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l02.q4",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Strongest-argument framing; persistent objector plus weak practice.",
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/protocol-additional-geneva-conventions-12-august-1949-and"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l04.q3",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Options 2 and 3 overlap; 3 is more precise (distinction, not proportionality).",
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l04.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/geneva-convention-relative-treatment-prisoners-war"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l06.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/geneva-convention-relative-treatment-prisoners-war"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l06.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://avalon.law.yale.edu/20th_century/hague04.asp"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/geneva-convention-relative-protection-civilian-persons-time-war"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/geneva-convention-relative-protection-civilian-persons-time-war"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l08.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l08.q5",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Art 6(5) Protocol II text says 'broadest possible amnesty'; ICRC reading excludes war crimes suspects.",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/protocol-additional-geneva-conventions-12-august-1949-and-0"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/protocol-additional-geneva-conventions-12-august-1949-and"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l09.q4",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Ottawa Convention may have partial customary effect, but option 3 is the only fully accurate one.",
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l10.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l10.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l10.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l10.q5",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": true,
+   "note": "'Least likely violated' wording is awkward; Art 55 cumulative threshold not met is the intended answer, but Rome Art 8(2)(b)(iv) is also unlikely on these facts.",
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l11.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l11.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l11.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l11.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l11.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l12.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l12.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l12.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l12.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Immunity of former officials for official acts is debated; option 0 is the only non-absolute claim.",
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l13.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l13.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l13.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l13.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l14.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l14.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l14.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l14.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l14.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l15.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l15.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l15.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l15.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l15.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l16.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l16.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l16.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l17.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l17.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l17.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l17.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l18.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icc-cpi.int/sites/default/files/RS-Eng.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l18.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icc-cpi.int/sites/default/files/RS-Eng.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l18.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l18.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icc-cpi.int/sites/default/files/RS-Eng.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l18.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l19.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l19.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l19.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l19.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l19.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l20.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l20.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l20.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l20.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l01",
+   "claim": "UN Charter Art 2(4) prohibits threat or use of force against territorial integrity or political independence",
+   "verdict": "supported",
+   "sources": [
+    "https://www.un.org/en/about-us/un-charter/full-text"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l01",
+   "claim": "Nicaragua v. US (ICJ 1986): prohibition on force is customary and only gravest forms are armed attack",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No primary page opened."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l01",
+   "claim": "AP I preamble: protections applied without adverse distinction based on nature/origin of conflict or causes espoused",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/protocol-additional-geneva-conventions-12-august-1949-and"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l02",
+   "claim": "1949 Conventions I-IV subjects; 1907 Hague IV; AP III 2005 red crystal",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened; widely known."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l02",
+   "claim": "AP I Art 1(2) repeats Martens clause",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/protocol-additional-geneva-conventions-12-august-1949-and"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l02",
+   "claim": "US signed but has not ratified AP I and II; ICJ cited Martens clause in 1996 nuclear opinion",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not verified from an opened page."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l03",
+   "claim": "AP II Art 1(2) excludes riots, isolated and sporadic acts of violence; Art 1(4) AP I self-determination wars",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/protocol-additional-geneva-conventions-12-august-1949-and-0",
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/protocol-additional-geneva-conventions-12-august-1949-and"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l03",
+   "claim": "Tadic 1995: NIAC = protracted armed violence between governmental authorities and organised armed groups",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Search surfaced the ICTY decision but the formula was not seen on an opened page."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l03",
+   "claim": "ICJ Nicaragua effective control vs ICTY Tadic overall control",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l04",
+   "claim": "AP I Art 52(2) military objective definition and 52(3) presumption of civilian character in doubt",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/protocol-additional-geneva-conventions-12-august-1949-and"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l04",
+   "claim": "Art 51(5)(b) and 57 proportionality/precautions; Art 51(7) human shields",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/protocol-additional-geneva-conventions-12-august-1949-and"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l04",
+   "claim": "Rome Statute Art 8(2)(b)(iv) 'clearly excessive' standard",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icc-cpi.int/sites/default/files/RS-Eng.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l05",
+   "claim": "GC I Art 21 warning with reasonable time limit before loss of protection of medical units; Art 22 light weapons",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "OHCHR GC I URL returned 404; ICRC database blocked."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l05",
+   "claim": "AP I Arts 40, 41, 42 (quarter, hors de combat, parachutists)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/protocol-additional-geneva-conventions-12-august-1949-and"
+   ],
+   "note": "Article headings and Art 41 present in AP I text."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l05",
+   "claim": "AP III 2005 added red crystal with same legal value",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l06",
+   "claim": "GC III Art 17: only surname, first names, rank, date of birth, army/regimental/personal/serial number",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/geneva-convention-relative-treatment-prisoners-war"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l06",
+   "claim": "GC III Art 118: released and repatriated without delay after cessation of active hostilities",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/geneva-convention-relative-treatment-prisoners-war"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l06",
+   "claim": "Hamdan v Rumsfeld (2006) held common Art 3 applied to the conflict with al Qaeda",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l07",
+   "claim": "Hague Regs Art 42 definition of occupation; Art 55 usufruct",
+   "verdict": "supported",
+   "sources": [
+    "https://avalon.law.yale.edu/20th_century/hague04.asp"
+   ],
+   "note": "Confirmed in Hague IV annex text."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l07",
+   "claim": "GC IV Art 49(6): occupying power shall not deport or transfer parts of its own civilian population into occupied territory",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/geneva-convention-relative-protection-civilian-persons-time-war"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l07",
+   "claim": "GC IV Art 53 prohibits destruction of property except where absolutely necessary by military operations",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/geneva-convention-relative-protection-civilian-persons-time-war"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l08",
+   "claim": "AP II Art 6(5): authorities shall endeavour to grant the broadest possible amnesty",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/protocol-additional-geneva-conventions-12-august-1949-and-0"
+   ],
+   "note": "ICRC reading excluding war crimes suspects not opened."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l08",
+   "claim": "AP II Art 14 starvation prohibition and Art 17 displacement",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/protocol-additional-geneva-conventions-12-august-1949-and-0"
+   ],
+   "note": "Art 14 text confirmed."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l08",
+   "claim": "Rome Statute Art 8(2)(c) and (e) NIAC war crimes",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icc-cpi.int/sites/default/files/RS-Eng.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l09",
+   "claim": "AP I Art 35(2) superfluous injury; Art 36 new weapons review",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/protocol-additional-geneva-conventions-12-august-1949-and"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l09",
+   "claim": "CWC 1993 in force 1997 with OPCW; BWC 1972 no verification body; TPNW 2017 in force 2021",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l09",
+   "claim": "ICJ 1996 nuclear weapons advisory opinion holdings",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l10",
+   "claim": "AP I Art 37 perfidy examples (feigning surrender, incapacitation, civilian status)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/protocol-additional-geneva-conventions-12-august-1949-and"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l10",
+   "claim": "Rome Statute Art 8(2)(b)(xxv) starvation; extended to NIAC by ASP in Dec 2019",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icc-cpi.int/sites/default/files/RS-Eng.pdf"
+   ],
+   "note": "RS-Eng.pdf is the pre-2019 text and lacks the NIAC provision; the Dec 2019 unanimous ASP adoption was seen only in search excerpts."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l10",
+   "claim": "Al Mahdi (ICC 2016): guilty plea, Timbuktu, nine years",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Seen via search excerpt of icc-cpi.int news page (27 Sep 2016); page not opened."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l11",
+   "claim": "AP I Art 51(3) direct participation 'for such time as'; Art 50(1) doubt = civilian",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/protocol-additional-geneva-conventions-12-august-1949-and"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l11",
+   "claim": "ICRC 2009 Interpretive Guidance three cumulative conditions",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l11",
+   "claim": "No treaty specifically regulates autonomous weapons as of this writing",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Time-sensitive; 2026 status (CCW GGE, UNGA) not checked."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l12",
+   "claim": "GC IV Art 146 search and prosecute regardless of nationality or hand over with prima facie case",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/geneva-convention-relative-protection-civilian-persons-time-war"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l12",
+   "claim": "AP I Art 85(3)(b) indiscriminate attack; Art 91 compensation",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/protocol-additional-geneva-conventions-12-august-1949-and"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l12",
+   "claim": "ICJ Arrest Warrant 2002: incumbent foreign minister immune, immunity not impunity",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Seen via search excerpt of icj-cij.org case 121; page not opened."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l13",
+   "claim": "Nuremberg: 24 indicted, 22 tried, 12 death sentences, 3 acquittals, judgments 30 Sep-1 Oct 1946",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l13",
+   "claim": "Tokyo IMTFE Pal dissent; In re Yamashita 1946",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l13",
+   "claim": "Charter jurisdiction: crimes against peace, war crimes, crimes against humanity",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l14",
+   "claim": "Rome Statute Arts 25(3), 27, 28, 29, 33, 31, 26 content",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icc-cpi.int/sites/default/files/RS-Eng.pdf"
+   ],
+   "note": "Article 33 and 98 headings seen."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l14",
+   "claim": "Bemba 2016 conviction reversed on appeal in 2018 (limitations as remote commander)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Seen via search excerpts of ICC and ASIL pages (8 June 2018, majority); pages not opened."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l14",
+   "claim": "Tadic 1999 JCE; Celebici TC 1998, AC 2001",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l15",
+   "claim": "Rome Statute Art 8(1) 'in particular' plan or policy; Art 8(2)(b)(xxvi) child soldiers under 15",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icc-cpi.int/sites/default/files/RS-Eng.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l15",
+   "claim": "Lubanga convicted 14 Mar 2012, upheld 1 Dec 2014, NIAC child soldier crimes",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Seen via search excerpt of icc-cpi.int/drc/lubanga; page not opened."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l15",
+   "claim": "Art 8(2)(f) protracted armed conflict threshold for NIAC",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icc-cpi.int/sites/default/files/RS-Eng.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l16",
+   "claim": "Rome Statute Arts 6 and 7 definitions; Genocide Convention Art II five acts",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icc-cpi.int/sites/default/files/RS-Eng.pdf"
+   ],
+   "note": "Convention text not opened."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l16",
+   "claim": "ICJ Bosnia v Serbia 2007: genocide at Srebrenica, Serbia failed to prevent, not directly responsible, failed to cooperate with ICTY",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Seen via search excerpts (ICJ/ASIL/Jus Mundi); pages not opened."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l16",
+   "claim": "ILC adopted draft articles on crimes against humanity in 2019; no convention concluded",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "2025-26 treaty negotiation status not checked; 'as of this writing' may be stale."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l17",
+   "claim": "ICTY Res 827 (1993), ICTR Res 955 (1994); Tadic 1995 upheld Council power under Chapter VII",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Resolution numbers not opened; search excerpts confirm the 2 Oct 1995 decision upheld establishment."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l17",
+   "claim": "Karadzic life sentence on appeal 2019; Mladic upheld 2021; Taylor affirmed 2013",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Seen via search excerpts: Karadzic 20 Mar 2019, Mladic 8 Jun 2021, Taylor 26 Sep 2013; pages not opened."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l17",
+   "claim": "ECCC 2018 convicted Nuon Chea and Khieu Samphan of genocide against the Vietnamese and Cham",
+   "verdict": "supported",
+   "sources": [
+    "https://www.eccc.gov.kh/sites/default/files/documents/courtdoc/%5Bdate-in-tz%5D/20181217%20Summary%20of%20Judgement%20Case%20002-02%20ENG_FINAL%20FOR%20PUBLICATION.pdf"
+   ],
+   "note": "Imprecise: Nuon Chea convicted of genocide of both Vietnamese and Cham; Khieu Samphan only of genocide of the Vietnamese (Summary of Judgement paras 72-73)."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l18",
+   "claim": "Rome Statute adopted 17 Jul 1998, in force 1 Jul 2002; about 125 states parties; withdrawals and notices exist",
+   "verdict": "supported",
+   "sources": [
+    "https://www.manilatimes.net/2026/09/30/world/icc-board-regrets-nauru-withdrawal/2435951",
+    "https://www.hrw.org/news/2026/07/02/sahel-countries-withdrawal-from-icc-betrays-victims"
+   ],
+   "note": "Current (Sept 2026): 125 per ASP; Burundi and Philippines left; Chad, Venezuela, Nauru and Burkina Faso, Mali, Niger (effective June 2027) have given notice; Hungary withdrew then rejoined per HRW. Lesson wording acceptable."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l18",
+   "claim": "Kampala aggression amendments (Art 8 bis, 15 bis/ter) activated 17 Jul 2018, narrower regime for state referral and proprio motu",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icc-cpi.int/sites/default/files/RS-Eng.pdf"
+   ],
+   "note": "Articles present. July 2025 ASP special session did not adopt harmonisation; review postponed about four years (search excerpts only)."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l18",
+   "claim": "Art 16 deferral 12 months renewable; Art 15 Pre-Trial Chamber authorisation; Art 77 max 30 years or life",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icc-cpi.int/sites/default/files/RS-Eng.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l19",
+   "claim": "Arts 17-20 admissibility structure; Art 98(1) third-state immunity",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icc-cpi.int/sites/default/files/RS-Eng.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l19",
+   "claim": "Al-Bashir warrants 2009/2010; Jordan Referral Appeals Chamber 6 May 2019: no customary head-of-state immunity before an international court",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Seen via search excerpts (ICC, ASIL); pages not opened."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l19",
+   "claim": "Art 53 interests of justice",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icc-cpi.int/sites/default/files/RS-Eng.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l20",
+   "claim": "Koblenz 2022 life sentence for former Syrian intelligence officer",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l20",
+   "claim": "ICC warrants relating to Ukraine (2023) and Israel/Hamas (2024)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Incomplete rather than wrong. Search excerpts: Netanyahu, Gallant, Deif warrants 21 Nov 2024; Putin warrant March 2023 and Mongolia non-compliance finding 24 Oct 2024; Taliban leaders Akhundzada and Haqqani warrants 8 Jul 2025 (gender persecution); Deif reported killed. Lesson omits the Taliban warrants and the Mongolia finding."
+  },
+  {
+   "lessonId": "law-intl-humanitarian-criminal.l20",
+   "claim": "SCSL Kallon and Kamara 2004 held Lome amnesty did not bar prosecution",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  }
+ ]
+}

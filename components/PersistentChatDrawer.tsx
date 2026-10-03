@@ -6,6 +6,7 @@ import {
   ChevronLeft, Mic, Music, Share2, Heart,
   TrendingUp, Mail, Loader2, MapPin,
   Bell, MessageCircle, Plus, UserPlus, Zap, Inbox, Check, CheckCheck,
+  Radio, Play,
 } from 'lucide-react';
 import { ChatMessage, FeedItem, AppView, AppNotification } from '../types';
 import {
@@ -19,6 +20,7 @@ import {
 } from '../services/backendService';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useFollowedLive } from '../hooks/useFollowedLive';
 import LiveTalkView from './LiveTalkView';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -300,6 +302,7 @@ const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView
   const liveRoomId = activeContentId ? `live_chat_${activeContentId}` : 'live_chat_global';
 
   const uid = auth.currentUser?.uid;
+  const followedLive = useFollowedLive(uid);
 
   useEffect(() => {
     if (!externalTrigger) return;
@@ -401,10 +404,10 @@ const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView
     notifications.filter(n => !n.isRead).forEach(n => markAsRead(n.id));
   };
 
-  const totalBadge = unreadCount + (currentMessages.length > 0 ? 1 : 0);
+  const totalBadge = unreadCount + (currentMessages.length > 0 ? 1 : 0) + followedLive.length;
 
   const tabs: { id: TabType; icon: React.ElementType; label: string; badge?: number }[] = [
-    { id: 'LIVE',        icon: MessageSquare, label: 'Live' },
+    { id: 'LIVE',        icon: MessageSquare, label: 'Live', badge: followedLive.length > 0 ? followedLive.length : undefined },
     { id: 'LIVETALK',   icon: Mic,           label: 'Talk' },
     { id: 'GLOBAL_FEED', icon: Globe,         label: 'Global' },
     { id: 'MY_FEED',    icon: User,          label: 'Me' },
@@ -499,6 +502,51 @@ const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView
               {/* ── LIVE TAB ── */}
               {activeTab === 'LIVE' && (
                 <div className="flex-1 flex flex-col min-h-0">
+                  {/* Channels You Follow Live */}
+                  {followedLive.length > 0 && (
+                    <div className="px-3.5 py-2.5 bg-gradient-to-r from-red-950/40 via-red-900/20 to-black/60 border-b border-red-500/20 shrink-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                        </span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-red-300">
+                          Followed Creators Live Now ({followedLive.length})
+                        </span>
+                      </div>
+                      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+                        {followedLive.map(feed => (
+                          <div
+                            key={feed.id}
+                            className="flex items-center gap-2 p-1.5 pr-2.5 bg-white/[0.04] hover:bg-white/[0.08] border border-red-500/30 hover:border-red-500/60 rounded-xl shrink-0 transition-all"
+                          >
+                            <div className="relative">
+                              <img
+                                src={feed.ownerPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${feed.ownerId}`}
+                                alt=""
+                                className="w-7 h-7 rounded-full object-cover border border-red-500/50"
+                              />
+                              <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full border border-black animate-pulse" />
+                            </div>
+                            <div className="max-w-[110px]">
+                              <p className="text-[11px] font-bold text-white truncate leading-tight">{feed.ownerName || 'Creator'}</p>
+                              <p className="text-[9px] text-white/40 truncate leading-tight">{feed.title || 'Live Stream'}</p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                window.dispatchEvent(new CustomEvent('plajah:watch-live', { detail: feed }));
+                              }}
+                              className="px-2 py-0.5 bg-red-500 hover:bg-red-400 text-black text-[9px] font-black uppercase tracking-wider rounded-md flex items-center gap-1 shrink-0 transition-colors ml-1"
+                            >
+                              <Play size={9} className="fill-black" />
+                              Watch
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="px-4 py-2.5 bg-white/[0.02] border-b border-white/5 shrink-0">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 min-w-0">

@@ -1,0 +1,2464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chora Kinetic Typographic Sacred Geometry Visualizer</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    :root {
+      --bg: #030305;
+      --gold: #f7d78a;
+      --magenta: #ff0077;
+      --cyan: #00f0ff;
+      --purple: #9d4edd;
+      --text: #e2e8f0;
+      --card-bg: rgba(12, 12, 18, 0.85);
+      --border: rgba(255, 255, 255, 0.12);
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Top Bar HUD */
+    header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(180deg, rgba(3, 3, 5, 0.95) 0%, rgba(3, 3, 5, 0) 100%);
+      z-index: 20;
+      pointer-events: none;
+    }
+    .header-left, .header-right {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo-badge {
+      display: flex;
+      flex-direction: column;
+    }
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h1 {
+      font-size: 1.1rem;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      font-size: 0.62rem;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .badge-chora {
+      background: rgba(255, 0, 119, 0.15);
+      border: 1px solid var(--magenta);
+      color: #ff3b9a;
+      box-shadow: 0 0 10px rgba(255, 0, 119, 0.3);
+    }
+    .badge-gold {
+      background: rgba(247, 215, 138, 0.15);
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      box-shadow: 0 0 10px rgba(247, 215, 138, 0.3);
+    }
+    .subtitle {
+      font-size: 0.72rem;
+      color: rgba(255, 255, 255, 0.5);
+      letter-spacing: 1px;
+      margin-top: 2px;
+    }
+
+    /* Audio Stems HUD */
+    .audio-meters {
+      display: flex;
+      gap: 12px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 6px 14px;
+      backdrop-filter: blur(16px);
+    }
+    .meter-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.6rem;
+      font-family: monospace;
+      color: rgba(255, 255, 255, 0.6);
+    }
+    .meter-bar {
+      width: 7px;
+      height: 32px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+    .meter-fill {
+      width: 100%;
+      height: 0%;
+      transition: height 0.06s ease;
+      border-radius: 4px;
+    }
+    .fill-kick { background: linear-gradient(0deg, #ff0055, #ff5500); }
+    .fill-bass { background: linear-gradient(0deg, #ff8c00, #ffd000); }
+    .fill-voice { background: linear-gradient(0deg, #00f0ff, #7000ff); }
+    .fill-treble { background: linear-gradient(0deg, #9d4edd, #ff00aa); }
+
+    /* Live Chora Synced Lyric Banner */
+    .lyric-stage-banner {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 860px;
+      background: rgba(8, 8, 12, 0.78);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      padding: 12px 20px;
+      backdrop-filter: blur(20px);
+      z-index: 15;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7), 0 0 24px rgba(255, 0, 119, 0.15);
+      transition: all 0.3s ease;
+    }
+    .lyric-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.68rem;
+      letter-spacing: 1px;
+      color: rgba(255, 255, 255, 0.5);
+      font-family: monospace;
+    }
+    .track-title-info {
+      color: var(--gold);
+      font-weight: 700;
+    }
+    .lyric-active-line {
+      font-size: 1.35rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #fff;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      min-height: 38px;
+      text-shadow: 0 0 18px rgba(255, 255, 255, 0.35);
+    }
+    .lyric-word {
+      display: inline-block;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      cursor: default;
+    }
+    .lyric-word.active-word {
+      color: var(--cyan);
+      transform: scale(1.12);
+      text-shadow: 0 0 16px var(--cyan), 0 0 32px var(--magenta);
+    }
+    .lyric-next-line {
+      font-size: 0.82rem;
+      color: rgba(255, 255, 255, 0.38);
+      font-style: italic;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Preset Switcher (Bottom Nav) */
+    .preset-dock {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(10, 10, 16, 0.88);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 8px 12px;
+      backdrop-filter: blur(24px);
+      z-index: 20;
+      box-shadow: 0 16px 50px rgba(0, 0, 0, 0.8);
+    }
+    .preset-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: rgba(255, 255, 255, 0.65);
+      border-radius: 16px;
+      padding: 8px 16px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: all 0.25s ease;
+      white-space: nowrap;
+    }
+    .preset-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+    .preset-btn.active {
+      background: linear-gradient(135deg, rgba(255, 0, 119, 0.35) 0%, rgba(157, 78, 221, 0.35) 100%);
+      border-color: var(--magenta);
+      color: #fff;
+      box-shadow: 0 0 18px rgba(255, 0, 119, 0.4);
+    }
+    .preset-num {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.15);
+      font-size: 0.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .preset-btn.active .preset-num {
+      background: var(--magenta);
+      color: #fff;
+    }
+
+    /* Left Control Sidebar */
+    .controls-panel {
+      position: absolute;
+      left: 24px;
+      bottom: 96px;
+      width: 240px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      backdrop-filter: blur(20px);
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+    .panel-title {
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--gold);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 8px;
+    }
+    .ctrl-row {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .ctrl-label {
+      font-size: 0.68rem;
+      color: rgba(255, 255, 255, 0.6);
+      display: flex;
+      justify-content: space-between;
+    }
+    .ctrl-slider {
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 2px;
+      outline: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+    }
+    .ctrl-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+      cursor: pointer;
+    }
+    .btn-group {
+      display: flex;
+      gap: 6px;
+    }
+    .action-btn {
+      flex: 1;
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      color: #fff;
+      font-size: 0.68rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    .action-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+    .action-btn.active {
+      background: rgba(0, 240, 255, 0.2);
+      border-color: var(--cyan);
+      color: var(--cyan);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+    }
+
+    /* Right Lyrics Timeline / Player Panel */
+    .player-panel {
+      position: absolute;
+      right: 24px;
+      bottom: 96px;
+      width: 260px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      backdrop-filter: blur(20px);
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+    .audio-source-selector {
+      display: flex;
+      border-radius: 8px;
+      background: rgba(0,0,0,0.4);
+      padding: 3px;
+      gap: 2px;
+    }
+    .src-btn {
+      flex: 1;
+      padding: 5px 0;
+      border: none;
+      background: transparent;
+      color: rgba(255,255,255,0.5);
+      font-size: 0.65rem;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.2s;
+    }
+    .src-btn.active {
+      background: var(--magenta);
+      color: #fff;
+      box-shadow: 0 0 10px rgba(255,0,119,0.5);
+    }
+    .scrubber-track {
+      width: 100%;
+      height: 6px;
+      background: rgba(255,255,255,0.12);
+      border-radius: 3px;
+      position: relative;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .scrubber-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--magenta), var(--cyan));
+      border-radius: 3px;
+      transition: width 0.1s linear;
+    }
+    .player-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.72rem;
+      font-family: monospace;
+    }
+    .play-pause-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold), #ff8c00);
+      border: none;
+      color: #000;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(247, 215, 138, 0.5);
+      transition: transform 0.15s;
+    }
+    .play-pause-btn:active {
+      transform: scale(0.92);
+    }
+    #file-input {
+      display: none;
+    }
+
+    /* Cinematic Vignette Overlay */
+    .vignette {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+      background: radial-gradient(circle at center, transparent 40%, rgba(3, 3, 5, 0.75) 100%);
+    }
+
+    /* Helper Tooltip */
+    .drag-hint {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.62rem;
+      letter-spacing: 1px;
+      color: rgba(255, 255, 255, 0.3);
+      text-transform: uppercase;
+      pointer-events: none;
+      z-index: 10;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- Post-processing for high-end bloom & chromatic styling -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+</head>
+<body>
+
+  <!-- WebGL 3D Canvas -->
+  <div id="canvas-container"></div>
+  <div class="vignette"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="header-left">
+      <div class="logo-badge">
+        <div class="title-row">
+          <h1>Chora Typo <span class="badge badge-chora">Spatial Geometry</span></h1>
+          <span class="badge badge-gold">60 FPS Hi-Fi</span>
+        </div>
+        <div class="subtitle">Lyric-Synchronized Kinetic Typography &bull; Sacred Polyhedral Volumes</div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button class="action-btn" id="btn-director" style="padding:6px 12px; font-size:0.7rem; border-color:var(--cyan); color:var(--cyan);">
+        🎬 DIRECTOR CAM: OFF
+      </button>
+      <button class="action-btn" id="btn-custom-lyrics" style="padding:6px 12px; font-size:0.7rem; border-color:var(--gold); color:var(--gold);">
+        ✎ PASTE LYRICS / LRC
+      </button>
+
+      <!-- Audio Stems Meter HUD -->
+      <div class="audio-meters">
+        <div class="meter-col">
+          <div class="meter-bar"><div class="meter-fill fill-kick" id="meter-kick"></div></div>
+          <span>KICK</span>
+        </div>
+        <div class="meter-col">
+          <div class="meter-bar"><div class="meter-fill fill-bass" id="meter-bass"></div></div>
+          <span>BASS</span>
+        </div>
+        <div class="meter-col">
+          <div class="meter-bar"><div class="meter-fill fill-voice" id="meter-voice"></div></div>
+          <span>VOICE</span>
+        </div>
+        <div class="meter-col">
+          <div class="meter-bar"><div class="meter-fill fill-treble" id="meter-treble"></div></div>
+          <span>TREBLE</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Live Chora Synced Lyric Display -->
+  <div class="lyric-stage-banner" id="lyric-banner">
+    <div class="lyric-meta-row">
+      <span>CHORA LOSSLESS SYNC &bull; TIME: <span id="time-display">00:00.00</span></span>
+      <span class="track-title-info" id="track-name">M83 &bull; Midnight Cityscape</span>
+      <span id="active-volume-label">VOL. 01: DUAL SPHERE</span>
+    </div>
+    <div class="lyric-active-line" id="lyric-words-container">
+      WAITING FOR AUDIO SYNC...
+    </div>
+    <div class="lyric-next-line" id="lyric-next">
+      Next: Upward into the violet neon sky
+    </div>
+  </div>
+
+  <!-- Left Sidebar Controls -->
+  <div class="controls-panel">
+    <div class="panel-title">
+      <span>Engine Parameters</span>
+      <span style="color:var(--cyan);font-size:0.6rem;">PBR + ENVIRONMENT</span>
+    </div>
+
+    <div class="ctrl-row">
+      <div class="ctrl-label"><span>3D Stage Environment</span></div>
+      <select id="select-env" style="width:100%; background:rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.2); border-radius:8px; padding:6px; color:#fff; font-size:0.72rem; font-weight:700; outline:none; cursor:pointer;">
+        <option value="GALLERY" selected>🏛 Brutalist Museum (Ref Image)</option>
+        <option value="WHITE_STUDIO">◻ White Minimalist Studio</option>
+        <option value="WAREHOUSE">⚡ Cyberpunk Neon Loft</option>
+        <option value="WATERFRONT">🌅 Sunset Waterfront</option>
+        <option value="VOID">🌌 Obsidian Void (Black Space)</option>
+      </select>
+    </div>
+    
+    <div class="ctrl-row">
+      <div class="ctrl-label"><span>Bloom Radiance</span><span id="val-bloom">0.5</span></div>
+      <input type="range" class="ctrl-slider" id="slider-bloom" min="0" max="2.5" step="0.05" value="0.5">
+    </div>
+
+    <div class="ctrl-row">
+      <div class="ctrl-label"><span>Audio Reactivity</span><span id="val-react">1.8</span></div>
+      <input type="range" class="ctrl-slider" id="slider-react" min="0.5" max="3.5" step="0.1" value="1.8">
+    </div>
+
+    <div class="ctrl-row">
+      <div class="ctrl-label"><span>Orbital Rotation</span><span id="val-speed">1.0</span></div>
+      <input type="range" class="ctrl-slider" id="slider-speed" min="0" max="3" step="0.1" value="1.0">
+    </div>
+
+    <div class="ctrl-row">
+      <div class="ctrl-label"><span>Wireframe Accents</span></div>
+      <div class="btn-group">
+        <button class="action-btn" id="btn-wireframe">Toggle Wire</button>
+        <button class="action-btn active" id="btn-color">Palette</button>
+      </div>
+    </div>
+
+    <div class="ctrl-row">
+      <button class="action-btn active" id="btn-automorph">Auto-Morph (16 Bars)</button>
+    </div>
+  </div>
+
+  <!-- Right Player & Audio Source Panel -->
+  <div class="player-panel">
+    <div class="panel-title">
+      <span>Audio Source</span>
+      <span id="audio-status" style="color:#06D6A0;">SYNTH ON</span>
+    </div>
+
+    <div class="audio-source-selector">
+      <button class="src-btn active" id="src-synth">Synth Loop</button>
+      <button class="src-btn" id="src-mic">Microphone</button>
+      <button class="src-btn" id="src-file">Upload</button>
+    </div>
+    <input type="file" id="file-input" accept="audio/*">
+
+    <div class="scrubber-track" id="scrubber-track">
+      <div class="scrubber-fill" id="scrubber-fill"></div>
+    </div>
+
+    <div class="player-row">
+      <button class="play-pause-btn" id="btn-play">▶</button>
+      <div style="display:flex; flex-direction:column; text-align:right;">
+        <span style="font-size:0.6rem; color:rgba(255,255,255,0.5);">BPM TEMPO</span>
+        <span id="bpm-val" style="color:var(--gold); font-weight:700;">124 BPM</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preset Dock (10 Volumes Based on Curated Typographic References) -->
+  <div class="preset-dock">
+    <button class="preset-btn active" data-preset="0"><span class="preset-num">1</span> Sphere</button>
+    <button class="preset-btn" data-preset="1"><span class="preset-num">2</span> Glass Cube</button>
+    <button class="preset-btn" data-preset="2"><span class="preset-num">3</span> Sunburst</button>
+    <button class="preset-btn" data-preset="3"><span class="preset-num">4</span> DNA Helix</button>
+    <button class="preset-btn" data-preset="4"><span class="preset-num">5</span> Topography</button>
+    <button class="preset-btn" data-preset="5"><span class="preset-num">6</span> Gear</button>
+    <button class="preset-btn" data-preset="6"><span class="preset-num">7</span> Vortex</button>
+    <button class="preset-btn" data-preset="7"><span class="preset-num">8</span> Skyline</button>
+    <button class="preset-btn" data-preset="8"><span class="preset-num">9</span> Butterfly</button>
+    <button class="preset-btn" data-preset="9"><span class="preset-num">10</span> Ocean Waves</button>
+  </div>
+
+  <!-- Custom Lyric / LRC Import Modal -->
+  <div id="lyric-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(16px); z-index:100; align-items:center; justify-content:center;">
+    <div style="width:90%; max-width:540px; background:#0d0d14; border:1px solid rgba(255,255,255,0.2); border-radius:20px; padding:24px; display:flex; flex-direction:column; gap:16px; box-shadow:0 20px 60px rgba(0,0,0,0.9);">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 style="font-size:1.1rem; color:var(--gold); text-transform:uppercase; letter-spacing:1.5px;">Paste Lyrics or LRC</h2>
+        <button id="modal-close" style="background:transparent; border:none; color:#fff; font-size:1.3rem; cursor:pointer;">&times;</button>
+      </div>
+      <p style="font-size:0.75rem; color:rgba(255,255,255,0.6); line-height:1.4;">
+        Paste your timecoded lyrics (<code>[00:04.50] Lyric line here</code>) or plain text line-by-line. The 3D geometry engine will map your song's words directly into the selected volume!
+      </p>
+      <textarea id="lyric-input-text" rows="8" style="width:100%; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.15); border-radius:12px; padding:12px; color:#fff; font-family:monospace; font-size:0.8rem; resize:vertical;" placeholder="[00:00.00] Intro&#10;[00:04.00] In the heart of the neon city&#10;[00:08.50] We find our sacred sound"></textarea>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button id="modal-cancel-btn" class="action-btn" style="padding:8px 16px;">Cancel</button>
+        <button id="modal-apply-btn" class="action-btn active" style="padding:8px 20px; background:var(--magenta); border-color:var(--magenta); color:#fff;">Apply to Visualizer</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="drag-hint">Orbit: Left Click Drag &bull; Pan: Right Click Drag &bull; Zoom: Scroll Wheel</div>
+
+  <!-- Visualizer Core Logic -->
+  <script>
+    /* =========================================================================
+       CHORA TIME-CODED LYRIC DATASET
+       ========================================================================= */
+    const CHORA_TRACKS = [
+      {
+        title: "Midnight Cityscape (Plajah Spatial Mix)",
+        artist: "M83 &bull; Chora Lossless",
+        bpm: 124,
+        lyrics: [
+          { time: 0.0, text: "WAITING FOR AUDIO PULSE" },
+          { time: 3.5, text: "THE CITY IS MY CHURCH" },
+          { time: 7.2, text: "IT WRAPS IN THE GLOW OF OBSIDIAN LIGHT" },
+          { time: 11.0, text: "WAITING IN A CAR IN SOHO" },
+          { time: 14.8, text: "LOOKING AT RETRO CHROME TOWERS" },
+          { time: 18.5, text: "THE SOUND IS LIQUID CRYSTAL" },
+          { time: 22.3, text: "VIBRATING THROUGH POLYHEDRAL VEINS" },
+          { time: 26.0, text: "AND VOICES RISE LIKE STARS" },
+          { time: 29.8, text: "INTO THE NEON VIOLET STRATOSPHERE" },
+          { time: 33.5, text: "GEOMETRY BREATHES IN HARMONY" },
+          { time: 37.2, text: "EVERY LETTER IS AN ATOM OF SOUND" },
+          { time: 41.0, text: "WE DANCE IN SACRED FREQUENCY" },
+          { time: 45.0, text: "TIMELESS LOSSLESS INFINITE CHORA" }
+        ]
+      }
+    ];
+
+    let currentTrack = CHORA_TRACKS[0];
+    let trackDuration = 48.0;
+    let trackCurrentTime = 0.0;
+    let isPlaying = true;
+    let activePreset = 0;
+    let autoMorph = true;
+    let wireframeMode = false;
+    let colorPaletteIdx = 0;
+    let lastBeatTime = 0;
+    let beatInterval = 60 / currentTrack.bpm;
+    let beatCount = 0;
+
+    /* =========================================================================
+       WEB AUDIO ENGINE & REAL-TIME STEM SEPARATION
+       ========================================================================= */
+    let audioCtx = null;
+    let audioSourceNode = null;
+    let analyser = null;
+    let stemAnalysers = {};
+    let micStream = null;
+    let audioEl = null;
+    let synthInterval = null;
+    let audioSourceType = 'SYNTH'; // 'SYNTH' | 'MIC' | 'FILE'
+
+    // Audio reactivity values smoothed across frames
+    const audioData = {
+      overall: 0,
+      kick: 0,
+      bass: 0,
+      voice: 0,
+      treble: 0,
+      history: new Float32Array(32),
+      sensitivity: 1.8
+    };
+
+    function initAudioContext() {
+      if (audioCtx) return;
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContext();
+
+      // Master Analyser
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 128;
+      analyser.smoothingTimeConstant = 0.75;
+
+      // Stem Separation using Biquad Filters
+      // 1. Kick (Lowpass 90Hz)
+      const kickFilter = audioCtx.createBiquadFilter();
+      kickFilter.type = 'lowpass';
+      kickFilter.frequency.value = 90;
+      stemAnalysers.kick = audioCtx.createAnalyser();
+      stemAnalysers.kick.fftSize = 64;
+      kickFilter.connect(stemAnalysers.kick);
+
+      // 2. Bass (Bandpass 100 - 320Hz)
+      const bassFilter = audioCtx.createBiquadFilter();
+      bassFilter.type = 'bandpass';
+      bassFilter.frequency.value = 200;
+      bassFilter.Q.value = 1.0;
+      stemAnalysers.bass = audioCtx.createAnalyser();
+      stemAnalysers.bass.fftSize = 64;
+      bassFilter.connect(stemAnalysers.bass);
+
+      // 3. Voice (Bandpass 600 - 3000Hz)
+      const voiceFilter = audioCtx.createBiquadFilter();
+      voiceFilter.type = 'bandpass';
+      voiceFilter.frequency.value = 1400;
+      voiceFilter.Q.value = 0.8;
+      stemAnalysers.voice = audioCtx.createAnalyser();
+      stemAnalysers.voice.fftSize = 64;
+      voiceFilter.connect(stemAnalysers.voice);
+
+      // 4. Treble (Highpass 4000Hz)
+      const trebleFilter = audioCtx.createBiquadFilter();
+      trebleFilter.type = 'highpass';
+      trebleFilter.frequency.value = 4000;
+      stemAnalysers.treble = audioCtx.createAnalyser();
+      stemAnalysers.treble.fftSize = 64;
+      trebleFilter.connect(stemAnalysers.treble);
+
+      // Connect input router
+      audioCtx._inputNode = audioCtx.createGain();
+      audioCtx._inputNode.connect(analyser);
+      audioCtx._inputNode.connect(kickFilter);
+      audioCtx._inputNode.connect(bassFilter);
+      audioCtx._inputNode.connect(voiceFilter);
+      audioCtx._inputNode.connect(trebleFilter);
+    }
+
+    // Built-in Procedural Audio Synth for immediate out-of-the-box demo
+    function startSynthEngine() {
+      initAudioContext();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      if (synthInterval) clearInterval(synthInterval);
+
+      // Create a master synth bus
+      const synthBus = audioCtx.createGain();
+      synthBus.gain.value = 0.6;
+      synthBus.connect(audioCtx._inputNode);
+      synthBus.connect(audioCtx.destination); // Send to speakers
+
+      let step = 0;
+      const stepDuration = (60 / currentTrack.bpm) / 4; // 16th notes
+
+      synthInterval = setInterval(() => {
+        if (!isPlaying || audioSourceType !== 'SYNTH') return;
+        const now = audioCtx.currentTime;
+
+        // 1. Kick on beats 0, 4, 8, 12 (4-on-the-floor)
+        if (step % 4 === 0) {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.frequency.setValueAtTime(140, now);
+          osc.frequency.exponentialRampToValueAtTime(38, now + 0.12);
+          gain.gain.setValueAtTime(1.0, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+          osc.connect(gain);
+          gain.connect(synthBus);
+          osc.start(now);
+          osc.stop(now + 0.3);
+        }
+
+        // 2. Snare / Clap on beats 4, 12
+        if (step % 8 === 4) {
+          const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.15, audioCtx.sampleRate);
+          const output = noiseBuffer.getChannelData(0);
+          for (let i = 0; i < noiseBuffer.length; i++) output[i] = Math.random() * 2 - 1;
+          const whiteNoise = audioCtx.createBufferSource();
+          whiteNoise.buffer = noiseBuffer;
+          const filter = audioCtx.createBiquadFilter();
+          filter.type = 'highpass';
+          filter.frequency.value = 1000;
+          const gain = audioCtx.createGain();
+          gain.gain.setValueAtTime(0.6, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
+          whiteNoise.connect(filter);
+          filter.connect(gain);
+          gain.connect(synthBus);
+          whiteNoise.start(now);
+        }
+
+        // 3. Rolling Bassline (16th notes)
+        if (step % 2 === 0) {
+          const bassOsc = audioCtx.createOscillator();
+          const bassGain = audioCtx.createGain();
+          const bassNotes = [55, 55, 65.41, 73.42, 55, 82.41, 73.42, 65.41];
+          const freq = bassNotes[Math.floor((step / 2) % bassNotes.length)];
+          bassOsc.type = 'sawtooth';
+          bassOsc.frequency.setValueAtTime(freq, now);
+          bassGain.gain.setValueAtTime(0.35, now);
+          bassGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+          bassOsc.connect(bassGain);
+          bassGain.connect(synthBus);
+          bassOsc.start(now);
+          bassOsc.stop(now + 0.12);
+        }
+
+        // 4. Ethereal Vocal Chords (Chora Atmosphere)
+        if (step % 16 === 0) {
+          const chordFreqs = [220, 277.18, 329.63, 440];
+          chordFreqs.forEach(f => {
+            const padOsc = audioCtx.createOscillator();
+            const padGain = audioCtx.createGain();
+            padOsc.type = 'sine';
+            padOsc.frequency.setValueAtTime(f + (Math.random() * 2 - 1), now);
+            padGain.gain.setValueAtTime(0.08, now);
+            padGain.gain.linearRampToValueAtTime(0.18, now + 0.4);
+            padGain.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
+            padOsc.connect(padGain);
+            padGain.connect(synthBus);
+            padOsc.start(now);
+            padOsc.stop(now + 1.9);
+          });
+        }
+
+        step = (step + 1) % 64;
+      }, stepDuration * 1000);
+    }
+
+    // Microphone Input Setup
+    async function startMicEngine() {
+      initAudioContext();
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
+      if (synthInterval) clearInterval(synthInterval);
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micStream = stream;
+        if (audioSourceNode) audioSourceNode.disconnect();
+        audioSourceNode = audioCtx.createMediaStreamSource(stream);
+        audioSourceNode.connect(audioCtx._inputNode);
+        document.getElementById('audio-status').textContent = 'MIC LIVE';
+        document.getElementById('audio-status').style.color = 'var(--cyan)';
+      } catch (err) {
+        alert("Microphone access denied: " + err.message);
+        setAudioSource('SYNTH');
+      }
+    }
+
+    function setAudioSource(type) {
+      audioSourceType = type;
+      document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
+      if (type === 'SYNTH') {
+        document.getElementById('src-synth').classList.add('active');
+        document.getElementById('audio-status').textContent = 'SYNTH ON';
+        document.getElementById('audio-status').style.color = '#06D6A0';
+        startSynthEngine();
+      } else if (type === 'MIC') {
+        document.getElementById('src-mic').classList.add('active');
+        startMicEngine();
+      } else if (type === 'FILE') {
+        document.getElementById('src-file').classList.add('active');
+        document.getElementById('file-input').click();
+      }
+    }
+
+    // Handle Local File Upload
+    document.getElementById('file-input').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      initAudioContext();
+      if (synthInterval) clearInterval(synthInterval);
+
+      if (audioEl) audioEl.pause();
+      audioEl = new Audio();
+      audioEl.src = URL.createObjectURL(file);
+      audioEl.crossOrigin = 'anonymous';
+
+      if (audioSourceNode) audioSourceNode.disconnect();
+      audioSourceNode = audioCtx.createMediaElementSource(audioEl);
+      audioSourceNode.connect(audioCtx._inputNode);
+      audioSourceNode.connect(audioCtx.destination);
+      audioEl.play();
+
+      document.getElementById('track-name').textContent = file.name.replace(/\.[^/.]+$/, "");
+      document.getElementById('audio-status').textContent = 'FILE STREAM';
+      document.getElementById('audio-status').style.color = 'var(--magenta)';
+      isPlaying = true;
+      document.getElementById('btn-play').textContent = '❚❚';
+    });
+
+    // Sample real-time FFT values
+    function updateAudioMeters() {
+      if (!analyser) return;
+
+      const fData = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(fData);
+
+      let sum = 0;
+      for (let i = 0; i < fData.length; i++) sum += fData[i];
+      audioData.overall = (sum / fData.length) / 255;
+
+      // Read stem analysers
+      const readStem = (an) => {
+        if (!an) return 0;
+        const d = new Uint8Array(an.frequencyBinCount);
+        an.getByteFrequencyData(d);
+        let s = 0;
+        for (let i = 0; i < d.length; i++) s += d[i];
+        return (s / d.length) / 255;
+      };
+
+      audioData.kick = readStem(stemAnalysers.kick) * audioData.sensitivity;
+      audioData.bass = readStem(stemAnalysers.bass) * audioData.sensitivity;
+      audioData.voice = readStem(stemAnalysers.voice) * audioData.sensitivity;
+      audioData.treble = readStem(stemAnalysers.treble) * audioData.sensitivity;
+
+      // Update UI meter bars
+      document.getElementById('meter-kick').style.height = `${Math.min(100, audioData.kick * 130)}%`;
+      document.getElementById('meter-bass').style.height = `${Math.min(100, audioData.bass * 130)}%`;
+      document.getElementById('meter-voice').style.height = `${Math.min(100, audioData.voice * 130)}%`;
+      document.getElementById('meter-treble').style.height = `${Math.min(100, audioData.treble * 130)}%`;
+    }
+
+    /* =========================================================================
+       CHORA LYRIC SYNC ENGINE & UI CONTROLLER
+       ========================================================================= */
+    let activeLineIndex = -1;
+    let activeWords = [];
+    let currentActiveWord = "";
+
+    function updateLyrics(dt) {
+      if (isPlaying) {
+        trackCurrentTime += dt;
+        if (trackCurrentTime >= trackDuration) {
+          trackCurrentTime = 0.0;
+        }
+      }
+
+      // Update scrubber
+      const pct = (trackCurrentTime / trackDuration) * 100;
+      document.getElementById('scrubber-fill').style.width = `${pct}%`;
+
+      // Update timecode display
+      const mins = Math.floor(trackCurrentTime / 60);
+      const secs = (trackCurrentTime % 60).toFixed(2);
+      document.getElementById('time-display').textContent = `${mins.toString().padStart(2, '0')}:${secs.padStart(5, '0')}`;
+
+      // Find current active lyric line
+      const lyrics = currentTrack.lyrics;
+      let newIdx = 0;
+      for (let i = 0; i < lyrics.length; i++) {
+        if (trackCurrentTime >= lyrics[i].time) {
+          newIdx = i;
+        } else {
+          break;
+        }
+      }
+
+      if (newIdx !== activeLineIndex) {
+        activeLineIndex = newIdx;
+        const currentLine = lyrics[activeLineIndex];
+        const nextLine = lyrics[activeLineIndex + 1] ? lyrics[activeLineIndex + 1].text : "Lossless Audio Master &bull; Plajah";
+
+        document.getElementById('lyric-next').textContent = `Next: ${nextLine}`;
+
+        // Break into interactive word tokens
+        const container = document.getElementById('lyric-words-container');
+        container.innerHTML = '';
+        activeWords = currentLine.text.split(' ');
+        
+        activeWords.forEach((w, wIdx) => {
+          const span = document.createElement('span');
+          span.className = 'lyric-word';
+          span.textContent = w;
+          span.id = `lword-${wIdx}`;
+          container.appendChild(span);
+        });
+
+        // Trigger geometric text reconstruction on lyric change
+        onLyricLineChanged(currentLine.text, activeWords);
+      }
+
+      // Highlight active word based on sub-phrase progression
+      if (activeWords.length > 0) {
+        const line = lyrics[activeLineIndex];
+        const nextLineTime = lyrics[activeLineIndex + 1] ? lyrics[activeLineIndex + 1].time : trackDuration;
+        const lineDuration = Math.max(1.0, nextLineTime - line.time);
+        const progress = Math.min(0.99, (trackCurrentTime - line.time) / lineDuration);
+        const activeWordIdx = Math.floor(progress * activeWords.length);
+
+        activeWords.forEach((_, wIdx) => {
+          const el = document.getElementById(`lword-${wIdx}`);
+          if (el) {
+            if (wIdx === activeWordIdx) {
+              el.classList.add('active-word');
+              currentActiveWord = activeWords[wIdx];
+            } else {
+              el.classList.remove('active-word');
+            }
+          }
+        });
+      }
+    }
+
+    /* =========================================================================
+       THREE.JS HIGH-END 3D STAGE & VOLUMETRIC GEOMETRY ENGINES
+       ========================================================================= */
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x030305);
+    scene.fog = new THREE.FogExp2(0x030305, 0.022);
+
+    const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 0.5, 14);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxDistance = 35;
+    controls.minDistance = 4;
+
+    // Lighting Rig (Center Glint + Dual Rim Lights + Studio Soft Key)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
+    scene.add(ambientLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    keyLight.position.set(5, 10, 7);
+    scene.add(keyLight);
+
+    // Rim Cyan
+    const rimCyan = new THREE.PointLight(0x00f0ff, 4.0, 30);
+    rimCyan.position.set(-8, 5, -4);
+    scene.add(rimCyan);
+
+    // Rim Magenta
+    const rimMagenta = new THREE.PointLight(0xff0077, 4.5, 30);
+    rimMagenta.position.set(8, -4, -4);
+    scene.add(rimMagenta);
+
+    // Center Dynamic Beat Light
+    const centerGlint = new THREE.PointLight(0xf7d78a, 2.0, 15);
+    centerGlint.position.set(0, 0, 3);
+    scene.add(centerGlint);
+
+    // Post-Processing: Multi-pass Unreal Bloom (Tight, crisp glints - NO static haze)
+    const renderPass = new THREE.RenderPass(scene, camera);
+    const bloomPass = new THREE.UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.5,  // strength (crisp glow)
+      0.35, // radius
+      0.72  // threshold (elevated so only bright specular highlights/emission glow)
+    );
+    const composer = new THREE.EffectComposer(renderer);
+    composer.addPass(renderPass);
+    composer.addPass(bloomPass);
+
+    // 3D Environments Stage (Brutalist Gallery, White Studio, Cyberpunk, Waterfront, Void)
+    const envGroup = new THREE.Group();
+    scene.add(envGroup);
+
+    let activeEnvironment = 'GALLERY';
+
+    function buildEnvironment(type) {
+      activeEnvironment = type;
+      while (envGroup.children.length > 0) {
+        const obj = envGroup.children[0];
+        envGroup.remove(obj);
+        if (obj.geometry) obj.geometry.dispose();
+      }
+
+      if (type === 'GALLERY') {
+        // Brutalist Concrete Museum (Matching 3D_letters_forming_sphere reference image)
+        scene.background = new THREE.Color(0x18191e);
+        scene.fog = new THREE.FogExp2(0x18191e, 0.016);
+
+        // Polished concrete reflective floor
+        const floorGeo = new THREE.PlaneGeometry(60, 60);
+        const floorMat = new THREE.MeshStandardMaterial({
+          color: 0x24272e,
+          roughness: 0.18,
+          metalness: 0.35,
+        });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -5.8;
+        envGroup.add(floor);
+
+        // Rear Architectural Concrete Wall
+        const wallGeo = new THREE.PlaneGeometry(60, 32);
+        const wallMat = new THREE.MeshStandardMaterial({
+          color: 0x1d2027,
+          roughness: 0.6,
+          metalness: 0.15,
+        });
+        const wall = new THREE.Mesh(wallGeo, wallMat);
+        wall.position.set(0, 8, -16);
+        envGroup.add(wall);
+
+        // Side Brutalist Pillars
+        const colGeo = new THREE.BoxGeometry(2.4, 25, 2.4);
+        const colMat = new THREE.MeshStandardMaterial({
+          color: 0x282c35,
+          roughness: 0.45,
+          metalness: 0.2
+        });
+        [-14, -8, 8, 14].forEach(x => {
+          const col = new THREE.Mesh(colGeo, colMat);
+          col.position.set(x, 5, -8);
+          envGroup.add(col);
+        });
+
+      } else if (type === 'WHITE_STUDIO') {
+        // Bright Minimalist Art Studio (Matching Cubic_glass_letters_lattice reference image)
+        scene.background = new THREE.Color(0xf2f4f7);
+        scene.fog = new THREE.FogExp2(0xf2f4f7, 0.012);
+
+        const floorGeo = new THREE.PlaneGeometry(60, 60);
+        const floorMat = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          roughness: 0.12,
+          metalness: 0.08
+        });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -5.8;
+        envGroup.add(floor);
+
+        const wallGeo = new THREE.PlaneGeometry(60, 32);
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0xedf0f5, roughness: 0.75 });
+        const wall = new THREE.Mesh(wallGeo, wallMat);
+        wall.position.set(0, 8, -16);
+        envGroup.add(wall);
+
+      } else if (type === 'WAREHOUSE') {
+        // Cyberpunk Neon Loft
+        scene.background = new THREE.Color(0x06060b);
+        scene.fog = new THREE.FogExp2(0x06060b, 0.024);
+
+        const floorGeo = new THREE.PlaneGeometry(60, 60);
+        const floorMat = new THREE.MeshStandardMaterial({
+          color: 0x0c0d15,
+          roughness: 0.08,
+          metalness: 0.85
+        });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -5.8;
+        envGroup.add(floor);
+
+        // Overhead Neon Tube Beams
+        const tubeGeo = new THREE.CylinderGeometry(0.08, 0.08, 30);
+        const tubeMatCyan = new THREE.MeshStandardMaterial({ color: 0x00f0ff, emissive: 0x00f0ff, emissiveIntensity: 2.2 });
+        const tubeMatPink = new THREE.MeshStandardMaterial({ color: 0xff0077, emissive: 0xff0077, emissiveIntensity: 2.2 });
+        
+        const tubeL = new THREE.Mesh(tubeGeo, tubeMatCyan);
+        tubeL.rotation.z = Math.PI / 2;
+        tubeL.position.set(0, 9, -10);
+        envGroup.add(tubeL);
+
+        const tubeR = new THREE.Mesh(tubeGeo, tubeMatPink);
+        tubeR.rotation.z = Math.PI / 2;
+        tubeR.position.set(0, -5.7, 8);
+        envGroup.add(tubeR);
+
+      } else if (type === 'WATERFRONT') {
+        // Sunset Waterfront
+        scene.background = new THREE.Color(0x090a1c);
+        scene.fog = new THREE.FogExp2(0x090a1c, 0.016);
+
+        const waterGeo = new THREE.PlaneGeometry(60, 60);
+        const waterMat = new THREE.MeshStandardMaterial({
+          color: 0x040614,
+          roughness: 0.04,
+          metalness: 0.95
+        });
+        const water = new THREE.Mesh(waterGeo, waterMat);
+        water.rotation.x = -Math.PI / 2;
+        water.position.y = -5.8;
+        envGroup.add(water);
+
+        const sunGeo = new THREE.SphereGeometry(6, 32, 32);
+        const sunMat = new THREE.MeshBasicMaterial({ color: 0xff7700 });
+        const sun = new THREE.Mesh(sunGeo, sunMat);
+        sun.position.set(0, 2, -22);
+        envGroup.add(sun);
+
+      } else if (type === 'VOID') {
+        // Obsidian Black Space
+        scene.background = new THREE.Color(0x030305);
+        scene.fog = new THREE.FogExp2(0x030305, 0.022);
+
+        const grid = new THREE.GridHelper(40, 40, 0xff0077, 0x111122);
+        grid.position.y = -6;
+        envGroup.add(grid);
+      }
+    }
+
+    /* =========================================================================
+       CANVAS 2D DYNAMIC TEXTURE ATLAS FOR RAZOR-SHARP 3D TYPOGRAPHY
+       ========================================================================= */
+    const textCanvas = document.createElement('canvas');
+    textCanvas.width = 512;
+    textCanvas.height = 512;
+    const ctx = textCanvas.getContext('2d');
+
+    function createLetterTexture(char, style = {}) {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 256;
+      const x = c.getContext('2d');
+
+      x.clearRect(0, 0, 256, 256);
+
+      // Background fill or border if requested
+      if (style.bg) {
+        x.fillStyle = style.bg;
+        x.roundRect ? x.roundRect(10, 10, 236, 236, 24) : x.fillRect(10, 10, 236, 236);
+        x.fill();
+      }
+
+      if (style.border) {
+        x.lineWidth = style.borderWidth || 8;
+        x.strokeStyle = style.border;
+        x.roundRect ? x.roundRect(14, 14, 228, 228, 20) : x.strokeRect(14, 14, 228, 228);
+        x.stroke();
+      }
+
+      // Typography
+      x.font = style.font || "900 140px 'Space Grotesk', Impact, sans-serif";
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
+
+      // Drop shadow / glow
+      if (style.glow) {
+        x.shadowColor = style.glow;
+        x.shadowBlur = 24;
+      }
+
+      x.fillStyle = style.color || '#ffffff';
+      x.fillText(char, 128, 128);
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.minFilter = THREE.LinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    // Material Library
+    const mats = {
+      obsidianGloss: new THREE.MeshStandardMaterial({
+        color: 0x111115,
+        roughness: 0.1,
+        metalness: 0.9,
+      }),
+      chromeWhite: new THREE.MeshStandardMaterial({
+        color: 0xf0f4f8,
+        roughness: 0.15,
+        metalness: 0.6,
+      }),
+      neonMagenta: new THREE.MeshStandardMaterial({
+        color: 0xff0077,
+        emissive: 0xff0077,
+        emissiveIntensity: 1.8,
+        roughness: 0.2,
+      }),
+      neonCyan: new THREE.MeshStandardMaterial({
+        color: 0x00f0ff,
+        emissive: 0x00f0ff,
+        emissiveIntensity: 1.8,
+        roughness: 0.2,
+      }),
+      goldBrass: new THREE.MeshStandardMaterial({
+        color: 0xf7d78a,
+        roughness: 0.2,
+        metalness: 0.95,
+      }),
+      crystalGlass: new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        transmission: 0.92,
+        opacity: 1,
+        transparent: true,
+        roughness: 0.08,
+        ior: 1.52,
+        thickness: 1.5,
+      })
+    };
+
+    /* =========================================================================
+       THE 6 VOLUME PRESET GEOMETRIES (MATCHING REFERENCE IMAGES)
+       ========================================================================= */
+    const rootVolumeGroup = new THREE.Group();
+    scene.add(rootVolumeGroup);
+
+    let activeVolumeObjects = [];
+    const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+    // Clear active meshes
+    function clearVolume() {
+      while (rootVolumeGroup.children.length > 0) {
+        const obj = rootVolumeGroup.children[0];
+        rootVolumeGroup.remove(obj);
+        if (obj.geometry) obj.geometry.dispose();
+      }
+      activeVolumeObjects = [];
+    }
+
+    /* -------------------------------------------------------------------------
+       VOLUME 1: DUAL-HEMISPHERE LETTER SPHERE (Ref: 3D_letters_forming_sphere)
+       Half high-gloss monochrome obsidian, half glowing neon magenta & cyan
+       ------------------------------------------------------------------------- */
+    function buildVolume1_Sphere(words = activeWords) {
+      clearVolume();
+      document.getElementById('active-volume-label').textContent = "VOL. 01: DUAL SPHERE";
+
+      const sphereGroup = new THREE.Group();
+      const count = 180;
+      const radius = 4.6;
+
+      // Core anchor sphere wireframe
+      const wireSphere = new THREE.Mesh(
+        new THREE.SphereGeometry(radius * 0.96, 24, 24),
+        new THREE.MeshBasicMaterial({ color: 0x222233, wireframe: true, transparent: true, opacity: 0.2 })
+      );
+      sphereGroup.add(wireSphere);
+
+      // Fibonacci sphere distribution of letters
+      const phi = Math.PI * (3 - Math.sqrt(5)); // Golden angle
+
+      for (let i = 0; i < count; i++) {
+        const y = 1 - (i / (count - 1)) * 2; // -1 to 1
+        const rAtY = Math.sqrt(1 - y * y);
+        const theta = phi * i;
+
+        const x = Math.cos(theta) * rAtY;
+        const z = Math.sin(theta) * rAtY;
+
+        // Determine hemisphere (x > 0 = Neon side, x <= 0 = Obsidian Chrome side)
+        const isNeonSide = x > 0;
+
+        // Choose character: use letters from active song lyrics first, then alphabet
+        const lyricChar = words.join("").replace(/\s/g, '');
+        const char = lyricChar.length > 0 ? lyricChar[i % lyricChar.length] : ALPHABET[i % ALPHABET.length];
+
+        const charTex = isNeonSide
+          ? createLetterTexture(char, { color: (i % 2 === 0 ? '#ff0077' : '#00f0ff'), glow: (i % 2 === 0 ? '#ff0077' : '#00f0ff'), bg: 'rgba(20,0,30,0.85)' })
+          : createLetterTexture(char, { color: (i % 2 === 0 ? '#ffffff' : '#111111'), bg: (i % 2 === 0 ? '#111111' : '#f0f4f8'), border: '#444444' });
+
+        // 3D block geometry for the letter
+        const blockGeo = new THREE.BoxGeometry(0.72, 0.72, 0.35);
+        const blockMat = isNeonSide
+          ? (i % 2 === 0 ? mats.neonMagenta : mats.neonCyan)
+          : (i % 2 === 0 ? mats.obsidianGloss : mats.chromeWhite);
+
+        // Face 4 is front (+Z)
+        const faceMats = [
+          blockMat, blockMat, blockMat, blockMat,
+          new THREE.MeshStandardMaterial({ map: charTex, roughness: 0.1, metalness: isNeonSide ? 0.3 : 0.8 }),
+          blockMat
+        ];
+
+        const letterMesh = new THREE.Mesh(blockGeo, faceMats);
+        letterMesh.position.set(x * radius, y * radius, z * radius);
+
+        // Align letter outward to sphere normal
+        letterMesh.lookAt(x * (radius + 2), y * (radius + 2), z * (radius + 2));
+
+        letterMesh.userData = {
+          basePos: letterMesh.position.clone(),
+          baseRot: letterMesh.rotation.clone(),
+          hemisphere: isNeonSide ? 'neon' : 'obsidian',
+          index: i,
+          phase: Math.random() * Math.PI * 2
+        };
+
+        sphereGroup.add(letterMesh);
+        activeVolumeObjects.push(letterMesh);
+      }
+
+      // Add equatorial glowing lyric ring (Active Lyric wraps around center)
+      const equatorRing = new THREE.Mesh(
+        new THREE.TorusGeometry(radius * 1.08, 0.06, 16, 64),
+        new THREE.MeshStandardMaterial({ color: 0x00f0ff, emissive: 0x00f0ff, emissiveIntensity: 2.0 })
+      );
+      equatorRing.rotation.x = Math.PI / 2;
+      sphereGroup.add(equatorRing);
+
+      rootVolumeGroup.add(sphereGroup);
+    }
+
+    /* -------------------------------------------------------------------------
+       VOLUME 2: CUBIC GLASS LATTICE (Ref: Cubic_glass_letters_lattice)
+       3D word cube with translucent crystal refraction and beat explosion
+       ------------------------------------------------------------------------- */
+    function buildVolume2_CubicLattice(words = activeWords) {
+      clearVolume();
+      document.getElementById('active-volume-label').textContent = "VOL. 02: CUBIC GLASS LATTICE";
+
+      const cubeGroup = new THREE.Group();
+      const gridSize = 4; // 4x4x4 lattice
+      const spacing = 1.9;
+      const offset = (gridSize - 1) * spacing * 0.5;
+
+      const baseWords = ["GEOMETRY", "LIGHT", "LATTICE", "CRYSTAL", "FORM", "CHORA", "SOUND", "ECHO"];
+      const displayWords = words.length > 0 ? words : baseWords;
+
+      let wordPointer = 0;
+
+      for (let x = 0; x < gridSize; x++) {
+        for (let y = 0; y < gridSize; y++) {
+          for (let z = 0; z < gridSize; z++) {
+            // Only populate outer boundary shell to create hollow architectural prism
+            const isShell = (x === 0 || x === gridSize - 1 || y === 0 || y === gridSize - 1 || z === 0 || z === gridSize - 1);
+            if (!isShell) continue;
+
+            const word = displayWords[wordPointer % displayWords.length];
+            const char = word[(x + y + z) % word.length];
+            wordPointer++;
+
+            const charTex = createLetterTexture(char, {
+              color: '#ffffff',
+              glow: '#00f0ff',
+              bg: 'rgba(255,255,255,0.06)',
+              border: 'rgba(255,255,255,0.5)'
+            });
+
+            const geo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
+            const letterMat = new THREE.MeshPhysicalMaterial({
+              map: charTex,
+              transmission: 0.88,
+              transparent: true,
+              roughness: 0.1,
+              metalness: 0.1,
+              ior: 1.5,
+              color: 0xffffff
+            });
+
+            const mesh = new THREE.Mesh(geo, letterMat);
+            const px = x * spacing - offset;
+            const py = y * spacing - offset;
+            const pz = z * spacing - offset;
+
+            mesh.position.set(px, py, pz);
+            mesh.userData = {
+              basePos: new THREE.Vector3(px, py, pz),
+              dir: new THREE.Vector3(px, py, pz).normalize(),
+              index: x + y + z
+            };
+
+            cubeGroup.add(mesh);
+            activeVolumeObjects.push(mesh);
+          }
+        }
+      }
+
+      rootVolumeGroup.add(cubeGroup);
+    }
+
+    /* -------------------------------------------------------------------------
+       VOLUME 3: CONSTRUCTIVIST SACRED SUNBURST (Ref: Letters_forming_geometric_sun)
+       Bauhaus primary colors (red, blue, gold, black) in concentric ray wedges
+       ------------------------------------------------------------------------- */
+    function buildVolume3_Sunburst(words = activeWords) {
+      clearVolume();
+      document.getElementById('active-volume-label').textContent = "VOL. 03: SACRED SUNBURST";
+
+      const sunGroup = new THREE.Group();
+      const numRays = 24;
+      const tiers = 5;
+
+      const colors = ['#e63946', '#1d3557', '#f4a261', '#e76f51', '#2a9d8f'];
+
+      for (let r = 0; r < numRays; r++) {
+        const angle = (r / numRays) * Math.PI * 2;
+        const isMajorRay = (r % 4 === 0);
+
+        for (let t = 1; t <= tiers; t++) {
+          const dist = t * 1.35;
+          const word = words[r % words.length] || "SUN";
+          const char = word[t % word.length];
+          const colorHex = colors[(r + t) % colors.length];
+
+          const charTex = createLetterTexture(char, {
+            color: '#ffffff',
+            bg: colorHex,
+            border: '#111111',
+            borderWidth: 6
+          });
+
+          const scale = 0.5 + (t * 0.18) + (isMajorRay ? 0.3 : 0);
+          const wedgeGeo = new THREE.BoxGeometry(scale, scale * 1.4, 0.2);
+          const wedgeMat = new THREE.MeshStandardMaterial({
+            map: charTex,
+            roughness: 0.25,
+            metalness: 0.3
+          });
+
+          const mesh = new THREE.Mesh(wedgeGeo, wedgeMat);
+          const x = Math.cos(angle) * dist;
+          const y = Math.sin(angle) * dist;
+
+          mesh.position.set(x, y, (t % 2) * 0.15);
+          mesh.rotation.z = angle - Math.PI / 2;
+
+          mesh.userData = {
+            basePos: mesh.position.clone(),
+            angle: angle,
+            dist: dist,
+            tier: t,
+            isMajor: isMajorRay
+          };
+
+          sunGroup.add(mesh);
+          activeVolumeObjects.push(mesh);
+        }
+      }
+
+      // Center Concentric Typographic Ring
+      const centerTorus = new THREE.Mesh(
+        new THREE.TorusGeometry(1.2, 0.08, 16, 64),
+        new THREE.MeshStandardMaterial({ color: 0xf7d78a, metalness: 0.9, roughness: 0.1 })
+      );
+      sunGroup.add(centerTorus);
+
+      rootVolumeGroup.add(sunGroup);
+    }
+
+    /* -------------------------------------------------------------------------
+       VOLUME 4: BIOLUMINESCENT DNA HELIX (Ref: Glowing_text_forming_DNA_helix)
+       Spiraling double-helix ribbon of glowing monospace code & lyric rungs
+       ------------------------------------------------------------------------- */
+    function buildVolume4_DNAHelix(words = activeWords) {
+      clearVolume();
+      document.getElementById('active-volume-label').textContent = "VOL. 04: BIOLUMINESCENT DNA";
+
+      const dnaGroup = new THREE.Group();
+      const points = 80;
+      const height = 14;
+      const radius = 3.2;
+      const coils = 3.2;
+
+      const codons = ["ACGT", "GATC", "RNA", "LYRIC", "CHORA", "BASE", "CODE", "PEAK"];
+
+      for (let i = 0; i < points; i++) {
+        const t = (i / points);
+        const y = (t - 0.5) * height;
+        const angle = t * Math.PI * 2 * coils;
+
+        // Strand A (+Radius)
+        const x1 = Math.cos(angle) * radius;
+        const z1 = Math.sin(angle) * radius;
+
+        // Strand B (-Radius, 180 deg offset)
+        const x2 = Math.cos(angle + Math.PI) * radius;
+        const z2 = Math.sin(angle + Math.PI) * radius;
+
+        const charA = ALPHABET[i % ALPHABET.length];
+        const charB = ALPHABET[(i + 7) % ALPHABET.length];
+
+        // Strand A Node (Cyan)
+        const texA = createLetterTexture(charA, { color: '#00f0ff', glow: '#00f0ff', bg: 'rgba(0,30,40,0.8)' });
+        const nodeA = new THREE.Mesh(
+          new THREE.BoxGeometry(0.55, 0.55, 0.25),
+          new THREE.MeshStandardMaterial({ map: texA, emissive: 0x00f0ff, emissiveIntensity: 1.2 })
+        );
+        nodeA.position.set(x1, y, z1);
+        nodeA.lookAt(0, y, 0);
+        nodeA.userData = { angle: angle, y: y, strand: 'A' };
+        dnaGroup.add(nodeA);
+        activeVolumeObjects.push(nodeA);
+
+        // Strand B Node (Magenta)
+        const texB = createLetterTexture(charB, { color: '#ff0077', glow: '#ff0077', bg: 'rgba(40,0,20,0.8)' });
+        const nodeB = new THREE.Mesh(
+          new THREE.BoxGeometry(0.55, 0.55, 0.25),
+          new THREE.MeshStandardMaterial({ map: texB, emissive: 0xff0077, emissiveIntensity: 1.2 })
+        );
+        nodeB.position.set(x2, y, z2);
+        nodeB.lookAt(0, y, 0);
+        nodeB.userData = { angle: angle + Math.PI, y: y, strand: 'B' };
+        dnaGroup.add(nodeB);
+        activeVolumeObjects.push(nodeB);
+
+        // Horizontal Connecting Rungs (Populated with Synced Lyric Words)
+        if (i % 3 === 0) {
+          const rungWord = words[(i / 3) % words.length] || codons[i % codons.length];
+          const rungTex = createLetterTexture(rungWord, {
+            color: '#ffffff',
+            glow: '#9d4edd',
+            font: "bold 48px monospace",
+            bg: 'rgba(20,5,30,0.7)'
+          });
+
+          const rungLen = radius * 2 - 0.8;
+          const rungGeo = new THREE.BoxGeometry(rungLen, 0.22, 0.15);
+          const rungMesh = new THREE.Mesh(
+            rungGeo,
+            new THREE.MeshStandardMaterial({ map: rungTex, emissive: 0x9d4edd, emissiveIntensity: 0.8 })
+          );
+          rungMesh.position.set(0, y, 0);
+          rungMesh.rotation.y = -angle;
+          rungMesh.userData = { isRung: true, y: y, baseRotY: -angle };
+          dnaGroup.add(rungMesh);
+          activeVolumeObjects.push(rungMesh);
+        }
+      }
+
+      rootVolumeGroup.add(dnaGroup);
+    }
+
+    /* -------------------------------------------------------------------------
+       VOLUME 5: TOPOGRAPHIC LYRIC RIDGE (Ref: Letters_forming_topographic_map)
+       3D relief map where active words extrude into red summits & green valleys
+       ------------------------------------------------------------------------- */
+    function buildVolume5_Topography(words = activeWords) {
+      clearVolume();
+      document.getElementById('active-volume-label').textContent = "VOL. 05: TOPOGRAPHIC RIDGE";
+
+      const topoGroup = new THREE.Group();
+      const rows = 9;
+      const cols = 9;
+      const spacing = 1.1;
+      const offsetX = (cols - 1) * spacing * 0.5;
+      const offsetZ = (rows - 1) * spacing * 0.5;
+
+      const topoTerms = ["SUMMIT", "RIDGE", "PEAKS", "VALLEY", "CREST", "CLIFF", "SOUND", "ECHO"];
+      const vocab = words.length > 0 ? words : topoTerms;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const word = vocab[(r * cols + c) % vocab.length];
+          const char = word[c % word.length];
+
+          // Topography elevation curve: peaks in center and ridges
+          const distFromCenter = Math.sqrt(Math.pow(c - cols / 2, 2) + Math.pow(r - rows / 2, 2));
+          const isSummit = distFromCenter < 2.5;
+
+          const color = isSummit ? '#e63946' : '#2a9d8f'; // Red summit, green valley
+          const tex = createLetterTexture(char, {
+            color: '#ffffff',
+            bg: color,
+            border: '#111111'
+          });
+
+          const baseHeight = isSummit ? 2.5 : 0.8;
+          const colGeo = new THREE.BoxGeometry(0.9, baseHeight, 0.9);
+          const colMat = new THREE.MeshStandardMaterial({
+            map: tex,
+            roughness: 0.2,
+            metalness: 0.4
+          });
+
+          const mesh = new THREE.Mesh(colGeo, colMat);
+          const px = c * spacing - offsetX;
+          const pz = r * spacing - offsetZ;
+          const py = -2 + (baseHeight * 0.5);
+
+          mesh.position.set(px, py, pz);
+          mesh.userData = {
+            baseY: py,
+            baseHeight: baseHeight,
+            row: r,
+            col: c,
+            isSummit: isSummit
+          };
+
+          topoGroup.add(mesh);
+          activeVolumeObjects.push(mesh);
+        }
+      }
+
+      rootVolumeGroup.add(topoGroup);
+    }
+
+    /* -------------------------------------------------------------------------
+       VOLUME 6: KINETIC TYPOGRAPHIC GEAR (Ref: Typefaces_forming_colorful_3D_gear)
+       Mechanical cogwheel with typography embedded in teeth and spokes
+       ------------------------------------------------------------------------- */
+    function buildVolume6_Gear(words = activeWords) {
+      clearVolume();
+      document.getElementById('active-volume-label').textContent = "VOL. 06: MECHANICAL GEAR";
+
+      const gearGroup = new THREE.Group();
+      const numTeeth = 18;
+      const rimRadius = 4.2;
+
+      // Central Hub / Hex Nut
+      const hubGeo = new THREE.CylinderGeometry(1.2, 1.2, 1.2, 6);
+      const hubMat = new THREE.MeshStandardMaterial({ color: 0x718096, metalness: 0.9, roughness: 0.2 });
+      const hubMesh = new THREE.Mesh(hubGeo, hubMat);
+      gearGroup.add(hubMesh);
+
+      // Inner Typographic Spokes (4 Spoke Arms)
+      for (let s = 0; s < 4; s++) {
+        const sAngle = (s / 4) * Math.PI * 2;
+        const spokeWord = words[s % words.length] || "DESIGN";
+        const spokeTex = createLetterTexture(spokeWord, { color: '#ffffff', bg: '#f4a261', font: "bold 40px sans-serif" });
+
+        const spokeGeo = new THREE.BoxGeometry(rimRadius * 0.8, 0.6, 0.4);
+        const spokeMat = new THREE.MeshStandardMaterial({ map: spokeTex, metalness: 0.5, roughness: 0.3 });
+        const spokeMesh = new THREE.Mesh(spokeGeo, spokeMat);
+
+        spokeMesh.position.set(Math.cos(sAngle) * (rimRadius * 0.4), Math.sin(sAngle) * (rimRadius * 0.4), 0);
+        spokeMesh.rotation.z = sAngle;
+        gearGroup.add(spokeMesh);
+      }
+
+      // Outer Cog Teeth with Extruded Letters
+      for (let i = 0; i < numTeeth; i++) {
+        const angle = (i / numTeeth) * Math.PI * 2;
+        const word = words[i % words.length] || "GEAR";
+        const char = word[i % word.length];
+
+        const isEven = (i % 2 === 0);
+        const toothTex = createLetterTexture(char, {
+          color: '#ffffff',
+          bg: isEven ? '#e63946' : '#1d3557',
+          border: '#f7d78a',
+          borderWidth: 6
+        });
+
+        const toothGeo = new THREE.BoxGeometry(0.85, 1.2, 0.6);
+        const toothMat = new THREE.MeshStandardMaterial({ map: toothTex, metalness: 0.4, roughness: 0.2 });
+        const toothMesh = new THREE.Mesh(toothGeo, toothMat);
+
+        const tx = Math.cos(angle) * rimRadius;
+        const ty = Math.sin(angle) * rimRadius;
+
+        toothMesh.position.set(tx, ty, 0);
+        toothMesh.rotation.z = angle - Math.PI / 2;
+
+        toothMesh.userData = {
+          angle: angle,
+          basePos: toothMesh.position.clone(),
+          toothIndex: i
+        };
+
+        gearGroup.add(toothMesh);
+        activeVolumeObjects.push(toothMesh);
+      }
+
+      rootVolumeGroup.add(gearGroup);
+    }
+
+    /* -------------------------------------------------------------------------
+       VOLUME 7: COSMIC SPIRAL VORTEX (Ref: CHAOS Spiral / Swirling Galaxy)
+       Logarithmic Fibonacci vortex tunnel of words swirling into infinity
+       ------------------------------------------------------------------------- */
+    function buildVolume7_Vortex(words = activeWords) {
+      clearVolume();
+      document.getElementById('active-volume-label').textContent = "VOL. 07: SPIRAL VORTEX";
+
+      const vortexGroup = new THREE.Group();
+      const points = 140;
+      const numArms = 3;
+      const vocab = words.length > 0 ? words : ["CHAOS", "HARMONY", "VORTEX", "INFINITY", "CHORA", "ECHO"];
+
+      for (let arm = 0; arm < numArms; arm++) {
+        const armOffset = (arm / numArms) * Math.PI * 2;
+
+        for (let i = 0; i < points; i++) {
+          const t = i / points;
+          const theta = t * Math.PI * 8 + armOffset;
+          const r = 0.5 + Math.pow(t, 1.3) * 8.5; // Logarithmic expansion
+          const z = (1 - t) * 4.5 - 2.0;
+
+          const word = vocab[(arm * points + i) % vocab.length];
+          const char = word[i % word.length];
+
+          const isNearCenter = t < 0.25;
+          const tex = createLetterTexture(char, {
+            color: isNearCenter ? '#ffffff' : (arm === 0 ? '#ff0077' : arm === 1 ? '#00f0ff' : '#f7d78a'),
+            glow: isNearCenter ? '#ffffff' : '#00f0ff',
+            bg: 'rgba(10,5,20,0.85)'
+          });
+
+          const scale = 0.25 + t * 0.75;
+          const mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(scale, scale, 0.25),
+            new THREE.MeshStandardMaterial({
+              map: tex,
+              emissive: isNearCenter ? 0xffffff : (arm === 0 ? 0xff0077 : 0x00f0ff),
+              emissiveIntensity: isNearCenter ? 2.5 : 0.8,
+              roughness: 0.15
+            })
+          );
+
+          const x = Math.cos(theta) * r;
+          const y = Math.sin(theta) * r;
+
+          mesh.position.set(x, y, z);
+          mesh.rotation.z = theta - Math.PI / 2;
+
+          mesh.userData = {
+            baseR: r,
+            theta: theta,
+            z: z,
+            arm: arm,
+            t: t
+          };
+
+          vortexGroup.add(mesh);
+          activeVolumeObjects.push(mesh);
+        }
+      }
+
+      // Gravitational Singularity Core Light
+      const coreGeo = new THREE.SphereGeometry(0.65, 32, 32);
+      const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+      vortexGroup.add(coreMesh);
+
+      rootVolumeGroup.add(vortexGroup);
+    }
+
+    /* -------------------------------------------------------------------------
+       VOLUME 8: METROPOLIS TYPOGRAPHIC SKYLINE (Ref: Skyscraper Silhouette)
+       Towering word skyscrapers with water reflections and retro sun
+       ------------------------------------------------------------------------- */
+    function buildVolume8_Skyline(words = activeWords) {
+      clearVolume();
+      document.getElementById('active-volume-label').textContent = "VOL. 08: METROPOLIS SKYLINE";
+
+      const cityGroup = new THREE.Group();
+      const numTowers = 19;
+      const spacing = 0.95;
+      const offsetX = (numTowers - 1) * spacing * 0.5;
+
+      const cityTerms = ["BUILD", "DREAMS", "CHORA", "TOWER", "HEIGHTS", "ECHO", "NIGHT", "SPATIAL", "FUTURE"];
+      const vocab = words.length > 0 ? words : cityTerms;
+
+      // Retro Halftone Moon / Sun behind towers
+      const moonGeo = new THREE.CircleGeometry(4.8, 48);
+      const moonMat = new THREE.MeshBasicMaterial({ color: 0xf7d78a, transparent: true, opacity: 0.85 });
+      const moonMesh = new THREE.Mesh(moonGeo, moonMat);
+      moonMesh.position.set(0, 3.5, -4.5);
+      cityGroup.add(moonMesh);
+
+      // Skyscraper towers composed of stacked kinetic letters
+      for (let i = 0; i < numTowers; i++) {
+        // Skyscraper profile heights
+        const distFromCenter = Math.abs(i - (numTowers - 1) / 2) / ((numTowers - 1) / 2);
+        const maxFloors = Math.floor(4 + (1 - distFromCenter * 0.7) * 9 + (i % 3));
+        const px = i * spacing - offsetX;
+
+        for (let f = 0; f < maxFloors; f++) {
+          const word = vocab[(i + f) % vocab.length];
+          const char = word[f % word.length];
+          const isSpire = (f === maxFloors - 1);
+
+          const isEmpireSpire = (i === Math.floor(numTowers / 2) && isSpire);
+          const tex = createLetterTexture(char, {
+            color: '#ffffff',
+            bg: isEmpireSpire ? '#ff0077' : (f % 2 === 0 ? '#111118' : '#1e1e28'),
+            border: '#333344',
+            borderWidth: 4
+          });
+
+          const blockGeo = new THREE.BoxGeometry(0.85, 0.75, 0.85);
+          const blockMat = new THREE.MeshStandardMaterial({
+            map: tex,
+            roughness: 0.15,
+            metalness: 0.7,
+            emissive: isEmpireSpire ? 0xff0077 : 0x000000,
+            emissiveIntensity: isEmpireSpire ? 2.0 : 0.0
+          });
+
+          const mesh = new THREE.Mesh(blockGeo, blockMat);
+          const py = -4 + f * 0.78;
+          mesh.position.set(px, py, (i % 2) * 0.2);
+
+          mesh.userData = {
+            towerIdx: i,
+            floorIdx: f,
+            baseY: py,
+            isTop: isSpire
+          };
+
+          cityGroup.add(mesh);
+          activeVolumeObjects.push(mesh);
+        }
+      }
+
+      // Reflective Water Mirror Plane
+      const waterGeo = new THREE.PlaneGeometry(35, 18);
+      const waterMat = new THREE.MeshStandardMaterial({
+        color: 0x020206,
+        roughness: 0.08,
+        metalness: 0.95
+      });
+      const waterPlane = new THREE.Mesh(waterGeo, waterMat);
+      waterPlane.rotation.x = -Math.PI / 2;
+      waterPlane.position.set(0, -4.1, 4);
+      cityGroup.add(waterPlane);
+
+      rootVolumeGroup.add(cityGroup);
+    }
+
+    /* -------------------------------------------------------------------------
+       VOLUME 9: POLYHEDRAL ORIGAMI BUTTERFLY (Ref: Faceted Wings with Lyrics)
+       3D kinetic butterfly wings that flap to the BPM tempo and carry lyrics
+       ------------------------------------------------------------------------- */
+    function buildVolume9_Butterfly(words = activeWords) {
+      clearVolume();
+      document.getElementById('active-volume-label').textContent = "VOL. 09: POLYHEDRAL BUTTERFLY";
+
+      const bflyGroup = new THREE.Group();
+      const vocab = words.length > 0 ? words : ["CHANGE", "GROW", "EVOLVE", "LEARN", "EXPLORE", "BELONG", "CHORA"];
+
+      // Central Body Spine
+      const bodyGeo = new THREE.CylinderGeometry(0.18, 0.12, 4.2, 16);
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x111115, metalness: 0.9, roughness: 0.1 });
+      const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+      bflyGroup.add(bodyMesh);
+
+      // Left & Right Wing Groups (Flap on Beat)
+      const leftWing = new THREE.Group();
+      const rightWing = new THREE.Group();
+      leftWing.position.set(-0.2, 0, 0);
+      rightWing.position.set(0.2, 0, 0);
+
+      const wingFacets = 14;
+      const palette = ['#e63946', '#f4a261', '#e76f51', '#2a9d8f', '#1d3557', '#9d4edd'];
+
+      for (let i = 0; i < wingFacets; i++) {
+        const word = vocab[i % vocab.length];
+        const color = palette[i % palette.length];
+
+        const tex = createLetterTexture(word, {
+          color: '#ffffff',
+          bg: color,
+          border: '#111111',
+          borderWidth: 6,
+          font: "bold 44px 'Space Grotesk', sans-serif"
+        });
+
+        // Facet geometry
+        const angle = (i / wingFacets) * Math.PI;
+        const dist = 1.2 + (i % 4) * 0.95;
+        const fx = Math.sin(angle) * dist;
+        const fy = Math.cos(angle) * dist * 1.3;
+
+        const facetGeo = new THREE.BoxGeometry(1.4, 0.8, 0.15);
+        const facetMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.2, metalness: 0.3 });
+
+        // Left facet
+        const leftMesh = new THREE.Mesh(facetGeo, facetMat);
+        leftMesh.position.set(-fx, fy, 0);
+        leftMesh.rotation.z = angle - Math.PI / 4;
+        leftWing.add(leftMesh);
+        activeVolumeObjects.push(leftMesh);
+
+        // Right facet
+        const rightMesh = new THREE.Mesh(facetGeo, facetMat);
+        rightMesh.position.set(fx, fy, 0);
+        rightMesh.rotation.z = -angle + Math.PI / 4;
+        rightWing.add(rightMesh);
+        activeVolumeObjects.push(rightMesh);
+      }
+
+      leftWing.userData = { isWing: 'left' };
+      rightWing.userData = { isWing: 'right' };
+      bflyGroup.add(leftWing);
+      bflyGroup.add(rightWing);
+
+      rootVolumeGroup.add(bflyGroup);
+    }
+
+    /* -------------------------------------------------------------------------
+       VOLUME 10: KINETIC OCEAN WAVE RIBBONS (Ref: Flowing Word Waves)
+       Undulating 3D ribbons of text flowing towards a glowing horizon sun
+       ------------------------------------------------------------------------- */
+    function buildVolume10_OceanWaves(words = activeWords) {
+      clearVolume();
+      document.getElementById('active-volume-label').textContent = "VOL. 10: OCEAN WAVE RIBBONS";
+
+      const waveGroup = new THREE.Group();
+      const numRibbons = 7;
+      const segmentsPerRibbon = 18;
+      const spacingZ = 1.35;
+      const vocab = words.length > 0 ? words : ["GOOD VIBES", "BETTER DAYS", "BRIGHTER", "TOGETHER", "CHORA", "LOSSLESS"];
+
+      const ribbonColors = ['#f72585', '#7209b7', '#3a0ca3', '#4361ee', '#4cc9f0', '#06d6a0', '#ffb703'];
+
+      // Sunset Horizon Sphere
+      const sunGeo = new THREE.SphereGeometry(3.5, 32, 32);
+      const sunMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+      const sunMesh = new THREE.Mesh(sunGeo, sunMat);
+      sunMesh.position.set(0, 1.8, -12);
+      waveGroup.add(sunMesh);
+
+      for (let r = 0; r < numRibbons; r++) {
+        const color = ribbonColors[r % ribbonColors.length];
+        const pz = -r * spacingZ;
+
+        for (let s = 0; s < segmentsPerRibbon; s++) {
+          const t = s / (segmentsPerRibbon - 1);
+          const px = (t - 0.5) * 16;
+
+          const word = vocab[(r + s) % vocab.length];
+          const char = word[s % word.length];
+
+          const tex = createLetterTexture(char, {
+            color: '#ffffff',
+            bg: color,
+            glow: color
+          });
+
+          const segGeo = new THREE.BoxGeometry(0.85, 0.45, 0.25);
+          const segMat = new THREE.MeshStandardMaterial({
+            map: tex,
+            emissive: new THREE.Color(color),
+            emissiveIntensity: 0.4,
+            roughness: 0.25
+          });
+
+          const mesh = new THREE.Mesh(segGeo, segMat);
+          const py = Math.sin(t * Math.PI * 4 + r * 0.8) * 1.2 - 2.0;
+
+          mesh.position.set(px, py, pz);
+          mesh.userData = {
+            baseX: px,
+            baseZ: pz,
+            ribbonIdx: r,
+            segIdx: s,
+            t: t
+          };
+
+          waveGroup.add(mesh);
+          activeVolumeObjects.push(mesh);
+        }
+      }
+
+      rootVolumeGroup.add(waveGroup);
+    }
+
+    // Switch between presets (10 Volumes)
+    function selectPreset(idx) {
+      activePreset = idx;
+      document.querySelectorAll('.preset-btn').forEach((b, i) => {
+        b.classList.toggle('active', i === idx);
+      });
+
+      switch (idx) {
+        case 0: buildVolume1_Sphere(); break;
+        case 1: buildVolume2_CubicLattice(); break;
+        case 2: buildVolume3_Sunburst(); break;
+        case 3: buildVolume4_DNAHelix(); break;
+        case 4: buildVolume5_Topography(); break;
+        case 5: buildVolume6_Gear(); break;
+        case 6: buildVolume7_Vortex(); break;
+        case 7: buildVolume8_Skyline(); break;
+        case 8: buildVolume9_Butterfly(); break;
+        case 9: buildVolume10_OceanWaves(); break;
+      }
+    }
+
+    // Dynamic reconstruction when synced lyric changes
+    function onLyricLineChanged(fullText, words) {
+      // Rebuild the current volume geometry so new lyric words populate the 3D meshes
+      selectPreset(activePreset);
+    }
+
+    /* =========================================================================
+       AUDIO-REACTIVE ANIMATION LOOP
+       ========================================================================= */
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const dt = clock.getDelta();
+      const elapsed = clock.getElapsedTime();
+
+      // Sample Audio Analyser
+      updateAudioMeters();
+
+      // Progress Lyric Clock
+      updateLyrics(dt);
+
+      const kick = audioData.kick;
+      const bass = audioData.bass;
+      const voice = audioData.voice;
+      const treble = audioData.treble;
+
+      // Center beat glint reactivity
+      centerGlint.intensity = 1.0 + kick * 4.5;
+      rimCyan.intensity = 2.0 + voice * 4.0;
+      rimMagenta.intensity = 2.0 + treble * 4.0;
+
+      // Base orbital rotation
+      const rotSpeed = parseFloat(document.getElementById('slider-speed').value);
+      rootVolumeGroup.rotation.y += dt * 0.25 * rotSpeed;
+
+      // Audio-Reactive Geometric Distortions for each Volume
+      if (activePreset === 0) {
+        // Sphere: Breathe on Kick, counter-rotate hemispheres on Mids
+        const sphereScale = 1.0 + kick * 0.35;
+        rootVolumeGroup.scale.set(sphereScale, sphereScale, sphereScale);
+
+        activeVolumeObjects.forEach(obj => {
+          if (obj.userData.hemisphere === 'neon') {
+            obj.rotation.y += dt * (0.8 + voice * 1.5);
+          } else {
+            obj.rotation.y -= dt * (0.6 + bass * 1.2);
+          }
+        });
+      } else if (activePreset === 1) {
+        // Cubic Lattice: Explode outwards along normal vector on kick
+        const explode = kick * 1.4;
+        activeVolumeObjects.forEach(obj => {
+          if (obj.userData.basePos && obj.userData.dir) {
+            obj.position.copy(obj.userData.basePos).addScaledVector(obj.userData.dir, explode);
+            obj.rotation.x += dt * treble * 1.2;
+            obj.rotation.y += dt * bass * 1.2;
+          }
+        });
+      } else if (activePreset === 2) {
+        // Sunburst: Radial rays shoot outwards with frequency peaks
+        activeVolumeObjects.forEach(obj => {
+          if (obj.userData.basePos) {
+            const push = (obj.userData.isMajor ? kick : voice) * 0.8;
+            const x = Math.cos(obj.userData.angle) * (obj.userData.dist + push);
+            const y = Math.sin(obj.userData.angle) * (obj.userData.dist + push);
+            obj.position.set(x, y, obj.userData.basePos.z);
+          }
+        });
+      } else if (activePreset === 3) {
+        // DNA Helix: Scroll upward, twist on bass
+        rootVolumeGroup.rotation.y += dt * (0.6 + kick * 1.5);
+        activeVolumeObjects.forEach(obj => {
+          if (obj.userData.isRung) {
+            obj.scale.x = 1.0 + voice * 0.4;
+          }
+        });
+      } else if (activePreset === 4) {
+        // Topography: Extrude heights based on voice and bass
+        activeVolumeObjects.forEach(obj => {
+          if (obj.userData.baseHeight !== undefined) {
+            const h = obj.userData.baseHeight * (1.0 + (obj.userData.isSummit ? kick * 2.0 : bass * 1.2));
+            obj.scale.y = h;
+            obj.position.y = obj.userData.baseY + (h * 0.5);
+          }
+        });
+      } else if (activePreset === 5) {
+        // Gear: Step rotation on beat
+        rootVolumeGroup.rotation.z -= dt * (0.5 + kick * 2.2);
+      } else if (activePreset === 6) {
+        // Vortex: Accelerate spin, pulse singularity on kick
+        rootVolumeGroup.rotation.z += dt * (0.8 + voice * 1.8);
+        activeVolumeObjects.forEach(obj => {
+          if (obj.userData.baseR !== undefined) {
+            const warp = Math.sin(elapsed * 4 + obj.userData.t * 8) * kick * 0.8;
+            const r = obj.userData.baseR + warp;
+            obj.position.x = Math.cos(obj.userData.theta) * r;
+            obj.position.y = Math.sin(obj.userData.theta) * r;
+          }
+        });
+      } else if (activePreset === 7) {
+        // Skyline: Towers pump height on kick & bass
+        activeVolumeObjects.forEach(obj => {
+          if (obj.userData.floorIdx !== undefined) {
+            const pump = (obj.userData.isTop ? kick * 1.6 : bass * 0.6);
+            obj.position.y = obj.userData.baseY + pump * (obj.userData.floorIdx * 0.1);
+          }
+        });
+      } else if (activePreset === 8) {
+        // Butterfly: Flap wings on beat tempo & flutter on treble
+        const flapAngle = Math.sin(elapsed * 7) * (0.4 + kick * 0.5);
+        rootVolumeGroup.children.forEach(c => {
+          if (c.userData.isWing === 'left') {
+            c.rotation.y = flapAngle;
+          } else if (c.userData.isWing === 'right') {
+            c.rotation.y = -flapAngle;
+          }
+        });
+        activeVolumeObjects.forEach(obj => {
+          obj.rotation.x = Math.sin(elapsed * 12 + obj.position.x) * treble * 0.4;
+        });
+      } else if (activePreset === 9) {
+        // Ocean Waves: Undulate ribbons like flowing sea surf
+        activeVolumeObjects.forEach(obj => {
+          if (obj.userData.t !== undefined) {
+            const waveY = Math.sin(obj.userData.t * Math.PI * 4 + elapsed * 3 + obj.userData.ribbonIdx * 0.8) * (1.2 + kick * 1.5) - 2.0;
+            obj.position.y = waveY;
+          }
+        });
+      }
+
+      // === INDIVIDUAL LETTER AUDIO-REACTIVITY PHYSICS ===
+      const fData = new Uint8Array(analyser ? analyser.frequencyBinCount : 32);
+      if (analyser) analyser.getByteFrequencyData(fData);
+
+      activeVolumeObjects.forEach((obj, idx) => {
+        const bin = (idx * 2) % 32;
+        const binRaw = analyser ? (fData[bin] / 255.0) : (0.2 + Math.sin(elapsed * 5 + idx) * 0.2);
+        const binVal = binRaw * audioData.sensitivity;
+
+        // 1. INDIVIDUAL LETTER SCALE PULSE (Letters visibly scale & extrude on rhythm)
+        if (!obj.userData.baseScale) obj.userData.baseScale = obj.scale.clone();
+        const s = 1.0 + binVal * 0.65;
+        const zExtrude = 1.0 + binVal * 1.5;
+        obj.scale.set(
+          obj.userData.baseScale.x * s,
+          obj.userData.baseScale.y * s,
+          obj.userData.baseScale.z * zExtrude
+        );
+
+        // 2. INDIVIDUAL LETTER Z-PUNCH / DISPLACEMENT ALONG LOCAL NORMAL
+        if (!obj.userData.basePos) obj.userData.basePos = obj.position.clone();
+        if (!obj.userData.normal) obj.userData.normal = obj.position.clone().normalize();
+        const punch = binVal * 0.75 + (bin < 4 ? kick * 1.1 : 0);
+        obj.position.copy(obj.userData.basePos).addScaledVector(obj.userData.normal, punch);
+
+        // 3. INDIVIDUAL LETTER EMISSIVE FLASH (Letters flare on vocal & instrument peaks)
+        if (obj.material) {
+          const mList = Array.isArray(obj.material) ? obj.material : [obj.material];
+          mList.forEach(m => {
+            if (m.emissive) {
+              m.emissiveIntensity = 0.4 + binVal * 2.8 + voice * 1.4;
+            }
+          });
+        }
+
+        // 4. MICRO-TWITCH ON HIGH-HAT TRANSIENTS
+        if (!obj.userData.baseRot) obj.userData.baseRot = obj.rotation.clone();
+        if (treble > 0.38 && (idx % 3 === 0)) {
+          obj.rotation.z = obj.userData.baseRot.z + (Math.random() - 0.5) * 0.28;
+        } else if (obj.userData.baseRot) {
+          obj.rotation.z += (obj.userData.baseRot.z - obj.rotation.z) * 0.15;
+        }
+      });
+
+      // Director Cam Mode (Cinematic sweeping camera choreography)
+      if (directorCamMode) {
+        const ct = elapsed * 0.28;
+        camera.position.x = Math.sin(ct) * 14 + Math.cos(ct * 0.6) * 3;
+        camera.position.y = Math.sin(ct * 0.8) * 3.5 + 1.2;
+        camera.position.z = Math.cos(ct) * 14;
+        camera.lookAt(0, 0, 0);
+      }
+
+      // Auto-morph every 16 bars across all 10 volumes
+      if (autoMorph && elapsed - lastBeatTime > 16.0) {
+        lastBeatTime = elapsed;
+        const next = (activePreset + 1) % 10;
+        selectPreset(next);
+      }
+
+      if (!directorCamMode) controls.update();
+      composer.render();
+    }
+
+    /* =========================================================================
+       UI EVENT LISTENERS & BINDINGS
+       ========================================================================= */
+    let directorCamMode = false;
+
+    // Director Cam Button
+    const btnDirector = document.getElementById('btn-director');
+    if (btnDirector) {
+      btnDirector.addEventListener('click', () => {
+        directorCamMode = !directorCamMode;
+        btnDirector.classList.toggle('active', directorCamMode);
+        btnDirector.textContent = directorCamMode ? "🎬 DIRECTOR CAM: ON" : "🎬 DIRECTOR CAM: OFF";
+        if (!directorCamMode) {
+          camera.position.set(0, 0.5, 14);
+          camera.lookAt(0, 0, 0);
+        }
+      });
+    }
+
+    // Custom Lyrics Modal Handlers
+    const lyricModal = document.getElementById('lyric-modal');
+    const btnCustomLyrics = document.getElementById('btn-custom-lyrics');
+    const modalClose = document.getElementById('modal-close');
+    const modalCancel = document.getElementById('modal-cancel-btn');
+    const modalApply = document.getElementById('modal-apply-btn');
+    const lyricInputText = document.getElementById('lyric-input-text');
+
+    if (btnCustomLyrics && lyricModal) {
+      btnCustomLyrics.addEventListener('click', () => {
+        lyricModal.style.display = 'flex';
+      });
+      const closeModal = () => { lyricModal.style.display = 'none'; };
+      if (modalClose) modalClose.addEventListener('click', closeModal);
+      if (modalCancel) modalCancel.addEventListener('click', closeModal);
+
+      if (modalApply) {
+        modalApply.addEventListener('click', () => {
+          const raw = lyricInputText.value.trim();
+          if (!raw) {
+            closeModal();
+            return;
+          }
+
+          const lines = raw.split('\n').filter(l => l.trim().length > 0);
+          const parsed = [];
+          const lrcRegex = /\[(\d{2}):(\d{2}(?:\.\d+)?)\](.*)/;
+
+          lines.forEach((l, idx) => {
+            const match = l.match(lrcRegex);
+            if (match) {
+              const mins = parseFloat(match[1]);
+              const secs = parseFloat(match[2]);
+              const text = match[3].trim();
+              parsed.push({ time: mins * 60 + secs, text: text || "..." });
+            } else {
+              // Plain text fallback: space lines 3.5s apart
+              parsed.push({ time: idx * 3.5, text: l.trim() });
+            }
+          });
+
+          if (parsed.length > 0) {
+            currentTrack.lyrics = parsed;
+            trackDuration = Math.max(30, parsed[parsed.length - 1].time + 6);
+            trackCurrentTime = 0.0;
+            activeLineIndex = -1;
+            document.getElementById('track-name').textContent = "Custom Live Track &bull; Chora Sync";
+            selectPreset(activePreset);
+          }
+          closeModal();
+        });
+      }
+    }
+
+    // Preset buttons (10 Presets)
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectPreset(parseInt(btn.getAttribute('data-preset')));
+      });
+    });
+
+    // Audio Source Buttons
+    document.getElementById('src-synth').addEventListener('click', () => setAudioSource('SYNTH'));
+    document.getElementById('src-mic').addEventListener('click', () => setAudioSource('MIC'));
+    document.getElementById('src-file').addEventListener('click', () => setAudioSource('FILE'));
+
+    // Play/Pause
+    document.getElementById('btn-play').addEventListener('click', () => {
+      isPlaying = !isPlaying;
+      document.getElementById('btn-play').textContent = isPlaying ? '❚❚' : '▶';
+      if (audioEl) {
+        if (isPlaying) audioEl.play(); else audioEl.pause();
+      }
+    });
+
+    // Scrubber click
+    document.getElementById('scrubber-track').addEventListener('click', (e) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const pos = (e.clientX - rect.left) / rect.width;
+      trackCurrentTime = pos * trackDuration;
+      if (audioEl && audioEl.duration) {
+        audioEl.currentTime = pos * audioEl.duration;
+      }
+    });
+
+    // Sliders
+    document.getElementById('slider-bloom').addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      bloomPass.strength = v;
+      document.getElementById('val-bloom').textContent = v.toFixed(1);
+    });
+
+    document.getElementById('slider-react').addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      audioData.sensitivity = v;
+      document.getElementById('val-react').textContent = v.toFixed(1);
+    });
+
+    document.getElementById('slider-speed').addEventListener('input', (e) => {
+      document.getElementById('val-speed').textContent = parseFloat(e.target.value).toFixed(1);
+    });
+
+    // Wireframe toggle
+    document.getElementById('btn-wireframe').addEventListener('click', (e) => {
+      wireframeMode = !wireframeMode;
+      e.target.classList.toggle('active', wireframeMode);
+      activeVolumeObjects.forEach(obj => {
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach(m => m.wireframe = wireframeMode);
+        } else if (obj.material) {
+          obj.material.wireframe = wireframeMode;
+        }
+      });
+    });
+
+    // Auto-morph toggle
+    document.getElementById('btn-automorph').addEventListener('click', (e) => {
+      autoMorph = !autoMorph;
+      e.target.classList.toggle('active', autoMorph);
+      e.target.textContent = autoMorph ? "Auto-Morph (16 Bars)" : "Auto-Morph: OFF";
+    });
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Environment Switcher Listener
+    const selectEnv = document.getElementById('select-env');
+    if (selectEnv) {
+      selectEnv.addEventListener('change', (e) => {
+        buildEnvironment(e.target.value);
+      });
+    }
+
+    // Initialize default scene
+    window.addEventListener('DOMContentLoaded', () => {
+      buildEnvironment('GALLERY');
+      selectPreset(0);
+      startSynthEngine();
+      animate();
+    });
+  </script>
+</body>
+</html>
