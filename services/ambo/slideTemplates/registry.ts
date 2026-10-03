@@ -65,6 +65,42 @@ export const THEME_FIELD = '__theme';
 
 const COLOR_KEYS = ['accent', 'accent2', 'accent3', 'ground', 'ground2', 'ink', 'muted', 'panel', 'panelInk'] as const;
 const resolved = new Map<string, SlideTheme>();
+const colourSwaps = new WeakMap<SlideTheme, Map<string, [number, number, number]>>();
+
+function rgbOf(col: string | undefined): [number, number, number] | null {
+  if (!col) return null;
+  const h = col.trim().match(/^#([0-9a-f]{3,8})$/i);
+  if (h) {
+    let x = h[1];
+    if (x.length === 3 || x.length === 4) x = x.slice(0, 3).split('').map(ch => ch + ch).join('');
+    return [parseInt(x.slice(0, 2), 16), parseInt(x.slice(2, 4), 16), parseInt(x.slice(4, 6), 16)];
+  }
+  const m = col.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/i);
+  return m ? [+m[1], +m[2], +m[3]] : null;
+}
+/** Swap a base-palette colour for its override, keeping any alpha. */
+function swapColour(col: string | undefined, swaps: Map<string, [number, number, number]>): string | undefined {
+  const rgb = rgbOf(col);
+  if (!col || !rgb) return col;
+  const to = swaps.get(rgb.join(','));
+  if (!to) return col;
+  const hex = '#' + to.map(v => v.toString(16).padStart(2, '0')).join('');
+  const h = col.trim().match(/^#([0-9a-f]{4}|[0-9a-f]{8})$/i);
+  if (h) return hex + (h[1].length === 8 ? h[1].slice(6) : h[1][3] + h[1][3]);
+  const a = col.match(/^rgba\([^)]*,\s*([\d.]+)\s*\)$/i);
+  if (a) return `rgba(${to[0]},${to[1]},${to[2]},${a[1]})`;
+  return hex;
+}
+function applyColourSwaps(objs: SlideObj[], th: SlideTheme): void {
+  const swaps = colourSwaps.get(th);
+  if (!swaps) return;
+  for (const o of objs as any[]) {
+    o.fill = swapColour(o.fill, swaps);
+    o.stroke = swapColour(o.stroke, swaps);
+    if (o.shadow?.color) o.shadow = { ...o.shadow, color: swapColour(o.shadow.color, swaps) };
+    if (o.gradient?.stops) o.gradient = { ...o.gradient, stops: o.gradient.stops.map((st: any) => ({ ...st, color: swapColour(st.color, swaps) })) };
+  }
+}
 /** The theme as customised by a saved template's `__theme` field (the platform theme when absent). */
 export function resolveTheme(themeId: string | undefined, fields?: Record<string, string>): SlideTheme {
   const base = themeById(themeId);
@@ -85,6 +121,14 @@ export function resolveTheme(themeId: string | undefined, fields?: Record<string
   };
   const t = { ...base.t, ...(o.display ? { display: o.display } : {}), ...(o.text ? { text: o.text } : {}), ...(o.label ? { label: o.label } : {}) };
   const th: SlideTheme = { ...base, c, motion, t };
+  // Motifs often paint from their own palette constants rather than th.c, so a
+  // colour override is also applied by swapping the base colour in the built objects.
+  const swaps = new Map<string, [number, number, number]>();
+  for (const k of COLOR_KEYS) {
+    const from = rgbOf(base.c[k]), to = rgbOf(c[k]);
+    if (from && to && c[k] !== base.c[k]) swaps.set(from.join(','), to);
+  }
+  if (swaps.size) colourSwaps.set(th, swaps);
   if (resolved.size > 200) resolved.clear();
   resolved.set(key, th);
   return th;
@@ -106,6 +150,7 @@ export function buildSlideObjects(templateId: string, themeId: string | undefine
   const th = resolveTheme(themeId, f);
   try {
     const objs = t.design({ W, H, L: lay(W, H), th, f, seed: hash(templateId) });
+    applyColourSwaps(objs, th);
     const translucent = f[GROUND_FIELD] === 'translucent';
     for (const o of objs) {
       o.grp = ROLE_GROUP[o.templateRole || 'ORNAMENT'] ?? 1;

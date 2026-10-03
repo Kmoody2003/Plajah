@@ -7,7 +7,7 @@
 
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { BookOpen, X, Check, Play } from 'lucide-react';
+import { BookOpen, X, Check, Play, Save } from 'lucide-react';
 import {
   SCRIPTURE_LAYOUTS, SCRIPTURE_TRANSITIONS, SCRIPTURE_FORMATS, SAMPLE_SCRIPTURE,
   renderScripture, scriptureLayoutById, transitionById, type ScriptureLayout, type LayoutFamily,
@@ -15,6 +15,9 @@ import {
 import { getScriptureLook, setScriptureLook, subscribeScriptureLook, BLEND_MODES, type BlendMode } from '../../services/ambo/scriptureLook';
 import { TypoScriptureBackground } from '../../services/ambo/typoScriptureBackground';
 import { chapterContextFor } from '../../services/ambo/scriptureContext';
+import { thumbFromCanvas, type SavedTemplate } from '../../services/ambo/templateLibrary';
+import { LibraryTabBar, SavedTemplateGrid, useTemplateLibrary, type LibTab } from './AmboTemplateLibraryTabs';
+import { AmboSaveTemplateDialog, type TemplatePayload } from './AmboSaveTemplateDialog';
 
 const FAMILIES: LayoutFamily[] = ['Opaque', 'Transparent', 'Panel', 'Overlay', 'Art Council', 'Modern & Abstract', 'Urban & Grunge', 'Typographic'];
 
@@ -74,6 +77,39 @@ export const AmboScriptureLook: React.FC = () => {
   const tr = transitionById(look.transition);
   const vt = transitionById(look.verseTransition);
   const prevRef = useRef<HTMLCanvasElement>(null);
+  // Saved looks: My looks / Shared / Community.
+  const lib = useTemplateLibrary('scripture-look', open);
+  const [lookTab, setLookTab] = useState<LibTab>('mine');
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [appliedId, setAppliedId] = useState<string | undefined>();
+  const applyLook = (t: SavedTemplate) => {
+    const l = t.look; if (!l?.layoutId) return;
+    const patch: Partial<typeof look> = { layoutId: scriptureLayoutById(l.layoutId).id };
+    if (l.transition) patch.transition = transitionById(l.transition).id;
+    if (l.verseTransition) patch.verseTransition = transitionById(l.verseTransition).id;
+    if (l.accent && /^#[0-9a-f]{3,8}$/i.test(l.accent)) patch.accent = l.accent;
+    if (l.bgBlend && (BLEND_MODES as readonly string[]).includes(l.bgBlend)) patch.bgBlend = l.bgBlend as BlendMode;
+    if (typeof l.bgOpacity === 'number' && isFinite(l.bgOpacity)) patch.bgOpacity = Math.min(1, Math.max(0, l.bgOpacity));
+    setScriptureLook(patch);
+    setAppliedId(t.id);
+    setReplay(r => r + 1);
+  };
+  /** Snapshot the current look + a settled-frame thumbnail (same renderer as the gallery tiles). */
+  const buildLook = (): TemplatePayload => {
+    let thumb: string | undefined;
+    try {
+      const W = 960, H = 540;
+      const big = document.createElement('canvas'); big.width = W; big.height = H;
+      const b = big.getContext('2d');
+      if (b) {
+        if (layout.background === 'transparent' || look.bgBlend !== 'normal' || look.bgOpacity < 1) stageBackdrop(b, W, H, 0);
+        else { b.fillStyle = '#000'; b.fillRect(0, 0, W, H); }
+        renderScripture(b, layout.id, { w: W, h: H, t: 4, ...SAMPLE_SCRIPTURE, accent: look.accent, enterP: 1, exitP: 0, transition: 'crossfade' });
+        thumb = thumbFromCanvas(big, 480);
+      }
+    } catch { /* tile without thumb */ }
+    return { look: { layoutId: look.layoutId, transition: look.transition, verseTransition: look.verseTransition, accent: look.accent, bgBlend: look.bgBlend, bgOpacity: look.bgOpacity }, thumb };
+  };
 
   // Live preview: in → hold → out → gap, looping, at the chosen format.
   useEffect(() => {
@@ -167,6 +203,7 @@ export const AmboScriptureLook: React.FC = () => {
               <span>· {fmt.label} ({fmt.w}×{fmt.h})</span>
               <div className="flex-1" />
               <button onClick={() => setReplay(r => r + 1)} className="px-2 py-1 rounded-md bg-white/5 hover:bg-white/15 border border-white/10 text-white/80 font-bold flex items-center gap-1"><Play size={10} /> Replay</button>
+              <button onClick={() => setSaveOpen(true)} data-save-look className="px-2 py-1 rounded-md bg-[#D0BCFF]/10 hover:bg-[#D0BCFF]/20 border border-[#D0BCFF]/30 text-[#D0BCFF] font-bold flex items-center gap-1" title="Save this layout, transitions, accent and blend as one of your looks"><Save size={10} /> Save look</button>
             </div>
             <div>
               <div className="text-[9px] font-extrabold uppercase tracking-wider text-white/40 mb-1">Preview format</div>
@@ -225,6 +262,17 @@ export const AmboScriptureLook: React.FC = () => {
           </div>
           {/* gallery */}
           <div className="p-4 min-h-0 overflow-y-auto flex flex-col gap-3">
+            <div className="rounded-xl p-2 border border-white/10 bg-white/[0.02]" data-saved-looks>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40">Saved looks</span>
+                <LibraryTabBar tab={lookTab} onTab={setLookTab} lib={lib} size="sm" tabs={['mine', 'shared', 'community']} labels={{ mine: 'My looks', shared: 'Shared' }} />
+              </div>
+              {lookTab !== 'platform' && (
+                <SavedTemplateGrid tab={lookTab} lib={lib} compact noun="looks" selectedId={appliedId} onOpen={applyLook}
+                  shareWhere="Ambo → Scripture Look → Saved looks → Shared"
+                  subtitle={t => `${t.look ? scriptureLayoutById(t.look.layoutId).name : 'Look'}${t.look?.transition ? ' · ' + transitionById(t.look.transition).name : ''}`} />
+              )}
+            </div>
             {groups.map(({ f, items }) => (
               <div key={f}>
                 <div className="text-[9px] font-extrabold uppercase tracking-wider text-white/40 mb-1.5">{f}{f === 'Typographic' ? ' — the verse’s type is the art; the verse reads on a plate' : f === 'Art Council' ? ' — full pages by the council' : ''}</div>
@@ -235,6 +283,11 @@ export const AmboScriptureLook: React.FC = () => {
             ))}
           </div>
         </div>
+      </div>
+      {/* Portalled, but React events still bubble to the backdrop's close handler — stop them here. */}
+      <div className="contents" onClick={e => e.stopPropagation()}>
+      <AmboSaveTemplateDialog open={saveOpen} onClose={() => setSaveOpen(false)} kind="scripture-look" defaultName={`${layout.name} · ${tr.name}`}
+        build={buildLook} onSaved={rec => { setAppliedId(rec.id); setLookTab('mine'); }} shareWhere="Ambo → Scripture Look → Saved looks → Shared" />
       </div>
     </div>,
     document.body,
