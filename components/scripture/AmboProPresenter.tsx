@@ -91,6 +91,7 @@ import {
 } from '../../services/ambo/amboPartyEventService';
 import { useContextMenu } from '../ui/ContextMenu';
 import { auth } from '../../services/backendService';
+import { templateById } from '../../services/ambo/slideTemplates/registry';
 
 interface AmboProPresenterProps {
   onBack?: () => void;
@@ -783,7 +784,13 @@ useEffect(() => {
   useEffect(() => {
     const audible = Object.values(effectiveLiveStack).some((l: any) => {
       const c = l?.content;
-      return c?.kind === 'VIDEO' && !c.muted && (c.volume ?? 1) > 0;
+      if (c?.kind === 'VIDEO') return !c.muted && (c.volume ?? 1) > 0;
+      // Video slide templates play their own clip (muted / volume live in fields).
+      if (c?.kind === 'TELA_TEMPLATE' && templateById(c.templateId)?.media === 'video') {
+        const f = c.fields || {};
+        return f.muted !== 'true' && (f.volume === undefined || f.volume === '' || Number(f.volume) > 0);
+      }
+      return false;
     });
     setProgramVideoAudible(audible);
   }, [effectiveLiveStack]);

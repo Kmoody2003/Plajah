@@ -13,6 +13,7 @@
 
 import { compositeOrder, type LayerSlot, type LiveStack, type MaskSpec, type TransformSpec } from './showModel';
 import { canUpdateInPlace, createSource, type LayerSource } from './layerSources';
+import { isMediaTemplate } from './telaTemplateSource';
 import type { LayerContent } from './showModel';
 
 export interface RenderFrame { w: number; h: number; }
@@ -20,6 +21,8 @@ export interface RenderFrame { w: number; h: number; }
 interface Entry {
   source: LayerSource;
   content: LayerContent;
+  /** When the layer went live — a re-take of a media slide (same content, new since) restarts it. */
+  since?: number;
 }
 
 export interface RendererOptions {
@@ -66,18 +69,21 @@ export class LayerRenderer {
       seen.add(slot);
       const existing = this.entries.get(slot);
 
-      if (existing && canUpdateInPlace(existing.content, layer.content)) {
+      const c: any = layer.content;
+      const retake = c?.kind === 'TELA_TEMPLATE' && existing?.since !== undefined && existing.since !== layer.since && isMediaTemplate(c.templateId);
+      if (existing && !retake && canUpdateInPlace(existing.content, layer.content)) {
         // Same source, new content — a repaint, not a restart.
         const s: any = existing.source;
         if (typeof s.update === 'function') s.update(layer.content);
         existing.content = layer.content;
+        existing.since = layer.since;
         continue;
       }
 
       this.retire(existing);
       const source = createSource(layer.content, this.frame, this.opts.timers, this.opts.audioEnabled);
       if (source) {
-        this.entries.set(slot, { source, content: layer.content });
+        this.entries.set(slot, { source, content: layer.content, since: layer.since });
         rebuilt.push(slot);
       } else {
         this.entries.delete(slot);

@@ -14,7 +14,7 @@ import { amboAudio } from './amboAudioEngine';
 import type { LayerContent } from './showModel';
 import { lyricClockPos } from './showModel';
 import { lyricStyleById, renderLyricFrame } from './lyricStyles';
-import { createTelaTemplateSource } from './telaTemplateSource';
+import { createTelaTemplateSource, isMediaTemplate } from './telaTemplateSource';
 import { renderScripture, scriptureLayoutById, transitionById } from './scriptureLayouts';
 import { decoAlpha, type ScriptureState } from './scriptureKit';
 import { getScriptureLook, subscribeScriptureLook } from './scriptureLook';
@@ -1244,7 +1244,8 @@ export function canUpdateInPlace(a: LayerContent, b: LayerContent): boolean {
   if (a.kind === 'TEXT' || a.kind === 'SCRIPTURE') return true;
   // A re-anchored clock, a new style or the next song: repaint, never rebuild.
   if (a.kind === 'LYRICS') return true;
-  if (a.kind === 'TELA_TEMPLATE') return true; // field edits repaint
+  // Field edits repaint — but a media template (video/audio) owns playback: any change starts it fresh.
+  if (a.kind === 'TELA_TEMPLATE' && b.kind === 'TELA_TEMPLATE') return !(isMediaTemplate(a.templateId) || isMediaTemplate(b.templateId)) || JSON.stringify(a) === JSON.stringify(b);
   if (a.kind === 'IMAGE' && b.kind === 'IMAGE') return a.src === b.src;
   if (a.kind === 'VIDEO' && b.kind === 'VIDEO') return a.src === b.src;
   if (a.kind === 'LIVE' && b.kind === 'LIVE') return a.inputId === b.inputId;
