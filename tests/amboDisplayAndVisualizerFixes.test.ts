@@ -26,7 +26,7 @@ describe('Ambo Pro Display, Audio & Visualizer Fixes', () => {
   test('LAYER_ORDER and LAYER_LABEL include audio slot', () => {
     assert.ok(LAYER_ORDER.includes('audio'), 'LAYER_ORDER must include audio');
     assert.strictEqual(LAYER_LABEL.audio, 'Audio Track');
-    assert.strictEqual(LAYER_ORDER.indexOf('audio'), 6);
+    assert.strictEqual(LAYER_ORDER.indexOf('audio'), LAYER_ORDER.indexOf('overlay') + 1);
   });
 
   test('createSource handles SHADER and GENERATOR sources without throwing', () => {

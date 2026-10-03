@@ -27,6 +27,7 @@ import { layoutTextLines } from '../../services/tela/telaText';
 import { InkLayer, type NoteTool } from '../ink';
 import { strokeInBox, pathData, type InkStyle } from '../../services/inkMath';
 import { TelaLottieCanvas, TelaLottieInspector } from './TelaLottie';
+import { TelaMotionTemplateCanvas, TelaMotionTemplateInspector } from './TelaMotionTemplate';
 
 export type VectorTool = 'select' | 'direct' | 'marquee' | 'rect' | 'ellipse' | 'line' | 'pen' | 'text' | 'ink';
 
@@ -133,6 +134,21 @@ const ObjectEl: React.FC<{
       <rect x={o.x} y={o.y} width={w} height={h} fill="transparent" />
     </g>);
   }
+  if (o.kind === 'MOTION_TEMPLATE') {
+    // Ambo slide template / scripture look drawn live from the platform code; static
+    // renders (thumbnails) use the cached poster, or a labelled placeholder.
+    const M = o.motionTemplate;
+    const w = Math.max(1, o.w), h = Math.max(1, o.h);
+    const body = M && !staticRender
+      ? <foreignObject x={o.x} y={o.y} width={w} height={h} style={{ overflow: 'hidden', pointerEvents: 'none' }}><TelaMotionTemplateCanvas spec={M} width={w} height={h} objectId={o.id} label={o.objectLabel} /></foreignObject>
+      : M?.posterSrc
+        ? <svg x={o.x} y={o.y} width={w} height={h} style={{ overflow: 'hidden' }}><image href={M.posterSrc} x={0} y={0} width={w} height={h} preserveAspectRatio="none" /></svg>
+        : <g><rect x={o.x} y={o.y} width={w} height={h} rx={6} fill="rgba(255,140,0,.08)" stroke="rgba(200,110,0,.6)" strokeWidth={1.5} strokeDasharray="6 4" /><text x={o.x + w / 2} y={o.y + h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={Math.max(10, Math.min(28, Math.min(w, h) / 6))} fontWeight={800} fontFamily="system-ui, sans-serif" fill="rgba(160,90,0,.85)">Motion{o.objectLabel ? ` · ${o.objectLabel}` : ''}</text></g>;
+    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', ...blendStyle }} opacity={o.opacity} {...finish} data-tela-kind="MOTION_TEMPLATE">
+      {body}
+      <rect x={o.x} y={o.y} width={w} height={h} fill="transparent" />
+    </g>);
+  }
   if (o.kind === 'PATH' && o.svgPathData) {
     const ox = o.pathOriginX ?? o.x, oy = o.pathOriginY ?? o.y;
     const sx = o.w / Math.max(1, o.pathOriginW ?? o.w), sy = o.h / Math.max(1, o.pathOriginH ?? o.h);
@@ -187,7 +203,7 @@ export const TelaVectorObjectProps: React.FC<{
   compact?: boolean;
 }> = ({ object: o, writers, onUpdate, onDelete, onForward, onBack, compact }) => {
   const isText = o.kind === 'TEXT';
-  const isImage = o.kind === 'IMAGE' || o.kind === 'LOTTIE';
+  const isImage = o.kind === 'IMAGE' || o.kind === 'LOTTIE' || o.kind === 'MOTION_TEMPLATE';
   const isLine = o.kind === 'LINE' || o.kind === 'PATH';
   const lbl: React.CSSProperties = { fontSize: 10, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: 3 };
   const rowCls = 'flex items-center gap-2 mb-2';
@@ -196,6 +212,7 @@ export const TelaVectorObjectProps: React.FC<{
   return (
     <div style={{ color: '#fff' }}>
       {o.kind === 'LOTTIE' && <TelaLottieInspector object={o} onUpdate={onUpdate} />}
+      {o.kind === 'MOTION_TEMPLATE' && <TelaMotionTemplateInspector object={o} onUpdate={onUpdate} />}
       {isText && (
         <div style={{ marginBottom: 10 }}>
           <div style={lbl}>Text</div>

@@ -19,7 +19,9 @@ import { estimateDepth, depthRangeCanvas } from '../../../../services/fabula/dep
 import { segmentSam } from '../../../../services/fabula/samMatte';
 import { renderModel3d } from './model3d';
 import { renderFlux } from './flux';
-import { fluxBandsFromFreq } from '../../../../services/fabula/fluxNode';
+import { SILENT_AUDIO } from '../../../../services/fabula/fluxNode';
+import { FluxMusicSampler } from '../../../../services/fabula/fluxMusic';
+import { MODE_TO_FLUX_SCENE } from '../../types';
 import { GeneratorRenderer, hasGenerator, hexToRgb } from './generators';
 import { ShaderRenderer } from './shaderRenderer';
 import { createMilkdropDriver, MilkdropDriver } from './milkdropDriver';
@@ -32,6 +34,7 @@ import { getTextCanvas } from './textLayer';
 import { getTitleCanvas } from './titleLayer';
 import { getLowerThirdCanvas } from './lowerThirdLayer';
 import { getBroadcastGraphicCanvas, ensureBroadcastGraphic } from './broadcastGraphicLayer';
+import { renderMotionClipFrame, ensureMotionTemplateFonts } from '../../../../services/tela/telaMotionTemplate';
 import { findLowerThird } from '../../../../services/fabula/lowerThirdRegistry';
 import { materialShaderSource } from '../presets/materialShaders';
 import { SceneTimeline, RenderLayer, activeBlockAt, localTime } from '../timeline/sceneTimeline';
@@ -93,6 +96,8 @@ async function pickVideoCodec(width: number, height: number, bitrate: number, fp
 // "some clips stutter in exports" regression). The skip only engages after 3 measurements and
 // only within 60% of that minimum — correctness beats speed here.
 const presented = new WeakMap<HTMLVideoElement, { mediaTime: number; frameDur: number; samples: number }>();
+/** One reusable canvas per motion-template layer (Ambo slide / scripture clips). */
+const motionCanvases = new Map<string, HTMLCanvasElement>();
 
 function seekVideo(v: HTMLVideoElement, t: number, timeoutMs = 2500): Promise<void> {
   // ALWAYS RESOLVES — never rejects. A paused seek presents exactly ONE frame (the nearest
@@ -252,6 +257,7 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
   const wantShake = !!config.enableBassShake;
   const shakeInt = config.bassShakeIntensity ?? 1;
   const shakeSampler = new AudioDriverSampler();
+  const fluxMusicSamplers=new Map<string,FluxMusicSampler>();
   let shakeAmp = 0;
 
   try {
@@ -334,13 +340,16 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
           // to clip-local time (lt), which is why the export matches the monitor.
           const canvas = await renderModel3d(clip.model3dUrl || (clip as any).model3d.url, (clip as any).model3d || {}, width, height, lt);
           if (canvas) inputs.push({ element: canvas, opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography, grade: (layer as any).glGrade, grades: (layer as any).glGrades, effects: forgeEffects, time: layer.time, wipe: (layer as any).wipe, transition: (layer as any).forgeTransition });
-        } else if (clip.type === 'flux' && (clip.flux?.scene || clip.fluxScene)) {
+        } else if ((clip.type === 'flux' && (clip.flux?.scene || clip.fluxScene))||(clip.type==='generator'&&MODE_TO_FLUX_SCENE[clip.sceneMode||''])) {
           // A Flux real-3D audio-reactive generator (Trapcode Form / Mir) rendered by three.js to a
           // canvas the compositor uploads like an image — Forge effects, grade and masks apply on top,
           // and the scene is driven to clip-local time (lt) + the exact per-frame spectrum, so the
           // export matches the monitor.
-          const spec = { ...(clip.flux || {}), scene: (clip.flux?.scene || clip.fluxScene) as any };
-          const canvas = await renderFlux(spec, width, height, lt, fluxBandsFromFreq(aud ? aud.freq : null));
+          const spec = { ...(clip.flux || {}), scene: (clip.type==='generator'?MODE_TO_FLUX_SCENE[clip.sceneMode!]:clip.flux?.scene || clip.fluxScene) as any };
+          let music=fluxMusicSamplers.get(layer.id);
+          if(!music){music=new FluxMusicSampler();fluxMusicSamplers.set(layer.id,music);}
+          const fluxAudio=aud?music.sample(aud.freq,t,audioBuffer?.sampleRate||offAudio?.sampleRate||48000):SILENT_AUDIO;
+          const canvas = await renderFlux(spec, width, height, lt, fluxAudio);
           if (canvas) inputs.push({ element: canvas, opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography, grade: (layer as any).glGrade, grades: (layer as any).glGrades, effects: forgeEffects, time: layer.time, wipe: (layer as any).wipe, transition: (layer as any).forgeTransition });
         } else if (clip.type === 'media' && clip.mediaUrl) {
           const el = await getMedia(clip.mediaUrl, clip.mediaType ?? 'video');
@@ -398,6 +407,16 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
             inputs.push({ texture: tex, opacity: opacity * fusion.opacity, blendMode: fusion.blend, transform: layer.transform, homography: (layer as any).homography });
           }
           inputs.push({ element: getLowerThirdCanvas({ spec, ref: tc.tGraphic, title: tc.rawText ?? clip.text ?? '', subtitle: clip.subtitle, tag: tc.tag, t: layer.time ?? 0, duration: tc.tDur ?? Infinity, origin: tc.tx != null && tc.ty != null ? { x: tc.tx, y: tc.ty } : undefined, width, height }), opacity, blendMode: 'normal', transform: layer.transform, homography: (layer as any).homography });
+        } else if (clip.type === 'title' && (clip as any).mGraphic) {
+          // Ambo motion template (Tela MOTION_TEMPLATE spec) — same renderer as Fabula's
+          // monitor; the clip duration drives entrance/exit.
+          const tc = clip as any;
+          await ensureMotionTemplateFonts(tc.mGraphic);
+          let cnv = motionCanvases.get(layer.id);
+          if (!cnv) { cnv = document.createElement('canvas'); motionCanvases.set(layer.id, cnv); }
+          if (cnv.width !== width || cnv.height !== height) { cnv.width = width; cnv.height = height; }
+          const mctx = cnv.getContext('2d');
+          if (mctx) { mctx.clearRect(0, 0, width, height); renderMotionClipFrame(mctx, tc.mGraphic, layer.time ?? 0, tc.tDur ?? 5, width, height); inputs.push({ element: cnv, opacity, blendMode: 'normal', transform: layer.transform, homography: (layer as any).homography }); }
         } else if (clip.type === 'title' && (clip as any).bGraphic) {
           // Broadcast template graphic — the identity's held still + a deterministic motion
           // envelope, same renderer as Fabula's monitor. Rasterize the still once (with the

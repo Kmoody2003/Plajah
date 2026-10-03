@@ -142,6 +142,8 @@ export class PlatformAudioRuntime {
       sampleRate: this.context?.sampleRate,
       baseLatency: this.context?.baseLatency,
       mainProducts: [...this.outputs.keys()],
+      /** Back-compat alias of mainProducts. */
+      products: [...this.outputs.keys()],
       cueProducts: [...this.cueOutputs.keys()],
       mainSinkId: this.mainSinkId,
       cueSinkId: this.cueSinkId,

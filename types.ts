@@ -7035,7 +7035,7 @@ export interface TelaFormDevice {
 // Slug analytic-curve text engine (spec §04) is a LATER dedicated push; SVG text
 // delivers sharp-at-zoom today.
 
-export type TelaVectorObjectKind = 'RECT' | 'ELLIPSE' | 'LINE' | 'PATH' | 'TEXT' | 'IMAGE' | 'LOTTIE';
+export type TelaVectorObjectKind = 'RECT' | 'ELLIPSE' | 'LINE' | 'PATH' | 'TEXT' | 'IMAGE' | 'LOTTIE' | 'MOTION_TEMPLATE';
 
 // ── Lottie — native animation objects (kind 'LOTTIE') ────────────────────────
 // A Lottie (.json) or dotLottie (.lottie) animation placed on a vector artboard
@@ -7094,6 +7094,53 @@ export interface TelaLottieSpec {
   themeId?: string;
   /** Lottie slot overrides keyed by slot id — the raw `{ p: { a, k } }` slot payloads. */
   slots?: Record<string, unknown>;
+}
+
+// ── Motion templates — code-driven animated graphics (kind 'MOTION_TEMPLATE') ──
+// "Both": the designer stays CODE (Ambo slide templates / scripture looks in
+// services/ambo), and a Tela object READS that code by reference — template id,
+// theme, field values and overrides — while the Tela doc owns the timing
+// (entrance at startOffset, hold, exit, loop). One pure renderer
+// (services/tela/telaMotionTemplate.ts → renderMotionTemplateAt) draws any frame
+// deterministically for Tela, Fabula title clips, exports and the titler.
+
+export interface TelaMotionTemplateTiming {
+  /** Seconds after the object appears (or the clip starts) before the entrance begins. */
+  startOffset?: number;
+  /** Entrance length (default: the theme's / transition's own). */
+  enterSec?: number;
+  /** Hold length; omitted = hold until cleared (or 4 s when looping). */
+  holdSec?: number;
+  /** Exit length (default: the theme's / transition's own). */
+  exitSec?: number;
+  /** Replay enter → hold → exit forever. */
+  loop?: boolean;
+  /** Empty gap between loop cycles (default 0.6 s). */
+  gapSec?: number;
+}
+
+export interface TelaMotionTemplateSpec {
+  kind: 'slide' | 'scripture';
+  /** Slide: Ambo slide-template id (services/ambo/slideTemplates/registry). */
+  templateId?: string;
+  /** Scripture: scripture layout id (services/ambo/scriptureLayouts). */
+  layoutId?: string;
+  /** Slide: theme id (one of the platform slide themes). */
+  theme?: string;
+  /** Slide: field values (missing keys fall back to the template defaults). Scripture: text / reference / translation / copyright. */
+  fields?: Record<string, string>;
+  /** Slide: ThemeOverrides from a saved template (palette, motion, faces). */
+  overrides?: Record<string, unknown>;
+  /** Scripture: accent colour. */
+  accent?: string;
+  /** Scripture: entrance/exit transition id. */
+  transition?: string;
+  timing: TelaMotionTemplateTiming;
+  /** Provenance when inserted from a saved/shared/community template (templateLibrary id). */
+  savedTemplateId?: string;
+  name?: string;
+  /** Cached poster raster (data URL, ≤ 360px long side) for thumbnails, print and static exports. */
+  posterSrc?: string;
 }
 
 export interface TelaVectorNode {
@@ -7195,6 +7242,8 @@ export interface TelaVectorObject {
   parentRegionId?: string;
   /** LOTTIE-only: the animation source + playback/timing settings. */
   lottie?: TelaLottieSpec;
+  /** MOTION_TEMPLATE-only: which code template to draw, its content and the doc-owned timing. */
+  motionTemplate?: TelaMotionTemplateSpec;
 }
 
 /** Vector design surface — an artboard of SVG objects (z-order = array order). */

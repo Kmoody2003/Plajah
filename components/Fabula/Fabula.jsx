@@ -110,6 +110,9 @@ import LowerThirdMonitor from "./LowerThirdMonitor";
 import LowerThirdGallery from "./LowerThirdGallery";
 import LowerThirdInspector from "./LowerThirdInspector";
 import BroadcastGraphicMonitor from "./BroadcastGraphicMonitor";
+import MotionTemplateMonitor, { MotionTemplateClipFields } from "./MotionTemplateMonitor";
+import { motionSpecFromItem } from "../../services/universalLibrary/amboItems";
+import { motionTemplateName, motionTemplateDurations } from "../../services/tela/telaMotionTemplate";
 import { findLowerThird } from "../../services/fabula/lowerThirdRegistry";
 import { openLowerThirdInTela } from "../../services/fabula/lowerThirdToTela";
 import ViewerFpsBadge from "./ViewerFpsBadge";
@@ -3692,6 +3695,24 @@ export default function Fabula() {
     ping(`${template.name} placed on the timeline — drag the clip handles to set its duration.`);
   };
 
+  // Ambo slide template / scripture look (Universal Library) as a title clip carrying
+  // `mGraphic` — the same spec a Tela MOTION_TEMPLATE object holds. Monitor + export
+  // draw it with renderMotionClipFrame; the clip duration drives entrance/exit.
+  const addMotionTemplateClip = (item) => {
+    const spec = motionSpecFromItem(item); if (!spec) return;
+    const sid = subTrackId();
+    const d = motionTemplateDurations(spec);
+    const dur = Math.max(2, Math.round((d.enter + 4 + d.exit) * 10) / 10);
+    const name = motionTemplateName(spec);
+    const text = spec.fields?.title || spec.fields?.reference || name;
+    const clip = { id: uid(), trackId: sid, start: playhead, duration: dur, kind: "title", text, subtitle: "", mGraphic: spec,
+      label: `${name}`, srcIn: 0, fx: { ...SUB_FX, blend: "normal", fadeIn: 0, fadeOut: 0 } };
+    const nc = [...clips, clip];
+    updateProd((p) => { ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
+    setClips(nc); setSelClipId(clip.id);
+    ping(`${name} placed on the timeline — drag the clip handles to retime its entrance and exit.`);
+  };
+
   // Motion lower third: a title clip carrying a tGraphic (template id + overrides). The
   // monitor + export share one canvas renderer, so the template stays editable and exact.
   const addLowerThird = (spec) => {
@@ -4908,10 +4929,11 @@ export default function Fabula() {
                       <button className="minibtn" style={{ fontSize: 8, color: ulOpen ? "#D0BCFF" : undefined }} title="Universal Library — presets, effects, templates and your assets"
                         onClick={() => setUlOpen((v) => !v)}>▦ Library</button>
                       {ulOpen && (
-                        <UniversalLibraryPanel accent="#D40055" defaultDock="floating" storageKey="fabula.ullib.geo.v1" accepts={["fx", "look", "trans"]}
+                        <UniversalLibraryPanel accent="#D40055" defaultDock="floating" storageKey="fabula.ullib.geo.v1" accepts={["fx", "look", "trans", "motion"]}
                           onClose={() => setUlOpen(false)}
                           onUse={(it) => {
-                            if (it.kind === "fx") addForgeEffect(it.preview.effectId);
+                            if (it.kind === "motion") addMotionTemplateClip(it);
+                            else if (it.kind === "fx") addForgeEffect(it.preview.effectId);
                             else if (it.kind === "look") { const lk = FORGE_LOOKS.find((x) => "look:" + x.id === it.id); if (lk) applyForgeLook(lk); }
                             else if (it.kind === "trans") addForgeTransition(it.preview.transId);
                           }} />
@@ -5160,6 +5182,9 @@ export default function Fabula() {
                           return <LowerThirdMonitor key={tc.id} clip={tc} playhead={playhead} selected={selClipId === tc.id} onSelect={() => setSelClipId(tc.id)}
                             onMove={(tx, ty, commit) => { setClips((cur) => { const n = cur.map((c) => (c.id === tc.id ? { ...c, tx: Math.round(tx * 10) / 10, ty: Math.round(ty * 10) / 10 } : c)); if (commit) commitClips(n); return n; }); }} />;
                         }
+                        if (tc.mGraphic) {
+                          return <MotionTemplateMonitor key={tc.id} clip={tc} playhead={playhead} selected={selClipId === tc.id} onSelect={() => setSelClipId(tc.id)} />;
+                        }
                         if (tc.bGraphic) {
                           return <BroadcastGraphicMonitor key={tc.id} clip={tc} playhead={playhead} selected={selClipId === tc.id} onSelect={() => setSelClipId(tc.id)} />;
                         }
@@ -5367,7 +5392,14 @@ export default function Fabula() {
                             <div className="dim small">A broadcast identity placed on the timeline. Its entrance and exit are driven by the clip's duration — drag the clip handles to retime the animation. Reopen the Broadcast Systems panel to add a different identity or format.</div>
                           </>
                         )}
-                        {selClip.kind === "title" && !selClip.tGraphic && !selClip.bGraphic && (
+                        {selClip.kind === "title" && selClip.mGraphic && (
+                          <>
+                            <div className="insp-div" />
+                            <MotionTemplateClipFields spec={selClip.mGraphic} onChange={(next) => updateClip(selClip.id, { mGraphic: next, text: next.fields?.title || next.fields?.reference || selClip.text })} />
+                            <div className="dim small">An Ambo template drawn live from code. Its entrance plays from the clip start and its exit ends at the clip end; drag the clip handles to retime it.</div>
+                          </>
+                        )}
+                        {selClip.kind === "title" && !selClip.tGraphic && !selClip.bGraphic && !selClip.mGraphic && (
                           <>
                             <div className="insp-div" />
                             <div className="lbl">TITLE</div>

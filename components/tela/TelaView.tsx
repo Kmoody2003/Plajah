@@ -48,6 +48,9 @@ import TelaForm from './TelaForm';
 import TelaVector, { TelaVectorObjectProps, objBounds, type VectorTool } from './TelaVector';
 import { TelaLottieImportRow } from './TelaLottie';
 import { importLottieFile } from '../../services/tela/telaLottieImport';
+import { makeMotionTemplateObject, renderMotionTemplatePoster, motionTemplateName } from '../../services/tela/telaMotionTemplate';
+import { motionSpecFromItem } from '../../services/universalLibrary/amboItems';
+import type { LibraryItem } from '../../services/universalLibrary/libraryModel';
 import { isLottieFileName } from '../../services/tela/telaLottie';
 import TelaImage, { TelaImageLayerControls, ImageLayerRow, makeImageLayer } from './TelaImage';
 import { PRESETS, applyTelaOp, type TelaOp } from './telaOps';
@@ -1468,6 +1471,25 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
     setPosture('STUDIO');
   };
 
+  // Universal Library → Ambo slide template / scripture look as a live MOTION_TEMPLATE
+  // object: into the focused vector artboard in Studio (filling it — the designers
+  // re-flow to any aspect), else a new 1920×1080 artboard. Poster is baked after.
+  const addMotionTemplateFromLibrary = (item: LibraryItem) => {
+    const spec = motionSpecFromItem(item); if (!spec) return;
+    const focus = studioFocus?.device;
+    let deviceId: string, object: TelaVectorObject;
+    if (posture === 'STUDIO' && focus?.type === 'VECTOR') {
+      object = makeMotionTemplateObject(spec, { x: 0, y: 0, w: focus.width, h: focus.height });
+      dispatchOp({ type: 'ADD_VECTOR_OBJECT', deviceId: focus.id, object }); deviceId = focus.id; setStudioSel(object.id);
+    } else {
+      object = makeMotionTemplateObject(spec, { x: 0, y: 0, w: 1920, h: 1080 });
+      const dev: TelaVectorDevice = { id: uid('dev'), type: 'VECTOR', name: motionTemplateName(spec), width: 1920, height: 1080, objects: [object] };
+      addFrame('BOARD', 'FREE', dev, dev.name!, { size: { w: 1920, h: 1080 } }); deviceId = dev.id;
+      setShowHome(false); setPosture('STUDIO');
+    }
+    void renderMotionTemplatePoster(spec, object.w, object.h).then(posterSrc => { if (posterSrc) dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId, objectId: object.id, patch: { motionTemplate: { ...spec, posterSrc } } }); });
+  };
+
   const removeCanvas = async (id: string) => {
     await deleteTelaDoc(id);
     setConfirmDeleteId(null);
@@ -2592,7 +2614,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
         </div>
       )}
 
-      {ulOpen && <UniversalLibraryPanel accent="#8B5CFF" defaultDock="floating" storageKey="tela.ullib.geo.v1" accepts={['template']} onClose={() => setUlOpen(false)} onUse={(it) => { const t = TELA_TEMPLATE_GALLERY.find((x) => 'tela:' + x.id === it.id); if (t) { addTemplateFrames(t); setUlOpen(false); } }} />}
+      {ulOpen && <UniversalLibraryPanel accent="#8B5CFF" defaultDock="floating" storageKey="tela.ullib.geo.v1" accepts={['template', 'motion']} onClose={() => setUlOpen(false)} onUse={(it) => { if (it.kind === 'motion') { addMotionTemplateFromLibrary(it); return; } const t = TELA_TEMPLATE_GALLERY.find((x) => 'tela:' + x.id === it.id); if (t) { addTemplateFrames(t); setUlOpen(false); } }} />}
       {studioCreativeLibraryOpen && createPortal(
         <div className="fixed inset-0 z-[270] flex items-center justify-center p-3 sm:p-6" style={{ background:'rgba(5,3,9,.86)', backdropFilter:'blur(10px)' }} onPointerDown={event => { if (event.target === event.currentTarget) setStudioCreativeLibraryOpen(false); }}>
           <div className="w-full max-w-[1120px] max-h-[88vh] overflow-hidden rounded-[22px] flex flex-col" style={{ background:'linear-gradient(160deg,#181220,#0e0b14)', border:'1px solid rgba(255,255,255,.14)', boxShadow:'0 28px 90px rgba(0,0,0,.7)' }}>
