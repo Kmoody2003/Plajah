@@ -20,6 +20,7 @@ import { FORGE_TRANSITIONS } from "../../services/fabula/forgeTransitions";
 import { FORGE_LOOKS, LOOK_CATEGORIES, allLooks, deleteUserLook } from "../../services/fabula/forgeLooks";
 import { FABULA_LOTTIE_LIBRARY, fabulaLottieAsMediaAsset } from "../../services/fabulaLottieLibrary";
 import { FLUX_PLATFORM_MODES } from '../plajahPixels/engine/fluxPlatformCatalog';
+import { TYPO_CATALOG } from '../../services/ambo/typoCatalog';
 
 /* ─────────────── FILTER PRESETS (map to the clip fx model: bri/con/sat/blur/op) ─────────────── */
 export const FILTER_PRESETS = [
@@ -44,6 +45,7 @@ export const GENERATOR_LIST = [
   ["STUDIO_CHROME", "Chrome"], ["STUDIO_BAUHAUS", "Bauhaus"], ["STUDIO_NEBULA", "Nebula"],
   ["STUDIO_GRAVITY", "Gravity"], ["STUDIO_KINETIC", "Kinetic"], ["STUDIO_RIPPLE", "Ripple"],
   ...FLUX_PLATFORM_MODES.map(s=>[s.mode,'Flux · '+s.name]),
+  ...TYPO_CATALOG.map(t=>['TYPO:'+t.key,'Typo · '+t.name]),
 ];
 const GEN_TINTS = ["#7b5cff", "#ff8c42", "#31c6a8", "#ff5c8a", "#4ea1ff", "#ffd166", "#9d4edd", "#57cc99"];
 
