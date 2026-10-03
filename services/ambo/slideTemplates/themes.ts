@@ -10,6 +10,9 @@ import { rect, ellipse, circle, line, path, mix, alpha, type TextOpts } from '..
 import * as orn from '../../tela/ornaments';
 import type { Lay } from './layout';
 import type { Ambient, SlideObj, SlideTheme, ThemeMotif } from './types';
+import { MODERN_THEMES_A } from './themesModernA';
+import { MODERN_THEMES_B } from './themesModernB';
+import { URBAN_THEMES } from './themesUrban';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -400,6 +403,10 @@ export const SLIDE_THEMES: SlideTheme[] = [
     t: { displayScale: 1.2, display: 'cormorant', text: 'karla', label: 'tenor', accent: 'cormorant', displayWeight: 500, displayTransform: 'none', displayTracking: 0, displayLeading: 1.02, textWeight: 400, labelWeight: 400, labelTracking: .24, accentItalic: true, accentWeight: 500 },
     motion: { enter: 'float', enterSec: 1.15, exit: 'float-up', exitSec: .6, ruleGrow: true }, motif: airyMotif, slot: { rx: .5, tilt: 0 },
   },
+  // Modern / postmodern / abstract and urban families live in their own files.
+  ...MODERN_THEMES_A,
+  ...MODERN_THEMES_B,
+  ...URBAN_THEMES,
 ];
 
 export const DEFAULT_THEME_ID = 'sanctuary';

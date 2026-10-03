@@ -20,9 +20,20 @@ const ASPECTS: Array<[string, number, number]> = [
 const contrast = (a: string, b: string) => { const la = luminance(a), lb = luminance(b); return (Math.max(la, lb) + .05) / (Math.min(la, lb) + .05); };
 
 describe('Ambo slide templates', () => {
-  test('catalogue: 16 templates, ≥6 themes, every theme credited to an Art Council director', () => {
+  test('catalogue: 16 templates, ≥43 themes, every theme credited to an Art Council director', () => {
     assert.ok(SLIDE_TEMPLATES.length >= 16);
-    assert.ok(SLIDE_THEMES.length >= 6);
+    assert.ok(SLIDE_THEMES.length >= 43, `${SLIDE_THEMES.length} themes`);
+    assert.equal(new Set(SLIDE_THEMES.map(t => t.id)).size, SLIDE_THEMES.length, 'theme ids unique');
+    const per = (d: string) => SLIDE_THEMES.filter(t => t.director === d).length;
+    for (const d of ['the Classical Mind', 'the Futurist', 'the Baroque Dramatist', 'the Radical Minimalist']) assert.ok(per(d) >= 5, d);
+    assert.ok(per('the Rebellious Hand') >= 12 && per('the World-Eclectic Traveler') >= 7);
+    const ENTER = ['rise', 'fade', 'slam', 'wipe', 'glow', 'reveal', 'float', 'drop', 'pop', 'tilt', 'glitch', 'flicker', 'scan', 'stamp', 'stretch'];
+    const EXIT = ['fade-up', 'fade', 'slide', 'wipe-out', 'zoom-fade', 'float-up', 'drop', 'shrink', 'slide-right', 'glitch-out', 'flicker-out', 'scan-out'];
+    for (const t of SLIDE_THEMES) {
+      assert.ok(ENTER.includes(t.motion.enter) && EXIT.includes(t.motion.exit), `${t.id} motion`);
+      assert.ok(t.motion.enterSec > .3 && t.motion.enterSec < 2 && t.motion.exitSec > .2 && t.motion.exitSec < 1.2, `${t.id} timing`);
+      assert.ok(t.council === 'Art Council' && t.lens && t.use && t.name, `${t.id} credits`);
+    }
     const directors = new Set(SLIDE_THEMES.map(t => t.director));
     for (const d of ['the Classical Mind', 'the Rebellious Hand', 'the Futurist', 'the World-Eclectic Traveler', 'the Baroque Dramatist', 'the Radical Minimalist']) assert.ok(directors.has(d), d);
     assert.equal(new Set(SLIDE_TEMPLATES.map(t => t.id)).size, SLIDE_TEMPLATES.length);
@@ -99,10 +110,11 @@ describe('Ambo slide templates', () => {
   test('long copy still fits (stress fields)', () => {
     const long = 'The grace of our Lord Jesus Christ, and the love of God, and the fellowship of the Holy Spirit be with you all, now and evermore';
     const issues: string[] = [];
-    for (const t of SLIDE_TEMPLATES) for (const [name, W, H] of [ASPECTS[0], ASPECTS[6], ASPECTS[12]]) {
+    for (const th of SLIDE_THEMES) for (const t of SLIDE_TEMPLATES) for (const [name, W, H] of [ASPECTS[0], ASPECTS[6], ASPECTS[12]]) {
       const fields = Object.fromEntries(t.fields.map(f => [f.key, f.key.toLowerCase().includes('url') ? '' : f.multiline ? long : f.default + ' extended edition']));
-      const objs = buildSlideObjects(t.id, 'youth', fields, W, H) || [];
-      for (const o of objs) if (o.kind === 'TEXT' && (o.y + o.h > H || o.x + o.w > W + 1 || o.x < -1 || o.y < -1)) issues.push(`${t.id} ${name}: ${o.objectLabel}`);
+      const objs = buildSlideObjects(t.id, th.id, fields, W, H) || [];
+      if (!objs.length) issues.push(`${t.id} × ${th.id} ${name}: no objects`);
+      for (const o of objs) if (o.kind === 'TEXT' && (o.y + o.h > H || o.x + o.w > W + 1 || o.x < -1 || o.y < -1)) issues.push(`${t.id} × ${th.id} ${name}: ${o.objectLabel}`);
     }
     assert.deepEqual(issues, []);
   });

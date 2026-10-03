@@ -49,9 +49,15 @@ const outCubic = (p: number) => 1 - Math.pow(1 - p, 3);
 const inCubic = (p: number) => p * p * p;
 const outBack = (p: number) => { const c = 1.7, q = p - 1; return 1 + (c + 1) * q * q * q + c * q * q; };
 const outSine = (p: number) => Math.sin(p * Math.PI / 2);
+/** Damped bounce landing (drop). */
+const outBounce = (p: number) => 1 - Math.cos(p * Math.PI * 2.5) * Math.pow(1 - p, 2.2);
+/** Deterministic 0..1 noise for an integer step (no allocation). */
+const hash1 = (n: number) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+/** Neon strike: lit/unlit steps that settle to fully lit at p = 1. */
+const strike = (p: number, k: number) => p >= .82 ? 1 : hash1(Math.floor(p * 18) + k * 13) < .35 + p * .6 ? Math.min(1, .25 + p) : .04;
 
-interface Anim { alpha: number; dx: number; dy: number; scale: number; scaleX: number; wipe0: number; wipe1: number; blur: number; rot: number }
-const IDLE: Anim = { alpha: 1, dx: 0, dy: 0, scale: 1, scaleX: 1, wipe0: 0, wipe1: 1, blur: 0, rot: 0 };
+interface Anim { alpha: number; dx: number; dy: number; scale: number; scaleX: number; wipe0: number; wipe1: number; blur: number; rot: number; vw0: number; vw1: number }
+const IDLE: Anim = { alpha: 1, dx: 0, dy: 0, scale: 1, scaleX: 1, wipe0: 0, wipe1: 1, blur: 0, rot: 0, vw0: 0, vw1: 1 };
 
 const GROUP_AT = [0, .12, .32, .45, .62];
 const isRule = (o: SlideObj, u: number) => o.kind === 'LINE' || (o.kind === 'RECT' && o.h <= u * .5 && o.w > o.h * 6);
@@ -72,6 +78,12 @@ function computeAnim(o: SlideObj, k: number, th: SlideTheme, L: Lay, c: FrameClo
       case 'wipe-out': a.wipe0 = e; a.alpha = 1 - e * .25; break;
       case 'zoom-fade': a.scale = 1 + e * .045; break;
       case 'float-up': a.dy = -e * u * 2.6; break;
+      case 'drop': a.dy = e * u * 4.5; a.rot = e * ((k % 3) - 1) * 2.5; break;
+      case 'shrink': a.scale = 1 - e * .08; break;
+      case 'slide-right': a.dx = e * u * 9; a.alpha = 1 - clamp01(q * 1.3); break;
+      case 'glitch-out': { const n = Math.floor(c.exitT * 22) + k * 7; a.dx = (hash1(n) - .5) * u * 3 * (.3 + q); a.alpha = hash1(n + 3) < q * 1.1 ? 0 : 1 - q * .5; break; }
+      case 'flicker-out': a.alpha = q >= .9 ? 0 : (1 - q * .4) * (hash1(Math.floor(q * 16) + k * 5) < q * .9 ? .08 : 1); break;
+      case 'scan-out': a.vw0 = e; a.alpha = 1 - e * .2; break;
       default: break;
     }
     return a;
@@ -98,6 +110,19 @@ function computeAnim(o: SlideObj, k: number, th: SlideTheme, L: Lay, c: FrameClo
     case 'glow': a.alpha = e; a.scale = .94 + .06 * e; if (o.kind === 'TEXT') a.blur = (1 - e) * u * .5; if (rule) a.scaleX = e; break;
     case 'reveal': a.alpha = Math.pow(e, 1.6); a.scale = 1.05 - .05 * e; if (rule) a.scaleX = e; break;
     case 'float': { const s = outSine(p); a.alpha = s; a.dy = (1 - s) * u * 3.4; if (rule) a.scaleX = s; break; }
+    case 'drop': a.alpha = clamp01(p * 3); if (rule) a.scaleX = e; else a.dy = -(1 - outBounce(p)) * u * 3.2; break;
+    case 'pop': a.alpha = clamp01(p * 3); if (rule) a.scaleX = e; else a.scale = Math.max(.001, .55 + .45 * outBack(p)); break;
+    case 'tilt': a.alpha = e; a.rot = (1 - e) * ((k % 2) ? 6 : -6); a.dx = (1 - e) * u * -2.2; a.dy = (1 - e) * u * 1.2; break;
+    case 'glitch': {
+      const n = Math.floor(c.enterT * 24) + k * 7, live = 1 - p;
+      a.alpha = p >= .7 ? e : hash1(n + 5) < .3 ? .15 : e * .9 + .1;
+      a.dx = p >= .7 ? 0 : (hash1(n) - .5) * u * 4 * live; a.dy = p >= .7 ? 0 : (hash1(n + 1) > .8 ? (hash1(n + 2) - .5) * u : 0);
+      break;
+    }
+    case 'flicker': a.alpha = o.kind === 'TEXT' || g >= 2 ? strike(p, k) : e; break;
+    case 'scan': a.vw1 = e; a.alpha = clamp01(p * 3); break;
+    case 'stamp': { a.alpha = clamp01(p * 6); const s = clamp01(p * 1.6); a.scale = 1 + .45 * Math.pow(1 - s, 3); break; }
+    case 'stretch': a.alpha = clamp01(p * 2.5); a.scaleX = Math.max(.001, e); break;
   }
   return a;
 }
@@ -119,6 +144,10 @@ function applyAmbient(o: SlideObj, a: Anim, t: number): void {
       const nx = rx * Math.cos(tilt) - ry * Math.sin(tilt), ny = rx * Math.sin(tilt) + ry * Math.cos(tilt);
       a.dx += nx - vx; a.dy += ny - vy; break;
     }
+    case 'jitter': { const n = Math.floor(t / m.step + (m.phase || 0) * 97); a.dx += m.ax * (hash1(n) - .5) * 2; a.dy += m.ay * (hash1(n + 17) - .5) * 2; break; }
+    case 'flicker': { const n = Math.floor(t * m.rate + (m.phase || 0) * 31); const h = hash1(n); a.alpha *= h < .08 ? 1 - m.depth : h < .16 ? 1 - m.depth * .45 : 1; break; }
+    case 'sway': a.rot += m.deg * Math.sin(TAU * t / m.period + (m.phase || 0) * TAU); break;
+    case 'scroll': { const f = t / m.period - Math.floor(t / m.period); a.dx += m.dx * f; a.dy += m.dy * f; break; }
     default: break;
   }
 }
@@ -278,6 +307,11 @@ export function drawObject(ctx: Ctx, o: SlideObj, a: Anim = IDLE, t = 0): void {
     const pad = o.kind === 'TEXT' ? (o.fontSize || 20) * .5 : Math.max(2, o.strokeWidth || 0);
     const x0 = b.x + b.w * a.wipe0 - (a.wipe0 > 0 ? 0 : pad), x1 = b.x + b.w * a.wipe1 + (a.wipe1 < 1 ? 0 : pad);
     ctx.beginPath(); ctx.rect(x0, b.y - pad, Math.max(0, x1 - x0), b.h + pad * 2); ctx.clip();
+  }
+  if (a.vw0 > 0 || a.vw1 < 1) {
+    const pad = o.kind === 'TEXT' ? (o.fontSize || 20) * .5 : Math.max(2, o.strokeWidth || 0);
+    const y0 = b.y + b.h * a.vw0 - (a.vw0 > 0 ? 0 : pad), y1 = b.y + b.h * a.vw1 + (a.vw1 < 1 ? 0 : pad);
+    ctx.beginPath(); ctx.rect(b.x - pad, y0, b.w + pad * 2, Math.max(0, y1 - y0)); ctx.clip();
   }
   const rot = (o.rotation || 0) + a.rot;
   if (rot) { ctx.translate(b.cx, b.cy); ctx.rotate(rot * Math.PI / 180); ctx.translate(-b.cx, -b.cy); }

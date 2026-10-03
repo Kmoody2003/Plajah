@@ -12,6 +12,16 @@ import { LayoutTemplate, X, Check, Play, Pause, RotateCcw, Plus } from 'lucide-r
 import { newId, type Slide } from '../../services/ambo/showModel';
 import { SLIDE_TEMPLATES, TEMPLATE_CATEGORIES, defaultFields, templateById, GROUND_FIELD } from '../../services/ambo/slideTemplates/registry';
 import { SLIDE_THEMES, DEFAULT_THEME_ID, themeById } from '../../services/ambo/slideTemplates/themes';
+import { MODERN_THEMES_A } from '../../services/ambo/slideTemplates/themesModernA';
+import { MODERN_THEMES_B } from '../../services/ambo/slideTemplates/themesModernB';
+import { URBAN_THEMES } from '../../services/ambo/slideTemplates/themesUrban';
+
+/** Theme sets for the picker — 43 themes don't fit one strip. */
+const MODERN_IDS = new Set([...MODERN_THEMES_A, ...MODERN_THEMES_B].map(t => t.id));
+const URBAN_IDS = new Set(URBAN_THEMES.map(t => t.id));
+const THEME_SETS = ['Classic', 'Modern & Abstract', 'Urban & Grunge'] as const;
+type ThemeSet = typeof THEME_SETS[number];
+const themeSetOf = (id: string): ThemeSet => URBAN_IDS.has(id) ? 'Urban & Grunge' : MODERN_IDS.has(id) ? 'Modern & Abstract' : 'Classic';
 import { renderSlideTemplate, loadThemeFonts, invalidateSlideLayouts, slideTemplateTiming, prefersReducedMotion } from '../../services/ambo/slideTemplates/canvasRender';
 
 const ASPECTS: Array<{ id: string; label: string; w: number; h: number }> = [
@@ -102,6 +112,11 @@ export interface AmboSlideTemplateGalleryProps {
 export const AmboSlideTemplateGallery: React.FC<AmboSlideTemplateGalleryProps> = ({ open, onClose, onInsert, activeShowTitle }) => {
   const [aspectId, setAspectId] = useState('16:9');
   const [themeId, setThemeId] = useState(DEFAULT_THEME_ID);
+  const [themeSet, setThemeSet] = useState<ThemeSet>(() => themeSetOf(DEFAULT_THEME_ID));
+  const [director, setDirector] = useState('All');
+  const setThemes = useMemo(() => SLIDE_THEMES.filter(t => themeSetOf(t.id) === themeSet), [themeSet]);
+  const directors = useMemo(() => ['All', ...Array.from(new Set(setThemes.map(t => t.director)))], [setThemes]);
+  const shownThemes = director === 'All' ? setThemes : setThemes.filter(t => t.director === director);
   const [category, setCategory] = useState<string>('All');
   const [templateId, setTemplateId] = useState(SLIDE_TEMPLATES[0].id);
   const [fieldsById, setFieldsById] = useState<Record<string, Record<string, string>>>({});
@@ -175,8 +190,21 @@ export const AmboSlideTemplateGallery: React.FC<AmboSlideTemplateGalleryProps> =
         </div>
 
         {/* Themes */}
+        <div className="flex items-center gap-1 px-4 pt-2 flex-wrap">
+          {THEME_SETS.map(set => (
+            <button key={set} onClick={() => { setThemeSet(set); setDirector('All'); }} className="px-2 py-0.5 rounded-md text-[10.5px] font-bold"
+              style={{ color: themeSet === set ? '#0b0a12' : 'rgba(255,255,255,.6)', background: themeSet === set ? LILAC : 'rgba(255,255,255,.05)' }}>
+              {set} <span className="opacity-60">{SLIDE_THEMES.filter(t => themeSetOf(t.id) === set).length}</span>
+            </button>
+          ))}
+          <span className="w-px h-4 mx-1" style={{ background: 'rgba(255,255,255,.12)' }} />
+          {directors.map(d => (
+            <button key={d} onClick={() => setDirector(d)} className="px-2 py-0.5 rounded-md text-[10px] font-semibold"
+              style={{ color: director === d ? '#fff' : 'rgba(255,255,255,.45)', background: director === d ? 'rgba(255,255,255,.12)' : 'transparent' }}>{d.replace(/^the /, '')}</button>
+          ))}
+        </div>
         <div className="flex items-center gap-2 px-4 py-2 border-b overflow-x-auto" style={{ borderColor: 'rgba(255,255,255,.06)' }}>
-          {SLIDE_THEMES.map(t => (
+          {shownThemes.map(t => (
             <button key={t.id} onClick={() => setThemeId(t.id)} title={`${t.lens}\nBest for: ${t.use}`}
               className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-full flex-none transition-all"
               style={{ border: `1px solid ${themeId === t.id ? LILAC : 'rgba(255,255,255,.1)'}`, background: themeId === t.id ? 'rgba(208,188,255,.12)' : 'rgba(255,255,255,.03)' }}>

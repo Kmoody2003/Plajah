@@ -15,6 +15,14 @@ export type Ambient =
   | { kind: 'orbit'; cx: number; cy: number; degPerSec: number; squash?: number; tilt?: number }
   | { kind: 'pulse'; min: number; max: number; period: number; phase?: number }
   | { kind: 'sweep'; period: number; color: string; width?: number; phase?: number }
+  /** Stepped random offset (photocopy / glitch shake) — holds each position for `step` seconds. */
+  | { kind: 'jitter'; ax: number; ay: number; step: number; phase?: number }
+  /** Neon / tube buzz: mostly lit, with brief seeded dips to `1 - depth`. */
+  | { kind: 'flicker'; rate: number; depth: number; phase?: number }
+  /** Rotational rock about the object's centre (paper cut-outs, stickers, tags). */
+  | { kind: 'sway'; deg: number; period: number; phase?: number }
+  /** Continuous travel by (dx, dy) per period, wrapping — use on seamlessly repeating patterns. */
+  | { kind: 'scroll'; dx: number; dy: number; period: number }
   /** Live countdown digits (TEXT only) — counts to `target` (e.g. "10:30" or "10:30 AM"). */
   | { kind: 'countdown'; target: string; fallback: string };
 
@@ -27,8 +35,10 @@ export type SlideObj = TelaVectorObject & {
   grp?: number;
 };
 
-export type EnterStyle = 'rise' | 'fade' | 'slam' | 'wipe' | 'glow' | 'reveal' | 'float';
-export type ExitStyle = 'fade-up' | 'fade' | 'slide' | 'wipe-out' | 'zoom-fade' | 'float-up';
+export type EnterStyle = 'rise' | 'fade' | 'slam' | 'wipe' | 'glow' | 'reveal' | 'float'
+  | 'drop' | 'pop' | 'tilt' | 'glitch' | 'flicker' | 'scan' | 'stamp' | 'stretch';
+export type ExitStyle = 'fade-up' | 'fade' | 'slide' | 'wipe-out' | 'zoom-fade' | 'float-up'
+  | 'drop' | 'shrink' | 'slide-right' | 'glitch-out' | 'flicker-out' | 'scan-out';
 
 export interface ThemeMotion { enter: EnterStyle; enterSec: number; exit: ExitStyle; exitSec: number; ruleGrow: boolean }
 
