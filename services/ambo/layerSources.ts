@@ -464,6 +464,8 @@ precision highp float; uniform sampler2D uTex; uniform vec2 uRes;
 out vec4 o; void main(){ o = texture(uTex, gl_FragCoord.xy/uRes); }`;
 
 export const MILKDROP_PREFIX = 'MILKDROP:';
+/** `TYPO:<volume key>` — one of Chora's kinetic-typography volumes, audio-reactive. */
+export const TYPO_PREFIX = 'TYPO:';
 
 /** Legacy / placeholder mode names that older shows and the DJ injector use. */
 const GEN_MODE_ALIASES: Record<string, string> = {
@@ -617,7 +619,7 @@ function milkdropAudioCtx(): AudioContext | null {
   return sharedMilkdropCtx;
 }
 
-type GenPath = 'pending' | 'gen' | 'flux' | 'gl' | 'milkdrop' | 'fallback';
+type GenPath = 'pending' | 'gen' | 'flux' | 'gl' | 'milkdrop' | 'typo' | 'fallback';
 
 export class GeneratorSource implements LayerSource {
   readonly kind = 'GENERATOR';
@@ -637,6 +639,7 @@ export class GeneratorSource implements LayerSource {
   private glKey = '';
   private flux: { render: (spec: any, w: number, h: number, t: number, a?: any) => HTMLCanvasElement | null; status: () => string } | null = null;
   private milk: any = null;
+  private typo: TypoScriptureBackground | null = null;
   private fluxDrawn = false;
   private fallbackNote = 'Not available on this output';
   private disposed = false;
@@ -749,6 +752,16 @@ export class GeneratorSource implements LayerSource {
         this.path = 'milkdrop';
         return;
       }
+
+      // 5) Typography — Chora's TYPO engine, audio-reactive via this layer's analyser.
+      if (mode.startsWith(TYPO_PREFIX)) {
+        const key = mode.slice(TYPO_PREFIX.length) || 'SPHERE';
+        this.ctx2d = this.canvas.getContext('2d');
+        this.typo = new TypoScriptureBackground(this.w, this.h, key, (this.content as any).text || 'PLAJAH AMBO CHORA FABULA');
+        this.typo.analyser = this.analyserNode;
+        this.path = 'typo';
+        return;
+      }
     } catch (err) {
       console.warn('[ambo] generator init failed for', mode, err);
       this.toFallback('Failed to start');
@@ -826,6 +839,18 @@ export class GeneratorSource implements LayerSource {
         return this.milk.canvas as HTMLCanvasElement;
       }
 
+      if (this.path === 'typo' && this.typo) {
+        this.typo.analyser = this.analyserNode;
+        const c = this.typo.frame();
+        if (c) {
+          if (!this.ctx2d) this.ctx2d = this.canvas.getContext('2d');
+          this.ctx2d?.drawImage(c, 0, 0, this.w, this.h);
+        } else if (this.ctx2d) {
+          drawFallbackCard(this.ctx2d, this.w, this.h, timeSec, humanizeMode(this.mode), 'Loading typography…');
+        }
+        return this.canvas;
+      }
+
       if (this.path === 'fallback' && this.ctx2d) {
         drawFallbackCard(this.ctx2d, this.w, this.h, timeSec, humanizeMode(this.mode), this.fallbackNote);
         return this.canvas;
@@ -844,6 +869,8 @@ export class GeneratorSource implements LayerSource {
     this.disposed = true;
     try { if (this.path === 'gen') { this.renderer?.dispose?.(); this.audio?.dispose?.(); } } catch { /* */ }
     try { if (this.milk) { this.milk.dispose(); loseGL(this.milk.canvas.getContext('webgl2')); } } catch { /* */ }
+    try { this.typo?.dispose(); } catch { /* */ }
+    this.typo = null;
     loseGL(this.gl);
     this.gl = null; this.renderer = null; this.milk = null;
   }

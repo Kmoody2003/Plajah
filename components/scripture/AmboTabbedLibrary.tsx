@@ -46,7 +46,8 @@ import { searchAudius, fetchAudiusTrending } from '../../services/audiusService'
 import { SHADER_LIBRARY, type ShaderLibraryEntry } from '../plajahPixels/components/ShaderPanel';
 import { SCENE_CATALOG } from '../plajahPixels/engine/sceneCatalog';
 import { AmboVisualizerThumb } from './AmboVisualizerThumb';
-import { MILKDROP_PREFIX } from '../../services/ambo/layerSources';
+import { MILKDROP_PREFIX, TYPO_PREFIX } from '../../services/ambo/layerSources';
+import { TYPO_CATALOG } from '../../services/ambo/typoCatalog';
 import { type AmboDJTrack } from './AmboDJTrackPlayer';
 import { AmboNewAudioPlaylistModal, type AmboAudioPlaylist } from './AmboNewAudioPlaylistModal';
 import AmboChoraAudioPanel from './AmboChoraAudioPanel';
@@ -1074,10 +1075,20 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     // (The hand-written FLUX_SERIES_VI / SERIES_VII_ART_DIRECTORS cards named modes
     // that exist nowhere in Pixels; the real Series VI / VII works arrive through
     // SHADER_LIBRARY above, tagged 'flux' / 'series7'.)
+    const typoItems: AmboMediaSourceItem[] = TYPO_CATALOG.map(t => ({
+      id: `typo_${t.key}`,
+      name: `Typo · ${t.name}`,
+      kind: 'GENERATOR',
+      mode: `${TYPO_PREFIX}${t.key}`,
+      sub: 'Kinetic typography · audio-reactive',
+      tags: ['typo', 'typography', 'kinetic', 'text', t.name.toLowerCase()],
+      gradient: 'linear-gradient(135deg, #111827, #D40055)',
+    }));
     return [
       ...sceneItems,
       ...shaderItems,
       ...baseItems,
+      ...typoItems,
       ...milkPresets,
     ];
   }, [milkdropNames]);

@@ -16,7 +16,8 @@ import { AmboVisualizerThumb } from './AmboVisualizerThumb';
 import { SCENE_CATALOG } from '../plajahPixels/engine/sceneCatalog';
 import { SHADER_LIBRARY } from '../plajahPixels/components/ShaderPanel';
 import { GENERATOR_ITEMS } from '../../services/ambo/mediaLibrary';
-import { MILKDROP_PREFIX } from '../../services/ambo/layerSources';
+import { MILKDROP_PREFIX, TYPO_PREFIX } from '../../services/ambo/layerSources';
+import { TYPO_CATALOG } from '../../services/ambo/typoCatalog';
 
 const LILAC = '#D0BCFF', CYAN = '#00DAF3';
 export const SHADER_VALUE_PREFIX = 'SHADER:';
@@ -59,6 +60,10 @@ export function buildVisualizerCatalog(milk: string[]): VisualizerEntry[] {
   for (const [i, n] of milk.entries()) add({
     id: `milk_${i}`, name: n.length > 36 ? n.slice(0, 34) + '…' : n, kind: 'GENERATOR', mode: MILKDROP_PREFIX + n,
     value: MILKDROP_PREFIX + n, sub: 'Milkdrop preset', group: 'Milkdrop', gradient: 'linear-gradient(135deg, #120a1f, #2e1065)',
+  });
+  for (const t of TYPO_CATALOG) add({
+    id: `typo_${t.key}`, name: `Typo · ${t.name}`, kind: 'GENERATOR', mode: TYPO_PREFIX + t.key,
+    value: TYPO_PREFIX + t.key, sub: 'Kinetic typography · audio-reactive', group: 'Typography', gradient: 'linear-gradient(135deg, #111827, #D40055)',
   });
   return out;
 }
