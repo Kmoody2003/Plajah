@@ -149,3 +149,10 @@ test('lesson becomes a Tela doc: writer blocks, list items, native chart only wh
   assert.equal(nativeChartFor(figs[1], 'q', 'default'), null);
   assert.deepEqual(lessonToTelaDoc({ lessonId: 'x.l1', title: 'Title', body: 'a', figures: [] }).lesson?.figures, []);
 });
+
+import { bubbleSteps, logistic } from '../components/learn/lesson/Sims';
+test('simulators: bubble sort ends sorted with the right comparison count; logistic hits its limits', () => {
+  const s = bubbleSteps([5, 2, 8, 1, 9, 3, 7, 4]); const last = s[s.length - 1];
+  assert.deepEqual(last.arr, [1, 2, 3, 4, 5, 7, 8, 9]); assert.ok(last.done); assert.equal(last.compares, 28); // n(n-1)/2 for n = 8
+  assert.ok(Math.abs(logistic(0, 1000, 0.6) - 10) < 1e-9); assert.ok(logistic(40, 1000, 0.6) > 999.9);
+});

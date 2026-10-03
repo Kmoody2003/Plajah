@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import SimBlock from './Sims';
 import MediaStrip from '../../media/MediaStrip';
 import { resolveMediaRefs, type MediaAsset } from '../../../services/lessonMedia';
 import { niceTicks, plotPath, sampleFn, fmtTick, type Figure, type Series } from './figures';
@@ -136,7 +137,7 @@ const DataTable: React.FC<{ f: Extract<Figure, { type: 'chart' }> }> = ({ f }) =
 );
 
 const FigureBlock: React.FC<{ f: Figure }> = ({ f }) => {
-  const body = f.type === 'chart' ? <Chart f={f} /> : f.type === 'graph' ? <Graph f={f} /> : f.type === 'diagram' ? <Diagram f={f} /> : f.type === 'timeline' ? <Timeline f={f} /> : f.type === 'video' ? <Video f={f} /> : <Archive f={f} />;
+  const body = f.type === 'chart' ? <Chart f={f} /> : f.type === 'graph' ? <Graph f={f} /> : f.type === 'diagram' ? <Diagram f={f} /> : f.type === 'sim' ? <SimBlock sim={f.sim} /> : f.type === 'timeline' ? <Timeline f={f} /> : f.type === 'video' ? <Video f={f} /> : <Archive f={f} />;
   const title = 'title' in f ? f.title : undefined;
   return (
     <figure className={`ff ff-${f.type} ff-${f.layout || (f.type === 'plate' || f.type === 'video' ? 'wide' : 'inline')}`}>

@@ -22,6 +22,7 @@ export type Figure = Base & (
   | { type: 'chart'; kind: 'line' | 'bar' | 'scatter'; title: string; x: { label: string; unit?: string }; y: { label: string; unit?: string }; series: Series[] }
   | { type: 'graph'; title: string; /** authored in code */ fn?: (x: number) => number; /** a curve with one adjustable parameter (drawn with a slider): fnp(x, p) */ fnp?: (x: number, p: number) => number; param?: { name: string; min: number; max: number; step: number; value: number; unit?: string }; /** typed by a teacher; parsed safely, never evaluated as code */ expr?: string; domain: [number, number]; x: { label: string }; y: { label: string }; marks?: Array<{ x: number; label: string }> }
   | { type: 'diagram'; title: string; nodes: Array<{ id: string; label: string; col: number; row: number }>; edges: Array<[string, string, string?]> }
+  | { type: 'sim'; title: string; sim: 'unitcircle' | 'population' | 'sorting' }
   | { type: 'timeline'; title: string; events: Array<{ when: string; label: string }> }
 );
 

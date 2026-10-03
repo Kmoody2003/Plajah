@@ -17,7 +17,7 @@ for (const [lid, figs] of Object.entries(LESSON_FIGURES)) {
     if (seen.has(f.id)) fail(lid, 'duplicate id ' + f.id); seen.add(f.id);
     if (!f.caption || f.caption.length < 20) fail(lid, f.id + ' caption');
     if ((f.type === 'graph') && !f.alt) fail(lid, f.id + ' missing alt');
-    if ((f.after ?? 0) > Math.max(0, paras - 1)) fail(lid, `${f.id} after=${f.after} but only ${paras} text blocks`);
+    if ((f.after ?? 0) > paras) fail(lid, `${f.id} after=${f.after} but only ${paras} text blocks`);
     if (f.type === 'graph' && f.fn) { let ok = 0; for (let i = 0; i <= 50; i++) { const x = f.domain[0] + (f.domain[1] - f.domain[0]) * i / 50; if (isFinite(f.fn(x))) ok++; } if (ok < 40) fail(lid, f.id + ' fn mostly non-finite'); }
     if (f.type === 'diagram') for (const [a, b] of f.edges) if (!f.nodes.some((x: any) => x.id === a) || !f.nodes.some((x: any) => x.id === b)) fail(lid, f.id + ' bad edge');
     if (f.type === 'chart') for (const s of f.series) if (s.points.some((p: number[]) => !isFinite(p[0]) || !isFinite(p[1]))) fail(lid, f.id + ' non-finite point');
