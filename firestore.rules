@@ -2410,7 +2410,34 @@ service cloud.firestore {
     }
 
     // Church/org prayer wall.
-    match /churchPrayers/{prayerId} {
+    // Teacher versions of lessons. The built lesson is never modified: a version is the teacher's own record, scoped to classes they own.
+    // Readable by any signed-in user (it is lesson text, no personal data). Only a teacher account that owns every class it names can write it,
+    // so a student cannot publish a version to their classmates. At most 5 classes per version.
+    match /lessonOverlays/{overlayId} {
+      function isTeacherAccount() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountType == 'TEACHER'; }
+      function ownsClass(id) { return get(/databases/$(database)/documents/classrooms/$(id)).data.ownerId == request.auth.uid; }
+      function classesOk(ids) {
+        return ids.size() <= 5
+          && (ids.size() < 1 || ownsClass(ids[0]))
+          && (ids.size() < 2 || ownsClass(ids[1]))
+          && (ids.size() < 3 || ownsClass(ids[2]))
+          && (ids.size() < 4 || ownsClass(ids[3]))
+          && (ids.size() < 5 || ownsClass(ids[4]));
+      }
+      function validDoc() {
+        return request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.body is string && request.resource.data.body.size() < 30000
+          && request.resource.data.visibility in ['class', 'shared']
+          && request.resource.data.classIds is list && classesOk(request.resource.data.classIds);
+      }
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isTeacherAccount() && validDoc();
+      allow update: if isAuthenticated() && isTeacherAccount() && resource.data.authorUid == request.auth.uid && validDoc();
+      allow delete: if isAuthenticated() && resource.data.authorUid == request.auth.uid;
+    }
+
+    // Church education programs (Sunday school / Bible study plans). Anyone signed in can read; only the church's admins write.
+    match /churchPrograms/{programId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
       allow update: if isAuthenticated() && (
@@ -2879,6 +2906,34 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         resource.data.ownerId == request.auth.uid ||
         // Any authenticated user can increment likes/plays
+      allow create, update: if isAuthenticated() && request.resource.data.createdBy == request.auth.uid
+        && (request.auth.uid in get(/databases/$(database)/documents/organizations/$(request.resource.data.orgId)).data.admins
+            || request.auth.uid == get(/databases/$(database)/documents/organizations/$(request.resource.data.orgId)).data.creatorId);
+      allow delete: if isAuthenticated() && (resource.data.createdBy == request.auth.uid
+        || request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.orgId)).data.admins);
+    }
+
+    // Ora wellbeing in education. classWeather holds anonymous counters only (no user ids).
+    match /classWeather/{wid} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && request.resource.data.keys().hasOnly(['classId', 'day', 'counts']);
+    }
+    // "I need a hand": the student writes it for chosen grown-ups; only those grown-ups (and the student) can read it.
+    match /wellbeingRequests/{rid} {
+      allow create: if isAuthenticated() && request.resource.data.studentUid == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.studentUid == request.auth.uid || request.auth.uid in resource.data.toUids);
+      allow update: if isAuthenticated() && request.auth.uid in resource.data.toUids && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy']);
+    }
+
+    match /churchPrayers/{prayerId} {
+      // Public wall prayers: any signed-in user. Private requests: author, pastors/ministers, prayer warriors, admins.
+      allow read: if isAuthenticated() && (
+        resource.data.get('isPrivate', false) == false ||
+        resource.data.authorId == request.auth.uid ||
+        orgPastorOrAdmin(resource.data.orgId) ||
+        request.auth.uid in orgDoc(resource.data.orgId).get('prayerUids', []) ||
+        isAdmin()
+      );
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plays']) ||
         isAdmin()
