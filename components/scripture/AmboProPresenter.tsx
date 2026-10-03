@@ -17,7 +17,7 @@ import {
   Eye, Play, Layers, Ban, Power, VolumeX, EyeOff, Wand2, ChevronDown, Upload,
   Grid, RotateCcw, Repeat, Shuffle, FolderOpen, SkipForward, Film, X,
   Save, FileText, FilePlus, Download, FolderPlus, ExternalLink, Sparkles,
-  Zap, Music, Smartphone, Monitor
+  Zap, Music, Smartphone, Monitor, LayoutTemplate
 } from 'lucide-react';
 import {
   applySlide, clearLayer, newId, LAYER_ORDER, LAYER_LABEL, type LiveStack, type Show, type Slide,
@@ -92,6 +92,13 @@ import {
 import { useContextMenu } from '../ui/ContextMenu';
 import { auth } from '../../services/backendService';
 import { templateById } from '../../services/ambo/slideTemplates/registry';
+import { themeById } from '../../services/ambo/slideTemplates/themes';
+import { SlideTemplateMenu, ScriptureLookMenu, anchorOf, type MenuAnchor } from './AmboTemplateMenus';
+import { mapFieldsToTemplate, fieldsFromText, retemplate, rethemed, slideLabelFor, type TemplateContent } from '../../services/ambo/slideTemplates/convert';
+import { nextVerseCue } from '../../services/ambo/scriptureNext';
+import { getAutoCueNext } from '../../services/ambo/scriptureAutoCue';
+import { applySavedLook } from '../../services/ambo/scriptureLook';
+import { noteTemplateUse, slideFieldsFor, type SavedTemplate } from '../../services/ambo/templateLibrary';
 
 interface AmboProPresenterProps {
   onBack?: () => void;
@@ -629,6 +636,10 @@ useEffect(() => {
   const [previewClearingMask, setPreviewClearingMask] = useState<Set<LayerSlot>>(new Set());
   const [activeBusClearingTarget, setActiveBusClearingTarget] = useState<string>('PROGRAM');
   const [cuedPreviewSourceId, setCuedPreviewSourceId] = useState<string | null>(null);
+  // Template menu (change a slide's template / scripture look) + Auto-cue next.
+  const [tplMenu, setTplMenu] = useState<{ index: number; anchor: MenuAnchor; fromToolbar?: boolean } | null>(null);
+  const tplBtnRef = useRef<HTMLButtonElement>(null);
+  const autoCueToken = useRef(0);
 
   // Drag over target state for visual drop highlighting
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -1412,6 +1423,7 @@ useEffect(() => {
   };
 
   const cueScriptureToPreview = (cue: ScriptureCue) => {
+    autoCueToken.current++; // an operator's own cue always beats a pending auto-cue
     setPreviewScriptureOverride(cue);
     setPreviewClearingMask(prev => {
       const next = new Set(prev);
@@ -1802,6 +1814,120 @@ useEffect(() => {
     ? (liveSlideObj?.label || 'Program Video')
     : (previewSlide?.label || 'Preview Video');
 
+  // ── Change a slide's template / theme / scripture look ──
+  /** Replace slides in the active show; any slide that is on air is patched live (only the layers that changed). */
+  const updateSlides = (fn: (s: Slide) => Slide) => {
+    setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : { ...sh, slides: sh.slides.map(fn) })));
+    const orig = liveSlideObj;
+    const patched = orig ? fn(orig) : null;
+    if (orig && patched && patched !== orig) {
+      const changed = patched.layers.filter((ly, i) => ly !== orig.layers[i]);
+      if (changed.length) setLive(prev => applySlide(prev, { ...patched, layers: changed }, Date.now()));
+      setLiveSlideObj(patched);
+    }
+  };
+  const updateSlide = (id: string, fn: (s: Slide) => Slide) => updateSlides(sl => (sl.id === id ? fn(sl) : sl));
+  const templateLayerIdx = (sl: Slide) => sl.layers.findIndex(l => l.content.kind === 'TELA_TEMPLATE');
+  const slideTexts = (sl: Slide): string[] => sl.layers.flatMap(l => (l.content.kind === 'TEXT' ? l.content.blocks.map(b => b.text) : []));
+
+  const changeSlideTemplate = (index: number, templateId: string, themeId: string) => {
+    const tpl = templateById(templateId); const target = slides[index];
+    if (!tpl || !target) return;
+    updateSlide(target.id, sl => {
+      const i = templateLayerIdx(sl);
+      const th = themeById(themeId);
+      if (i >= 0) {
+        const cur = sl.layers[i].content as TemplateContent;
+        const oldTpl = templateById(cur.templateId);
+        let next = retemplate(cur, templateId);
+        if (themeId && next.theme !== themeId) next = rethemed(next, themeId);
+        const layers = sl.layers.map((ly, k) => (k === i ? { ...ly, name: `${tpl.name} (${th.name})`, content: next } : ly));
+        const regroup = oldTpl && sl.group === oldTpl.category;
+        const relabel = oldTpl && (sl.label || '').startsWith(oldTpl.name);
+        return { ...sl, layers, label: relabel ? slideLabelFor(tpl, next.fields) : sl.label, ...(regroup ? { group: tpl.category } : {}) };
+      }
+      // A plain text slide becomes a template slide; its words fill the new template.
+      const fields = fieldsFromText(slideTexts(sl), templateId);
+      const layer = { id: newId('ly_tpl'), slot: 'slide' as const, name: `${tpl.name} (${th.name})`, content: { kind: 'TELA_TEMPLATE' as const, templateId, fields, theme: themeId } };
+      const at = sl.layers.findIndex(l => l.content.kind === 'TEXT');
+      const layers = at >= 0 ? sl.layers.map((ly, k) => (k === at ? layer : ly)).filter((ly, k) => !(k !== at && ly.content.kind === 'TEXT')) : [...sl.layers, layer];
+      return { ...sl, layers };
+    });
+  };
+  const changeSlideTheme = (index: number, themeId: string) => {
+    const target = slides[index]; if (!target) return;
+    updateSlide(target.id, sl => {
+      const i = templateLayerIdx(sl); if (i < 0) return sl;
+      const cur = sl.layers[i].content as TemplateContent;
+      const next = rethemed(cur, themeId); if (next === cur) return sl;
+      const tpl = templateById(cur.templateId);
+      return { ...sl, layers: sl.layers.map((ly, k) => (k === i ? { ...ly, name: `${tpl?.name ?? 'Template'} (${themeById(themeId).name})`, content: next } : ly)) };
+    });
+  };
+  const applyThemeToAllSlides = (themeId: string) => {
+    updateSlides(sl => {
+      const i = templateLayerIdx(sl); if (i < 0) return sl;
+      const cur = sl.layers[i].content as TemplateContent;
+      const next = rethemed(cur, themeId); if (next === cur) return sl;
+      const tpl = templateById(cur.templateId);
+      return { ...sl, layers: sl.layers.map((ly, k) => (k === i ? { ...ly, name: `${tpl?.name ?? 'Template'} (${themeById(themeId).name})`, content: next } : ly)) };
+    });
+  };
+  /** A saved template (mine / shared / community) lends its template, theme and palette; the slide keeps its words. */
+  const applySavedToSlide = (index: number, saved: SavedTemplate) => {
+    const target = slides[index]; const base = saved.baseTemplateId && templateById(saved.baseTemplateId);
+    if (!target || !base) return;
+    const th = themeById(saved.theme);
+    updateSlide(target.id, sl => {
+      const i = templateLayerIdx(sl);
+      const cur: TemplateContent | null = i >= 0 ? (sl.layers[i].content as TemplateContent) : null;
+      const carried = cur ? mapFieldsToTemplate(cur.templateId, cur.fields || {}, base.id) : fieldsFromText(slideTexts(sl), base.id);
+      const fields: Record<string, string> = { ...carried };
+      delete fields.__theme;
+      const ov = slideFieldsFor(saved);
+      if (ov.__theme) fields.__theme = ov.__theme;
+      if (ov.__ground) fields.__ground = ov.__ground;
+      const content: TemplateContent = { ...(cur ?? {}), kind: 'TELA_TEMPLATE', templateId: base.id, theme: th.id, fields };
+      const layer = { id: i >= 0 ? sl.layers[i].id : newId('ly_tpl'), slot: 'slide' as const, name: `${saved.name} (${th.name})`, content };
+      if (i >= 0) return { ...sl, layers: sl.layers.map((ly, k) => (k === i ? { ...ly, name: layer.name, content } : ly)) };
+      const at = sl.layers.findIndex(l => l.content.kind === 'TEXT');
+      return { ...sl, layers: at >= 0 ? sl.layers.map((ly, k) => (k === at ? layer : ly)) : [...sl.layers, layer] };
+    });
+    void noteTemplateUse(saved);
+  };
+  /** One scripture slide's own look (null = follow the default look again). */
+  const changeSlideScriptureLook = (index: number, layoutId: string | null) => {
+    const target = slides[index]; if (!target) return;
+    updateSlide(target.id, sl => ({
+      ...sl,
+      layers: sl.layers.map(ly => {
+        if (ly.content.kind !== 'SCRIPTURE') return ly;
+        const c: any = { ...ly.content };
+        if (layoutId) c.layoutId = layoutId; else delete c.layoutId;
+        return { ...ly, content: c };
+      }),
+    }));
+  };
+  const slideKindOf = (sl: Slide | undefined): 'template' | 'scripture' | 'plain' =>
+    !sl ? 'plain' : sl.layers.some(l => l.content.kind === 'TELA_TEMPLATE') ? 'template' : sl.layers.some(l => l.content.kind === 'SCRIPTURE') ? 'scripture' : 'plain';
+  const openTplMenu = (index: number, anchor: MenuAnchor | null, fromToolbar = false) => {
+    if (index < 0 || index >= slides.length) return;
+    setSelected(index);
+    setTplMenu({ index, anchor: anchor ?? { x: Math.max(12, window.innerWidth / 2 - 310), y: 110 }, fromToolbar });
+  };
+
+  // ── Auto-cue next: when a scripture goes to Program, the verse after it goes into Preview ──
+  const autoCueNextAfter = (cue: { reference: string; translation?: string }) => {
+    if (!getAutoCueNext()) return;
+    const token = ++autoCueToken.current;
+    void nextVerseCue(cue).then(next => {
+      // Superseded by the operator's own cue, or switched off while we were looking it up.
+      if (!next || token !== autoCueToken.current || !getAutoCueNext()) return;
+      setPreviewScriptureOverride(next);
+      setPreviewClearingMask(prev => { const m = new Set(prev); m.delete('scripture'); return m; });
+    }).catch(() => { /* offline and not cached — nothing to cue */ });
+  };
+
   const take = (s: Slide) => {
     // Ensure PROGRAM output exists and is enabled as the primary target
     const programOut = outputs.find(o => o.kind === 'PROGRAM');
@@ -1814,6 +1940,15 @@ useEffect(() => {
     setLiveSlideId(s.id);
     setLiveSlideObj(s);
     setPreviewBackgroundOverride(null);
+
+    // A scripture slide went live: cue the next scripture — the next scripture slide in the show, else the next verse.
+    const scr = s.layers.find(l => l.content.kind === 'SCRIPTURE')?.content;
+    if (scr && scr.kind === 'SCRIPTURE' && getAutoCueNext()) {
+      const at = slides.findIndex(x => x.id === s.id);
+      const following = at >= 0 ? slides[at + 1] : undefined;
+      if (following && following.layers.some(l => l.content.kind === 'SCRIPTURE')) { autoCueToken.current++; cueSlideToPreview(following, at + 1); }
+      else autoCueNextAfter({ reference: scr.reference ?? '', translation: scr.translation });
+    }
   };
 
   // Scripture fires to the scripture LAYER — composites OVER the live slide.
@@ -1828,8 +1963,13 @@ useEffect(() => {
       }],
     };
     setLive(prev => applySlide(prev, scriptureSlide, Date.now()));
+    autoCueNextAfter(cue);
   };
-  const takeSelected = () => { if (previewSlide) take(previewSlide); };
+  // TAKE on the Preview monitor: a cued scripture goes first (it sits over the slide); otherwise the previewed slide.
+  const takeSelected = () => {
+    if (previewScriptureOverride) { fireScripture(previewScriptureOverride); return; }
+    if (previewSlide) take(previewSlide);
+  };
 
   // ── LoopDeck Advance & Watch Folder Handlers ──
   const handleLoopDeckAdvance = React.useCallback(() => {
@@ -1970,6 +2110,15 @@ useEffect(() => {
         icon: <Eye size={14} className="text-[#00DAF3]" />,
         shortcut: 'Click',
         onSelect: () => selectSlide(slideIndex),
+      },
+      {
+        id: 'change-template',
+        label: slideKindOf(s) === 'scripture' ? 'Change Scripture Look…' : slideKindOf(s) === 'template' ? 'Change Template…' : 'Apply a Template…',
+        icon: <LayoutTemplate size={14} className="text-[#D0BCFF]" />,
+        onSelect: () => {
+          const el = document.querySelector(`[data-ambo-slide="${slideIndex}"]`);
+          window.setTimeout(() => openTplMenu(slideIndex, anchorOf(el)), 0);
+        },
       },
       {
         id: 'inspect',
@@ -3106,6 +3255,25 @@ useEffect(() => {
                 <span>Add Slide</span>
               </button>
 
+              {/* Template dropdown — change the selected slide's template (or scripture look) with thumbnails */}
+              <button
+                ref={tplBtnRef}
+                onClick={() => { if (tplMenu?.fromToolbar) setTplMenu(null); else openTplMenu(selected, anchorOf(tplBtnRef.current), true); }}
+                aria-haspopup="dialog"
+                aria-expanded={!!tplMenu?.fromToolbar}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all hover:bg-white/10"
+                style={{ borderColor: tplMenu?.fromToolbar ? 'rgba(208,188,255,0.6)' : 'rgba(208,188,255,0.35)', background: 'rgba(208,188,255,0.12)', color: LILAC }}
+                title="Change this slide's template — your words carry over"
+              >
+                <LayoutTemplate size={13} />
+                <span className="max-w-[120px] truncate">{(() => {
+                  const sl = slides[selected]; const k = slideKindOf(sl);
+                  if (k === 'template') { const c = sl!.layers.find(l => l.content.kind === 'TELA_TEMPLATE')!.content as TemplateContent; return templateById(c.templateId)?.name ?? 'Template'; }
+                  return k === 'scripture' ? 'Scripture look' : 'Template';
+                })()}</span>
+                <ChevronDown size={12} />
+              </button>
+
               {/* Router Receiver button */}
               <button
                 onClick={() => setRouterReceiverOpen(true)}
@@ -3287,6 +3455,7 @@ useEffect(() => {
                         }
                       }}
                       onDoubleClick={() => take(s)}
+                      data-ambo-slide={i}
                       {...slideMenu.bind(i)}
                       onDragOver={e => {
                         e.preventDefault();
@@ -3326,6 +3495,11 @@ useEffect(() => {
                         </span>
                       )}
                       <div className="aspect-square grid place-items-center px-2 text-center relative" style={{ background: 'linear-gradient(135deg,#1a0b2e,#06121f)' }}>
+                        {(() => {
+                          const tl = s.layers.find(l => l.content.kind === 'TELA_TEMPLATE');
+                          const nm = tl && tl.content.kind === 'TELA_TEMPLATE' ? templateById(tl.content.templateId)?.name : undefined;
+                          return nm ? <span className="absolute bottom-1 left-1.5 z-[3] max-w-[70%] truncate text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(208,188,255,0.18)', color: LILAC }} title={`Template: ${nm}`}>{nm}</span> : null;
+                        })()}
                         <span className="text-[12px] font-semibold text-white leading-tight line-clamp-3" style={{ fontFamily: 'Palatino Linotype, Palatino, Georgia, serif', textShadow: '0 1px 8px rgba(0,0,0,0.6)' }}>
                           {slideText(s)}
                         </span>
@@ -3353,6 +3527,18 @@ useEffect(() => {
                             title="Take slide live to Program"
                           >
                             TAKE
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openTplMenu(i, anchorOf(e.currentTarget));
+                            }}
+                            className="w-6 h-6 grid place-items-center rounded bg-[#D0BCFF]/90 text-[#1a1030] shadow hover:brightness-110 active:scale-95 transition-all"
+                            title={slideKindOf(s) === 'scripture' ? 'Change this scripture slide\'s look' : 'Change this slide\'s template'}
+                            aria-label="Change template"
+                          >
+                            <LayoutTemplate size={12} />
                           </button>
                         </div>
                       </div>
@@ -3556,6 +3742,8 @@ useEffect(() => {
           onSelectShow={setActiveShowId}
           onInsertTemplateSlide={handleInsertTemplateSlide}
           isScriptureLive={!!live.scripture}
+          liveScriptureRef={live.scripture?.content.kind === 'SCRIPTURE' ? live.scripture.content.reference : undefined}
+          cuedScriptureRef={previewScriptureOverride?.reference}
           activeTransition={activeTransition}
           transitionDurationSec={transitionDurationSec}
           onSelectTransition={handleSelectTransition}
@@ -3585,6 +3773,46 @@ useEffect(() => {
       {/* Platform-standard Context Menus */}
       {slideMenu.node}
       {canvasMenu.node}
+
+      {/* Template / scripture-look dropdown (toolbar, slide hover button, slide right-click) */}
+      {tplMenu && (() => {
+        const sl = slides[tplMenu.index];
+        if (!sl) return null;
+        const kind = slideKindOf(sl);
+        const close = () => setTplMenu(null);
+        if (kind === 'scripture') {
+          const scr = sl.layers.find(l => l.content.kind === 'SCRIPTURE')!.content as Extract<LayerContent, { kind: 'SCRIPTURE' }>;
+          const sample = { text: (scr.lines || []).join(' '), reference: scr.reference || '', translation: scr.translation };
+          return (
+            <ScriptureLookMenu
+              anchor={tplMenu.anchor} onClose={close} ignoreRef={tplMenu.fromToolbar ? tplBtnRef : undefined}
+              title="Scripture slide look" sub={`${sl.label || scr.reference} — this slide only; “Use default look” follows the Scripture tab`}
+              currentId={scr.layoutId} followingDefault={!scr.layoutId} sample={sample.text ? sample : undefined}
+              onPick={id => changeSlideScriptureLook(tplMenu.index, id)}
+              onFollowDefault={() => changeSlideScriptureLook(tplMenu.index, null)}
+              onPickSaved={t => { if (t.look?.layoutId) changeSlideScriptureLook(tplMenu.index, t.look.layoutId); }}
+            />
+          );
+        }
+        const tl = sl.layers.find(l => l.content.kind === 'TELA_TEMPLATE');
+        const cur = tl && tl.content.kind === 'TELA_TEMPLATE' ? (tl.content as TemplateContent) : null;
+        const texts = slideTexts(sl);
+        const templateSlides = slides.filter(x => slideKindOf(x) === 'template').length;
+        return (
+          <SlideTemplateMenu
+            anchor={tplMenu.anchor} onClose={close} ignoreRef={tplMenu.fromToolbar ? tplBtnRef : undefined}
+            slideLabel={`Slide ${tplMenu.index + 1}${sl.label ? ' · ' + sl.label : ''}`}
+            mode={cur ? 'template' : 'plain'}
+            current={{ templateId: cur?.templateId, theme: cur?.theme }}
+            fieldsFor={id => (cur ? mapFieldsToTemplate(cur.templateId, cur.fields || {}, id) : fieldsFromText(texts, id))}
+            onPickTemplate={(id, themeId) => changeSlideTemplate(tplMenu.index, id, themeId)}
+            onPickTheme={themeId => changeSlideTheme(tplMenu.index, themeId)}
+            onPickSaved={t => applySavedToSlide(tplMenu.index, t)}
+            templateSlideCount={templateSlides}
+            onApplyThemeToAll={applyThemeToAllSlides}
+          />
+        );
+      })()}
 
       {stageOpen && (
         <AmboStageDisplay

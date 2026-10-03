@@ -279,6 +279,9 @@ class PlajahMediaService : MediaLibraryService() {
             controller: MediaSession.ControllerInfo,
             playerCommand: Int
         ): Int {
+            // Web-mirrored session (metadata only, no real queue): forward to the WebView player and
+            // do NOT let ExoPlayer act on its empty placeholder item.
+            val webMirror = session.player.currentMediaItem?.mediaId?.startsWith("web_sync:") == true
             when (playerCommand) {
                 Player.COMMAND_SEEK_TO_NEXT,
                 Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM -> {
@@ -291,6 +294,13 @@ class PlajahMediaService : MediaLibraryService() {
                 Player.COMMAND_PLAY_PAUSE -> {
                     PlajahNativeAudioPlugin.notifyRemoteCommand("playPause")
                 }
+            }
+            if (webMirror && (playerCommand == Player.COMMAND_PLAY_PAUSE ||
+                    playerCommand == Player.COMMAND_SEEK_TO_NEXT ||
+                    playerCommand == Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM ||
+                    playerCommand == Player.COMMAND_SEEK_TO_PREVIOUS ||
+                    playerCommand == Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)) {
+                return SessionResult.RESULT_INFO_SKIPPED
             }
             return super.onPlayerCommandRequest(session, controller, playerCommand)
         }

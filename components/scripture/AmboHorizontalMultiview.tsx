@@ -629,7 +629,14 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
             </div>
             <MiniCanvasMonitor stack={previewStack} label="Preview" />
             <div className="flex items-center justify-between mt-1 text-[9px] text-white/60 truncate">
-              <span className="truncate font-medium">{previewSlide?.label || 'Next Cue'}</span>
+              {(() => {
+                // A scripture cued over the slide (by hand or by Auto-cue next) — say which verse is ready.
+                const pc: any = previewStack.scripture?.content, lc: any = liveStack.scripture?.content;
+                const cued = pc && pc.kind === 'SCRIPTURE' && (!lc || lc.reference !== pc.reference) ? pc.reference as string : '';
+                return cued
+                  ? <span className="truncate font-bold text-[#E3C57E]" data-cued-scripture={cued} title="Scripture cued in Preview — TAKE sends it to Program">✦ {cued}</span>
+                  : <span className="truncate font-medium">{previewSlide?.label || 'Next Cue'}</span>;
+              })()}
               <span className="text-[8px] font-mono text-white/40">Next</span>
             </div>
           </div>

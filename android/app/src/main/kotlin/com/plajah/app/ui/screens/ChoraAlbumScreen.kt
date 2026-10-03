@@ -128,13 +128,6 @@ fun ChoraAlbumScreen(album:PlatformItem,onBack:()->Unit,onOpenClassic:(String)->
                     }
                 }
 
-                // Floating Stage Mode Pill Bar matching web
-                ChoraStagePillBar(
-                    activeMode = stageMode,
-                    onSelectMode = { stageMode = it },
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp)
-                )
-
                 // Track and Artist info over gradient
                 Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(0.85f)))).padding(16.dp)) {
                     Text(track?.title?:album.title,fontSize=22.sp,fontWeight=FontWeight.Black,fontStyle=FontStyle.Italic,lineHeight=24.sp,maxLines=2,color=Color.White)
@@ -142,6 +135,10 @@ fun ChoraAlbumScreen(album:PlatformItem,onBack:()->Unit,onOpenClassic:(String)->
                     Spacer(Modifier.height(8.dp))
                     Box(Modifier.fillMaxWidth().height(3.dp).background(Color.White.copy(.16f))){Box(Modifier.fillMaxWidth(if(duration>0)(position.toFloat()/duration).coerceIn(0f,1f)else 0f).fillMaxHeight().background(Spatial))}
                 }
+            }
+            // Stage mode switcher sits at the BOTTOM of the stage area (original placement)
+            Box(Modifier.fillMaxWidth().padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+                ChoraStagePillBar(activeMode = stageMode, onSelectMode = { stageMode = it })
             }
         Box(Modifier.weight(1f).fillMaxWidth().background(Color.Black.copy(.7f))) {
             when(tab) {

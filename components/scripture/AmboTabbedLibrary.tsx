@@ -12,7 +12,7 @@
 //   7. Visualizers — Flux series VI, Series VII, GLSL shaders, Milkdrop presets, audio-reactive
 //   8. Assets      — 24 Fabula DotLottie presets, Tela documents, Lower Thirds, and Fabula Transitions
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   Search, BookOpen, Film, Music, Sparkles, Layers, Tv, Video,
   Sliders, Plus, Play, Eye, Check, Radio, FileText, Flame, Activity,
@@ -51,6 +51,8 @@ import { type AmboDJTrack } from './AmboDJTrackPlayer';
 import { AmboNewAudioPlaylistModal, type AmboAudioPlaylist } from './AmboNewAudioPlaylistModal';
 import AmboChoraAudioPanel from './AmboChoraAudioPanel';
 import AmboScriptureLook from './AmboScriptureLook';
+import { ScriptureQuickBar } from './AmboTemplateMenus';
+import { getAutoCueNext, subscribeAutoCueNext } from '../../services/ambo/scriptureAutoCue';
 import { rememberLyrics } from '../../services/ambo/lyricFeed';
 import { AmboSlideTemplateEntry } from './AmboSlideTemplateGallery';
 
@@ -99,6 +101,9 @@ interface AmboTabbedLibraryProps {
   activeShowId?: string;
   onSelectShow?: (showId: string) => void;
   isScriptureLive?: boolean;
+  /** Reference of the scripture on Program / cued in Preview, so the verse list can label them whoever put them there. */
+  liveScriptureRef?: string;
+  cuedScriptureRef?: string;
   activeTransition?: string;
   transitionDurationSec?: number;
   onSelectTransition?: (transition: string) => void;
@@ -321,6 +326,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   activeShowId,
   onSelectShow,
   isScriptureLive = false,
+  liveScriptureRef,
+  cuedScriptureRef,
   activeTransition = 'Cross Dissolve',
   transitionDurationSec = 0.8,
   onSelectTransition,
@@ -822,6 +829,15 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   const [selectedBookNum, setSelectedBookNum] = useState<number>(43); // Default: John (43)
   const [selectedChapter, setSelectedChapter] = useState<number>(3);  // Default: John 3
   const [highlightVerseNum, setHighlightVerseNum] = useState<number | null>(16); // Default: John 3:16
+  const autoCueOn = useSyncExternalStore(subscribeAutoCueNext, getAutoCueNext);
+  /** Does a reference like "John 3:16" or "John 3:16-17" cover this verse of the open chapter? */
+  const refCovers = (ref: string | undefined, verse: number): boolean => {
+    if (!ref || !activeBook) return false;
+    const m = ref.trim().match(/^(.*?)\s+(\d+):(\d+)(?:\s*[-–]\s*(\d+))?$/);
+    if (!m || m[1].toLowerCase() !== activeBook.name.toLowerCase() || +m[2] !== selectedChapter) return false;
+    const lo = +m[3], hi = m[4] ? +m[4] : lo;
+    return verse >= lo && verse <= hi;
+  };
   const [translationSlug, setTranslationSlug] = useState<string>(DEFAULT_TRANSLATION);
   const [chapterVerses, setChapterVerses] = useState<BibleVerse[]>([]);
   const [loadingVerses, setLoadingVerses] = useState<boolean>(false);
@@ -908,20 +924,28 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   // 1. Double-click: ALWAYS sends to Program Out (Take Live)
   // 2. Single-click when isScriptureLive is true: smoothly TRANSITIONS Program Out to this next verse!
   // 3. Single-click when NOT live: cues in Preview and highlights in context
+  /** Take a verse to Program. With Auto-cue next on, the presenter cues the following verse into Preview; here the list follows it. */
+  const fireVerse = (verse: BibleVerse) => {
+    onFireScripture(buildScriptureCue(verse));
+    if (getAutoCueNext()) {
+      const next = chapterVerses.find(v => v.verse > verse.verse);
+      setHighlightVerseNum(next ? next.verse : verse.verse);
+    } else {
+      setHighlightVerseNum(verse.verse);
+    }
+  };
+
   const handleVerseClick = (verse: BibleVerse) => {
-    setHighlightVerseNum(verse.verse);
-    const cue = buildScriptureCue(verse);
     if (isScriptureLive) {
-      onFireScripture(cue);
-    } else if (onCueScripture) {
-      onCueScripture(cue);
+      fireVerse(verse);
+    } else {
+      setHighlightVerseNum(verse.verse);
+      if (onCueScripture) onCueScripture(buildScriptureCue(verse));
     }
   };
 
   const handleVerseDoubleClick = (verse: BibleVerse) => {
-    setHighlightVerseNum(verse.verse);
-    const cue = buildScriptureCue(verse);
-    onFireScripture(cue);
+    fireVerse(verse);
   };
 
   const handleInsertScriptureAsSlide = (verse: BibleVerse) => {
@@ -1555,6 +1579,19 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                 </div>
               </div>
 
+              {/* Look + Auto-cue: change the scripture look any time; the next verse cues itself into Preview */}
+              <div className="flex items-center gap-3 px-4 py-1.5 border-b flex-none flex-wrap" style={{ borderColor: line, background: 'rgba(255,255,255,0.02)' }}>
+                <ScriptureQuickBar sample={(() => {
+                  const hv = chapterVerses.find(v => v.verse === highlightVerseNum);
+                  return hv ? { text: hv.text, reference: `${activeBook.name} ${selectedChapter}:${hv.verse}`, translation: translationSlug.toUpperCase() } : undefined;
+                })()} />
+                <span className="text-[10px] text-white/40 leading-snug flex-1 min-w-[180px]">
+                  {autoCueOn
+                    ? 'Take a verse and the next one is cued into Preview — one tap to follow the reading.'
+                    : 'Auto-cue is off — cue verses yourself, or turn it on to preview the next verse automatically.'}
+                </span>
+              </div>
+
               {/* Verses List / Context View (Double click takes live; single click transitions when live) */}
               <div
                 ref={verseListRef}
@@ -1611,9 +1648,14 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                                   ● Target in Context
                                 </span>
                               )}
-                              {isScriptureLive && isHighlighted && (
+                              {isScriptureLive && (liveScriptureRef ? refCovers(liveScriptureRef, v.verse) : isHighlighted) && (
                                 <span className="text-[8px] font-bold px-1.5 py-0.2 rounded bg-[#FF8C00] text-[#1a1405] uppercase">
                                   LIVE ON PGM
+                                </span>
+                              )}
+                              {refCovers(cuedScriptureRef, v.verse) && !refCovers(liveScriptureRef, v.verse) && (
+                                <span className="text-[8px] font-bold px-1.5 py-0.2 rounded bg-[#00DAF3] text-[#04222a] uppercase" title="Cued in Preview — TAKE sends it to Program">
+                                  {autoCueOn && isScriptureLive ? 'NEXT · IN PREVIEW' : 'IN PREVIEW'}
                                 </span>
                               )}
                             </div>
@@ -1643,7 +1685,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                             <button
                               onClick={e => {
                                 e.stopPropagation();
-                                onFireScripture(buildScriptureCue(v));
+                                fireVerse(v);
                               }}
                               className="px-2 py-1 rounded text-[10px] font-bold text-[#FF8C00] bg-[#FF8C00]/15 hover:bg-[#FF8C00]/25 border border-[#FF8C00]/40 transition-all flex items-center gap-1"
                               title="Take verse directly to Program Out"

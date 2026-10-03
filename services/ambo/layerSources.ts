@@ -159,9 +159,25 @@ export class ScriptureSource implements LayerSource {
   constructor(private content: Extract<LayerContent, { kind: 'SCRIPTURE' }>, private w = 1920, private h = 1080) {
     this.canvas = off(w, h);
     // A look change (layout/transition/accent) repaints every screen showing it.
-    this.offLook = subscribeScriptureLook(() => { this.dirty = true; this.syncTypo(); });
+    this.shownLayout = this.layoutId();
+    this.offLook = subscribeScriptureLook(() => {
+      // Changing the default look while this verse is up: crossfade to the new one.
+      if (this.layoutId() !== this.shownLayout) this.beginLookFade();
+      this.dirty = true; this.syncTypo();
+    });
     this.syncTypo();
     this.loadContext();
+  }
+
+  /** The layout last drawn — a change in what layoutId() resolves to starts a crossfade. */
+  private shownLayout = '';
+  private beginLookFade() {
+    this.shownLayout = this.layoutId();
+    if (typeof document === 'undefined') return;
+    if (!this.prev) this.prev = off(this.w, this.h);
+    const pc = this.prev.getContext('2d');
+    if (pc) { pc.clearRect(0, 0, this.w, this.h); pc.drawImage(this.canvas, 0, 0); }
+    this.changeAt = performance.now();
   }
 
   /** Ask Lectio for the rest of the chapter (cached there; async). */
@@ -206,6 +222,7 @@ export class ScriptureSource implements LayerSource {
         const pc = this.prev.getContext('2d');
         if (pc) { pc.clearRect(0, 0, this.w, this.h); pc.drawImage(this.canvas, 0, 0); }
         this.changeAt = performance.now();
+        this.shownLayout = content.layoutId ?? getScriptureLook().layoutId;
       } else if (textChanged) {
         // Verse → verse: ONLY the text transitions; the background stays up.
         this.swapFrom = { text: this.text(), reference: this.content.reference ?? '', translation: this.content.translation };

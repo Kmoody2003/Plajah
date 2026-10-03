@@ -6,6 +6,7 @@
 
 import React, { useState } from 'react';
 import { X, MonitorUp, Eraser } from 'lucide-react';
+import { ScriptureQuickBar } from './AmboTemplateMenus';
 
 export interface ScriptureCue {
   refId: string;
@@ -79,6 +80,7 @@ const AmboScriptureDock: React.FC<AmboScriptureDockProps> = ({ scriptureLive, on
         </div>
 
         <div className="px-4 py-3 border-t flex flex-col gap-2 flex-none" style={{ borderColor: line }}>
+          <ScriptureQuickBar className="flex-wrap" sample={{ text: verse.text, reference: `Luke 15:${verse.n}`, translation: 'KJV' }} />
           {scriptureLive && (
             <div className="flex items-center gap-2 text-[11px] px-2.5 py-1.5 rounded-md" style={{ color: ORANGE, background: 'rgba(255,140,0,0.1)', border: '1px solid rgba(255,140,0,0.3)' }}>
               <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: ORANGE }} /> Scripture is live over the slide

@@ -94,28 +94,21 @@ class PlajahNativeAudioPlugin : Plugin() {
                         .setIsPlayable(true)
                         .build()
 
-                    val builder = MediaItem.Builder()
+                    // METADATA MIRROR ONLY. The WebView <audio> element is the sole audio source for
+                    // web-driven Chora. This used to also hand the track's URL to ExoPlayer and call
+                    // play()/pause(), so TWO players decoded the same song: ExoPlayer grabbed audio
+                    // focus (handleAudioFocus=true) and the WebView element was paused/ducked, then
+                    // the web recovery loop fought it -> pause after a song, silent next tracks, audio
+                    // returning a few tracks later. No URI + no prepare()/play() means no second
+                    // player and no focus contention.
+                    val mediaItem = MediaItem.Builder()
                         .setMediaMetadata(metadata)
                         .setMediaId("web_sync:${title.hashCode()}")
-
-                    if (!streamUrl.isNullOrBlank()) {
-                        builder.setUri(Uri.parse(streamUrl))
-                    }
-
-                    val mediaItem = builder.build()
+                        .build()
                     val currentId = mediaController.currentMediaItem?.mediaId
-
-                    if (currentId != mediaItem.mediaId) {
-                        mediaController.setMediaItem(mediaItem)
-                        if (!streamUrl.isNullOrBlank()) {
-                            mediaController.prepare()
-                        }
-                    }
-
-                    if (isPlaying) {
-                        if (!mediaController.isPlaying) mediaController.play()
-                    } else {
-                        if (mediaController.isPlaying) mediaController.pause()
+                    // Never clobber a real native queue (Compose app / Android Auto) with web metadata.
+                    if (currentId == null || currentId.startsWith("web_sync:")) {
+                        if (currentId != mediaItem.mediaId) mediaController.setMediaItem(mediaItem)
                     }
                 }
                 call.resolve()

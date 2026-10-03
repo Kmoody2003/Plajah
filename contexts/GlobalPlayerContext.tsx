@@ -390,6 +390,10 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // handoff, AudioContext suspend) → we recover it. A user/OS pause clears the intent
   // first, so it's respected.
   const intendedPlayingRef = useRef(false);
+  // Set once a silent-output recovery swapped the element: never route the replacement through
+  // a MediaElementSource again (that routing is what produced the silence).
+  const mesDisabledRef = useRef(false);
+  const silenceWatch = useRef({ flat: 0, lastT: -1, stuck: 0, recoveries: 0 });
   const resumeRecoveryRef = useRef<{ tries: number; timer: any }>({ tries: 0, timer: null });
   // Invalidates asynchronous fallback work from an older play request. Without this guard, a
   // slow decode/error recovery could finish after a newer request and start a second source,
@@ -623,6 +627,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // this distinction correctly (isMobile there is `!isTV && …`), so use it rather than
     // re-deriving it from the UA and getting it wrong a second time.
     if (isPhoneNotTv() && !force) return;
+    if (mesDisabledRef.current) return;
 
     const audio = audioRef.current;
     if (audioContextRef.current && analyserRef.current && !sourceRef.current) {
@@ -709,7 +714,10 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
     }
 
-    // Direct audio graph fallback: ensure analyser always receives audio stream across mobile and desktop
+    // Direct audio graph fallback. NEVER on a phone: routing the element through a
+    // MediaElementSource mid-playback is what mutes Android tracks (CORS / platform-HLS silence,
+    // suspended context in the background). Visuals degrade; audio must not.
+    if (isPhone || mesDisabledRef.current) return;
     connectAudioSource(true);
   }, [initAudioContext, connectAudioSource]);
 
@@ -757,6 +765,71 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }, 2000);
     return () => clearInterval(checkInterval);
   }, [isPlaying, ensureAnalyserTap]);
+
+  // Playback-health watchdog (music only). Detects the two failure shapes behind "plays a song,
+  // advances, then plays the next ones SILENTLY":
+  //  (a) element reports playing but currentTime is frozen (decoder/stream wedge) -> reload at
+  //      the same position (or kick hls.js);
+  //  (b) clock advances but the Web-Audio graph carries nothing (MediaElementSource over a CORS-
+  //      blocked / platform-HLS source, or a context the OS keeps suspended) -> resume the
+  //      context, and if still flat, swap to a fresh un-routed element and never route again.
+  useEffect(() => {
+    if (!isPlaying || audioSource === 'VIDEO' || audioSource === 'RADIO') return;
+    const w = silenceWatch.current;
+    w.flat = 0; w.lastT = -1; w.stuck = 0;
+    const id = setInterval(() => {
+      const audio = audioRef.current;
+      if (!audio || audio.paused || audio.ended || !intendedPlayingRef.current || usingDecodeFallbackRef.current) { w.stuck = 0; w.flat = 0; return; }
+      if (!stateRef.current.currentTrack) return;
+      const t = audio.currentTime;
+      const title = stateRef.current.currentTrack.title;
+      const advancing = Math.abs(t - w.lastT) >= 0.05;
+      w.lastT = t;
+      if (!advancing) {
+        w.stuck++;
+        const limit = audio.readyState >= 3 ? 2 : 6; // wedged-while-buffered fails fast; real buffering gets 12s
+        if (w.stuck >= limit && !document.hidden) {
+          w.stuck = 0; w.recoveries++;
+          console.warn(`[Plajah Audio] watchdog: "${title}" frozen at ${t.toFixed(1)}s (readyState ${audio.readyState}); recovery #${w.recoveries}`);
+          if (audioContextRef.current?.state === 'suspended') audioContextRef.current.resume().catch(() => {});
+          try {
+            if (hlsRef.current) { hlsRef.current.startLoad(); if (w.recoveries % 2 === 0) hlsRef.current.recoverMediaError(); }
+            else { const at = t; audio.load(); audio.addEventListener('loadedmetadata', () => { try { audio.currentTime = at; } catch { /* */ } }, { once: true }); }
+            audio.play().catch(() => {});
+          } catch { /* */ }
+          if (w.recoveries >= 4) { w.recoveries = 0; console.warn('[Plajah Audio] watchdog: giving up on this track, advancing'); nextRef.current?.(); }
+        }
+        return;
+      }
+      w.stuck = 0;
+      // (b) routed through Web Audio but the analyser sees nothing while time advances
+      const an = analyserRef.current;
+      if (!sourceRef.current || !an || hlsRef.current || t < 3) { w.flat = 0; return; }
+      const ctx = audioContextRef.current;
+      if (ctx && ctx.state !== 'running') { ctx.resume().catch(() => {}); w.flat = 0; return; }
+      const buf = new Uint8Array(an.frequencyBinCount);
+      an.getByteFrequencyData(buf);
+      let sum = 0; for (let i = 0; i < buf.length; i++) sum += buf[i];
+      if (sum > 0) { w.flat = 0; return; }
+      if (++w.flat < 4) return; // ~8s of flat output
+      w.flat = 0;
+      console.warn(`[Plajah Audio] watchdog: "${title}" advancing but Web Audio output is silent; dropping MediaElementSource routing`);
+      mesDisabledRef.current = true;
+      const old = audio;
+      const fresh = new Audio();
+      fresh.volume = old.volume;
+      try { fresh.playbackRate = playbackRateRef.current || 1; } catch { /* */ }
+      if (old.crossOrigin) fresh.crossOrigin = old.crossOrigin;
+      fresh.src = old.currentSrc || old.src;
+      fresh.addEventListener('loadedmetadata', () => { try { fresh.currentTime = t; } catch { /* */ } }, { once: true });
+      try { old.pause(); old.removeAttribute('src'); old.load(); } catch { /* */ }
+      sourceRef.current = null;
+      audioRef.current = fresh;
+      setAudioElement(fresh);
+      fresh.play().catch(() => {});
+    }, 2000);
+    return () => clearInterval(id);
+  }, [isPlaying, audioSource, currentTrack?.id]);
 
   useEffect(() => {
     stateRef.current = { repeatMode, isShuffle, currentAlbum, currentTrack, currentVideo, isPlaying, audioSource, currentTime, ytPlayer: ytPlayerRef.current };
@@ -1000,7 +1073,12 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
             discardPrewarm();
             audio.crossOrigin = 'anonymous'; // served with permissive CORS
             if (streamPick.isHls) {
-              if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+              // Prefer hls.js (MSE) wherever it exists. Android WebView/Chrome answer canPlayType('maybe')
+              // and then play HLS through the PLATFORM MediaPlayer, which Web Audio cannot tap: a
+              // MediaElementSource on such an element outputs SILENCE (transcoded tracks mute while
+              // untranscoded WAV tracks sound fine -> 'audio comes back 2-3 songs later'). Native
+              // HLS is now only for engines without MSE (iOS Safari).
+              if (!Hls.isSupported() && audio.canPlayType('application/vnd.apple.mpegurl')) {
                 if (audio.src !== streamPick.url) audio.src = streamPick.url;   // native HLS (Safari/iOS)
               } else if (Hls.isSupported()) {
                 audio.removeAttribute('src');
